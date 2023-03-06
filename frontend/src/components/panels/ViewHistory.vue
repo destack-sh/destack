@@ -74,7 +74,7 @@ const lastSemVerTag = computed(() => {
   return tag;
 });
 
-const snapshotButtonRef: Ref<HTMLButtonElement | null> = ref(null);
+const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 
 const commit = provideGlobalAction({
   id: "version.commit",
@@ -88,7 +88,8 @@ const commit = provideGlobalAction({
   ),
   apply: () => {
     // just open snapshot create menu
-    snapshotButtonRef.value?.click();
+    console.log(snapshotButtonRef.value);
+    snapshotButtonRef.value?.$el.click();
   },
 });
 

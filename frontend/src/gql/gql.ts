@@ -13,7 +13,7 @@ import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-
  * Therefore it is highly recommended to use the babel-plugin for production.
  */
 const documents = {
-  "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  ":
+  "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProjectDeploymentsDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
@@ -190,8 +190,8 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

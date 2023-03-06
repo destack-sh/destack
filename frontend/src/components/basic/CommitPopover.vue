@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import Switch from "@/components/basic/Switch.vue";
 import { getRandomName } from "@/composables/useRandomName";
 import { graphql } from "@/gql";
 import type { ProjectVersion } from "@/gql/graphql";
@@ -18,6 +19,7 @@ const emit = defineEmits<{ (e: "commit", id: string, name?: string, tag?: string
 const panelHeaderRef = ref<HTMLDivElement | null>(null);
 
 const committed = computed(() => props.version != null && props.version.committed);
+const autoDeploy = ref(true);
 
 const suggestedName = getRandomName();
 const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : suggestedName));
@@ -137,6 +139,13 @@ watch([name, description, tag, availableTag], () => {
             <span v-else>&nbsp;</span>
           </FadeTransition>
           <p></p>
+        </div>
+
+        <!-- Deployment -->
+        <!-- Auto-deploy -->
+        <div class="flex w-full flex-row items-center justify-end gap-1 text-right">
+          <span class="text-gray-700">Auto-deploy</span>
+          <Switch :model-value="autoDeploy" />
         </div>
 
         <!-- Commit / update action -->

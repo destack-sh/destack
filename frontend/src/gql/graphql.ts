@@ -1741,6 +1741,8 @@ export type ProjectDeploymentsQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
+    committed: boolean;
+    tag?: string | null;
     deployments: {
       __typename?: "DeploymentConnection";
       totalCount?: number | null;
@@ -4049,6 +4051,8 @@ export const ProjectDeploymentsDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "committed" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "deployments" },
