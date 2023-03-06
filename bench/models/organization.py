@@ -62,7 +62,8 @@ class Organization(UUIDModel):
         message: str = None,
         created_by: "User" = None,
     ) -> "OrganizationInvite":
-        from bench.models import User
+        from bench.models.notification import Notification, NotificationType
+        from bench.models.user import User
 
         user = User.objects.filter(email=email).first()
         invite = OrganizationInvite.objects.create(
@@ -73,6 +74,15 @@ class Organization(UUIDModel):
             created_by=created_by,
             user=user,
         )
+
+        # create notification if the user is signed up
+        if user is not None:
+            Notification.objects.create(
+                type=NotificationType.ORGANIZATION_INVITE,
+                user=user,
+                invite=invite,
+            )
+
         return invite
 
     @property
@@ -98,7 +108,6 @@ class OrganizationMembershipLevel(models.IntegerChoices):
 
 
 class OrganizationMembership(UUIDModel):
-
     organization: models.ForeignKey = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="memberships"
     )

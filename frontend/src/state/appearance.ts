@@ -33,7 +33,7 @@ function _useAppearance() {
         document.documentElement.classList.remove("dark");
       }
     },
-    { immediate: true, deep: true }
+    { deep: true }
   );
 
   // load on mounted (supposed to be used at root level)

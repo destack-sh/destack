@@ -104,7 +104,7 @@ async function createOrganization() {
 
         <!-- Full name -->
         <div class="text-left">
-          <span class="text-md text-gray-700">Bench name</span>
+          <span class="text-md text-gray-700">Organization name</span>
           <input
             ref="nameRef"
             type="text"

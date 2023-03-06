@@ -1,12 +1,62 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { graphql } from "@/gql";
+import { NotificationStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { BellIcon } from "@heroicons/vue/24/outline";
-import { computed } from "vue";
+import { useQuery } from "@vue/apollo-composable";
+import { computed, ref, type Ref } from "vue";
 
-const notifications = useNotifications();
-const hasUnreadNotifications = computed(() => false);
+const { activeCount } = useNotifications();
+const hasUnreadNotifications = computed(() => activeCount.value > 0);
+
+const filterStatus: Ref<NotificationStatus> = ref(NotificationStatus.Active);
+const open = ref(true); // TODO @Broken: sync this
+
+const {
+  result: notificationsResult,
+  loading,
+  refetch,
+} = useQuery(
+  graphql(/* GraphQL */ `
+    query notifications($status: NotificationStatus, $first: Int) {
+      me {
+        notifications(filters: { status: $status }, first: $first) {
+          totalCount
+          edges {
+            node {
+              id
+              type
+              createdAt
+              readAt
+              archivedAt
+              expiresAt
+              status
+              invite {
+                id
+                organization {
+                  id
+                  slug
+                  name
+                }
+                level
+              }
+            }
+          }
+        }
+      }
+    }
+  `),
+  computed(() => ({
+    status: filterStatus.value,
+    first: 10,
+  })) as any,
+  {
+    enabled: open,
+  }
+);
+const notifications = computed(() => notificationsResult.value?.me?.notifications.edges.map((e) => e.node) ?? []);
 </script>
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
@@ -31,9 +81,15 @@ const hasUnreadNotifications = computed(() => false);
           <!-- Unread / archived toggle -->
           <!-- Dismiss all button -->
         </div>
-
-        <p class="text-gray-500">Nothing here.</p>
+        <!-- Empty state -->
+        <p class="text-gray-500" v-if="loading"></p>
+        <p class="text-gray-500" v-else-if="notifications.length == 0">Nothing here.</p>
         <!-- Notifications -->
+        <ul v-else class="flex flex-col">
+          <li v-for="notification in notifications" :key="notification.id">
+            {{ notification.type }}
+          </li>
+        </ul>
       </PopoverPanel>
     </FadeTransition>
   </Popover>

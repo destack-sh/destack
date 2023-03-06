@@ -1,11 +1,15 @@
 import { graphql } from "@/gql";
+import { NotificationStatus, type Notification } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useQuery } from "@vue/apollo-composable";
+import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
+import { computed, toRef, watchEffect } from "vue";
 
 export type DisplayNotification = {
   id?: string; // if from the server, this is the id of the notification
+  notification?: Notification;
   localId: string;
   type: string;
   kind: "success" | "warning" | "notice" | "error";
@@ -65,38 +69,104 @@ export const useNotificationsStore = defineStore("notifications", {
   },
 });
 
-export function useNotifications() {
+function _useNotifications() {
   const store = useNotificationsStore();
 
   const auth = useAuth();
 
-  // auto-refresh notifications from DB
-  const { result: newNotificationsResult } = useQuery(
+  // get notifications from DB
+  const { result: newNotificationsResult, refetch: refetchFromServer } = useQuery(
     graphql(/* GraphQL */ `
       query newNotifications($after: String, $status: NotificationStatus) {
         me {
           notifications(after: $after, filters: { status: $status }) {
+            totalCount
             edges {
               node {
                 id
                 type
                 createdAt
+                readAt
+                archivedAt
+                expiresAt
                 status
+                invite {
+                  id
+                  organization {
+                    id
+                    slug
+                    name
+                  }
+                  level
+                }
               }
             }
           }
         }
       }
-    `)
+    `),
+    {
+      status: NotificationStatus.Active,
+    } as any,
+    {
+      enabled: toRef(auth, "loggedIn"),
+    }
   );
 
-  return store;
-  // I wanted to do this but the methods seemed to no-op:
-  // return {
-  //   store,
-  //   show: store.show,
-  //   showIf: store.showIf,
-  //   dismiss: store.dismiss,
-  //   dismissIf: store.dismissIf,
-  // };
+  // auto-refetch every minute (should be a subscription later)
+  setInterval(() => {
+    if (auth.loggedIn) {
+      refetchFromServer();
+    }
+  }, 60 * 1000);
+
+  const activeCount = computed(() => newNotificationsResult.value?.me?.notifications?.totalCount ?? 0);
+  const serverNotifications = computed(
+    () => newNotificationsResult.value?.me?.notifications?.edges.map((e) => e.node) ?? []
+  );
+
+  // watch for new server-side notifications
+  watchEffect(() => {
+    if (serverNotifications.value == null) {
+      return;
+    }
+    for (const notification of serverNotifications.value) {
+      if (
+        store.shownNotifications.find((n) => n.id == notification.id) ||
+        store.pastNotifications.find((n) => n.id == notification.id)
+      ) {
+        // already shown
+        continue;
+      }
+      store.show({
+        id: notification.id,
+        showTimeMs: 15000,
+        ...renderNotification(notification as Notification),
+      });
+    }
+  });
+
+  return {
+    store,
+    pastNotifications: store.pastNotifications,
+    shownNotifications: store.shownNotifications,
+    activeCount,
+    refetchFromServer,
+    show: store.show,
+    showIf: store.showIf,
+    dismiss: store.dismiss,
+    dismissIf: store.dismissIf,
+  };
+}
+
+export const useNotifications = createSharedComposable(_useNotifications);
+
+export function renderNotification(
+  notification: Notification
+): Pick<DisplayNotification, "type" | "kind" | "message" | "description"> {
+  return {
+    type: notification.type,
+    kind: "notice",
+    message: notification.type,
+  };
 }

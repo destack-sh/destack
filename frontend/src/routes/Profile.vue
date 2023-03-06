@@ -106,7 +106,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
 </script>
 
 <template>
-  <div class="flex h-full w-full flex-col">
+  <div class="flex h-full w-full flex-col bg-gray-50">
     <FatHeader>
       <template v-slot:left>
         <HomeButton />

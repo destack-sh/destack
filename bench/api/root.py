@@ -16,6 +16,7 @@ from bench import models
 from bench.api.auth import CanViewProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery
+from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     File,
@@ -96,6 +97,7 @@ class Mutation(
     UserMutation,
     OrganizationMutation,
     AccessTokenMutation,
+    NotificationMutation,
     ProjectMutation,
     ProjectVersionMutation,
     StatementMutation,
