@@ -13,7 +13,7 @@ import { computed, onMounted, ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const title = useTitle();
-title.value = "Start an organization";
+title.value = "Start your organization";
 
 useRedirectIfNotLoggedIn();
 
@@ -95,8 +95,8 @@ async function createOrganization() {
         </div>
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
-      <h1 class="-mx-24 mt-4 text-5xl font-bold">Start an organization</h1>
-      <p class="-mx-4 mt-4 text-lg text-orange-700">Make the future of AI yours - together.</p>
+      <h1 class="-mx-32 mt-4 text-5xl font-bold">Start your organization</h1>
+      <p class="-mx-4 mt-4 text-lg text-orange-700">AI is yours for the making - together.</p>
       <!-- <p class="mt-1 text-sm text-gray-700">(Think big: not just a single feature/task)</p> -->
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">

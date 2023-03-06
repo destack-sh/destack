@@ -26,4 +26,5 @@ module.exports = {
     require("@tailwindcss/aspect-ratio"),
     require("@headlessui/tailwindcss"),
   ],
+  darkMode: "class",
 };

@@ -11,14 +11,14 @@ import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { ChevronDownIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
+import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const title = useTitle();
-title.value = "Create Bench";
+title.value = "Create your Bench";
 
 useRedirectIfNotLoggedIn();
 
@@ -135,9 +135,9 @@ async function createProject() {
         </div>
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
-      <h1 class="mt-4 text-5xl font-bold">Create a Bench</h1>
-      <p class="mx-4 mt-4 text-lg text-orange-700">A Bench for AI instruction, evaluation and deployment.</p>
-      <p class="mt-1 text-sm text-gray-700">(Think big: products, not a single feature/task)</p>
+      <h1 class="-mx-2 mt-4 text-5xl font-bold">Create your Bench</h1>
+      <p class="mx-4 mt-4 text-lg text-orange-700">AI instruction, evaluation and deployment.</p>
+      <p class="mt-1 text-sm text-gray-700">(Think big: a product/team, not a single feature/task)</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- Full name & visibility -->

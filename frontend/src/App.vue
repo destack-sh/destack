@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { provideGlobalAction } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
 import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
-import { onBeforeUnmount, ref, watchEffect } from "vue";
+import { useFullscreen } from "@vueuse/core";
+import { onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
 
 // handle errors in operations with notification
@@ -59,6 +62,31 @@ watchEffect(() => {
   if (auth.loggedIn.value && !auth.me.value?.completedSignup) {
     router.push("/signup/complete");
   }
+});
+
+// sync fullscreen
+const appearance = useAppearance();
+const { isFullscreen, enter, exit } = useFullscreen();
+watch(
+  () => appearance.fullscreen,
+  () => {
+    if (appearance.fullscreen && !isFullscreen.value) {
+      enter().catch(() => (appearance.fullscreen = false));
+    } else if (isFullscreen.value) {
+      exit();
+    }
+  }
+);
+watch(isFullscreen, () => (appearance.fullscreen = isFullscreen.value));
+
+// provide fullscreen enable/disable
+provideGlobalAction({
+  id: "appearance.toggleFullscreen",
+  label: "Toggle Fullscreen",
+  shortcuts: ["alt+f"],
+  apply: () => {
+    appearance.fullscreen = !appearance.fullscreen;
+  },
 });
 </script>
 
