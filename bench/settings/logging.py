@@ -1,6 +1,5 @@
 import logging
 import os
-from pathlib import Path
 
 import structlog
 
@@ -28,9 +27,13 @@ FORMATTERS = {
 }
 
 HANDLERS = {
-    "console": {
+    "plain_console": {
         "class": "logging.StreamHandler",
         "formatter": "plain_console",
+    },
+    "json_console": {
+        "class": "logging.StreamHandler",
+        "formatter": "json_formatter",
     },
     "flat_line_file": {"class": "logging.NullHandler"},
     "null": {
@@ -39,18 +42,9 @@ HANDLERS = {
 }
 
 if DEBUG and not TEST:
-    # log to file and ensure corresponding directory exists
-    Path(LOG_PATH).mkdir(exist_ok=True)
-    # configure file handlers only if needed as all handlers are instantiated
-    #  and file handlers fail is their path does not exist
-    # HANDLERS["flat_line_file"] = {
-    #     "class": "logging.handlers.RotatingFileHandler",
-    #     "filename": os.path.join(LOG_PATH, "flat_line.log"),
-    #     "formatter": "json_formatter",
-    # }
-    logged_handlers = ["console"]
+    logged_handlers = ["plain_console"]
 else:
-    logged_handlers = ["console"]
+    logged_handlers = ["json_console"]
 
 LOGGING = {
     "version": 1,
@@ -58,6 +52,7 @@ LOGGING = {
     "formatters": FORMATTERS,
     "handlers": HANDLERS,
     "loggers": {
+        "daphne": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},

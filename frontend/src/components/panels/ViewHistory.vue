@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import CommitPopover from "@/components/basic/CommitPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { getRandomName } from "@/composables/useRandomName";
 import { graphql, useFragment, type FragmentType } from "@/gql";
@@ -8,6 +9,7 @@ import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer } from "@/utils/semver";
+import { PopoverButton } from "@headlessui/vue";
 import { BackwardIcon, BookmarkIcon, PencilIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Component, type Ref } from "vue";
@@ -119,21 +121,6 @@ const restore = provideGlobalAction({
     router.replace({ hash: router.currentRoute.value.hash }); // clear version query param
   },
 });
-
-const globalActions: Action[] = [
-  {
-    icon: PlusIcon,
-    label: "Snapshot",
-    enabled: computed(() => commit.value.enabled),
-    action: () => commit.value.apply(),
-  },
-  {
-    icon: BackwardIcon,
-    label: "Restore",
-    enabled: computed(() => restore.value.enabled),
-    action: () => restore.value.apply(),
-  },
-];
 </script>
 <template>
   <div>
@@ -141,22 +128,20 @@ const globalActions: Action[] = [
     <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
       <span class="text-xs font-bold uppercase">History</span>
       <!-- Version controls -->
-      <span class="inline-flex flex-row gap-1">
-        <button
-          v-for="action in globalActions.filter((x) => x.enabled.value)"
-          :key="action.label"
-          :disabled="!action.enabled.value"
-          class="inline-flex flex-row rounded-sm p-0.5"
-          :class="{
-            'text-gray-300': !action.enabled.value,
-            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': action.enabled.value,
-          }"
-          @click.prevent="action.action"
-        >
-          <component :is="action.icon" class="h-4 w-4" />
-          <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
-        </button>
-      </span>
+      <CommitPopover :version="head">
+        <template v-slot:button>
+          <PopoverButton
+            :disabled="!commit.enabled"
+            class="inline-flex flex-row rounded-sm p-0.5 outline-none"
+            :class="{
+              'text-gray-300': !commit.enabled,
+              'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled,
+            }"
+          >
+            <BookmarkIcon class="h-4 w-4" />
+          </PopoverButton>
+        </template>
+      </CommitPopover>
     </div>
     <!-- View versions -->
     <div class="relative flex-1 flex-col" v-if="!loading">
