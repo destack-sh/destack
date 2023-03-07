@@ -400,8 +400,9 @@ def instantiate(
     elif isinstance(symbol, Model):
         return ModelInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Dataset):
+        records_data = [r.data for r in symbol.records]
         return DatasetInstance(
-            **symbol.__dict__, build=build, records_batch=RecordList(symbol.records)
+            **symbol.__dict__, build=build, records_batch=RecordList(records_data)
         )
     elif isinstance(symbol, Type):
         py_type = instantiate_py_type(symbol)

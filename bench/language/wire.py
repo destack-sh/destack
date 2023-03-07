@@ -30,11 +30,12 @@ from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 @dataclass(repr=False)
 class TypeNodeData:
     id: UUID
+    revision: int
     name: Optional[str]
     tag: TypeTag
     order_key: str
     description: Optional[str] = None
-    value: Optional[LiteralValue] = None
+    value: Optional[typing.Any] = None
     reference: Union[None, StatementPath, UUID] = None
     parent_id: Optional[UUID] = None
 
@@ -44,6 +45,14 @@ class TypeNodeData:
 
     def __repr__(self):
         return f"<TypeNode {str(self)}>"
+
+
+@dataclass(repr=False)
+class RecordData:
+    id: UUID
+    order_key: str
+    revision: int
+    data: Optional[typing.Any] = None
 
 
 @dataclass(repr=False)
@@ -104,7 +113,7 @@ class StatementData:
     code: Optional[str] = None
     provider: Optional[str] = None
     external_name: Optional[str] = None
-    records: Optional[list[typing.Any]] = None
+    records: Optional[list[RecordData]] = None
     generated_mappings: Optional[list[SourceMapping]] = None
     value: LiteralValue = None
     on: Optional[str] = None
@@ -296,7 +305,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     elif isinstance(content, language.DatasetContent):
         data.lang = content.language
         data.description = content.description
-        data.records = content.records
+        data.records = [rmap_record(r) for r in content.records]
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.BuildContent):
         data.generated_mappings = content.source_mappings
@@ -342,7 +351,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             description=data.description,
             language=data.lang,
             type_node=wmap_type_node(data.type_nodes),
-            records=data.records,
+            records=[wmap_record(r) for r in data.records],
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(source_mappings=data.generated_mappings)
@@ -386,6 +395,21 @@ def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
     return root
 
 
+def rmap_record(record: language.Record) -> RecordData:
+    """Maps a record to a record data object."""
+    return RecordData(
+        id=record.id,
+        revision=1,
+        data=record.data,
+        order_key=record.order_key,
+    )
+
+
+def wmap_record(data: RecordData) -> language.Record:
+    """Maps a record data object to a record."""
+    return language.Record(id=data.id, data=data.data, order_key=data.order_key)
+
+
 def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
     """Maps a type node tree structure to a flat list of type node data."""
     nodes_data = OrderedDict()
@@ -395,6 +419,7 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
             reference = reference.id
         nodes_data[n.id] = TypeNodeData(
             id=n.id,
+            revision=1,
             name=n.name,
             tag=n.tag,
             description=n.description,

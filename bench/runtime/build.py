@@ -23,6 +23,7 @@ from bench.language.type import (
     LiteralValue,
     Model,
     Module,
+    Record,
     Statement,
     StatementModifier,
     StatementType,
@@ -119,11 +120,13 @@ class BuildCandidate:
         self.weak_references.append(symbol)
 
     def create_data(self, builder: DataBuilder) -> Dataset:
+        order_keys = generate_n_keys_between(None, None, len(builder.records))
+        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
         dataset = Dataset(
             name=builder.name,
             type_node=builder.type_node,
             type=builder.type_node.to_type(),
-            records=builder.records,
+            records=records,
             description=None,
             language="jsonl",
         )

@@ -229,7 +229,9 @@ def can_write_project(user: User, obj: Any) -> bool:
         return False
     # TODO @Performance: prefetch project or check condition entirely in SQL
     # normalize to project instance
-    if isinstance(obj, (models.File, models.Statement, models.Execution)):
+    if isinstance(obj, (models.SimpleTypeNode, models.DatasetRecord)):
+        obj = obj.statement.project_version.project
+    elif isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
     elif isinstance(obj, (models.ProjectVersion, models.Deployment)):
         obj = obj.project

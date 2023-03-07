@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass
+from itertools import chain
 from typing import Iterable, Optional
 from uuid import UUID
 
@@ -14,8 +15,8 @@ class TrackedNodeType(enum.Enum):
     MODULE = "module"
     FILE = "file"
     STATEMENT = "statement"
-    # not tracking TypeNode / Record level
-    # (yet, since they're folded into Statement revisions :SubSymbolRevisions)
+    RECORD = "record"
+    TYPE_NODE = "type_node"
 
 
 @dataclass
@@ -66,7 +67,8 @@ class RevisionMap:
             revisions[file.id] = file.revision
             for statement in file.statements:
                 revisions[statement.id] = statement.revision
-            # only up to statement-level for now since there are no :SubSymbolRevisions
+                for subsymbol in chain(statement.records or [], statement.type_nodes or []):
+                    revisions[subsymbol.id] = subsymbol.revision
         return RevisionMap(module_id=module.id, revisions=revisions)
 
 
@@ -91,7 +93,7 @@ def tree_from_mappings(mappings: list[SourceMapping]) -> TrackedTree:
         # we only care about source nodes since they are the dependencies
         if mapping.source_id not in tree.nodes:
             tree.nodes[mapping.source_id] = TrackedNode(
-                type=TrackedNodeType.STATEMENT,
+                type=TrackedNodeType.STATEMENT,  # is this right? or even relevant?
                 id=mapping.source_id,
                 revision=mapping.source_revision,
             )
@@ -109,6 +111,34 @@ def tree_from_module(revmap: RevisionMap, idx: ModuleIndex) -> TrackedTree:
             reference_id=symbol.source.reference_id,
             order_key=symbol.source.order_key,
         )
+        # track subsymbols
+        if isinstance(symbol, Dataset):
+            for record in symbol.records:
+                tree.nodes[record.id] = TrackedNode(
+                    type=TrackedNodeType.RECORD,
+                    id=record.id,
+                    revision=revmap.get(record.id),
+                    parent_id=symbol.id,
+                    order_key=record.order_key,
+                )
+        # track type subsymbols
+        if isinstance(symbol, (Task, Code, Type, Dataset)):
+            if isinstance(symbol, Type):
+                type = symbol
+            else:
+                type = symbol.type
+            for type_node in type.walk():
+                if isinstance(type_node, InterpSymbol):
+                    # ignore proper symbols - we only want sub-symbols here,
+                    # proper symbol refs are handled in walk_interp_symbol
+                    continue
+                tree.nodes[type_node.id] = TrackedNode(
+                    type=TrackedNodeType.TYPE_NODE,
+                    id=type_node.id,
+                    revision=revmap.get(type_node.id),
+                    parent_id=symbol.id,
+                )
+
     return tree
 
 

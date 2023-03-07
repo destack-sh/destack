@@ -15,7 +15,7 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     as_key,
 )
-from bench.msg.sync import is_semantic
+from bench.msg.sync import is_semantic_mutation
 from bench.runtime.type import ExecutionFrameData
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
@@ -104,7 +104,7 @@ class InternalServer:
             # reload project version as module
             # TODO @Performance: send partial module updates :PartialModuleUpdates
             change: ProjectVersionChangedPayload = msg.payload_as(ProjectVersionChangedPayload)
-            if not any(is_semantic(mutation) for mutation in change.mutations):
+            if not any(is_semantic_mutation(mutation) for mutation in change.mutations):
                 return  # ignore non-semantic changes to modules
             project_v = await ProjectVersion.objects.filter(id=change.project_version_id).afirst()
             if project_v is None:

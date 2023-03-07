@@ -138,20 +138,14 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
         createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
-          ... on Statement {
+          ... on DatasetRecord {
             id
-            orderKey
+            createdAt
+            updatedAt
+            deletedAt
             revision
-            records {
-              totalCount
-              edges {
-                node {
-                  id
-                  orderKey
-                  data
-                }
-              }
-            }
+            orderKey
+            data
           }
           ...OperationInfoContent
         }
@@ -161,22 +155,13 @@ export function useSymbolContentOps() {
 
   const { mutate: updateRecordMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $data: JSON!) {
-        updateStatementRecord(input: { id: $id, statementId: $statementId, data: $data }) {
-          ... on Statement {
+      mutation updateRecord($id: GlobalID!, $data: JSON!) {
+        updateStatementRecord(input: { id: $id, data: $data }) {
+          ... on DatasetRecord {
             id
-            orderKey
+            updatedAt
             revision
-            records {
-              totalCount
-              edges {
-                node {
-                  id
-                  orderKey
-                  data
-                }
-              }
-            }
+            data
           }
           ...OperationInfoContent
         }
@@ -186,22 +171,11 @@ export function useSymbolContentOps() {
 
   const { mutate: deleteRecordMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {
-        deleteStatementRecord(input: { id: $id, statementId: $statementId }) {
-          ... on Statement {
+      mutation deleteRecord($id: GlobalID!) {
+        deleteStatementRecord(input: { id: $id }) {
+          ... on DatasetRecord {
             id
-            orderKey
-            revision
-            records {
-              totalCount
-              edges {
-                node {
-                  id
-                  orderKey
-                  data
-                }
-              }
-            }
+            deletedAt
           }
           ...OperationInfoContent
         }
@@ -221,7 +195,7 @@ export function useSymbolContentOps() {
         });
       },
       undo: async () => {
-        return await deleteRecordMut({ id: id, statementId: statementId });
+        return await deleteRecordMut({ id: id });
       },
     });
   }
@@ -232,14 +206,12 @@ export function useSymbolContentOps() {
       do: async () => {
         return await updateRecordMut({
           id: id,
-          statementId: statementId,
           data: newData,
         });
       },
       undo: async () => {
         return await updateRecordMut({
           id: id,
-          statementId: statementId,
           data: oldData,
         });
       },
@@ -252,7 +224,6 @@ export function useSymbolContentOps() {
       do: async () => {
         return await deleteRecordMut({
           id: id,
-          statementId: statementId,
         });
       },
       undo: async () => {

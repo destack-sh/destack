@@ -607,9 +607,16 @@ class Expectation(InterpSymbol, ExpectationContent):
 
 
 @dataclass(repr=False)
+class Record:
+    order_key: str
+    data: typing.Any
+    id: UUID = field(default_factory=uuid.uuid4)
+
+
+@dataclass(repr=False)
 class DatasetContent(SymbolContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
-    records: list[dict[str, LiteralValue]]
+    records: list[Record]
     type_node: TypeNode
     description: Optional[str]
 
@@ -721,10 +728,17 @@ class Build(InterpSymbol, BuildContent):
     models: list[Model] = field(default_factory=list)
 
 
+class SourceMappingType:
+    STATEMENT = "statement"
+    RECORD = "record"
+    TYPE_NODE = "type_node"
+
+
 @dataclass(repr=False)
 class SourceMapping:
     """A mapping between a source and a target symbol (or sub-symbol)"""
 
+    type: SourceMappingType
     source_id: UUID
     source_revision: int
     target_id: Optional[UUID]

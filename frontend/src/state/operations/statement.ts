@@ -472,12 +472,8 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
         createStatementTypeNode(input: $typeNode) {
-          ... on Statement {
-            id
-            revision
-            typeNodes {
-              ...SimpleTypeNodeContent
-            }
+          ... on SimpleTypeNode {
+            ...SimpleTypeNodeContent
           }
           ...OperationInfoContent
         }
@@ -487,14 +483,10 @@ export function useStatementOps() {
 
   const { mutate: deleteTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation deleteTypeNode($id: GlobalID!, $statementId: GlobalID!) {
-        deleteStatementTypeNode(input: { id: $id, statementId: $statementId }) {
-          ... on Statement {
-            id
-            revision
-            typeNodes {
-              ...SimpleTypeNodeContent
-            }
+      mutation deleteTypeNode($id: GlobalID!) {
+        deleteStatementTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            deletedAt
           }
           ...OperationInfoContent
         }
@@ -509,7 +501,7 @@ export function useStatementOps() {
         return await createTypeNodeMut({ typeNode: typeNode });
       },
       undo: async () => {
-        return await deleteTypeNodeMut({ id: typeNode.id, statementId });
+        return await deleteTypeNodeMut({ id: typeNode.id });
       },
     });
   }
@@ -518,7 +510,7 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.deleteTypeNode",
       do: async () => {
-        return await deleteTypeNodeMut({ id: typeNode.id, statementId });
+        return await deleteTypeNodeMut({ id: typeNode.id });
       },
       undo: async () => {
         return await createTypeNodeMut({ typeNode });
@@ -530,12 +522,8 @@ export function useStatementOps() {
     graphql(/* GraphQL */ `
       mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
         updateStatementTypeNode(input: $typeNode) {
-          ... on Statement {
-            id
-            revision
-            typeNodes {
-              ...SimpleTypeNodeContent
-            }
+          ... on SimpleTypeNode {
+            ...SimpleTypeNodeContent
           }
           ...OperationInfoContent
         }

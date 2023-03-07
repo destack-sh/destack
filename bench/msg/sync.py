@@ -31,11 +31,17 @@ class ProjectMutationType(enum.Enum):
     RENAME_STATEMENT = "RENAME_STATEMENT"
     UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"  # for comments
     # Statement content ("symbol") mutations
+    CREATE_STATEMENT_TYPE_NODE = "UPDATE_STATEMENT_TYPE_NODE"
     UPDATE_STATEMENT_TYPE_NODE = "UPDATE_STATEMENT_TYPE_NODE"
+    MOVE_STATEMENT_TYPE_NODE = "MOVE_STATEMENT_TYPE_NODE"
+    DELETE_STATEMENT_TYPE_NODE = "UPDATE_STATEMENT_TYPE_NODE"
+    CREATE_STATEMENT_RECORD = "CREATE_STATEMENT_RECORD"
+    UPDATE_STATEMENT_RECORD = "UPDATE_STATEMENT_RECORD"
+    MOVE_STATEMENT_RECORD = "MOVE_STATEMENT_RECORD"
+    DELETE_STATEMENT_RECORD = "DELETE_STATEMENT_RECORD"
     UPDATE_STATEMENT_DESCRIPTION = "UPDATE_STATEMENT_DESCRIPTION"
     UPDATE_STATEMENT_CODE = "UPDATE_STATEMENT_CODE"
     UPDATE_STATEMENT_LANGUAGE = "UPDATE_STATEMENT_LANGUAGE"
-    UPDATE_STATEMENT_RECORDS = "UPDATE_STATEMENT_RECORDS"
 
 
 @dataclass
@@ -53,10 +59,12 @@ NON_SEMANTIC_MUTATION_TYPES = {
     ProjectMutationType.CREATE_FILE,
     ProjectMutationType.CREATE_STATEMENT,  # statements start as blanks
     ProjectMutationType.UPDATE_STATEMENT_TEXT,  # for comments
+    ProjectMutationType.MOVE_STATEMENT_TYPE_NODE,
+    ProjectMutationType.MOVE_STATEMENT_RECORD,
 }
 
 
-def is_semantic(mutation: ProjectMutation) -> bool:
+def is_semantic_mutation(mutation: ProjectMutation) -> bool:
     # trivial filter for definitely non-semantic mutations
     # we could do more here (like filter blank morphs), but not worth it now
     return mutation.type not in NON_SEMANTIC_MUTATION_TYPES

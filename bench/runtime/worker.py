@@ -198,7 +198,7 @@ def interp_module(
     """Interprets the given module source with the given dependencies"""
     logger.info("interp_runtime", module=source)
     module = wire.wmap_module(source)
-    # TODO @Accuracy: revert explicit statement references to StatementPath to lookup refs properly
+    # TODO @Language: revert explicit statement references to StatementPath to lookup refs properly?
     collector = ErrorCollector()
     module_idx = resolve(
         module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
@@ -484,7 +484,7 @@ class ModuleWorker:
         await main  # (this will never return)
 
 
-def make_full_change_msg(module_worker: ModuleWorker, cls):
+def make_full_change_payload(module_worker: ModuleWorker, cls):
     """Builds a complete runtime change message from the module worker's state"""
     relevant_jobs = [
         job
@@ -569,11 +569,8 @@ class Worker:
             payload: ReqModuleRuntimePayload = msg.payload_as(ReqModuleRuntimePayload)
             module_worker = self._get_module_worker(payload.module_id)
             await module_worker.ready.wait()
-            send_message(
-                self.rep_sock,
-                ZMessageType.REP_MODULE_RUNTIME,
-                make_full_change_msg(module_worker, RepModuleRuntimePayload),
-            )
+            payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
+            send_message(self.rep_sock, ZMessageType.REP_MODULE_RUNTIME, payload)
 
         elif msg.type == ZMessageType.MODULE_CHANGED:
             payload: ModuleChangedPayload = msg.payload_as(ModuleChangedPayload)
@@ -610,11 +607,8 @@ class Worker:
     def notify_job_status(self, module_worker: ModuleWorker, job: Job):
         """Publishes the new job status (sends out module runtime updates)"""
         # publish job status
-        send_message(
-            self.pub_sock,
-            ZMessageType.MODULE_RUNTIME_CHANGED,
-            make_full_change_msg(module_worker, ModuleRuntimeChangedPayload),
-        )
+        change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
+        send_message(self.pub_sock, ZMessageType.MODULE_RUNTIME_CHANGED, change)
         # write back build results to internal server
         if isinstance(job, BuildJob) and job.status == JobStatus.COMPLETED:
             asyncio.get_running_loop().create_task(

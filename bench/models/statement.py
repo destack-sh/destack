@@ -24,14 +24,22 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+class SimpleTypeNodeManager(models.Manager["SimpleTypeNode"]):
+    def get_queryset(self):
+        # soft-deleted statements are not returned by default
+        return super().get_queryset().select_related("statement")
+
+
 class SimpleTypeNode(UUIDModel):
     """
     A simplified and interaction-optimized variant of TypeNode
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="type_nodes")
+    revision = models.IntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
@@ -60,12 +68,23 @@ class SimpleTypeNode(UUIDModel):
     def __repr__(self):
         return f"<SimpleTypeNode {str(self)}>"
 
+    def soft_delete(self):
+        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+
+    def restore(self):
+        self.deleted_at = None
+
+    objects = SimpleTypeNodeManager()
+
     class Meta:
         ordering = ["order_key"]
+        default_manager_name = "objects"
         indexes = [models.Index(fields=["statement"])]
         constraints = [
             models.UniqueConstraint(
-                fields=["statement", "order_key"], name="bench_statement_type_node_order_key_ak"
+                fields=["statement", "order_key"],
+                name="bench_statement_type_node_order_key_ak",
+                condition=Q(deleted_at__isnull=True),
             ),
         ]
 

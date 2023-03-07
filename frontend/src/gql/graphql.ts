@@ -120,8 +120,10 @@ export type DatasetRecord = Node & {
   __typename?: "DatasetRecord";
   createdAt: Scalars["DateTime"];
   data: Scalars["JSON"];
+  deletedAt?: Maybe<Scalars["DateTime"]>;
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
+  revision: Scalars["Int"];
   updatedAt: Scalars["DateTime"];
 };
 
@@ -144,6 +146,12 @@ export type DatasetRecordEdge = {
   /** The item at the end of the edge */
   node: DatasetRecord;
 };
+
+export type DatasetRecordFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export type DatasetRecordOperationInfo = DatasetRecord | OperationInfo;
 
 export type DeployInput = {
   id: Scalars["GlobalID"];
@@ -414,6 +422,7 @@ export type InterpSimpleType = Node &
   SimpleType & {
     __typename?: "InterpSimpleType";
     createdAt: Scalars["DateTime"];
+    deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
     isArray: Scalars["Boolean"];
@@ -422,6 +431,7 @@ export type InterpSimpleType = Node &
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
+    revision: Scalars["Int"];
     statement: NodeType;
     tag: TypeTag;
     updatedAt: Scalars["DateTime"];
@@ -482,17 +492,17 @@ export type Mutation = {
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
   createStatement: StatementOperationInfo;
-  createStatementRecord: StatementOperationInfo;
-  createStatementTypeNode: StatementOperationInfo;
-  deleteStatementRecord: StatementOperationInfo;
-  deleteStatementTypeNode: StatementOperationInfo;
+  createStatementRecord: DatasetRecordOperationInfo;
+  createStatementTypeNode: SimpleTypeNodeOperationInfo;
+  deleteStatementRecord: DatasetRecordOperationInfo;
+  deleteStatementTypeNode: SimpleTypeNodeOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
   moveStatement: StatementOperationInfo;
-  moveStatementRecord: StatementOperationInfo;
-  moveStatementTypeNode: StatementOperationInfo;
+  moveStatementRecord: DatasetRecordOperationInfo;
+  moveStatementTypeNode: SimpleTypeNodeOperationInfo;
   removeDeployedStatement: DeploymentOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
@@ -500,6 +510,8 @@ export type Mutation = {
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
   restoreStatement: StatementOperationInfo;
+  restoreStatementRecord: DatasetRecordOperationInfo;
+  restoreStatementTypeNode: SimpleTypeNodeOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   setDeployAllStatements: DeploymentOperationInfo;
@@ -515,10 +527,10 @@ export type Mutation = {
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
-  updateStatementRecord: StatementOperationInfo;
+  updateStatementRecord: DatasetRecordOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
-  updateStatementTypeNode: StatementOperationInfo;
+  updateStatementTypeNode: SimpleTypeNodeOperationInfo;
   updateUser: UserOperationInfo;
 };
 
@@ -640,6 +652,14 @@ export type MutationRestoreFileArgs = {
 
 export type MutationRestoreStatementArgs = {
   input: StatementRestoreInput;
+};
+
+export type MutationRestoreStatementRecordArgs = {
+  input: RecordDeleteInput;
+};
+
+export type MutationRestoreStatementTypeNodeArgs = {
+  input: TypeNodeDeleteInput;
 };
 
 export type MutationRevokeAccessTokenArgs = {
@@ -1277,19 +1297,16 @@ export type RecordCreateInput = {
 
 export type RecordDeleteInput = {
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
 };
 
 export type RecordMoveInput = {
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
-  statementId: Scalars["GlobalID"];
 };
 
 export type RecordUpdateInput = {
   data: Scalars["JSON"];
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
 };
 
 export type RefMapping = {
@@ -1337,6 +1354,7 @@ export type SimpleTypeNode = Node &
   SimpleType & {
     __typename?: "SimpleTypeNode";
     createdAt: Scalars["DateTime"];
+    deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
     isArray: Scalars["Boolean"];
@@ -1345,11 +1363,18 @@ export type SimpleTypeNode = Node &
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
+    revision: Scalars["Int"];
     statement: NodeType;
     tag: TypeTag;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
   };
+
+export type SimpleTypeNodeFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export type SimpleTypeNodeOperationInfo = OperationInfo | SimpleTypeNode;
 
 /** Anything typed using SimpleType nodes. */
 export type SimplyTyped = {
@@ -1392,6 +1417,7 @@ export type Statement = Node &
 export type StatementRecordsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<DatasetRecordFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -1401,6 +1427,10 @@ export type StatementReferencedByArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type StatementTypeNodesArgs = {
+  filters?: InputMaybe<SimpleTypeNodeFilter>;
 };
 
 export type StatementCommentedInput = {
@@ -1581,13 +1611,11 @@ export type TypeNodeCreateInput = {
 
 export type TypeNodeDeleteInput = {
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
 };
 
 export type TypeNodeMoveInput = {
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
-  statementId: Scalars["GlobalID"];
 };
 
 export type TypeNodeUpdateInput = {
@@ -2499,6 +2527,10 @@ export type TypeContentFragment = { __typename?: "Type"; description?: string | 
 export type SimpleTypeNodeContentFragment = {
   __typename?: "SimpleTypeNode";
   id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  revision: number;
   name?: string | null;
   tag: TypeTag;
   description?: string | null;
@@ -2993,21 +3025,13 @@ export type CreateTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "Statement";
-        id: any;
-        revision: number;
-        typeNodes: Array<
-          { __typename?: "SimpleTypeNode" } & {
-            " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-          }
-        >;
-      };
+    | ({ __typename?: "SimpleTypeNode" } & {
+        " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
+      });
 };
 
 export type DeleteTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
 }>;
 
 export type DeleteTypeNodeMutation = {
@@ -3016,16 +3040,7 @@ export type DeleteTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "Statement";
-        id: any;
-        revision: number;
-        typeNodes: Array<
-          { __typename?: "SimpleTypeNode" } & {
-            " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-          }
-        >;
-      };
+    | { __typename?: "SimpleTypeNode"; deletedAt?: any | null };
 };
 
 export type UpdateTypeNodeMutationVariables = Exact<{
@@ -3038,16 +3053,9 @@ export type UpdateTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "Statement";
-        id: any;
-        revision: number;
-        typeNodes: Array<
-          { __typename?: "SimpleTypeNode" } & {
-            " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-          }
-        >;
-      };
+    | ({ __typename?: "SimpleTypeNode" } & {
+        " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
+      });
 };
 
 export type UpdateStatementDescriptionMutationVariables = Exact<{
@@ -3102,78 +3110,46 @@ export type CreateRecordMutationVariables = Exact<{
 export type CreateRecordMutation = {
   __typename?: "Mutation";
   createStatementRecord:
+    | {
+        __typename?: "DatasetRecord";
+        id: any;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        revision: number;
+        orderKey: string;
+        data: any;
+      }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        orderKey: string;
-        revision: number;
-        records: {
-          __typename?: "DatasetRecordConnection";
-          totalCount?: number | null;
-          edges: Array<{
-            __typename?: "DatasetRecordEdge";
-            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
-          }>;
-        };
-      };
+      });
 };
 
 export type UpdateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
   data: Scalars["JSON"];
 }>;
 
 export type UpdateRecordMutation = {
   __typename?: "Mutation";
   updateStatementRecord:
+    | { __typename?: "DatasetRecord"; id: any; updatedAt: any; revision: number; data: any }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        orderKey: string;
-        revision: number;
-        records: {
-          __typename?: "DatasetRecordConnection";
-          totalCount?: number | null;
-          edges: Array<{
-            __typename?: "DatasetRecordEdge";
-            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
-          }>;
-        };
-      };
+      });
 };
 
 export type DeleteRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  statementId: Scalars["GlobalID"];
 }>;
 
 export type DeleteRecordMutation = {
   __typename?: "Mutation";
   deleteStatementRecord:
+    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        orderKey: string;
-        revision: number;
-        records: {
-          __typename?: "DatasetRecordConnection";
-          totalCount?: number | null;
-          edges: Array<{
-            __typename?: "DatasetRecordEdge";
-            node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
-          }>;
-        };
-      };
+      });
 };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
@@ -3758,6 +3734,10 @@ export const SimpleTypeNodeContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
@@ -3833,6 +3813,22 @@ export const StatementContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "typeNodes" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
@@ -3841,6 +3837,22 @@ export const StatementContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "records" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -8296,23 +8308,10 @@ export const CreateTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "typeNodes" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } },
-                          ],
-                        },
-                      },
-                    ],
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8339,11 +8338,6 @@ export const DeleteTypeNodeDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8363,11 +8357,6 @@ export const DeleteTypeNodeDocument = {
                       name: { kind: "Name", value: "id" },
                       value: { kind: "Variable", name: { kind: "Name", value: "id" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "statementId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                    },
                   ],
                 },
               },
@@ -8377,23 +8366,10 @@ export const DeleteTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "typeNodes" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } },
-                          ],
-                        },
-                      },
-                    ],
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "deletedAt" } }],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8403,7 +8379,6 @@ export const DeleteTypeNodeDocument = {
         ],
       },
     },
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteTypeNodeMutation, DeleteTypeNodeMutationVariables>;
@@ -8442,23 +8417,10 @@ export const UpdateTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "typeNodes" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } },
-                          ],
-                        },
-                      },
-                    ],
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8756,44 +8718,17 @@ export const CreateRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "edges" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "node" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "id" } },
-                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                                        { kind: "Field", name: { kind: "Name", value: "data" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      { kind: "Field", name: { kind: "Name", value: "data" } },
                     ],
                   },
                 },
@@ -8822,11 +8757,6 @@ export const UpdateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "data" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
         },
@@ -8851,11 +8781,6 @@ export const UpdateRecordDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "statementId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "data" },
                       value: { kind: "Variable", name: { kind: "Name", value: "data" } },
                     },
@@ -8868,44 +8793,14 @@ export const UpdateRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "edges" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "node" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "id" } },
-                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                                        { kind: "Field", name: { kind: "Name", value: "data" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "data" } },
                     ],
                   },
                 },
@@ -8932,11 +8827,6 @@ export const DeleteRecordDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8956,11 +8846,6 @@ export const DeleteRecordDocument = {
                       name: { kind: "Name", value: "id" },
                       value: { kind: "Variable", name: { kind: "Name", value: "id" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "statementId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
-                    },
                   ],
                 },
               },
@@ -8970,44 +8855,12 @@ export const DeleteRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "edges" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "node" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "id" } },
-                                        { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                                        { kind: "Field", name: { kind: "Name", value: "data" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                     ],
                   },
                 },
