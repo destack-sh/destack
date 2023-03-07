@@ -38,7 +38,7 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
 });
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
-async function insertBelow(memberId?: string) {
+function insertBelow(memberId?: string) {
   let orderKey;
   if (memberId == null) {
     const lastMember = members.value?.[membersLength.value - 1];
@@ -65,7 +65,7 @@ async function insertBelow(memberId?: string) {
     });
   }
 
-  await context.createTypeNode(newMemberNode);
+  context.createTypeNode(newMemberNode);
   nextTick(() => grid.focus(membersLength.value - 1, "name"));
 }
 
