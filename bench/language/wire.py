@@ -497,3 +497,15 @@ class JobData:
 
     def __repr__(self):
         return f"<JobData {self}>"
+
+
+#
+# Executions
+#
+
+
+class ExecutionTriggerType(enum.StrEnum):
+    REST_API = "rest-api"
+    UI_INTERACTIVE = "ui-interactive"
+    JOB = "job"
+    MANUAL = "manual"

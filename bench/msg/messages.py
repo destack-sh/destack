@@ -8,6 +8,7 @@ from typing import Optional, cast
 from uuid import UUID
 
 from bench.language import wire
+from bench.language.wire import ExecutionTriggerType
 from bench.msg import sync
 from bench.runtime.type import ExecutionFrameData
 
@@ -109,6 +110,8 @@ class ReqModuleRunPayload:
     build: Optional[UUID | str]
     arguments: dict[str, wire.LiteralValue]
     blocking: bool
+    trigger_type: ExecutionTriggerType
+    trigger_id: Optional[UUID]
 
 
 class ModuleRunErrorType(enum.Enum):

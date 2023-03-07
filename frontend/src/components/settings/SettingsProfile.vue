@@ -133,7 +133,7 @@ watchEffect(() => {
           spellcheck="false"
         />
         <FadeTransition mode="out-in">
-          <span class="mt-1 text-sm text-yellow-500" v-if="name != null && !nameValidation.valid.value"
+          <span class="mt-1 text-sm text-yellow-600" v-if="name != null && !nameValidation.valid.value"
             >The bots don't like this name.</span
           >
           <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
@@ -161,7 +161,7 @@ watchEffect(() => {
         </div>
 
         <FadeTransition mode="out-in">
-          <span class="mt-1 text-sm text-yellow-500" v-if="slug != null && !slugValidation.valid.value"
+          <span class="mt-1 text-sm text-yellow-600" v-if="slug != null && !slugValidation.valid.value"
             >The bots don't like this slug.</span
           >
           <span class="mt-1 text-sm text-gray-500" v-else>Great choice.</span>

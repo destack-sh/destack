@@ -172,8 +172,8 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 sm:text-sm"
           :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
         >
-          <div v-if="availableSymbols.length == 0" class="py-1 px-2 text-gray-500">No runnable symbols.</div>
-          <div v-else-if="filteredSymbols.length == 0" class="py-1 px-2 text-gray-500">No matching symbols.</div>
+          <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
+          <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>
           <ListboxOption
             v-for="stmt in filteredSymbols"
             :key="stmt.id"
@@ -218,11 +218,11 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       <!-- little svg rectangle -->
       <svg
         v-if="mainSymbol != null && (action.active.value || action.stale != null)"
-        class="absolute right-1.5 bottom-1.5 h-1 w-1"
+        class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"
         :class="{
-          'animate-ping text-gray-600': action.active.value,
-          'text-gray-500': !action.active.value && action.stale?.value,
-          'text-orange-600': !action.active.value && !action.stale?.value,
+          'animate-spin text-gray-400': action.active.value,
+          'text-yellow-600': !action.active.value && action.stale?.value,
+          'text-transparent': !action.active.value && !action.stale?.value,
         }"
         viewBox="0 0 10 10"
         fill="none"

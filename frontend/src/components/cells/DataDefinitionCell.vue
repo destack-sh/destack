@@ -114,18 +114,22 @@ function insertRecord(belowRecordId?: string) {
 }
 
 function writeRecordField(recordId: string, column: string, value: any) {
-  const record = context.statement.value.records.edges.map((r) => r.node).find((r) => r.id === recordId);
-  if (!record) throw new Error("record not found: " + recordId);
+  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
+  if (recordIdx < 0) throw new Error("record not found: " + recordId);
+  const record = context.records.value[recordIdx];
   const oldData = record?.data;
   const newData = { ...oldData, [column]: value };
   operations.symbol.updateRecord(recordId, context.statement.value.id, oldData, newData);
 }
 
 function deleteRecord(recordId: string) {
-  const record = context.statement.value.records.edges.map((r) => r.node).find((r) => r.id === recordId);
-  if (!record) throw new Error("record not found: " + recordId);
+  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
+  if (recordIdx < 0) throw new Error("record not found: " + recordId);
+  const record = context.records.value[recordIdx];
   const oldData = record?.data;
   operations.symbol.deleteRecord(recordId, context.statement.value.id, record.orderKey, oldData);
+  // move focus up
+  recordGrid.focus(recordIdx - 1, columnsInOrder.value[0]);
 }
 
 // map the field type to its actual runtime type

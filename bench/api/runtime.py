@@ -15,7 +15,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import can_view_project, can_write_project
-from bench.api.execution import Execution
+from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.api.util import asafe_mutation
 from bench.language import wire
@@ -269,6 +269,16 @@ class ModuleRuntimeMutation:
         user = cast(User, info.context.request.scope["user"]._wrapped)
         # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write_project)(user, project_version_id)
+        # :SingleOwnedDeployment
+        deployment_id = (
+            await models.Deployment.objects.filter(
+                owned=True, project_version_id=project_version_id
+            )
+            .values_list("id", flat=True)
+            .afirst()
+        )
+        if deployment_id is None:
+            raise ValueError("no available deployment found")
 
         # :BlockingWorkerMessages
         send_message(
@@ -281,6 +291,9 @@ class ModuleRuntimeMutation:
                 build=UUID(input.build_id.node_id) if input.build_id else None,
                 arguments=input.arguments,
                 blocking=True,
+                deployment_id=deployment_id,
+                trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
+                trigger_id=user.id,
             ),
         )
         _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)

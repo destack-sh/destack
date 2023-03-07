@@ -52,7 +52,7 @@ function freezeNotification(notification: DisplayNotification) {
                 :class="{
                   'text-orange-600': notification.kind === 'notice' || notification.kind === 'success',
                   'text-red-500': notification.kind === 'error',
-                  'text-yellow-500': notification.kind === 'warning',
+                  'text-yellow-600': notification.kind === 'warning',
                 }"
               />
             </div>

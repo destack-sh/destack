@@ -252,6 +252,8 @@ enum ErrorType {
 
 type Execution implements Node {
   id: GlobalID!
+  projectVersion: ProjectVersion!
+  deployment: Deployment!
   createdAt: DateTime!
   updatedAt: DateTime!
 
@@ -272,6 +274,9 @@ type Execution implements Node {
   task: Statement
   code: Statement
   model: Statement
+  triggerType: ExecutionTriggerType!
+  user: User!
+  accessToken: AccessToken!
 }
 
 """A connection to a list of items."""
@@ -304,6 +309,13 @@ enum ExecutionStatus {
   Aborted
   Failed
   Completed
+}
+
+enum ExecutionTriggerType {
+  REST_API
+  UI_INTERACTIVE
+  JOB
+  MANUAL
 }
 
 type File implements Node {

@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 from functools import wraps
+from typing import NamedTuple
+from uuid import UUID
 
 import structlog
 import zmq
@@ -10,7 +12,7 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.models import Deployment, Project, ProjectVersion
+from bench.models import ExecutionTriggerType, Project, ProjectVersion
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
@@ -64,9 +66,14 @@ def async_api_view(methods: list[str] = None):
     return make_view
 
 
-def get_deployment(
+AccessInfo = NamedTuple(
+    "AccessInfo", [("project_version_id", UUID), ("deployment_id", UUID), ("access_token_id", UUID)]
+)
+
+
+def get_deployment_access(
     owner: str, project: str, tag: str, token_digest: str, scope=AccessTokenScope.RUN
-) -> tuple[ProjectVersion, Deployment]:
+) -> AccessInfo:
     # TODO @Feature: implement semver range tags? https://devhints.io/semver
     # TODO @Performance: cache get_deployment
     # TODO @Performance: do get_deployment in one SQL query (incl. access token check)
@@ -75,18 +82,21 @@ def get_deployment(
         project_version = Project.objects.get_by_slug(owner, project).head
     else:
         project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
-    if (
-        not project_version.project.owner.access_tokens.filter(
+    access_token = (
+        project_version.project.owner.access_tokens.filter(
             digest=token_digest,
             scopes__contains=[scope],
         )
         .filter(Q(revoked_at__isnull=True))
         .filter(Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True))
-        .exists()
-    ):
+        .only("id")
+        .first()
+    )
+    if access_token is None:
         raise PermissionDenied("cannot access this deployment")
-    deployment = project_version.deployments.get(owned=True)  # should only be one for now
-    return project_version.id, deployment.id
+    # should only be one deployment :SingleOwnedDeployment
+    deployment = project_version.deployments.get(owned=True)
+    return AccessInfo(project_version.id, deployment.id, access_token.id)
 
 
 @csrf_exempt_async
@@ -121,7 +131,7 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     token_digest = digest_raw_token(access_token)
     del access_token
 
-    project_version_id, deployment_id = await sync_to_async(get_deployment)(
+    access = await sync_to_async(get_deployment_access)(
         owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
 
@@ -132,13 +142,15 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
         worker_req_sock,
         ZMessageType.REQ_MODULE_RUN,
         ReqModuleRunPayload(
-            deployment_id=deployment_id,
-            module_id=project_version_id,
+            deployment_id=access.deployment_id,
+            module_id=access.project_version_id,
             runnable=runnable,
             runnable_type=runnable_type,
             build=data["build"],
             arguments=data["inputs"],
             blocking=True,
+            trigger_type=ExecutionTriggerType.REST_API,
+            trigger_id=access.access_token_id,
         ),
     )
     _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
