@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from django.db import models
+from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models.utils import UUIDTModel
@@ -24,13 +25,24 @@ TERMINAL_STATUSES = {ExecutionStatus.Aborted, ExecutionStatus.Failed, ExecutionS
 PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
 
 
+class ExecutionTriggerType(models.TextChoices):
+    REST_API = "rest-api"
+    UI_INTERACTIVE = "ui-interactive"
+    JOB = "job"
+    MANUAL = "manual"  # catch-all for old/debug triggers
+
+
 class Execution(UUIDTModel):
     """
     The execution of (nested) code.
     """
 
+    # context
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
+    )
+    deployment = models.ForeignKey(
+        "Deployment", on_delete=models.CASCADE, related_name="executions+"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -44,6 +56,16 @@ class Execution(UUIDTModel):
         max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
     )
 
+    # trigger
+    trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)
+    user = models.ForeignKey(
+        "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
+    )
+    access_token = models.ForeignKey(
+        "AccessToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
+    )
+
+    # execution
     root = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
     )

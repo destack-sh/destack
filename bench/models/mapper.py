@@ -73,7 +73,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
     wire_statements: dict[UUID, wire.StatementData] = {}
 
     # map files
-    for file in project_v.files.all():
+    for file in project_v.files.filter(deleted_at=None).all():
         wire_file = wire.FileData(
             module_id=wire_module.id,
             id=file.id,
@@ -86,7 +86,7 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
         wire_module.files.append(wire_file)
 
     # map statements
-    statements = list(project_v.statements.all())
+    statements = list(project_v.statements.filter(deleted_at=None).all())
     for statement in statements:
         wire_statement = rmap_statement(statement, file=wire_files[statement.file_id])
         wire_statements[statement.id] = wire_statement
@@ -272,7 +272,10 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     data.provider = statement.provider
     data.external_name = statement.external_name
     data.type_nodes = rmap_type_nodes(
-        statement.id, statement.root_type_tag, statement.type_nodes.all(), statement
+        statement.id,
+        statement.root_type_tag,
+        statement.type_nodes.filter(deleted_at=None).all(),
+        statement,
     )
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATA:
@@ -280,7 +283,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
             RecordData(
                 id=record.id, revision=record.revision, order_key=record.order_key, data=record.data
             )
-            for record in statement.records.all()
+            for record in statement.records.filter(deleted_at=None).all()
         ]
     elif statement.symbol_type == SymbolType.BUILD:
         data.generated_mappings = [
@@ -510,7 +513,14 @@ def rmap_type_nodes(
         raise ValueError(f"root type node is not represented simply: {type_nodes}")
 
     root = TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
-    return wire.rmap_type_node(root)
+    wire_nodes_data = wire.rmap_type_node(root)
+
+    type_nodes_revisions = {node.id: node.revision for node in type_nodes}
+    # patch revision
+    for wire_node in wire_nodes_data:
+        # find revision from child nodes (default to statement's revision)
+        wire_node.revision = type_nodes_revisions.get(wire_node.id, for_statement.revision)
+    return wire_nodes_data
 
 
 def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
@@ -520,6 +530,15 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         status = models.ExecutionStatus.Completed
     else:
         status = models.ExecutionStatus.Running
+    # additional context
+    user_id = (
+        frame.trigger_id
+        if frame.trigger_type == models.ExecutionTriggerType.UI_INTERACTIVE
+        else None
+    )
+    access_token_id = (
+        frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.REST_API else None
+    )
     return models.Execution(
         id=frame.id,
         project_version_id=frame.module_id,
@@ -537,4 +556,9 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         inputs=frame.inputs,
         outputs=frame.outputs,
         error=asdict(frame.error) if frame.error else None,
+        # additional context
+        deployment_id=frame.deployment_id,
+        trigger_type=frame.trigger_type,
+        user_id=user_id,
+        access_token_id=access_token_id,
     )

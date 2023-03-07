@@ -205,7 +205,7 @@ async function createProject() {
           <!-- Validation message -->
           <div class="text-left">
             <FadeTransition mode="out-in">
-              <span class="mt-1 text-sm text-yellow-500" v-if="!isValidName">That's not a name we can print.</span>
+              <span class="mt-1 text-sm text-yellow-600" v-if="!isValidName">That's not a name we can print.</span>
               <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
             </FadeTransition>
           </div>

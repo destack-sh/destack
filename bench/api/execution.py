@@ -1,6 +1,6 @@
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, Iterable, Optional
 
-from strawberry import auto
+from strawberry import auto, lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
@@ -8,11 +8,20 @@ from bench import models
 from bench.api.auth import CanViewProject
 from bench.api.statement import Statement
 
+if TYPE_CHECKING:
+    from bench.api.deployment import Deployment
+    from bench.api.project import ProjectVersion
+    from bench.api.token import AccessToken
+    from bench.api.user import User
+
 ExecutionStatus = gql.enum(models.ExecutionStatus)
+ExecutionTriggerType = gql.enum(models.ExecutionTriggerType)
 
 
 @gql.django.type(models.Execution)
 class Execution(gql.Node):
+    project_version: Annotated["ProjectVersion", lazy(".project")]
+    deployment: Annotated["Deployment", lazy(".deployment")]
     created_at: auto
     updated_at: auto
     started_at: auto
@@ -29,6 +38,10 @@ class Execution(gql.Node):
     task: Optional[Statement]
     code: Optional[Statement]
     model: Optional[Statement]
+    # trigger
+    trigger_type: ExecutionTriggerType
+    user: Annotated["User", lazy(".user")]
+    access_token: Annotated["AccessToken", lazy(".token")]
 
 
 @gql.django.type(models.ModelInference)

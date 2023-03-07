@@ -116,7 +116,7 @@ async function createOrganization() {
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
-            <span class="mt-1 text-sm text-yellow-500" v-if="!validName.valid.value"
+            <span class="mt-1 text-sm text-yellow-600" v-if="!validName.valid.value"
               >The bots don't like this name.</span
             >
             <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>

@@ -17,7 +17,7 @@ from bench import language
 from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
-from bench.language.wire import ModuleReference
+from bench.language.wire import ExecutionTriggerType, ModuleReference
 from bench.msg import (
     ZMessage,
     ZMessageType,
@@ -50,6 +50,7 @@ from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.func import wrap_task
+from bench.utils.utils import required_field
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -144,6 +145,9 @@ class RunJob(Job):
     error: Optional[ModuleRunErrorType] = None
     error_details: Optional[Any] = None
     output: Optional[LiteralValue] = None
+    deployment_id: UUID = required_field()
+    trigger_type: str = required_field()
+    trigger_id: Optional[UUID] = None
 
     @property
     def success(self) -> bool:
@@ -369,10 +373,14 @@ class ModuleWorker:
 
     def queue_run(
         self,
+        *,
         runnable: str | UUID,
         runnable_type: str | None,
         build: str | UUID,
         arguments: dict[str, Any],
+        deployment_id: UUID,
+        trigger_type: str,
+        trigger_id: Optional[UUID],
     ) -> RunJob | ModuleRunErrorType:
         if not self.interpreted:
             return ModuleRunErrorType.NOT_READY
@@ -393,7 +401,13 @@ class ModuleWorker:
         # root execution id is pre-set for tracking (run job gets the same id)
         root_id = UUIDT()
         try:
-            tracker = forward_execution_capture(root_id, self.master.pub_sock)
+            tracker = pub_execution_tracker(
+                root_id,
+                self.master.pub_sock,
+                deployment_id=deployment_id,
+                trigger_type=trigger_type,
+                trigger_id=trigger_id,
+            )
             tracer = MultiTracer([ExecutionTracer(self.module_id, tracker), ValidationTracer()])
             runnable_instance = instantiate(
                 runnable, idx=self.idx, build=build, proxy=Proxy(tracer=tracer)
@@ -404,7 +418,14 @@ class ModuleWorker:
             self.log.exception("queue_run_fail_instantiate", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
-        job = RunJob(id=root_id, runnable=runnable_instance, arguments=arguments)
+        job = RunJob(
+            id=root_id,
+            runnable=runnable_instance,
+            arguments=arguments,
+            deployment_id=deployment_id,
+            trigger_type=trigger_type,
+            trigger_id=trigger_id,
+        )
         self._queue_job(job)
         return job
 
@@ -589,7 +610,13 @@ class Worker:
             payload: ReqModuleRunPayload = msg.payload_as(ReqModuleRunPayload)
             module_worker = self._get_module_worker(payload.module_id)
             run_job = module_worker.queue_run(
-                payload.runnable, payload.runnable_type, payload.build, payload.arguments
+                runnable=payload.runnable,
+                runnable_type=payload.runnable_type,
+                build=payload.build,
+                arguments=payload.arguments,
+                deployment_id=payload.deployment_id,
+                trigger_type=payload.trigger_type,
+                trigger_id=payload.trigger_id,
             )
             if isinstance(run_job, ModuleRunErrorType):
                 rep = RepModuleRunPayload(None, run_job, None, None)
@@ -666,11 +693,20 @@ class Worker:
         self.pub_sock.close()
 
 
-def forward_execution_capture(root_id: UUID, pub_sock: zmq.Socket):
+def pub_execution_tracker(
+    root_id: UUID,
+    pub_sock: zmq.Socket,
+    *,
+    deployment_id: UUID,
+    trigger_type: ExecutionTriggerType,
+    trigger_id: UUID,
+):
     def _do_track(frame: ExecutionFrame):
         if frame.root is None:
             frame.id = root_id  # set root to fixed id (in-place)
-        frame_data = ExecutionFrameData.from_frame(frame)
+        frame_data = ExecutionFrameData.from_frame(
+            frame, deployment_id=deployment_id, trigger_type=trigger_type, trigger_id=trigger_id
+        )
         logger.debug("execution.track", frame=frame_data.id)
         send_message(
             pub_sock,

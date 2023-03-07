@@ -63,6 +63,7 @@ class ProjectManager(models.Manager["Project"]):
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
         if create_adhoc_deployment:
+            # :SingleOwnedDeployment
             Deployment.objects.create_deployment(
                 project_version=project.head,
                 owner=owner,

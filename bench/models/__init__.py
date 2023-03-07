@@ -1,6 +1,6 @@
 from .data import DatasetRecord
 from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
-from .execution import Execution, ExecutionStatus
+from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import SourceMapping, SourceMappingType
 from .model import ModelInference
 from .notification import Notification, NotificationStatus, NotificationType
@@ -27,6 +27,7 @@ __all__ = [
     "DeploymentType",
     "Execution",
     "ExecutionStatus",
+    "ExecutionTriggerType",
     "File",
     "ModelInference",
     "Notification",

@@ -262,9 +262,11 @@ export enum ErrorType {
 
 export type Execution = Node & {
   __typename?: "Execution";
+  accessToken: AccessToken;
   build?: Maybe<Statement>;
   code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
+  deployment: Deployment;
   descendants: Array<Execution>;
   durationMillis?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
@@ -273,6 +275,7 @@ export type Execution = Node & {
   model?: Maybe<Statement>;
   outputs?: Maybe<Scalars["JSON"]>;
   parent?: Maybe<Execution>;
+  projectVersion: ProjectVersion;
   root?: Maybe<Execution>;
   /** Time of transition to RUNNING status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
@@ -280,7 +283,9 @@ export type Execution = Node & {
   task?: Maybe<Statement>;
   /** Time of transition to a terminal status. */
   terminatedAt?: Maybe<Scalars["DateTime"]>;
+  triggerType: ExecutionTriggerType;
   updatedAt: Scalars["DateTime"];
+  user: User;
 };
 
 /** A connection to a list of items. */
@@ -312,6 +317,13 @@ export enum ExecutionStatus {
   Queued = "Queued",
   Running = "Running",
   Scheduled = "Scheduled",
+}
+
+export enum ExecutionTriggerType {
+  Job = "JOB",
+  Manual = "MANUAL",
+  RestApi = "REST_API",
+  UiInteractive = "UI_INTERACTIVE",
 }
 
 export type File = Node & {
