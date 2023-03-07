@@ -7,7 +7,7 @@ import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { parseSemVer, type SemVer } from "@/utils/semver";
+import { parseSemVer } from "@/utils/semver";
 import { PopoverButton } from "@headlessui/vue";
 import { BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -18,6 +18,8 @@ const props = defineProps<{
   project: ProjectHeader;
   currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
 }>();
+const emit = defineEmits<{ (e: "show"): void }>();
+
 const { getTimeFromNowString } = useTimeFromNow();
 
 const editor = useEditorState();
@@ -87,8 +89,8 @@ const commit = provideGlobalAction({
       !operations.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: () => {
-    // just open snapshot create menu
-    console.log(snapshotButtonRef.value);
+    // just open snapshot history view (view must be visible for popover to render)
+    emit("show");
     snapshotButtonRef.value?.$el.click();
   },
 });

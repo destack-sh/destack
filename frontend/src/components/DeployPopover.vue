@@ -17,6 +17,8 @@ import { useQuery } from "@vue/apollo-composable";
 import { computed, ref } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
+const emit = defineEmits<{ (e: "show"): void }>();
+
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
 const editor = useEditorState();
 
@@ -97,9 +99,13 @@ const deployButtonRef = ref<InstanceType<typeof PopoverButton> | null>(null);
 provideGlobalAction({
   id: "version.deploy",
   label: "Deploy...",
-  shortcuts: [],
+  shortcuts: ["ctrl+alt+k"],
   enabled: canDeploy,
-  apply: () => deployButtonRef.value?.$el?.click(),
+  apply: () => {
+    // just open snapshot history view (containing header must be visible for popover to render)
+    emit("show");
+    deployButtonRef.value?.$el?.click();
+  },
 });
 </script>
 
