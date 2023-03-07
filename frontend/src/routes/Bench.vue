@@ -550,10 +550,10 @@ onBeforeUnmount(() => {
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-4">
-            <SharePopover />
-            <DeployPopover :project="project" />
-            <OmniCreate />
-            <NotificationPopover />
+            <SharePopover @show="editor.showGlobalHeader = true" />
+            <DeployPopover :project="project" @show="editor.showGlobalHeader = true" />
+            <OmniCreate @show="editor.showGlobalHeader = true" />
+            <NotificationPopover @show="editor.showGlobalHeader = true" />
           </div>
         </FadeTransition>
         <ProfileButton class="ml-2" />
@@ -612,14 +612,20 @@ onBeforeUnmount(() => {
         <!-- View content -->
         <div class="relative flex-1 flex-col border-r border-gray-200" v-show="editor.showViewContent">
           <!-- These must be v-show, not v-if, see note above -->
-          <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" v-if="files" />
+          <ViewExplorer
+            v-show="activeView.id == 'explorer'"
+            :files="files"
+            v-if="files"
+            @show="editor.openActiveView('explorer')"
+          />
           <ViewHistory
             v-show="activeView.id == 'history'"
             v-if="project != null && version != null"
-            :project="project as any"
-            :current-version="version as any"
+            @show="editor.openActiveView('history')"
+            :project="project"
+            :current-version="version"
           />
-          <ViewIssues v-show="activeView.id == 'issues'" />
+          <ViewIssues v-show="activeView.id == 'issues'" @show="editor.openActiveView('issues')" />
         </div>
       </aside>
       <!-- Main editor area -->
