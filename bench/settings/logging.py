@@ -52,7 +52,7 @@ LOGGING = {
     "formatters": FORMATTERS,
     "handlers": HANDLERS,
     "loggers": {
-        "daphne": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
+        "daphne": {"handlers": logged_handlers, "level": "INFO", "propagate": False},
         "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
