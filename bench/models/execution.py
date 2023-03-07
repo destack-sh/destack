@@ -25,11 +25,20 @@ TERMINAL_STATUSES = {ExecutionStatus.Aborted, ExecutionStatus.Failed, ExecutionS
 PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
 
 
+# sync with wire.ExecutionTriggerType
 class ExecutionTriggerType(models.TextChoices):
     REST_API = "rest-api"
     UI_INTERACTIVE = "ui-interactive"
     JOB = "job"
     MANUAL = "manual"  # catch-all for old/debug triggers
+
+
+# sync with wire.ExecutionTracingLevel
+class ExecutionTracingLevel(models.TextChoices):
+    ROOT_FRAME = "root-frame"
+    ROOT_FRAME_WITH_DATA = "root-frame-with-data"
+    ALL_FRAMES = "all-frames"
+    ALL_FRAMES_WITH_DATA = "all-frames-with-data"
 
 
 class Execution(UUIDTModel):
@@ -56,7 +65,7 @@ class Execution(UUIDTModel):
         max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
     )
 
-    # trigger
+    tracing_level = TextChoicesField(choices_enum=ExecutionTracingLevel)
     trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)
     user = models.ForeignKey(
         "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"

@@ -557,6 +557,7 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         outputs=frame.outputs,
         error=asdict(frame.error) if frame.error else None,
         # additional context
+        tracing_level=frame.tracing_level,
         deployment_id=frame.deployment_id,
         trigger_type=frame.trigger_type,
         user_id=user_id,

@@ -20,7 +20,7 @@ from bench.language.type import (
     Type,
     Value,
 )
-from bench.language.wire import ExecutionTriggerType
+from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
 from bench.utils.utils import required_field
 
@@ -180,6 +180,7 @@ class ExecutionFrameData:
     outputs: Optional[Any]
     error: Optional[ErrorData]
     # additional context data not in ExecutionFrame
+    tracing_level: Optional[ExecutionTracingLevel]
     deployment_id: UUID
     trigger_type: Optional[ExecutionTriggerType]
     trigger_id: Optional[UUID]
@@ -188,6 +189,7 @@ class ExecutionFrameData:
     def from_frame(
         frame: ExecutionFrame,
         *,
+        tracing_level: ExecutionTracingLevel,
         deployment_id: UUID,
         trigger_type: Optional[ExecutionTriggerType] = None,
         trigger_id: Optional[UUID] = None,
@@ -217,6 +219,7 @@ class ExecutionFrameData:
             outputs=frame.outputs,
             inference_context_id=frame.inference_context_id,
             error=error_data,
+            tracing_level=tracing_level,
             deployment_id=deployment_id,
             trigger_type=trigger_type,
             trigger_id=trigger_id,

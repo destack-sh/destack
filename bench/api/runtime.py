@@ -198,12 +198,16 @@ class BuildState:
     success: bool
 
 
+ExecutionTracingLevel = gql.enum(wire.ExecutionTracingLevel)
+
+
 @gql.input
 class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
     build_id: Optional[GlobalID] = None
     arguments: JSON
+    tracing: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
 
 
 @gql.type
@@ -291,6 +295,7 @@ class ModuleRuntimeMutation:
                 build=UUID(input.build_id.node_id) if input.build_id else None,
                 arguments=input.arguments,
                 blocking=True,
+                tracing_level=input.tracing,
                 deployment_id=deployment_id,
                 trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
                 trigger_id=user.id,
@@ -453,6 +458,10 @@ class ModuleRuntimeSubscription:
                     frame.code = models.Statement(id=frame.code_id)
                     frame.task = models.Statement(id=frame.task_id)
                     frame.build = models.Statement(id=frame.build_id)
+                    frame.user = models.User(id=frame.user_id)
+                    frame.access_token = models.AccessToken(id=frame.access_token_id)
+                    frame.deployment = models.Deployment(id=frame.deployment_id)
+                    frame.project_version = models.ProjectVersion(id=frame.project_version_id)
                     log.debug("executions.update", frame=frame)
                     yield frame
         finally:

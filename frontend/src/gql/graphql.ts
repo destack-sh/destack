@@ -319,6 +319,13 @@ export enum ExecutionStatus {
   Scheduled = "Scheduled",
 }
 
+export enum ExecutionTracingLevel {
+  AllFrames = "ALL_FRAMES",
+  AllFramesWithData = "ALL_FRAMES_WITH_DATA",
+  RootFrame = "ROOT_FRAME",
+  RootFrameWithData = "ROOT_FRAME_WITH_DATA",
+}
+
 export enum ExecutionTriggerType {
   Job = "JOB",
   Manual = "MANUAL",
@@ -1331,6 +1338,7 @@ export type RunInput = {
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  tracing?: ExecutionTracingLevel;
 };
 
 export type RunState = {
