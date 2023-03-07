@@ -93,14 +93,20 @@ const commit = provideGlobalAction({
   },
 });
 
-async function doCommit(versionId: string, name?: string, tag?: string) {
-  const ret = await operations.version.commit(versionId, name, tag);
+async function doCommit(c: {
+  projectVersionId: string;
+  name?: string;
+  tag?: string;
+  description?: string;
+  autoDeploy?: boolean;
+}) {
+  const ret = await operations.version.commit(c);
   if (ret?.data?.commit.__typename == "CommitPayload") {
     notifications.show({
       type: "commit.success",
       kind: "success",
       message: `Snapshot created`,
-      description: `Version is safe in the archives.`,
+      description: `That version is safe in the archives.`,
     });
   }
 }
@@ -117,7 +123,7 @@ provideGlobalAction({
       !operations.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: async () => {
-    await doCommit(editor.currentProjectVersionId as string, null, null);
+    await doCommit({ projectVersionId: editor.currentProjectVersionId as string });
   },
 });
 
@@ -155,7 +161,7 @@ const restore = provideGlobalAction({
         :version="head"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
-        @commit="(id, name, tag) => doCommit(id, name, tag)"
+        @commit="(c) => doCommit(c)"
         v-slot="{ open }"
       >
         <PopoverButton
@@ -205,7 +211,8 @@ const restore = provideGlobalAction({
                 :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
                 as="div"
                 class="flex min-w-0 flex-1 items-baseline justify-between space-x-4"
-                @commit="(id, name, tag) => doCommit(id, name, tag)"
+                @commit="(id, name, tag, deploy) => doCommit(id, name, tag, deploy)"
+                v-slot="{ open }"
               >
                 <!-- Name, tag, description -->
                 <div class="pt-0.5">
@@ -224,17 +231,19 @@ const restore = provideGlobalAction({
                     <!-- Edit button -->
                     <PopoverButton
                       v-if="project.canWrite"
-                      class="invisible p-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
+                      class="p-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
+                      :class="open ? 'visible bg-orange-50 text-gray-700' : 'invisible'"
                     >
                       <PencilIcon class="h-3 w-3" />
                     </PopoverButton>
                   </p>
                   <!-- Tag button -->
                   <PopoverButton
-                    class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs"
+                    class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs outline-none"
                     :class="[
                       version.tag == null ? 'text-gray-300 ' : 'text-gray-700',
                       project.canWrite ? 'hover:bg-orange-50 hover:text-gray-700' : '',
+                      open ? 'bg-orange-50' : '',
                     ]"
                     :disabled="!project.canWrite"
                   >
