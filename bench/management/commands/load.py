@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import structlog
@@ -24,7 +25,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser: CommandParser):
         # project as organization/project
         parser.add_argument("owner_project", type=str)
-        # symbol file path (must exist and end in .py)
+        # bench file path (must exist or be '-' for stdin)
         parser.add_argument("path", type=str)
 
     @transaction.atomic
@@ -45,7 +46,10 @@ class Command(BaseCommand):
         project_v = project.create_version(name="Update from CLI")
         project_v.reset()
 
-        if not Path(path).is_dir():
+        if path == "-":
+            # read from stdin
+            source_files = [SourceFile(path="stdin", content=sys.stdin.read())]
+        elif not Path(path).is_dir():
             source_files = [SourceFile(path=path, content=Path(path).read_text())]
         else:
             # if it's a directory, load all files

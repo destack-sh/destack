@@ -29,9 +29,9 @@ from bench.language.type import (
     ExpectationContent,
     File,
     InterpSymbol,
-    LiteralValue,
     Model,
     Module,
+    Record,
     RequirementContent,
     Runconfig,
     RunconfigContent,
@@ -52,7 +52,7 @@ from bench.language.type import (
     ValueContent,
     parse_statement_path,
 )
-from bench.utils.fractional import INTEGER_ZERO, increment_integer
+from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between, increment_integer
 
 logger = structlog.get_logger(__name__)
 
@@ -653,28 +653,33 @@ def _parse_definition_content(
 
 def _parse_dataset_records(
     tokens: TokenParser, type: TypeNode, lang: str | None, literal: Token
-) -> list[dict[str, LiteralValue]]:
+) -> list[Record]:
     """Parses the language and records from a dataset literal."""
     value_str = _strip_literal_indent(literal.value, tokens.indent_level)
     try:
         if lang is None:
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
         elif lang == "jsonl":
-            records = [json.loads(line) for line in value_str.splitlines()]
+            records_data = [json.loads(line) for line in value_str.splitlines()]
         elif lang == "json":
-            records = json.loads(value_str)
+            records_data = json.loads(value_str)
         elif lang == "csv":
             field_names = [element.name for element in type.children]
             csv_reader = csv.DictReader(
                 value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
             )
-            records = list(csv_reader)
+            records_data = list(csv_reader)
         else:
             raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
     except ParseError:
         raise  # re-raise since we don't want to catch our own errors
     except ValueError as e:
         raise ParseError(ET.INVALID_TOKEN_VALUE, literal, value=value_str, error=e)
+
+    order_keys = generate_n_keys_between(None, None, len(records_data))
+    records = [
+        Record(data=data, order_key=order_key) for data, order_key in zip(records_data, order_keys)
+    ]
     return records
 
 

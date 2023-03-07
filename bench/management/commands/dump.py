@@ -1,28 +1,32 @@
+# supress all logging
+import logging
+
 from django.core.management import BaseCommand
 
 from bench.language import wire
 from bench.language.reconstruct import render
-from bench.models import Organization, Project
+from bench.models import Project
 from bench.models.mapper import read_module
+
+logging.disable(logging.CRITICAL)
 
 
 class Command(BaseCommand):
     help = "Dump a project version to a Bench file"
 
     def add_arguments(self, parser):
-        # project as organization/project
+        # project as owner/project
         parser.add_argument("owner_project", type=str)
-        # version id (optional, default to HEAD)
-        parser.add_argument("-version", type=str, default="HEAD")
+        # version tag (optional, default to x)
+        parser.add_argument("-tag", type=str, default="x")
 
-    def handle(self, owner_project, version, *args, **options):
-        organization_slug, project_slug = owner_project.split("/")
-        organization = Organization.objects.get(slug=organization_slug)
-        project = Project.objects.filter(slug=project_slug, organization=organization).get()
-        if version == "HEAD":
+    def handle(self, owner_project, tag, *args, **options):
+        owner_slug, project_slug = owner_project.split("/")
+        project = Project.objects.get_by_slug(owner_slug, project_slug)
+        if tag == "x":
             project_v = project.head
         else:
-            project_v = project.versions.get(name=version)
+            project_v = project.versions.get(tag=tag)
 
         wire_module: wire.ModuleData = read_module(project_v)
         lang_module = wire.wmap_module(wire_module)
