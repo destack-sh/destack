@@ -509,3 +509,10 @@ class ExecutionTriggerType(enum.StrEnum):
     UI_INTERACTIVE = "ui-interactive"
     JOB = "job"
     MANUAL = "manual"
+
+
+class ExecutionTracingLevel(enum.StrEnum):
+    ROOT_FRAME = "root-frame"
+    ROOT_FRAME_WITH_DATA = "root-frame-with-data"
+    ALL_FRAMES = "all-frames"
+    ALL_FRAMES_WITH_DATA = "all-frames-with-data"

@@ -17,7 +17,7 @@ from bench import language
 from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
-from bench.language.wire import ExecutionTriggerType, ModuleReference
+from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import (
     ZMessage,
     ZMessageType,
@@ -145,6 +145,7 @@ class RunJob(Job):
     error: Optional[ModuleRunErrorType] = None
     error_details: Optional[Any] = None
     output: Optional[LiteralValue] = None
+    tracing_level: ExecutionTracingLevel = required_field()
     deployment_id: UUID = required_field()
     trigger_type: str = required_field()
     trigger_id: Optional[UUID] = None
@@ -378,8 +379,9 @@ class ModuleWorker:
         runnable_type: str | None,
         build: str | UUID,
         arguments: dict[str, Any],
+        tracing_level: ExecutionTracingLevel,
         deployment_id: UUID,
-        trigger_type: str,
+        trigger_type: ExecutionTriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | ModuleRunErrorType:
         if not self.interpreted:
@@ -401,9 +403,11 @@ class ModuleWorker:
         # root execution id is pre-set for tracking (run job gets the same id)
         root_id = UUIDT()
         try:
-            tracker = pub_execution_tracker(
+            # trace level filtering happens in this tracker
+            tracker = pub_filtered_execution_tracker(
                 root_id,
                 self.master.pub_sock,
+                tracing_level=tracing_level,
                 deployment_id=deployment_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
@@ -422,6 +426,7 @@ class ModuleWorker:
             id=root_id,
             runnable=runnable_instance,
             arguments=arguments,
+            tracing_level=tracing_level,
             deployment_id=deployment_id,
             trigger_type=trigger_type,
             trigger_id=trigger_id,
@@ -615,6 +620,7 @@ class Worker:
                 build=payload.build,
                 arguments=payload.arguments,
                 deployment_id=payload.deployment_id,
+                tracing_level=payload.tracing_level,
                 trigger_type=payload.trigger_type,
                 trigger_id=payload.trigger_id,
             )
@@ -622,6 +628,8 @@ class Worker:
                 rep = RepModuleRunPayload(None, run_job, None, None)
             else:
                 if payload.blocking:
+                    # TODO @Cleanup: don't clog up running queue if blocking
+                    # :AsyncClientServer
                     await run_job.terminated.wait()
                 rep = RepModuleRunPayload(
                     run_job.id, run_job.error, run_job.error_details, run_job.output
@@ -643,6 +651,7 @@ class Worker:
             )
 
     # TODO @Cleanup: switch to async client/server ZMQ flow to avoid sequential locking
+    # :AsyncClientServer
     _intserver_rep_lock = asyncio.Lock()
 
     async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
@@ -693,20 +702,46 @@ class Worker:
         self.pub_sock.close()
 
 
-def pub_execution_tracker(
+def pub_filtered_execution_tracker(
     root_id: UUID,
     pub_sock: zmq.Socket,
     *,
+    tracing_level: ExecutionTracingLevel,
     deployment_id: UUID,
     trigger_type: ExecutionTriggerType,
     trigger_id: UUID,
 ):
+    trace_all_frames = tracing_level in (
+        ExecutionTracingLevel.ALL_FRAMES,
+        ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+    )
+    trace_data = tracing_level in (
+        ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+        ExecutionTracingLevel.ROOT_FRAME_WITH_DATA,
+    )
+
     def _do_track(frame: ExecutionFrame):
-        if frame.root is None:
+        is_root = frame.root is None
+        # filter according to trace level
+        if not is_root and not trace_all_frames:
+            return
+        if is_root:
             frame.id = root_id  # set root to fixed id (in-place)
+
         frame_data = ExecutionFrameData.from_frame(
-            frame, deployment_id=deployment_id, trigger_type=trigger_type, trigger_id=trigger_id
+            frame,
+            tracing_level=tracing_level,
+            deployment_id=deployment_id,
+            trigger_type=trigger_type,
+            trigger_id=trigger_id,
         )
+
+        # wipe data if not tracing it
+        # TODO @Cleanup: consider not tracking data at all when creating execution frame
+        if not trace_data:
+            frame_data.inputs = None
+            frame_data.outputs = None
+
         logger.debug("execution.track", frame=frame_data.id)
         send_message(
             pub_sock,

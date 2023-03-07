@@ -13,6 +13,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
+from bench.models.execution import ExecutionTracingLevel
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
@@ -27,6 +28,9 @@ class RunInputSerializer(serializers.Serializer):
     code = serializers.CharField(default=None, allow_null=True)
     build = serializers.CharField(default=None, allow_null=True)
     inputs = serializers.JSONField(default=None, allow_null=True)
+    tracing = serializers.ChoiceField(
+        default=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA, choices=ExecutionTracingLevel.choices
+    )
 
 
 class RunOutputSerializer(serializers.Serializer):
@@ -75,8 +79,8 @@ def get_deployment_access(
     owner: str, project: str, tag: str, token_digest: str, scope=AccessTokenScope.RUN
 ) -> AccessInfo:
     # TODO @Feature: implement semver range tags? https://devhints.io/semver
-    # TODO @Performance: cache get_deployment
-    # TODO @Performance: do get_deployment in one SQL query (incl. access token check)
+    # TODO @Performance: cache get_deployment_access
+    # TODO @Performance: fetch get_deployment_access in one SQL query (incl. access token check)
     if tag in ("*", "^", "x"):
         # use latest version
         project_version = Project.objects.get_by_slug(owner, project).head
@@ -149,6 +153,7 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
             build=data["build"],
             arguments=data["inputs"],
             blocking=True,
+            tracing_level=data["tracing"],
             trigger_type=ExecutionTriggerType.REST_API,
             trigger_id=access.access_token_id,
         ),
