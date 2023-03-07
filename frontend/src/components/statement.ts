@@ -50,6 +50,13 @@ export function useStatementContext() {
   const typeNodes = computed(() =>
     statement.value.typeNodes
       ?.map((n) => useFragment(SimpleTypeNodeType, n))
+      .filter((n) => n.deletedAt == null)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+  );
+  const records = computed(() =>
+    statement.value.records.edges
+      .map((n) => n.node)
+      .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
   );
 
@@ -270,7 +277,8 @@ export function useStatementContext() {
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
     typeRootTag: rootTypeTag,
-    typeNodes: computed(() => typeNodes.value.filter((n) => n.deletedAt == null)),
+    typeNodes,
+    records,
     // actions
     actions,
     navigateUp,

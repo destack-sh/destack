@@ -247,7 +247,7 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
     return stale_symbols
 
 
-RECENT_JOBS_BUFFER_SIZE = 64
+RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in the DB
 
 
 @dataclass

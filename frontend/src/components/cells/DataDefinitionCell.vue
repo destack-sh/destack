@@ -22,11 +22,8 @@ const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const fieldTypeNodes = computed(() => context.typeNodes.value?.map((n) => n as SimpleType) ?? []);
 const lastField = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
-const records = computed(() =>
-  context.statement.value.records.edges.map((e) => e.node).sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
-);
 const columnsInOrder: Ref<string[]> = computed(() => fieldTypeNodes.value?.map((n) => n.name ?? "") ?? []);
-const recordsLength = computed(() => records.value?.length ?? 0);
+const recordsLength = computed(() => context.records.value?.length ?? 0);
 const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTypeCell>>(
   computed(() => ["name", "type"]),
   fieldTypeNodes,
@@ -35,7 +32,7 @@ const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTy
     gridNavigateDown: focusFirstRecord,
   }
 );
-const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, records, {
+const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, context.records, {
   gridNavigateUp: () => {
     if (typeGrid.refs.value.length > 0) {
       typeGrid.focus(-1, "name");
@@ -106,10 +103,10 @@ function deleteField(node: SimpleType) {
 function insertRecord(belowRecordId?: string) {
   let orderKey;
   if (belowRecordId == null) {
-    const lastRecord = records.value?.[recordsLength.value - 1];
+    const lastRecord = context.records.value?.[recordsLength.value - 1];
     orderKey = generateKeyBetween(lastRecord?.orderKey ?? null, null);
   } else {
-    const record = records.value?.find((r) => r.id === belowRecordId);
+    const record = context.records.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
   operations.symbol.createRecord(newDatasetRecordId(), context.statement.value.id, orderKey, {});
@@ -215,7 +212,7 @@ defineExpose({
       />
     </div>
     <!-- Records -->
-    <template v-for="record in records" :key="record.id">
+    <template v-for="record in context.records.value" :key="record.id">
       <template v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id">
         <InlineValueCell
           :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"

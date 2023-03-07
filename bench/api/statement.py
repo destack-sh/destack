@@ -62,6 +62,7 @@ class SourceMapping:
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord(gql.Node):
     id: GlobalID
+    statement: "Statement"
     revision: auto
     created_at: auto
     updated_at: auto
@@ -97,7 +98,7 @@ class SimpleType:
 
 @gql.django.type(models.SimpleTypeNode)
 class SimpleTypeNode(gql.Node, SimpleType):
-    statement: auto
+    statement: "Statement"
     revision: auto
     created_at: auto
     updated_at: auto
@@ -481,7 +482,8 @@ class SymbolMutation:
 
     @project_mutation(PMT.CREATE_STATEMENT_RECORD)
     def restore_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        # use _base_manager since soft deleted records are not visible
+        record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
 
@@ -521,7 +523,8 @@ class SymbolMutation:
     def delete_statement_type_node(
         self, input: TypeNodeDeleteInput
     ) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        # use _base_manager since soft deleted type nodes are not visible
+        type_node = models.SimpleTypeNode._base_manager.get(id=input.id.node_id)
         type_node.soft_delete()
         return type_node
 

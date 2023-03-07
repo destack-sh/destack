@@ -13,10 +13,15 @@ import {
   type SymbolType,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
+  type CreateTypeNodeMutation,
+  type UpdateTypeNodeMutation,
+  type RestoreTypeNodeMutation,
+  type DeleteTypeNodeMutation,
   type UpdateStatementModifierMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
+import type { TypeNode } from "graphql";
 import { v4 as uuidv4 } from "uuid";
 
 export function newStatementId(): string {
@@ -467,18 +472,69 @@ export function useStatementOps() {
     });
   }
 
-  // TODO @Performance: mutate type nodes optimistically  :SubSymbolRevisions
   const { mutate: createTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
         createStatementTypeNode(input: $typeNode) {
           ... on SimpleTypeNode {
+            id
+            createdAt
+            updatedAt
+            deletedAt
+            orderKey
+            statement {
+              id
+            }
             ...SimpleTypeNodeContent
           }
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { typeNode: TypeNodeCreateInput }) =>
+        ({
+          __typename: "Mutation",
+          createStatementTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.typeNode.id,
+            statement: {
+              __typename: "Statement",
+              id: vars.typeNode.statementId,
+            },
+            revision: PENDING_REVISION,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            tag: vars.typeNode.tag,
+            name: vars.typeNode.name,
+            description: vars.typeNode.description ?? null,
+            value: vars.typeNode.value,
+            orderKey: vars.typeNode.orderKey,
+            reference:
+              vars.typeNode.referenceId == null ? null : { __typename: "Statement", id: vars.typeNode.referenceId },
+            isOutput: vars.typeNode.isOutput,
+            isArray: vars.typeNode.isArray,
+            isNullable: vars.typeNode.isNullable,
+          },
+        } as CreateTypeNodeMutation),
+      update(cache, { data }) {
+        const createStatementTypeNode = data?.createStatementTypeNode;
+        if (createStatementTypeNode?.__typename != "SimpleTypeNode") {
+          return; // error
+        }
+        // extend Statement.type_nodes with (ref to) new type node
+        cache.modify({
+          id: cache.identify(createStatementTypeNode.statement),
+          fields: {
+            typeNodes(existingTypeNodes = []) {
+              return [...existingTypeNodes, { __ref: cache.identify(createStatementTypeNode) }];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
   );
 
   const { mutate: deleteTypeNodeMut } = useMutation(
@@ -486,12 +542,47 @@ export function useStatementOps() {
       mutation deleteTypeNode($id: GlobalID!) {
         deleteStatementTypeNode(input: { id: $id }) {
           ... on SimpleTypeNode {
+            id
             deletedAt
           }
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          deleteStatementTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as DeleteTypeNodeMutation),
+    }
+  );
+
+  const { mutate: restoreTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restoreTypeNode($id: GlobalID!) {
+        restoreStatementTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          restoreStatementTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: null,
+          },
+        } as RestoreTypeNodeMutation),
+    }
   );
 
   async function createTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
@@ -513,7 +604,7 @@ export function useStatementOps() {
         return await deleteTypeNodeMut({ id: typeNode.id });
       },
       undo: async () => {
-        return await createTypeNodeMut({ typeNode });
+        return await restoreTypeNodeMut({ id: typeNode.id });
       },
     });
   }
@@ -523,12 +614,42 @@ export function useStatementOps() {
       mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
         updateStatementTypeNode(input: $typeNode) {
           ... on SimpleTypeNode {
-            ...SimpleTypeNodeContent
+            id
+            updatedAt
+            revision
+            name
+            description
+            isOutput
+            isArray
+            isNullable
+            value
+            reference {
+              id
+            }
           }
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { typeNode: TypeNodeUpdateInput }) =>
+        ({
+          updateStatementTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.typeNode.id,
+            updatedAt: new Date().toISOString(),
+            revision: PENDING_REVISION,
+            name: vars.typeNode.name,
+            description: vars.typeNode.description,
+            isOutput: vars.typeNode.isOutput,
+            isArray: vars.typeNode.isArray,
+            isNullable: vars.typeNode.isNullable,
+            value: vars.typeNode.value,
+            reference:
+              vars.typeNode.referenceId == null ? null : { __typename: "Statement", id: vars.typeNode.referenceId },
+          },
+        } as UpdateTypeNodeMutation),
+    }
   );
 
   async function updateTypeNode(oldTypeNode: TypeNodeUpdateInput, newTypeNode: TypeNodeUpdateInput) {
