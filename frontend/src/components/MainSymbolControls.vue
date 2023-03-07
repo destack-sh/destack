@@ -215,7 +215,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       @click="action.action"
     >
       <component :is="action.icon" class="h-5 w-5" />
-      <!-- little svg rectangle -->
+      <!-- little svg rectangle for stale/active status -->
       <svg
         v-if="mainSymbol != null && (action.active.value || action.stale != null)"
         class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"

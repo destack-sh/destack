@@ -6,9 +6,18 @@ from pathlib import Path
 
 import dotenv
 
+from bench.utils.utils import get_from_env
+
+LOCAL_ENV = get_from_env("LOCAL_ENV", "local")
+if LOCAL_ENV == "prod":
+    DOT_ENV_FILES = [".env", ".env.prod"]
+else:
+    DOT_ENV_FILES = [".env"]
+
 
 def main():
-    dotenv.load_dotenv(verbose=True)
+    for dot_env_file in DOT_ENV_FILES:
+        dotenv.load_dotenv(dot_env_file, verbose=True, override=True)
     os.environ["VERSION"] = Path("version").read_text().strip()
 
     """Run administrative tasks."""

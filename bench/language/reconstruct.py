@@ -39,7 +39,7 @@ def render(files: list[File]) -> str:
     for i, file in enumerate(files):
         if i != 0:
             lines.append("")
-        lines.append(f"--- {file.path}.x ---")
+        lines.append(f"--- {file.path} ---")
         lines.append(render_file(file))
     return "\n".join(lines)
 
@@ -167,11 +167,12 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
         else:
             return rendered_code
     elif isinstance(content, DatasetContent):
+        records_data = [record.data for record in content.records]
         if content.language == "jsonl":
-            records_as_jsonl = "\n".join(json.dumps(record) for record in content.records)
+            records_as_jsonl = "\n".join(json.dumps(data) for data in records_data)
             rendered_data = render_literal(records_as_jsonl, lang="jsonl")
         elif content.language == "json":
-            rendered_data = render_literal(json.dumps(content.records), lang="json")
+            rendered_data = render_literal(json.dumps(records_data), lang="json")
         elif content.language == "csv":
             field_names = [field.name for field in content.type_node.children]
             csv_output = io.StringIO()
@@ -181,7 +182,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
                 fieldnames=field_names,
                 lineterminator="\n",
             )
-            csv_writer.writerows(content.records)
+            csv_writer.writerows(records_data)
             rendered_data = render_literal(csv_output.getvalue().strip(), lang="csv")
         else:
             raise ValueError(f"unexpected data language: {content.language}")
@@ -324,8 +325,8 @@ def render_reference(reference: Statement | StatementPath, via: Statement | None
     if not isinstance(reference, StatementPath):
         reference = get_reference_as_path(reference, via)
     if reference[0] == ".":
-        return f"{reference[1]}"
-    return f"{reference[0]}.{reference[1]}"
+        return escape_identifier(reference[1])
+    return escape_identifier(f"{reference[0]}.{reference[1]}")
 
 
 def render_import_source(reference: Statement | StatementPath, via: Statement) -> str:

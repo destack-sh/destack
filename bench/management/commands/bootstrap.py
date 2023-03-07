@@ -30,7 +30,7 @@ providers: list[Provider] = [
         name="OpenAI",
         slug="openai",
         models=[
-            "gpt-3.5-turbo",
+            ("gpt-3-5-turbo", "gpt-3.5-turbo"),
             "text-davinci-003",
             "text-davinci-002",
             "text-curie-001",
@@ -118,6 +118,10 @@ def create_model_providers():
         models_file = std_v.create_file(name="text")
         order_keys = generate_n_keys_between(None, None, len(provider.models))
         for order_key, model_id in zip(order_keys, provider.models):
+            if isinstance(model_id, tuple):
+                model_id, external_name = model_id
+            else:
+                external_name = model_id
             provider_key = ProviderKey[provider.slug.upper()]
             Statement.objects.create(
                 project_version=std_v,
@@ -128,7 +132,7 @@ def create_model_providers():
                 symbol_type=SymbolType.MODEL,
                 name=model_id,
                 provider=provider_key,
-                external_name=model_id,
+                external_name=external_name,
             )
 
         # advance head
