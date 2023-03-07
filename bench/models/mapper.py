@@ -27,6 +27,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
+from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import ExecutionFrameData
 from bench.utils.fractional import generate_n_keys_between
@@ -275,16 +276,15 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     )
     data.on = statement.on
     if statement.symbol_type == SymbolType.DATA:
-        data.records = list(statement.records.all().values_list("data", flat=True))
+        data.records = [
+            RecordData(
+                id=record.id, revision=record.revision, order_key=record.order_key, data=record.data
+            )
+            for record in statement.records.all()
+        ]
     elif statement.symbol_type == SymbolType.BUILD:
         data.generated_mappings = [
-            wire.SourceMapping(
-                source_id=m.source_id,
-                source_revision=m.source_revision,
-                target_id=m.target_id,
-                target_revision=m.target_revision,
-            )
-            for m in statement.generated_mappings.all()
+            rmap_source_mapping(m) for m in statement.generated_mappings.all()
         ]
     elif statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
@@ -312,10 +312,15 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 
     # copy relational data
     if data.records:
-        order_keys = generate_n_keys_between(None, None, len(data.records))
         model_records = [
-            models.DatasetRecord(statement=statement, order_key=order_key, data=data)
-            for order_key, data in zip(order_keys, data.records)
+            models.DatasetRecord(
+                id=record.id,
+                statement=statement,
+                order_key=record.order_key,
+                revision=record.revision,
+                data=data,
+            )
+            for record in data.records
         ]
         relations.extend(model_records)
     elif data.generated_mappings:
@@ -333,18 +338,49 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 
 
 def wmap_source_mappings(
-    statement_id: UUID | None, source_mappings: list[wire.SourceMapping]
+    statement_id: UUID | None, source_mappings: list[language.SourceMapping]
 ) -> list[models.SourceMapping]:
-    return [
-        models.SourceMapping(
-            statement_id=statement_id,
-            source_id=m.source_id,
-            source_revision=m.source_revision,
-            target_id=m.target_id,
-            target_revision=m.target_revision,
-        )
-        for m in source_mappings
-    ]
+    return [wmap_source_mapping(statement_id, m) for m in source_mappings]
+
+
+def wmap_source_mapping(
+    statement_id: UUID | None, source_mapping: language.SourceMapping
+) -> models.SourceMapping:
+    is_statement = source_mapping.type == language.SourceMappingType.STATEMENT
+    is_record = source_mapping.type == language.SourceMappingType.RECORD
+    is_type_node = source_mapping.type == language.SourceMappingType.TYPE_NODE
+    return models.SourceMapping(
+        statement_id=statement_id,
+        source_statement_id=source_mapping.source_id if is_statement else None,
+        source_record_id=source_mapping.source_id if is_record else None,
+        source_type_node_id=source_mapping.source_id if is_type_node else None,
+        source_revision=source_mapping.source_revision,
+        target_statement_id=source_mapping.target_id if is_statement else None,
+        target_record_id=source_mapping.target_id if is_record else None,
+        target_type_node_id=source_mapping.target_id if is_type_node else None,
+        target_revision=source_mapping.target_revision,
+    )
+
+
+def rmap_source_mapping(source_mapping: models.SourceMapping) -> language.SourceMapping:
+    if source_mapping.type == models.SourceMappingType.STATEMENT:
+        source_id = source_mapping.source_statement_id
+        target_id = source_mapping.target_statement_id
+    elif source_mapping.type == models.SourceMappingType.RECORD:
+        source_id = source_mapping.source_record_id
+        target_id = source_mapping.target_record_id
+    elif source_mapping.type == models.SourceMappingType.TYPE_NODE:
+        source_id = source_mapping.source_type_node_id
+        target_id = source_mapping.target_type_node_id
+    else:
+        raise ValueError(f"unknown source mapping type {source_mapping.type}")
+    return language.SourceMapping(
+        type=source_mapping.type,
+        source_id=source_id,
+        source_revision=source_mapping.source_revision,
+        target_id=target_id,
+        target_revision=source_mapping.target_revision,
+    )
 
 
 def wmap_type_nodes(

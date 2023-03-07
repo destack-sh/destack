@@ -270,7 +270,7 @@ export function useStatementContext() {
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
     typeRootTag: rootTypeTag,
-    typeNodes,
+    typeNodes: computed(() => typeNodes.value.filter((n) => n.deletedAt == null)),
     // actions
     actions,
     navigateUp,

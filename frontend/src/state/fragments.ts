@@ -116,6 +116,10 @@ export const TypeContentType = graphql(/* GraphQL */ `
 export const SimpleTypeNodeType = graphql(/* GraphQL */ `
   fragment SimpleTypeNodeContent on SimpleTypeNode {
     id
+    createdAt
+    updatedAt
+    deletedAt
+    revision
     name
     tag
     description
@@ -159,10 +163,10 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     value
     rootTypeTag
-    typeNodes {
+    typeNodes(filters: { isVisible: true }) {
       ...SimpleTypeNodeContent
     }
-    records {
+    records(filters: { isVisible: true }) {
       totalCount
       edges {
         node {

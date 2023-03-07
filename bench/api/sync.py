@@ -52,13 +52,19 @@ def project_mutation(
         @functools.wraps(func)
         def wrapped_mutation(*args, **kwargs):
             thing = func(*args, **kwargs)
-            if not isinstance(thing, (models.File, models.Statement)):
-                raise TypeError(f"thing must be File or Statement: {thing}")
+            if isinstance(thing, (models.File, models.Statement)):
+                project_version = models.ProjectVersion.objects.only("committed_at").get(
+                    id=thing.project_version_id
+                )
+            elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord)):
+                # TODO @Performance: fetching project_version for statement mutation is inefficient
+                project_version = models.ProjectVersion.objects.only("committed_at").get(
+                    id=thing.statement.project_version_id
+                )
+            else:
+                raise TypeError(f"thing is not a project thing: {thing}")
 
             # check that containing project is not committed
-            project_version = models.ProjectVersion.objects.only("committed_at").get(
-                id=thing.project_version_id
-            )
             if project_version.committed:
                 raise PermissionDenied("cannot mutate committed project version")
 
@@ -73,8 +79,9 @@ def project_mutation(
             if not is_new:
                 thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
-            # TODO @Robustness: trigger pub_project_mutation after resolver is complete
-            #  Currently this is also triggered even if permission check (on ret) fails.
+            # TODO @Robustness @Performance: trigger pub_project_mutation after resolver
+            #  Currently this is also triggered even if permission check (on ret) fails,
+            #  because the permission check runs after the return value is computed.
             # publish change
             pub_project_mutation(type, thing)
 
@@ -106,17 +113,23 @@ def pub_project_mutation(
     if isinstance(thing, models.File):
         file_id = thing.id
         statement_id = None
+        project_version_id = thing.project_version_id
     elif isinstance(thing, models.Statement):
         file_id = None
         statement_id = thing.id
+        project_version_id = thing.project_version_id
+    elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord)):
+        file_id = None
+        statement_id = thing.statement_id
+        project_version_id = thing.statement.project_version_id
     else:
-        raise TypeError(f"thing must be File or Statement: {thing}")
+        raise TypeError(f"thing is not a project thing: {thing}")
 
     if not SEND_API_PUB_MSG:
         return
     mutation = ProjectMutation(
         type,
-        project_version_id=thing.project_version_id,
+        project_version_id=project_version_id,
         file_id=file_id,
         statement_id=statement_id,
         revision=revision,
@@ -124,7 +137,7 @@ def pub_project_mutation(
     send_message(
         project_change_pub_sync,
         ZMessageType.PROJECT_VERSION_CHANGED,
-        ProjectVersionChangedPayload(thing.project_version_id, mutations=[mutation]),
+        ProjectVersionChangedPayload(project_version_id, mutations=[mutation]),
     )
 
 

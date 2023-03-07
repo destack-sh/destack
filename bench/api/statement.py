@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
-from strawberry import lazy
+from strawberry import UNSET, lazy
 from strawberry.scalars import JSON
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
@@ -20,14 +20,38 @@ StatementModifier = gql.enum(language.StatementModifier)
 SymbolType = gql.enum(models.SymbolType)
 
 
+@gql.django.filter(models.DatasetRecord)
+class DatasetRecordFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
+@gql.django.filter(models.SimpleTypeNode)
+class SimpleTypeNodeFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
 @gql.type
 class Type:
     description: Optional[str]
     btl: str
 
 
+SourceMappingType = gql.enum(models.SourceMappingType)
+
+
 @gql.django.type(models.SourceMapping)
 class SourceMapping:
+    type: SourceMappingType
     statement_id: GlobalID
     source_id: GlobalID
     source_revision: int
@@ -38,8 +62,10 @@ class SourceMapping:
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord(gql.Node):
     id: GlobalID
+    revision: auto
     created_at: auto
     updated_at: auto
+    deleted_at: auto
     order_key: str
     data: JSON
 
@@ -72,8 +98,10 @@ class SimpleType:
 @gql.django.type(models.SimpleTypeNode)
 class SimpleTypeNode(gql.Node, SimpleType):
     statement: auto
+    revision: auto
     created_at: auto
     updated_at: auto
+    deleted_at: auto
     name: auto
     order_key: auto
     tag: TypeTag
@@ -107,13 +135,15 @@ class Statement(gql.Node, SimplyTyped):
     symbol_type: Optional[SymbolType]
     # symbol contents
     root_type_tag: Optional[TypeTag]
-    type_nodes: list[SimpleTypeNode]
+    type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)
     lang: auto
     code: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     value: auto
-    records: gql.relay.Connection[DatasetRecord] = gql.django.connection()
+    records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
+        filters=DatasetRecordFilter
+    )
 
 
 #
@@ -322,19 +352,17 @@ class RecordCreateInput(gql.NodeInput):
 
 @gql.input
 class RecordUpdateInput(gql.NodeInput):
-    statement_id: GlobalID
     data: JSON
 
 
 @gql.input
 class RecordMoveInput(gql.NodeInput):
-    statement_id: GlobalID
     order_key: str
 
 
 @gql.input
 class RecordDeleteInput(gql.NodeInput):
-    statement_id: GlobalID
+    pass
 
 
 @gql.input
@@ -382,16 +410,14 @@ class TypeNodeUpdateInput(gql.NodeInput):
 
 @gql.input
 class TypeNodeMoveInput(gql.NodeInput):
-    statement_id: GlobalID
     order_key: str
 
 
 @gql.input
 class TypeNodeDeleteInput(gql.NodeInput):
-    statement_id: GlobalID
+    pass
 
 
-# TODO @Cleanup: trivial statement field mutations should be much less code
 @gql.type
 class SymbolMutation:
     # both text and code save to code, but UPDATE_STATEMENT_TEXT is more descriptive
@@ -424,8 +450,8 @@ class SymbolMutation:
         statement.language = input.language
         return statement
 
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def create_statement_record(self, input: RecordCreateInput) -> Statement | OperationInfo:
+    @project_mutation(PMT.CREATE_STATEMENT_RECORD)
+    def create_statement_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(
             statement=statement,
@@ -433,48 +459,46 @@ class SymbolMutation:
             data=input.data,
             order_key=input.order_key,
         )
-        record.save()
-        return statement
+        return record
 
-    # TODO @Cleanup @Performance: DatasetRecord and TypeNode want to be their own objects in updates
-    #  But we encapsulate them in Statement for unified save & revision updates (and auth checks).
-    #  Maybe they they should have their own revisions (additionally?), though that may complicate syncing.
-    #  Right now they're nested inside Statement so we need to run updates as atomic (inefficient).
-    #  :SubSymbolRevisions
-
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def update_statement_record(self, input: RecordUpdateInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = statement.records.get(id=UUID(input.id.node_id))
+    @project_mutation(PMT.UPDATE_STATEMENT_RECORD)
+    def update_statement_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.data = input.data
-        record.save()
-        return statement
+        return record
 
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def move_statement_record(self, input: RecordMoveInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = statement.records.get(id=input.id)
+    @project_mutation(PMT.MOVE_STATEMENT_TYPE_NODE)
+    def move_statement_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
-        record.save()
-        return statement
+        return record
 
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORDS, atomic=True)
-    def delete_statement_record(self, input: RecordDeleteInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        _ = statement.records.filter(id=UUID(input.id.node_id)).delete()
-        return statement
+    @project_mutation(PMT.DELETE_STATEMENT_RECORD)
+    def delete_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        record.soft_delete()
+        return record
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
-    def create_statement_type_node(self, input: TypeNodeCreateInput) -> Statement | OperationInfo:
+    @project_mutation(PMT.CREATE_STATEMENT_RECORD)
+    def restore_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        record.restore()
+        return record
+
+    @project_mutation(PMT.CREATE_STATEMENT_TYPE_NODE)
+    def create_statement_type_node(
+        self, input: TypeNodeCreateInput
+    ) -> SimpleTypeNode | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         type_node = input.to_model()
         type_node.statement = statement
         type_node.full_clean(validate_unique=False, validate_constraints=False)
-        type_node.save()
-        return statement
+        return type_node
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
-    def update_statement_type_node(self, input: TypeNodeUpdateInput) -> Statement | OperationInfo:
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def update_statement_type_node(
+        self, input: TypeNodeUpdateInput
+    ) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.name = input.name
         type_node.description = input.description
@@ -485,18 +509,26 @@ class SymbolMutation:
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         type_node.full_clean(validate_unique=False, validate_constraints=False)
-        type_node.save()
-        return type_node.statement
+        return type_node
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
-    def move_statement_type_node(self, input: TypeNodeMoveInput) -> Statement | OperationInfo:
+    @project_mutation(PMT.MOVE_STATEMENT_TYPE_NODE)
+    def move_statement_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.order_key = input.order_key
-        type_node.save()
-        return type_node.statement
+        return type_node
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE, atomic=True)
-    def delete_statement_type_node(self, input: TypeNodeDeleteInput) -> Statement | OperationInfo:
+    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    def delete_statement_type_node(
+        self, input: TypeNodeDeleteInput
+    ) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
-        type_node.delete()
-        return type_node.statement
+        type_node.soft_delete()
+        return type_node
+
+    @project_mutation(PMT.CREATE_STATEMENT_TYPE_NODE)
+    def restore_statement_type_node(
+        self, input: TypeNodeDeleteInput
+    ) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.restore()
+        return type_node

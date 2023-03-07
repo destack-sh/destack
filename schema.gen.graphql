@@ -105,8 +105,10 @@ union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
 type DatasetRecord implements Node {
   id: GlobalID!
+  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
+  deletedAt: DateTime
   orderKey: String!
   data: JSON!
 }
@@ -131,6 +133,12 @@ type DatasetRecordEdge {
   """The item at the end of the edge"""
   node: DatasetRecord!
 }
+
+input DatasetRecordFilter {
+  isVisible: Boolean = true
+}
+
+union DatasetRecordOperationInfo = DatasetRecord | OperationInfo
 
 """Date with time (isoformat)"""
 scalar DateTime
@@ -411,8 +419,10 @@ type InterpSimpleType implements Node & SimpleType {
   value: JSON
   reference: Statement
   statement: NodeType!
+  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
+  deletedAt: DateTime
 }
 
 type InterpSymbol implements SimplyTyped {
@@ -490,14 +500,16 @@ type Mutation {
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  createStatementRecord(input: RecordCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  updateStatementRecord(input: RecordUpdateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  moveStatementRecord(input: RecordMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  deleteStatementRecord(input: RecordDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  createStatementTypeNode(input: TypeNodeCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  updateStatementTypeNode(input: TypeNodeUpdateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  moveStatementTypeNode(input: TypeNodeMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  deleteStatementTypeNode(input: TypeNodeDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createStatementRecord(input: RecordCreateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementRecord(input: RecordUpdateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  moveStatementRecord(input: RecordMoveInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  deleteStatementRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  restoreStatementRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  createStatementTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  updateStatementTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  moveStatementTypeNode(input: TypeNodeMoveInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  deleteStatementTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  restoreStatementTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
   createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject(atRoot: true)
   softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
   restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
@@ -1094,18 +1106,15 @@ input RecordCreateInput {
 
 input RecordDeleteInput {
   id: GlobalID!
-  statementId: GlobalID!
 }
 
 input RecordMoveInput {
   id: GlobalID!
-  statementId: GlobalID!
   orderKey: String!
 }
 
 input RecordUpdateInput {
   id: GlobalID!
-  statementId: GlobalID!
   data: JSON!
 }
 
@@ -1160,9 +1169,17 @@ type SimpleTypeNode implements Node & SimpleType {
   value: JSON
   reference: Statement
   statement: NodeType!
+  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
+  deletedAt: DateTime
 }
+
+input SimpleTypeNodeFilter {
+  isVisible: Boolean = true
+}
+
+union SimpleTypeNodeOperationInfo = SimpleTypeNode | OperationInfo
 
 """Anything typed using SimpleType nodes."""
 interface SimplyTyped {
@@ -1173,7 +1190,7 @@ interface SimplyTyped {
 type Statement implements Node & SimplyTyped {
   id: GlobalID!
   rootTypeTag: TypeTag
-  typeNodes: [SimpleTypeNode!]!
+  typeNodes(filters: SimpleTypeNodeFilter): [SimpleTypeNode!]!
   projectVersion: ProjectVersion!
   file: File!
   revision: Int!
@@ -1221,6 +1238,7 @@ type Statement implements Node & SimplyTyped {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
+    filters: DatasetRecordFilter
   ): DatasetRecordConnection!
 }
 
@@ -1387,12 +1405,10 @@ input TypeNodeCreateInput {
 
 input TypeNodeDeleteInput {
   id: GlobalID!
-  statementId: GlobalID!
 }
 
 input TypeNodeMoveInput {
   id: GlobalID!
-  statementId: GlobalID!
   orderKey: String!
 }
 

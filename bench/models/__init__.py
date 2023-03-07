@@ -1,7 +1,7 @@
 from .data import DatasetRecord
 from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
 from .execution import Execution, ExecutionStatus
-from .generated import SourceMapping
+from .generated import SourceMapping, SourceMappingType
 from .model import ModelInference
 from .notification import Notification, NotificationStatus, NotificationType
 from .organization import (
@@ -43,6 +43,7 @@ __all__ = [
     "ProjectVisibility",
     "SimpleTypeNode",
     "SourceMapping",
+    "SourceMappingType",
     "Statement",
     "StatementType",
     "SymbolType",
