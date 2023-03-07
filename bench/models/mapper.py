@@ -10,7 +10,7 @@ import typing
 from dataclasses import asdict
 from datetime import datetime
 from itertools import chain, groupby
-from uuid import UUID, uuid4
+from uuid import UUID, uuid4, uuid5
 
 import pytz
 from django.db import transaction
@@ -346,39 +346,22 @@ def wmap_source_mappings(
 def wmap_source_mapping(
     statement_id: UUID | None, source_mapping: language.SourceMapping
 ) -> models.SourceMapping:
-    is_statement = source_mapping.type == language.SourceMappingType.STATEMENT
-    is_record = source_mapping.type == language.SourceMappingType.RECORD
-    is_type_node = source_mapping.type == language.SourceMappingType.TYPE_NODE
     return models.SourceMapping(
+        type=source_mapping.type,
         statement_id=statement_id,
-        source_statement_id=source_mapping.source_id if is_statement else None,
-        source_record_id=source_mapping.source_id if is_record else None,
-        source_type_node_id=source_mapping.source_id if is_type_node else None,
+        source_id=source_mapping.source_id,
         source_revision=source_mapping.source_revision,
-        target_statement_id=source_mapping.target_id if is_statement else None,
-        target_record_id=source_mapping.target_id if is_record else None,
-        target_type_node_id=source_mapping.target_id if is_type_node else None,
+        target_id=source_mapping.target_id,
         target_revision=source_mapping.target_revision,
     )
 
 
 def rmap_source_mapping(source_mapping: models.SourceMapping) -> language.SourceMapping:
-    if source_mapping.type == models.SourceMappingType.STATEMENT:
-        source_id = source_mapping.source_statement_id
-        target_id = source_mapping.target_statement_id
-    elif source_mapping.type == models.SourceMappingType.RECORD:
-        source_id = source_mapping.source_record_id
-        target_id = source_mapping.target_record_id
-    elif source_mapping.type == models.SourceMappingType.TYPE_NODE:
-        source_id = source_mapping.source_type_node_id
-        target_id = source_mapping.target_type_node_id
-    else:
-        raise ValueError(f"unknown source mapping type {source_mapping.type}")
     return language.SourceMapping(
         type=source_mapping.type,
-        source_id=source_id,
+        source_id=source_mapping.source_id,
         source_revision=source_mapping.source_revision,
-        target_id=target_id,
+        target_id=source_mapping.target_id,
         target_revision=source_mapping.target_revision,
     )
 
@@ -463,9 +446,17 @@ def rmap_type_nodes(
     type_nodes: list[models.SimpleTypeNode] | None,
     for_statement: models.Statement,
 ) -> list[wire.TypeNodeData]:
-    """Reads a database type node into a wire type node."""
+    """
+    Reads a database type node into a wire type node.
+    Because the database type is simpler and skips some intermediate nodes, we need to
+    reconstruct them and assign reproducible IDs.
+    """
     if root_type_tag is None:
         return []
+
+    def new_id(name: str) -> UUID:
+        """Generate a reproducible ID for a child node."""
+        return uuid5(root_id, name)
 
     def _rmap_child_node(node: models.SimpleTypeNode) -> language.TypeNode:
         if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
@@ -482,18 +473,18 @@ def rmap_type_nodes(
 
         if node.is_array:  # hoist into array
             lang_node.name = None
-            lang_node.id = uuid4()
+            lang_node.id = new_id("array" + str(lang_node.id))
             lang_node = language.TypeNode(
                 id=node.id, tag=TypeTag.ARRAY, name=node.name, children=[lang_node]
             )
         if node.is_nullable:  # hoist into union
             lang_node.name = None
-            lang_node.id = uuid4()
-            lang_node = language.TypeNode(
+            lang_node.id = new_id("union" + str(lang_node.id))
+            lang_node = TypeNode(
                 id=node.id,
                 tag=TypeTag.UNION,
                 name=node.name,
-                children=[lang_node, language.TypeNode(tag=TypeTag.NULL, name=None)],
+                children=[lang_node, TypeNode(id=new_id("null"), tag=TypeTag.NULL, name=None)],
             )
         return lang_node
 
@@ -501,7 +492,7 @@ def rmap_type_nodes(
         children = [_rmap_child_node(node) for node in type_nodes]
     elif root_type_tag == TypeTag.ENUM:
         # assumes literal string enums only :LiteralStringEnum
-        head_type = TypeNode(name=None, tag=TypeTag.STRING)
+        head_type = TypeNode(id=new_id("head"), name=None, tag=TypeTag.STRING)
         children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
     elif root_type_tag == TypeTag.FUNCTION:
         input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
@@ -510,13 +501,15 @@ def rmap_type_nodes(
             output = _rmap_child_node(output)
             output.name = "output"  # restore name
         else:  # default optional output to null (no output)
-            output = language.TypeNode(tag=TypeTag.NULL, name="output")
-        input = language.TypeNode(tag=TypeTag.STRUCT, name="input", children=input_children)
+            output = TypeNode(id=new_id("output"), tag=TypeTag.NULL, name="output")
+        input = TypeNode(
+            id=new_id("input"), tag=TypeTag.STRUCT, name="input", children=input_children
+        )
         children = [input, output]
     else:
         raise ValueError(f"root type node is not represented simply: {type_nodes}")
 
-    root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+    root = TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
     return wire.rmap_type_node(root)
 
 

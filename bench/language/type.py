@@ -728,7 +728,7 @@ class Build(InterpSymbol, BuildContent):
     models: list[Model] = field(default_factory=list)
 
 
-class SourceMappingType:
+class SourceMappingType(enum.StrEnum):
     STATEMENT = "statement"
     RECORD = "record"
     TYPE_NODE = "type_node"
@@ -743,6 +743,12 @@ class SourceMapping:
     source_revision: int
     target_id: Optional[UUID]
     target_revision: Optional[int]
+
+    def __str__(self):
+        return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
+
+    def __repr__(self):
+        return f"<SourceMapping {self}>"
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {

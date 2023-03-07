@@ -236,12 +236,12 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
             # nothing relevant changed
             continue
 
-        # assemble generated statements for this generator (that are still around)
+        # mark generated statements as stale
         for source_mapping in source_mappings:
             if source_mapping.target_id is None:
                 continue
             generated = idx.get_symbol_by_id(source_mapping.target_id).source
-            if generated is not None:
+            if generated is not None:  # ignore if no longer exists
                 stale_symbols.append(generated)
 
     return stale_symbols
@@ -625,7 +625,7 @@ class Worker:
         generated_files = []
         generated_mappings = []
         for build_result in job.build_results:
-            generated_file = build_result.to_file(job.revmap, module_worker.idx.module)
+            generated_file = build_result.to_file(module_worker.idx.module)
             generated_files.append(wire.rmap_file(generated_file))
             mappings = [job.revmap.map_mapping(m) for m in build_result.source_mappings]
             generated_mappings.append((build_result.build.id, mappings))

@@ -26,40 +26,14 @@ class SourceMapping(UUIDModel):
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="generated_mappings"
     )
-    type = TextChoicesField(choices_enum=SourceMappingType, default=SourceMappingType.STATEMENT)
-    source_statement = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="target_mappings", null=True, blank=True
-    )
-    source_record = models.ForeignKey(
-        "DatasetRecord",
-        on_delete=models.CASCADE,
-        related_name="target_mappings",
-        null=True,
-        blank=True,
-    )
-    source_type_node = models.ForeignKey(
-        "SimpleTypeNode",
-        on_delete=models.CASCADE,
-        related_name="target_mappings",
-        null=True,
-        blank=True,
-    )
+    type = TextChoicesField(choices_enum=SourceMappingType)
+    source_id = models.UUIDField(null=True, blank=True)
     source_revision = models.IntegerField()
-    target_statement = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="source_mappings", null=True, blank=True
-    )
-    target_record = models.ForeignKey(
-        "DatasetRecord",
-        on_delete=models.CASCADE,
-        related_name="source_mappings",
-        null=True,
-        blank=True,
-    )
-    target_type_node = models.ForeignKey(
-        "SimpleTypeNode",
-        on_delete=models.CASCADE,
-        related_name="source_mappings",
-        null=True,
-        blank=True,
-    )
+    target_id = models.UUIDField(null=True, blank=True)
     target_revision = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
+
+    def __repr__(self):
+        return f"<SourceMapping {self}>"

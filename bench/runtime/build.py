@@ -33,17 +33,10 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, fabricate
-from bench.runtime.reactivity import (
-    RawMapping,
-    RawNode,
-    RevisionMap,
-    TrackedNodeType,
-    walk_interp_symbol,
-)
+from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
-
 
 #
 # Build
@@ -83,14 +76,14 @@ class BuildError(ValueError):
         super().__init__(self.type.description)
 
 
-@dataclass
+@dataclass(repr=False)
 class BuildState:
     build: Build
     candidates: list[BuildCandidate] = field(default_factory=list)
     best_candidate: Optional[BuildCandidate] = None
 
 
-@dataclass
+@dataclass(repr=False)
 class BuildCandidate:
     state: BuildState
     build: Build
@@ -98,7 +91,7 @@ class BuildCandidate:
     model: Model
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
-    dependencies: list[RawNode] = field(default_factory=list)
+    dependencies: TrackedTree = field(default_factory=TrackedTree)
     source_mappings: list[RawMapping] = field(default_factory=list)
     # weak references are references to symbols outside the build that are not "strong" references
     # for e.g. string references in code that don't have a foreign key
@@ -159,21 +152,22 @@ class BuildCandidate:
         if source.source is None:
             raise ValueError(f"source symbol must have a source: {source}")
 
-        for symbol in walk_interp_symbol(source):
-            dependency = RawNode(TrackedNodeType.STATEMENT, symbol.id)
-            if dependency not in self.dependencies:
-                self.dependencies.append(dependency)
+        track_interp_symbol(self.dependencies, source)
 
     def map_source(self, source: InterpSymbol, target: InterpSymbol):
         """Map the source symbol to the generated target symbol."""
         self.track_dependency(source)
-        self.source_mappings.append(RawMapping(source_id=source.id, target_id=target.id))
+        self.source_mappings.append(
+            RawMapping(type=TrackedNodeType.STATEMENT, source_id=source.id, target_id=target.id)
+        )
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
         combined_mappings = [*self.source_mappings]
         for dependency in self.dependencies:
-            combined_mappings.append(RawMapping(source_id=dependency.id, target_id=None))
+            combined_mappings.append(
+                RawMapping(type=dependency.type, source_id=dependency.id, target_id=None)
+            )
         return BuildResult(
             build=self.build,
             target_symbols=self.target_symbols,
@@ -189,7 +183,7 @@ class BuildResult:
     source_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
 
-    def to_file(self, revmap: RevisionMap, module: Module | None = None) -> File:
+    def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
         file = File(path=self.build.id.hex[:8], generated=True, module=module)
