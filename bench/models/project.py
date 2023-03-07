@@ -64,7 +64,10 @@ class ProjectManager(models.Manager["Project"]):
         project.save()
         if create_adhoc_deployment:
             Deployment.objects.create_deployment(
-                project_version=project.head, owner=owner, type=DeploymentType.ADHOC
+                project_version=project.head,
+                owner=owner,
+                type=DeploymentType.ADHOC,
+                status=DeploymentStatus.ACTIVE,
             )
         if create_onboarding_files:
             docs_v = Project.objects.get_by_slug("symbolx", "docs").head

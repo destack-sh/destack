@@ -231,6 +231,7 @@ class CommitInput:
     name: Optional[str] = None
     tag: Optional[str] = None  # :ProjectVersionTags
     description: Optional[str] = None
+    auto_deploy: bool = False
 
 
 @gql.input
@@ -268,6 +269,11 @@ class ProjectVersionMutation:
         project = project_v.project
         if project_v.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
+
+        if input.auto_deploy:
+            models.Deployment.objects.filter(project_version=project_v).update(
+                type=models.DeploymentType.MANUAL, status=models.DeploymentStatus.ACTIVE
+            )
 
         new_head = project.create_version(
             parent=project_v,

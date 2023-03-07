@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { Switch } from "@headlessui/vue";
 
-defineProps<{ modelValue: boolean }>();
+defineProps<{ modelValue: boolean; disabled?: boolean }>();
 const emit = defineEmits<{ (e: "update:modelValue", value: boolean): void }>();
 </script>
 <template>
@@ -11,7 +11,9 @@ const emit = defineEmits<{ (e: "update:modelValue", value: boolean): void }>();
     :class="[
       modelValue ? 'bg-orange-600' : 'bg-gray-200',
       'relative inline-flex h-4 w-9 flex-shrink-0 cursor-pointer rounded-sm border-2 border-transparent ring-0 transition-colors duration-100 ease-in-out',
+      disabled ? 'cursor-not-allowed opacity-50' : '',
     ]"
+    :disabled="disabled"
   >
     <span
       aria-hidden="true"

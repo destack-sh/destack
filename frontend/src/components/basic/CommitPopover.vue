@@ -13,19 +13,31 @@ import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ version: ProjectVersion; projectId: string; prevSemVerTag?: SemVer }>();
-const emit = defineEmits<{ (e: "commit", id: string, name?: string, tag?: string): void }>();
+const emit = defineEmits<{
+  (
+    e: "commit",
+    c: {
+      projectVersionId: string;
+      name?: string;
+      tag?: string;
+      description?: string;
+      autoDeploy?: boolean;
+    }
+  ): void;
+}>();
 
 // use reference to element inside PopoverPanel to determine if it's open
 const panelHeaderRef = ref<HTMLDivElement | null>(null);
 
 const committed = computed(() => props.version != null && props.version.committed);
-const autoDeploy = ref(true);
 
 const suggestedName = getRandomName();
 const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : suggestedName));
 const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "minor"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
+const autoDeploy = ref(true);
+const canAutoDeploy = computed(() => tag.value.length > 0);
 
 const validTag = computed(() => parseSemVer(tag.value) != null);
 // check whether the entered tag is available
@@ -50,6 +62,7 @@ const { result: existingTagResult, loading: tagLoading } = useQuery(
 );
 const availableTag = computed(
   () =>
+    tag.value.length == 0 ||
     existingTagResult.value?.projectVersionByTag == null ||
     existingTagResult.value?.projectVersionByTag?.id == props.version?.id
 );
@@ -59,11 +72,16 @@ const canCommit = computed(() => !tagLoading.value && availableTag.value);
 // so auto-sync name, description and tag (debounced as usual)
 const operations = useOperations();
 function updateVersion() {
-  operations.version.update(props.version.id, name.value, tag.value, description.value);
+  operations.version.update(
+    props.version.id,
+    name.value,
+    tag.value.length > 0 ? tag.value : undefined,
+    description.value
+  );
 }
 const updateVersionDebounced = useDebounceFn(updateVersion, 500);
-watch([name, description, tag, availableTag], () => {
-  if (availableTag.value) {
+watch([name, description, tag, availableTag, tagLoading], () => {
+  if (availableTag.value && !tagLoading.value) {
     updateVersionDebounced();
   }
 });
@@ -141,11 +159,17 @@ watch([name, description, tag, availableTag], () => {
           <p></p>
         </div>
 
-        <!-- Deployment -->
-        <!-- Auto-deploy -->
-        <div class="flex w-full flex-row items-center justify-end gap-1 text-right">
-          <span class="text-gray-700">Auto-deploy</span>
-          <Switch :model-value="autoDeploy" />
+        <!-- Deployment (if head) -->
+        <div v-if="!committed" class="flex flex-row items-baseline justify-between gap-1">
+          <p class="flex-1 whitespace-nowrap">
+            <FadeTransition mode="out-in">
+              <span v-if="tag.length > 0" class="text-gray-700">
+                <span class="font-bold">Auto-deploy</span> this tagged version.
+              </span>
+              <span v-else class="text-yellow-600">Version without a tag cannot be deployed.</span>
+            </FadeTransition>
+          </p>
+          <Switch v-model="autoDeploy" v-if="canAutoDeploy" />
         </div>
 
         <!-- Commit / update action -->
@@ -155,7 +179,13 @@ watch([name, description, tag, availableTag], () => {
             class="w-fit self-end border border-orange-600 px-3 py-1 text-sm hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
             :class="{ 'pointer-events-none opacity-50': !canCommit }"
             @click="
-              emit('commit', version.id, name, tag);
+              emit('commit', {
+                projectVersionId: version.id,
+                name,
+                tag,
+                description,
+                autoDeploy: canAutoDeploy && autoDeploy,
+              });
               close();
             "
           >

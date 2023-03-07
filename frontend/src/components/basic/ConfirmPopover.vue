@@ -26,7 +26,13 @@ const emit = defineEmits<{ (e: "action"): void; (e: "cancel"): void }>();
         >
           {{ cancelText ?? "Cancel" }}
         </button>
-        <button @click="emit('action')" class="rounded-sm px-1.5 py-0.5 text-gray-900 hover:bg-orange-50">
+        <button
+          @click="
+            close();
+            emit('action');
+          "
+          class="rounded-sm px-1.5 py-0.5 text-gray-900 hover:bg-orange-50"
+        >
           {{ confirmText ?? "Confirm" }}
         </button>
       </div>

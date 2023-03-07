@@ -100,6 +100,7 @@ export type BuildState = {
 export type BuildStateOperationInfo = BuildState | OperationInfo;
 
 export type CommitInput = {
+  autoDeploy?: Scalars["Boolean"];
   description?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -3268,6 +3269,7 @@ export type CommitMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
+  autoDeploy?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type CommitMutation = {
@@ -9318,6 +9320,11 @@ export const CommitDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "autoDeploy" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -9351,6 +9358,11 @@ export const CommitDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "description" },
                       value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "autoDeploy" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "autoDeploy" } },
                     },
                   ],
                 },

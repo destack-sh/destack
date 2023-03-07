@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import Switch from "@/components/basic/Switch.vue";
+import ConfirmPopover from "@/components/basic/ConfirmPopover.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { DeploymentStatus, DeploymentType, StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
@@ -12,7 +14,7 @@ import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { CheckIcon } from "@heroicons/vue/20/solid";
 import { CloudArrowUpIcon, CloudIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
@@ -55,14 +57,14 @@ const notifications = useNotifications();
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(
-  () => project.value.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0
+  () => !isDeployed.value && project.value.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0
 );
 const deploy = provideGlobalAction({
-  id: "version.deploy",
+  id: "version.deployInstant",
   label: "Deploy",
   shortcuts: [],
+  enabled: canDeploy,
   apply: async () => {
-    // re-use random name/tagging logic from action for now, will be done inline here later
     await Promise.all(
       deployments.value.map(async (deployment) => {
         operations.deployment.update(deployment.id, DeploymentStatus.Active);
@@ -81,16 +83,30 @@ const deploy = provideGlobalAction({
   },
 });
 
+function archiveDeployment() {
+  console.log("archive not implemented");
+}
+
 const endpoints = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Task, SymbolType.Runconfig],
 });
 const deployedEndpoints = computed(() => endpoints.value); // not configurable yet
+
+const deployButtonRef = ref<InstanceType<typeof PopoverButton> | null>(null);
+provideGlobalAction({
+  id: "version.deploy",
+  label: "Deploy...",
+  shortcuts: [],
+  enabled: canDeploy,
+  apply: () => deployButtonRef.value?.$el?.click(),
+});
 </script>
 
 <template>
-  <Popover v-slot="{ open }" class="relative">
+  <Popover v-slot="{ open, close }" class="relative">
     <PopoverButton
+      ref="deployButtonRef"
       class="relative rounded-sm p-1 text-sm focus:outline-none"
       :class="{
         'text-gray-500 hover:bg-orange-50': !canDeploy,
@@ -112,22 +128,20 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
       >
         <!-- Header -->
         <div class="">
-          <h2 class="font-bold text-gray-900">{{ isDeployed ? "Update deployment" : "Create deployment" }}</h2>
-          <p class="pt-2 text-gray-900">
-            Access
+          <h2 class="font-bold text-gray-900">Manage deployment</h2>
+          <p class="pt-2 text-gray-900">Deployments own the resources to run a Bench version.</p>
+          <p v-if="!committed" class="text-gray-900">
+            The current version is always deployed (tagged
+            <span class="rounded-sm bg-gray-200 px-0.5 font-mono">x</span>).
+          </p>
+          <p class="pt-0 text-gray-900">
+            Deployed endpoints are available via
             <router-link
               to="/symbolx/docs#Deploying"
               target="_blank"
               class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
-              >deployed</router-link
+              >REST</router-link
             >
-            endpoints to
-            <button
-              target="_blank"
-              class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
-            >
-              via REST
-            </button>
             at:
           </p>
           <p class="mt-2 w-full rounded-sm border border-gray-200 p-1">
@@ -141,50 +155,79 @@ const deployedEndpoints = computed(() => endpoints.value); // not configurable y
         </div>
 
         <!-- Endpoints -->
-        <ul class="mt-4 flex flex-col">
-          <li v-for="endpoint in endpoints" :key="endpoint.id" class="flex flex-row items-baseline gap-2">
-            <!-- Select for deployment -->
-            <div>
-              <!-- Not configurable yet -->
-              <input
-                type="checkbox"
-                checked
-                disabled
-                class="h-4 w-4 rounded-sm border-gray-300 text-orange-600 focus:ring-0"
-              />
+        <div class="mt-4">
+          <div class="flex w-full flex-row justify-between">
+            <h3 class="font-bold text-gray-900">
+              Endpoints <span class="rounded-3xl bg-gray-200 px-1.5 font-normal">{{ deployedEndpoints.length }}</span>
+            </h3>
+            <!-- Deploy all? -->
+            <div class="flex flex-row items-center gap-1">
+              <span class="text-gray-500">All</span>
+              <Switch :model-value="true" />
             </div>
-            <!-- Endpoint info -->
-            <div class="flex flex-1 items-baseline justify-between gap-1">
-              <h3>
-                {{ SYMBOL_TYPE_KEYWORD[endpoint.symbolType as SymbolType] }}
-                {{ endpoint.name }}
-              </h3>
-              <span class="text-xs text-gray-500">
-                {{ fileOf(endpoint)?.path }}
-              </span>
-            </div>
-          </li>
-        </ul>
+          </div>
+          <!-- Deploy specific endpoints -->
+          <ul class="mt-2 flex flex-col">
+            <li v-for="endpoint in endpoints" :key="endpoint.id" class="flex flex-row items-center gap-4">
+              <!-- Endpoint info -->
+              <div class="flex flex-1 items-baseline justify-between gap-1">
+                <h3>
+                  {{ SYMBOL_TYPE_KEYWORD[endpoint.symbolType as SymbolType] }}
+                  {{ endpoint.name }}
+                </h3>
+                <span class="text-gray-500">
+                  {{ fileOf(endpoint)?.path }}
+                </span>
+              </div>
+              <!-- Select for deployment -->
+              <Switch :model-value="true" />
+            </li>
+          </ul>
+        </div>
 
-        <!-- Snapshot name/tag/description -->
-        <!-- need to be able to configure version name, tag, description here -->
-
-        <!-- Deploy action -->
+        <!-- Deploy action/notice -->
         <div class="mt-4 text-right">
-          <button
-            v-if="!isDeployed"
-            class="w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
-            :class="{ 'pointer-events-none opacity-50': !canDeploy }"
-            @click="deploy.apply"
-          >
-            Deploy
-          </button>
+          <!-- Actions (only if not working at head) -->
+          <div class="flex flex-row justify-between" v-if="committed">
+            <!-- Archive/kill if live -->
+            <ConfirmPopover
+              v-if="isDeployed"
+              :disabled="!committed"
+              title="Archive deployment"
+              :description="`Archiving will shut deployment ${tag} down soon. No data lost.`"
+              confirm-text="Archive"
+              cancel-text="Keep"
+              @action="archiveDeployment()"
+              v-slot="{ open }"
+            >
+              <PopoverButton
+                class="w-fit self-end border border-transparent px-3 py-1 text-gray-700 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
+                :class="{ 'pointer-events-none opacity-50': !canDeploy, 'bg-orange-50': open }"
+              >
+                Archive deployment
+              </PopoverButton>
+            </ConfirmPopover>
+            <span v-else class="py-1 px-3 font-bold hover:cursor-not-allowed">{{ tag }} is not live</span>
+            <!-- Deploy if not live -->
+            <button
+              v-if="!isDeployed"
+              class="w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
+              :class="{ 'pointer-events-none opacity-50': !canDeploy }"
+              @click="
+                deploy.apply();
+                close();
+              "
+            >
+              Deploy
+            </button>
+            <span v-else class="py-1 px-3 font-bold hover:cursor-not-allowed">{{ tag }} is live</span>
+          </div>
+          <!-- Notices -->
           <p v-if="!project.canWrite" class="pt-1 text-xs text-yellow-600">You cannot deploy other's Benches yet.</p>
-          <p v-else-if="!canDeploy" class="pt-1 text-xs text-red-600">There are errors. Fix them to deploy.</p>
-          <p v-else-if="endpoints.length == 0" class="text-yellow-600">There's nothing to deploy, but you could.</p>
-          <p class="mt-1 text-xs text-gray-500" v-if="!committed && !isDeployed">
-            The latest working version (tagged 'x') is always live.
+          <p v-else-if="!canDeploy && !isDeployed" class="pt-1 text-xs text-red-600">
+            There are errors. Fix them to deploy.
           </p>
+          <p v-else-if="endpoints.length == 0" class="text-yellow-600">There's nothing to deploy, but you could.</p>
         </div>
       </PopoverPanel>
     </FadeTransition>

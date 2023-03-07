@@ -92,6 +92,7 @@ input CommitInput {
   name: String = null
   tag: String = null
   description: String = null
+  autoDeploy: Boolean! = false
 }
 
 type CommitPayload {

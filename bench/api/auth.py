@@ -204,7 +204,7 @@ def can_view_project(user: User, obj: Any) -> bool:
     # normalize to project instance
     if isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
-    elif isinstance(obj, models.ProjectVersion):
+    elif isinstance(obj, (models.ProjectVersion, models.Deployment)):
         obj = obj.project
     elif isinstance(obj, Connection):
         return all(can_view_project(user, edge.node) for edge in obj.edges)
@@ -231,7 +231,7 @@ def can_write_project(user: User, obj: Any) -> bool:
     # normalize to project instance
     if isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
-    elif isinstance(obj, models.ProjectVersion):
+    elif isinstance(obj, (models.ProjectVersion, models.Deployment)):
         obj = obj.project
     if not isinstance(obj, models.Project):
         raise ValueError(f"can_write_project cannot be used on {obj}")
