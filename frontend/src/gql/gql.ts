@@ -78,7 +78,7 @@ const documents = {
   "\n  fragment TypeContent on Type {\n    description\n  }\n": types.TypeContentFragmentDoc,
   "\n  fragment SimpleTypeNodeContent on SimpleTypeNode {\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    tag\n    description\n    value\n    orderKey\n    reference {\n      id\n    }\n    isOutput\n    isArray\n    isNullable\n  }\n":
     types.SimpleTypeNodeContentFragmentDoc,
-  "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          orderKey\n          data\n        }\n      }\n    }\n  }\n":
+  "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          createdAt\n          updatedAt\n          deletedAt\n          revision\n          orderKey\n          data\n        }\n      }\n    }\n  }\n":
     types.StatementContentFragmentDoc,
   "\n      query newNotifications($after: String, $status: NotificationStatus) {\n        me {\n          id\n          notifications(after: $after, filters: { status: $status }) {\n            totalCount\n            edges {\n              node {\n                id\n                type\n                createdAt\n                readAt\n                archivedAt\n                expiresAt\n                status\n                invite {\n                  id\n                  organization {\n                    id\n                    slug\n                    name\n                  }\n                  level\n                }\n              }\n            }\n          }\n        }\n      }\n    ":
     types.NewNotificationsDocument,
@@ -128,11 +128,13 @@ const documents = {
     types.CommentStatementDocument,
   "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.SetReferenceDocument,
-  "\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            statement {\n              id\n            }\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateTypeNodeDocument,
-  "\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteTypeNodeDocument,
-  "\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation restoreTypeNode($id: GlobalID!) {\n        restoreStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.RestoreTypeNodeDocument,
+  "\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            updatedAt\n            revision\n            name\n            description\n            isOutput\n            isArray\n            isNullable\n            value\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateTypeNodeDocument,
   "\n      mutation updateStatementDescription($id: GlobalID!, $description: String!) {\n        updateStatementDescription(input: { id: $id, description: $description }) {\n          ... on Statement {\n            id\n            description\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateStatementDescriptionDocument,
@@ -140,12 +142,14 @@ const documents = {
     types.UpdateStatementCodeDocument,
   "\n      mutation updateStatementText($id: GlobalID!, $code: String) {\n        updateStatementText(input: { id: $id, code: $code }) {\n          ... on Statement {\n            id\n            code\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateStatementTextDocument,
-  "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateRecordDocument,
   "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateStatementRecord(input: { id: $id, data: $data }) {\n          ... on DatasetRecord {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateRecordDocument,
   "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteRecordDocument,
+  "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.RestoreRecordDocument,
   "\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.LogoutDocument,
   "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            id\n            username\n            slug\n            email\n            name\n            createdAt\n            updatedAt\n            completedSignup\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -388,8 +392,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"];
+  source: "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          createdAt\n          updatedAt\n          deletedAt\n          revision\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    symbolType\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    generated\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    reference {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    referenceProjectVersion {\n      id\n    }\n    value\n    rootTypeTag\n    typeNodes(filters: { isVisible: true }) {\n      ...SimpleTypeNodeContent\n    }\n    records(filters: { isVisible: true }) {\n      totalCount\n      edges {\n        node {\n          id\n          createdAt\n          updatedAt\n          deletedAt\n          revision\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -538,20 +542,26 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            statement {\n              id\n            }\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            statement {\n              id\n            }\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation restoreTypeNode($id: GlobalID!) {\n        restoreStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreTypeNode($id: GlobalID!) {\n        restoreStatementTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            updatedAt\n            revision\n            name\n            description\n            isOutput\n            isArray\n            isNullable\n            value\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {\n        updateStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            updatedAt\n            revision\n            name\n            description\n            isOutput\n            isArray\n            isNullable\n            value\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -574,8 +584,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -588,6 +598,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation deleteRecord($id: GlobalID!) {\n        deleteStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreRecord($id: GlobalID!) {\n        restoreStatementRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

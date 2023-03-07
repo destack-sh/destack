@@ -171,6 +171,10 @@ export const StatementContentType = graphql(/* GraphQL */ `
       edges {
         node {
           id
+          createdAt
+          updatedAt
+          deletedAt
+          revision
           orderKey
           data
         }

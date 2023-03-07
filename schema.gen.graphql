@@ -105,6 +105,7 @@ union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
 type DatasetRecord implements Node {
   id: GlobalID!
+  statement: Statement!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -418,7 +419,7 @@ type InterpSimpleType implements Node & SimpleType {
   description: String
   value: JSON
   reference: Statement
-  statement: NodeType!
+  statement: Statement!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -531,11 +532,6 @@ interface Node {
 
 """Input of an object that implements the `Node` interface."""
 input NodeInput {
-  id: GlobalID!
-}
-
-"""Generic type for objects that implements the `Node` interface."""
-type NodeType implements Node {
   id: GlobalID!
 }
 
@@ -1168,7 +1164,7 @@ type SimpleTypeNode implements Node & SimpleType {
   description: String
   value: JSON
   reference: Statement
-  statement: NodeType!
+  statement: Statement!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!

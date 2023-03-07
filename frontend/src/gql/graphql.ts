@@ -124,6 +124,7 @@ export type DatasetRecord = Node & {
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
   revision: Scalars["Int"];
+  statement: Statement;
   updatedAt: Scalars["DateTime"];
 };
 
@@ -432,7 +433,7 @@ export type InterpSimpleType = Node &
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
     revision: Scalars["Int"];
-    statement: NodeType;
+    statement: Statement;
     tag: TypeTag;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
@@ -750,12 +751,6 @@ export type Node = {
 
 /** Input of an object that implements the `Node` interface. */
 export type NodeInput = {
-  id: Scalars["GlobalID"];
-};
-
-/** Generic type for objects that implements the `Node` interface. */
-export type NodeType = Node & {
-  __typename?: "NodeType";
   id: Scalars["GlobalID"];
 };
 
@@ -1364,7 +1359,7 @@ export type SimpleTypeNode = Node &
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
     revision: Scalars["Int"];
-    statement: NodeType;
+    statement: Statement;
     tag: TypeTag;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
@@ -2574,7 +2569,16 @@ export type StatementContentFragment = {
     totalCount?: number | null;
     edges: Array<{
       __typename?: "DatasetRecordEdge";
-      node: { __typename?: "DatasetRecord"; id: any; orderKey: string; data: any };
+      node: {
+        __typename?: "DatasetRecord";
+        id: any;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        revision: number;
+        orderKey: string;
+        data: any;
+      };
     }>;
   };
 } & { " $fragmentName"?: "StatementContentFragment" };
@@ -3025,9 +3029,15 @@ export type CreateTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({ __typename?: "SimpleTypeNode" } & {
-        " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-      });
+    | ({
+        __typename?: "SimpleTypeNode";
+        id: any;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        orderKey: string;
+        statement: { __typename?: "Statement"; id: any };
+      } & { " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment } });
 };
 
 export type DeleteTypeNodeMutationVariables = Exact<{
@@ -3040,7 +3050,20 @@ export type DeleteTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "SimpleTypeNode"; deletedAt?: any | null };
+    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
+};
+
+export type RestoreTypeNodeMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreTypeNodeMutation = {
+  __typename?: "Mutation";
+  restoreStatementTypeNode:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
 };
 
 export type UpdateTypeNodeMutationVariables = Exact<{
@@ -3053,9 +3076,19 @@ export type UpdateTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({ __typename?: "SimpleTypeNode" } & {
-        " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-      });
+    | {
+        __typename?: "SimpleTypeNode";
+        id: any;
+        updatedAt: any;
+        revision: number;
+        name?: string | null;
+        description?: string | null;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
+        value?: any | null;
+        reference?: { __typename?: "Statement"; id: any } | null;
+      };
 };
 
 export type UpdateStatementDescriptionMutationVariables = Exact<{
@@ -3119,6 +3152,7 @@ export type CreateRecordMutation = {
         revision: number;
         orderKey: string;
         data: any;
+        statement: { __typename?: "Statement"; id: any };
       }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -3146,6 +3180,19 @@ export type DeleteRecordMutationVariables = Exact<{
 export type DeleteRecordMutation = {
   __typename?: "Mutation";
   deleteStatementRecord:
+    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type RestoreRecordMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreRecordMutation = {
+  __typename?: "Mutation";
+  restoreStatementRecord:
     | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -3870,6 +3917,10 @@ export const StatementContentFragmentDoc = {
                           kind: "SelectionSet",
                           selections: [
                             { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "revision" } },
                             { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                             { kind: "Field", name: { kind: "Name", value: "data" } },
                           ],
@@ -8311,7 +8362,22 @@ export const CreateTypeNodeDocument = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statement" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } },
+                    ],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8369,7 +8435,10 @@ export const DeleteTypeNodeDocument = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "deletedAt" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8382,6 +8451,66 @@ export const DeleteTypeNodeDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteTypeNodeMutation, DeleteTypeNodeMutationVariables>;
+export const RestoreTypeNodeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreTypeNode" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreStatementTypeNode" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreTypeNodeMutation, RestoreTypeNodeMutationVariables>;
 export const UpdateTypeNodeDocument = {
   kind: "Document",
   definitions: [
@@ -8420,7 +8549,25 @@ export const UpdateTypeNodeDocument = {
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "isOutput" } },
+                      { kind: "Field", name: { kind: "Name", value: "isArray" } },
+                      { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
                   },
                 },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
@@ -8430,7 +8577,6 @@ export const UpdateTypeNodeDocument = {
         ],
       },
     },
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateTypeNodeMutation, UpdateTypeNodeMutationVariables>;
@@ -8729,6 +8875,14 @@ export const CreateRecordDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       { kind: "Field", name: { kind: "Name", value: "data" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statement" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                     ],
                   },
                 },
@@ -8874,6 +9028,66 @@ export const DeleteRecordDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteRecordMutation, DeleteRecordMutationVariables>;
+export const RestoreRecordDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreRecord" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreStatementRecord" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreRecordMutation, RestoreRecordMutationVariables>;
 export const LogoutDocument = {
   kind: "Document",
   definitions: [
