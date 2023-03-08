@@ -3,7 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { makeALBController } from "./alb";
+import { makeALBController, makeEbsCsiDriver } from "./aws";
 
 // configuration
 const config = new pulumi.Config();
@@ -64,7 +64,14 @@ const imagePullSecret = new k8s.core.v1.Secret(
 );
 
 // Create AWS ALB Ingress Controller
-makeALBController(eksVpc, eksCluster);
+const albIngressController = makeALBController(eksVpc, eksCluster);
+
+// Create AWS EBS CSI Driver
+const ebsCsiDriver = makeEbsCsiDriver(eksVpc, eksCluster);
+
+//
+// Core application
+//
 
 // Create RDS Aurora Postgres cluster/database
 const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
@@ -334,26 +341,10 @@ const workerDeployment = new k8s.apps.v1.Deployment(
   { provider: eksCluster.provider }
 );
 
-// Kube cost monitoring
-// const kubecostNs = new k8s.core.v1.Namespace("kubecost", {}, { provider: eksCluster.provider });
-// const kubecost = new k8s.helm.v3.Release("kubecost", {
-//   chart: "cost-analyzer",
-//   repositoryOpts: {
-//     repo: "https://kubecost.github.io/cost-analyzer",
-//   },
-//   namespace: kubecostNs.metadata.name,
-//   version: "1.89.1",
-//   values: {
-//     persistentVolume: {
-//       enabled: true,
-//       storageClass: "gp2",
-//     },
-//   },
-// });
-
 // Expose API service via HTTPS ingress
 const apiDomain = "api.symbolx.com";
-// TODO @Cleanup: manage AWS certificate via aws.acm.Certificate
+// TODO @Infra: manage AWS certificate via aws.acm.Certificate
+// (without causing issues with current certificate)
 const apiIngress = new k8s.networking.v1.Ingress(
   apiName,
   {
@@ -400,7 +391,30 @@ const apiIngress = new k8s.networking.v1.Ingress(
   { provider: eksCluster.provider }
 );
 
-// TODO @Incomplete: export kube metrics with metrics-server
+//
+// Monitoring
+//
+
+const monitoringNs = new k8s.core.v1.Namespace("monitoring", {}, { provider: eksCluster.provider });
+
+// TODO @Monitoring: kube cost monitoring
+// const kubecostNs = new k8s.core.v1.Namespace("kubecost", {}, { provider: eksCluster.provider });
+// const kubecost = new k8s.helm.v3.Release("kubecost", {
+//   chart: "cost-analyzer",
+//   repositoryOpts: {
+//     repo: "https://kubecost.github.io/cost-analyzer",
+//   },
+//   namespace: kubecostNs.metadata.name,
+//   version: "1.89.1",
+//   values: {
+//     persistentVolume: {
+//       enabled: true,
+//       storageClass: "gp2",
+//     },
+//   },
+// });
+
+// TODO @Monitoring: export kube metrics with metrics-server
 // const metricsServer = new k8s.helm.v3.Release("metrics-server", {
 //   chart: "metrics-server",
 //   version: "6.8.2",
@@ -410,13 +424,16 @@ const apiIngress = new k8s.networking.v1.Ingress(
 //   },
 // });
 
-// TODO @Incomplete: monitor with prometheus
-// const prometheus = new k8s.helm.v3.Resource("prometheus", {
-//   chart: "prometheus",
-//   version: "14.6.0",
-//   namespace: "monitoring",
-//   fetchOpts: {
-//     repo: "https://prometheus-community.github.io/helm-charts",
-//   },
-// });
-// TODO @Incomplete: dashboard & alert with grafana?
+const prometheus = new k8s.helm.v3.Release(
+  "prometheus",
+  {
+    chart: "prometheus",
+    version: "14.6.0",
+    namespace: monitoringNs.metadata.name,
+    repositoryOpts: {
+      repo: "https://prometheus-community.github.io/helm-charts",
+    },
+  },
+  { dependsOn: [ebsCsiDriver] }
+);
+// TODO @Monitoring: dashboard & alert with grafana?
