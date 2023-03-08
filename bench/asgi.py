@@ -36,7 +36,7 @@ from bench.settings import (
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
-django_asgi_app = get_asgi_application()
+django_asgi_app = SentryAsgiMiddleware(get_asgi_application())
 
 # import Strawberry schema after creating the django ASGI application
 # (ensures django.setup() has been called before any ORM models are imported)
@@ -47,7 +47,7 @@ websocket_urlpatterns = [
 ]
 
 gql_http_consumer = CORSMiddleware(
-    AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
+    SentryAsgiMiddleware(AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema))),
     allow_origins=CORS_ALLOWED_ORIGINS,
     # see https://docs.sentry.io/platforms/javascript/guides/react/performance/instrumentation/automatic-instrumentation
     allow_headers=["sentry-trace", "baggage"],
@@ -58,7 +58,7 @@ gql_http_consumer = CORSMiddleware(
 gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
 application = ProtocolTypeRouter(
     {
-        "http": SentryAsgiMiddleware(
+        "http": (
             URLRouter([re_path("^graphql", gql_http_consumer), re_path("^", django_asgi_app)])
         ),
         "websocket": AllowedHostsOriginValidator(

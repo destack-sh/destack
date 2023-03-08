@@ -185,14 +185,17 @@ const version = computed(() => versionResult.value?.projectVersion);
 const versionLoaded = computed(() => !!version.value);
 watch(versionError, () => {
   if (versionError.value != null) {
+    const atHead = version.value?.id == project.value?.head.id;
     notifications.show({
       kind: "error",
-      type: "version.loadError",
+      type: "version.loadFailed",
       message: "Version unavailable",
-      description: "Failed to load version, going back to head.",
+      description: "Failed to load version.",
     });
-    // revert to head
-    router.replace({ hash: router.currentRoute.value.hash });
+    if (!atHead) {
+      // revert to head
+      router.replace({ hash: router.currentRoute.value.hash });
+    }
   }
 });
 

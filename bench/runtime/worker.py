@@ -245,9 +245,9 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
         for source_mapping in source_mappings:
             if source_mapping.target_id is None:
                 continue
-            generated = idx.get_symbol_by_id(source_mapping.target_id).source
+            generated = idx.get_symbol_by_id(source_mapping.target_id)
             if generated is not None:  # ignore if no longer exists
-                stale_symbols.append(generated)
+                stale_symbols.append(generated.source)
 
     return stale_symbols
 
@@ -448,7 +448,8 @@ class ModuleWorker:
             details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
             return ModuleRunErrorType.RUNTIME_ERROR, details
         except Exception as e:
-            self.log.exception("run_failed", exc_info=e)
+            sentry_enabled = sentry_capture_if_enabled(e)
+            self.log.exception("run_failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
 
     async def _run_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
@@ -481,8 +482,11 @@ class ModuleWorker:
                     raise RuntimeError(f"unexpected job type: {job}")
                 self.log.info("module_worker_job_completed", job=job)
             except Exception as e:
+                sentry_enabled = sentry_capture_if_enabled(e)
                 job.error = str(e)
-                self.log.exception("module_worker_job_failed", job=job)
+                self.log.exception(
+                    "module_worker_job_failed", job=job, sentry_enabled=sentry_enabled
+                )
             finally:
                 job.status = JobStatus.COMPLETED if job.success else JobStatus.FAILED
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -505,6 +509,10 @@ class ModuleWorker:
         )
         # wait for the first interp job to complete
         await interp_job.terminated.wait()
+        if interp_job.status != JobStatus.COMPLETED:
+            self.log.error("module_worker_init_failed", job=interp_job)
+            raise RuntimeError(f"failed to initialize module worker: {interp_job}")
+
         self.ready.set()
         # wait for the main loop to complete
         await main  # (this will never return)
@@ -597,7 +605,9 @@ class Worker:
         if msg.type == ZMessageType.REQ_MODULE_RUNTIME:
             payload: ReqModuleRuntimePayload = msg.payload_as(ReqModuleRuntimePayload)
             module_worker = self._get_module_worker(payload.module_id)
-            await module_worker.ready.wait()
+            # shouldn't clog here :AsyncClientServer
+            if not module_worker.ready.is_set():
+                await module_worker.ready.wait()
             payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
             send_message(self.rep_sock, ZMessageType.REP_MODULE_RUNTIME, payload)
 
@@ -631,8 +641,7 @@ class Worker:
                 rep = RepModuleRunPayload(None, run_job, None, None)
             else:
                 if payload.blocking:
-                    # TODO @Cleanup: don't clog up running queue if blocking
-                    # :AsyncClientServer
+                    # TODO @Cleanup: don't clog up running queue if blocking :AsyncClientServer
                     await run_job.terminated.wait()
                 rep = RepModuleRunPayload(
                     run_job.id, run_job.error, run_job.error_details, run_job.output
