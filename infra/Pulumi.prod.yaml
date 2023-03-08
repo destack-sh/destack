@@ -30,6 +30,8 @@ config:
   Bench:env: prod
   Bench:ghcrToken:
     secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
+  Bench:kubecostToken:
+    secure: AAABADxhpYcMMG9bqkEvKF/jedva+la5SiCBuNFNl4H+IhrwIxsWlVUYqaljio5+Kxgt4ZBH+I2TDMom2S+EFnTQQbdjB+k=
   Bench:maxClusterSize: "3"
   Bench:minClusterSize: "2"
   Bench:version: "current"
