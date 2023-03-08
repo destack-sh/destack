@@ -150,7 +150,7 @@ provideGlobalAction({
             >
             at:
           </p>
-          <p class="mt-2 w-full rounded-sm border border-gray-200 p-1">
+          <p class="mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
             <a
               :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
               class="text-gray-900 underline-offset-4 hover:underline"

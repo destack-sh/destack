@@ -1,10 +1,12 @@
 <script lang="ts" setup>
+import ConfirmPopover from "@/components/basic/ConfirmPopover.vue";
 import Switch from "@/components/basic/Switch.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { AccessTokenScope, AccessTokenStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
+import { PopoverButton } from "@headlessui/vue";
 import { PlusIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useMutation, useQuery } from "@vue/apollo-composable";
 import { useClipboard } from "@vueuse/core";
@@ -169,7 +171,9 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       </span>
     </div>
 
-    <table class="mt-3 min-w-full divide-y divide-gray-300 rounded-sm border border-gray-200 bg-white">
+    <table
+      class="mt-3 min-w-full divide-y divide-orange-900 divide-opacity-[12%] rounded-sm border border-orange-900 border-opacity-[12%] bg-white"
+    >
       <thead>
         <tr>
           <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Secret key</th>
@@ -187,7 +191,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           </th>
         </tr>
       </thead>
-      <tbody class="divide-y divide-gray-200">
+      <tbody class="divide-y divide-orange-900 divide-opacity-[12%]">
         <tr
           v-for="token in accessTokensResult?.ownerBySlug?.accessTokens?.edges.map((e) => e.node)"
           :key="token.id"
@@ -212,13 +216,20 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           </td>
           <td class="px-3 text-gray-900">{{ getTimeFromNowLongString(token.createdAt) }}</td>
           <td>
-            <button
-              v-if="token.status == AccessTokenStatus.Active"
-              class="text-gray-300 group-hover:text-gray-500"
-              @click="revokeAccessToken(token)"
+            <ConfirmPopover
+              title="Revoke token"
+              :description="`Revoking token ${token.tokenKey} will deny any future access.`"
+              confirm-text="Revoke token"
+              cancel-text="Keep"
+              @action="revokeAccessToken(token)"
             >
-              <TrashIcon class="h-4 w-4 hover:text-red-600" />
-            </button>
+              <PopoverButton
+                v-if="token.status == AccessTokenStatus.Active"
+                class="text-gray-300 group-hover:text-gray-500"
+              >
+                <TrashIcon class="h-4 w-4 hover:text-red-600" />
+              </PopoverButton>
+            </ConfirmPopover>
           </td>
         </tr>
       </tbody>

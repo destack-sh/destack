@@ -140,7 +140,7 @@ async function removeMembership(membership: OrganizationMembership) {
       </span>
     </div>
     <table
-      class="mt-3 min-w-full divide-y divide-gray-300 rounded-sm border border-gray-200 bg-white text-sm"
+      class="mt-3 min-w-full divide-y divide-orange-900 divide-opacity-[12%] rounded-sm border border-orange-900 border-opacity-[12%] bg-white text-sm"
       v-show="membersResult?.organizationBySlug != null"
     >
       <thead>
@@ -243,7 +243,7 @@ async function removeMembership(membership: OrganizationMembership) {
           </td>
         </tr>
         <!-- Create invite -->
-        <tr class="border-t border-gray-200">
+        <tr class="border-t border-orange-900 border-opacity-[12%]">
           <th colspan="5" scope="colgroup" class="px-3 pt-3 pb-0 text-left text-gray-900">Grow the team</th>
         </tr>
         <tr v-if="canWrite">

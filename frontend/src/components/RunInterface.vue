@@ -129,7 +129,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
       </div>
     </div>
     <!-- Current/last output  -->
-    <div class="relative mx-auto mt-6 min-h-[100px] w-full max-w-[800px] border border-gray-200">
+    <div class="relative mx-auto mt-6 min-h-[100px] w-full max-w-[800px] border border-orange-900 border-opacity-[12%]">
       <span class="absolute -top-4 left-1 bg-white p-1 text-gray-700">Last output</span>
       <div class="animate-none px-2" v-if="lastOutput">
         <InlineValueCell

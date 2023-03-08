@@ -105,7 +105,9 @@ watch([name, description, tag, availableTag, tagLoading], () => {
         <!-- Commit name & tag -->
         <div class="mt-2 flex w-full flex-col">
           <span class="text-gray-700">Name & tag</span>
-          <div class="flex w-full flex-row rounded-sm border border-gray-200 focus-within:border-orange-600">
+          <div
+            class="flex w-full flex-row rounded-sm border border-orange-900 border-opacity-[12%] focus-within:border-orange-600"
+          >
             <input
               ref="nameRef"
               type="text"
@@ -141,7 +143,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
           <textarea
             ref="descriptionRef"
             v-model="description"
-            class="rounded-sm border border-gray-200 py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
             spellcheck="false"
             rows="3"
             placeholder="Optional details for future you."
