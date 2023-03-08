@@ -397,41 +397,50 @@ const apiIngress = new k8s.networking.v1.Ingress(
 
 const monitoringNs = new k8s.core.v1.Namespace("monitoring", {}, { provider: eksCluster.provider });
 
-// TODO @Monitoring: kube cost monitoring
-// const kubecostNs = new k8s.core.v1.Namespace("kubecost", {}, { provider: eksCluster.provider });
-// const kubecost = new k8s.helm.v3.Release("kubecost", {
-//   chart: "cost-analyzer",
-//   repositoryOpts: {
-//     repo: "https://kubecost.github.io/cost-analyzer",
-//   },
-//   namespace: kubecostNs.metadata.name,
-//   version: "1.89.1",
-//   values: {
-//     persistentVolume: {
-//       enabled: true,
-//       storageClass: "gp2",
-//     },
-//   },
-// });
-
-// TODO @Monitoring: export kube metrics with metrics-server
-// const metricsServer = new k8s.helm.v3.Release("metrics-server", {
-//   chart: "metrics-server",
-//   version: "6.8.2",
-//   namespace: "kube-system",
-//   repositoryOpts: {
-//     repo: "https://charts.bitnami.com/bitnami",
-//   },
-// });
-
-const prometheus = new k8s.helm.v3.Release(
-  "prometheus",
+const kubecostNs = new k8s.core.v1.Namespace("kubecost", {}, { provider: eksCluster.provider });
+const kubecost = new k8s.helm.v3.Release(
+  "kubecost",
   {
-    chart: "prometheus",
-    version: "14.6.0",
-    namespace: monitoringNs.metadata.name,
+    chart: "cost-analyzer",
     repositoryOpts: {
-      repo: "https://prometheus-community.github.io/helm-charts",
+      repo: "https://kubecost.github.io/cost-analyzer",
+    },
+    namespace: kubecostNs.metadata.name,
+    version: "1.89.1",
+    values: {
+      persistentVolume: {
+        enabled: true,
+        storageClass: "gp2",
+      },
+      kubecostToken: config.requireSecret("kubecostToken"),
+      // include prometheus but not metrics server
+      // see https://docs.kubecost.com/install-and-configure/install/custom-prom
+      prometheus: {
+        nodeExporter: {
+          enabled: false,
+        },
+        serviceAccounts: {
+          nodeExporter: {
+            create: false,
+          },
+        },
+        kubeStateMetrics: {
+          enabled: false,
+        },
+      },
+    },
+  },
+  { dependsOn: [ebsCsiDriver] }
+);
+
+const metricsServer = new k8s.helm.v3.Release(
+  "metrics-server",
+  {
+    chart: "metrics-server",
+    version: "6.2.12",
+    namespace: "kube-system",
+    repositoryOpts: {
+      repo: "https://charts.bitnami.com/bitnami",
     },
   },
   { dependsOn: [ebsCsiDriver] }
