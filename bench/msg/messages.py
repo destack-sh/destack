@@ -144,6 +144,7 @@ class ReqReadModulePayload:
 @_register_payload(ZMessageType.REP_READ_MODULE)
 class RepReadModulePayload:
     module: wire.ModuleData
+    project_id: UUID
 
 
 @_register_payload(ZMessageType.REQ_WRITE_MODULE)

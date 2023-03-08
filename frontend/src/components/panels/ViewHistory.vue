@@ -159,7 +159,7 @@ const restore = provideGlobalAction({
       <!-- Note that this commit popover duplicates the one from the main version list -->
       <!-- This is because it's easier to open the right popover in the right place that way -->
       <CommitPopover
-        v-if="head != null"
+        v-if="head != null && isCurrent(head)"
         :version="head"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"

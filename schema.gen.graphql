@@ -252,6 +252,7 @@ enum ErrorType {
 
 type Execution implements Node {
   id: GlobalID!
+  project: Project!
   projectVersion: ProjectVersion!
   deployment: Deployment!
   createdAt: DateTime!
@@ -910,6 +911,7 @@ type Project implements Node {
     filters: DeploymentFilter
   ): DeploymentConnection!
   canWrite: Boolean!
+  migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
 }
 
 """A connection to a list of items."""
@@ -939,6 +941,13 @@ type ProjectEdge {
 
   """The item at the end of the edge"""
   node: Project!
+}
+
+type ProjectMigrationInfo {
+  isReverse: Boolean!
+  sourceVersion: ProjectVersion!
+  targetVersion: ProjectVersion!
+  refMappings: [RefMapping!]!
 }
 
 union ProjectOperationInfo = Project | OperationInfo
@@ -1074,7 +1083,9 @@ type Query {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
+    projectId: GlobalID = null
     projectVersionId: GlobalID = null
+    includeAncestorVersions: Boolean! = false
     buildId: GlobalID = null
     taskId: GlobalID = null
     codeId: GlobalID = null
@@ -1101,7 +1112,7 @@ type Query {
     last: Int = null
     filters: UserFilter
   ): UserConnection!
-  userBySlug(username: String!): User
+  userBySlug(slug: String!): User
   organization(
     """The ID of the object."""
     id: GlobalID!
@@ -1169,6 +1180,8 @@ type RefMapping implements Node {
   sourceRevision: Int!
   targetId: GlobalID!
   targetRevision: Int!
+  sourceVersionId: GlobalID!
+  targetVersionId: GlobalID!
 }
 
 """A connection to a list of items."""
@@ -1447,7 +1460,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  moduleExecutionChanged(projectVersionId: GlobalID!, buildId: GlobalID = null, taskId: GlobalID = null, codeId: GlobalID = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
+  moduleExecutionChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildId: GlobalID = null, taskId: GlobalID = null, codeId: GlobalID = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""

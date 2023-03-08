@@ -1,4 +1,5 @@
 from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
+from uuid import UUID
 
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
@@ -79,6 +80,22 @@ ProjectVisibility = gql.enum(models.ProjectVisibility)
 ProjectType = gql.enum(models.ProjectType)
 
 
+@gql.type
+class ProjectMigrationInfo:
+    is_reverse: bool
+    source_version: "ProjectVersion"
+    target_version: "ProjectVersion"
+    ref_mappings: list["RefMapping"]
+
+
+REF_TYPE_TO_TYPE_NAME = {
+    models.RefType.FILE: "File",
+    models.RefType.STATEMENT: "Statement",
+    models.RefType.RECORD: "DatasetRecord",
+    models.RefType.TYPE_NODE: "SimpleTypeNode",
+}
+
+
 @gql.django.type(models.Project)
 class Project(gql.Node):
     name: auto
@@ -103,6 +120,48 @@ class Project(gql.Node):
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         return can_write_project(user, self)
 
+    @gql.field
+    def migration_mappings(
+        self, source_version_id: GlobalID, target_version_id: GlobalID
+    ) -> ProjectMigrationInfo:
+        source_version = models.ProjectVersion.objects.get(id=source_version_id.node_id)
+        target_version = models.ProjectVersion.objects.get(id=target_version_id.node_id)
+        if (
+            source_version.project_id != target_version.project_id
+            or source_version.project_id != self.id
+        ):
+            raise ValidationError("version ids belong to different projects")
+
+        final_ref_mappings, is_reverse = models.ProjectVersion.objects.get_migration_mappings(
+            UUID(source_version_id.node_id), UUID(target_version_id.node_id)
+        )
+
+        # map final ref mappings to global ids
+        final_ref_mappings = [
+            models.RefMapping(
+                kind=ref_mapping.kind,
+                type=ref_mapping.type,
+                source_version=source_version,
+                target_version=target_version,
+                source_id=GlobalID(
+                    REF_TYPE_TO_TYPE_NAME[ref_mapping.type], str(ref_mapping.source_id)
+                ),
+                source_revision=ref_mapping.source_revision,
+                target_id=GlobalID(
+                    REF_TYPE_TO_TYPE_NAME[ref_mapping.type], str(ref_mapping.target_id)
+                ),
+                target_revision=ref_mapping.target_revision,
+            )
+            for ref_mapping in final_ref_mappings
+        ]
+
+        return ProjectMigrationInfo(
+            source_version=source_version,
+            target_version=target_version,
+            is_reverse=is_reverse,
+            ref_mappings=final_ref_mappings,
+        )
+
 
 RefType = gql.enum(models.RefType)
 RefMappingKind = gql.enum(models.RefMappingKind)
@@ -118,6 +177,14 @@ class RefMapping(gql.Node):
     source_revision: int
     target_id: GlobalID
     target_revision: int
+
+    @gql.field
+    def source_version_id(self) -> GlobalID:
+        return GlobalID("ProjectVersion", str(self.source_version_id))
+
+    @gql.field
+    def target_version_id(self) -> GlobalID:
+        return GlobalID("ProjectVersion", str(self.target_version_id))
 
 
 @gql.django.filter(models.RefMapping)
@@ -281,6 +348,7 @@ class ProjectVersionMutation:
         if project_v.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
 
+        # auto-deploy in commit is probably (?) not a great solution
         if input.auto_deploy:
             models.Deployment.objects.filter(project_version=project_v).update(
                 type=models.DeploymentType.MANUAL, status=models.DeploymentStatus.ACTIVE

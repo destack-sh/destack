@@ -78,7 +78,7 @@ class InternalServer:
             send_message(
                 self.rep_sock,
                 ZMessageType.REP_READ_MODULE,
-                RepReadModulePayload(module=module),
+                RepReadModulePayload(module=module, project_id=project_v.project_id),
             )
         elif msg.type == ZMessageType.REQ_WRITE_MODULE:
             write: ReqWriteModulePayload = msg.payload_as(ReqWriteModulePayload)

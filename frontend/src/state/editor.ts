@@ -388,9 +388,9 @@ export const useEditorState = defineStore("editor", {
 
       // remove editors with refs we don't have anymore
       // note that this also closes any module-external refs
-      // I tried to fix this by only removing refs we _used_ tohave (checking for origianl ref.target)
+      // I tried to fix this by only removing refs we _used_ tohave (checking for original ref.target)
       // but that doesn't work for refs that were just created in first source version.
-      const targetRefs = refMappings.map((r) => r.targetId);
+      const targetRefs = Object.values(refMappings);
       for (const editor of this.editors) {
         let editorRef = null;
         if (editor.type == "file") {
@@ -398,7 +398,6 @@ export const useEditorState = defineStore("editor", {
         } else if (editor.type == "run") {
           editorRef = (editor as RunEditor).symbolId;
         }
-        console.log("editor ref", editorRef, targetRefs.includes(editorRef));
         if (editorRef != null && !targetRefs.includes(editorRef)) {
           console.log(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
           this.closeEditor(editor);
@@ -452,25 +451,28 @@ export function useEditorMigrations() {
     result: migrationRefs,
   } = useLazyQuery(
     graphql(/* GraphQL */ `
-      query projectMigrationRefs($projectId: GlobalID!, $fromId: GlobalID!, $toId: GlobalID!) {
+      query projectMigrationRefs($projectId: GlobalID!, $sourceVersionId: GlobalID!, $targetVersionId: GlobalID!) {
         project(id: $projectId) {
-          versions(filters: { fromId: $fromId, toId: $toId }) {
-            totalCount
-            edges {
-              node {
-                id
-                name
-                tag
-                createdAt
-                parentRefs {
-                  edges {
-                    node {
-                      sourceId
-                      targetId
-                    }
-                  }
-                }
-              }
+          migrationMappings(sourceVersionId: $sourceVersionId, targetVersionId: $targetVersionId) {
+            isReverse
+            sourceVersion {
+              id
+              createdAt
+              tag
+              name
+            }
+            targetVersion {
+              id
+              createdAt
+              tag
+              name
+            }
+            refMappings {
+              type
+              sourceId
+              sourceVersionId
+              targetId
+              targetVersionId
             }
           }
         }
@@ -478,7 +480,7 @@ export function useEditorMigrations() {
     `)
   );
 
-  // complete the migration once we've gotten the refs
+  // perform the migration once we've gotten the refs
   watch(
     () => [migrationRefs, migrationLoading, migrationError],
     async () => {
@@ -497,51 +499,14 @@ export function useEditorMigrations() {
         });
         migratingTo.value = null;
       } else if (migrationRefs.value != null) {
-        // got the intermediate ref mappings, do actual migration
-        const intermediateVersions = [...(migrationRefs.value?.project?.versions.edges.map((e) => e.node) ?? [])];
-
-        let intermediateRefs: { sourceId: string; targetId: string }[][];
-        if (intermediateVersions[0].id == migratingTo.value) {
-          // migrate backwards to an older version (reverse everything)
-          intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-          intermediateRefs = intermediateVersions
-            .slice(0, -1) // skip the last target/source mapping as that would go 1 version further
-            .map((v) =>
-              v.parentRefs.edges.map((r) => r.node).map((r) => ({ sourceId: r.targetId, targetId: r.sourceId }))
-            );
-        } else {
-          // migrate forwards
-          intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-          intermediateRefs = intermediateVersions.map((v) => v.parentRefs.edges.map((r) => r.node));
-        }
-
-        // intermediate refs are successive source -> target pairs
-        // reduce into the final first source -> last target pair
+        const migrationMappings = migrationRefs.value.project.migrationMappings;
         const refMappings: Record<string, string> = {};
-
-        // init with first source -> target mapping
-        for (const { sourceId, targetId } of intermediateRefs[0]) {
-          refMappings[sourceId] = targetId;
+        for (const mapping of migrationMappings.refMappings) {
+          refMappings[mapping.sourceId] = mapping.targetId;
         }
-        // update target id over each intermediate source -> target mapping
-        for (let i = 1; i < intermediateRefs.length; i++) {
-          // reverse target -> source mapping up til now
-          const reverseRefMappings: Record<string, string> = {};
-          for (const sourceId of Object.keys(refMappings)) {
-            reverseRefMappings[refMappings[sourceId]] = sourceId;
-          }
-          for (const { sourceId, targetId } of intermediateRefs[i]) {
-            // this new source was the previous target
-            const firstSourceId = reverseRefMappings[sourceId];
-            if (firstSourceId != null) {
-              refMappings[firstSourceId] = targetId;
-            }
-          }
-        }
-
         await editor._doMigrateTo(migratingTo.value, refMappings);
         console.log(
-          `migrated through ${intermediateVersions?.map((v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`)}`
+          `migrated editor from version ${migrationMappings?.sourceVersion.tag} to ${migrationMappings?.targetVersion.tag}`
         );
         migratingTo.value = null;
       }
@@ -549,29 +514,25 @@ export function useEditorMigrations() {
     { deep: true }
   );
 
-  function migrateTo(projectId: string, toVersionId: string, fromVersionId: string) {
+  function migrateTo(projectId: string, targetVersionId: string, sourceVersionId: string) {
     if (migratingTo.value != null) {
-      if (migratingTo.value == toVersionId) {
+      if (migratingTo.value == targetVersionId) {
         // nothing to do
         return;
       } else {
-        throw new Error(`already migrating to another version: ${migratingTo.value} (not ${toVersionId})`);
+        throw new Error(`already migrating to another version: ${migratingTo.value} (not ${targetVersionId})`);
       }
     }
-    migratingTo.value = toVersionId;
+    migratingTo.value = targetVersionId;
     console.log(
-      `migrate editor state for project ${projectId} to version ${toVersionId} (from version ${fromVersionId}))`
+      `migrate editor state for project ${projectId} to version ${targetVersionId} (from version ${sourceVersionId}))`
     );
     // get all ref mappings
-    getProjectMigrationRefs(
-      undefined,
-      {
-        projectId: projectId,
-        fromId: fromVersionId,
-        toId: toVersionId,
-      },
-      { fetchPolicy: "network-only" }
-    );
+    getProjectMigrationRefs(undefined, {
+      projectId: projectId,
+      sourceVersionId: sourceVersionId,
+      targetVersionId: targetVersionId,
+    });
   }
 
   return {

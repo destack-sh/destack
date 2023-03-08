@@ -48,7 +48,7 @@ const canRun = computed(
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Runconfig, SymbolType.Build, SymbolType.Task, SymbolType.Code],
+  symbolTypes: [SymbolType.Runconfig, SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 // :ProperSymbolSearch
