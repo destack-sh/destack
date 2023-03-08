@@ -453,7 +453,7 @@ onBeforeUnmount(() => {
           <FadeTransition>
             <div
               v-if="versionToViewId != project?.head?.id && versionLoaded"
-              class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 py-1 px-3 text-sm text-white"
+              class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 px-3 py-1 text-sm text-white"
             >
               <span class="relative">
                 <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
@@ -477,7 +477,7 @@ onBeforeUnmount(() => {
           <!-- Read-only project info -->
           <div
             v-if="project != null && !project?.canWrite"
-            class="ml-2 flex flex-row gap-2 rounded-sm bg-orange-100 py-1 px-2 text-sm"
+            class="ml-2 flex flex-row gap-2 rounded-sm bg-orange-100 px-2 py-1 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIcon class="absolute top-0.5 h-4 w-4" />
@@ -574,7 +574,10 @@ onBeforeUnmount(() => {
           'w-48 lg:w-64': editor.showViewContent && !editor.showViewSelection,
         }"
       >
-        <div class="flex h-full min-h-0 flex-col border-r border-gray-200" v-show="editor.showViewSelection">
+        <div
+          class="flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%]"
+          v-show="editor.showViewSelection"
+        >
           <!-- View selection -->
           <div class="flex flex-1 flex-col">
             <button
@@ -613,7 +616,10 @@ onBeforeUnmount(() => {
           </SettingsPopover>
         </div>
         <!-- View content -->
-        <div class="relative flex-1 flex-col border-r border-gray-200" v-show="editor.showViewContent">
+        <div
+          class="relative flex-1 flex-col border-r border-orange-900 border-opacity-[12%]"
+          v-show="editor.showViewContent"
+        >
           <!-- These must be v-show, not v-if, see note above -->
           <ViewExplorer
             v-show="activeView.id == 'explorer'"
@@ -632,7 +638,10 @@ onBeforeUnmount(() => {
         </div>
       </aside>
       <!-- Main editor area -->
-      <main v-show="versionLoaded" class="flex h-full w-full flex-1 divide-x divide-gray-200 bg-gray-50">
+      <main
+        v-show="versionLoaded"
+        class="flex h-full w-full flex-1 divide-x divide-orange-900 divide-opacity-[12%] bg-gray-50"
+      >
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute top-0 left-0 h-full w-full overflow-hidden">

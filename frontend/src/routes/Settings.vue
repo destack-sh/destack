@@ -206,7 +206,7 @@ watchEffect(() => {
         <!-- Profile info -->
         <div class="flex w-80 flex-col gap-2">
           <!-- Name / username -->
-          <div class="border-b-2 border-gray-200 pb-2">
+          <div class="border-b-2 border-orange-900 border-opacity-[12%] pb-2">
             <h1 class="flex max-w-full flex-row items-center gap-2 text-gray-900">
               <router-link
                 :to="`/${profile.slug}`"

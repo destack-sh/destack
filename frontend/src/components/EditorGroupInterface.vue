@@ -50,7 +50,7 @@ async function createFileInEditorGroup() {
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
-      <TabList class="flex border-b border-gray-200" v-show="editor.showEditorGroupHeader">
+      <TabList class="flex border-b border-orange-900 border-opacity-[12%]" v-show="editor.showEditorGroupHeader">
         <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
           <button
             :class="{

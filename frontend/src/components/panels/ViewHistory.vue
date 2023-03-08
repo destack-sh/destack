@@ -153,7 +153,9 @@ const restore = provideGlobalAction({
   <!-- Container (views should be a single root element) -->
   <div>
     <!-- View header -->
-    <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
+    <div
+      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+    >
       <span class="text-xs font-bold uppercase">History</span>
       <!-- Version controls -->
       <!-- Note that this commit popover duplicates the one from the main version list -->

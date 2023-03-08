@@ -43,11 +43,13 @@ const panels: Ref<Panel[]> = computed(() => [
 <template>
   <div ref="container">
     <!-- View header -->
-    <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
+    <div
+      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+    >
       <span class="text-xs font-bold uppercase">Explorer</span>
     </div>
     <!-- View panels -->
-    <div class="flex flex-1 flex-col gap-y-2 divide-y divide-gray-200">
+    <div class="flex flex-1 flex-col gap-y-2 divide-y divide-orange-900 divide-opacity-[12%]">
       <div v-for="panel in panels" :key="panel.title">
         <!-- Panel header -->
         <div class="flex flex-row items-center justify-between px-3 py-1">

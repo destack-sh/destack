@@ -20,7 +20,9 @@ function focusError(error: InterpError) {
 <template>
   <div>
     <!-- View header -->
-    <div class="flex h-[31px] flex-row items-center justify-between border-b border-gray-200 px-3 py-2">
+    <div
+      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+    >
       <span class="text-xs font-bold uppercase">Issues</span>
     </div>
     <ul class="flex flex-col gap-2 py-2">
