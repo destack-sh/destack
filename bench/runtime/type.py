@@ -180,6 +180,7 @@ class ExecutionFrameData:
     outputs: Optional[Any]
     error: Optional[ErrorData]
     # additional context data not in ExecutionFrame
+    project_id: UUID
     tracing_level: Optional[ExecutionTracingLevel]
     deployment_id: UUID
     trigger_type: Optional[ExecutionTriggerType]
@@ -189,6 +190,7 @@ class ExecutionFrameData:
     def from_frame(
         frame: ExecutionFrame,
         *,
+        project_id: UUID,
         tracing_level: ExecutionTracingLevel,
         deployment_id: UUID,
         trigger_type: Optional[ExecutionTriggerType] = None,
@@ -219,6 +221,7 @@ class ExecutionFrameData:
             outputs=frame.outputs,
             inference_context_id=frame.inference_context_id,
             error=error_data,
+            project_id=project_id,
             tracing_level=tracing_level,
             deployment_id=deployment_id,
             trigger_type=trigger_type,

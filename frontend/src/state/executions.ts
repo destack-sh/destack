@@ -37,6 +37,7 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
 `);
 
 export function useExecutions(
+  projectId: Ref<string | null>,
   projectVersionId: Ref<string>,
   buildId: Ref<string | null>,
   taskId: Ref<string | null>,
@@ -46,7 +47,8 @@ export function useExecutions(
   const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query executions(
-        $projectVersionId: GlobalID!
+        $projectId: GlobalID!
+        $projectVersionId: GlobalID
         $buildId: GlobalID
         $taskId: GlobalID
         $codeId: GlobalID
@@ -55,6 +57,7 @@ export function useExecutions(
         $last: Int
       ) {
         executions(
+          projectId: $projectId
           projectVersionId: $projectVersionId
           buildId: $buildId
           taskId: $taskId
@@ -82,20 +85,22 @@ export function useExecutions(
         }
       }
     `),
-    { projectVersionId, buildId, taskId, codeId, rootIdNull: options.root, first: 25 }
+    { projectId, projectVersionId, buildId, taskId, codeId, rootIdNull: options.root, first: 25 }
   );
 
   if (options.live) {
     subscribeToMore({
       document: graphql(/* GraphQL */ `
         subscription moduleExecutionChanged(
-          $projectVersionId: GlobalID!
+          $projectId: GlobalID!
+          $projectVersionId: GlobalID
           $buildId: GlobalID
           $taskId: GlobalID
           $codeId: GlobalID
           $rootIdNull: Boolean
         ) {
           moduleExecutionChanged(
+            projectId: $projectId
             projectVersionId: $projectVersionId
             buildId: $buildId
             taskId: $taskId
@@ -106,7 +111,7 @@ export function useExecutions(
           }
         }
       `),
-      variables: { projectVersionId, codeId, rootIdNull: options.root },
+      variables: { projectId, projectVersionId, codeId, rootIdNull: options.root },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
         const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);

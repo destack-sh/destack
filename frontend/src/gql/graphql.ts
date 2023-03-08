@@ -275,6 +275,7 @@ export type Execution = Node & {
   model?: Maybe<Statement>;
   outputs?: Maybe<Scalars["JSON"]>;
   parent?: Maybe<Execution>;
+  project: Project;
   projectVersion: ProjectVersion;
   root?: Maybe<Execution>;
   /** Time of transition to RUNNING status. */
@@ -1068,6 +1069,7 @@ export type Project = Node & {
   deployments: DeploymentConnection;
   head: ProjectVersion;
   id: Scalars["GlobalID"];
+  migrationMappings: ProjectMigrationInfo;
   name: Scalars["String"];
   owner: UserOrganization;
   path: Scalars["String"];
@@ -1084,6 +1086,11 @@ export type ProjectDeploymentsArgs = {
   filters?: InputMaybe<DeploymentFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type ProjectMigrationMappingsArgs = {
+  sourceVersionId: Scalars["GlobalID"];
+  targetVersionId: Scalars["GlobalID"];
 };
 
 export type ProjectVersionsArgs = {
@@ -1120,6 +1127,14 @@ export type ProjectEdge = {
   cursor: Scalars["String"];
   /** The item at the end of the edge */
   node: Project;
+};
+
+export type ProjectMigrationInfo = {
+  __typename?: "ProjectMigrationInfo";
+  isReverse: Scalars["Boolean"];
+  refMappings: Array<RefMapping>;
+  sourceVersion: ProjectVersion;
+  targetVersion: ProjectVersion;
 };
 
 export type ProjectOperationInfo = OperationInfo | Project;
@@ -1248,7 +1263,9 @@ export type QueryExecutionsArgs = {
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
   first?: InputMaybe<Scalars["Int"]>;
+  includeAncestorVersions?: Scalars["Boolean"];
   last?: InputMaybe<Scalars["Int"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
@@ -1307,7 +1324,7 @@ export type QueryUserArgs = {
 };
 
 export type QueryUserBySlugArgs = {
-  username: Scalars["String"];
+  slug: Scalars["String"];
 };
 
 export type QueryUsersArgs = {
@@ -1346,9 +1363,11 @@ export type RefMapping = Node & {
   sourceId: Scalars["GlobalID"];
   sourceRevision: Scalars["Int"];
   sourceVersion: ProjectVersion;
+  sourceVersionId: Scalars["GlobalID"];
   targetId: Scalars["GlobalID"];
   targetRevision: Scalars["Int"];
   targetVersion: ProjectVersion;
+  targetVersionId: Scalars["GlobalID"];
   type: RefType;
 };
 
@@ -1632,7 +1651,9 @@ export type Subscription = {
 export type SubscriptionModuleExecutionChangedArgs = {
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId: Scalars["GlobalID"];
+  includeAncestorVersions?: Scalars["Boolean"];
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
   taskId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2420,33 +2441,38 @@ export type MeQuery = {
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
-  fromId: Scalars["GlobalID"];
-  toId: Scalars["GlobalID"];
+  sourceVersionId: Scalars["GlobalID"];
+  targetVersionId: Scalars["GlobalID"];
 }>;
 
 export type ProjectMigrationRefsQuery = {
   __typename?: "Query";
   project?: {
     __typename?: "Project";
-    versions: {
-      __typename?: "ProjectVersionConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "ProjectVersionEdge";
-        node: {
-          __typename?: "ProjectVersion";
-          id: any;
-          name?: string | null;
-          tag?: string | null;
-          createdAt: any;
-          parentRefs: {
-            __typename?: "RefMappingConnection";
-            edges: Array<{
-              __typename?: "RefMappingEdge";
-              node: { __typename?: "RefMapping"; sourceId: any; targetId: any };
-            }>;
-          };
-        };
+    migrationMappings: {
+      __typename?: "ProjectMigrationInfo";
+      isReverse: boolean;
+      sourceVersion: {
+        __typename?: "ProjectVersion";
+        id: any;
+        createdAt: any;
+        tag?: string | null;
+        name?: string | null;
+      };
+      targetVersion: {
+        __typename?: "ProjectVersion";
+        id: any;
+        createdAt: any;
+        tag?: string | null;
+        name?: string | null;
+      };
+      refMappings: Array<{
+        __typename?: "RefMapping";
+        type: RefType;
+        sourceId: any;
+        sourceVersionId: any;
+        targetId: any;
+        targetVersionId: any;
       }>;
     };
   } | null;
@@ -2472,7 +2498,8 @@ export type ExecutionContentFragment = {
 } & { " $fragmentName"?: "ExecutionContentFragment" };
 
 export type ExecutionsQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   taskId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2507,7 +2534,8 @@ export type ExecutionsQuery = {
 };
 
 export type ModuleExecutionChangedSubscriptionVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   taskId?: InputMaybe<Scalars["GlobalID"]>;
   codeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -6132,12 +6160,12 @@ export const ProjectMigrationRefsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "fromId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "sourceVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "toId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -6159,80 +6187,60 @@ export const ProjectMigrationRefsDocument = {
               selections: [
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "versions" },
+                  name: { kind: "Name", value: "migrationMappings" },
                   arguments: [
                     {
                       kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "fromId" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "fromId" } },
-                          },
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "toId" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "toId" } },
-                          },
-                        ],
-                      },
+                      name: { kind: "Name", value: "sourceVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sourceVersionId" } },
+                    },
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "targetVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
                     },
                   ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      { kind: "Field", name: { kind: "Name", value: "isReverse" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "edges" },
+                        name: { kind: "Name", value: "sourceVersion" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "tag" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "parentRefs" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        {
-                                          kind: "Field",
-                                          name: { kind: "Name", value: "edges" },
-                                          selectionSet: {
-                                            kind: "SelectionSet",
-                                            selections: [
-                                              {
-                                                kind: "Field",
-                                                name: { kind: "Name", value: "node" },
-                                                selectionSet: {
-                                                  kind: "SelectionSet",
-                                                  selections: [
-                                                    { kind: "Field", name: { kind: "Name", value: "sourceId" } },
-                                                    { kind: "Field", name: { kind: "Name", value: "targetId" } },
-                                                  ],
-                                                },
-                                              },
-                                            ],
-                                          },
-                                        },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "tag" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "targetVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "tag" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "refMappings" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+                            { kind: "Field", name: { kind: "Name", value: "sourceVersionId" } },
+                            { kind: "Field", name: { kind: "Name", value: "targetId" } },
+                            { kind: "Field", name: { kind: "Name", value: "targetVersionId" } },
                           ],
                         },
                       },
@@ -6257,8 +6265,13 @@ export const ExecutionsDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
         {
           kind: "VariableDefinition",
@@ -6298,6 +6311,11 @@ export const ExecutionsDocument = {
             kind: "Field",
             name: { kind: "Name", value: "executions" },
             arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },
@@ -6400,8 +6418,13 @@ export const ModuleExecutionChangedDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
         {
           kind: "VariableDefinition",
@@ -6431,6 +6454,11 @@ export const ModuleExecutionChangedDocument = {
             kind: "Field",
             name: { kind: "Name", value: "moduleExecutionChanged" },
             arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },

@@ -69,6 +69,7 @@ async function run() {
 
 // TODO @Broken: get proper runnable id(s) if this is a not a code symbol
 const { executions, totalCount } = useExecutions(
+  toRef(editor, "currentProjectId") as Ref<string>,
   toRef(editor, "currentProjectVersionId") as Ref<string>,
   computed(() => state.get("buildId", null)),
   computed(() => (props.runnableType == SymbolType.Task ? props.runnableId : null)),

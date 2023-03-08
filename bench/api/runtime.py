@@ -20,7 +20,7 @@ from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, Symb
 from bench.api.util import asafe_mutation
 from bench.language import wire
 from bench.language.type import StatementModifier
-from bench.models import ProjectVersion, User, mapper
+from bench.models import Project, ProjectVersion, User, mapper
 from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import (
     ExecutionChangedPayload,
@@ -229,13 +229,22 @@ def check_can_write_project(user: User, project_version_id: UUID):
         raise PermissionDenied("You don't have permission to write to this project.")
 
 
-def check_can_view_project(user: User, project_version_id: UUID):
-    project_version = (
-        ProjectVersion.objects.all()
-        .prefetch_related("project", "project__user", "project__organization")
-        .get(id=project_version_id)
-    )
-    if not can_view_project(user, project_version.project):
+def check_can_view_project(user: User, project_version_id: UUID = None, project_id: UUID = None):
+    if not project_version_id and not project_id:
+        raise ValueError("must set project_version_id or project_id")
+
+    if project_version_id is None:
+        project = Project.objects.prefetch_related("user", "organization").get(id=project_id)
+    else:
+        project_version = (
+            ProjectVersion.objects.all()
+            .prefetch_related("project", "project__user", "project__organization")
+            .get(id=project_version_id)
+        )
+        project = project_version.project
+        if project_id is not None and project_id != project.id:
+            raise ValueError("project_id must match project_version_id")
+    if not can_view_project(user, project):
         raise PermissionDenied("You don't have permission to view this project.")
 
 
@@ -326,7 +335,7 @@ class ModuleRuntimeSubscription:
             user=user,
         )
         try:
-            await sync_to_async(check_can_view_project)(user, project_version_id)
+            await sync_to_async(check_can_view_project)(user, project_version_id=project_version_id)
         except PermissionDenied:
             log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
             return
@@ -393,16 +402,20 @@ class ModuleRuntimeSubscription:
     async def module_execution_changed(
         self,
         info: Info,
-        project_version_id: GlobalID,
+        project_id: GlobalID,
+        project_version_id: Optional[GlobalID],
+        include_ancestor_versions: bool = False,
         build_id: Optional[GlobalID] = None,
         task_id: Optional[GlobalID] = None,
         code_id: Optional[GlobalID] = None,
         root_id: Optional[GlobalID] = None,
         root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
+        project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
         log = logger.bind(
+            project_id=project_id,
             project_version_id=project_version_id,
             build_id=build_id,
             task_id=task_id,
@@ -414,9 +427,11 @@ class ModuleRuntimeSubscription:
         )
 
         try:
-            await sync_to_async(check_can_view_project)(user, project_version_id)
+            await sync_to_async(check_can_view_project)(
+                user, project_id=project_id, project_version_id=project_version_id
+            )
         except PermissionDenied:
-            log.debug("executions.subscribe_denied", project_version_id=project_version_id)
+            log.debug("executions.subscribe_denied")
             return
 
         log.info("executions.subscribe")
@@ -426,6 +441,14 @@ class ModuleRuntimeSubscription:
         worker_sub_sock.setsockopt(
             zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
         )
+
+        # :ExecutionsFilter
+        # If filtering by a symbol and including multiple versions, expand into their mappings.
+        # We do this once before listening for performance and simplicity, though this means that new versions
+        # will not be automatically included in the execution subscription. We could periodically re-check,
+        # but that's a bit more complicated and not really worth it for now.
+        if include_ancestor_versions:
+            raise NotImplementedError  # TODO @Incomplete
 
         try:
             log.info("executions.listen")

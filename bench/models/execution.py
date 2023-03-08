@@ -47,6 +47,7 @@ class Execution(UUIDTModel):
     """
 
     # context
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="executions+")
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
     )

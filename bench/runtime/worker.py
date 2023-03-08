@@ -262,6 +262,7 @@ class ModuleWorker:
     def __init__(self, module_id: UUID, master: Worker):
         self.master = master
         self.module_id = module_id
+        self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
         self.ready = asyncio.Event()
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
@@ -309,7 +310,7 @@ class ModuleWorker:
         if module_id in self.interp_dependencies_cached:
             return self.interp_dependencies_cached[module_id]
         self.log.info("interp_requirement", module_id=module_id)
-        source = await self.master.get_module(module_id)
+        source, _ = await self.master.get_module(module_id)
         requirements = get_requirements(source)
         dependencies = await asyncio.gather(
             *[self._interp_requirement_rec(req.id) for req in requirements]
@@ -407,6 +408,7 @@ class ModuleWorker:
             tracker = pub_filtered_execution_tracker(
                 root_id,
                 self.master.pub_sock,
+                project_id=self.project_id,
                 tracing_level=tracing_level,
                 deployment_id=deployment_id,
                 trigger_type=trigger_type,
@@ -499,7 +501,7 @@ class ModuleWorker:
 
         # first get the source
         self.log.info("module_worker_start")
-        source = await self.master.get_module(self.module_id)
+        source, self.project_id = await self.master.get_module(self.module_id)
         interp_job = self.on_module_changed(source)
 
         # start running both queues (for stateful and run)
@@ -692,7 +694,7 @@ class Worker:
             # TODO @Robustness: panic if we can't write back builds?
             logger.error("write_module_failed", write=write, write_result=write_result)
 
-    async def get_module(self, module_id: UUID) -> wire.ModuleData:
+    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""
         logger.debug("fetch_wire_module", module_id=module_id)
         await self._intserver_rep_lock.acquire()
@@ -704,7 +706,7 @@ class Worker:
         _, payload = await recv_message_with(self.intserver_req_sock, RepReadModulePayload)
         self._intserver_rep_lock.release()
         # TODO @Performance: cache committed modules
-        return payload.module
+        return payload.module, payload.project_id
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
@@ -718,6 +720,7 @@ def pub_filtered_execution_tracker(
     root_id: UUID,
     pub_sock: zmq.Socket,
     *,
+    project_id: UUID,
     tracing_level: ExecutionTracingLevel,
     deployment_id: UUID,
     trigger_type: ExecutionTriggerType,
@@ -742,6 +745,7 @@ def pub_filtered_execution_tracker(
 
         frame_data = ExecutionFrameData.from_frame(
             frame,
+            project_id=project_id,
             tracing_level=tracing_level,
             deployment_id=deployment_id,
             trigger_type=trigger_type,

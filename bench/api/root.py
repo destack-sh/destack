@@ -49,6 +49,14 @@ SYSTEM_INFO = SystemInfo(
 )
 
 
+def get_me(self, info: Info) -> Optional[User]:
+    # unwrap because we need the actual object but channels.auth gives us a UserLazyObject
+    user = info.context.request.scope["user"]._wrapped
+    if isinstance(user, AnonymousUser):
+        return None
+    return user
+
+
 @sync_to_async
 def get_user_or_organization_by_slug(
     self, info: Info, slug: str
@@ -60,12 +68,7 @@ def get_user_or_organization_by_slug(
         return None
 
 
-def get_me(self, info: Info) -> Optional[User]:
-    # unwrap because we need the actual object but channels.auth gives us a UserLazyObject
-    user = info.context.request.scope["user"]._wrapped
-    if isinstance(user, AnonymousUser):
-        return None
-    return user
+# TODO @Cleanup: simplify get x by y wrappers (with None if does not exist error)
 
 
 def get_project_version_by_tag(project_id: GlobalID, tag: str):
@@ -75,28 +78,56 @@ def get_project_version_by_tag(project_id: GlobalID, tag: str):
         return None
 
 
+def get_project_version_by_slug(owner: str, project: str, tag: str):
+    try:
+        return models.ProjectVersion.objects.get_by_slug(owner, project, tag)
+    except models.ProjectVersion.DoesNotExist:
+        return None
+
+
+def get_project_by_slug(owner: str, project: str):
+    try:
+        return models.Project.objects.get_by_slug(owner, project)
+    except models.Project.DoesNotExist:
+        return None
+
+
+def get_user_by_slug(slug: str):
+    try:
+        return models.User.objects.get_by_slug(slug)
+    except models.User.DoesNotExist:
+        return None
+
+
+def get_organization_by_slug(organization: str):
+    try:
+        return models.Organization.objects.get_by_slug(organization)
+    except models.Organization.DoesNotExist:
+        return None
+
+
 @strawberry.type
 class Query(ExecutionQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
     users: gql.relay.Connection[User] = gql.django.connection(filters=UserFilter)
-    user_by_slug: Optional[User] = gql.django.field(resolver=models.User.objects.get_by_slug)
+    user_by_slug: Optional[User] = gql.django.field(resolver=get_user_by_slug)
     organization: Optional[Organization] = gql.relay.node()
     organizations: gql.relay.Connection[Organization] = gql.django.connection()
     organization_by_slug: Optional[Organization] = gql.django.field(
-        resolver=models.Organization.objects.get_by_slug
+        resolver=get_organization_by_slug
     )
     owner_by_slug: Optional[Union[User, Organization]] = gql.django.field(
         resolver=get_user_or_organization_by_slug
     )
     project: Optional[Project] = gql.relay.node(directives=[CanViewProject()])
     project_by_slug: Optional[Project] = gql.django.field(
-        resolver=models.Project.objects.get_by_slug, directives=[CanViewProject()]
+        resolver=get_project_by_slug, directives=[CanViewProject()]
     )
     project_version: Optional[ProjectVersion] = gql.relay.node(directives=[CanViewProject()])
     project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
-        resolver=models.ProjectVersion.objects.get_by_slug, directives=[CanViewProject()]
+        resolver=get_project_version_by_slug, directives=[CanViewProject()]
     )
     project_version_by_tag: Optional[ProjectVersion] = gql.django.field(
         resolver=get_project_version_by_tag, directives=[CanViewProject()]
