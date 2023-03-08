@@ -433,6 +433,15 @@ const kubecost = new k8s.helm.v3.Release(
   { dependsOn: [ebsCsiDriver] }
 );
 
+const kubeStateMetrics = new k8s.helm.v3.Release("kube-state-metrics", {
+  chart: "kube-state-metrics",
+  version: "2.13.3",
+  namespace: "kube-system",
+  repositoryOpts: {
+    repo: "https://kubernetes.github.io/kube-state-metrics",
+  },
+});
+
 const metricsServer = new k8s.helm.v3.Release(
   "metrics-server",
   {
@@ -441,6 +450,11 @@ const metricsServer = new k8s.helm.v3.Release(
     namespace: "kube-system",
     repositoryOpts: {
       repo: "https://charts.bitnami.com/bitnami",
+    },
+    values: {
+      apiService: {
+        create: true,
+      },
     },
   },
   { dependsOn: [ebsCsiDriver] }

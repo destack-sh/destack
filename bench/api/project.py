@@ -12,7 +12,6 @@ from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import PMT, project_mutation
 from bench.api.util import safe_mutation
-from bench.models.project import RefDict
 
 if TYPE_CHECKING:
     from bench.api.deployment import Deployment
@@ -105,10 +104,33 @@ class Project(gql.Node):
         return can_write_project(user, self)
 
 
-@gql.type
-class RefMapping:
-    source: GlobalID
-    target: GlobalID
+RefType = gql.enum(models.RefType)
+RefMappingKind = gql.enum(models.RefMappingKind)
+
+
+@gql.django.type(models.RefMapping)
+class RefMapping(gql.Node):
+    kind: RefMappingKind
+    type: RefType
+    source_version: "ProjectVersion"
+    target_version: "ProjectVersion"
+    source_id: GlobalID
+    source_revision: int
+    target_id: GlobalID
+    target_revision: int
+
+
+@gql.django.filter(models.RefMapping)
+class RefMappingFilter:
+    type: Optional[RefType] = None
+    kind: Optional[RefMappingKind] = None
+
+    def filter(self, queryset):
+        if self.type is not None:
+            queryset = queryset.filter(type=self.type)
+        if self.kind is not None:
+            queryset = queryset.filter(kind=self.kind)
+        return queryset
 
 
 @gql.django.type(models.ProjectVersion)
@@ -122,23 +144,12 @@ class ProjectVersion(gql.Node):
     created_at: auto
     committed: auto
     committed_at: auto
-    dependencies: list["ProjectVersion"]
     files: gql.relay.Connection["File"] = gql.django.connection(filters=FileFilter)
     deployments: gql.relay.Connection[
         Annotated["Deployment", lazy(".deployment")]
     ] = gql.django.connection(filters=DeploymentFilter)
-
-    @gql.field
-    def parents_refs(self) -> list[RefMapping]:
-        refs: list[RefDict] = self.parents_refs
-        ref_mappings = [
-            RefMapping(
-                source=GlobalID(ref["type"], ref["source"]),
-                target=GlobalID(ref["type"], ref["target"]),
-            )
-            for ref in refs
-        ]
-        return ref_mappings
+    child_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
+    parent_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
 
 
 @gql.django.type(models.File)

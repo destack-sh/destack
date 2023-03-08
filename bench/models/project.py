@@ -11,9 +11,8 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.data import DatasetRecord
 from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
-from bench.models.statement import SimpleTypeNode, Statement
+from bench.models.statement import Statement
 from bench.models.utils import UUIDModel, walk_children_bfs
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -180,15 +179,16 @@ class Project(UUIDModel):
         new_version.parents.add(assigned_parent)
 
         # copy project content from parent
-        refs = ProjectVersion.objects.copy_files(assigned_parent, new_version)
-        new_version.parents_refs = [
-            RefDict(source=str(k), target=str(v.id), type=type(v).__name__) for k, v in refs.items()
-        ]
-        new_version.save()
+        ref_mappings = ProjectVersion.objects.copy_files(assigned_parent, new_version)
+        for mapping in ref_mappings:
+            mapping.kind = RefMappingKind.COMMIT
+        RefMapping.objects.bulk_create(ref_mappings)
 
         # copy owned deployments from parent
         for source_deployment in assigned_parent.deployments.filter(owned=True):
-            target_deployment = Deployment.objects.copy(source_deployment, new_version, refs)
+            target_deployment = Deployment.objects.copy(
+                source_deployment, new_version, ref_mappings
+            )
             target_deployment.type = DeploymentType.ADHOC
             target_deployment.status = DeploymentStatus.INACTIVE  # reset status
             target_deployment.save()
@@ -245,7 +245,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target: ProjectVersion,
         files: Optional[models.QuerySet[File]] = None,
         copy_mappings: bool = True,
-    ) -> dict[UUID, File | Statement | DatasetRecord | SimpleTypeNode]:
+    ) -> list["RefMapping"]:
         """Copies the given files from a source version to a target version (by default everything)"""
 
         # 0. select files & statements to copy
@@ -261,19 +261,31 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         #  (could set them manually in project mutation wrapper)
         # copy files
         new_files: dict[UUID, File] = {}
+        file_mappings: list[RefMapping] = []
         for file in walk_children_bfs(files.filter(parent=None), "files"):
             old_id = file.id
+            old_revision = file.revision
             file.pk = None
             file.project_version = target
             file.parent = new_files.get(file.parent_id)
             file.save()
             new_files[old_id] = file
+            file_mapping = RefMapping(
+                source_version=source,
+                target_version=target,
+                type=RefType.FILE,
+                source_id=old_id,
+                target_id=file.id,
+                source_revision=old_revision,
+                target_revision=file.revision,
+            )
+            file_mappings.append(file_mapping)
 
         # copy statements
-        new_statements, new_contents = Statement.objects.copy_statements(
-            statements, new_files, target, copy_mappings
+        statement_mappings = Statement.objects.copy_statements(
+            statements, new_files, source, target, copy_mappings
         )
-        return {**new_statements, **new_files, **new_contents}
+        return [*file_mappings, *statement_mappings]
 
 
 class ProjectVersion(UUIDModel):
@@ -293,7 +305,8 @@ class ProjectVersion(UUIDModel):
     parents = models.ManyToManyField(
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
-    parents_refs = models.JSONField(default=dict)
+    parent_refs: models.QuerySet["RefMapping"]  # noqa via RefMapping.source_version
+    child_refs: models.QuerySet["RefMapping"]  # noqa via RefMapping.target_version
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
     deployments: models.QuerySet["Deployment"]  # noqa via Deployment
@@ -385,6 +398,42 @@ class ProjectVersion(UUIDModel):
                 name="bench_project_version_tag_ak",
             ),
         ]
+
+
+class RefType(models.TextChoices):
+    FILE = "file", "File"
+    STATEMENT = "statement", "Statement"
+    RECORD = "record", "Record"
+    TYPE_NODE = "type_node", "TypeNode"
+
+
+class RefMappingKind(models.TextChoices):
+    COMMIT = "commit", "Commit"
+    PASTE = "paste", "Paste"
+
+
+class RefMapping(UUIDModel):
+    """
+    The mapping of a project content object's identity between locations/versions.
+    There is no benefit to foreign constraints on the object ids here (?), so they're just UUIDs.
+    Used to track lineage for versioning, forking, copy/paste, etc.
+
+    This is similar to SourceMapping on the surface, but here we track object identities
+    rather than statement-generated arbitrary mappings (different uses, constraints, etc.).
+    """
+
+    kind = TextChoicesField(choices_enum=RefMappingKind)
+    source_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="child_refs"
+    )
+    target_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="parent_refs"
+    )
+    type = TextChoicesField(choices_enum=RefType)
+    source_id = models.UUIDField()
+    source_revision = models.IntegerField()
+    target_id = models.UUIDField()
+    target_revision = models.IntegerField()
 
 
 class FileManager(models.Manager):
