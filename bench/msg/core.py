@@ -17,6 +17,7 @@ from bench.msg.messages import (
     to_key,
 )
 from bench.msg.serialize import from_dict, to_dict
+from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
 
@@ -76,7 +77,10 @@ def parse_message(message_json: str) -> ZMessage:
                 payload_cls, message_dict["payload"], _path=["payload"]
             )
         except (ValueError, TypeError, AttributeError) as e:
-            logger.exception("parse_message_failed", exc_info=True, e=e)
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.exception(
+                "parse_message_failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
+            )
             raise
     message_dict["type"] = ZMessageType(message_dict["type"])
     message_dict["sent_at"] = datetime.fromisoformat(message_dict["sent_at"])

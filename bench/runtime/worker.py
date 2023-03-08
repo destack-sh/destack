@@ -50,7 +50,7 @@ from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.func import wrap_task
-from bench.utils.utils import required_field
+from bench.utils.utils import required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -577,7 +577,10 @@ class Worker:
                 try:
                     await self.process_message(msg)
                 except Exception as e:
-                    logger.exception("worker.process_message", exc_info=e, msg=msg)
+                    sentry_enabled = sentry_capture_if_enabled(e)
+                    logger.exception(
+                        "worker.process_message", exc_info=e, msg=msg, sentry_enabled=sentry_enabled
+                    )
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:

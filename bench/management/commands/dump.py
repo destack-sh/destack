@@ -28,6 +28,10 @@ class Command(BaseCommand):
         else:
             project_v = project.versions.get(tag=tag)
 
-        wire_module: wire.ModuleData = read_module(project_v)
+        # we include implicit requirements here and strip them again after load :ManageRequirements
+        # (because the requirements are needed to parse the module)
+        wire_module: wire.ModuleData = read_module(project_v, add_implicit_requirements=True)
         lang_module = wire.wmap_module(wire_module)
-        print(render(lang_module.files))
+        # exclude generated files (except implicit requirements)
+        files = [f for f in lang_module.files if not f.generated or f.path == "__implicit__"]
+        print(render(files))

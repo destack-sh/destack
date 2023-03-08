@@ -58,7 +58,9 @@ gql_http_consumer = CORSMiddleware(
 gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
 application = ProtocolTypeRouter(
     {
-        "http": URLRouter([re_path("^graphql", gql_http_consumer), re_path("^", django_asgi_app)]),
+        "http": SentryAsgiMiddleware(
+            URLRouter([re_path("^graphql", gql_http_consumer), re_path("^", django_asgi_app)])
+        ),
         "websocket": AllowedHostsOriginValidator(
             SentryAsgiMiddleware(AuthMiddlewareStack(URLRouter(websocket_urlpatterns)))
         ),
@@ -85,7 +87,7 @@ if RUN_INTSERVER:
     )
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "intserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
-if RUN_WORKER:
+if RUN_WORKER:  # for local development only
     if not DEBUG or TEST:
         raise RuntimeError("worker should be run via isolated runworker in prod")
     from bench.runtime.worker import Worker

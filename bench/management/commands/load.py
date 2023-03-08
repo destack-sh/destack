@@ -68,6 +68,8 @@ class Command(BaseCommand):
             file.statements = [
                 s for s in file.statements if s.symbol_type != SymbolType.REQUIREMENT
             ]
+        # strip empty files (removing __implicit__ and such)
+        lang_module.files = [f for f in lang_module.files if f.statements]
 
         wire_module = wire.rmap_module(lang_module)
         write_module(wire_module.files, project_v)
