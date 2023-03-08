@@ -17,6 +17,7 @@ from bench.msg.messages import (
 )
 from bench.msg.sync import is_semantic_mutation
 from bench.runtime.type import ExecutionFrameData
+from bench.utils.utils import sentry_capture_if_enabled
 
 # TODO @Cleanup: intservers should probably live in django-side of the backend?
 #  (not general language runtime)
@@ -59,7 +60,13 @@ class InternalServer:
 
         while True:
             async for msg in recv_message_poll(poller):
-                await self.process_message(msg)
+                try:
+                    await self.process_message(msg)
+                except Exception as e:
+                    sentry_enabled = sentry_capture_if_enabled(e)
+                    logger.error(
+                        "process_message_failed", exc_info=e, sentry_enabled=sentry_enabled
+                    )
 
     async def process_message(self, msg: ZMessage) -> None:
         logger.debug("process_message", request=msg)
@@ -88,7 +95,8 @@ class InternalServer:
                 )
                 success = True
             except Exception as e:
-                logger.error("write_module_failed", exc_info=e)
+                sentry_enabled = sentry_capture_if_enabled(e)
+                logger.error("write_module_failed", exc_info=e, sentry_enabled=sentry_enabled)
                 success = False
             send_message(
                 self.rep_sock, ZMessageType.REP_WRITE_MODULE, RepWriteModulePayload(success=success)

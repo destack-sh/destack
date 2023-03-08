@@ -488,11 +488,9 @@ def rmap_type_nodes(
         if node.is_nullable:  # hoist into union
             lang_node.name = None
             lang_node.id = new_id("union" + str(lang_node.id))
+            null = TypeNode(id=new_id("null" + str(lang_node.id)), tag=TypeTag.NULL, name=None)
             lang_node = TypeNode(
-                id=node.id,
-                tag=TypeTag.UNION,
-                name=node.name,
-                children=[lang_node, TypeNode(id=new_id("null"), tag=TypeTag.NULL, name=None)],
+                id=node.id, tag=TypeTag.UNION, name=node.name, children=[lang_node, null]
             )
         return lang_node
 

@@ -1,13 +1,13 @@
 import os
 import typing
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import strawberry
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
-from graphql import NoSchemaIntrospectionCustomRule
+from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
-from strawberry.types import Info
+from strawberry.types import ExecutionContext, Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.directives import SchemaDirectiveExtension
 from strawberry_django_plus.optimizer import DjangoOptimizerExtension
@@ -33,6 +33,7 @@ from bench.api.token import AccessTokenMutation
 from bench.api.user import User, UserFilter, UserMutation
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
+from bench.utils.utils import sentry_capture_if_enabled
 
 PyType = typing.Type
 
@@ -139,7 +140,18 @@ if DEBUG or TEST:
 else:
     extensions = default_extensions + prod_extensions
 
-schema = strawberry.Schema(
+
+class ErrorCaptureSchema(strawberry.Schema):
+    def process_errors(
+        self, errors: List[GraphQLError], execution_context: Optional[ExecutionContext] = None
+    ) -> None:
+        for error in errors:
+            if error.original_error:
+                sentry_capture_if_enabled(error.original_error)
+        super().process_errors(errors, execution_context)
+
+
+schema = ErrorCaptureSchema(
     Query,
     Mutation,
     Subscription,

@@ -371,6 +371,8 @@ def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
 
     nodes_by_id = {}
     for data in nodes_data:
+        if data.id in nodes_by_id:
+            raise ValueError(f"duplicate type node id {data.id}: {data} and {nodes_by_id[data.id]}")
         node = language.TypeNode(
             id=data.id,
             name=data.name,
@@ -414,6 +416,10 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
     """Maps a type node tree structure to a flat list of type node data."""
     nodes_data = OrderedDict()
     for n in node.walk():
+        if n.id in nodes_data:
+            # already seen (multiple references to same node)
+            # this is allowed in rmap but in wmap as TypeNodeData is flattened
+            continue
         reference = n.reference
         if isinstance(reference, (language.TypeNode, language.Type)):
             reference = reference.id
