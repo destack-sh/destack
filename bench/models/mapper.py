@@ -64,7 +64,11 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
 
 
 @transaction.atomic(savepoint=False)  # read-only
-def read_module(project_v: ProjectVersion, path: StatementPath | None = None) -> wire.ModuleData:
+def read_module(
+    project_v: ProjectVersion,
+    path: StatementPath | None = None,
+    add_implicit_requirements: bool = True,
+) -> wire.ModuleData:
     """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
     wire_module = wire.ModuleData(
         id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
@@ -92,11 +96,12 @@ def read_module(project_v: ProjectVersion, path: StatementPath | None = None) ->
         wire_statements[statement.id] = wire_statement
         wire_files[statement.file_id].statements.append(wire_statement)
 
-    # Implicitly require all current libraries at their latest version because
-    # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
-    # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
-    #  (std should be a global default, but we want that version pinned too (?))
-    _add_implicit_requirements(wire_module)
+    if add_implicit_requirements:
+        # Implicitly require all current libraries at their latest version because
+        # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
+        # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
+        #  (std should be a global default, but we want that version pinned too (?))
+        _add_implicit_requirements(wire_module)
 
     return wire_module
 
@@ -321,7 +326,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
                 statement=statement,
                 order_key=record.order_key,
                 revision=record.revision,
-                data=data,
+                data=record.data,
             )
             for record in data.records
         ]

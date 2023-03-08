@@ -6,11 +6,11 @@ from bench.utils.analytics import init_sentry
 # Sentry
 
 if not (TEST or DEBUG):
-    init_sentry()
+    init_sentry(django=True)
 
 # Posthog
 posthog.project_api_key = "phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma"
 posthog.host = "https://eu.posthog.com"
 
-if TEST:
+if TEST or DEBUG:
     posthog.disabled = True

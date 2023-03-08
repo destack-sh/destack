@@ -13,7 +13,7 @@ dotenv.load_dotenv(verbose=True)
 
 worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()))
 
-init_sentry()
+init_sentry(django=False)
 
 asyncio.run(
     worker.run(

@@ -7,6 +7,8 @@
 
 #!/bin/bash
 
+set -e
+
 # Parse command line arguments
 while getopts "s:t:p:" opt; do
 case $opt in
@@ -36,14 +38,19 @@ echo "Usage: $0 -s <source_env> -t <target_env> -p <project_path>"
 exit 1
 fi
 
+echo "copying $project_path from $source_env to $target_env"
+
 # Clean project path (normalize non-alphanumeric characters)
-project_path=$(echo "$project_path" | tr -cd '[:alnum:]/')
+tmp_name=$(echo "$project_path" | tr -cd '[:alnum:]_')
 
 # Dump the project from source DB environment
-LOCAL_ENV="$source_env" python manage.py dump "$project_path" > "tmp_$project_path.bench"
+echo "dumping $project_path from $source_env to tmp_$tmp_name.bench"
+LOCAL_ENV="$source_env" python manage.py dump "$project_path" > "tmp_$tmp_name.bench"
 
 # Load the project to target DB environment
-LOCAL_ENV="$target_env" python manage.py dump "$project_path" "-" < "tmp_$project_path.bench"
+echo "loading $project_path from tmp_$tmp_name.bench to $target_env"
+LOCAL_ENV="$target_env" python manage.py load "$project_path" "tmp_$tmp_name.bench" > /dev/null 2>&1
 
 # Remove temporary dump file
-rm "tmp_$project_path.bench"
+rm "tmp_$tmp_name.bench"
+echo "done"

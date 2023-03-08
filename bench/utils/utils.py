@@ -2,6 +2,8 @@ import os
 from dataclasses import field
 from typing import Any, Callable, Optional
 
+import sentry_sdk
+
 
 def str_to_bool(value: str) -> bool:
     truthy_strs_lower = ("y", "yes", "t", "true", "on", "yup", "1")
@@ -47,3 +49,10 @@ def required_field(**kwargs):
 
     _field = field(default_factory=_raise_must_set, **kwargs)
     return _field
+
+
+def sentry_capture_if_enabled(e: Exception) -> bool:
+    sentry_enabled = sentry_sdk.Hub.current is not None
+    if sentry_enabled:
+        sentry_sdk.capture_exception(e)
+    return sentry_enabled

@@ -5,7 +5,9 @@ The `urlpatterns` list routes URLs to views. For more information please see:
 """
 from django.conf.urls import include
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.views import SpectacularAPIView
 from strawberry.django.views import GraphQLView
 
@@ -13,7 +15,15 @@ from bench.api.rest import run
 from bench.api.root import schema
 from bench.settings import DEBUG
 
+
+@csrf_exempt
+def empty_view(request):
+    return HttpResponse(status=204)
+
+
 urlpatterns = [
+    # empty index
+    path("", empty_view, name="index"),
     path("admin/", admin.site.urls),
     path("", include("django_prometheus.urls")),
     path("", include("social_django.urls", namespace="social")),
