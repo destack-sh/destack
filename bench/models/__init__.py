@@ -11,7 +11,16 @@ from .organization import (
     OrganizationMembershipLevel,
 )
 from .owner import OwnerSlug
-from .project import File, Project, ProjectType, ProjectVersion, ProjectVisibility
+from .project import (
+    File,
+    Project,
+    ProjectType,
+    ProjectVersion,
+    ProjectVisibility,
+    RefMapping,
+    RefMappingKind,
+    RefType,
+)
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import User
@@ -31,8 +40,8 @@ __all__ = [
     "File",
     "ModelInference",
     "Notification",
-    "NotificationType",
     "NotificationStatus",
+    "NotificationType",
     "Organization",
     "OrganizationInvite",
     "OrganizationMembership",
@@ -42,6 +51,9 @@ __all__ = [
     "ProjectType",
     "ProjectVersion",
     "ProjectVisibility",
+    "RefMapping",
+    "RefMappingKind",
+    "RefType",
     "SimpleTypeNode",
     "SourceMapping",
     "SourceMappingType",

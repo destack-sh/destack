@@ -1141,20 +1141,28 @@ export type ProjectUpdateVisibilityInput = {
 
 export type ProjectVersion = Node & {
   __typename?: "ProjectVersion";
+  childRefs: RefMappingConnection;
   children: Array<ProjectVersion>;
   committed: Scalars["Boolean"];
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
-  dependencies: Array<ProjectVersion>;
   deployments: DeploymentConnection;
   description?: Maybe<Scalars["String"]>;
   files: FileConnection;
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
+  parentRefs: RefMappingConnection;
   parents: Array<ProjectVersion>;
-  parentsRefs: Array<RefMapping>;
   project: Project;
   tag?: Maybe<Scalars["String"]>;
+};
+
+export type ProjectVersionChildRefsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<RefMappingFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type ProjectVersionDeploymentsArgs = {
@@ -1169,6 +1177,14 @@ export type ProjectVersionFilesArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<FileFilter>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+};
+
+export type ProjectVersionParentRefsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  filters?: InputMaybe<RefMappingFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -1323,11 +1339,55 @@ export type RecordUpdateInput = {
   id: Scalars["GlobalID"];
 };
 
-export type RefMapping = {
+export type RefMapping = Node & {
   __typename?: "RefMapping";
-  source: Scalars["GlobalID"];
-  target: Scalars["GlobalID"];
+  id: Scalars["GlobalID"];
+  kind: RefMappingKind;
+  sourceId: Scalars["GlobalID"];
+  sourceRevision: Scalars["Int"];
+  sourceVersion: ProjectVersion;
+  targetId: Scalars["GlobalID"];
+  targetRevision: Scalars["Int"];
+  targetVersion: ProjectVersion;
+  type: RefType;
 };
+
+/** A connection to a list of items. */
+export type RefMappingConnection = {
+  __typename?: "RefMappingConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<RefMappingEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type RefMappingEdge = {
+  __typename?: "RefMappingEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: RefMapping;
+};
+
+export type RefMappingFilter = {
+  kind?: InputMaybe<RefMappingKind>;
+  type?: InputMaybe<RefType>;
+};
+
+export enum RefMappingKind {
+  Commit = "COMMIT",
+  Paste = "PASTE",
+}
+
+export enum RefType {
+  File = "FILE",
+  Record = "RECORD",
+  Statement = "STATEMENT",
+  TypeNode = "TYPE_NODE",
+}
 
 export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
@@ -2379,7 +2439,13 @@ export type ProjectMigrationRefsQuery = {
           name?: string | null;
           tag?: string | null;
           createdAt: any;
-          parentsRefs: Array<{ __typename?: "RefMapping"; source: any; target: any }>;
+          parentRefs: {
+            __typename?: "RefMappingConnection";
+            edges: Array<{
+              __typename?: "RefMappingEdge";
+              node: { __typename?: "RefMapping"; sourceId: any; targetId: any };
+            }>;
+          };
         };
       }>;
     };
@@ -6137,12 +6203,30 @@ export const ProjectMigrationRefsDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                   {
                                     kind: "Field",
-                                    name: { kind: "Name", value: "parentsRefs" },
+                                    name: { kind: "Name", value: "parentRefs" },
                                     selectionSet: {
                                       kind: "SelectionSet",
                                       selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "source" } },
-                                        { kind: "Field", name: { kind: "Name", value: "target" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "edges" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              {
+                                                kind: "Field",
+                                                name: { kind: "Name", value: "node" },
+                                                selectionSet: {
+                                                  kind: "SelectionSet",
+                                                  selections: [
+                                                    { kind: "Field", name: { kind: "Name", value: "sourceId" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "targetId" } },
+                                                  ],
+                                                },
+                                              },
+                                            ],
+                                          },
+                                        },
                                       ],
                                     },
                                   },

@@ -195,7 +195,7 @@ watch(versionError, () => {
     if (!atHead) {
       // revert to head
       router.replace({ hash: router.currentRoute.value.hash });
-    }
+    } // otherwise there's nothing we can do (?)
   }
 });
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from itertools import groupby
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
@@ -19,7 +18,7 @@ from bench.models.utils import UUIDModel, walk_children_bfs
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import File, ProjectVersion
+    from bench.models import File, ProjectVersion, RefMapping
 
 logger = structlog.get_logger(__name__)
 
@@ -121,11 +120,28 @@ class StatementManager(models.Manager["Statement"]):
         self,
         statements: models.QuerySet[Statement],
         new_files: dict[UUID, File],
+        source: ProjectVersion,
         target: ProjectVersion,
-        copy_mappings: bool,
+        copy_generated_mappings: bool,
         new_statement_ids: dict[UUID, UUID] | None = None,
-    ) -> tuple[dict[UUID, Statement], dict[UUID, DatasetRecord | SimpleTypeNode]]:
-        """Copies the given source statements into the target version, relocating them to the new files"""
+    ) -> list["RefMapping"]:
+        """Copies the given source statements into the target version in given new files"""
+
+        from bench.models import RefMapping, RefType  # avoid circular import
+
+        ref_mappings: list[RefMapping] = []
+
+        def _refmap(type: RefType, old_id: UUID, old_revision: int, new: models.Model):
+            ref_mapping = RefMapping(
+                type=type,
+                source_version=source,
+                target_version=target,
+                source_id=old_id,
+                target_id=new.id,
+                source_revision=old_revision,
+                target_revision=new.revision,
+            )
+            ref_mappings.append(ref_mapping)
 
         statements_bfs = list(walk_children_bfs(statements.filter(parent=None), "children"))
         # (pre-determine new statement ids to re-create source mappings in one go)
@@ -133,30 +149,43 @@ class StatementManager(models.Manager["Statement"]):
             statement.id: uuid4() for statement in statements_bfs
         }
         new_statements: dict[UUID, Statement] = {}
-        new_contents: dict[UUID, DatasetRecord | SimpleTypeNode] = {}
-        new_mappings: list[SourceMapping] = []
+        new_type_nodes: dict[UUID, SimpleTypeNode] = {}
+        new_records: dict[UUID, DatasetRecord] = {}
+        new_gen_mappings: list[SourceMapping] = []
+
         for statement in statements_bfs:
             # copy statement contents/relations
             if statement.type == StatementType.DEFINITION:
                 # the relations are saved below after statement creation
+                # copy type nodes
                 if statement.root_type_tag is not None:
                     for type_node in statement.type_nodes.all():
                         old_id = type_node.id
-                        type_node.pk = None
+                        old_revision = type_node.revision
+                        type_node.id = uuid4()
+                        type_node._state.adding = True
                         type_node.statement_id = new_statements_ids[statement.id]
                         if type_node.reference_id is not None:
                             # replace type node reference if it was copied (default to same for externals)
                             type_node.reference_id = new_statements_ids.get(
                                 type_node.reference_id, type_node.reference_id
                             )
-                        new_contents[old_id] = type_node
+                        new_type_nodes[old_id] = type_node
+                        _refmap(RefType.TYPE_NODE, old_id, old_revision, type_node)
+
+                # copy records
                 if statement.symbol_type == SymbolType.DATA:
                     for record in statement.records.all():
                         old_id = record.id
-                        record.pk = None
+                        old_revision = record.revision
+                        record.id = uuid4()
+                        record._state.adding = True
                         record.statement_id = new_statements_ids[statement.id]
-                        new_contents[old_id] = record
-                elif statement.symbol_type == SymbolType.BUILD and copy_mappings:
+                        new_records[old_id] = record
+                        _refmap(RefType.RECORD, old_id, old_revision, record)
+
+                # copy generated mappings (only Builds can have them right now)
+                elif statement.symbol_type == SymbolType.BUILD and copy_generated_mappings:
                     for mapping in statement.generated_mappings.all():
                         mapping.pk = None
                         mapping.statement_id = new_statements_ids[mapping.statement_id]
@@ -168,12 +197,13 @@ class StatementManager(models.Manager["Statement"]):
                         )
                         mapping.source_revision = 0
                         mapping.target_revision = 0
-                        new_mappings.append(mapping)
+                        new_gen_mappings.append(mapping)
 
             # copy statement
             # automatically copies all non-relational columns
             old_id = statement.id
-            statement.pk = new_statements_ids[old_id]
+            old_revision = statement.revision
+            statement.id = new_statements_ids[old_id]
             statement._state.adding = True
             statement.revision = 0  # reset revision
             statement.file = new_files[statement.file_id]
@@ -182,6 +212,7 @@ class StatementManager(models.Manager["Statement"]):
             statement.parent = new_statements.get(statement.parent_id)
             statement.save()
             new_statements[old_id] = statement
+            _refmap(RefType.STATEMENT, old_id, old_revision, statement)
 
         # re-assign references
         for old in statements:
@@ -196,11 +227,11 @@ class StatementManager(models.Manager["Statement"]):
         Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
 
         # save statement's relations
-        for relation_cls, relations in groupby(new_contents.values(), key=type):
-            relation_cls.objects.bulk_create(relations)
-        SourceMapping.objects.bulk_create(new_mappings)
+        SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
+        DatasetRecord.objects.bulk_create(new_records.values())
+        SourceMapping.objects.bulk_create(new_gen_mappings)
 
-        return new_statements, new_contents
+        return ref_mappings
 
 
 # sync with actual symbol content fields of Statement

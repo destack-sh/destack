@@ -7,12 +7,11 @@ from django.db import models
 from django_choices_field import TextChoicesField
 
 from bench.models.organization import Organization
-from bench.models.statement import Statement
 from bench.models.user import User
 from bench.models.utils import UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models.project import ProjectVersion
+    from bench.models import ProjectVersion, RefMapping
 
 
 class DeploymentStatus(models.TextChoices):
@@ -51,7 +50,7 @@ class DeploymentManager(models.Manager["Deployment"]):
         self,
         source_deployment: Deployment,
         target_version: "ProjectVersion",
-        refs: dict[UUID, Statement],
+        refs: list["RefMapping"],
     ) -> Deployment:
         target_deployment = Deployment.objects.get(id=source_deployment.id)
         target_deployment.id = None
@@ -59,10 +58,17 @@ class DeploymentManager(models.Manager["Deployment"]):
         target_deployment.save()
         # copy deployed statements
         deployed_statements = []
+
+        def _get_target_ref(source_id: UUID):
+            for ref in refs:
+                if ref.source_id == source_id:
+                    return ref.target_id
+            raise ValueError(f"could not find ref for {source_id}")
+
         for deployed_statement in source_deployment.deployed_statements.all():
             deployed_statement.id = None
             deployed_statement.deployment = target_deployment
-            deployed_statement.statement = refs[deployed_statement.statement_id]
+            deployed_statement.statement = _get_target_ref(deployed_statement.statement_id)
             deployed_statements.append(deployed_statement)
         DeployedStatement.objects.bulk_create(deployed_statements)
         return target_deployment

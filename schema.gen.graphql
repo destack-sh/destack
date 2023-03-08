@@ -969,7 +969,6 @@ type ProjectVersion implements Node {
   createdAt: DateTime!
   committed: Boolean!
   committedAt: DateTime
-  dependencies: [ProjectVersion!]!
   files(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -998,7 +997,34 @@ type ProjectVersion implements Node {
     last: Int = null
     filters: DeploymentFilter
   ): DeploymentConnection!
-  parentsRefs: [RefMapping!]!
+  childRefs(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: RefMappingFilter
+  ): RefMappingConnection!
+  parentRefs(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    filters: RefMappingFilter
+  ): RefMappingConnection!
 }
 
 """A connection to a list of items."""
@@ -1133,9 +1159,54 @@ input RecordUpdateInput {
   data: JSON!
 }
 
-type RefMapping {
-  source: GlobalID!
-  target: GlobalID!
+type RefMapping implements Node {
+  id: GlobalID!
+  kind: RefMappingKind!
+  type: RefType!
+  sourceVersion: ProjectVersion!
+  targetVersion: ProjectVersion!
+  sourceId: GlobalID!
+  sourceRevision: Int!
+  targetId: GlobalID!
+  targetRevision: Int!
+}
+
+"""A connection to a list of items."""
+type RefMappingConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RefMappingEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type RefMappingEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: RefMapping!
+}
+
+input RefMappingFilter {
+  type: RefType = null
+  kind: RefMappingKind = null
+}
+
+enum RefMappingKind {
+  COMMIT
+  PASTE
+}
+
+enum RefType {
+  FILE
+  STATEMENT
+  RECORD
+  TYPE_NODE
 }
 
 input RestoreInput {

@@ -6,7 +6,6 @@ import {
   type File,
   type Project,
   type ProjectVersion,
-  type RefMapping,
   type Statement,
 } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
@@ -375,16 +374,14 @@ export const useEditorState = defineStore("editor", {
       appearance.fullscreen = zenMode;
     },
 
-    async _doMigrateTo(versionId: string, intermediateRefs: RefMapping[][]): Promise<void> {
+    async _doMigrateTo(versionId: string, refMappings: Record<string, string>): Promise<void> {
       // migrate by serializing state and replacing refs
       let stateJson = JSON.stringify(this.$state);
-      for (const refs of intermediateRefs) {
-        for (const ref of refs) {
-          // replace all matches of ref.source with ref.target
-          // (need to use regex to replace *all* matches)
-          const re = new RegExp(`"${ref.source}"`, "g");
-          stateJson = stateJson.replace(re, `"${ref.target}"`);
-        }
+      for (const [sourceId, targetId] of Object.entries(refMappings)) {
+        // replace all matches of ref.source with ref.target
+        // (need to use regex to replace *all* matches)
+        const re = new RegExp(`"${sourceId}"`, "g");
+        stateJson = stateJson.replace(re, `"${targetId}"`);
       }
       this.$reset();
       this.$patch(JSON.parse(stateJson));
@@ -393,7 +390,7 @@ export const useEditorState = defineStore("editor", {
       // note that this also closes any module-external refs
       // I tried to fix this by only removing refs we _used_ tohave (checking for origianl ref.target)
       // but that doesn't work for refs that were just created in first source version.
-      const targetRefs = intermediateRefs[intermediateRefs.length - 1].map((r) => r.target);
+      const targetRefs = refMappings.map((r) => r.targetId);
       for (const editor of this.editors) {
         let editorRef = null;
         if (editor.type == "file") {
@@ -447,6 +444,7 @@ export function useEditorMigrations() {
   const notifications = useNotifications();
   const editor = useEditorState();
 
+  // TODO @Cleanup: project ref migration from vx to vy should be a server-side API endpoint
   const {
     load: getProjectMigrationRefs,
     loading: migrationLoading,
@@ -464,9 +462,13 @@ export function useEditorMigrations() {
                 name
                 tag
                 createdAt
-                parentsRefs {
-                  source
-                  target
+                parentRefs {
+                  edges {
+                    node {
+                      sourceId
+                      targetId
+                    }
+                  }
                 }
               }
             }
@@ -476,7 +478,7 @@ export function useEditorMigrations() {
     `)
   );
 
-  // the second half of applying a migration (since we can't await lazy queries directly)
+  // complete the migration once we've gotten the refs
   watch(
     () => [migrationRefs, migrationLoading, migrationError],
     async () => {
@@ -489,7 +491,7 @@ export function useEditorMigrations() {
         console.error("unable to migrate, error getting intermediate refs", migrationError.value);
         notifications.show({
           kind: "warning",
-          type: "editorMigration.fail",
+          type: "editorMigration.failed",
           message: "Migrating editor failed",
           description: "Editor could not be migrated (local only).",
         });
@@ -497,29 +499,50 @@ export function useEditorMigrations() {
       } else if (migrationRefs.value != null) {
         // got the intermediate ref mappings, do actual migration
         const intermediateVersions = [...(migrationRefs.value?.project?.versions.edges.map((e) => e.node) ?? [])];
+
+        let intermediateRefs: { sourceId: string; targetId: string }[][];
         if (intermediateVersions[0].id == migratingTo.value) {
           // migrate backwards to an older version (reverse everything)
           intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-          const intermediateRefs = intermediateVersions
+          intermediateRefs = intermediateVersions
             .slice(0, -1) // skip the last target/source mapping as that would go 1 version further
-            .map((v) => v.parentsRefs.map((r) => ({ source: r.target, target: r.source })));
-          await editor._doMigrateTo(migratingTo.value, intermediateRefs);
-          console.log(
-            `migrated backwards through ${intermediateVersions?.map(
-              (v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`
-            )}`
-          );
+            .map((v) =>
+              v.parentRefs.edges.map((r) => r.node).map((r) => ({ sourceId: r.targetId, targetId: r.sourceId }))
+            );
         } else {
           // migrate forwards
           intermediateVersions.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-          const intermediateRefs = intermediateVersions.map((v) => v.parentsRefs);
-          await editor._doMigrateTo(migratingTo.value, intermediateRefs);
-          console.log(
-            `migrated forwards through ${intermediateVersions?.map(
-              (v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`
-            )}`
-          );
+          intermediateRefs = intermediateVersions.map((v) => v.parentRefs.edges.map((r) => r.node));
         }
+
+        // intermediate refs are successive source -> target pairs
+        // reduce into the final first source -> last target pair
+        const refMappings: Record<string, string> = {};
+
+        // init with first source -> target mapping
+        for (const { sourceId, targetId } of intermediateRefs[0]) {
+          refMappings[sourceId] = targetId;
+        }
+        // update target id over each intermediate source -> target mapping
+        for (let i = 1; i < intermediateRefs.length; i++) {
+          // reverse target -> source mapping up til now
+          const reverseRefMappings: Record<string, string> = {};
+          for (const sourceId of Object.keys(refMappings)) {
+            reverseRefMappings[refMappings[sourceId]] = sourceId;
+          }
+          for (const { sourceId, targetId } of intermediateRefs[i]) {
+            // this new source was the previous target
+            const firstSourceId = reverseRefMappings[sourceId];
+            if (firstSourceId != null) {
+              refMappings[firstSourceId] = targetId;
+            }
+          }
+        }
+
+        await editor._doMigrateTo(migratingTo.value, refMappings);
+        console.log(
+          `migrated through ${intermediateVersions?.map((v) => `${v.name ?? "(Working)"} (${v.tag ?? v.id})`)}`
+        );
         migratingTo.value = null;
       }
     },
