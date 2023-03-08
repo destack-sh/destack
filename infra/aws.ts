@@ -1,7 +1,7 @@
-import * as k8s from "@pulumi/kubernetes";
 import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
+import * as k8s from "@pulumi/kubernetes";
 
 // see https://www.pulumi.com/blog/kubernetes-ingress-with-aws-alb-ingress-controller-and-pulumi-crosswalk/
 
@@ -195,10 +195,16 @@ export function makeALBController(vpc: awsx.ec2.Vpc, cluster: eks.Cluster) {
   // Attach this policy to the NodeInstanceRole of the worker nodes.
   cluster.instanceRoles.apply((roles) => {
     roles.forEach((role) => {
-      const nodeinstanceRole = new aws.iam.RolePolicyAttachment("eks-NodeInstanceRole-policy-attach", {
-        policyArn: ingressControllerPolicy.arn,
-        role: role.name,
-      });
+      new aws.iam.RolePolicyAttachment(
+        "eks-NodeInstanceRole-policy-attach-ingressControllerPolicy",
+        {
+          policyArn: ingressControllerPolicy.arn,
+          role: role.name,
+        },
+        {
+          aliases: [{ name: "eks-NodeInstanceRole-policy-attach" }],
+        }
+      );
     });
   });
 
@@ -220,4 +226,154 @@ export function makeALBController(vpc: awsx.ec2.Vpc, cluster: eks.Cluster) {
       },
     },
   });
+  return albIngressController;
+}
+
+export function makeEbsCsiDriver(vpc: awsx.ec2.Vpc, cluster: eks.Cluster) {
+  // Create AWS IAM Role for EBS CSI Driver
+  // from https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/example-iam-policy.json
+  const ebsCsiDriverPolicy = new aws.iam.Policy("ebs-csi-driver-policy", {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Effect: "Allow",
+          Action: [
+            "ec2:CreateSnapshot",
+            "ec2:AttachVolume",
+            "ec2:DetachVolume",
+            "ec2:ModifyVolume",
+            "ec2:DescribeAvailabilityZones",
+            "ec2:DescribeInstances",
+            "ec2:DescribeSnapshots",
+            "ec2:DescribeTags",
+            "ec2:DescribeVolumes",
+            "ec2:DescribeVolumesModifications",
+          ],
+          Resource: "*",
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:CreateTags"],
+          Resource: ["arn:aws:ec2:*:*:volume/*", "arn:aws:ec2:*:*:snapshot/*"],
+          Condition: {
+            StringEquals: {
+              "ec2:CreateAction": ["CreateVolume", "CreateSnapshot"],
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteTags"],
+          Resource: ["arn:aws:ec2:*:*:volume/*", "arn:aws:ec2:*:*:snapshot/*"],
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:CreateVolume"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "aws:RequestTag/ebs.csi.aws.com/cluster": "true",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:CreateVolume"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "aws:RequestTag/CSIVolumeName": "*",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteVolume"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "ec2:ResourceTag/ebs.csi.aws.com/cluster": "true",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteVolume"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "ec2:ResourceTag/CSIVolumeName": "*",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteVolume"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "ec2:ResourceTag/kubernetes.io/created-for/pvc/name": "*",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteSnapshot"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "ec2:ResourceTag/CSIVolumeSnapshotName": "*",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["ec2:DeleteSnapshot"],
+          Resource: "*",
+          Condition: {
+            StringLike: {
+              "ec2:ResourceTag/ebs.csi.aws.com/cluster": "true",
+            },
+          },
+        },
+        {
+          Effect: "Allow",
+          Action: ["kms:Decrypt", "kms:GenerateDataKeyWithoutPlaintext", "kms:CreateGrant"],
+          Resource: "*",
+        },
+      ],
+    },
+  });
+
+  // Attach this policy to the NodeInstanceRole of the worker nodes.
+  cluster.instanceRoles.apply((roles) => {
+    roles.forEach((role) => {
+      new aws.iam.RolePolicyAttachment("eks-NodeInstanceRole-policy-attach-ebsCsiDriverPolicy", {
+        policyArn: ebsCsiDriverPolicy.arn,
+        role: role.name,
+      });
+    });
+  });
+
+  // Declare the EBS CSI Driver in 1 step with the Helm Chart.
+  const ebsCsiDriver = new k8s.helm.v3.Release("ebs-csi-driver", {
+    chart: "aws-ebs-csi-driver",
+    version: "2.13.0",
+    namespace: "kube-system",
+    repositoryOpts: {
+      repo: "https://kubernetes-sigs.github.io/aws-ebs-csi-driver",
+    },
+    values: {
+      clusterName: cluster.eksCluster.name,
+      region: aws.config.region,
+      vpcId: vpc.vpcId,
+      serviceAccount: {
+        create: true,
+        name: "aws-ebs-csi-driver",
+      },
+    },
+  });
+
+  return ebsCsiDriver;
 }
