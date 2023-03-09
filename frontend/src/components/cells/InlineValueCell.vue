@@ -79,10 +79,13 @@ onClickOutside(editableContainerRef, () => {
   }
 });
 
-function edit() {
+function edit(event) {
   if (props.readonly) {
     return;
   }
+  event.stopPropagation();
+  event.preventDefault();
+
   if (props.type.tag == TypeTag.Boolean) {
     writeValue(!readValue.value);
     confirm();
@@ -153,6 +156,7 @@ defineExpose({
       <!-- Default content if empty and no special rendering-->
       <!-- TODO @Incomplete: edit array values -->
       <div v-if="type.isArray && !parentArray" class="flex w-full flex-col gap-1.5 px-1">
+        <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
           v-for="(value, index) in modelValue"
           :type="type"
@@ -177,7 +181,10 @@ defineExpose({
         :disabled="props.readonly"
       />
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
-      <div v-else-if="type.tag == TypeTag.Struct" class="flex w-full flex-row justify-between gap-2">
+      <div
+        v-else-if="type.tag == TypeTag.Struct"
+        class="flex w-full flex-row flex-wrap gap-2 rounded-sm border border-orange-900 border-opacity-[12%] p-1"
+      >
         <div v-for="field in structFields" :key="field.name" class="flex flex-col">
           <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
           <InlineValueCell
@@ -190,7 +197,7 @@ defineExpose({
         </div>
       </div>
       <!-- Can't render this type! -->
-      <span ref="valueRef" v-else class="text-red-500">{{ readValue }}</span>
+      <span ref="valueRef" v-else class="">{{ readValue }}</span>
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div

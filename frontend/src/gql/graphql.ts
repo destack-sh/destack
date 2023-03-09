@@ -2515,10 +2515,9 @@ export type ExecutionContentFragment = {
   accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
   root?: { __typename?: "Execution"; id: any } | null;
   parent?: { __typename?: "Execution"; id: any } | null;
-  build?: { __typename?: "Statement"; id: any } | null;
-  task?: { __typename?: "Statement"; id: any } | null;
-  code?: { __typename?: "Statement"; id: any } | null;
-  model?: { __typename?: "Statement"; id: any } | null;
+  build?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  task?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  code?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "ExecutionContentFragment" };
 
 export type ExecutionsQueryVariables = Exact<{
@@ -3675,7 +3674,10 @@ export const ExecutionContentFragmentDoc = {
             name: { kind: "Name", value: "build" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
             },
           },
           {
@@ -3683,7 +3685,10 @@ export const ExecutionContentFragmentDoc = {
             name: { kind: "Name", value: "task" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
             },
           },
           {
@@ -3691,15 +3696,10 @@ export const ExecutionContentFragmentDoc = {
             name: { kind: "Name", value: "code" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "model" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
             },
           },
         ],

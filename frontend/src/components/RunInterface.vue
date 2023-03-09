@@ -5,12 +5,14 @@ import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { symbolOf, symbolsLike } from "@/state/runtime";
-import { PlayIcon } from "@heroicons/vue/24/outline";
+import { QuestionMarkCircleIcon } from "@heroicons/vue/20/solid";
+import { ArrowDownIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, ref, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
@@ -41,6 +43,7 @@ const lastOutput: Ref<any | null> = ref(null);
 const lastOutputDirty = ref(false);
 const ops = useOperations();
 const notifications = useNotifications();
+const actions = useActions();
 const editor = useEditorState();
 const appearance = useAppearance();
 
@@ -84,37 +87,45 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
 </script>
 <template>
   <div
-    class="flex flex-col items-baseline bg-white px-12 py-8"
+    class="flex flex-col items-baseline bg-white px-12 py-6"
     :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
   >
     <!-- Runconfig -->
     <div class="mx-auto w-full max-w-[800px]">
       <h2 class="flex flex-row items-baseline gap-1">
-        <span class="text-xl font-bold text-gray-900">Run</span>
+        <span class="text-3xl font-bold text-gray-900">Run {{ symbol?.name }}</span>
       </h2>
       <!-- Runnable (supposed to imitate corresponding statement look) -->
-      <div class="mt-2 flex flex-row gap-1">
-        <button class="rounded-sm text-orange-600 outline-none hover:bg-orange-50" @click="run">run</button>
-        <!-- TODO @Feature: should really be able to change the runnable inside Run interface -->
-        <span>{{ symbol?.name ?? "???" }}</span>
-        <!-- Build -->
-        <template v-if="symbol?.symbolType == SymbolType.Task">
-          <span class="text-orange-600">on</span>
-          <ReferenceComboCell
-            :reference="build"
-            @set-reference="setBuild($event ?? undefined)"
-            :available-symbols="availableBuilds"
-          />
-        </template>
-        <button
-          class="w-fit rounded-sm px-0.5 font-semibold text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
-          @click="run"
-        >
-          <PlayIcon class="h-4 w-4 text-orange-600" />
-        </button>
+      <div class="mt-2 flex flex-row justify-between">
+        <!-- TODO @Feature: change runnable inside Run interface? -->
+        <!-- Build select -->
+        <span class="flex flex-row gap-1">
+          <span class="text-gray-500">Build:</span>
+          <template v-if="symbol?.symbolType == SymbolType.Task">
+            <ReferenceComboCell
+              :reference="build"
+              @set-reference="setBuild($event ?? undefined)"
+              :available-symbols="availableBuilds"
+            />
+          </template>
+        </span>
+        <!-- Deploy link/help -->
+        <span class="flex flex-row items-center gap-0.5">
+          <button
+            class="rounded-sm px-1 text-gray-700 hover:bg-orange-50 hover:text-gray-900"
+            @click="actions.apply('version.deploy')"
+          >
+            Deploy
+          </button>
+          <router-link to="/symbolx/docs#Deploying" class="text-gray-400 hover:bg-orange-50 hover:text-gray-900">
+            <QuestionMarkCircleIcon class="h-4 w-4" />
+          </router-link>
+        </span>
       </div>
       <!-- Arguments -->
-      <div class="grid-w-fit my-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-4">
+      <div
+        class="grid-w-fit mt-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+      >
         <template v-for="field in inputFields" :key="field.id">
           <div class="flex flex-row gap-1">
             <span>{{ field.name }}</span>
@@ -130,10 +141,15 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
         </template>
       </div>
     </div>
+    <!-- Down arrow in the middle -->
+    <div class="my-2 flex w-full flex-row justify-center">
+      <button class="p-1 text-orange-600 hover:bg-orange-50" @click="run">
+        <ArrowDownIcon class="h-6 w-6" />
+      </button>
+    </div>
     <!-- Current/last output  -->
-    <div class="relative mx-auto mt-6 min-h-[100px] w-full max-w-[800px] border border-orange-900 border-opacity-[12%]">
-      <span class="absolute -top-4 left-1 bg-white p-1 text-gray-700">Last output</span>
-      <div class="animate-none px-2" v-if="lastOutput">
+    <div class="relative mx-auto min-h-[100px] w-full max-w-[800px] border border-orange-900 border-opacity-[12%]">
+      <div class="p-2" v-if="lastOutput">
         <InlineValueCell
           v-if="outputField"
           :type="outputField"
@@ -142,12 +158,18 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
           :immediate="false"
         />
       </div>
+      <div v-else class="flex h-full w-full flex-col items-center justify-center">
+        <div class="p-2 text-gray-500">
+          No output yet. You should
+          <button class="text-gray-700 underline decoration-dashed underline-offset-2">run</button>.
+        </div>
+      </div>
     </div>
     <!-- Runs -->
     <div class="mx-auto w-full max-w-[800px]">
       <h2 class="mt-6 flex flex-row items-baseline gap-1">
         <button
-          class="text-xl font-bold text-gray-900 decoration-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
+          class="text-2xl font-bold text-gray-900 decoration-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
           @click="openRunsEditor"
         >
           Runs

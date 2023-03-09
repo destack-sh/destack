@@ -146,7 +146,7 @@ export function makeRunEditor(symbol: { id: string; name: string; symbolType: Sy
     type: "run",
     symbolId: symbol.id,
     symbolType: symbol.symbolType,
-    path: "run " + symbol.name,
+    path: "Run " + symbol.name,
     localState: {},
     groupId: null,
   } as RunEditor;
