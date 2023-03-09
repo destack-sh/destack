@@ -161,7 +161,7 @@ defineExpose({
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline rounded-sm border border-solid border-black bg-orange-50 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline rounded-sm border border-solid border-orange-600 bg-orange-50 p-1"
       ref="editableContainerRef"
       v-if="editing"
       @click.prevent="emit('edit')"

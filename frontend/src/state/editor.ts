@@ -82,7 +82,7 @@ export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG
 export type ViewId = "explorer" | "history" | "issues";
 
 export type Editor = {
-  type: "file" | "run";
+  type: "file" | "run" | "runs";
   id: string;
   path: string;
   scroll?: { x: number; y: number };
@@ -105,6 +105,10 @@ export type RunEditor = Editor & {
   type: "run";
   symbolId: string;
   symbolType: SymbolType;
+};
+
+export type RunsEditor = Editor & {
+  type: "runs";
 };
 
 export type EditorGroup = {
@@ -146,6 +150,16 @@ export function makeRunEditor(symbol: { id: string; name: string; symbolType: Sy
     localState: {},
     groupId: null,
   } as RunEditor;
+}
+
+export function makeRunsEditor(): RunsEditor {
+  return {
+    id: "runs-" + Math.random().toString(16).substring(2, 8),
+    type: "runs",
+    localState: {},
+    groupId: null,
+    path: "runs",
+  };
 }
 
 export const useEditorState = defineStore("editor", {
@@ -293,22 +307,34 @@ export const useEditorState = defineStore("editor", {
       }
     },
 
-    openFile(file: FileHeader, group?: EditorGroup): Editor {
+    openFile(file: FileHeader, options?: { group?: EditorGroup; create?: boolean }): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
-      if (!editor) {
+      if (!editor || options?.create) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = makeFileEditor(file);
       }
-      return this.openEditor(editor, group);
+      return this.openEditor(editor, options?.group);
     },
 
-    openRun(symbol: { id: string; name: string; symbolType: SymbolType }, group?: EditorGroup): Editor {
+    openRun(
+      symbol: { id: string; name: string; symbolType: SymbolType },
+      options?: { group?: EditorGroup; create?: boolean }
+    ): Editor {
       let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
-      if (!editor) {
+      if (!editor || options?.create) {
         console.log(`create new run editor for ${symbol.id} ${symbol.name}`);
         editor = makeRunEditor(symbol);
       }
-      return this.openEditor(editor, group);
+      return this.openEditor(editor, options?.group);
+    },
+
+    openRuns(options?: { group?: EditorGroup; create?: boolean }): Editor {
+      let editor = this.editors.find((e) => e.type == "runs");
+      if (!editor || options?.create) {
+        console.log(`create new runs editor`);
+        editor = makeRunsEditor();
+      }
+      return this.openEditor(editor, options?.group);
     },
 
     focusEditor(editor: Editor): void {
@@ -323,7 +349,7 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusFile(file: FileHeader, group?: EditorGroup): Editor {
-      const editor = this.openFile(file, group);
+      const editor = this.openFile(file, { group });
       this.focusEditor(editor);
       return editor;
     },

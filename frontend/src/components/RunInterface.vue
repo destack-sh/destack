@@ -1,9 +1,11 @@
 <script lang="ts" setup>
+import RunsTable from "@/components/basic/RunsTable.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { formatDiffSeconds, humanizeNumber, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { useNotifications } from "@/state/notifications";
@@ -41,6 +43,7 @@ const lastOutputDirty = ref(false);
 const ops = useOperations();
 const notifications = useNotifications();
 const editor = useEditorState();
+const appearance = useAppearance();
 
 async function run() {
   if (symbol.value == null) {
@@ -67,24 +70,23 @@ async function run() {
   lastOutputDirty.value = false;
 }
 
+function openRunsEditor() {
+  const e = editor.openRuns({ create: true });
+  editor.focusEditor(e);
+}
+
 const includeAncestorVersions = ref(true);
-const { executions, totalCount } = useExecutions(
-  {
-    projectId: toRef(editor, "currentProjectId") as Ref<string>,
-    projectVersionId: toRef(editor, "currentProjectVersionId") as Ref<string>,
-    includeAncestorVersions,
-    buildIds: computed(() => (state.get("buildId", null) == null ? null : [state.get("buildId")])),
-    taskIds: computed(() => (props.runnableType == SymbolType.Task ? [props.runnableId] : null)),
-    codeIds: computed(() => (props.runnableType == SymbolType.Code ? [props.runnableId] : null)),
-  },
-  { root: true, live: true }
+
+const runsTableRef = ref<InstanceType<typeof RunsTable> | null>(null);
+const inputColumns = computed(() =>
+  inputFields.value == null ? undefined : inputFields.value.map((f) => [f.name, f])
 );
-const { getTimeFromNowString, now } = useTimeFromNow(33);
+const outputColumns = computed(() => (outputField.value == null ? undefined : [["Output", outputField.value]]));
 </script>
 <template>
   <div
     class="flex flex-col items-baseline bg-white px-12 py-8"
-    :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+    :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
   >
     <!-- Runconfig -->
     <div class="mx-auto w-full max-w-[800px]">
@@ -113,13 +115,12 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
         </button>
       </div>
       <!-- Arguments -->
-      <div class="grid-w-fit my-1 grid grid-cols-[minmax(40px,auto)_10px_1fr] gap-x-2">
+      <div class="grid-w-fit my-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-4">
         <template v-for="field in inputFields" :key="field.id">
           <div class="flex flex-row gap-1">
             <span>{{ field.name }}</span>
             <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
           </div>
-          <span>=</span>
           <InlineValueCell
             :model-value="arguments_[field.name as string]"
             @update:model-value="(val: any) => setArgument(field.name as string, val)"
@@ -146,89 +147,29 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
     <!-- Runs -->
     <div class="mx-auto w-full max-w-[800px]">
       <h2 class="mt-6 flex flex-row items-baseline gap-1">
-        <span class="text-xl font-bold text-gray-900">Runs</span>
-        <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900">{{ humanizeNumber(totalCount) }}</span>
+        <button
+          class="text-xl font-bold text-gray-900 decoration-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
+          @click="openRunsEditor"
+        >
+          Runs
+        </button>
+        <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900" v-if="runsTableRef">
+          {{ humanizeNumber(runsTableRef?.totalCount) }}
+        </span>
       </h2>
-      <table
-        class="mt-2 items-baseline divide-y-2 divide-gray-300/25"
-        :style="{ 'grid-template-columns': `repeat(${inputFields.length + 3}, minmax(40px, 100px))` }"
-      >
-        <!-- Header -->
-        <thead>
-          <tr class="text-left">
-            <th class="px-2 font-semibold text-gray-700">Status</th>
-            <th class="px-2 font-semibold text-gray-700">Duration</th>
-            <th class="px-2 font-semibold text-gray-700">Trigger</th>
-            <th v-for="field in inputFields" :key="field.id" class="px-2 font-semibold text-gray-700">
-              {{ field.name }}
-            </th>
-            <th class="px-2 font-semibold text-gray-700">{{ outputField?.name ?? "Output" }}</th>
-          </tr>
-        </thead>
-        <!-- Content -->
-        <tbody>
-          <tr v-for="execution in executions" :key="execution.id">
-            <!-- Execution status -->
-            <td class="flex flex-row items-center gap-1 px-2 py-2">
-              <svg
-                viewBox="0 0 100 100"
-                class="h-3 w-3"
-                :class="{
-                  'text-green-600': execution.status == ExecutionStatus.Completed,
-                  'text-red-600':
-                    execution.status == ExecutionStatus.Failed || execution.status == ExecutionStatus.Aborted,
-                  'text-gray-500':
-                    execution.status == ExecutionStatus.Created ||
-                    execution.status == ExecutionStatus.Scheduled ||
-                    execution.status == ExecutionStatus.Running,
-                }"
-              >
-                <circle cx="50" cy="50" r="40" fill="currentColor" />
-              </svg>
-              <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
-            </td>
-            <!-- Duration -->
-            <td class="px-2 text-right text-gray-700">
-              <span class="" v-if="execution.terminatedAt != null">
-                {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
-              </span>
-              <span v-else-if="execution.startedAt != null">
-                {{ formatDiffSeconds(execution.startedAt, now) }}
-              </span>
-            </td>
-            <!-- Trigger -->
-            <td class="px-2 text-gray-700">
-              <span v-if="execution.triggerType == ExecutionTriggerType.RestApi">API</span>
-              <router-link
-                :to="`/${execution.user?.slug}`"
-                v-else-if="execution.triggerType == ExecutionTriggerType.UiInteractive"
-                class="decoration-gray-700 underline-offset-4 hover:underline"
-              >
-                {{ execution.user?.slug ?? "???" }}
-              </router-link>
-            </td>
-            <!-- Inputs -->
-            <td v-for="field in inputFields" :key="field.id" class="px-2">
-              <InlineValueCell
-                :type="field"
-                :model-value="execution.inputs?.[field.name]"
-                :readonly="true"
-                :immediate="false"
-              />
-            </td>
-            <!-- Outputs -->
-            <td class="px-2">
-              <InlineValueCell
-                v-if="outputField"
-                :type="outputField"
-                :model-value="execution.outputs"
-                :readonly="true"
-                :immediate="false"
-              />
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <RunsTable
+        class="mt-2"
+        ref="runsTableRef"
+        :project-id="editor.currentProjectId"
+        :project-version-id="editor.currentProjectVersionId"
+        :include-ancestor-versions="includeAncestorVersions"
+        :build-ids="build ? [build.id] : undefined"
+        :task-ids="runnableType == SymbolType.Task ? [runnableId] : undefined"
+        :code-ids="runnableType == SymbolType.Code ? [runnableId] : undefined"
+        :input-columns="inputColumns"
+        :output-columns="outputColumns"
+        override-from-props
+      />
     </div>
   </div>
 </template>

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
 import RunInterface from "@/components/RunInterface.vue";
+import RunsInterface from "@/components/RunsInterface.vue";
 import {
   EDITOR_INTERFACE_STATE,
   useEditorState,
@@ -78,11 +79,13 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     @update:state="Object.assign(editor.localState, $event)"
   />
   <RunInterface
+    ref="containerRef"
     v-else-if="editor.type == 'run'"
     :focused="focused"
     :runnableId="(editor as RunEditor).symbolId"
     :runnableType="(editor as RunEditor).symbolType"
   />
+  <RunsInterface v-else-if="editor.type == 'runs'" :focused="focused" />
   <div v-else class="h-full w-full text-center">
     <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
   </div>

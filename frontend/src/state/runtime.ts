@@ -4,7 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, isRef, ref, toRef, watch, type Ref } from "vue";
+import { computed, isRef, ref, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
@@ -197,18 +197,21 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
 
 export const useModuleRuntime = createSharedComposable(_useModuleRuntime);
 
-export function useCurrentModuleRuntime() {
+export function useCurrentModuleRuntime(projectVersionId?: Ref<string | null>) {
   const editor = useEditorState();
-  return useModuleRuntime(toRef(editor, "currentProjectVersionId"));
+  const activeVersionId = computed(() =>
+    projectVersionId?.value != null ? projectVersionId.value : editor.currentProjectVersionId
+  );
+  return useModuleRuntime(activeVersionId);
 }
 
-export function fileOf(symbol: Pick<InterpSymbol, "id">) {
-  const { moduleIndex } = useCurrentModuleRuntime();
+export function fileOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
+  const { moduleIndex } = useCurrentModuleRuntime(projectVersionId);
   return moduleIndex.value?.fileByStatementId[symbol.id];
 }
 
-export function contextOf(symbol: Pick<InterpSymbol, "id">) {
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
+export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && symbol.id in idx.fileByStatementId) {
       return {
@@ -221,9 +224,9 @@ export function contextOf(symbol: Pick<InterpSymbol, "id">) {
   return undefined;
 }
 
-export function symbolOf(id: string) {
+export function symbolOf(id: string, projectVersionId?: Ref<string | null>) {
   // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && id in idx.symbolsById) {
       return idx.symbolsById[id];
@@ -232,9 +235,9 @@ export function symbolOf(id: string) {
   return undefined;
 }
 
-export function relativePath(from_: InterpSymbol, to_: InterpSymbol) {
-  const from = contextOf(from_);
-  const to = contextOf(to_);
+export function relativePath(from_: InterpSymbol, to_: InterpSymbol, projectVersionId?: Ref<string | null>) {
+  const from = contextOf(from_, projectVersionId);
+  const to = contextOf(to_, projectVersionId);
   if (!from || !to) {
     return undefined;
   } else if (from.module.id == to.module.id) {
@@ -244,13 +247,13 @@ export function relativePath(from_: InterpSymbol, to_: InterpSymbol) {
   }
 }
 
-export function localErrorsOf(symbol: Ref<{ id: string }>) {
-  const { errors } = useCurrentModuleRuntime();
+export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Ref<string | null>) {
+  const { errors } = useCurrentModuleRuntime(projectVersionId);
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function isSymbolStale(symbol: Ref<{ id: string }>) {
-  const { staleSymbols } = useCurrentModuleRuntime();
+export function isSymbolStale(symbol: Ref<{ id: string }>, projectVersionId?: Ref<string | null>) {
+  const { staleSymbols } = useCurrentModuleRuntime(projectVersionId);
   return computed(() => staleSymbols.value?.some((s) => s.id == symbol.value.id));
 }
 
@@ -260,9 +263,9 @@ export type SymbolFilter = {
   includeGenerated?: boolean;
   includeDependencies?: boolean;
 };
-export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter) {
+export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVersionId?: Ref<string | null>) {
   const filterRef = isRef(filter) ? filter : ref(filter);
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime();
+  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
