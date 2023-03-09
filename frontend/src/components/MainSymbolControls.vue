@@ -138,7 +138,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
 </script>
 <template>
   <!-- Wrapper -->
-  <div class="flex items-center space-x-1 rounded-sm bg-orange-100 pr-2">
+  <div class="flex items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 pr-2">
     <!-- Select main statement -->
     <Listbox
       as="div"

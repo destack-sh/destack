@@ -74,9 +74,9 @@ function focusLastRecord() {
 
 const operations = useOperations();
 
-async function insertField() {
+function insertField() {
   const nextOrderKey = generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null);
-  await context.createTypeNode(
+  context.createTypeNode(
     makeTypeNode({
       name: "field " + fieldTypeNodes.value?.length,
       tag: TypeTag.String,

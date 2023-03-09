@@ -82,9 +82,9 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, opt
   } else if (diffMs < 10000 && options?.millis) {
     return `${Math.round(diffMs)}ms`;
   } else if (diffMs < 60000) {
-    return `${Math.round(diffMs / 100) / 10}s`;
+    return `${(diffMs / 1000).toFixed(1)}s`;
   } else {
-    return `${Math.round(diffMs / 6000) / 10}min`;
+    return `${(diffMs / 60000).toFixed(1)}min`;
   }
 }
 
