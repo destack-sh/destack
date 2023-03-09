@@ -74,7 +74,10 @@ const { result: existingProject, loading: existingProjectLoading } = useQuery(
   computed(() => ({
     owner: owner.value?.slug,
     project: slug.value,
-  })) as any
+  })) as any,
+  // we don't want to cache this to (almost) guarantee that the slug is valid,
+  // and to definitely re-fetch projectBySlug when a slug is created/changed
+  { fetchPolicy: "no-cache" }
 );
 const isAvailableSlug = computed(() => existingProject.value?.projectBySlug == null);
 const canComplete = computed(

@@ -488,6 +488,13 @@ export enum JobType {
   Interp = "INTERP",
 }
 
+export enum ModuleRunErrorType {
+  InternalError = "INTERNAL_ERROR",
+  InvalidRunconfig = "INVALID_RUNCONFIG",
+  NotReady = "NOT_READY",
+  RuntimeError = "RUNTIME_ERROR",
+}
+
 export type ModuleRuntime = {
   __typename?: "ModuleRuntime";
   dependencies: Array<InterpModule>;
@@ -1423,6 +1430,8 @@ export type RunInput = {
 export type RunState = {
   __typename?: "RunState";
   buildId?: Maybe<Scalars["GlobalID"]>;
+  error?: Maybe<ModuleRunErrorType>;
+  errorDetails?: Maybe<Scalars["JSON"]>;
   output?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: Maybe<Scalars["GlobalID"]>;
@@ -2980,6 +2989,8 @@ export type RunMutation = {
         buildId?: any | null;
         output?: any | null;
         success: boolean;
+        error?: ModuleRunErrorType | null;
+        errorDetails?: any | null;
       };
 };
 
@@ -7898,6 +7909,8 @@ export const RunDocument = {
                       { kind: "Field", name: { kind: "Name", value: "buildId" } },
                       { kind: "Field", name: { kind: "Name", value: "output" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
+                      { kind: "Field", name: { kind: "Name", value: "error" } },
+                      { kind: "Field", name: { kind: "Name", value: "errorDetails" } },
                     ],
                   },
                 },

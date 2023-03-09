@@ -50,6 +50,8 @@ export function useRuntimeOps() {
             buildId
             output
             success
+            error
+            errorDetails
           }
         }
       }

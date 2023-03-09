@@ -479,6 +479,13 @@ enum JobType {
   EVALUATE
 }
 
+enum ModuleRunErrorType {
+  INTERNAL_ERROR
+  NOT_READY
+  INVALID_RUNCONFIG
+  RUNTIME_ERROR
+}
+
 type ModuleRuntime {
   updatedAt: DateTime!
   module: InterpModule!
@@ -1240,6 +1247,8 @@ type RunState {
   buildId: GlobalID
   output: JSON
   success: Boolean!
+  error: ModuleRunErrorType
+  errorDetails: JSON
 }
 
 union RunStateOperationInfo = RunState | OperationInfo

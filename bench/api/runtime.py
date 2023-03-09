@@ -21,7 +21,7 @@ from bench.api.util import asafe_mutation, to_uuid, to_uuids
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import Project, ProjectVersion, User, mapper
-from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
+from bench.msg import ZMessageType, messages, recv_message_with, send_message, zmq_ctx
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleRuntimeChangedPayload,
@@ -210,6 +210,9 @@ class RunInput:
     tracing: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
 
 
+ModuleRunErrorType = gql.enum(messages.ModuleRunErrorType)
+
+
 @gql.type
 class RunState:
     project_version_id: GlobalID
@@ -217,6 +220,8 @@ class RunState:
     build_id: Optional[GlobalID]
     output: Optional[JSON]
     success: bool
+    error: Optional[ModuleRunErrorType]
+    error_details: Optional[JSON]
 
 
 def check_can_write_project(user: User, project_version_id: UUID):
@@ -317,6 +322,8 @@ class ModuleRuntimeMutation:
             build_id=input.build_id,
             success=rep.error is None,
             output=rep.output,
+            error=rep.error,
+            error_details=rep.error_details,
         )
 
 

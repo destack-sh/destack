@@ -63,7 +63,7 @@ async function run() {
       type: "run.fail",
       kind: "error",
       message: "Run failed",
-      description: `Failed to run ${symbol.value?.name}.`,
+      description: `Failed to run ${symbol.value?.name}: ${ret?.data?.run?.error ?? "rejected"}`,
     });
     lastOutput.value = null;
   } else {
@@ -117,7 +117,11 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
           >
             Deploy
           </button>
-          <router-link to="/symbolx/docs#Deploying" class="text-gray-400 hover:bg-orange-50 hover:text-gray-900">
+          <router-link
+            to="/symbolx/docs#Deploying"
+            class="text-gray-400 hover:bg-orange-50 hover:text-gray-900"
+            target="_blank"
+          >
             <QuestionMarkCircleIcon class="h-4 w-4" />
           </router-link>
         </span>
@@ -149,7 +153,7 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
     </div>
     <!-- Current/last output  -->
     <div class="relative mx-auto min-h-[100px] w-full max-w-[800px] border border-orange-900 border-opacity-[12%]">
-      <div class="p-2" v-if="lastOutput">
+      <div class="p-2" v-if="lastOutput != null">
         <InlineValueCell
           v-if="outputField"
           :type="outputField"
