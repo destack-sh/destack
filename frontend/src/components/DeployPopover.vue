@@ -155,7 +155,9 @@ provideGlobalAction({
               :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
               class="text-gray-900 underline-offset-4 hover:underline"
             >
-              api.symbolx.com/{{ project.owner.slug }}/{{ project.slug }}/run
+              api.symbolx.com/<span class="text-orange-600">{{ project.owner.slug }}</span
+              >/<span class="text-orange-600">{{ project.slug }}</span
+              >/run
             </a>
           </p>
         </div>

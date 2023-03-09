@@ -6,13 +6,13 @@ import { onClickOutside } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{
-  files: FileHeader[];
+  files?: FileHeader[];
 }>();
 
 const editor = useEditorState();
 
 const filesSorted = computed(() => {
-  const files = props.files.filter((f) => f.deletedAt == null && (editor.showGenerated || !f.generated));
+  const files = props.files?.filter((f) => f.deletedAt == null && (editor.showGenerated || !f.generated)) ?? [];
   return files.sort((a, b) => {
     return a.path.localeCompare(b.path);
   });
@@ -53,7 +53,7 @@ onClickOutside(listRef, () => {
 });
 
 defineExpose({
-  count: computed(() => props.files.length),
+  count: computed(() => props.files?.length),
 });
 </script>
 <template>

@@ -6,7 +6,7 @@ import type { FileHeader } from "@/state/editor";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, type Component, type Ref } from "vue";
 
-const props = defineProps<{ files: FileHeader[] }>();
+const props = defineProps<{ files?: FileHeader[] }>();
 
 const actions = useActions();
 

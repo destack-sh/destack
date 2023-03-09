@@ -10,7 +10,7 @@ logger = structlog.get_logger(__name__)
 
 class Inference:
     async def generate(self, prompt: str, settings: DecoderSettings) -> TextGeneration:
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def end(self):
         pass

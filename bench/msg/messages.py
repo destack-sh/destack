@@ -53,6 +53,7 @@ class ZMessageType(StrEnum):
     REP_READ_MODULE = "rep_read_module"
     REQ_WRITE_MODULE = "req_write_module"
     REP_WRITE_MODULE = "rep_write_module"
+    # also Internal -> API
     EXECUTION_CHANGED = "execution_changed"
 
     # Bench module runtime state sync

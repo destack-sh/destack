@@ -3,7 +3,7 @@ import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { formatDiffSeconds, humanizeNumber, useTimeFromNow } from "@/composables/useNow";
-import { ExecutionStatus, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { ExecutionStatus, ExecutionTriggerType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { useNotifications } from "@/state/notifications";
@@ -67,16 +67,18 @@ async function run() {
   lastOutputDirty.value = false;
 }
 
-// TODO @Broken: get proper runnable id(s) if this is a not a code symbol
+const includeAncestorVersions = ref(true);
 const { executions, totalCount } = useExecutions(
-  toRef(editor, "currentProjectId") as Ref<string>,
-  toRef(editor, "currentProjectVersionId") as Ref<string>,
-  computed(() => state.get("buildId", null)),
-  computed(() => (props.runnableType == SymbolType.Task ? props.runnableId : null)),
-  computed(() => (props.runnableType == SymbolType.Code ? props.runnableId : null)),
+  {
+    projectId: toRef(editor, "currentProjectId") as Ref<string>,
+    projectVersionId: toRef(editor, "currentProjectVersionId") as Ref<string>,
+    includeAncestorVersions,
+    buildIds: computed(() => (state.get("buildId", null) == null ? null : [state.get("buildId")])),
+    taskIds: computed(() => (props.runnableType == SymbolType.Task ? [props.runnableId] : null)),
+    codeIds: computed(() => (props.runnableType == SymbolType.Code ? [props.runnableId] : null)),
+  },
   { root: true, live: true }
 );
-
 const { getTimeFromNowString, now } = useTimeFromNow(33);
 </script>
 <template>
@@ -156,6 +158,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
           <tr class="text-left">
             <th class="px-2 font-semibold text-gray-700">Status</th>
             <th class="px-2 font-semibold text-gray-700">Duration</th>
+            <th class="px-2 font-semibold text-gray-700">Trigger</th>
             <th v-for="field in inputFields" :key="field.id" class="px-2 font-semibold text-gray-700">
               {{ field.name }}
             </th>
@@ -184,6 +187,7 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
               </svg>
               <span class="text-gray-500">{{ getTimeFromNowString(execution.updatedAt) }}</span>
             </td>
+            <!-- Duration -->
             <td class="px-2 text-right text-gray-700">
               <span class="" v-if="execution.terminatedAt != null">
                 {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
@@ -191,6 +195,17 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
               <span v-else-if="execution.startedAt != null">
                 {{ formatDiffSeconds(execution.startedAt, now) }}
               </span>
+            </td>
+            <!-- Trigger -->
+            <td class="px-2 text-gray-700">
+              <span v-if="execution.triggerType == ExecutionTriggerType.RestApi">API</span>
+              <router-link
+                :to="`/${execution.user?.slug}`"
+                v-else-if="execution.triggerType == ExecutionTriggerType.UiInteractive"
+                class="decoration-gray-700 underline-offset-4 hover:underline"
+              >
+                {{ execution.user?.slug ?? "???" }}
+              </router-link>
             </td>
             <!-- Inputs -->
             <td v-for="field in inputFields" :key="field.id" class="px-2">

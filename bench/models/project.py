@@ -263,6 +263,25 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         versions.reverse()
         return versions
 
+    def get_ancestors(self, version_id: UUID, depth: int = None) -> list[ProjectVersion]:
+        """
+        Get every version that is an ancestor of the given version (including the version itself)
+        Follow ProjectVersion.parents (not timestamps).
+        TODO @Performance: implement get_ancestors as recursive CTE query
+        """
+        version = self.only("id", "project_id").get(id=version_id)
+        versions = [version]
+        while True:
+            # this only works if there is one parent (no branching) :ProjectBranching
+            first_parent = versions[-1].parents.only("id").first()
+            if first_parent is None:
+                break  # reached root
+            versions.append(first_parent)
+            if depth and len(versions) >= depth:
+                break
+        versions.reverse()
+        return versions
+
     def get_migration_mappings(
         self, source_version_id: UUID, target_version_id: UUID
     ) -> tuple[list[RefMapping], bool]:
@@ -315,8 +334,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                     if source_id is not None:
                         # update target id
                         refs[source_id] = ref.target_id
-                    else:
-                        del refs[ref.source_id]
 
         if is_reverse:
             refs = {v: k for k, v in refs.items()}
@@ -512,10 +529,18 @@ class RefMappingKind(models.TextChoices):
 
 
 class RefMappingManager(models.Manager["RefMapping"]):
-    def get_between(
-        self, source_version: ProjectVersion, target_version: ProjectVersion
-    ) -> models.QuerySet[RefMapping]:
-        raise NotImplementedError
+    def expand_target_ids(self, target_ids: list[UUID], depth: Optional[int] = None) -> list[UUID]:
+        # TODO @Performance: implement symbol version id expansion in SQL
+        expanded_ids = list(target_ids)
+        last_symbol_ids = expanded_ids
+        remaining_depth = depth
+        while last_symbol_ids and (depth is None or remaining_depth > 0):
+            remaining_depth -= 1
+            last_symbol_ids = self.filter(target_id__in=last_symbol_ids).values_list(
+                "source_id", flat=True
+            )
+            expanded_ids.extend(last_symbol_ids)
+        return expanded_ids
 
 
 class RefMapping(UUIDModel):
