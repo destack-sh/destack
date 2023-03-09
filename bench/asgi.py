@@ -76,6 +76,7 @@ if RUN_INTSERVER:
     # Bind internal server's api socket to localhost if it's a wildcard,
     # because wildcard means we're also hosting the API server, but ZMQ obviously
     # can't connect to wildcard. Likewise, we do the same for intserver in API.
+    # :ZmqWildcardBind
     ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "127.0.0.1")
 
     server = InternalServer()
