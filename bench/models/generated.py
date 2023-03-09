@@ -9,16 +9,16 @@ from bench.models.utils import UUIDModel
 class GeneratedContentMixin:
     """Build content of mappings."""
 
-    generated_mappings: models.QuerySet["SourceMapping"]  # noqa via SourceMapping.build
+    generated_mappings: models.QuerySet["GeneratedMapping"]  # noqa via GeneratedMapping.build
 
 
-class SourceMappingType(models.TextChoices):
+class GeneratedMappingType(models.TextChoices):
     STATEMENT = "statement"
     RECORD = "record"
     TYPE_NODE = "type_node"
 
 
-class SourceMapping(UUIDModel):
+class GeneratedMapping(UUIDModel):
     """
     A source map for builds to track dependencies of generated content.
     """
@@ -26,7 +26,7 @@ class SourceMapping(UUIDModel):
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="generated_mappings"
     )
-    type = TextChoicesField(choices_enum=SourceMappingType)
+    type = TextChoicesField(choices_enum=GeneratedMappingType)
     source_id = models.UUIDField(null=True, blank=True)
     source_revision = models.IntegerField()
     target_id = models.UUIDField(null=True, blank=True)
@@ -36,4 +36,4 @@ class SourceMapping(UUIDModel):
         return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
 
     def __repr__(self):
-        return f"<SourceMapping {self}>"
+        return f"<GeneratedMapping {self}>"

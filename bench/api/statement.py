@@ -46,19 +46,6 @@ class Type:
     btl: str
 
 
-SourceMappingType = gql.enum(models.SourceMappingType)
-
-
-@gql.django.type(models.SourceMapping)
-class SourceMapping:
-    type: SourceMappingType
-    statement_id: GlobalID
-    source_id: GlobalID
-    source_revision: int
-    target_id: Optional[GlobalID]
-    target_revision: Optional[int]
-
-
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord(gql.Node):
     id: GlobalID

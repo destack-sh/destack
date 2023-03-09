@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                     ("record", "Record"),
                     ("type_node", "Type Node"),
                 ],
-                choices_enum=bench.models.generated.SourceMappingType,
+                choices_enum=bench.models.generated.GeneratedMappingType,
                 default="statement",
                 max_length=9,
             ),
