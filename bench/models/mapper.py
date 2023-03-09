@@ -221,9 +221,9 @@ def write_module(
     # update source mappings per generative statement
     if generated_mappings is not None:
         for (generator_id, source_mappings) in generated_mappings:
-            models.SourceMapping.objects.filter(statement_id=generator_id).delete()
+            models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
             model_mappings = wmap_source_mappings(generator_id, source_mappings)
-            models.SourceMapping.objects.bulk_create(model_mappings)
+            models.GeneratedMapping.objects.bulk_create(model_mappings)
 
 
 def rmap_reference(
@@ -346,15 +346,15 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 
 
 def wmap_source_mappings(
-    statement_id: UUID | None, source_mappings: list[language.SourceMapping]
-) -> list[models.SourceMapping]:
+    statement_id: UUID | None, source_mappings: list[language.GeneratedMapping]
+) -> list[models.GeneratedMapping]:
     return [wmap_source_mapping(statement_id, m) for m in source_mappings]
 
 
 def wmap_source_mapping(
-    statement_id: UUID | None, source_mapping: language.SourceMapping
-) -> models.SourceMapping:
-    return models.SourceMapping(
+    statement_id: UUID | None, source_mapping: language.GeneratedMapping
+) -> models.GeneratedMapping:
+    return models.GeneratedMapping(
         type=source_mapping.type,
         statement_id=statement_id,
         source_id=source_mapping.source_id,
@@ -364,8 +364,8 @@ def wmap_source_mapping(
     )
 
 
-def rmap_source_mapping(source_mapping: models.SourceMapping) -> language.SourceMapping:
-    return language.SourceMapping(
+def rmap_source_mapping(source_mapping: models.GeneratedMapping) -> language.GeneratedMapping:
+    return language.GeneratedMapping(
         type=source_mapping.type,
         source_id=source_mapping.source_id,
         source_revision=source_mapping.source_revision,

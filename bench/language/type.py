@@ -710,7 +710,7 @@ class Runconfig(InterpSymbol, RunconfigContent):
 
 @dataclass(repr=False)
 class BuildContent(SymbolContent):
-    source_mappings: list["SourceMapping"]
+    source_mappings: list["GeneratedMapping"]
 
     def get_target(self, source_id: UUID) -> Optional[UUID]:
         for mapping in self.source_mappings:
@@ -728,17 +728,17 @@ class Build(InterpSymbol, BuildContent):
     models: list[Model] = field(default_factory=list)
 
 
-class SourceMappingType(enum.StrEnum):
+class GeneratedMappingType(enum.StrEnum):
     STATEMENT = "statement"
     RECORD = "record"
     TYPE_NODE = "type_node"
 
 
 @dataclass(repr=False)
-class SourceMapping:
-    """A mapping between a source and a target symbol (or sub-symbol)"""
+class GeneratedMapping:
+    """A mapping between a source and a generated target symbol."""
 
-    type: SourceMappingType
+    type: GeneratedMappingType
     source_id: UUID
     source_revision: int
     target_id: Optional[UUID]
@@ -748,7 +748,7 @@ class SourceMapping:
         return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
 
     def __repr__(self):
-        return f"<SourceMapping {self}>"
+        return f"<GeneratedMapping {self}>"
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {

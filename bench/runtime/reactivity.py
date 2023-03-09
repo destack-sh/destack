@@ -6,13 +6,13 @@ from itertools import chain
 from typing import Iterator, Optional
 from uuid import UUID
 
-from bench.language import ModuleIndex, SourceMapping
+from bench.language import GeneratedMapping, ModuleIndex
 from bench.language.type import (
     Code,
     Dataset,
     Expectation,
+    GeneratedMappingType,
     InterpSymbol,
-    SourceMappingType,
     Task,
     Type,
 )
@@ -61,9 +61,9 @@ class RevisionMap:
             revision=self.get(raw_node.id),
         )
 
-    def map_mapping(self, raw_mapping: RawMapping) -> SourceMapping:
-        return SourceMapping(
-            type=SourceMappingType(raw_mapping.type.value),
+    def map_mapping(self, raw_mapping: RawMapping) -> GeneratedMapping:
+        return GeneratedMapping(
+            type=GeneratedMappingType(raw_mapping.type.value),
             source_id=raw_mapping.source_id,
             source_revision=self.get(raw_mapping.source_id),
             target_id=raw_mapping.target_id,
@@ -106,7 +106,7 @@ class TrackedTree:
         return iter(self.nodes.values())
 
 
-def tree_from_mappings(mappings: list[SourceMapping]) -> TrackedTree:
+def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for mapping in mappings:
         # we only care about source nodes since they are the dependencies

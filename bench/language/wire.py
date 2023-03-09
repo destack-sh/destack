@@ -12,8 +12,8 @@ from bench import language
 from bench.language import ErrorType
 from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
+    GeneratedMapping,
     LiteralValue,
-    SourceMapping,
     StatementModifier,
     StatementPath,
     StatementType,
@@ -114,7 +114,7 @@ class StatementData:
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
-    generated_mappings: Optional[list[SourceMapping]] = None
+    generated_mappings: Optional[list[GeneratedMapping]] = None
     value: LiteralValue = None
     on: Optional[str] = None
     reference_module: Optional[ModuleReference] = None

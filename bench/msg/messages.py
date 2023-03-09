@@ -151,7 +151,7 @@ class RepReadModulePayload:
 class ReqWriteModulePayload:
     module_id: UUID
     files: list[wire.FileData]
-    generated_mappings: list[tuple[UUID, list[wire.SourceMapping]]]
+    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
 
 
 @_register_payload(ZMessageType.REP_WRITE_MODULE)

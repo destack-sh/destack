@@ -524,7 +524,7 @@ class RefMapping(UUIDModel):
     There is no benefit to foreign constraints on the object ids here (?), so they're just UUIDs.
     Used to track lineage for versioning, forking, copy/paste, etc.
 
-    This is similar to SourceMapping on the surface, but here we track object identities
+    This is similar to GeneratedMapping on the surface, but here we track object identities
     rather than statement-generated arbitrary mappings (different uses, constraints, etc.).
     """
 

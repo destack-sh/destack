@@ -13,7 +13,7 @@ from strawberry_django_plus import gql
 
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 from bench.models.data import DatasetContentMixin, DatasetRecord
-from bench.models.generated import GeneratedContentMixin, SourceMapping
+from bench.models.generated import GeneratedContentMixin, GeneratedMapping
 from bench.models.utils import UUIDModel, walk_children_bfs
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
@@ -151,7 +151,7 @@ class StatementManager(models.Manager["Statement"]):
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
-        new_gen_mappings: list[SourceMapping] = []
+        new_gen_mappings: list[GeneratedMapping] = []
 
         for statement in statements_bfs:
             # copy statement contents/relations
@@ -229,7 +229,7 @@ class StatementManager(models.Manager["Statement"]):
         # save statement's relations
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
         DatasetRecord.objects.bulk_create(new_records.values())
-        SourceMapping.objects.bulk_create(new_gen_mappings)
+        GeneratedMapping.objects.bulk_create(new_gen_mappings)
 
         return ref_mappings
 
