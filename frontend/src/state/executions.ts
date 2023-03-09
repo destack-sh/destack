@@ -40,15 +40,15 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     error
     build {
       id
+      name
     }
     task {
       id
+      name
     }
     code {
       id
-    }
-    model {
-      id
+      name
     }
   }
 `);

@@ -245,6 +245,7 @@ function getJobSubject(job: InterpJob): InterpSymbol | undefined {
 }
 
 // sync editor paths
+// TODO @Cleanup: move sync editor paths into EditorInterface
 watchEffect(() => {
   if (!files.value) return;
   editor.editors.forEach((editor) => {

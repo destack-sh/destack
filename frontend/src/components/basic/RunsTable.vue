@@ -8,7 +8,14 @@ import { useAppearance } from "@/state/appearance";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { symbolOf } from "@/state/runtime";
-import { CpuChipIcon, QuestionMarkCircleIcon, UserIcon, XMarkIcon } from "@heroicons/vue/20/solid";
+import {
+  CpuChipIcon,
+  PlayIcon,
+  QuestionMarkCircleIcon,
+  UserIcon,
+  WrenchIcon,
+  XMarkIcon,
+} from "@heroicons/vue/20/solid";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch } from "vue";
 
@@ -36,6 +43,14 @@ const symbols = computed(() => symbolIds.value.map((id) => symbolOf(id)).filter(
 // default input columns to any-typed catch-all columns
 const inputColumns = computed(() => props.inputColumns ?? [["Input", ANY_TYPE_NODE]]);
 const outputColumns = computed(() => props.outputColumns ?? [["Output", ANY_TYPE_NODE]]);
+
+const showSymbols = computed(
+  () =>
+    !(
+      (buildIds.value.length == 1 && taskIds.value.length == 1) ||
+      (buildIds.value.length <= 1 && codeIds.value.length == 1)
+    )
+);
 
 // watch and sync fields from props if enabled
 watch(
@@ -153,11 +168,14 @@ defineExpose({
     </div>
 
     <!-- Content -->
-    <table class="divice-opacity-[12%] mt-2 w-full items-baseline rounded-sm border-orange-900 border-opacity-[15%]">
+    <table
+      class="divice-opacity-[12%] mt-1 w-full items-baseline rounded-sm border border-orange-900 border-opacity-[15%]"
+    >
       <!-- Selected column headers -->
       <thead class="border-b border-orange-900 border-opacity-[12%]">
         <tr class="text-center">
-          <th class="px-3 py-2 font-semibold text-gray-700"><span class="sr-only">Status</span></th>
+          <th class="px-3 py-2 font-semibold text-gray-700">Status</th>
+          <th v-if="showSymbols" class="px-3 py-2 font-semibold text-gray-700">Symbols</th>
           <th v-for="[name, field] in inputColumns" :key="field.id" class="px-3 py-2 font-semibold text-gray-700">
             {{ name }}
           </th>
@@ -210,6 +228,19 @@ defineExpose({
                 <BookmarkIcon class="w-4 h-4 text-gray-400" />
                 <span class="text-gray-700">{{ execution.projectVersion.tag }}</span>
               </span> -->
+            </div>
+          </td>
+          <!-- Symbols: build/task/code -->
+          <td v-if="showSymbols" class="px-3 py-3">
+            <div class="flex flex-col gap-1.5">
+              <span v-if="execution.build" class="flex flex-row items-start gap-1 text-gray-700">
+                <WrenchIcon class="mt-0.5 h-4 w-4 text-gray-400" />
+                {{ execution.build.name }}
+              </span>
+              <span v-if="execution.task || execution.code" class="flex flex-row items-start gap-1 text-gray-700">
+                <PlayIcon class="mt-0.5 h-5 w-5 text-gray-400" />
+                {{ execution.task?.name ?? execution.code?.name }}
+              </span>
             </div>
           </td>
           <!-- Inputs -->

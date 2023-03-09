@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { VERSION } from "@/utils/globals";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import {
   BookOpenIcon,
@@ -35,7 +36,7 @@ const helpActions = [
     href: "https://discord.gg/BUaeEn8FHN",
   },
   {
-    name: "Get help",
+    name: "Get help - message us!",
     icon: LifebuoyIcon,
     href: "mailto:florian@symbolx.com?subject=" + encodeURIComponent("Help with " + route.path),
   },
@@ -67,6 +68,7 @@ const helpActions = [
             </span>
           </component>
         </template>
+        <span class="px-2 text-center text-xs text-gray-700">Bench {{ VERSION }}</span>
       </PopoverPanel>
     </FadeTransition>
   </Popover>

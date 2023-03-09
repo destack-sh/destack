@@ -155,14 +155,7 @@ defineExpose({
   >
     {{ reference?.name ?? self?.name ?? "..." }}
   </button>
-  <Combobox
-    v-else
-    as="div"
-    class="relative w-full"
-    :model-value="reference"
-    @update:model-value="setReference"
-    nullable
-  >
+  <Combobox v-else as="div" class="relative" :model-value="reference" @update:model-value="setReference" nullable>
     <ComboboxInput
       as="input"
       ref="inputRef"

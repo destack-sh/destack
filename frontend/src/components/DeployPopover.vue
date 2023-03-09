@@ -59,7 +59,8 @@ const notifications = useNotifications();
 
 const runtime = useCurrentModuleRuntime();
 const canDeploy = computed(
-  () => !isDeployed.value && project.value.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0
+  () =>
+    !isDeployed.value && project.value?.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0
 );
 const deploy = provideGlobalAction({
   id: "version.deployInstant",
