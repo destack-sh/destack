@@ -125,7 +125,10 @@ class InternalServer:
             )
         elif msg.type == ZMessageType.EXECUTION_CHANGED:
             changed: ExecutionChangedPayload = msg.payload_as(ExecutionChangedPayload)
-            await sync_to_async(save_execution_frames)(changed.frames)
+            save_success = await sync_to_async(save_execution_frames)(changed.frames)
+            if save_success:
+                # forward pub now that DB frames are saved
+                send_message(self.pub_sock, msg.type, msg.payload)
         else:
             raise ValueError(f"unexpected message: {msg}")
 
@@ -134,7 +137,7 @@ class InternalServer:
         self.rep_sock.close()
 
 
-def save_execution_frames(frames: list[ExecutionFrameData]):
+def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
     model_executions: list[Execution] = []
     for frame in frames:
         execution = mapper.rmap_execution_frame(frame)
@@ -149,5 +152,7 @@ def save_execution_frames(frames: list[ExecutionFrameData]):
             update_fields=["status", "terminated_at", "outputs", "error"],
         )
         logger.debug("save_execution_frames", executions=model_executions)
+        return True
     except Exception as e:
         logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
+        return False

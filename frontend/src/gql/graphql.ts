@@ -262,7 +262,7 @@ export enum ErrorType {
 
 export type Execution = Node & {
   __typename?: "Execution";
-  accessToken: AccessToken;
+  accessToken?: Maybe<AccessToken>;
   build?: Maybe<Statement>;
   code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
@@ -286,7 +286,7 @@ export type Execution = Node & {
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   triggerType: ExecutionTriggerType;
   updatedAt: Scalars["DateTime"];
-  user: User;
+  user?: Maybe<User>;
 };
 
 /** A connection to a list of items. */
@@ -1260,16 +1260,16 @@ export type Query = {
 export type QueryExecutionsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  codeId?: InputMaybe<Scalars["GlobalID"]>;
+  buildIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   first?: InputMaybe<Scalars["Int"]>;
   includeAncestorVersions?: Scalars["Boolean"];
   last?: InputMaybe<Scalars["Int"]>;
-  projectId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
-  taskId?: InputMaybe<Scalars["GlobalID"]>;
+  taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type QueryFileArgs = {
@@ -1649,14 +1649,14 @@ export type Subscription = {
 };
 
 export type SubscriptionModuleExecutionChangedArgs = {
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  codeId?: InputMaybe<Scalars["GlobalID"]>;
+  buildIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   includeAncestorVersions?: Scalars["Boolean"];
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
-  taskId?: InputMaybe<Scalars["GlobalID"]>;
+  taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type SubscriptionModuleRuntimeChangedArgs = {
@@ -2486,9 +2486,14 @@ export type ExecutionContentFragment = {
   startedAt?: any | null;
   terminatedAt?: any | null;
   status: ExecutionStatus;
+  triggerType: ExecutionTriggerType;
   inputs?: any | null;
   outputs?: any | null;
   error?: any | null;
+  projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
+  deployment: { __typename?: "Deployment"; id: any };
+  user?: { __typename?: "User"; id: any; slug: string } | null;
+  accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
   root?: { __typename?: "Execution"; id: any } | null;
   parent?: { __typename?: "Execution"; id: any } | null;
   build?: { __typename?: "Statement"; id: any } | null;
@@ -2500,9 +2505,10 @@ export type ExecutionContentFragment = {
 export type ExecutionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  taskId?: InputMaybe<Scalars["GlobalID"]>;
-  codeId?: InputMaybe<Scalars["GlobalID"]>;
+  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
+  buildIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
@@ -2536,9 +2542,10 @@ export type ExecutionsQuery = {
 export type ModuleExecutionChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  taskId?: InputMaybe<Scalars["GlobalID"]>;
-  codeId?: InputMaybe<Scalars["GlobalID"]>;
+  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
+  buildIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
@@ -3582,6 +3589,49 @@ export const ExecutionContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "startedAt" } },
           { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deployment" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "user" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "slug" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "accessToken" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "root" },
@@ -6275,18 +6325,32 @@ export const ExecutionsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
         },
         {
           kind: "VariableDefinition",
@@ -6323,18 +6387,23 @@ export const ExecutionsDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "buildId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+                name: { kind: "Name", value: "includeAncestorVersions" },
+                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "taskId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+                name: { kind: "Name", value: "buildIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "codeId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+                name: { kind: "Name", value: "taskIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "codeIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
               },
               {
                 kind: "Argument",
@@ -6428,18 +6497,32 @@ export const ModuleExecutionChangedDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
         },
         {
           kind: "VariableDefinition",
@@ -6466,18 +6549,23 @@ export const ModuleExecutionChangedDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "buildId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+                name: { kind: "Name", value: "includeAncestorVersions" },
+                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "taskId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "taskId" } },
+                name: { kind: "Name", value: "buildIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "codeId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "codeId" } },
+                name: { kind: "Name", value: "taskIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "codeIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
               },
               {
                 kind: "Argument",

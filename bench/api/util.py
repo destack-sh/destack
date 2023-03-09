@@ -1,11 +1,13 @@
 import functools
 import typing
 from typing import Optional, Sequence, Union
+from uuid import UUID
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
@@ -94,3 +96,15 @@ def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
     if isinstance(e, IntegrityError):
         e = ValidationError(e.args[0])
     return _map_exception(e)  # borrowed from strawberry_django_plus
+
+
+def to_uuid(id: UUID | GlobalID | None) -> UUID | None:
+    if id is None:
+        return id
+    if isinstance(id, UUID):
+        return id
+    return UUID(id.node_id)
+
+
+def to_uuids(ids: list[UUID | GlobalID] | None) -> list[UUID] | None:
+    return [to_uuid(id) for id in ids] if ids else None

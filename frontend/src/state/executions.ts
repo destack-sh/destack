@@ -12,6 +12,23 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     status
     # note: do not query for non-id fields on root/parent here since
     # they may not be available when streamed directly from the runtime
+    triggerType
+    projectVersion {
+      id
+      tag
+      name
+    }
+    deployment {
+      id
+    }
+    user {
+      id
+      slug
+    }
+    accessToken {
+      id
+      name
+    }
     root {
       id
     }
@@ -37,11 +54,14 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
 `);
 
 export function useExecutions(
-  projectId: Ref<string | null>,
-  projectVersionId: Ref<string>,
-  buildId: Ref<string | null>,
-  taskId: Ref<string | null>,
-  codeId: Ref<string | null>,
+  filter: {
+    projectId: Ref<string>;
+    projectVersionId: Ref<string>;
+    includeAncestorVersions: Ref<boolean>;
+    buildIds: Ref<string[] | null>;
+    taskIds: Ref<string[] | null>;
+    codeIds: Ref<string[] | null>;
+  },
   options: { root: boolean; live?: boolean }
 ) {
   const { result: executionsResult, subscribeToMore } = useQuery(
@@ -49,9 +69,10 @@ export function useExecutions(
       query executions(
         $projectId: GlobalID!
         $projectVersionId: GlobalID
-        $buildId: GlobalID
-        $taskId: GlobalID
-        $codeId: GlobalID
+        $includeAncestorVersions: Boolean
+        $buildIds: [GlobalID!]
+        $taskIds: [GlobalID!]
+        $codeIds: [GlobalID!]
         $rootIdNull: Boolean
         $first: Int
         $last: Int
@@ -59,9 +80,10 @@ export function useExecutions(
         executions(
           projectId: $projectId
           projectVersionId: $projectVersionId
-          buildId: $buildId
-          taskId: $taskId
-          codeId: $codeId
+          includeAncestorVersions: $includeAncestorVersions
+          buildIds: $buildIds
+          taskIds: $taskIds
+          codeIds: $codeIds
           rootIdNull: $rootIdNull
           first: $first
           last: $last
@@ -85,7 +107,16 @@ export function useExecutions(
         }
       }
     `),
-    { projectId, projectVersionId, buildId, taskId, codeId, rootIdNull: options.root, first: 25 }
+    {
+      projectId: filter.projectId,
+      projectVersionId: filter.projectVersionId,
+      includeAncestorVersions: filter.includeAncestorVersions,
+      buildIds: filter.buildIds,
+      taskIds: filter.taskIds,
+      codeIds: filter.codeIds,
+      rootIdNull: options.root,
+      first: 25,
+    }
   );
 
   if (options.live) {
@@ -94,24 +125,34 @@ export function useExecutions(
         subscription moduleExecutionChanged(
           $projectId: GlobalID!
           $projectVersionId: GlobalID
-          $buildId: GlobalID
-          $taskId: GlobalID
-          $codeId: GlobalID
+          $includeAncestorVersions: Boolean
+          $buildIds: [GlobalID!]
+          $taskIds: [GlobalID!]
+          $codeIds: [GlobalID!]
           $rootIdNull: Boolean
         ) {
           moduleExecutionChanged(
             projectId: $projectId
             projectVersionId: $projectVersionId
-            buildId: $buildId
-            taskId: $taskId
-            codeId: $codeId
+            includeAncestorVersions: $includeAncestorVersions
+            buildIds: $buildIds
+            taskIds: $taskIds
+            codeIds: $codeIds
             rootIdNull: $rootIdNull
           ) {
             ...ExecutionContent
           }
         }
       `),
-      variables: { projectId, projectVersionId, codeId, rootIdNull: options.root },
+      variables: {
+        projectId: filter.projectId,
+        projectVersionId: filter.projectVersionId,
+        includeAncestorVersions: filter.includeAncestorVersions,
+        buildIds: filter.buildIds,
+        taskIds: filter.taskIds,
+        codeIds: filter.codeIds,
+        rootIdNull: options.root,
+      },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
         const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);

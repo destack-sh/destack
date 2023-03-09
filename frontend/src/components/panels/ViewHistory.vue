@@ -16,7 +16,7 @@ import { useRouter } from "vue-router";
 
 const props = defineProps<{
   project: ProjectHeader;
-  currentVersion: FragmentType<typeof ProjectVersionHeaderType>;
+  currentVersion?: FragmentType<typeof ProjectVersionHeaderType>;
 }>();
 const emit = defineEmits<{ (e: "show"): void }>();
 

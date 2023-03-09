@@ -6,7 +6,7 @@ from uuid import UUID
 import structlog
 import zmq
 from asgiref.sync import sync_to_async
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -15,9 +15,9 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import can_view_project, can_write_project
-from bench.api.execution import Execution, ExecutionTriggerType
+from bench.api.execution import Execution, ExecutionTriggerType, expand_project_version_ids
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
-from bench.api.util import asafe_mutation
+from bench.api.util import asafe_mutation, to_uuid, to_uuids
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import Project, ProjectVersion, User, mapper
@@ -33,7 +33,7 @@ from bench.msg.messages import (
     as_key,
 )
 from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_WORKER_PUB_ADDR, ZMQ_WORKER_REP_ADDR
+from bench.settings import ZMQ_INTSERVER_PUB_ADDR, ZMQ_WORKER_PUB_ADDR, ZMQ_WORKER_REP_ADDR
 
 logger = structlog.get_logger(__name__)
 
@@ -405,9 +405,9 @@ class ModuleRuntimeSubscription:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
-        build_id: Optional[GlobalID] = None,
-        task_id: Optional[GlobalID] = None,
-        code_id: Optional[GlobalID] = None,
+        build_ids: list[GlobalID] | None = None,
+        task_ids: list[GlobalID] | None = None,
+        code_ids: list[GlobalID] | None = None,
         root_id: Optional[GlobalID] = None,
         root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
@@ -417,12 +417,12 @@ class ModuleRuntimeSubscription:
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
-            build_id=build_id,
-            task_id=task_id,
-            code_id=code_id,
+            build_ids=build_ids,
+            task_ids=task_ids,
+            code_ids=code_ids,
             root_id=root_id,
             root_id_null=root_id_null,
-            worker_rep_addr=ZMQ_WORKER_REP_ADDR,
+            intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
             user=user,
         )
 
@@ -436,57 +436,54 @@ class ModuleRuntimeSubscription:
 
         log.info("executions.subscribe")
 
-        worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_WORKER_PUB_ADDR)
-        worker_sub_sock.setsockopt(
+        sub_sock = zmq_ctx.socket(zmq.SUB)
+        sub_sock.connect(ZMQ_INTSERVER_PUB_ADDR)
+        sub_sock.setsockopt(
             zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
         )
 
         # :ExecutionsFilter
+        project_version_id = to_uuid(project_version_id)
+        build_ids = to_uuids(build_ids)
+        task_ids = to_uuids(task_ids)
+        code_ids = to_uuids(code_ids)
         # If filtering by a symbol and including multiple versions, expand into their mappings.
         # We do this once before listening for performance and simplicity, though this means that new versions
         # will not be automatically included in the execution subscription. We could periodically re-check,
         # but that's a bit more complicated and not really worth it for now.
         if include_ancestor_versions:
-            raise NotImplementedError  # TODO @Incomplete
+            if project_version_id is None:
+                raise ValidationError(
+                    "project_version_id must be specified if include_ancestor_versions"
+                )
+            project_version_ids, expanded_symbol_ids = await expand_project_version_ids(
+                project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
+            )
+        else:
+            expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
 
         try:
             log.info("executions.listen")
             while True:
-                _, update = await recv_message_with(worker_sub_sock, ExecutionChangedPayload)
+                _, update = await recv_message_with(sub_sock, ExecutionChangedPayload)
                 update: ExecutionChangedPayload
                 for frame_data in update.frames:
-                    if (
-                        build_id is not None
-                        and build_id.node_id != frame_data.build_id
-                        or task_id is not None
-                        and task_id.node_id != frame_data.task_id
-                        or code_id is not None
-                        and code_id.node_id != frame_data.code_id
-                        or root_id is not None
+                    # :ExecutionsFilter
+                    other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
+                    other_task = task_ids and frame_data.task_id not in expanded_symbol_ids
+                    other_code = code_ids and frame_data.code_id not in expanded_symbol_ids
+                    other_root = (
+                        root_id is not None
                         and root_id.node_id != frame_data.root_id
                         or root_id_null is True
                         and frame_data.root_id is not None
-                    ):
-                        # TODO @Performance: filter execution frames via zmq
+                    )
+                    if other_build or other_task or other_code or other_root:
+                        # TODO @Performance: filter execution frames via zmq?
                         continue
                     frame = mapper.rmap_execution_frame(frame_data)
-                    # TODO @Cleanup @Performance: optimize all relation lookups for id only
-                    # Here we just set the relation objects that we know are queried
-                    # because strawberry isn't smart enough to optimize this (and avoid the lookup)
-                    # Further, at this point the execution may not even be in the DB yet because
-                    # we stream execution frames to DB and clients simultaneously, so the lookup can fail.
-                    frame.parent = models.Execution(id=frame.parent_id)
-                    frame.root = models.Execution(id=frame.root_id)
-                    frame.code = models.Statement(id=frame.code_id)
-                    frame.task = models.Statement(id=frame.task_id)
-                    frame.build = models.Statement(id=frame.build_id)
-                    frame.user = models.User(id=frame.user_id)
-                    frame.access_token = models.AccessToken(id=frame.access_token_id)
-                    frame.deployment = models.Deployment(id=frame.deployment_id)
-                    frame.project_version = models.ProjectVersion(id=frame.project_version_id)
                     log.debug("executions.update", frame=frame)
                     yield frame
         finally:
             log.info("executions.close")
-            worker_sub_sock.close()
+            sub_sock.close()

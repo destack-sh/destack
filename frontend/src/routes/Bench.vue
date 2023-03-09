@@ -621,15 +621,10 @@ onBeforeUnmount(() => {
           v-show="editor.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
-          <ViewExplorer
-            v-show="activeView.id == 'explorer'"
-            :files="files"
-            v-if="files"
-            @show="editor.openActiveView('explorer')"
-          />
+          <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" @show="editor.openActiveView('explorer')" />
           <ViewHistory
             v-show="activeView.id == 'history'"
-            v-if="project != null && version != null"
+            v-if="project != null"
             @show="editor.openActiveView('history')"
             :project="project"
             :current-version="version"

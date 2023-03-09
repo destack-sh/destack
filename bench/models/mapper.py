@@ -544,6 +544,7 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     )
     return models.Execution(
         id=frame.id,
+        project_id=frame.project_id,
         project_version_id=frame.module_id,
         status=status,
         root_id=frame.root_id,

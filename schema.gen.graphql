@@ -276,8 +276,8 @@ type Execution implements Node {
   code: Statement
   model: Statement
   triggerType: ExecutionTriggerType!
-  user: User!
-  accessToken: AccessToken!
+  user: User
+  accessToken: AccessToken
 }
 
 """A connection to a list of items."""
@@ -1083,12 +1083,12 @@ type Query {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    projectId: GlobalID = null
+    projectId: GlobalID!
     projectVersionId: GlobalID = null
     includeAncestorVersions: Boolean! = false
-    buildId: GlobalID = null
-    taskId: GlobalID = null
-    codeId: GlobalID = null
+    buildIds: [GlobalID!] = null
+    taskIds: [GlobalID!] = null
+    codeIds: [GlobalID!] = null
     rootId: GlobalID = null
     rootIdNull: Boolean! = false
   ): ExecutionConnection! @canViewProject(atRoot: true)
@@ -1460,7 +1460,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  moduleExecutionChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildId: GlobalID = null, taskId: GlobalID = null, codeId: GlobalID = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
+  moduleExecutionChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""
