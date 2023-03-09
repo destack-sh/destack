@@ -414,6 +414,8 @@ class ModuleRuntimeSubscription:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
+
+        zmq_intserver_pub_addr = ZMQ_INTSERVER_PUB_ADDR.replace("*", "127.0.0.1")
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
@@ -422,7 +424,8 @@ class ModuleRuntimeSubscription:
             code_ids=code_ids,
             root_id=root_id,
             root_id_null=root_id_null,
-            intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
+            # :ZmqWildcardBind
+            intserver_pub_addr=zmq_intserver_pub_addr,
             user=user,
         )
 
@@ -437,7 +440,7 @@ class ModuleRuntimeSubscription:
         log.info("executions.subscribe")
 
         sub_sock = zmq_ctx.socket(zmq.SUB)
-        sub_sock.connect(ZMQ_INTSERVER_PUB_ADDR)
+        sub_sock.connect(zmq_intserver_pub_addr)
         sub_sock.setsockopt(
             zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
         )
