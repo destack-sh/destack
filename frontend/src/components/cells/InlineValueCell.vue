@@ -13,6 +13,7 @@ const props = defineProps<{
   readonly: boolean;
   immediate: boolean;
   slim?: boolean;
+  parentArray?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -109,6 +110,14 @@ const enumMembers = computed(() => {
   return runtimeType?.typeNodes ?? [];
 });
 
+const structFields = computed(() => {
+  if (props.type.tag != TypeTag.Struct) {
+    return [];
+  }
+  const runtimeType = symbolOf(props.type.reference?.id);
+  return runtimeType?.typeNodes ?? [];
+});
+
 const editor = useEditorState();
 
 defineExpose({
@@ -142,10 +151,22 @@ defineExpose({
       @keydown.delete.exact="editing || emit('deleteSelf')"
     >
       <!-- Default content if empty and no special rendering-->
-      <span v-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
-      <!-- Content preview -->
       <!-- TODO @Incomplete: edit array values -->
-      <span ref="valueRef" class="text-left" v-if="type.tag == TypeTag.String">{{ readValue }}</span>
+      <div v-if="type.isArray && !parentArray" class="flex w-full flex-col gap-1.5 px-1">
+        <InlineValueCell
+          v-for="(value, index) in modelValue"
+          :type="type"
+          :model-value="value"
+          :key="index"
+          :readonly="true"
+          :immediate="false"
+          :value="value"
+          parent-array
+        />
+      </div>
+      <span v-else-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
+      <!-- Content preview -->
+      <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}</span>
       <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
       <input
         ref="valueRef"
@@ -156,6 +177,18 @@ defineExpose({
         :disabled="props.readonly"
       />
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
+      <div v-else-if="type.tag == TypeTag.Struct" class="flex w-full flex-row justify-between gap-2">
+        <div v-for="field in structFields" :key="field.name" class="flex flex-col">
+          <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
+          <InlineValueCell
+            :type="field"
+            :modelValue="readValue[field.name]"
+            :placeholderValue="field.name"
+            :readonly="true"
+            :immediate="false"
+          />
+        </div>
+      </div>
       <!-- Can't render this type! -->
       <span ref="valueRef" v-else class="text-red-500">{{ readValue }}</span>
     </button>

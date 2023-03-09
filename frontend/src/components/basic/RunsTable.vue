@@ -5,8 +5,10 @@ import { formatDiffSeconds, useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { ExecutionStatus, ExecutionTriggerType, type SimpleType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
+import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
-import { CpuChipIcon, QuestionMarkCircleIcon, UserIcon } from "@heroicons/vue/20/solid";
+import { symbolOf } from "@/state/runtime";
+import { CpuChipIcon, QuestionMarkCircleIcon, UserIcon, XMarkIcon } from "@heroicons/vue/20/solid";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch } from "vue";
 
@@ -28,6 +30,8 @@ const includeAncestorVersions = ref(props.includeAncestorVersions);
 const buildIds = ref(props.buildIds ?? []);
 const taskIds = ref(props.taskIds ?? []);
 const codeIds = ref(props.codeIds ?? []);
+const symbolIds = computed(() => [...buildIds.value, ...taskIds.value, ...codeIds.value]);
+const symbols = computed(() => symbolIds.value.map((id) => symbolOf(id)).filter((s) => s != undefined));
 
 // default input columns to any-typed catch-all columns
 const inputColumns = computed(() => props.inputColumns ?? [["Input", ANY_TYPE_NODE]]);
@@ -113,7 +117,6 @@ function getTriggerIcon(type: ExecutionTriggerType) {
 }
 
 const appearance = useAppearance();
-
 defineExpose({
   totalCount,
 });
@@ -126,14 +129,25 @@ defineExpose({
     <!-- Selection: filters & view -->
     <div class="flex flex-row flex-wrap items-center gap-2">
       <span class="rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2.5 py-1">
-        <span class="text-gray-700">Bench:</span>
-        <span class="pl-1.5 text-gray-900">{{ project?.path.replace(".", "/") }}</span>
+        <span class="text-gray-600">Bench:</span>
+        <span class="pl-1 text-gray-900">{{ project?.path.replace(".", "/") }}</span>
       </span>
       <span class="rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2.5 py-1">
-        <span class="text-gray-700">Version:</span>
-        <span class="pl-1.5 text-gray-900">
+        <span class="text-gray-600">Version:</span>
+        <span class="pl-1 text-gray-900">
           {{ projectVersion?.tag ?? projectVersion?.name ?? (projectVersion?.committed ? "Autosave" : "(Working)") }}
         </span>
+      </span>
+      <span
+        class="flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2.5 py-1"
+        v-for="symbol in symbols"
+        :key="symbol?.id"
+      >
+        <span class="text-gray-600">{{ SYMBOL_TYPE_KEYWORD[symbol?.symbolType] }}:</span>
+        <span class="pl-1 text-gray-900">{{ symbol?.name }}</span>
+        <button class="ml-0.5 mt-0.5">
+          <XMarkIcon class="h-4 w-4 text-gray-400 hover:text-red-600" />
+        </button>
       </span>
       <!-- TODO @Incomplete: project version, build, code, task, etc filter pills -->
     </div>
@@ -157,7 +171,7 @@ defineExpose({
       <tbody class="divide-y divide-orange-900 divide-opacity-[12%] align-top">
         <tr v-for="execution in executions" :key="execution.id">
           <!-- Metadata: status, trigger, version, etc. -->
-          <td class="px-3 py-4">
+          <td class="px-3 py-3">
             <div class="flex flex-col items-center gap-1.5">
               <!-- Status -->
               <div class="flex flex-row items-center justify-between gap-1.5 transition-all">
@@ -193,13 +207,13 @@ defineExpose({
               </span>
               <!-- Version -->
               <!-- <span class="flex flex-row items-center gap-1">
-                <BookmarkIcon class="h-4 w-4 text-gray-400" />
+                <BookmarkIcon class="w-4 h-4 text-gray-400" />
                 <span class="text-gray-700">{{ execution.projectVersion.tag }}</span>
               </span> -->
             </div>
           </td>
           <!-- Inputs -->
-          <td v-for="[name, field] in inputColumns" :key="field.id" class="w-full px-3 py-2">
+          <td v-for="[name, field] in inputColumns" :key="field.id" class="px-3 py-3">
             <InlineValueCell
               :type="field"
               :model-value="field.name == null ? execution.inputs : execution.inputs?.[field.name]"
@@ -208,7 +222,7 @@ defineExpose({
             />
           </td>
           <!-- Outputs -->
-          <td v-for="[name, field] in outputColumns" :key="field.id" class="w-full px-3 py-2">
+          <td v-for="[name, field] in outputColumns" :key="field.id" class="px-3 py-3">
             <InlineValueCell
               :type="field"
               :model-value="field.name == null ? execution.outputs : execution.outputs?.[field.name]"

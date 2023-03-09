@@ -18,7 +18,7 @@ function openRunsEditor() {
 </script>
 <template>
   <div
-    class="bg-white px-12 py-2 pb-8"
+    class="relative bg-white px-12 py-2 pb-8"
     :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
   >
     <div class="mx-auto w-full max-w-[1000px]">

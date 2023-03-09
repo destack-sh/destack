@@ -3,16 +3,15 @@ import RunsTable from "@/components/basic/RunsTable.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
-import { formatDiffSeconds, humanizeNumber, useTimeFromNow } from "@/composables/useNow";
-import { ExecutionStatus, ExecutionTriggerType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { humanizeNumber } from "@/composables/useNow";
+import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
-import { useExecutions } from "@/state/executions";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { symbolOf, symbolsLike } from "@/state/runtime";
 import { PlayIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, ref, toRef, type Ref } from "vue";
+import { computed, inject, ref, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
