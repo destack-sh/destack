@@ -154,8 +154,9 @@ defineExpose({
       @keydown.delete.exact="editing || emit('deleteSelf')"
     >
       <!-- Default content if empty and no special rendering-->
-      <!-- TODO @Incomplete: edit array values -->
-      <div v-if="type.isArray && !parentArray" class="flex w-full flex-col gap-1.5 px-1">
+      <!-- TODO @Incomplete: edit array (and struct?) values -->
+      <!-- TODO @UX: array & struct rendering (esp. nested) is ugly -->
+      <div v-if="type.isArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
         <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
           v-for="(value, index) in modelValue"
