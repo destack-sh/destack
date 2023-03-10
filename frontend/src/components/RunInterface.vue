@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import RunsTable from "@/components/basic/RunsTable.vue";
+import { useNavigationGrid } from "@/components/cells/grid";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
@@ -21,6 +22,7 @@ const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
 const outputField = computed(() => symbol.value?.typeNodes?.find((n) => n.isOutput));
 const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] });
+const includeAncestorVersions = ref(true);
 
 // local run interface state
 const state = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
@@ -38,7 +40,17 @@ function setArgument(key: string, value: string) {
   args[key] = value;
   state?.set("arguments", args);
 }
-
+const runsTableRef = ref<InstanceType<typeof RunsTable> | null>(null);
+const runButtonRef = ref<HTMLButtonElement | null>(null);
+const selectBuildRef = ref<InstanceType<typeof ReferenceComboCell> | null>(null);
+const argumentsGrid = useNavigationGrid<"value", InstanceType<typeof InlineValueCell>>(
+  computed(() => ["value"]),
+  inputFields,
+  {
+    gridNavigateUp: () => selectBuildRef.value?.focus(),
+    gridNavigateDown: () => runButtonRef.value?.focus(),
+  }
+);
 const lastOutput: Ref<any | null> = ref(null);
 const lastOutputDirty = ref(false);
 const ops = useOperations();
@@ -77,9 +89,6 @@ function openRunsEditor() {
   editor.focusEditor(e);
 }
 
-const includeAncestorVersions = ref(true);
-
-const runsTableRef = ref<InstanceType<typeof RunsTable> | null>(null);
 const inputColumns = computed(() =>
   inputFields.value == null ? undefined : inputFields.value.map((f) => [f.name, f])
 );
@@ -97,15 +106,16 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
       </h2>
       <!-- Runnable (supposed to imitate corresponding statement look) -->
       <div class="mt-2 flex flex-row justify-between">
-        <!-- TODO @Feature: change runnable inside Run interface? -->
         <!-- Build select -->
         <span class="flex flex-row gap-1">
           <span class="text-gray-500">Build:</span>
           <template v-if="symbol?.symbolType == SymbolType.Task">
             <ReferenceComboCell
+              ref="selectBuildRef"
               :reference="build"
               @set-reference="setBuild($event ?? undefined)"
               :available-symbols="availableBuilds"
+              @navigate-down="argumentsGrid.focus(0, 'value')"
             />
           </template>
         </span>
@@ -131,23 +141,38 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
         class="grid-w-fit mt-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
       >
         <template v-for="field in inputFields" :key="field.id">
-          <div class="flex flex-row gap-1">
+          <div class="flex flex-row gap-1 py-1">
             <span>{{ field.name }}</span>
             <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
           </div>
           <InlineValueCell
+            :ref="(el: any) => argumentsGrid.registerColumnRef(field?.id, 'value', el)"
             :model-value="arguments_[field.name as string]"
             @update:model-value="(val: any) => setArgument(field.name as string, val)"
             :type="field"
             :readonly="false"
+            :placeholder-value="field.name"
             immediate
+            @navigate-left="argumentsGrid.navigateLeft(field?.id, 'value')"
+            @navigate-right="argumentsGrid.navigateRight(field?.id, 'value')"
+            @navigate-up="argumentsGrid.navigateUp(field?.id, 'value')"
+            @navigate-down="argumentsGrid.navigateDown(field?.id, 'value')"
+            class="my-0.5 w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
           />
+          <!-- :EditableCellStyle -->
         </template>
       </div>
     </div>
     <!-- Down arrow in the middle -->
     <div class="my-2 flex w-full flex-row justify-center">
-      <button class="p-1 text-orange-600 hover:bg-orange-50" @click="run">
+      <button
+        ref="runButtonRef"
+        class="p-1 text-orange-600 outline-none hover:bg-orange-50 focus:bg-orange-50"
+        @click="run"
+        @keydown.enter.prevent="run"
+        @keydown.space.prevent="run"
+        @keydown.up.prevent="argumentsGrid.focus(-1, 'value')"
+      >
         <ArrowDownIcon class="h-6 w-6" />
       </button>
     </div>
@@ -165,7 +190,12 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
       <div v-else class="flex h-full w-full flex-col items-center justify-center">
         <div class="p-2 text-gray-500">
           No output yet. You should
-          <button class="text-gray-700 underline decoration-dashed underline-offset-2">run</button>.
+          <button
+            class="text-gray-700 underline decoration-dashed underline-offset-2 hover:bg-orange-50 hover:text-gray-900 hover:decoration-solid focus:bg-orange-50"
+            @click="run"
+          >
+            run</button
+          >.
         </div>
       </div>
     </div>
