@@ -1,10 +1,12 @@
 import asyncio
 import dataclasses
 import json
+import typing
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Awaitable, Callable, Generic, Type, TypeVar, cast
+from functools import wraps
+from typing import Any, Awaitable, Callable, Generic, Type, TypeVar
 from uuid import UUID
 
 import nats
@@ -22,7 +24,7 @@ from bench.msg.messages import (
 from bench.msg.serialize import from_dict, to_dict
 from bench.settings import NATS_SERVER
 from bench.utils.func import wrap_task
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import required_field, sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
 log = logger.bind(server=NATS_SERVER)
@@ -74,8 +76,8 @@ PayloadT = TypeVar("PayloadT", bound=Any)
 class NMessage(Generic[PayloadT]):
     type: NMessageType
     payload: PayloadT = None
+    sent_at: datetime = required_field()
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
-    sent_at: datetime | None = None
     version: int = PROTOCOL_VERSION
     msg: nats.aio.client.Msg | None = None  # the original nats message (if received)
 
@@ -103,7 +105,7 @@ class NMessage(Generic[PayloadT]):
             raise TypeError(
                 f"expected reply payload to {self} to be {reply_payload_cls}, got {type(payload)}: {payload}"
             )
-        serialized = _serialize_message(NMessage(reply_type, payload))
+        serialized = _serialize_message(NMessage(reply_type, payload, sent_at=datetime.utcnow()))
         await self.msg.respond(serialized.encode("utf-8"))
 
 
@@ -158,7 +160,7 @@ async def process_nats_message(
         message = _parse_message(msg.data.decode())
         message.msg = msg
         if not isinstance(message.payload, expect_t):
-            raise TypeError(f"expected message {expect_t}, got {message}")
+            raise TypeError(f"expected message {expect_t} for {func}, got {message}")
         return await func(message)
     except Exception as e:
         sentry_enabled = sentry_capture_if_enabled(e)
@@ -167,11 +169,21 @@ async def process_nats_message(
 
 def message_handler(func=None):
     def wrapper(func):
-        # TODO @Broken: get message type from function signature generics
-        message_type = func.__annotations__["msg"]
+        try:
+            message_type = func.__annotations__["msg"]
+            payload_type = typing.get_args(message_type)[0]
+        except Exception as e:
+            raise RuntimeError(f"could not get message payload type from {func}: {e}")
 
-        async def wrapped_handler(msg: nats.aio.client.Msg) -> None:
-            return await process_nats_message(msg, func, message_type)
+        @wraps(func)
+        async def wrapped_handler(*args) -> None:
+            if len(args) == 1:
+                msg = args[0]
+                f = func
+            else:
+                self, msg = args
+                f = func.__get__(self)
+            return await process_nats_message(msg, f, payload_type)
 
         return wrapped_handler
 
@@ -192,18 +204,19 @@ async def request(
         raise RuntimeError("nats not initialized")
     if topic is None:
         topic = to_topic(type, payload)
-    message = NMessage(type, payload)
+    message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
     reply = await nc.request(topic, serialized.encode("utf-8"), timeout=timeout)
     reply_msg = _parse_message(reply.data.decode())
     reply_msg.msg = reply
-    return reply_msg.payload_as(reply_t)
+    return reply_msg
 
 
-async def handle_reply(type: NMessageType, cb, *, group: str = None) -> Subscription:
+async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscription:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply
+    log.info("handle_reply", type=type, group=group)
     return await nc.subscribe(type, cb=cb, queue=group)
 
 
@@ -212,7 +225,7 @@ async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> Non
         raise RuntimeError("nats not initialized")
     if topic is None:
         topic = to_topic(type, payload)
-    message = NMessage(type, payload)
+    message = NMessage(type, payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
     await nc.publish(topic, serialized.encode("utf-8"))
 
@@ -222,14 +235,17 @@ def publish_soon(type: NMessageType, payload: Any, *, topic: str = None) -> None
 
 
 class NSubscription(Generic[PayloadT]):
-    def __init__(self, sub: Subscription):
-        self.sub = sub
+    def __init__(self):
+        self.message_q: asyncio.Queue[NMessage[PayloadT]] = asyncio.Queue()
+        self.sub = None
+
+    async def _on_msg(self, msg: nats.aio.client.Msg) -> None:
+        message = _parse_message(msg.data.decode())
+        message.msg = msg
+        await self.message_q.put(message)
 
     async def next_msg(self, timeout: float = None) -> NMessage[PayloadT]:
-        nats_msg = await self.sub.next_msg(timeout=timeout)
-        msg = _parse_message(nats_msg.data.decode())
-        msg.msg = nats_msg
-        return msg
+        return await self.message_q.get()
 
     async def unsubscribe(self, limit: int = 0) -> None:
         return await self.sub.unsubscribe(limit)
@@ -237,18 +253,24 @@ class NSubscription(Generic[PayloadT]):
 
 async def subscribe(
     topic: str, payload_t: Type[PayloadT], *, cb: Callable[[NMessage], Awaitable[None]] = None
-) -> NSubscription[PayloadT]:
+) -> NSubscription[PayloadT] | Subscription:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
 
     async def wrapped_cb(msg: nats.aio.client.Msg) -> None:
-        return process_nats_message(msg, cb, expect_t=payload_t)
+        return await process_nats_message(msg, cb, expect_t=payload_t)
 
     if cb is not None:
         cb = wrapped_cb
 
-    sub = await nc.subscribe(topic, cb=cb)
-    return cast(NSubscription[PayloadT], NSubscription(sub))
+    log.info("subscribe", topic=topic, cb=cb)
+    if cb is not None:
+        return await nc.subscribe(topic, cb=cb)
+    else:
+        subscription = NSubscription()
+        sub = await nc.subscribe(topic, cb=subscription._on_msg)
+        subscription.sub = sub
+        return subscription
 
 
 class MessageJSONEncoder(json.JSONEncoder):

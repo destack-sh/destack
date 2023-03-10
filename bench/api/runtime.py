@@ -16,7 +16,7 @@ from bench import language, models
 from bench.api.auth import can_view_project, can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType, expand_project_version_ids
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
-from bench.api.util import asafe_mutation, to_uuid, to_uuids
+from bench.api.util import asafe_mutation, asafe_subscription, to_uuid, to_uuids
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import Project, ProjectVersion, User, mapper
@@ -312,7 +312,7 @@ class ModuleRuntimeMutation:
 
 @gql.type
 class ModuleRuntimeSubscription:
-    @gql.subscription
+    @asafe_subscription
     async def module_runtime_changed(
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
@@ -379,7 +379,7 @@ class ModuleRuntimeSubscription:
             runtime.updated_at = payload.updated_at
             yield runtime
 
-    @gql.subscription
+    @asafe_subscription
     async def module_execution_changed(
         self,
         info: Info,

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import enum
 from dataclasses import dataclass, field
@@ -17,7 +15,7 @@ from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
-from bench.msg.core import message_handler, nc_init, publish_soon, request, subscribe
+from bench.msg.core import handle_reply, message_handler, nc_init, publish_soon, request, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleBuildErrorType,
@@ -31,6 +29,7 @@ from bench.msg.messages import (
     RepWriteModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
+    ReqModuleRuntimePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
 )
@@ -249,7 +248,7 @@ RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in 
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
-    def __init__(self, module_id: UUID, master: Worker):
+    def __init__(self, module_id: UUID, master: "Worker"):
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
@@ -548,9 +547,9 @@ class Worker:
         logger.info("start", worker_id=self.worker_id)
         self.subs = [
             await subscribe(NMessageType.MODULE_CHANGED, self.module_changed),
-            await subscribe(NMessageType.REQUEST_MODULE_RUNTIME, self.request_module_runtime),
-            await subscribe(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
-            await subscribe(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
+            await handle_reply(NMessageType.REQUEST_MODULE_RUNTIME, self.request_module_runtime),
+            await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
+            await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
         ]
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
@@ -579,7 +578,7 @@ class Worker:
         # module worker will trigger any follow-ups
 
     @message_handler
-    async def request_module_runtime(self, msg: NMessage[ReqModuleBuildPayload]):
+    async def request_module_runtime(self, msg: NMessage[ReqModuleRuntimePayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
         payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
         await msg.reply(payload)
@@ -651,11 +650,11 @@ class Worker:
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""
         logger.debug("fetch_wire_module", module_id=module_id)
-        rep = await request(
+        module_rep = await request(
             NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(module_id), RepReadModulePayload
         )
         # TODO @Performance: cache committed modules in worker
-        return rep.p.module, rep.p.project_id
+        return module_rep.p.module, module_rep.p.project_id
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)

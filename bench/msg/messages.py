@@ -55,14 +55,14 @@ class NMessageType(StrEnum):
     MODULE_RUNTIME_CHANGED = "runtime.changed"
 
 
-REQUEST_BY_REPLY_TYPE = {
+REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
     NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
     NMessageType.REQUEST_MODULE_RUNTIME: NMessageType.REPLY_MODULE_RUNTIME,
 }
-REPLY_BY_REQUEST_TYPE = {v: k for k, v in REQUEST_BY_REPLY_TYPE.items()}
+REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
 #
 # All messages are just Python dataclasses.

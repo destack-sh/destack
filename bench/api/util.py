@@ -3,6 +3,7 @@ import typing
 from typing import Optional, Sequence, Union
 from uuid import UUID
 
+import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from strawberry_django_plus import gql
@@ -10,6 +11,10 @@ from strawberry_django_plus.mutations.fields import _map_exception
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
+
+from bench.utils.utils import sentry_capture_if_enabled
+
+log = structlog.get_logger(__name__)
 
 
 def safe_mutation(
@@ -65,6 +70,25 @@ def asafe_mutation(
     if func is None:
         return wrapper
     return wrapper(func)
+
+
+def asafe_subscription(func, **kwargs):
+    """Wraps an async resolver to wrap exceptions into OperationInfo."""
+
+    @functools.wraps(func)
+    async def wrapped(*args, **kwargs):
+        try:
+            async for item in func(*args, **kwargs):
+                yield item
+        except Exception as e:
+            e = map_exception(e)
+            if isinstance(e, OperationInfo):
+                yield e
+            sentry_enabled = sentry_capture_if_enabled(e)
+            log.error("subscribe.error", func=func, exc_info=e, sentry_enabled=sentry_enabled)
+            raise StopAsyncIteration from e
+
+    return gql.subscription(wrapped, **kwargs)
 
 
 def wrap_exceptions(func):
