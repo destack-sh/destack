@@ -435,28 +435,20 @@ const kubecost = new k8s.helm.v3.Release(
 
 const kubeStateMetrics = new k8s.helm.v3.Release("kube-state-metrics", {
   chart: "kube-state-metrics",
-  version: "2.13.3",
+  version: "5.0.0",
   namespace: "kube-system",
   repositoryOpts: {
-    repo: "https://kubernetes.github.io/kube-state-metrics",
+    repo: "https://prometheus-community.github.io/helm-charts",
   },
 });
 
-const metricsServer = new k8s.helm.v3.Release(
-  "metrics-server",
-  {
-    chart: "metrics-server",
-    version: "6.2.12",
-    namespace: "kube-system",
-    repositoryOpts: {
-      repo: "https://charts.bitnami.com/bitnami",
-    },
-    values: {
-      apiService: {
-        create: true,
-      },
-    },
+const metricsServer = new k8s.helm.v3.Release("metrics-server", {
+  chart: "metrics-server",
+  version: "3.8.4",
+  namespace: "kube-system",
+  repositoryOpts: {
+    repo: "https://kubernetes-sigs.github.io/metrics-server/",
   },
-  { dependsOn: [ebsCsiDriver] }
-);
+});
+
 // TODO @Monitoring: dashboard & alert with grafana?
