@@ -16,5 +16,10 @@ worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()))
 
 init_sentry(django=False)
 
-asyncio.run(init_nats(name=f"worker-{worker.worker_id}"))
-asyncio.run(worker.run_forever())
+
+async def run():
+    await init_nats(name=f"worker-{worker.worker_id}")
+    await worker.run_forever()
+
+
+asyncio.run(run())
