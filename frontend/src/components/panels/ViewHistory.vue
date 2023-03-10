@@ -215,7 +215,7 @@ const restore = provideGlobalAction({
                 :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
                 as="div"
                 class="flex min-w-0 flex-1 items-baseline justify-between space-x-4"
-                @commit="(id, name, tag, deploy) => doCommit(id, name, tag, deploy)"
+                @commit="(c) => doCommit(c)"
                 v-slot="{ open }"
               >
                 <!-- Name, tag, description -->

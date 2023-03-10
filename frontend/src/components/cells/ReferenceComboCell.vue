@@ -8,7 +8,7 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   self?: StatementHeader;
-  reference: StatementHeader | null;
+  reference?: StatementHeader | InterpSymbol | null;
   canDefineInPlace?: boolean;
   availableSymbols: InterpSymbol[];
 }>();

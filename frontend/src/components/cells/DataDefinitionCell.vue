@@ -225,6 +225,7 @@ defineExpose({
           @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
+          :placeholder-value="context.editing.value ? field.name : undefined"
           :immediate="false"
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
           @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"

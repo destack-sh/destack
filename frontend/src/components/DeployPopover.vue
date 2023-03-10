@@ -121,7 +121,7 @@ provideGlobalAction({
         'bg-orange-50': open,
       }"
     >
-      <CloudArrowUpIcon v-if="!isDeployed" class="h-5 w-5" />
+      <CloudIcon v-if="!isDeployed" class="h-5 w-5" />
       <template v-else>
         <!-- Already deployed (yes this is ugly :c) -->
         <CloudIcon class="h-5 w-5" />

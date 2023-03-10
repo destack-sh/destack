@@ -13,7 +13,7 @@ const props = defineProps<{
   readonly: boolean;
   immediate: boolean;
   slim?: boolean;
-  parentArray?: boolean;
+  parentArray?: boolean; // hack to prevent recursion, doesn't work for nested arrays
 }>();
 
 const emit = defineEmits<{
@@ -79,7 +79,7 @@ onClickOutside(editableContainerRef, () => {
   }
 });
 
-function edit(event) {
+function edit(event: KeyboardEvent | MouseEvent) {
   if (props.readonly) {
     return;
   }
@@ -154,8 +154,8 @@ defineExpose({
       @keydown.delete.exact="editing || emit('deleteSelf')"
     >
       <!-- Default content if empty and no special rendering-->
-      <!-- TODO @Incomplete: edit array (and struct?) values -->
-      <!-- TODO @UX: array & struct rendering (esp. nested) is ugly -->
+      <!-- TODO @Incomplete: edit array & struct values values -->
+      <!-- TODO @UX: array & struct rendering (esp. nested) is ugly and hacky (nested InlineValueCells, see below) -->
       <div v-if="type.isArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
         <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
