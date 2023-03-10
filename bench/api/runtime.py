@@ -456,7 +456,7 @@ class ModuleRuntimeSubscription:
                     and frame_data.root_id is not None
                 )
                 if other_build or other_task or other_code or other_root:
-                    # TODO @Performance: filter execution frames via zmq?
+                    # TODO @Performance: filter execution frames more precisely via NATS?
                     continue
                 frame = mapper.rmap_execution_frame(frame_data)
                 log.debug("executions.update", frame=frame)
