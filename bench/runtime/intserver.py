@@ -54,7 +54,7 @@ class InternalServer:
 
     @message_handler
     async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
-        logger.info("write_module", files=msg.payload.files, module_id=msg.payload.module_id)
+        logger.info("module.write", files=msg.payload.files, module_id=msg.payload.module_id)
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
         try:
             if project_v.committed:
@@ -68,9 +68,15 @@ class InternalServer:
             success = True
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
-            logger.error("write_module", exc_info=e, sentry_enabled=sentry_enabled)
+            logger.error("module.write.failed", exc_info=e, sentry_enabled=sentry_enabled)
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
+
+        # republish entire module  :PartialModuleUpdates
+        module = await sync_to_async(read_module)(project_v)
+        await publish(
+            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
+        )
 
     @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
