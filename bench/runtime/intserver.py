@@ -85,9 +85,7 @@ class InternalServer:
             # forward to API clients now that DB frames are saved
             await publish(
                 NMessageType.EXECUTION_SAVED,
-                ExecutionSavedPayload(
-                    module_id=msg.p.project_version_id, execution_id=msg.p.execution_id
-                ),
+                ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
             )
 
     @message_handler
