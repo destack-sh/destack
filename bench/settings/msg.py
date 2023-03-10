@@ -13,3 +13,5 @@ ZMQ_INTSERVER_REP_ADDR = get_from_env("ZMQ_INTSERVER_REP_ADDR", None, type_cast=
 ZMQ_INTSERVER_PUB_ADDR = get_from_env("ZMQ_INTSERVER_PUB_ADDR", None, type_cast=str)
 ZMQ_WORKER_REP_ADDR = get_from_env("ZMQ_WORKER_REP_ADDR", None, type_cast=str)
 ZMQ_WORKER_PUB_ADDR = get_from_env("ZMQ_WORKER_PUB_ADDR", None, type_cast=str)
+
+NATS_SERVER = get_from_env("NATS_SERVER", "nats://localhost:4222", type_cast=str)

@@ -180,6 +180,8 @@ multidict==6.0.2
     #   yarl
 mypy-extensions==0.4.3
     # via typing-inspect
+nats-py==2.2.0
+    # via -r requirements.in
 numpy==1.24.1
     # via transformers
 nvidia-cublas-cu11==11.10.3.66

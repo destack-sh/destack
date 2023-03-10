@@ -154,12 +154,28 @@ const DB_ENV_VARS = [
   },
 ];
 
+// NATS chart
+const nats = new k8s.helm.v3.Release("nats", {
+  namespace: "default",
+  chart: "nats",
+  version: "0.19.12",
+  repositoryOpts: {
+    repo: "https://nats-io.github.io/k8s/helm/charts/",
+  },
+  values: {},
+});
+
 // General backend env vars
 const BACKEND_ENV_VARS = [
   // sentry
   {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
+  },
+  // nats
+  {
+    name: "NATS_SERVER",
+    value: nats.name.apply((name) => `nats://${name}:4222`),
   },
 ];
 
