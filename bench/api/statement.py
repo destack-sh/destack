@@ -142,7 +142,7 @@ class Statement(gql.Node, SimplyTyped):
 #  1. Check that the containing project version is not committed
 #  2. Increment 'revision' on the statement
 #  [.. actual update ..]
-#  3. Send zmq pub message
+#  3. Send pub message
 #
 
 

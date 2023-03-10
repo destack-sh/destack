@@ -467,10 +467,6 @@ pyyaml==6.0
     #   huggingface-hub
     #   pre-commit
     #   transformers
-pyzmq==25.0.0
-    # via
-    #   -c requirements.txt
-    #   -r requirements.in
 regex==2022.10.31
     # via transformers
 requests==2.27.1

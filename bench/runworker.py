@@ -17,11 +17,4 @@ worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()))
 init_sentry(django=False)
 
 asyncio.run(init_nats(name=worker.worker_id))
-asyncio.run(
-    worker.run(
-        worker_reply_addr=os.environ["ZMQ_WORKER_REPLY_ADDR"],
-        worker_pub_addr=os.environ["ZMQ_WORKER_PUB_ADDR"],
-        intserver_reply_addr=os.environ["ZMQ_INTSERVER_REPLY_ADDR"],
-        intserver_pub_addr=os.environ["ZMQ_INTSERVER_PUB_ADDR"],
-    )
-)
+asyncio.run(worker.run())

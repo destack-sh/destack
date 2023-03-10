@@ -1,6 +1,5 @@
 """
 Structs for syncing project model contents across servers and clients.
-Does not strictly relate to zmq, but is used here and I couldn't think of a better place.
 It shouldn't live in models, so we can use it in messages.py, which shouldn't depend on Django.
 Maybe a better move would be to make the payload partially opaque and keep this in api.
 """
