@@ -10,22 +10,14 @@ from uuid import UUID
 
 import pytz
 import structlog
-import zmq
-import zmq.asyncio
 
 from bench import language
 from bench.language import wire
 from bench.language.parse import ErrorCollector, interp, resolve
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
-from bench.msg import (
-    ZMessage,
-    ZMessageType,
-    recv_message_poll,
-    recv_message_with,
-    send_message,
-    zmq_ctx,
-)
+from bench.msg import NMessage, NMessageType
+from bench.msg.core import message_handler, nc_init, publish_soon, request, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleBuildErrorType,
@@ -39,10 +31,8 @@ from bench.msg.messages import (
     RepWriteModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
-    ReqModuleRuntimePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
-    as_key,
 )
 from bench.runtime.build import BuildResult, make_build
 from bench.runtime.execute import Proxy, RunError, instantiate, run
@@ -407,7 +397,6 @@ class ModuleWorker:
             # trace level filtering happens in this tracker
             tracker = pub_filtered_execution_tracker(
                 root_id,
-                self.master.pub_sock,
                 project_id=self.project_id,
                 tracing_level=tracing_level,
                 deployment_id=deployment_id,
@@ -551,46 +540,18 @@ def make_full_change_payload(module_worker: ModuleWorker, cls):
 class Worker:
     def __init__(self, worker_id: str | UUID):
         self.worker_id = worker_id
-        self.rep_sock = zmq_ctx.socket(zmq.REP)
-        self.intserver_req_sock = zmq_ctx.socket(zmq.REQ)
-        self.sub_sock = zmq_ctx.socket(zmq.SUB)
-        self.pub_sock = zmq_ctx.socket(zmq.PUB)
-
         self.module_workers: dict[UUID, ModuleWorker] = {}
+        self.subs = []
 
-    async def run(
-        self,
-        worker_rep_addr: str,
-        worker_pub_addr: str,
-        intserver_rep_addr: str,
-        intserver_pub_addr: str,
-    ):
-        logger.info(
-            "start",
-            worker_id=self.worker_id,
-            worker_rep_addr=worker_rep_addr,
-            worker_pub_addr=worker_pub_addr,
-            intserver_rep_addr=intserver_rep_addr,
-            intserver_pub_addr=intserver_pub_addr,
-        )
-        self.rep_sock.bind(worker_rep_addr)
-        self.intserver_req_sock.connect(intserver_rep_addr)
-        self.sub_sock.connect(intserver_pub_addr)
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.MODULE_CHANGED))
-        self.pub_sock.bind(worker_pub_addr)
-        poller = zmq.asyncio.Poller()
-        poller.register(self.rep_sock, zmq.POLLIN)
-        poller.register(self.sub_sock, zmq.POLLIN)
-
-        while True:
-            async for msg in recv_message_poll(poller):
-                try:
-                    await self.process_message(msg)
-                except Exception as e:
-                    sentry_enabled = sentry_capture_if_enabled(e)
-                    logger.exception(
-                        "worker.process_message", exc_info=e, msg=msg, sentry_enabled=sentry_enabled
-                    )
+    async def run(self):
+        await nc_init.wait()
+        logger.info("start", worker_id=self.worker_id)
+        self.subs = [
+            await subscribe(NMessageType.MODULE_CHANGED, self.module_changed),
+            await subscribe(NMessageType.REQUEST_MODULE_RUNTIME, self.request_module_runtime),
+            await subscribe(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
+            await subscribe(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
+        ]
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:
@@ -602,71 +563,67 @@ class Worker:
             )
         return self.module_workers[module_id]
 
-    async def process_message(self, msg: ZMessage):
-        logger.debug("process_message", msg=msg)
-        if msg.type == ZMessageType.REQ_MODULE_RUNTIME:
-            payload: ReqModuleRuntimePayload = msg.payload_as(ReqModuleRuntimePayload)
-            module_worker = self._get_module_worker(payload.module_id)
-            # shouldn't clog here :AsyncClientServer
-            if not module_worker.ready.is_set():
-                await module_worker.ready.wait()
-            payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
-            send_message(self.rep_sock, ZMessageType.REP_MODULE_RUNTIME, payload)
+    async def _get_ready_module_worker(self, module_id: UUID) -> ModuleWorker:
+        module_worker = self._get_module_worker(module_id)
+        if not module_worker.ready.is_set():
+            await module_worker.ready.wait()
+        return module_worker
 
-        elif msg.type == ZMessageType.MODULE_CHANGED:
-            payload: ModuleChangedPayload = msg.payload_as(ModuleChangedPayload)
-            module_worker = self._get_module_worker(payload.module_id)
-            module_worker.on_module_changed(payload.module)
-            # worker will trigger any follow-up messages (no reply necessary)
+    @message_handler
+    async def module_changed(self, msg: NMessage[ModuleChangedPayload]):
+        if msg.p.module_id not in self.module_workers:
+            # ignore if we don't have a worker for this module
+            return
+        module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        module_worker.on_module_changed(msg.p.module)
+        # module worker will trigger any follow-ups
 
-        elif msg.type == ZMessageType.REQ_MODULE_BUILD:
-            payload: ReqModuleBuildPayload = msg.payload_as(ReqModuleBuildPayload)
-            module_worker = self._get_module_worker(payload.module_id)
-            build_job = module_worker.queue_build(payload.buildable_id)
-            error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
-            send_message(self.rep_sock, ZMessageType.REP_MODULE_BUILD, RepModuleBuildPayload(error))
+    @message_handler
+    async def request_module_runtime(self, msg: NMessage[ReqModuleBuildPayload]):
+        module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
+        await msg.reply(payload)
 
-        elif msg.type == ZMessageType.REQ_MODULE_RUN:
-            payload: ReqModuleRunPayload = msg.payload_as(ReqModuleRunPayload)
-            module_worker = self._get_module_worker(payload.module_id)
-            run_job = module_worker.queue_run(
-                runnable=payload.runnable,
-                runnable_type=payload.runnable_type,
-                build=payload.build,
-                arguments=payload.arguments,
-                deployment_id=payload.deployment_id,
-                tracing_level=payload.tracing_level,
-                trigger_type=payload.trigger_type,
-                trigger_id=payload.trigger_id,
-            )
-            if isinstance(run_job, ModuleRunErrorType):
-                rep = RepModuleRunPayload(None, run_job, None, None)
-            else:
-                if payload.blocking:
-                    # TODO @Cleanup: don't clog up running queue if blocking :AsyncClientServer
-                    await run_job.terminated.wait()
-                rep = RepModuleRunPayload(
-                    run_job.id, run_job.error, run_job.error_details, run_job.output
-                )
-            send_message(self.rep_sock, ZMessageType.REP_MODULE_RUN, rep)
+    @message_handler
+    async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
+        module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        payload = make_full_change_payload(module_worker, RepModuleBuildPayload)
+        await msg.reply(payload)
 
+    @message_handler
+    async def request_module_run(self, msg: NMessage[ReqModuleRunPayload]):
+        module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        run_job = module_worker.queue_run(
+            runnable=msg.p.runnable,
+            runnable_type=msg.p.runnable_type,
+            build=msg.p.build,
+            arguments=msg.p.arguments,
+            deployment_id=msg.p.deployment_id,
+            tracing_level=msg.p.tracing_level,
+            trigger_type=msg.p.trigger_type,
+            trigger_id=msg.p.trigger_id,
+        )
+        if isinstance(run_job, ModuleRunErrorType):
+            await msg.reply(RepModuleRunPayload(None, run_job, None, None))
         else:
-            raise RuntimeError(f"unexpected message type: {msg.type}")
+            if msg.p.blocking:
+                # TODO @Cleanup: don't clog up running queue if blocking :AsyncClientServer
+                await run_job.terminated.wait()
+            rep = RepModuleRunPayload(
+                run_job.id, run_job.error, run_job.error_details, run_job.output
+            )
+            await msg.reply(rep)
 
     def notify_job_status(self, module_worker: ModuleWorker, job: Job):
         """Publishes the new job status (sends out module runtime updates)"""
         # publish job status
         change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
-        send_message(self.pub_sock, ZMessageType.MODULE_RUNTIME_CHANGED, change)
+        publish_soon(NMessageType.MODULE_RUNTIME_CHANGED, change)
         # write back build results to internal server
         if isinstance(job, BuildJob) and job.status == JobStatus.COMPLETED:
             asyncio.get_running_loop().create_task(
                 wrap_task(self.write_build_job_results(module_worker, job))
             )
-
-    # TODO @Cleanup: switch to async client/server ZMQ flow to avoid sequential locking
-    # :AsyncClientServer
-    _intserver_rep_lock = asyncio.Lock()
 
     async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
         """Writes the build job results back to the internal server"""
@@ -681,44 +638,32 @@ class Worker:
             generated_mappings.append((build_result.build.id, mappings))
 
         # actually write to the internal server
-        await self._intserver_rep_lock.acquire()
         write = ReqWriteModulePayload(
             module_id=module_worker.module_id,
             files=generated_files,
             generated_mappings=generated_mappings,
         )
-        send_message(self.intserver_req_sock, ZMessageType.REQ_WRITE_MODULE, write)
-        self._intserver_rep_lock.release()
-        _, write_result = await recv_message_with(self.intserver_req_sock, RepWriteModulePayload)
-        if not write_result.success:
+        rep = await request(NMessageType.REQUEST_WRITE_MODULE, write, RepWriteModulePayload)
+        if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?
-            logger.error("write_module_failed", write=write, write_result=write_result)
+            logger.error("write_module_failed", write=write, write_result=rep)
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""
         logger.debug("fetch_wire_module", module_id=module_id)
-        await self._intserver_rep_lock.acquire()
-        send_message(
-            self.intserver_req_sock,
-            ZMessageType.REQ_READ_MODULE,
-            ReqReadModulePayload(module_id),
+        rep = await request(
+            NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(module_id), RepReadModulePayload
         )
-        _, payload = await recv_message_with(self.intserver_req_sock, RepReadModulePayload)
-        self._intserver_rep_lock.release()
-        # TODO @Performance: cache committed modules
-        return payload.module, payload.project_id
+        # TODO @Performance: cache committed modules in worker
+        return rep.p.module, rep.p.project_id
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
-        self.rep_sock.close()
-        self.intserver_req_sock.close()
-        self.sub_sock.close()
-        self.pub_sock.close()
+        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
 
 
 def pub_filtered_execution_tracker(
     root_id: UUID,
-    pub_sock: zmq.Socket,
     *,
     project_id: UUID,
     tracing_level: ExecutionTracingLevel,
@@ -753,15 +698,14 @@ def pub_filtered_execution_tracker(
         )
 
         # wipe data if not tracing it
-        # TODO @Cleanup: consider not tracking data at all when creating execution frame
+        # TODO @Cleanup: consider not tracking untracked data at all when creating execution frame
         if not trace_data:
             frame_data.inputs = None
             frame_data.outputs = None
 
         logger.debug("execution.track", frame=frame_data.id)
-        send_message(
-            pub_sock,
-            ZMessageType.EXECUTION_CHANGED,
+        publish_soon(
+            NMessageType.EXECUTION_CHANGED,
             ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
         )
 

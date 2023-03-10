@@ -20,18 +20,8 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-from bench.settings import (
-    CORS_ALLOWED_ORIGINS,
-    DEBUG,
-    RUN_INTSERVER,
-    RUN_WORKER,
-    TEST,
-    ZMQ_API_PUB_ADDR,
-    ZMQ_INTSERVER_PUB_ADDR,
-    ZMQ_INTSERVER_REP_ADDR,
-    ZMQ_WORKER_PUB_ADDR,
-    ZMQ_WORKER_REP_ADDR,
-)
+from bench.msg.core import drain_nats, init_nats
+from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_INTSERVER, RUN_WORKER, TEST
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -66,39 +56,30 @@ application = ProtocolTypeRouter(
     }
 )
 
-# TODO @Cleanup: move internal server & worker startup to proper daphne startup hook
+# TODO @Cleanup: move 'sidecar' server tasks to proper startup hooks
 #  For now I just couldn't find the appropriate place to run this, so we rely
 #  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
+
+# NATS must always run.
+task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
+reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
+
 if RUN_INTSERVER:
     from bench.runtime.intserver import InternalServer
 
-    # Bind internal server's api socket to localhost if it's a wildcard,
-    # because wildcard means we're also hosting the API server, but ZMQ obviously
-    # can't connect to wildcard. Likewise, we do the same for intserver in API.
-    # :ZmqWildcardBind
-    ZMQ_API_PUB_ADDR = ZMQ_API_PUB_ADDR.replace("*", "127.0.0.1")
-
     server = InternalServer()
-    coro = server.run(
-        intserver_rep_addr=ZMQ_INTSERVER_REP_ADDR,
-        intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
-        api_pub_addr=ZMQ_API_PUB_ADDR,
-        worker_pub_addr=ZMQ_WORKER_PUB_ADDR,
-    )
+    coro = server.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "intserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
-if RUN_WORKER:  # for local development only
+
+# for local development only
+if RUN_WORKER:
     if not DEBUG or TEST:
         raise RuntimeError("worker should be run via isolated runworker in prod")
     from bench.runtime.worker import Worker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
     worker = Worker(worker_id=f"local.{hex(local_id)[2:]}")
-    coro = worker.run(
-        worker_rep_addr=ZMQ_WORKER_REP_ADDR,
-        worker_pub_addr=ZMQ_WORKER_PUB_ADDR,
-        intserver_rep_addr=ZMQ_INTSERVER_REP_ADDR,
-        intserver_pub_addr=ZMQ_INTSERVER_PUB_ADDR,
-    )
+    coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

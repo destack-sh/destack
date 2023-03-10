@@ -4,7 +4,6 @@ from typing import AsyncGenerator, Optional, cast
 from uuid import UUID
 
 import structlog
-import zmq
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
 from strawberry.scalars import JSON
@@ -21,7 +20,8 @@ from bench.api.util import asafe_mutation, to_uuid, to_uuids
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import Project, ProjectVersion, User, mapper
-from bench.msg import ZMessageType, messages, recv_message_with, send_message, zmq_ctx
+from bench.msg import NMessageType, messages
+from bench.msg.core import request, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ModuleRuntimeChangedPayload,
@@ -30,10 +30,8 @@ from bench.msg.messages import (
     RepModuleRuntimePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
-    as_key,
+    ReqModuleRuntimePayload,
 )
-from bench.runtime.worker import ReqModuleRuntimePayload
-from bench.settings import ZMQ_INTSERVER_PUB_ADDR, ZMQ_WORKER_PUB_ADDR, ZMQ_WORKER_REP_ADDR
 
 logger = structlog.get_logger(__name__)
 
@@ -257,22 +255,15 @@ def check_can_view_project(user: User, project_version_id: UUID = None, project_
 class ModuleRuntimeMutation:
     @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
-        # TODO @Cleanup: keep worker sockets across requests?
-        worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
         await sync_to_async(check_can_write_project)(user, project_version_id)
 
         # :BlockingWorkerMessages
-        send_message(
-            worker_req_sock,
-            ZMessageType.REQ_MODULE_BUILD,
-            ReqModuleBuildPayload(
-                module_id=project_version_id, buildable_id=input.buildable_id.node_id
-            ),
+        req = ReqModuleBuildPayload(
+            module_id=project_version_id, buildable_id=input.buildable_id.node_id
         )
-        _, rep = await recv_message_with(worker_req_sock, RepModuleBuildPayload)
+        rep = await request(NMessageType.REQUEST_MODULE_BUILD, req, RepModuleBuildPayload)
         return BuildState(
             project_version_id=input.project_version_id,
             success=rep.error is None,
@@ -280,9 +271,6 @@ class ModuleRuntimeMutation:
 
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
-        # TODO @Auth: check if user has write access to project
-        worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
         # TODO @Auth: should run be a guest-level permission for projects?
@@ -298,24 +286,19 @@ class ModuleRuntimeMutation:
         if deployment_id is None:
             raise ValueError("no available deployment found")
 
-        # :BlockingWorkerMessages
-        send_message(
-            worker_req_sock,
-            ZMessageType.REQ_MODULE_RUN,
-            ReqModuleRunPayload(
-                module_id=project_version_id,
-                runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
-                runnable_type=None,
-                build=UUID(input.build_id.node_id) if input.build_id else None,
-                arguments=input.arguments,
-                blocking=True,
-                tracing_level=input.tracing,
-                deployment_id=deployment_id,
-                trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
-                trigger_id=user.id,
-            ),
+        run = ReqModuleRunPayload(
+            module_id=project_version_id,
+            runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+            runnable_type=None,
+            build=UUID(input.build_id.node_id) if input.build_id else None,
+            arguments=input.arguments,
+            blocking=True,
+            tracing_level=input.tracing,
+            deployment_id=deployment_id,
+            trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
+            trigger_id=user.id,
         )
-        _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
+        rep = await request(NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload)
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
@@ -337,8 +320,6 @@ class ModuleRuntimeSubscription:
         user = cast(User, info.context.request.scope["user"]._wrapped)
         log = logger.bind(
             project_version_id=project_version_id,
-            worker_rep_addr=ZMQ_WORKER_REP_ADDR,
-            worker_pub_addr=ZMQ_WORKER_PUB_ADDR,
             user=user,
         )
         try:
@@ -348,22 +329,19 @@ class ModuleRuntimeSubscription:
             return
 
         log.info("runtime.subscribe")
-        worker_req_sock = zmq_ctx.socket(zmq.REQ)
-        worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
-        worker_sub_sock = zmq_ctx.socket(zmq.SUB)
-        worker_sub_sock.connect(ZMQ_WORKER_PUB_ADDR)
-        worker_sub_sock.setsockopt(
-            zmq.SUBSCRIBE, as_key(ZMessageType.MODULE_RUNTIME_CHANGED, str(project_version_id))
+        runtime_sub = await subscribe(
+            f"{NMessageType.MODULE_RUNTIME_CHANGED}.{project_version_id}",
+            ModuleRuntimeChangedPayload,
         )
 
         # get initial runtime
-        send_message(
-            worker_req_sock,
-            ZMessageType.REQ_MODULE_RUNTIME,
+        rep = await request(
+            NMessageType.REQUEST_MODULE_RUNTIME,
             ReqModuleRuntimePayload(module_id=project_version_id),
+            RepModuleRuntimePayload,
         )
-        _, payload = await recv_message_with(worker_req_sock, RepModuleRuntimePayload)
-        module = rmap_module(payload.module)
+        payload = rep.payload
+        module = rmap_module(rep.p.module)
         runtime = ModuleRuntime(
             updated_at=payload.updated_at,
             module=module,
@@ -377,33 +355,29 @@ class ModuleRuntimeSubscription:
         yield runtime
 
         # get runtime changes
-        try:
-            log.info("runtime.listen")
-            while True:
-                _, update = await recv_message_with(worker_sub_sock, ModuleRuntimeChangedPayload)
-                log.debug("runtime.update", updated_at=update.updated_at)
-                # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
-                # :PartialModuleUpdates
-                # also the mapping duplication is a bit ugly
-                if update.module is not None:
-                    runtime.module = rmap_module(update.module)
-                if update.dependencies is not None:
-                    runtime.dependencies = [rmap_module(dep) for dep in update.dependencies]
-                if update.errors is not None:
-                    runtime.errors = rmap_errors(update.errors, runtime.module)
-                if update.jobs is not None:
-                    runtime.jobs = [rmap_job(job, runtime.module) for job in update.jobs]
-                if update.stale_symbols is not None:
-                    runtime.stale_symbols = [
-                        _get_symbol_from_module(runtime.module, symbol_id)
-                        for symbol_id in update.stale_symbols
-                    ]
-                runtime.updated_at = update.updated_at
-                yield runtime
-        finally:
-            log.info("runtime.close")
-            worker_req_sock.close()
-            worker_sub_sock.close()
+        log.info("runtime.listen")
+        while True:
+            update = await runtime_sub.next_msg()
+            payload = update.payload
+            log.debug("runtime.update", updated_at=payload.updated_at)
+            # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
+            # :PartialModuleUpdates
+            # also the mapping duplication is a bit ugly
+            if payload.module is not None:
+                runtime.module = rmap_module(payload.module)
+            if payload.dependencies is not None:
+                runtime.dependencies = [rmap_module(dep) for dep in payload.dependencies]
+            if payload.errors is not None:
+                runtime.errors = rmap_errors(payload.errors, runtime.module)
+            if payload.jobs is not None:
+                runtime.jobs = [rmap_job(job, runtime.module) for job in payload.jobs]
+            if payload.stale_symbols is not None:
+                runtime.stale_symbols = [
+                    _get_symbol_from_module(runtime.module, symbol_id)
+                    for symbol_id in payload.stale_symbols
+                ]
+            runtime.updated_at = payload.updated_at
+            yield runtime
 
     @gql.subscription
     async def module_execution_changed(
@@ -422,7 +396,6 @@ class ModuleRuntimeSubscription:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(User, info.context.request.scope["user"]._wrapped)
 
-        zmq_intserver_pub_addr = ZMQ_INTSERVER_PUB_ADDR.replace("*", "127.0.0.1")
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
@@ -431,8 +404,6 @@ class ModuleRuntimeSubscription:
             code_ids=code_ids,
             root_id=root_id,
             root_id_null=root_id_null,
-            # :ZmqWildcardBind
-            intserver_pub_addr=zmq_intserver_pub_addr,
             user=user,
         )
 
@@ -445,11 +416,8 @@ class ModuleRuntimeSubscription:
             return
 
         log.info("executions.subscribe")
-
-        sub_sock = zmq_ctx.socket(zmq.SUB)
-        sub_sock.connect(zmq_intserver_pub_addr)
-        sub_sock.setsockopt(
-            zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED, str(project_version_id))
+        runtime_sub = await subscribe(
+            f"{NMessageType.EXECUTION_CHANGED}.{project_version_id}", ExecutionChangedPayload
         )
 
         # :ExecutionsFilter
@@ -472,28 +440,24 @@ class ModuleRuntimeSubscription:
         else:
             expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
 
-        try:
-            log.info("executions.listen")
-            while True:
-                _, update = await recv_message_with(sub_sock, ExecutionChangedPayload)
-                update: ExecutionChangedPayload
-                for frame_data in update.frames:
-                    # :ExecutionsFilter
-                    other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
-                    other_task = task_ids and frame_data.task_id not in expanded_symbol_ids
-                    other_code = code_ids and frame_data.code_id not in expanded_symbol_ids
-                    other_root = (
-                        root_id is not None
-                        and root_id.node_id != frame_data.root_id
-                        or root_id_null is True
-                        and frame_data.root_id is not None
-                    )
-                    if other_build or other_task or other_code or other_root:
-                        # TODO @Performance: filter execution frames via zmq?
-                        continue
-                    frame = mapper.rmap_execution_frame(frame_data)
-                    log.debug("executions.update", frame=frame)
-                    yield frame
-        finally:
-            log.info("executions.close")
-            sub_sock.close()
+        log.info("executions.listen")
+        while True:
+            msg = await runtime_sub.next_msg()
+            update = msg.payload
+            for frame_data in update.frames:
+                # :ExecutionsFilter
+                other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
+                other_task = task_ids and frame_data.task_id not in expanded_symbol_ids
+                other_code = code_ids and frame_data.code_id not in expanded_symbol_ids
+                other_root = (
+                    root_id is not None
+                    and root_id.node_id != frame_data.root_id
+                    or root_id_null is True
+                    and frame_data.root_id is not None
+                )
+                if other_build or other_task or other_code or other_root:
+                    # TODO @Performance: filter execution frames via zmq?
+                    continue
+                frame = mapper.rmap_execution_frame(frame_data)
+                log.debug("executions.update", frame=frame)
+                yield frame
