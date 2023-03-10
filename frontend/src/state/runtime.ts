@@ -4,7 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, isRef, ref, watch, type Ref } from "vue";
+import { computed, isRef, ref, watch, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
@@ -100,7 +100,7 @@ function indexModule(module: InterpModule): ModuleIndex {
   return { id: module.id, module, symbolsById, fileByStatementId };
 }
 
-// TODO @Performance: moduleRuntimeChanged should be partial updates
+// TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
 function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   const {
     result: runtime,
@@ -196,15 +196,15 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   };
 }
 
-export const useModuleRuntime = createSharedComposable(_useModuleRuntime);
-
-export function useCurrentModuleRuntime(projectVersionId?: Ref<string | null>) {
+function _useCurrentModuleRuntime(projectVersionId?: Ref<string | null>) {
   const editor = useEditorState();
   const activeVersionId = computed(() =>
     projectVersionId?.value != null ? projectVersionId.value : editor.currentProjectVersionId
   );
-  return useModuleRuntime(activeVersionId);
+  return _useModuleRuntime(activeVersionId);
 }
+
+export const useCurrentModuleRuntime = createSharedComposable(_useCurrentModuleRuntime);
 
 export function fileOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
   const { moduleIndex } = useCurrentModuleRuntime(projectVersionId);
