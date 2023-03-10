@@ -22,11 +22,11 @@ from bench.msg.messages import (
     to_topic,
 )
 from bench.msg.serialize import from_dict, to_dict
-from bench.settings import NATS_SERVER
 from bench.utils.func import wrap_task
-from bench.utils.utils import required_field, sentry_capture_if_enabled
+from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
+NATS_SERVER = get_from_env("NATS_SERVER", "nats://localhost:4222", type_cast=str)
 log = logger.bind(server=NATS_SERVER)
 
 nc = nats.NATS()
