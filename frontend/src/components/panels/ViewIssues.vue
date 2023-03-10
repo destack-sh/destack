@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { fileOf, useCurrentModuleRuntime, useVisibleErrors } from "@/state/runtime";
+import { fileOf, useVisibleErrors } from "@/state/runtime";
 import { XCircleIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();

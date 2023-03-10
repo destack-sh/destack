@@ -28,6 +28,7 @@ from bench.api.project import (
     ProjectVersionMutation,
 )
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
+from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.token import AccessTokenMutation
 from bench.api.user import User, UserFilter, UserMutation
@@ -161,6 +162,7 @@ default_extensions: list[Union[PyType[Extension], Extension]] = [
     DjangoOptimizerExtension,
     QueryDepthLimiter(max_depth=10),
     SchemaDirectiveExtension,
+    SentryPerformanceExtension,
 ]
 prod_extensions: list[Union[PyType[Extension], Extension]] = [
     ParserCache(),
@@ -172,7 +174,7 @@ else:
     extensions = default_extensions + prod_extensions
 
 
-class ErrorCaptureSchema(strawberry.Schema):
+class SentryCaptureSchema(strawberry.Schema):
     def process_errors(
         self, errors: List[GraphQLError], execution_context: Optional[ExecutionContext] = None
     ) -> None:
@@ -182,7 +184,7 @@ class ErrorCaptureSchema(strawberry.Schema):
         super().process_errors(errors, execution_context)
 
 
-schema = ErrorCaptureSchema(
+schema = SentryCaptureSchema(
     Query,
     Mutation,
     Subscription,
