@@ -222,5 +222,8 @@ def to_topic(
     elif message_type == NMessageType.EXECUTION_CHANGED:
         payload = cast(ExecutionChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.EXECUTION_SAVED:
+        payload = cast(ExecutionSavedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
 
     return message_type
