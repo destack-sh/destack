@@ -69,7 +69,7 @@ async def drain_nats():
 
 
 PayloadT = TypeVar("PayloadT", bound=Any)
-# TODO @Broken: fix type checking (it just worked before?)
+# TODO @Robustness: fix PayloadT checking
 
 
 @dataclass(repr=False)
@@ -154,12 +154,14 @@ def _parse_message(message_json: str) -> NMessage:
 
 
 async def process_nats_message(
-    msg: nats.aio.client.Msg, func: Callable[[PayloadT], Awaitable[Any]], expect_t: Type[PayloadT]
+    msg: nats.aio.client.Msg,
+    func: Callable[[PayloadT], Awaitable[Any]],
+    expect_t: Type[PayloadT] = None,
 ):
     try:
         message = _parse_message(msg.data.decode())
         message.msg = msg
-        if not isinstance(message.payload, expect_t):
+        if expect_t is not None and not isinstance(message.payload, expect_t):
             raise TypeError(f"expected message {expect_t} for {func}, got {message}")
         return await func(message)
     except Exception as e:
@@ -185,6 +187,8 @@ def message_handler(func=None):
                 f = func.__get__(self)
             return await process_nats_message(msg, f, payload_type)
 
+        wrapped_handler.__wrapped_msg__ = True
+
         return wrapped_handler
 
     if func is None:
@@ -206,8 +210,11 @@ async def request(
         topic = to_topic(type, payload)
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
+    log.debug("request", topic=topic, message=message)
     reply = await nc.request(topic, serialized.encode("utf-8"), timeout=timeout)
     reply_msg = _parse_message(reply.data.decode())
+    if not isinstance(reply_msg.payload, reply_t):
+        raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
     return reply_msg
 
@@ -226,6 +233,7 @@ async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> Non
     if topic is None:
         topic = to_topic(type, payload)
     message = NMessage(type, payload, sent_at=datetime.utcnow())
+    log.debug("publish", topic=topic, message=message)
     serialized = _serialize_message(message)
     await nc.publish(topic, serialized.encode("utf-8"))
 
@@ -242,6 +250,7 @@ class NSubscription(Generic[PayloadT]):
     async def _on_msg(self, msg: nats.aio.client.Msg) -> None:
         message = _parse_message(msg.data.decode())
         message.msg = msg
+        log.debug("subscribe.receive", msg=message)
         await self.message_q.put(message)
 
     async def next_msg(self, timeout: float = None) -> NMessage[PayloadT]:
@@ -252,20 +261,28 @@ class NSubscription(Generic[PayloadT]):
 
 
 async def subscribe(
-    topic: str, payload_t: Type[PayloadT], *, cb: Callable[[NMessage], Awaitable[None]] = None
-) -> NSubscription[PayloadT] | Subscription:
+    topic: str,
+    *,
+    payload_t: Type[PayloadT] = None,
+    cb: Callable[[NMessage], Awaitable[None]] = None,
+) -> NSubscription[PayloadT]:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
-
-    async def wrapped_cb(msg: nats.aio.client.Msg) -> None:
-        return await process_nats_message(msg, cb, expect_t=payload_t)
-
-    if cb is not None:
-        cb = wrapped_cb
+    if payload_t is not None and not isinstance(payload_t, type):
+        raise TypeError(f"payload_t must be a subclass of Payload, got {payload_t}")
 
     log.info("subscribe", topic=topic, cb=cb)
     if cb is not None:
-        return await nc.subscribe(topic, cb=cb)
+
+        if hasattr(cb, "__wrapped_msg__"):
+            # already wrapped by message_handler
+            wrapped_cb = cb
+        else:
+
+            async def wrapped_cb(msg: nats.aio.client.Msg) -> None:
+                return await process_nats_message(msg, cb, expect_t=payload_t)
+
+        return await nc.subscribe(topic, cb=wrapped_cb)  # noqa: duck typed, but properly typed
     else:
         subscription = NSubscription()
         sub = await nc.subscribe(topic, cb=subscription._on_msg)

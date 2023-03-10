@@ -190,7 +190,7 @@ def interp_module(
     source: wire.ModuleData, dependencies: list[language.ModuleIndex]
 ) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
-    logger.info("interp_runtime", module=source)
+    logger.info("module.interp", module=source)
     module = wire.wmap_module(source)
     # TODO @Language: revert explicit statement references to StatementPath to lookup refs properly?
     collector = ErrorCollector()
@@ -298,7 +298,7 @@ class ModuleWorker:
         """Fetch and interpret the requirement module (incl. transitive deps)"""
         if module_id in self.interp_dependencies_cached:
             return self.interp_dependencies_cached[module_id]
-        self.log.info("interp_requirement", module_id=module_id)
+        self.log.info("module.requirement.interp", module_id=module_id)
         source, _ = await self.master.get_module(module_id)
         requirements = get_requirements(source)
         dependencies = await asyncio.gather(
@@ -307,7 +307,7 @@ class ModuleWorker:
         interp = interp_module(source, [m.module_idx for m in dependencies])
         if interp.errors:
             # not good, but we can still try to use the module?
-            self.log.warn("interp_requirement_failed", interp=interp)
+            self.log.warn("module.requirement.failed", interp=interp)
         self.interp_dependencies_cached[module_id] = interp
         return interp
 
@@ -357,7 +357,7 @@ class ModuleWorker:
         return job
 
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
-        self.log.info("build", builds=builds)
+        self.log.info("module.build", builds=builds)
         build_processes = [wrap_task(make_build(build), f"build_{build.id}") for build in builds]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         return cast(list[BuildResult], build_results)
@@ -386,7 +386,7 @@ class ModuleWorker:
                 runnable_type = None
             runnable = self.idx.symbol(runnable, symbol_t=runnable_type)
         except (TypeError, KeyError) as e:
-            self.log.exception("make_run_fail", exc_info=e)
+            self.log.exception("module.run.failed", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
         # instantiate
@@ -430,16 +430,16 @@ class ModuleWorker:
                 code_instance = runnable.code
             else:
                 code_instance = runnable
-            self.log.info("run", code_instance=code_instance)
+            self.log.info("module.run", code_instance=code_instance)
             ret = await run(code_instance, arguments)
             return None, ret
         except RunError as e:
-            self.log.exception("run_failed", exc_info=e)
+            self.log.exception("module.run.failed", exc_info=e)
             details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
             return ModuleRunErrorType.RUNTIME_ERROR, details
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
-            self.log.exception("run_failed", exc_info=e, sentry_enabled=sentry_enabled)
+            self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
 
     async def _run_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
@@ -449,7 +449,7 @@ class ModuleWorker:
             try:
                 job.status = JobStatus.RUNNING
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.log.info("module_worker_job_started", job=job)
+                self.log.info("module.job.start", job=job)
                 self.master.notify_job_status(self, job)
 
                 if isinstance(job, InterpJob):
@@ -470,13 +470,11 @@ class ModuleWorker:
 
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
-                self.log.info("module_worker_job_completed", job=job)
+                self.log.info("module.job.completed", job=job)
             except Exception as e:
                 sentry_enabled = sentry_capture_if_enabled(e)
                 job.error = str(e)
-                self.log.exception(
-                    "module_worker_job_failed", job=job, sentry_enabled=sentry_enabled
-                )
+                self.log.exception("module.job.failed", job=job, sentry_enabled=sentry_enabled)
             finally:
                 job.status = JobStatus.COMPLETED if job.success else JobStatus.FAILED
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -488,7 +486,7 @@ class ModuleWorker:
         """Runs the module worker main processing loop"""
 
         # first get the source
-        self.log.info("module_worker_start")
+        self.log.info("module.start")
         source, self.project_id = await self.master.get_module(self.module_id)
         interp_job = self.on_module_changed(source)
 
@@ -546,7 +544,7 @@ class Worker:
         await nc_init.wait()
         logger.info("start", worker_id=self.worker_id)
         self.subs = [
-            await subscribe(NMessageType.MODULE_CHANGED, self.module_changed),
+            await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
             await handle_reply(NMessageType.REQUEST_MODULE_RUNTIME, self.request_module_runtime),
             await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
             await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
@@ -586,8 +584,9 @@ class Worker:
     @message_handler
     async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
-        payload = make_full_change_payload(module_worker, RepModuleBuildPayload)
-        await msg.reply(payload)
+        build_job = module_worker.queue_build(msg.p.buildable_id)
+        error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
+        await msg.reply(RepModuleBuildPayload(error=error))
 
     @message_handler
     async def request_module_run(self, msg: NMessage[ReqModuleRunPayload]):
@@ -645,11 +644,11 @@ class Worker:
         rep = await request(NMessageType.REQUEST_WRITE_MODULE, write, RepWriteModulePayload)
         if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?
-            logger.error("write_module_failed", write=write, write_result=rep)
+            logger.error("module.write.failed", write=write, write_result=rep)
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""
-        logger.debug("fetch_wire_module", module_id=module_id)
+        logger.debug("module.fetch", module_id=module_id)
         module_rep = await request(
             NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(module_id), RepReadModulePayload
         )

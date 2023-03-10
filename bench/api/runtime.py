@@ -23,7 +23,7 @@ from bench.models import Project, ProjectVersion, User, mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import request, subscribe
 from bench.msg.messages import (
-    ExecutionChangedPayload,
+    ExecutionSavedPayload,
     ModuleRuntimeChangedPayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
@@ -266,7 +266,7 @@ class ModuleRuntimeMutation:
         rep = await request(NMessageType.REQUEST_MODULE_BUILD, req, RepModuleBuildPayload)
         return BuildState(
             project_version_id=input.project_version_id,
-            success=rep.error is None,
+            success=rep.p.error is None,
         )
 
     @asafe_mutation
@@ -303,10 +303,10 @@ class ModuleRuntimeMutation:
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             build_id=input.build_id,
-            success=rep.error is None,
-            output=rep.output,
-            error=rep.error,
-            error_details=rep.error_details,
+            success=rep.p.error is None,
+            output=rep.p.output,
+            error=rep.p.error,
+            error_details=rep.p.error_details,
         )
 
 
@@ -331,7 +331,7 @@ class ModuleRuntimeSubscription:
         log.info("runtime.subscribe")
         runtime_sub = await subscribe(
             f"{NMessageType.MODULE_RUNTIME_CHANGED}.{project_version_id}",
-            ModuleRuntimeChangedPayload,
+            payload_t=ModuleRuntimeChangedPayload,
         )
 
         # get initial runtime
@@ -417,7 +417,7 @@ class ModuleRuntimeSubscription:
 
         log.info("executions.subscribe")
         runtime_sub = await subscribe(
-            f"{NMessageType.EXECUTION_CHANGED}.{project_version_id}", ExecutionChangedPayload
+            f"{NMessageType.EXECUTION_SAVED}.{project_version_id}", payload_t=ExecutionSavedPayload
         )
 
         # :ExecutionsFilter

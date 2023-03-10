@@ -40,8 +40,10 @@ class InternalServer:
         self.subs = [
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
-            await subscribe(NMessageType.EXECUTION_CHANGED, self.execution_changed),
-            await subscribe(NMessageType.PROJECT_VERSION_CHANGED, self.project_version_changed),
+            await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
+            await subscribe(
+                f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
+            ),
         ]
 
     @message_handler
