@@ -80,5 +80,7 @@ def fabricate(type: TypeNode) -> Any:
         return None
     elif type.tag == TypeTag.LITERAL:
         return type.value
+    elif type.tag == TypeTag.ANY:
+        return 42
     else:
         raise RuntimeError(f"unexpected type {type.tag}")
