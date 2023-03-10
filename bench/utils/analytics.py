@@ -27,7 +27,7 @@ def init_sentry(*, django: bool):
         request_bodies="always",
         sample_rate=1.0,
         send_default_pii=True,
-        traces_sampler=True,
+        traces_sample_rate=1.0,
     )
     logger.info(
         "initialized_sentry",

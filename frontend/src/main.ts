@@ -84,6 +84,7 @@ async function init() {
 
   // only set in staging/prod
   if (!IS_LOCALHOST) {
+    console.info("Setting up Sentry...", import.meta.env.VITE_APP_SENTRY_DSN != null);
     Sentry.init({
       app,
       dsn: import.meta.env.VITE_APP_SENTRY_DSN,
@@ -104,6 +105,7 @@ async function init() {
   if (IS_LOCALHOST) {
     posthog.opt_out_capturing();
   } else {
+    console.info("Setting up Posthog...");
     posthog.opt_in_capturing();
   }
 
