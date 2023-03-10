@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState, type StatementHeader } from "@/state/editor";
-import { fileOf, relativePath, symbolOf } from "@/state/runtime";
+import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -103,6 +103,18 @@ function open() {
   });
 }
 
+// alt-click focuses source reference
+const { focusSymbol } = useSymbolNavigation();
+function clickOpen(click: MouseEvent) {
+  if (click.altKey) {
+    if (props.reference != null) {
+      focusSymbol(props.reference);
+    }
+  } else {
+    open();
+  }
+}
+
 // auto-open if the user starts typing and this is focused
 onStartTyping(() => {
   if (query.value.length == 0 && inputRefFocus.focused.value) {
@@ -149,7 +161,7 @@ defineExpose({
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.enter.exact.prevent="open"
     @keydown.delete.exact.prevent="emit('deleteLeft')"
-    @click="open"
+    @click="clickOpen"
     class="rounded-sm decoration-dashed underline-offset-4 outline-transparent focus:underline focus:decoration-gray-900 focus:decoration-solid group-hover/statement:decoration-gray-900"
     :class="reference?.name ?? self?.name != null ? 'underline decoration-gray-400' : ''"
   >
