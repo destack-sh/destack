@@ -2,6 +2,7 @@ import functools
 from typing import Optional, Sequence, Union
 
 import structlog
+from asgiref.sync import async_to_sync
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
@@ -12,7 +13,7 @@ from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
 from bench.msg import NMessageType
-from bench.msg.core import publish_soon
+from bench.msg.core import publish
 from bench.msg.messages import ProjectVersionChangedPayload
 from bench.msg.sync import ProjectMutation, ProjectMutationType
 from bench.settings import SEND_API_PUB_MSG
@@ -123,7 +124,8 @@ def pub_project_mutation(
         statement_id=statement_id,
         revision=revision,
     )
-    publish_soon(
+    # TODO @Performance: using async_to_sync to publish mutation is inefficient
+    async_to_sync(publish)(
         NMessageType.PROJECT_VERSION_CHANGED,
         ProjectVersionChangedPayload(project_version_id, mutations=[mutation]),
     )

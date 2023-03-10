@@ -246,6 +246,8 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         return enum_cls(enum_name, members)
     elif node.tag == TypeTag.LITERAL:
         return node.value
+    elif node.tag == TypeTag.ANY:
+        return Any
     else:
         raise ValueError(f"unexpected type node: {node}")
 
