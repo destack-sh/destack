@@ -14,10 +14,10 @@ from bench.runtime.type import ExecutionFrameData
 
 PROTOCOL_VERSION = 1
 
-REGISTERED_MESSAGE_PAYLOADS: dict["ZMessageType", typing.Type] = {}
+REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
 
-def _register_payload(message_type: "ZMessageType"):
+def _register_payload(message_type: "NMessageType"):
     def wrapper(cls):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
@@ -28,40 +28,41 @@ def _register_payload(message_type: "ZMessageType"):
     return wrapper
 
 
-class ZMessageType(StrEnum):
+class NMessageType(StrEnum):
     """All messages types"""
 
     # Bench project version content sync
-    # API <-> API, API -> Worker, API <-> Internal
-    PROJECT_VERSION_CHANGED = "project_version_changed"
+    # API <-> API,, API <-> Internal
+    PROJECT_VERSION_CHANGED = "project_version.changed"
     # Internal -> Worker
-    MODULE_CHANGED = "module_changed"
+    MODULE_CHANGED = "module.changed"
 
-    # Bench commands
-    # API -> Worker
-    REQ_MODULE_BUILD = "req_module_build"
-    REP_MODULE_BUILD = "rep_module_build"
-    REQ_MODULE_RUN = "req_module_run"
-    REP_MODULE_RUN = "rep_module_run"
-
-    # Worker internal communication and orchestration
     # Worker <-> Internal
-    WORKER_HEARTBEAT = "worker_heartbeat"
-    REQ_WORKER_SHUTDOWN = "req_worker_shutdown"
-    REP_WORKER_SHUTDOWN = "rep_worker_shutdown"
-    REQ_READ_MODULE = "req_read_module"
-    REP_READ_MODULE = "rep_read_module"
-    REQ_WRITE_MODULE = "req_write_module"
-    REP_WRITE_MODULE = "rep_write_module"
-    # also Internal -> API
-    EXECUTION_CHANGED = "execution_changed"
+    REQUEST_READ_MODULE = "module.read"
+    REPLY_READ_MODULE = "module.read.rep"
+    REQUEST_WRITE_MODULE = "module.write"
+    REPLY_WRITE_MODULE = "module.write.rep"
+    EXECUTION_CHANGED = "execution.changed"
+    EXECUTION_SAVED = "execution.saved"
 
-    # Bench module runtime state sync
     # API <-> Worker
-    REQ_MODULE_RUNTIME = "req_module_runtime"
-    REP_MODULE_RUNTIME = "rep_module_runtime"
-    MODULE_RUNTIME_CHANGED = "module_runtime_changed"
+    REQUEST_MODULE_BUILD = "runtime.build"
+    REPLY_MODULE_BUILD = "runtime.build.rep"
+    REQUEST_MODULE_RUN = "runtime.run"
+    REPLY_MODULE_RUN = "runtime.run.rep"
+    REQUEST_MODULE_RUNTIME = "runtime.get"
+    REPLY_MODULE_RUNTIME = "runtime.get.rep"
+    MODULE_RUNTIME_CHANGED = "runtime.changed"
 
+
+REQUEST_BY_REPLY_TYPE = {
+    NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
+    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
+    NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
+    NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
+    NMessageType.REQUEST_MODULE_RUNTIME: NMessageType.REPLY_MODULE_RUNTIME,
+}
+REPLY_BY_REQUEST_TYPE = {v: k for k, v in REQUEST_BY_REPLY_TYPE.items()}
 
 #
 # All messages are just Python dataclasses.
@@ -72,13 +73,13 @@ class ZMessageType(StrEnum):
 #
 
 
-@_register_payload(ZMessageType.PROJECT_VERSION_CHANGED)
+@_register_payload(NMessageType.PROJECT_VERSION_CHANGED)
 class ProjectVersionChangedPayload:
     project_version_id: UUID
     mutations: list[sync.ProjectMutation]
 
 
-@_register_payload(ZMessageType.MODULE_CHANGED)
+@_register_payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
     module_id: UUID
     #  :PartialModuleUpdates
@@ -86,7 +87,7 @@ class ModuleChangedPayload:
     module: wire.ModuleData
 
 
-@_register_payload(ZMessageType.REQ_MODULE_BUILD)
+@_register_payload(NMessageType.REQUEST_MODULE_BUILD)
 class ReqModuleBuildPayload:
     module_id: UUID
     buildable_id: Optional[UUID]
@@ -97,12 +98,12 @@ class ModuleBuildErrorType(enum.Enum):
     INVALID_BUILDABLE = "invalid_buildable"
 
 
-@_register_payload(ZMessageType.REP_MODULE_BUILD)
+@_register_payload(NMessageType.REPLY_MODULE_BUILD)
 class RepModuleBuildPayload:
     error: Optional[ModuleBuildErrorType] = None
 
 
-@_register_payload(ZMessageType.REQ_MODULE_RUN)
+@_register_payload(NMessageType.REQUEST_MODULE_RUN)
 class ReqModuleRunPayload:
     deployment_id: UUID
     module_id: UUID
@@ -123,7 +124,7 @@ class ModuleRunErrorType(enum.Enum):
     RUNTIME_ERROR = "runtime_error"
 
 
-@_register_payload(ZMessageType.REP_MODULE_RUN)
+@_register_payload(NMessageType.REPLY_MODULE_RUN)
 class RepModuleRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[ModuleRunErrorType] = None
@@ -131,41 +132,47 @@ class RepModuleRunPayload:
     output: Optional[wire.LiteralValue] = None
 
 
-@_register_payload(ZMessageType.EXECUTION_CHANGED)
+@_register_payload(NMessageType.EXECUTION_CHANGED)
 class ExecutionChangedPayload:
     module_id: UUID
     frames: list[ExecutionFrameData]
 
 
-@_register_payload(ZMessageType.REQ_READ_MODULE)
+@_register_payload(NMessageType.EXECUTION_SAVED)
+class ExecutionSavedPayload:
+    module_id: UUID
+    frames: list[ExecutionFrameData]
+
+
+@_register_payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
 
 
-@_register_payload(ZMessageType.REP_READ_MODULE)
+@_register_payload(NMessageType.REPLY_READ_MODULE)
 class RepReadModulePayload:
     module: wire.ModuleData
     project_id: UUID
 
 
-@_register_payload(ZMessageType.REQ_WRITE_MODULE)
+@_register_payload(NMessageType.REQUEST_WRITE_MODULE)
 class ReqWriteModulePayload:
     module_id: UUID
     files: list[wire.FileData]
     generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
 
 
-@_register_payload(ZMessageType.REP_WRITE_MODULE)
+@_register_payload(NMessageType.REPLY_WRITE_MODULE)
 class RepWriteModulePayload:
     success: bool
 
 
-@_register_payload(ZMessageType.REQ_MODULE_RUNTIME)
+@_register_payload(NMessageType.REQUEST_MODULE_RUNTIME)
 class ReqModuleRuntimePayload:
     module_id: UUID
 
 
-@_register_payload(ZMessageType.REP_MODULE_RUNTIME)
+@_register_payload(NMessageType.REPLY_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
     module_id: UUID
     updated_at: datetime
@@ -176,7 +183,7 @@ class RepModuleRuntimePayload:
     stale_symbols: list[UUID]
 
 
-@_register_payload(ZMessageType.MODULE_RUNTIME_CHANGED)
+@_register_payload(NMessageType.MODULE_RUNTIME_CHANGED)
 class ModuleRuntimeChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID
@@ -189,33 +196,31 @@ class ModuleRuntimeChangedPayload:
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS
-MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "ZMessageType"] = {
+MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     payload_class: message_type
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
 
 
-def to_key(
-    message_type: ZMessageType,
-    payload: ZMessageType,
-) -> Optional[bytes]:
-    """Gets the subscription key for a message type and payload (if any)"""
-    if message_type == ZMessageType.PROJECT_VERSION_CHANGED:
+def to_topic(
+    message_type: NMessageType,
+    payload: NMessageType,
+) -> str:
+    """
+    Gets the default topic for a message type and payload.
+    :NATSTopics
+    """
+    if message_type == NMessageType.PROJECT_VERSION_CHANGED:
         payload = cast(ProjectVersionChangedPayload, payload)
-        return as_key(message_type, str(payload.project_version_id))
-    elif message_type == ZMessageType.MODULE_CHANGED:
+        return f"{message_type}.{payload.project_version_id}"
+    elif message_type == NMessageType.MODULE_CHANGED:
         payload = cast(ModuleChangedPayload, payload)
-        return as_key(message_type, str(payload.module_id))
-    elif message_type == ZMessageType.MODULE_RUNTIME_CHANGED:
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.MODULE_RUNTIME_CHANGED:
         payload = cast(ModuleRuntimeChangedPayload, payload)
-        return as_key(message_type, str(payload.module_id))
-    elif message_type == ZMessageType.EXECUTION_CHANGED:
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.EXECUTION_CHANGED:
         payload = cast(ExecutionChangedPayload, payload)
-        return as_key(message_type, str(payload.module_id))
+        return f"{message_type}.{payload.module_id}"
 
-    return None  # no key
-
-
-def as_key(*parts: str) -> bytes:
-    key = ".".join(str(p) for p in parts)
-    return key.encode("utf-8")
+    return message_type

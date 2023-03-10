@@ -5,7 +5,6 @@ from typing import NamedTuple
 from uuid import UUID
 
 import structlog
-import zmq
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
@@ -15,9 +14,9 @@ from rest_framework import serializers
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
 from bench.models.execution import ExecutionTracingLevel
 from bench.models.token import AccessTokenScope, digest_raw_token
-from bench.msg import ZMessageType, recv_message_with, send_message, zmq_ctx
-from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
-from bench.settings import ZMQ_WORKER_REP_ADDR
+from bench.msg import NMessageType
+from bench.msg.core import request
+from bench.msg.messages import ReqModuleRunPayload
 
 logger = structlog.get_logger(__name__)
 
@@ -105,9 +104,9 @@ def get_deployment_access(
 
 @csrf_exempt_async
 @async_api_view(methods=["POST"])
-async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
+async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     try:
-        data = json.loads(request.body)
+        data = json.loads(req.body)
         # map input__key to inputs[key]
         data["inputs"] = data.get("inputs", {})
         data["inputs"].update(
@@ -129,7 +128,7 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
     else:
         raise serializers.ValidationError("Either task or code must be set")
 
-    access_token = request.headers.get("Authorization", "").split(" ", 1)[-1]
+    access_token = req.headers.get("Authorization", "").split(" ", 1)[-1]
     if not access_token:
         raise PermissionDenied("no access token provided")
     token_digest = digest_raw_token(access_token)
@@ -139,27 +138,19 @@ async def run(request: HttpRequest, owner: str, project: str) -> HttpResponse:
         owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
 
-    worker_req_sock = zmq_ctx.socket(zmq.REQ)
-    worker_req_sock.connect(ZMQ_WORKER_REP_ADDR)
-    # :BlockingWorkerMessages
-    send_message(
-        worker_req_sock,
-        ZMessageType.REQ_MODULE_RUN,
-        ReqModuleRunPayload(
-            deployment_id=access.deployment_id,
-            module_id=access.project_version_id,
-            runnable=runnable,
-            runnable_type=runnable_type,
-            build=data["build"],
-            arguments=data["inputs"],
-            blocking=True,
-            tracing_level=data["tracing"],
-            trigger_type=ExecutionTriggerType.REST_API,
-            trigger_id=access.access_token_id,
-        ),
+    run = ReqModuleRunPayload(
+        deployment_id=access.deployment_id,
+        module_id=access.project_version_id,
+        runnable=runnable,
+        runnable_type=runnable_type,
+        build=data["build"],
+        arguments=data["inputs"],
+        blocking=True,
+        tracing_level=data["tracing"],
+        trigger_type=ExecutionTriggerType.REST_API,
+        trigger_id=access.access_token_id,
     )
-    _, rep = await recv_message_with(worker_req_sock, RepModuleRunPayload)
-
+    rep = await request(NMessageType.REQUEST_MODULE_RUN, run)
     output = dict(
         execution_id=rep.execution_id,
         output=rep.output,

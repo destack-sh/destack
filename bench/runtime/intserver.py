@@ -1,140 +1,104 @@
+import asyncio
+
 import structlog
-import zmq.asyncio
 from asgiref.sync import sync_to_async
 
 from bench.models import Execution, ProjectVersion, mapper
 from bench.models.mapper import read_module, write_module
-from bench.msg import ZMessage, ZMessageType, recv_message_poll, send_message, zmq_ctx
+from bench.msg import NMessage
+from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
+    ExecutionSavedPayload,
     ModuleChangedPayload,
+    NMessageType,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
     RepWriteModulePayload,
     ReqReadModulePayload,
     ReqWriteModulePayload,
-    as_key,
 )
 from bench.msg.sync import is_semantic_mutation
 from bench.runtime.type import ExecutionFrameData
 from bench.utils.utils import sentry_capture_if_enabled
 
-# TODO @Cleanup: intservers should probably live in django-side of the backend?
-#  (not general language runtime)
-
 logger = structlog.get_logger(__name__)
 
 
 class InternalServer:
-    """Server-side Bench language server for reading and writing modules in DB."""
+    """
+    Server-side Bench language server for reading and writing modules in DB.
+    Can be thought of as a sidecar to the main API server for internal operations.
+    """
 
     def __init__(self):
-        self.rep_sock = zmq_ctx.socket(zmq.REP)
-        self.sub_sock = zmq_ctx.socket(zmq.SUB)
-        self.pub_sock = zmq_ctx.socket(zmq.PUB)
+        self.subs = []
 
-    async def run(
-        self,
-        intserver_rep_addr: str,
-        intserver_pub_addr: str,
-        api_pub_addr: str,
-        worker_pub_addr: str,
-    ):
-        logger.info(
-            "start",
-            intserver_rep_addr=intserver_rep_addr,
-            intserver_pub_addr=intserver_pub_addr,
-            api_pub_addr=api_pub_addr,
-            worker_pub_addr=worker_pub_addr,
+    async def run(self):
+        await nc_init.wait()
+        logger.info("start")
+        self.subs = [
+            await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
+            await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
+            await subscribe(NMessageType.EXECUTION_CHANGED, self.execution_changed),
+            await subscribe(NMessageType.PROJECT_VERSION_CHANGED, self.project_version_changed),
+        ]
+
+    @message_handler
+    async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
+        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        module = await sync_to_async(read_module)(project_v)
+        await msg.reply(RepReadModulePayload(module=module, project_id=project_v.project_id))
+
+    @message_handler
+    async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
+        logger.info("write_module", files=msg.payload.files, module_id=msg.payload.module_id)
+        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        try:
+            if project_v.committed:
+                raise ValueError(f"cannot write to committed {project_v}")
+            await sync_to_async(write_module)(
+                files=msg.payload.files,
+                generated_mappings=msg.payload.generated_mappings,
+                project_v=project_v,
+                overwrite=True,
+            )
+            success = True
+        except Exception as e:
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.error("write_module", exc_info=e, sentry_enabled=sentry_enabled)
+            success = False
+        await msg.reply(RepWriteModulePayload(success=success))
+
+    @message_handler
+    async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
+        save_success = await sync_to_async(save_execution_frames)(msg.payload.frames)
+        if save_success:
+            # forward to API clients now that DB frames are saved
+            await publish(
+                NMessageType.EXECUTION_SAVED,
+                ExecutionSavedPayload(
+                    module_id=msg.p.project_version_id, execution_id=msg.p.execution_id
+                ),
+            )
+
+    @message_handler
+    async def project_version_changed(self, msg: NMessage[ProjectVersionChangedPayload]) -> None:
+        # reload project version as module
+        # TODO @Performance: send partial module updates :PartialModuleUpdates
+        if not any(is_semantic_mutation(mutation) for mutation in msg.p.mutations):
+            return  # ignore non-semantic changes to modules
+        project_v = await ProjectVersion.objects.filter(id=msg.p.project_version_id).afirst()
+        if project_v is None:
+            return  # just ignore, was probably deleted
+        module = await sync_to_async(read_module)(project_v)
+        await publish(
+            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
         )
-        self.rep_sock.bind(intserver_rep_addr)
-        self.sub_sock.connect(api_pub_addr)
-        self.sub_sock.connect(worker_pub_addr)
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.EXECUTION_CHANGED))
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, as_key(ZMessageType.PROJECT_VERSION_CHANGED))
-        self.pub_sock.bind(intserver_pub_addr)
-
-        poller = zmq.asyncio.Poller()
-        poller.register(self.rep_sock, zmq.POLLIN)
-        poller.register(self.sub_sock, zmq.POLLIN)
-
-        while True:
-            async for msg in recv_message_poll(poller):
-                try:
-                    await self.process_message(msg)
-                except Exception as e:
-                    sentry_enabled = sentry_capture_if_enabled(e)
-                    logger.error(
-                        "process_message_failed", exc_info=e, sentry_enabled=sentry_enabled
-                    )
-
-    async def process_message(self, msg: ZMessage) -> None:
-        logger.debug("process_message", request=msg)
-        if msg.type == ZMessageType.REQ_READ_MODULE:
-            # get module from DB
-            module_id = msg.payload_as(ReqReadModulePayload).module_id
-            project_v = await ProjectVersion.objects.aget(id=module_id)
-            module = await sync_to_async(read_module)(project_v)
-            send_message(
-                self.rep_sock,
-                ZMessageType.REP_READ_MODULE,
-                RepReadModulePayload(module=module, project_id=project_v.project_id),
-            )
-        elif msg.type == ZMessageType.REQ_WRITE_MODULE:
-            write: ReqWriteModulePayload = msg.payload_as(ReqWriteModulePayload)
-            logger.info("write_module", files=write.files, module_id=write.module_id)
-            project_v = await ProjectVersion.objects.aget(id=write.module_id)
-            try:
-                if project_v.committed:
-                    raise ValueError(f"cannot write to committed {project_v}")
-                await sync_to_async(write_module)(
-                    files=write.files,
-                    generated_mappings=write.generated_mappings,
-                    project_v=project_v,
-                    overwrite=True,
-                )
-                success = True
-            except Exception as e:
-                sentry_enabled = sentry_capture_if_enabled(e)
-                logger.error("write_module_failed", exc_info=e, sentry_enabled=sentry_enabled)
-                success = False
-            send_message(
-                self.rep_sock, ZMessageType.REP_WRITE_MODULE, RepWriteModulePayload(success=success)
-            )
-            # notify module changed :PartialModuleUpdates
-            module = await sync_to_async(read_module)(project_v)
-            send_message(
-                self.pub_sock,
-                ZMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(module_id=module.id, module=module),
-            )
-        elif msg.type == ZMessageType.PROJECT_VERSION_CHANGED:
-            # reload project version as module
-            # TODO @Performance: send partial module updates :PartialModuleUpdates
-            change: ProjectVersionChangedPayload = msg.payload_as(ProjectVersionChangedPayload)
-            if not any(is_semantic_mutation(mutation) for mutation in change.mutations):
-                return  # ignore non-semantic changes to modules
-            project_v = await ProjectVersion.objects.filter(id=change.project_version_id).afirst()
-            if project_v is None:
-                return  # just ignore, was probably deleted
-            module = await sync_to_async(read_module)(project_v)
-            send_message(
-                self.pub_sock,
-                ZMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(module_id=module.id, module=module),
-            )
-        elif msg.type == ZMessageType.EXECUTION_CHANGED:
-            changed: ExecutionChangedPayload = msg.payload_as(ExecutionChangedPayload)
-            save_success = await sync_to_async(save_execution_frames)(changed.frames)
-            if save_success:
-                # forward pub now that DB frames are saved
-                send_message(self.pub_sock, msg.type, msg.payload)
-        else:
-            raise ValueError(f"unexpected message: {msg}")
 
     async def stop(self):
         logger.info("stop")
-        self.rep_sock.close()
+        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
 
 
 def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:

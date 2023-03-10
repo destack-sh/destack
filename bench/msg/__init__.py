@@ -1,21 +1,11 @@
-from bench.msg.core import (
-    ZMessage,
-    recv_message,
-    recv_message_poll,
-    recv_message_with,
-    send_message,
-    zmq_ctx,
-    zmq_ctx_sync,
-)
-from bench.msg.messages import ZMessageType
+from bench.msg.core import NMessage, _parse_message, _serialize_message, nc, nc_init
+from bench.msg.messages import NMessageType
 
 __all__ = [
-    "ZMessage",
-    "ZMessageType",
-    "recv_message",
-    "recv_message_poll",
-    "recv_message_with",
-    "send_message",
-    "zmq_ctx",
-    "zmq_ctx_sync",
+    "NMessage",
+    "NMessageType",
+    "_serialize_message",
+    "_parse_message",
+    "nc",
+    "nc_init",
 ]

@@ -1,42 +1,86 @@
+import asyncio
 import dataclasses
 import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, AsyncIterator, Optional, Type, TypeVar
+from typing import Any, Awaitable, Callable, Generic, Type, TypeVar, cast
 from uuid import UUID
 
+import nats
+import nats.aio.client
 import structlog
-import zmq.asyncio
+from nats.aio.subscription import Subscription
 
 from bench.msg.messages import (
-    MESSAGE_TYPE_BY_PAYLOAD_CLASS,
     PROTOCOL_VERSION,
     REGISTERED_MESSAGE_PAYLOADS,
-    ZMessageType,
-    to_key,
+    REPLY_BY_REQUEST_TYPE,
+    NMessageType,
+    to_topic,
 )
 from bench.msg.serialize import from_dict, to_dict
+from bench.settings import NATS_SERVER
+from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
+log = logger.bind(server=NATS_SERVER)
+
+nc = nats.NATS()
+nc_init = asyncio.Event()
+nc_closed = asyncio.Event()
+
+
+async def nats_error_cb(e: Exception) -> None:
+    sentry_enabled = sentry_capture_if_enabled(e)
+    log.error("nats_error", exc_info=e, sentry_enabled=sentry_enabled)
+
+
+async def nats_disconnected_cb() -> None:
+    log.error("nats_disconnected")
+
+
+async def nats_reconnected_cb() -> None:
+    log.info("nats_reconnected")
+
+
+async def nats_closed_cb() -> None:
+    log.info("nats_closed")
+    nc_closed.set()
+
+
+async def init_nats(name: str = "bench"):
+    await nc.connect(
+        NATS_SERVER,
+        name=name,
+        error_cb=nats_error_cb,
+        disconnected_cb=nats_disconnected_cb,
+        reconnected_cb=nats_reconnected_cb,
+        closed_cb=nats_closed_cb,
+    )
+    nc_init.set()
+
+
+async def drain_nats():
+    await nc.drain()
 
 
 PayloadT = TypeVar("PayloadT", bound=Any)
+# TODO @Broken: fix type checking (it just worked before?)
 
 
 @dataclass(repr=False)
-class ZMessage:
-    type: ZMessageType
-    payload: Any = None
-    key: Optional[bytes] = None
+class NMessage(Generic[PayloadT]):
+    type: NMessageType
+    payload: PayloadT = None
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
     sent_at: datetime | None = None
     version: int = PROTOCOL_VERSION
+    msg: nats.aio.client.Msg | None = None  # the original nats message (if received)
 
     def __str__(self):
-        key_str = f" key={self.key.decode('utf-8')}" if self.key is not None else ""
-        return f"{self.type} {self.id}{key_str}"
+        return f"{self.type} {self.id}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self} {self.sent_at}>"
@@ -46,8 +90,24 @@ class ZMessage:
             raise TypeError(f"expected payload to be {cls}, got {type(self.payload)}")
         return self.payload
 
+    @property
+    def p(self):
+        return self.payload
 
-def serialize_message(message: ZMessage) -> str:
+    async def reply(self, payload: Any) -> None:
+        if self.msg is None:
+            raise RuntimeError("cannot reply to a message without a msg")
+        reply_type = REPLY_BY_REQUEST_TYPE[self.type]
+        reply_payload_cls = REGISTERED_MESSAGE_PAYLOADS[reply_type]
+        if not isinstance(payload, reply_payload_cls):
+            raise TypeError(
+                f"expected reply payload to {self} to be {reply_payload_cls}, got {type(payload)}: {payload}"
+            )
+        serialized = _serialize_message(NMessage(reply_type, payload))
+        await self.msg.respond(serialized.encode("utf-8"))
+
+
+def _serialize_message(message: NMessage) -> str:
     # serialize any dataclass as something jsonable
     message_dict = {
         "type": message.type,
@@ -58,12 +118,10 @@ def serialize_message(message: ZMessage) -> str:
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
         message_dict["payload"] = to_dict(message.payload)
-        if message.key is None:  # set key if not explicitly set
-            message.key = to_key(message.type, message.payload)
     return json.dumps(message_dict, cls=MessageJSONEncoder)
 
 
-def parse_message(message_json: str) -> ZMessage:
+def _parse_message(message_json: str) -> NMessage:
     message_dict = json.loads(message_json)
     if message_dict["version"] != PROTOCOL_VERSION:  # inelegant exit for now
         raise RuntimeError(
@@ -82,78 +140,115 @@ def parse_message(message_json: str) -> ZMessage:
                 "parse_message_failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
             )
             raise
-    message_dict["type"] = ZMessageType(message_dict["type"])
+    message_dict["type"] = NMessageType(message_dict["type"])
     message_dict["sent_at"] = datetime.fromisoformat(message_dict["sent_at"])
     message_dict["id"] = UUID(message_dict["id"])
 
-    msg = ZMessage(**message_dict)
+    msg = NMessage(**message_dict)
     if payload_cls and msg.payload is None:
         # check for missing payload after message is created to get other fields
         raise ValueError(f"missing payload for {msg}")
     return msg
 
 
-def send_message(sock: zmq.Socket, message: ZMessage | ZMessageType, payload: Any = None):
-    if isinstance(message, ZMessageType):
-        message = ZMessage(message, payload)
-    payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message.type)
-    if payload_cls and message.payload is None:
-        raise ValueError(f"missing payload for {message}")
-    if message.sent_at is None:
-        message.sent_at = datetime.utcnow()
-    message_bytes = serialize_message(message).encode("utf-8")
-    if message.key is not None:
-        sock.send_multipart([message.key, message_bytes])
-    else:
-        sock.send(message_bytes)
-    logger.debug("send_message", msg=message, sock=sock)
+async def process_nats_message(
+    msg: nats.aio.client.Msg, func: Callable[[PayloadT], Awaitable[Any]], expect_t: Type[PayloadT]
+):
+    try:
+        message = _parse_message(msg.data.decode())
+        message.msg = msg
+        if not isinstance(message.payload, expect_t):
+            raise TypeError(f"expected message {expect_t}, got {message}")
+        return await func(message)
+    except Exception as e:
+        sentry_enabled = sentry_capture_if_enabled(e)
+        log.exception("message_handler_error", exc_info=True, e=e, sentry_enabled=sentry_enabled)
 
 
-async def recv_message(sock: zmq.asyncio.Socket) -> ZMessage:
-    parts = await sock.recv_multipart()
-    if len(parts) == 1:
-        key = None
-        msg_bytes = parts[0]
-    elif len(parts) == 2:
-        key, msg_bytes = parts
-    else:
-        raise ValueError(f"expected 1 or 2 parts, got {len(parts)}")
-    msg_str = msg_bytes.decode("utf-8")
-    msg = parse_message(msg_str)
-    logger.debug("recv_message", msg=msg, key=key, sock=sock)
-    return msg
+def message_handler(func=None):
+    def wrapper(func):
+        # TODO @Broken: get message type from function signature generics
+        message_type = func.__annotations__["msg"]
+
+        async def wrapped_handler(msg: nats.aio.client.Msg) -> None:
+            return await process_nats_message(msg, func, message_type)
+
+        return wrapped_handler
+
+    if func is None:
+        return wrapper
+    return wrapper(func)
 
 
-async def recv_message_with(
-    sock: zmq.asyncio.Socket, cls: ZMessageType | Type[PayloadT]
-) -> tuple[ZMessage, PayloadT]:
-    msg = await recv_message(sock)
-    if isinstance(cls, ZMessageType):
-        z_type = cls
-        payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(cls)
-    else:
-        z_type = MESSAGE_TYPE_BY_PAYLOAD_CLASS[cls]
-        payload_cls = cls
-    if msg.type != z_type:
-        raise ValueError(f"expected message type {z_type}, got {msg}")
-    payload = msg.payload_as(payload_cls) if payload_cls else None
-    return msg, payload
+async def request(
+    type: NMessageType,
+    payload: Any,
+    reply_t: Type[PayloadT],
+    *,
+    topic: str = None,
+    timeout: float = 10,
+) -> PayloadT:
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
+    if topic is None:
+        topic = to_topic(type, payload)
+    message = NMessage(type, payload)
+    serialized = _serialize_message(message)
+    reply = await nc.request(topic, serialized.encode("utf-8"), timeout=timeout)
+    reply_msg = _parse_message(reply.data.decode())
+    reply_msg.msg = reply
+    return reply_msg.payload_as(reply_t)
 
 
-async def recv_message_poll(
-    poller: zmq.asyncio.Poller, timeout: int | None = None
-) -> AsyncIterator[ZMessage]:
-    events = dict(await poller.poll(timeout))
-    pollin_events = {sock: msg for sock, msg in events.items() if msg & zmq.POLLIN}
-    for sock, event in pollin_events.items():
-        yield await recv_message(sock)
+async def handle_reply(type: NMessageType, cb, *, group: str = None) -> Subscription:
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
+    # topic is type for request/reply
+    return await nc.subscribe(type, cb=cb, queue=group)
 
 
-zmq_ctx_sync = zmq.Context()
-zmq_ctx = zmq.asyncio.Context(shadow=zmq_ctx_sync)
+async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> None:
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
+    if topic is None:
+        topic = to_topic(type, payload)
+    message = NMessage(type, payload)
+    serialized = _serialize_message(message)
+    await nc.publish(topic, serialized.encode("utf-8"))
 
-# TODO @Robustness: close zmq_ctx_sync/zmq_ctx on exit
-#  (and ensure all sockets and connections are closed)
+
+def publish_soon(type: NMessageType, payload: Any, *, topic: str = None) -> None:
+    asyncio.create_task(wrap_task(publish(type, payload, topic=topic), f"publish_soon_{type}"))
+
+
+class NSubscription(Generic[PayloadT]):
+    def __init__(self, sub: Subscription):
+        self.sub = sub
+
+    async def next_msg(self, timeout: float = None) -> NMessage[PayloadT]:
+        nats_msg = await self.sub.next_msg(timeout=timeout)
+        msg = _parse_message(nats_msg.data.decode())
+        msg.msg = nats_msg
+        return msg
+
+    async def unsubscribe(self, limit: int = 0) -> None:
+        return await self.sub.unsubscribe(limit)
+
+
+async def subscribe(
+    topic: str, payload_t: Type[PayloadT], *, cb: Callable[[NMessage], Awaitable[None]] = None
+) -> NSubscription[PayloadT]:
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
+
+    async def wrapped_cb(msg: nats.aio.client.Msg) -> None:
+        return process_nats_message(msg, cb, expect_t=payload_t)
+
+    if cb is not None:
+        cb = wrapped_cb
+
+    sub = await nc.subscribe(topic, cb=cb)
+    return cast(NSubscription[PayloadT], NSubscription(sub))
 
 
 class MessageJSONEncoder(json.JSONEncoder):
