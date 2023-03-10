@@ -31,6 +31,7 @@ drf-nested-routers==0.93.4
 drf-spectacular==0.24.2
 gunicorn==20.1.0
 more-itertools==9.0.0
+nats-py==2.2.0
 posthog==2.3.1
 psycopg2==2.9.5
 python-dotenv==0.21.0
