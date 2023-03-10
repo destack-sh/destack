@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { StatementType } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { fileOf, useCurrentModuleRuntime } from "@/state/runtime";
+import { useCurrentModuleRuntime, useSymbolNavigation } from "@/state/runtime";
 import { computed } from "vue";
 
 const runtime = useCurrentModuleRuntime();
 const editor = useEditorState();
+const { focusSymbol } = useSymbolNavigation();
 
 const allSymbols = computed(() => {
   const symbols = [];
@@ -26,13 +27,6 @@ const allSymbols = computed(() => {
 
   return symbols;
 });
-
-function focusSymbol(symbol: InterpSymbol) {
-  const file = fileOf(symbol);
-  if (!file) return;
-  editor.focusFile(file as any);
-  editor.editElement(symbol as any);
-}
 
 defineExpose({
   count: computed(() => allSymbols.value.length),

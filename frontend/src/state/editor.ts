@@ -39,6 +39,7 @@ export type StatementHeader = Pick<
   | "generated"
   | "commented"
   | "parent"
+  | "reference"
 >;
 
 // sync with language in backend

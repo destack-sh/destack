@@ -3,6 +3,7 @@ import { provideGlobalAction, provideSingletonAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
+import { useSymbolNavigation } from "@/state/runtime";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, onUnmounted, ref, watchEffect, type Ref } from "vue";
@@ -285,6 +286,20 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
+  // jump to reference
+  const { focusSymbol } = useSymbolNavigation();
+  const jumpToReference = provideGlobalAction({
+    id: "statement.jumpToReference",
+    label: "Jump to reference",
+    shortcuts: ["ctrl+b"],
+    enabled: computed(() => !!statement.value && statement.value.reference != null),
+    apply: () => {
+      if (statement.value.reference != null) {
+        focusSymbol(statement.value.reference);
+      }
+    },
+  });
+
   // optimistic insert that doesn't wait for the server response
   function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
@@ -378,6 +393,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     stopEditingCurrent,
     deleteCurrent,
     deleteAboveCurrent,
+    jumpToReference,
     insertStart,
     insertEnd,
     insertAboveCurrent,

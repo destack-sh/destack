@@ -146,6 +146,7 @@ defineExpose({
       @change="query = $event.target.value"
       :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
       placeholder="..."
+      spellcheck="false"
       @keydown.escape.prevent=""
       @keyup.escape.prevent="cancel"
     />

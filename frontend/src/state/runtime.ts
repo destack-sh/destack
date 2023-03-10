@@ -5,6 +5,7 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, isRef, ref, watch, type Ref } from "vue";
+import { useRouter } from "vue-router";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
@@ -304,4 +305,20 @@ export function useVisibleErrors() {
       .map((e) => e as InterpError)
       .filter((e: InterpError) => e.symbol == null || editor.showGenerated || !e.symbol.generated)
   );
+}
+
+export function useSymbolNavigation() {
+  const editor = useEditorState();
+
+  function focusSymbol(symbol: { id: string }) {
+    const context = contextOf(symbol);
+    if (!context?.file) return;
+    // can't focus external modules yet
+    if (context.module.id != editor.currentProjectVersionId) return;
+
+    editor.focusFile(context.file as any);
+    editor.editElement(symbol as any);
+  }
+
+  return { focusSymbol };
 }
