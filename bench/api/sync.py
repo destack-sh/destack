@@ -1,12 +1,11 @@
 import functools
-from typing import AsyncGenerator, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 import structlog
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
 from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
@@ -128,10 +127,3 @@ def pub_project_mutation(
         NMessageType.PROJECT_VERSION_CHANGED,
         ProjectVersionChangedPayload(project_version_id, mutations=[mutation]),
     )
-
-
-@gql.type
-class ProjectSubscription:
-    @gql.subscription
-    async def project_changed(self, project_id: GlobalID) -> AsyncGenerator[ProjectMutation, None]:
-        raise NotImplementedError
