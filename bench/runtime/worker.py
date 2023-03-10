@@ -550,6 +550,14 @@ class Worker:
             await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
         ]
 
+    async def run_forever(self):
+        # run forever until cancelled
+        try:
+            await self.run()
+            await asyncio.Event().wait()
+        finally:
+            await self.stop()
+
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:
             # start module worker if not already started
