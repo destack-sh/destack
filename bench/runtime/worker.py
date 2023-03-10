@@ -553,7 +553,7 @@ class Worker:
     async def run_forever(self):
         # run forever until cancelled
         try:
-            await self.run()
+            asyncio.create_task(self.run())
             await asyncio.Event().wait()
         finally:
             await self.stop()

@@ -61,6 +61,7 @@ async def init_nats(name: str = "bench"):
         reconnected_cb=nats_reconnected_cb,
         closed_cb=nats_closed_cb,
     )
+    log.info("nats_connected", connected=nc.is_connected)
     nc_init.set()
 
 
@@ -223,7 +224,7 @@ async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscripti
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply
-    log.info("handle_reply", type=type, group=group)
+    log.info("handle_reply", topic=type, group=group)
     return await nc.subscribe(type, cb=cb, queue=group)
 
 
