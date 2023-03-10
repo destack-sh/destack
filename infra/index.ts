@@ -198,12 +198,7 @@ const apiService = new k8s.core.v1.Service(
   {
     spec: {
       type: "NodePort",
-      ports: [
-        { port: 80, name: "http" },
-        { port: 5555, name: "zmq-1" },
-        { port: 5556, name: "zmq-2" },
-        { port: 5557, name: "zmq-3" },
-      ],
+      ports: [{ port: 80, name: "http" }],
       selector: { app: apiName },
     },
   },
@@ -212,50 +207,6 @@ const apiService = new k8s.core.v1.Service(
 
 // Internal worker service
 const workerName = "worker";
-const workerService = new k8s.core.v1.Service(
-  workerName,
-  {
-    metadata: { namespace: "default" },
-    spec: {
-      type: "ClusterIP",
-      ports: [
-        { port: 5558, name: "zmq-1" },
-        { port: 5559, name: "zmq-2" },
-      ],
-      selector: { app: workerName },
-    },
-  },
-  { provider: eksCluster.provider }
-);
-
-function tcpAtPort(service: k8s.core.v1.Service, port: number) {
-  return service.metadata.name.apply((name) => `tcp://${name}:${port}`);
-}
-
-// zmq connections
-const ZMQ_ENV_PORTS: Record<string, number> = {
-  ZMQ_API_PUB_ADDR: 5555,
-  ZMQ_INTSERVER_PUB_ADDR: 5556,
-  ZMQ_INTSERVER_REP_ADDR: 5557,
-  ZMQ_WORKER_PUB_ADDR: 5558,
-  ZMQ_WORKER_REP_ADDR: 5559,
-};
-// api service should have api addresses set to localhost
-const ZMQ_API_ENV_VARS = Object.keys(ZMQ_ENV_PORTS).map((name) => {
-  if (name.includes("API") || name.includes("INTSERVER")) {
-    return { name, value: `tcp://*:${ZMQ_ENV_PORTS[name]}` };
-  } else {
-    return { name, value: tcpAtPort(workerService, ZMQ_ENV_PORTS[name]) };
-  }
-});
-// worker service should have worker addresses set to localhost
-const ZMQ_WORKER_ENV_VARS = Object.keys(ZMQ_ENV_PORTS).map((name) => {
-  if (name.includes("WORKER")) {
-    return { name, value: `tcp://*:${ZMQ_ENV_PORTS[name]}` };
-  } else {
-    return { name, value: tcpAtPort(apiService, ZMQ_ENV_PORTS[name]) };
-  }
-});
 
 // Use git commit hashes as version by default
 const version = config.require("version");
@@ -296,7 +247,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
             {
               name: apiName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              env: [...BACKEND_ENV_VARS, ...DB_ENV_VARS, ...ZMQ_API_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              env: [...BACKEND_ENV_VARS, ...DB_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
               command: ["python", "manage.py", "migrate"],
             },
           ],
@@ -309,7 +260,6 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...BACKEND_ENV_VARS,
                 ...DB_ENV_VARS,
-                ...ZMQ_API_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
                 { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
                 { name: "WEBAPP_URL", value: config.require("webappUrl") },
@@ -344,7 +294,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80 }],
-              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS, ...ZMQ_WORKER_ENV_VARS],
+              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

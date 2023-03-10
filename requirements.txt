@@ -230,8 +230,6 @@ pytz==2022.1
     #   djangorestframework
 pyyaml==6.0
     # via drf-spectacular
-pyzmq==25.0.0
-    # via -r requirements.in
 requests==2.27.1
     # via
     #   posthog
