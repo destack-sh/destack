@@ -187,14 +187,16 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const moveFocusUp = provideSharedAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
-    shortcuts: ["up"],
+    shortcuts: ["up", "shift+up"],
     enabled: computed(() => navigatingFile.value),
     apply: () => {
       if (above.value != null) {
         editor.focusElement(above.value, true);
+        //
       } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus last statement
-        editor.focusElement(statements.value[statements.value.length - 1], true);
+        // note: I have disabled auto-focus last since it leads to annoying behaviour
+        // editor.focusElement(statements.value[statements.value.length - 1], true);
       } else if (statement.value != null) {
         // navigate up from statements
         file.value?.navigateUp();
@@ -205,7 +207,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.moveFocusDown",
     label: "Move focus down",
     enabled: computed(() => navigatingFile.value),
-    shortcuts: ["down"],
+    shortcuts: ["down", "shift+down"],
     apply: () => {
       if (below.value != null) {
         editor.focusElement(below.value, true);
@@ -253,9 +255,18 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.stopEditingCurrent",
     label: "Stop editing current statement",
     shortcuts: ["escape"],
-    enabled: computed(() => statement.value != null && editor.editingElement),
+    enabled: computed(() => statement.value != null && editor.editingElement && !editor.hasSelection),
     apply: () => {
       editor.stopEditingElement(statement.value);
+    },
+  });
+  const cancelSelection = provideSharedAction({
+    id: "statement.cancelSelection",
+    label: "Cancel selection",
+    shortcuts: ["escape"],
+    enabled: computed(() => editor.hasSelection),
+    apply: () => {
+      editor.clearSelection();
     },
   });
 
