@@ -13,6 +13,8 @@ export type FileState = {
   file: FileHeader;
   statements: StatementHeader[]; // ordered
   depths: number[];
+  navigateUp: () => void;
+  navigateDown: () => void;
 };
 
 // There can only be one active file to provide file shortcuts,
@@ -98,6 +100,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     }
     return undefined;
   });
+  const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
 
   // move statement
   const moveCurrentIn = provideSingletonAction({
@@ -186,20 +189,23 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
-    enabled: computed(() => !editor.editingElement),
+    enabled: computed(() => navigatingFile.value),
     apply: () => {
       if (above.value != null) {
         editor.focusElement(above.value, true);
       } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus last statement
         editor.focusElement(statements.value[statements.value.length - 1], true);
+      } else if (statement.value != null) {
+        // navigate up from statements
+        file.value?.navigateUp();
       }
     },
   });
   const moveFocusDown = provideGlobalAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
-    enabled: computed(() => !editor.editingElement),
+    enabled: computed(() => navigatingFile.value),
     shortcuts: ["down"],
     apply: () => {
       if (below.value != null) {
@@ -207,6 +213,9 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus first statement
         editor.focusElement(statements.value[0], true);
+      } else if (statement.value != null) {
+        // navigate down from statements
+        file.value?.navigateDown();
       }
     },
   });
@@ -215,7 +224,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
-    enabled: computed(() => !editor.editingElement && !!statement.value && children.value?.length > 0),
+    enabled: computed(() => navigatingFile.value && !!statement.value && children.value?.length > 0),
     apply: () => {
       editor.focusElement(children.value[0], true);
     },
@@ -224,7 +233,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
-    enabled: computed(() => !editor.editingElement && !!statement.value && !!statement.value.parent),
+    enabled: computed(() => navigatingFile.value && !!statement.value && !!statement.value.parent),
     apply: () => {
       const parent = symbolsById.value[statement.value.parent?.id];
       editor.focusElement(parent, true);
@@ -236,7 +245,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.editCurrent",
     label: "Edit current statement",
     shortcuts: ["enter"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
+    enabled: computed(() => !!statement.value && navigatingFile.value),
     apply: () => {
       editor.editElement(statement.value);
     },
@@ -256,7 +265,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["d", "backspace", "delete"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
+    enabled: computed(() => !!statement.value && navigatingFile.value),
     apply: async () => {
       const current = statement.value.id;
       if (above.value) {
@@ -312,7 +321,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.insertStart",
     label: "Insert statement at start of file",
     shortcuts: [],
-    enabled: computed(() => !!file.value && !editor.editingElement),
+    enabled: computed(() => !!file.value && navigatingFile.value),
     apply: () => {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
@@ -324,7 +333,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.insertEnd",
     label: "Insert statement at end of file",
     shortcuts: [],
-    enabled: computed(() => !!file.value && !editor.editingElement),
+    enabled: computed(() => !!file.value && navigatingFile.value),
     apply: () => {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
@@ -336,7 +345,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.insertAboveCurrent",
     label: "Insert statement above current",
     shortcuts: ["a"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
+    enabled: computed(() => !!statement.value && navigatingFile.value),
     apply: () => {
       operations.statement.create(
         newStatementId(),
@@ -351,7 +360,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
-    enabled: computed(() => !!statement.value && !editor.editingElement),
+    enabled: computed(() => !!statement.value && navigatingFile.value),
     apply: () => {
       const newStatement = _insertOptimistic(
         statement.value.parent?.id ?? null,
@@ -371,7 +380,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     enabled: computed(
       () =>
         !!statement.value &&
-        !editor.editingElement &&
+        navigatingFile.value &&
         statement.value.type != StatementType.Blank &&
         statement.value.type != StatementType.Comment
     ),

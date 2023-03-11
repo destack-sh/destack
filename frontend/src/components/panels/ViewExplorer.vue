@@ -2,9 +2,10 @@
 import FileExplorer from "@/components/panels/FileExplorer.vue";
 import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
-import type { FileHeader } from "@/state/editor";
+import { useEditorState, type FileHeader } from "@/state/editor";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, type Component, type Ref } from "vue";
+import { useFocusWithin, whenever } from "@vueuse/core";
+import { computed, ref, type Component, type Ref } from "vue";
 
 const props = defineProps<{ files?: FileHeader[] }>();
 
@@ -39,9 +40,17 @@ const panels: Ref<Panel[]> = computed(() => [
     actions: [],
   } as Panel,
 ]);
+
+const containerRef: Ref<HTMLDivElement | null> = ref(null);
+const fileExplorer: Ref<InstanceType<typeof FileExplorer> | null> = ref(null);
+const symbolExplorer: Ref<InstanceType<typeof SymbolExplorer> | null> = ref(null);
+
+const editor = useEditorState();
+const { focused: inContainerFocused } = useFocusWithin(containerRef);
+whenever(inContainerFocused, () => editor.focusView("explorer"));
 </script>
 <template>
-  <div ref="container">
+  <div ref="containerRef">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
@@ -70,8 +79,8 @@ const panels: Ref<Panel[]> = computed(() => [
           </span>
         </div>
         <!-- Panel content -->
-        <FileExplorer v-if="panel.title == 'Files'" :files="props.files" />
-        <SymbolExplorer v-else-if="panel.title == 'Symbols'" />
+        <FileExplorer ref="fileExplorer" v-if="panel.title == 'Files'" :files="props.files" />
+        <SymbolExplorer ref="symbolExplorer" v-else-if="panel.title == 'Symbols'" />
         <span v-else class="text-red-500">panic!</span>
       </div>
     </div>
