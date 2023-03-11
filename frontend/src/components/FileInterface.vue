@@ -13,7 +13,7 @@ import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{ fileId: string; focused: boolean }>();
 const editor = useEditorState();
@@ -129,6 +129,8 @@ const fileState: Ref<FileState> = computed(
       file: fileHeader.value as any,
       statements: orderedStatements.value,
       depths: depths.value,
+      navigateUp: () => (editor.blurElement(), nameRef.value?.focus()),
+      navigateDown: () => ({}), // no-op?
     } as FileState)
 );
 provideStatementActions(fileState);

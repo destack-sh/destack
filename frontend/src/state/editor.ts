@@ -172,6 +172,7 @@ export const useEditorState = defineStore("editor", {
       activeViewId: "explorer" as ViewId,
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
+      focusedViewId: null as ViewId | null,
       focusedEditorId: null as string | null,
       focusedElementId: null as string | null,
       focusedElementType: null as string | null,
@@ -338,7 +339,13 @@ export const useEditorState = defineStore("editor", {
       return this.openEditor(editor, options?.group);
     },
 
+    focusView(viewId: ViewId): void {
+      this.focusedViewId = viewId;
+      this.openActiveView(viewId);
+    },
+
     focusEditor(editor: Editor): void {
+      this.focusedViewId = null;
       if (this.focusedEditor?.id == editor.id) return;
 
       console.log(`focus editor ${editor.path} in group ${editor.groupId}`);

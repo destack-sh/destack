@@ -20,7 +20,13 @@ import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { JobStatus, JobType, ProjectVisibility, type InterpJob, type InterpSymbol } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { useEditorMigrations, useEditorPersistence, useEditorState, type FileEditor } from "@/state/editor";
+import {
+  useEditorMigrations,
+  useEditorPersistence,
+  useEditorState,
+  type FileEditor,
+  type ViewId,
+} from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
@@ -74,12 +80,11 @@ const activeView: ComputedRef<View> = computed(() => {
   return view;
 });
 
-function toggleActiveView(viewId: string) {
-  if (editor.activeViewId == viewId && editor.showViewContent) {
+function toggleActiveView(viewId: ViewId) {
+  if (editor.activeViewId == viewId && editor.showViewContent && editor.focusedViewId == viewId) {
     editor.showViewContent = false;
   } else {
-    editor.setActiveView(viewId);
-    editor.showViewContent = true;
+    editor.focusView(viewId);
   }
 }
 provideAction({

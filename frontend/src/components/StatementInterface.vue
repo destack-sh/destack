@@ -13,8 +13,8 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
-import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
+import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
+import { computed, nextTick, provide, ref, watch, watchEffect, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -104,12 +104,22 @@ const rootCell: Ref<Cell> = computed(() => {
     props: { showDots: true },
   };
 });
-const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
-
-// forward focus / editing state
 
 const containerRef = ref<HTMLElement | null>(null);
-const { focused: containerFocused } = useFocusWithin(containerRef);
+const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
+const { focused: inContainerFocused } = useFocusWithin(containerRef);
+const { focused: containerFocused } = useFocus(containerRef);
+const { focused: inRootCellFocused } = useFocusWithin(rootCellRef);
+
+// focus containerRef if focused in editor but not in container and not editing
+watch(
+  () => [isFocused.value, isEditing.value, containerFocused.value],
+  () => {
+    if (isFocused.value && !isEditing.value && !inRootCellFocused.value && !containerFocused.value) {
+      containerFocused.value = true;
+    }
+  }
+);
 
 // refocus if root cell changed and we're editing
 watch(
@@ -124,16 +134,16 @@ watch(
 
 // focus root cell if editing in editor but not in container
 whenever(isEditing, () => {
-  if (isEditing.value && !containerFocused.value) {
+  if (isEditing.value && !inRootCellFocused.value) {
     rootCellRef.value?.focus();
   }
 });
 
 // blur root cell if focused in container but no longer editing (or focused)
 watch(
-  () => [isEditing.value, containerFocused.value],
+  () => [isEditing.value, inRootCellFocused.value],
   () => {
-    if (!isEditing.value && containerFocused.value) {
+    if (!isEditing.value && inRootCellFocused.value) {
       rootCellRef.value?.blur();
     }
   }
@@ -147,11 +157,11 @@ onClickOutside(containerRef, () => {
   }
 });
 
-// if anything inside the container becomes focused, enable editing mode
+// if anything inside the container becomes focused (except the container), enable editing mode
 // (unless alt is pressed) :AltKeyEditing
 const altKeyState = useKeyModifier("Alt");
-whenever(containerFocused, () => {
-  if (altKeyState.value) {
+whenever(inRootCellFocused, () => {
+  if (altKeyState.value || containerFocused.value) {
     return;
   }
   if (!isFocused.value) {
@@ -177,8 +187,10 @@ function onClickContainer(e: MouseEvent) {
   }
   if (!editor.readonly) {
     editor.editElement(statement.value as StatementHeader);
+  } else {
+    containerFocused.value = true;
   }
-  if (!containerFocused.value) {
+  if (!inContainerFocused.value) {
     rootCellRef.value?.focus();
   }
 }
@@ -201,11 +213,14 @@ const isStale = isSymbolStale(statement);
 </script>
 <template>
   <div
+    tabindex="-1"
     ref="containerRef"
-    class="group/statement relative min-h-[30px] transition-colors duration-75"
+    class="group/statement relative min-h-[30px] outline-none transition-colors duration-75 focus:outline-none"
     :class="{
       'pb-0.5': true,
-      'font-mono': editor.fontMono && !isComment, // not sure if everything should be mono, but it's more consistent..
+      'focus:bg-orange-50': !isCommentish,
+      'focus:bg-gray-50': isCommentish,
+      'font-mono': editor.fontMono && !isComment,
       'text-gray-700': isCommented,
     }"
     :style="{ marginLeft: depthOffsetX + 'px' }"
@@ -223,10 +238,9 @@ const isStale = isSymbolStale(statement);
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,
         'font-mono': editor.fontMono,
-        'text-orange-200': !isFocused && !isCommentish,
-        'text-gray-200': !isFocused && isCommentish,
-        'font-bold text-orange-600': isFocused && !isCommentish,
-        'font-bold text-gray-400': isFocused && isCommentish,
+        'text-orange-200 group-focus-within/statement:text-orange-400 group-focus/statement:text-orange-400':
+          !isCommentish,
+        'text-gray-200 group-focus-within/statement:text-gray-400 group-focus/statement:text-gray-400': isCommentish,
       }"
     >
       {{ lineNumberBase + 1 }}
@@ -244,10 +258,8 @@ const isStale = isSymbolStale(statement);
     <div
       class="absolute -left-0.5 top-0 h-full w-1.5 transition-colors duration-75"
       :class="{
-        'group-hover/statement:bg-orange-50': !isFocused && !isCommentish,
-        'group-hover/statement:bg-gray-50': !isFocused && isCommentish,
-        'bg-orange-100': isFocused && !isEditing && !isCommentish,
-        'bg-gray-100': isFocused && !isEditing && isCommentish,
+        'group-focus-within/statement:bg-orange-100 group-hover/statement:bg-orange-50': !isCommentish,
+        'group-focus-within/statement:bg-gray-100 group-hover/statement:bg-gray-50': isCommentish,
       }"
     />
     <!-- Statement focus indicator (all around if editing) -->
@@ -282,7 +294,8 @@ const isStale = isSymbolStale(statement);
     <!-- Debug info -->
     <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isFocused">f</template>
-      <template v-if="containerFocused">*</template>
+      <template v-if="inContainerFocused">*</template>
+      <template v-if="containerFocused">.</template>
       <template v-if="isEditing">e</template>
       <template v-if="isFirstInGroup">[</template>
       <template v-if="isLastInGroup">]</template>

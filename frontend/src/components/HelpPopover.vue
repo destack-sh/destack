@@ -68,7 +68,6 @@ const helpActions = [
             </span>
           </component>
         </template>
-        <span class="px-2 text-center text-xs text-gray-700">Bench {{ VERSION }}</span>
       </PopoverPanel>
     </FadeTransition>
   </Popover>
