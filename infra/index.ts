@@ -162,7 +162,12 @@ const nats = new k8s.helm.v3.Release("nats", {
   repositoryOpts: {
     repo: "https://nats-io.github.io/k8s/helm/charts/",
   },
-  values: {},
+  values: {
+    // disable natbox
+    natsbox: {
+      enabled: false,
+    },
+  },
 });
 
 // General backend env vars
