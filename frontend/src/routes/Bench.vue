@@ -367,6 +367,15 @@ provideAction({
   },
 });
 
+// left click anywhere clears editor selection
+function clearSelectionIfLeftClick(e: MouseEvent) {
+  if (e.button == 0) {
+    editor.clearSelection();
+  }
+}
+document.addEventListener("click", clearSelectionIfLeftClick);
+onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
+
 const { load } = useEditorPersistence();
 const { migrateTo, migrating } = useEditorMigrations();
 

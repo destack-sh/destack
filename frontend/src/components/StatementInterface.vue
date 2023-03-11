@@ -9,11 +9,10 @@ import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
-import { useActions } from "@/state/actions";
-import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
-import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
+import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, useMagicKeys, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, watchEffect, type Component, type Ref } from "vue";
 
 const props = defineProps<{
@@ -33,11 +32,20 @@ const editor = useEditorState();
 
 const isFocused = computed(() => editor.focusedElementId == statement.value?.id);
 const isEditing = computed(() => isFocused.value && editor.editingElement);
+const isSelected = computed(() => editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
 const isCommented = computed(() => statement.value?.commented);
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
+
+// if holding shift and is focused, add to selection
+const { shift } = useMagicKeys();
+watchEffect(() => {
+  if (shift.value && isFocused.value) {
+    editor.addToSelection(statement.value);
+  }
+});
 
 // manage cells
 const context: Ref<StatementContext> = computed(() => ({
@@ -220,6 +228,8 @@ const isStale = isSymbolStale(statement);
       'pb-0.5': true,
       'focus:bg-orange-50': !isCommentish,
       'focus:bg-gray-50': isCommentish,
+      'bg-orange-50': !isCommentish && isSelected,
+      'bg-gray-50': isCommentish && isSelected,
       'font-mono': editor.fontMono && !isComment,
       'text-gray-700': isCommented,
     }"

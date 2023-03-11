@@ -176,6 +176,7 @@ export const useEditorState = defineStore("editor", {
       focusedEditorId: null as string | null,
       focusedElementId: null as string | null,
       focusedElementType: null as string | null,
+      selectedElementIds: [] as string[],
       mainSymbolId: null as string | null,
       editingElement: false,
       readonly: false,
@@ -215,6 +216,12 @@ export const useEditorState = defineStore("editor", {
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
       return this.editorGroup(this.focusedEditor?.groupId);
+    },
+    isSelected(): (element: { id: string }) => boolean {
+      return (element) => this.selectedElementIds.includes(element.id);
+    },
+    hasSelection(): boolean {
+      return this.selectedElementIds.length > 0;
     },
     theme(): Theme {
       const appearance = useAppearanceState();
@@ -400,6 +407,21 @@ export const useEditorState = defineStore("editor", {
         this.focusedElementType = null;
         this.editingElement = false;
       }
+    },
+
+    addToSelection(element: { id: string }): void {
+      if (this.selectedElementIds.find((e) => e == element.id)) return;
+      this.selectedElementIds.push(element.id);
+      console.log("add to selection", element.id, this.selectedElementIds.length);
+    },
+
+    removeFromSelection(element: { id: string }): void {
+      this.selectedElementIds = this.selectedElementIds.filter((id) => id != element.id);
+      console.log("remove from selection", element.id, this.selectedElementIds.length);
+    },
+
+    clearSelection(): void {
+      this.selectedElementIds = [];
     },
 
     setMainSymbol(symbol?: { id: string }): void {
