@@ -1,12 +1,12 @@
 import { StatementType } from "@/gql/graphql";
-import { provideGlobalAction, provideSingletonAction } from "@/state/actions";
+import { provideSharedAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation } from "@/state/runtime";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
-import { computed, nextTick, onUnmounted, ref, watchEffect, type Ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
 
 export type FileState = {
   focused: boolean;
@@ -22,15 +22,15 @@ export type FileState = {
 // We can't just use singleton actions here because multiple files may have
 // 'focused' set during moves or transition.
 const activeFileState: Ref<FileState | null> = ref(null);
-export function provideStatementActions(file: Ref<FileState>) {
+export function provideStatementActions(file: Ref<FileState | null>) {
   watchEffect(() => {
-    if (file.value.focused) {
+    if (file.value?.focused) {
       activeFileState.value = file.value;
     }
   });
 
-  onUnmounted(() => {
-    if (activeFileState.value == file.value) {
+  onBeforeUnmount(() => {
+    if (activeFileState.value?.file.id == file.value?.file.id) {
       activeFileState.value = null;
     }
   });
@@ -56,7 +56,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     };
   }
 
-  const symbolsById: Ref<Record<string, StatementHeader>> = computed(() => {
+  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => {
     if (!file.value) return {};
     const result: Record<string, StatementHeader> = {};
     for (const statement of statements.value) {
@@ -78,7 +78,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // actions for currently focused statement
-  const statement = computed(() => symbolsById.value[editor.focusedElementId as string]);
+  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
   const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
   const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
   const previousSibling = computed(
@@ -103,13 +103,12 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
 
   // move statement
-  const moveCurrentIn = provideSingletonAction({
+  const moveCurrentIn = provideSharedAction({
     id: "statement.moveCurrentIn",
     label: "Move statement in",
     shortcuts: ["tab"],
-    enabled: computed(() => !!statement.value && above.value != null),
+    enabled: computed(() => statement.value != null && above.value != null),
     // we can only indent if there is a sibling above
-    registered: enabled,
     apply: async () => {
       // move to end of previous sibling's children
       if (previousSibling.value == null) {
@@ -125,15 +124,15 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
-  const moveCurrentOut = provideGlobalAction({
+  const moveCurrentOut = provideSharedAction({
     id: "statement.moveCurrentOut",
     label: "Move statement out",
     shortcuts: ["shift+tab"],
-    enabled: computed(() => !!statement.value && !!statement.value.parent),
+    enabled: computed(() => statement.value != null && statement.value.parent != null),
     apply: async () => {
       // move to after parent in grandparent's children
-      const parent = symbolsById.value[statement.value.parent?.id];
-      const grandparent = symbolsById.value[parent.parent?.id];
+      const parent = statementsById.value[statement.value.parent?.id];
+      const grandparent = statementsById.value[parent.parent?.id];
       const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
       const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
       await operations.statement.move(statement.value.id, location.value, {
@@ -144,11 +143,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
-  const moveCurrentUp = provideGlobalAction({
+  const moveCurrentUp = provideSharedAction({
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => !!statement.value && above.value != null),
+    enabled: computed(() => statement.value != null && above.value != null),
     apply: async () => {
       // insert between above and above prev sibling (if any)
       const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
@@ -165,11 +164,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
-  const moveCurrentDown = provideGlobalAction({
+  const moveCurrentDown = provideSharedAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => !!statement.value && belowCurGroup.value != null),
+    enabled: computed(() => statement.value != null && belowCurGroup.value != null),
     apply: async () => {
       if (belowCurGroup.value == null) return;
       // insert between the next group below and its next sibling (if any)
@@ -185,7 +184,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // move focus
-  const moveFocusUp = provideGlobalAction({
+  const moveFocusUp = provideSharedAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
@@ -202,7 +201,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
     },
   });
-  const moveFocusDown = provideGlobalAction({
+  const moveFocusDown = provideSharedAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
     enabled: computed(() => navigatingFile.value),
@@ -220,52 +219,52 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
   // move focus in/out
-  const moveFocusIn = provideGlobalAction({
+  const moveFocusIn = provideSharedAction({
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
-    enabled: computed(() => navigatingFile.value && !!statement.value && children.value?.length > 0),
+    enabled: computed(() => navigatingFile.value && statement.value != null && children.value?.length > 0),
     apply: () => {
       editor.focusElement(children.value[0], true);
     },
   });
-  const moveFocusOut = provideGlobalAction({
+  const moveFocusOut = provideSharedAction({
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
-    enabled: computed(() => navigatingFile.value && !!statement.value && !!statement.value.parent),
+    enabled: computed(() => navigatingFile.value && statement.value != null && statement.value.parent != null),
     apply: () => {
-      const parent = symbolsById.value[statement.value.parent?.id];
+      const parent = statementsById.value[statement.value.parent?.id];
       editor.focusElement(parent, true);
     },
   });
 
   // start / stop editing current statement
-  const editCurrent = provideGlobalAction({
+  const editCurrent = provideSharedAction({
     id: "statement.editCurrent",
     label: "Edit current statement",
     shortcuts: ["enter"],
-    enabled: computed(() => !!statement.value && navigatingFile.value),
+    enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: () => {
       editor.editElement(statement.value);
     },
   });
-  const stopEditingCurrent = provideGlobalAction({
+  const stopEditingCurrent = provideSharedAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing current statement",
     shortcuts: ["escape"],
-    enabled: computed(() => !!statement.value && editor.editingElement),
+    enabled: computed(() => statement.value != null && editor.editingElement),
     apply: () => {
       editor.stopEditingElement(statement.value);
     },
   });
 
   // delete statement
-  const deleteCurrent = provideGlobalAction({
+  const deleteCurrent = provideSharedAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["d", "backspace", "delete"],
-    enabled: computed(() => !!statement.value && navigatingFile.value),
+    enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: async () => {
       const current = statement.value.id;
       if (above.value) {
@@ -281,11 +280,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   //  We should introduce an intermediate statement local context that statement interfaces
   //  can use as well, which could also reduce move focus up/down latency.
   //  :MissingStatementContext
-  const deleteAboveCurrent = provideGlobalAction({
+  const deleteAboveCurrent = provideSharedAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
-    enabled: computed(() => !!statement.value && above.value != null),
+    enabled: computed(() => statement.value != null && above.value != null),
     apply: async () => {
       const current = statement.value.id;
       if (above.value) {
@@ -297,11 +296,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
 
   // jump to reference
   const { focusSymbol } = useSymbolNavigation();
-  const jumpToReference = provideGlobalAction({
+  const jumpToReference = provideSharedAction({
     id: "statement.jumpToReference",
     label: "Jump to reference",
     shortcuts: ["ctrl+b"],
-    enabled: computed(() => !!statement.value && statement.value.reference != null),
+    enabled: computed(() => statement.value != null && statement.value.reference != null),
     apply: () => {
       if (statement.value.reference != null) {
         focusSymbol(statement.value.reference);
@@ -317,11 +316,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   }
 
   // insert statement (as a sibling)
-  const insertStart = provideGlobalAction({
+  const insertStart = provideSharedAction({
     id: "statement.insertStart",
     label: "Insert statement at start of file",
     shortcuts: [],
-    enabled: computed(() => !!file.value && navigatingFile.value),
+    enabled: computed(() => file.value != null && navigatingFile.value),
     apply: () => {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
@@ -329,11 +328,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertEnd = provideGlobalAction({
+  const insertEnd = provideSharedAction({
     id: "statement.insertEnd",
     label: "Insert statement at end of file",
     shortcuts: [],
-    enabled: computed(() => !!file.value && navigatingFile.value),
+    enabled: computed(() => file.value != null && navigatingFile.value),
     apply: () => {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
@@ -341,11 +340,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertAboveCurrent = provideSingletonAction({
+  const insertAboveCurrent = provideSharedAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above current",
     shortcuts: ["a"],
-    enabled: computed(() => !!statement.value && navigatingFile.value),
+    enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: () => {
       operations.statement.create(
         newStatementId(),
@@ -356,11 +355,11 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       // don't switch focus if inserting _before_ current
     },
   });
-  const insertBelowCurrent = provideGlobalAction({
+  const insertBelowCurrent = provideSharedAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below current",
     shortcuts: ["i", "b", "shift+enter", "plus"],
-    enabled: computed(() => !!statement.value && navigatingFile.value),
+    enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: () => {
       const newStatement = _insertOptimistic(
         statement.value.parent?.id ?? null,
@@ -373,13 +372,13 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // toggle comment statement
-  const toggleCommentedCurrent = provideGlobalAction({
+  const toggleCommentedCurrent = provideSharedAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
     enabled: computed(
       () =>
-        !!statement.value &&
+        statement.value != null &&
         navigatingFile.value &&
         statement.value.type != StatementType.Blank &&
         statement.value.type != StatementType.Comment

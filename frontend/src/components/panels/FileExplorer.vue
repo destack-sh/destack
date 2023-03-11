@@ -1,12 +1,16 @@
 <script lang="ts" setup>
-import { provideGlobalAction } from "@/state/actions";
-import { useEditorState, type FileHeader } from "@/state/editor";
+import { useNavigationGrid } from "@/components/cells/grid";
+import { useEditorState, type FileHeader, type ViewId } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { onClickOutside } from "@vueuse/core";
-import { computed, ref, type Ref } from "vue";
+import { onClickOutside, useFocusWithin } from "@vueuse/core";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
   files?: FileHeader[];
+}>();
+const emit = defineEmits<{
+  (e: "navigateUp"): void;
+  (e: "navigateDown"): void;
 }>();
 
 const editor = useEditorState();
@@ -17,43 +21,54 @@ const filesSorted = computed(() => {
     return a.path.localeCompare(b.path);
   });
 });
+const focusedFileId = computed(() => filesSorted.value.find((f) => f.id == editor.focusedFileId)?.id);
+const filesGrid = useNavigationGrid<"name", HTMLElement>(
+  computed(() => ["name"]),
+  filesSorted,
+  {
+    gridNavigateUp: () => emit("navigateUp"),
+    gridNavigateDown: () => emit("navigateDown"),
+  }
+);
 
-function focus(file: FileHeader) {
-  // focus file in editor
-  editor?.focusFile(file);
-  // and focus file as element if
-  editor.focusElement(file);
+function focusFile(file: FileHeader) {
+  const focusedViewId = editor.focusedViewId;
+  editor.focusFile(file);
+  editor.focusView(focusedViewId as ViewId); // keep focused view
+}
+
+function focusFileAndGoThere(file: FileHeader) {
+  editor.focusFile(file);
 }
 
 const operations = useOperations();
 
-// focused file actions
-provideGlobalAction({
-  id: "file.delete",
-  label: "Delete file",
-  shortcuts: ["backspace", "delete"],
-  enabled: computed(() => !editor.editingElement && editor.focusedElementType == "File"),
-  apply: async () => {
-    if (editor.focusedElementId) {
-      await operations.file.delete(editor.focusedElementId);
-      if (editor.focusedFileId == editor.focusedElementId && editor.focusedEditor) {
-        // close editor if focused file was deleted
-        editor.closeEditor(editor.focusedEditor);
-      }
-    }
-  },
-});
-
 // blur focused file if clicking outside file explorer
 const listRef: Ref<HTMLDivElement | null> = ref(null);
+const { focused: listRefFocused } = useFocusWithin(listRef);
 onClickOutside(listRef, () => {
   if (editor.focusedElementType == "File") {
     editor.blurElement();
   }
 });
 
+function focus() {
+  // focus currently focused file if nothing was directly selected (and thus focused)
+  if (focusedFileId.value && !listRefFocused.value) {
+    nextTick(() => filesGrid.focus(focusedFileId.value, "name"));
+  } else if (!listRefFocused.value && (props.files?.length ?? 0) > 0) {
+    nextTick(() => filesGrid.focus(0, "name"));
+  }
+}
+
+function blur() {
+  filesGrid.blur();
+}
+
 defineExpose({
   count: computed(() => props.files?.length),
+  focus,
+  blur,
 });
 </script>
 <template>
@@ -62,19 +77,22 @@ defineExpose({
     <li
       v-for="file in filesSorted"
       :key="file.id"
-      class="relative max-w-full px-3 py-0.5 hover:cursor-pointer"
+      :ref="(ref) => filesGrid.registerColumnRef(file.id, 'name', ref)"
+      tabindex="-1"
+      @keydown.up.exact.prevent="filesGrid.navigateUp(file.id, 'name')"
+      @keydown.down.exact.prevent="filesGrid.navigateDown(file.id, 'name')"
+      class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer focus:border-orange-600"
       :class="{
         'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
         'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
-        'bg-orange-600 text-white': file.id == editor?.focusedElementId,
         'border-l-2 border-l-orange-200 pl-2.5': file.generated,
       }"
-      @click="focus(file)"
+      @click="focusFile(file)"
+      @keydown.enter.exact.prevent="focusFileAndGoThere(file)"
     >
-      <!-- Icon? -->
       <!-- Path -->
       <span
-        class="decoration-none inline truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
+        class="decoration-none inline select-none truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
       >
         {{ file.name }}
       </span>

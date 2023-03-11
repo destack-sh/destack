@@ -161,11 +161,11 @@ onClickOutside(containerRef, () => {
 // (unless alt is pressed) :AltKeyEditing
 const altKeyState = useKeyModifier("Alt");
 whenever(inRootCellFocused, () => {
-  if (altKeyState.value || containerFocused.value) {
-    return;
-  }
   if (!isFocused.value) {
     focusInEditor();
+  }
+  if (altKeyState.value || containerFocused.value) {
+    return;
   }
   if (!isEditing.value && !editor.readonly) {
     editor.editElement(statement.value as StatementHeader);
@@ -215,7 +215,7 @@ const isStale = isSymbolStale(statement);
   <div
     tabindex="-1"
     ref="containerRef"
-    class="group/statement relative min-h-[30px] outline-none transition-colors duration-75 focus:outline-none"
+    class="group/statement relative min-h-[30px] rounded-sm outline-none transition-colors duration-75 focus:outline-none"
     :class="{
       'pb-0.5': true,
       'focus:bg-orange-50': !isCommentish,
