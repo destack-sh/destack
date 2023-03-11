@@ -101,7 +101,10 @@ async function init() {
 
   // this is the public key, it's fine to put it here
   // always init posthog since it errors otherwise
-  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", { api_host: "https://eu.posthog.com" });
+  posthog.init("phc_d8mi3OMdtKSVA8kzHbBoKtYU3ZsMQakAiLpuOn3W9ma", {
+    api_host: "https://eu.posthog.com",
+    enable_recording_console_log: true,
+  });
   if (IS_LOCALHOST) {
     posthog.opt_out_capturing();
   } else {
