@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import CommitPopover from "@/components/basic/CommitPopover.vue";
+import { useNavigationGrid } from "@/components/cells/grid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { provideGlobalAction } from "@/state/actions";
@@ -11,14 +12,16 @@ import { parseSemVer } from "@/utils/semver";
 import { PopoverButton } from "@headlessui/vue";
 import { BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, type Component, type Ref } from "vue";
+import { useFocusWithin } from "@vueuse/core";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
   project: ProjectHeader;
   currentVersion?: FragmentType<typeof ProjectVersionHeaderType>;
+  focused: boolean;
 }>();
-const emit = defineEmits<{ (e: "show"): void }>();
+const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const { getTimeFromNowString } = useTimeFromNow();
 
@@ -55,13 +58,6 @@ const versions = computed(
 );
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
 const isAtHead = computed(() => editor.currentProjectVersionId == head.value?.id);
-
-type Action = {
-  icon: Component;
-  label: string;
-  enabled: Ref<boolean>;
-  action: () => void;
-};
 
 const router = useRouter();
 const notifications = useNotifications();
@@ -148,10 +144,53 @@ const restore = provideGlobalAction({
     router.replace({ hash: router.currentRoute.value.hash }); // clear version query param
   },
 });
+
+function goToVersion(version: { id: string }) {
+  const versionIdx = versions.value.findIndex((x) => x.id == version.id);
+  router.push({
+    query: versionIdx == 0 ? undefined : { version: version.id },
+    hash: router.currentRoute.value.hash,
+  });
+}
+
+const containerRef = ref<HTMLElement | null>(null);
+const { focused: inContainerFocused } = useFocusWithin(containerRef);
+const versionsGrid = useNavigationGrid<"name", HTMLElement>(
+  computed(() => ["name"]),
+  versions
+);
+
+// focus view when getting focus
+watch(inContainerFocused, () => {
+  if (inContainerFocused.value) {
+    emit("show");
+  } else {
+    emit("blur");
+  }
+});
+// handle explorer view focus and editor focus
+watch(
+  toRef(props, "focused"),
+  () => {
+    if (props.focused) {
+      if (!inContainerFocused.value) {
+        // focus currently active version if nothing was directly selected
+        nextTick(() => versionsGrid.focus(0, "name"));
+      }
+    } else {
+      versionsGrid.blur();
+    }
+  },
+  { immediate: true }
+);
+
+defineExpose({
+  count: computed(() => versionsQuery.value?.project?.versions.totalCount),
+});
 </script>
 <template>
   <!-- Container (views should be a single root element) -->
-  <div>
+  <div ref="containerRef">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
@@ -185,9 +224,19 @@ const restore = provideGlobalAction({
     <!-- View versions -->
     <div class="relative flex-1 flex-col" v-if="!loading">
       <!-- Versions -->
-      <ul role="absolute left-0 top-0 h-full w-full overflow-y-auto list" class="-mb-8 py-2">
-        <li v-for="(version, versionIdx) in versions" :key="version.id">
-          <div class="group relative mb-2 pb-1 hover:bg-orange-50">
+      <ul role="absolute left-0 top-0 max-h-full overflow-y-auto h-full w-full overflow-y-auto list" class="-mb-8 py-2">
+        <li
+          v-for="(version, versionIdx) in versions"
+          :key="version.id"
+          :ref="(ref) => versionsGrid.registerColumnRef(version.id, 'name', ref)"
+          tabindex="-1"
+          @keydown.up.exact.prevent="versionsGrid.navigateUp(version.id, 'name')"
+          @keydown.down.exact.prevent="versionsGrid.navigateDown(version.id, 'name')"
+          @keydown.enter.exact.prevent="goToVersion(version)"
+          class="group outline-none"
+        >
+          <!-- Focus border is inside the inner div because of the vertical margin required for the line -->
+          <div class="relative mb-2 border border-transparent pb-1 hover:bg-orange-50 group-focus:border-orange-600">
             <!-- Vertical line connecting versions -->
             <div class="mx-3">
               <span

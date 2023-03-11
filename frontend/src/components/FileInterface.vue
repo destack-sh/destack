@@ -122,17 +122,19 @@ const positionedStatements = computed(() => {
 const orderedStatements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
 const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
 
-const fileState: Ref<FileState> = computed(
-  () =>
-    ({
-      focused: props.focused,
-      file: fileHeader.value as any,
-      statements: orderedStatements.value,
-      depths: depths.value,
-      navigateUp: () => (editor.blurElement(), nameRef.value?.focus()),
-      navigateDown: () => ({}), // no-op?
-    } as FileState)
-);
+const fileState: Ref<FileState | null> = computed(() => {
+  if (fileHeader.value == null) {
+    return null;
+  }
+  return {
+    focused: props.focused,
+    file: fileHeader.value as any,
+    statements: orderedStatements.value,
+    depths: depths.value,
+    navigateUp: () => (editor.blurElement(), nameRef.value?.focus()),
+    navigateDown: () => ({}), // no-op?
+  } as FileState;
+});
 provideStatementActions(fileState);
 
 async function insertStatementStart() {
@@ -154,7 +156,7 @@ const ops = useOperations();
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-// set name first if
+// set name first if not yet loaded
 watch(
   () => fileHeader.value?.name,
   () => {
@@ -224,6 +226,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           :readonly="editor.readonly || isDeleted || isOtherVersion"
           @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
           :model-value="name"
+          @keyup.up.prevent="() => ({}) /* noop */"
         />
         <span
           class="cursor-text select-none text-3xl text-gray-300"

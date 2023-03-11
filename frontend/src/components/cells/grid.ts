@@ -8,6 +8,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     gridNavigateDown?: (column: ColumnType, columnIndex: number) => void;
     gridNavigateLeft?: () => void;
     gridNavigateRight?: () => void;
+    onFocus?: (rowId: string, column: ColumnType) => void;
   } = {}
 ) {
   const columnRefs: Ref<Record<string, RefType>> = ref({});
@@ -49,6 +50,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     }
     const columnId = row.id + "." + column;
     columnRefs.value?.[columnId]?.focus();
+    options?.onFocus?.(row.id, column);
   }
 
   function navigateUp(rowId: string, column: ColumnType) {

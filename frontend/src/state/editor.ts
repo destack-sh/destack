@@ -340,8 +340,17 @@ export const useEditorState = defineStore("editor", {
     },
 
     focusView(viewId: ViewId): void {
+      if (viewId == this.focusedViewId) return;
       this.focusedViewId = viewId;
       this.openActiveView(viewId);
+      this.blurElement();
+      console.log(`focus view ${viewId}`);
+    },
+
+    blurView(viewId?: ViewId): void {
+      if (viewId != null && viewId != this.focusedViewId) return;
+      this.focusedViewId = null;
+      console.log(`blur view ${viewId}`);
     },
 
     focusEditor(editor: Editor): void {

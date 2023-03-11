@@ -59,7 +59,7 @@ async function createFileInEditorGroup() {
               'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
-            @click.middle="editor.closeEditor(e)"
+            @click.middle.prevent="editor.closeEditor(e)"
             @click.prevent="focus(e)"
           >
             {{ e.path }}

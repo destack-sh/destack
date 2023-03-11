@@ -5,17 +5,18 @@ import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
-import SharePopover from "@/components/SharePopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
+import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
+import SharePopover from "@/components/SharePopover.vue";
 import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { JobStatus, JobType, ProjectVisibility, type InterpJob, type InterpSymbol } from "@/gql/graphql";
@@ -33,6 +34,7 @@ import { useOperationsStore } from "@/state/operations";
 import { symbolOf, useCurrentModuleRuntime } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
+import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
   ClipboardDocumentIcon,
   ClockIcon,
@@ -45,13 +47,11 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useFullscreen, useTitle } from "@vueuse/core";
+import { useTitle } from "@vueuse/core";
+import { DateTime } from "luxon";
 import Mousetrap from "mousetrap";
 import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
-import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
-import { DateTime } from "luxon";
-import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -83,6 +83,7 @@ const activeView: ComputedRef<View> = computed(() => {
 function toggleActiveView(viewId: ViewId) {
   if (editor.activeViewId == viewId && editor.showViewContent && editor.focusedViewId == viewId) {
     editor.showViewContent = false;
+    editor.focusedViewId = null;
   } else {
     editor.focusView(viewId);
   }
@@ -623,19 +624,33 @@ onBeforeUnmount(() => {
         </div>
         <!-- View content -->
         <div
+          ref="viewsContainerRef"
           class="relative flex-1 flex-col border-r border-orange-900 border-opacity-[12%]"
           v-show="editor.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
-          <ViewExplorer v-show="activeView.id == 'explorer'" :files="files" @show="editor.openActiveView('explorer')" />
+          <ViewExplorer
+            v-show="activeView.id == 'explorer'"
+            @show="editor.focusView('explorer')"
+            @blur="editor.blurView('explorer')"
+            :files="files"
+            :focused="editor.focusedViewId == 'explorer'"
+          />
           <ViewHistory
             v-show="activeView.id == 'history'"
             v-if="project != null"
-            @show="editor.openActiveView('history')"
+            @show="editor.focusView('history')"
+            @blur="editor.blurView('history')"
             :project="project"
+            :focused="editor.focusedViewId == 'history'"
             :current-version="version"
           />
-          <ViewIssues v-show="activeView.id == 'issues'" @show="editor.openActiveView('issues')" />
+          <ViewIssues
+            v-show="activeView.id == 'issues'"
+            @show="editor.focusView('issues')"
+            @blur="editor.blurView('issues')"
+            :focused="editor.focusedViewId == 'issues'"
+          />
         </div>
       </aside>
       <!-- Main editor area -->
