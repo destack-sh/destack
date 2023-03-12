@@ -20,7 +20,7 @@ export type Operation<T> = {
   key?: string | Record<string, string>;
   stateless?: boolean; // whether the operation mutates synced state (true by default)
   do(): Promise<T>;
-  redo?(): Promise<T>;
+  redo?(): Promise<T | unknown>;
   undo?(): Promise<unknown>;
 };
 

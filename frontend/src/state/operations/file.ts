@@ -182,6 +182,9 @@ export function useFileOps() {
       undo: async () => {
         return await deleteFileMut({ id });
       },
+      redo: async () => {
+        return await restoreFileMut({ id });
+      },
     });
   }
 
