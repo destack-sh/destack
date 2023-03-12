@@ -221,7 +221,7 @@ const metaActions = computed(() => [
   <div>
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
         <div class="text-sm font-bold text-white">This file is in Trash.</div>
         <div class="text-center text-sm text-white">
           {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
@@ -236,7 +236,7 @@ const metaActions = computed(() => [
     </div>
     <!-- Other version file -->
     <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
         <div class="text-sm font-bold text-white">This file belongs to another version.</div>
         <router-link
           class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -248,7 +248,7 @@ const metaActions = computed(() => [
     </div>
     <!-- File failed to load -->
     <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center gap-2">
+      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
         <div class="text-sm font-bold text-white">File failed to load.</div>
       </div>
     </div>

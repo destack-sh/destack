@@ -1,6 +1,8 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from datetime import datetime
+from typing import TYPE_CHECKING, Annotated, Iterable, Optional
 from uuid import UUID
 
+import pytz
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
 from strawberry.scalars import JSON
@@ -203,6 +205,63 @@ class StatementCommentedInput(gql.NodeInput):
     commented: bool
 
 
+# batch operations
+
+
+@gql.input
+class StatementBatchMoveInput:
+    file_id: GlobalID
+    parent_id: Optional[GlobalID] = None
+    order_key: Optional[str] = None
+    ids: list[GlobalID]
+
+
+@gql.input
+class StatementBatchSoftDeleteInput:
+    ids: list[GlobalID]
+
+
+@gql.input
+class StatementBatchRestoreInput:
+    ids: list[GlobalID]
+
+
+@gql.input
+class StatementBatchCommentedInput:
+    commented: bool
+    ids: list[GlobalID]
+
+
+@gql.input
+class StatementBatchPasteInput:
+    file_id: GlobalID
+    parent_id: Optional[GlobalID] = None
+    order_key: Optional[str] = None
+    ids: list[GlobalID]
+
+
+@gql.type
+class StatementBatch(Iterable):
+    statements: list[Statement]
+
+    @property
+    def things(self):
+        return self.statements
+
+    # pretend to be an iterable for simpler perms checking
+    # (doesn't need to know about the Batch type, which is
+    #  required because we can't union list[Statement] | OperationInfo)
+
+    def __getitem__(self, item):
+        return self.statements[item]
+
+    def __len__(self):
+        return len(self.statements)
+
+    def __iter__(self):
+        return iter(self.statements)
+
+
 @gql.type
 class StatementMutation:
     @project_mutation(PMT.CREATE_STATEMENT)
@@ -249,6 +308,12 @@ class StatementMutation:
                 model_type_nodes.append(type_node)
             SimpleTypeNode.objects.bulk_create(model_type_nodes)
         statement.lang = input.lang
+        return statement
+
+    @project_mutation(PMT.RENAME_STATEMENT)
+    def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.name = input.name
         return statement
 
     @project_mutation(PMT.SOFT_DELETE_STATEMENT, atomic=True)
@@ -299,11 +364,45 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @project_mutation(PMT.RENAME_STATEMENT)
-    def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.name = input.name
-        return statement
+    @project_mutation(PMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True)
+    def batch_soft_delete_statement(
+        self, input: StatementBatchSoftDeleteInput
+    ) -> StatementBatch | OperationInfo:
+        statement_ids = [UUID(i.node_id) for i in input.ids]
+        # imitate Statement.soft_delete but for a batch
+        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
+        models.Statement.objects.get_descendants(statement_ids).filter(deleted_at=None).update(
+            deleted_at=deleted_at
+        )
+        # use base manager since they're now deleted
+        statements = models.Statement._base_manager.filter(id__in=statement_ids)
+        return StatementBatch(statements=list(statements))
+
+    @project_mutation(PMT.RESTORE_STATEMENT, atomic=True, batch=True)
+    def batch_restore_statement(
+        self, input: StatementBatchRestoreInput
+    ) -> StatementBatch | OperationInfo:
+        statement_ids = [UUID(i.node_id) for i in input.ids]
+        # imitate Statement.restore but for a batch
+        deleted_at = models.Statement._base_manager.values_list("deleted_at", flat=True).get(
+            id=statement_ids[0]
+        )
+        statements = models.Statement._base_manager.filter(id__in=statement_ids)
+        models.Statement.objects.get_descendants(statement_ids).filter(
+            deleted_at=deleted_at
+        ).update(deleted_at=None)
+        statements.update(deleted_at=None)
+        return StatementBatch(statements=list(statements))
+
+    @project_mutation(PMT.COMMENT_STATEMENT, atomic=True, batch=True)
+    def batch_comment_statement(
+        self, input: StatementBatchCommentedInput
+    ) -> StatementBatch | OperationInfo:
+        statement_ids = [UUID(i.node_id) for i in input.ids]
+        statements = models.Statement.objects.filter(id__in=statement_ids)
+        models.Statement.objects.get_descendants(statement_ids).update(commented=input.commented)
+        return StatementBatch(statements=list(statements))
 
 
 #

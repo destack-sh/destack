@@ -8,6 +8,7 @@ import pytz
 import structlog
 from django.db import models
 from django.db.models import Q
+from django.db.models.expressions import RawSQL
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
@@ -233,6 +234,22 @@ class StatementManager(models.Manager["Statement"]):
 
         return ref_mappings
 
+    def get_descendants(self, statement_ids: list[UUID]) -> models.QuerySet[Statement]:
+        query = """
+           WITH RECURSIVE descendants(id, parent_id) AS (
+               SELECT id, parent_id
+               FROM bench_statement
+               WHERE id = ANY(%s)
+               UNION ALL
+               SELECT bench_statement.id, bench_statement.parent_id
+               FROM bench_statement
+               INNER JOIN descendants ON descendants.id = bench_statement.parent_id
+           )
+           SELECT id
+           FROM descendants
+        """
+        return Statement.objects.filter(id__in=RawSQL(query, (statement_ids,)))
+
 
 # sync with actual symbol content fields of Statement
 SYMBOL_CONTENT_VALUE_FIELDS = (
@@ -316,10 +333,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:
-        # TODO @Broken: get all descendants, not just children of children (recursive)
-        return Statement._base_manager.filter(
-            Q(parent=self) | Q(parent__parent=self) | Q(parent__parent__parent=self)
-        )
+        return Statement.objects.get_descendants([self.id])
 
     @property
     def path(self) -> str:
@@ -339,22 +353,16 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         # soft delete descendants (that aren't yet deleted)
         self.descendants.filter(deleted_at=None).update(deleted_at=self.deleted_at)
-        self.save()
 
     def restore(self):
-        self.refresh_from_db(fields=["deleted_at", "file"])
-        if self.file.deleted_at:
-            raise ValueError(f"cannot restore {self} because containing {self.file} is deleted")
         # restore descendants (that were deleted at the same time)
         self.descendants.filter(deleted_at=self.deleted_at).update(deleted_at=None)
         self.deleted_at = None
-        self.save()
 
     def set_commented(self, commented: bool):
         """Sets the commented flag on this statement and all descendants."""
         self.commented = commented
         self.descendants.update(commented=commented)
-        self.save()
 
     objects: StatementManager = StatementManager()
 

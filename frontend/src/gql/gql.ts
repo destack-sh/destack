@@ -124,8 +124,12 @@ const documents = {
     types.RenameStatementDocument,
   "\n      mutation deleteStatement($id: GlobalID!) {\n        softDeleteStatement(input: { id: $id }) {\n          ... on Statement {\n            id\n            deletedAt\n            descendants {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteStatementDocument,
+  "\n      mutation batchDeleteStatements($ids: [GlobalID!]!) {\n        batchSoftDeleteStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.BatchDeleteStatementsDocument,
   "\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          ... on Statement {\n            id\n            deletedAt\n            descendants {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreStatementDocument,
+  "\n      mutation batchRestoreStatements($ids: [GlobalID!]!) {\n        batchRestoreStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.BatchRestoreStatementsDocument,
   "\n      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {\n        commentStatement(input: { id: $id, commented: $commented }) {\n          ... on Statement {\n            id\n            commented\n            revision\n            descendants {\n              id\n              commented\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CommentStatementDocument,
   "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -532,8 +536,20 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n      mutation batchDeleteStatements($ids: [GlobalID!]!) {\n        batchSoftDeleteStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation batchDeleteStatements($ids: [GlobalID!]!) {\n        batchSoftDeleteStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          ... on Statement {\n            id\n            deletedAt\n            descendants {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation restoreStatement($id: GlobalID!) {\n        restoreStatement(input: { id: $id }) {\n          ... on Statement {\n            id\n            deletedAt\n            descendants {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation batchRestoreStatements($ids: [GlobalID!]!) {\n        batchRestoreStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation batchRestoreStatements($ids: [GlobalID!]!) {\n        batchRestoreStatement(input: { ids: $ids }) {\n          ... on StatementBatch {\n            statements {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
