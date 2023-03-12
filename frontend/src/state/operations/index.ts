@@ -20,6 +20,7 @@ export type Operation<T> = {
   key?: string | Record<string, string>;
   stateless?: boolean; // whether the operation mutates synced state (true by default)
   do(): Promise<T>;
+  redo?(): Promise<T>;
   undo?(): Promise<unknown>;
 };
 
@@ -91,18 +92,22 @@ export const useOperationsStore = defineStore("operations", {
       this.$reset();
     },
 
-    async _do<T>(operation: Operation<T>, undo?: boolean): Promise<T | void | null> {
+    async _do<T>(operation: Operation<T>, mode: "do" | "redo" | "undo"): Promise<T | void | null> {
       operation = { ...operation, startedAt: DateTime.now() };
       this.inflight.push(operation);
       try {
         let ret;
-        if (!undo) {
+        if (mode == "do") {
           ret = await operation.do();
-        } else {
+        } else if (mode == "redo") {
+          ret = await (operation.redo ?? operation.do)();
+        } else if (mode == "undo") {
           if (operation.undo == null) {
             throw new Error(`operation ${operation.type} cannot be undone`);
           }
           ret = (await operation.undo()) as T;
+        } else {
+          throw new Error(`unknown operation mode ${mode}`);
         }
         onResponse(operation, ret);
         this.completed.push({ ...operation });
@@ -127,7 +132,7 @@ export const useOperationsStore = defineStore("operations", {
       if (operation.undo != null) {
         this.undoStack.push(operation);
       }
-      const ret = await this._do(operation);
+      const ret = await this._do(operation, "do");
       this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
       return ret as T | null; // cannot be void because it's not undo
     },
@@ -138,7 +143,7 @@ export const useOperationsStore = defineStore("operations", {
         return;
       }
       console.log(`undo ${operation.type} (id=${operation.id})`);
-      await this._do(operation, true);
+      await this._do(operation, "undo");
       this.redoStack.push(operation);
     },
 
@@ -148,7 +153,7 @@ export const useOperationsStore = defineStore("operations", {
         return;
       }
       console.log(`redo ${operation.type} (id=${operation.id})`);
-      await this._do(operation);
+      await this._do(operation, "redo");
       this.undoStack.push(operation);
     },
   },

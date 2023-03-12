@@ -336,11 +336,19 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     shortcuts: ["backspace", "delete"],
     enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: async () => {
-      const current = statement.value.id;
-      if (above.value) {
-        editor.focusElement(above.value);
+      // after delete focus next statement above
+      if (editor.hasSelection) {
+        // batch delete
+        editor.blurElement();
+        await operations.statement.batchDelete(editor.selectedElementIds);
+      } else {
+        // single delete
+        const current = statement.value.id;
+        if (above.value) {
+          editor.focusElement(above.value);
+        }
+        await operations.statement.delete(current);
       }
-      await operations.statement.delete(current);
     },
   });
   // TODO @Cleanup @Incomplete: provide statement surrounding context to all statements

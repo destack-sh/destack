@@ -517,13 +517,16 @@ type Mutation {
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   moveStatement(input: StatementMoveInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
+  batchRestoreStatement(input: StatementBatchRestoreInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
+  batchCommentStatement(input: StatementBatchCommentedInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
   updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
@@ -1349,6 +1352,25 @@ type Statement implements Node & SimplyTyped {
     last: Int = null
     filters: DatasetRecordFilter
   ): DatasetRecordConnection!
+}
+
+type StatementBatch {
+  statements: [Statement!]!
+}
+
+input StatementBatchCommentedInput {
+  commented: Boolean!
+  ids: [GlobalID!]!
+}
+
+union StatementBatchOperationInfo = StatementBatch | OperationInfo
+
+input StatementBatchRestoreInput {
+  ids: [GlobalID!]!
+}
+
+input StatementBatchSoftDeleteInput {
+  ids: [GlobalID!]!
 }
 
 input StatementCommentedInput {

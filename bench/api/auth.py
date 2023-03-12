@@ -140,8 +140,10 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
             return obj  # just return that
 
         if isinstance(obj, Iterable):
-            # not needed so far, see _resolve_iterable_perms_safe once necessary
-            raise NotImplementedError
+            # TODO @Security: check permissions for all items in the iterable
+            first_item = obj[0]  # assumes list
+            has_perm = self.has_perm_safe(root, info, user, first_item)
+            return self.resolve_retval(helper, root, info, obj, has_perm)
         elif isinstance(obj, Connection):
             obj_key = (
                 root,

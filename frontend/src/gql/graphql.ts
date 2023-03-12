@@ -509,6 +509,9 @@ export type Mutation = {
   __typename?: "Mutation";
   acceptOrganizationInvite: UserOperationInfo;
   addDeployedStatement: DeploymentOperationInfo;
+  batchCommentStatement: StatementBatchOperationInfo;
+  batchRestoreStatement: StatementBatchOperationInfo;
+  batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
   commentStatement: StatementOperationInfo;
@@ -568,6 +571,18 @@ export type MutationAcceptOrganizationInviteArgs = {
 
 export type MutationAddDeployedStatementArgs = {
   input: DeploymentAddStatementInput;
+};
+
+export type MutationBatchCommentStatementArgs = {
+  input: StatementBatchCommentedInput;
+};
+
+export type MutationBatchRestoreStatementArgs = {
+  input: StatementBatchRestoreInput;
+};
+
+export type MutationBatchSoftDeleteStatementArgs = {
+  input: StatementBatchSoftDeleteInput;
 };
 
 export type MutationBuildArgs = {
@@ -1534,6 +1549,26 @@ export type StatementReferencedByArgs = {
 
 export type StatementTypeNodesArgs = {
   filters?: InputMaybe<SimpleTypeNodeFilter>;
+};
+
+export type StatementBatch = {
+  __typename?: "StatementBatch";
+  statements: Array<Statement>;
+};
+
+export type StatementBatchCommentedInput = {
+  commented: Scalars["Boolean"];
+  ids: Array<Scalars["GlobalID"]>;
+};
+
+export type StatementBatchOperationInfo = OperationInfo | StatementBatch;
+
+export type StatementBatchRestoreInput = {
+  ids: Array<Scalars["GlobalID"]>;
+};
+
+export type StatementBatchSoftDeleteInput = {
+  ids: Array<Scalars["GlobalID"]>;
 };
 
 export type StatementCommentedInput = {
@@ -3110,6 +3145,22 @@ export type DeleteStatementMutation = {
       };
 };
 
+export type BatchDeleteStatementsMutationVariables = Exact<{
+  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+}>;
+
+export type BatchDeleteStatementsMutation = {
+  __typename?: "Mutation";
+  batchSoftDeleteStatement:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "StatementBatch";
+        statements: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
+      };
+};
+
 export type RestoreStatementMutationVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
@@ -3125,6 +3176,22 @@ export type RestoreStatementMutation = {
         id: any;
         deletedAt?: any | null;
         descendants: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
+      };
+};
+
+export type BatchRestoreStatementsMutationVariables = Exact<{
+  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+}>;
+
+export type BatchRestoreStatementsMutation = {
+  __typename?: "Mutation";
+  batchRestoreStatement:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "StatementBatch";
+        statements: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
       };
 };
 
@@ -8413,6 +8480,81 @@ export const DeleteStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteStatementMutation, DeleteStatementMutationVariables>;
+export const BatchDeleteStatementsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "batchDeleteStatements" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "batchSoftDeleteStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ids" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "StatementBatch" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<BatchDeleteStatementsMutation, BatchDeleteStatementsMutationVariables>;
 export const RestoreStatementDocument = {
   kind: "Document",
   definitions: [
@@ -8484,6 +8626,81 @@ export const RestoreStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreStatementMutation, RestoreStatementMutationVariables>;
+export const BatchRestoreStatementsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "batchRestoreStatements" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "batchRestoreStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ids" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "StatementBatch" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<BatchRestoreStatementsMutation, BatchRestoreStatementsMutationVariables>;
 export const CommentStatementDocument = {
   kind: "Document",
   definitions: [

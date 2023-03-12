@@ -2,26 +2,27 @@ import { graphql } from "@/gql";
 import {
   StatementType,
   TypeTag,
+  type BatchDeleteStatementsMutation,
+  type BatchRestoreStatementsMutation,
   type CreateStatementMutation,
+  type CreateTypeNodeMutation,
   type DeleteStatementMutation,
+  type DeleteTypeNodeMutation,
   type MorphStatementMutation,
   type MoveStatementMutation,
   type RenameStatementMutation,
   type RestoreStatementMutation,
+  type RestoreTypeNodeMutation,
   type StatementModifier,
   type StatementMorphInput,
   type SymbolType,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
-  type CreateTypeNodeMutation,
-  type UpdateTypeNodeMutation,
-  type RestoreTypeNodeMutation,
-  type DeleteTypeNodeMutation,
   type UpdateStatementModifierMutation,
+  type UpdateTypeNodeMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
-import type { TypeNode } from "graphql";
 import { v4 as uuidv4 } from "uuid";
 
 export function newStatementId(): string {
@@ -371,6 +372,35 @@ export function useStatementOps() {
     }
   );
 
+  const { mutate: batchDeleteStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchDeleteStatements($ids: [GlobalID!]!) {
+        batchSoftDeleteStatement(input: { ids: $ids }) {
+          ... on StatementBatch {
+            statements {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { ids: string[] }) =>
+        ({
+          batchSoftDeleteStatement: {
+            __typename: "StatementBatch",
+            statements: vars.ids.map((id) => ({
+              __typename: "Statement",
+              id: id,
+              deletedAt: new Date().toISOString(),
+            })),
+          },
+        } as BatchDeleteStatementsMutation),
+    }
+  );
+
   const { mutate: restoreStatementMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation restoreStatement($id: GlobalID!) {
@@ -400,6 +430,35 @@ export function useStatementOps() {
     }
   );
 
+  const { mutate: batchRestoreStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchRestoreStatements($ids: [GlobalID!]!) {
+        batchRestoreStatement(input: { ids: $ids }) {
+          ... on StatementBatch {
+            statements {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { ids: string[] }) =>
+        ({
+          batchRestoreStatement: {
+            __typename: "StatementBatch",
+            statements: vars.ids.map((id) => ({
+              __typename: "Statement",
+              id: id,
+              deletedAt: null,
+            })),
+          },
+        } as BatchRestoreStatementsMutation),
+    }
+  );
+
   async function delete_(id: string) {
     await operations.perform({
       type: "statement.delete",
@@ -408,6 +467,18 @@ export function useStatementOps() {
       },
       undo: async () => {
         return await restoreStatementMut({ id: id });
+      },
+    });
+  }
+
+  async function batchDelete_(ids: string[]) {
+    await operations.perform({
+      type: "statement.batchDelete",
+      do: async () => {
+        return await batchDeleteStatementMut({ ids: ids });
+      },
+      undo: async () => {
+        return await batchRestoreStatementMut({ ids: ids });
       },
     });
   }
@@ -673,6 +744,7 @@ export function useStatementOps() {
     comment,
     rename,
     delete: delete_,
+    batchDelete: batchDelete_,
     createTypeNode,
     updateTypeNode,
     deleteTypeNode,
