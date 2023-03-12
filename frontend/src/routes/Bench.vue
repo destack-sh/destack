@@ -80,8 +80,8 @@ const activeView: ComputedRef<View> = computed(() => {
   return view;
 });
 
-function toggleActiveView(viewId: ViewId) {
-  if (editor.activeViewId == viewId && editor.showViewContent && editor.focusedViewId == viewId) {
+function toggleActiveView(viewId: ViewId, ignoreFocus: boolean) {
+  if (editor.activeViewId == viewId && editor.showViewContent && (ignoreFocus || editor.focusedViewId == viewId)) {
     editor.showViewContent = false;
     editor.focusedViewId = null;
   } else {
@@ -92,19 +92,19 @@ provideAction({
   id: "editor.view.openExplorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
-  apply: () => toggleActiveView("explorer"),
+  apply: () => toggleActiveView("explorer", false),
 });
 provideAction({
   id: "editor.view.openHistory",
   label: "View History",
   shortcuts: ["alt+2"],
-  apply: () => toggleActiveView("history"),
+  apply: () => toggleActiveView("history", false),
 });
 const openIssues = provideAction({
   id: "editor.view.openIssues",
   label: "View Issues",
   shortcuts: ["alt+3"],
-  apply: () => toggleActiveView("issues"),
+  apply: () => toggleActiveView("issues", false),
 });
 
 // get project header
@@ -601,7 +601,7 @@ onBeforeUnmount(() => {
               :class="view.name == activeView.name && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in views"
               :key="view.name"
-              @click="toggleActiveView(view.id)"
+              @click="toggleActiveView(view.id, true)"
             >
               <span class="sr-only">{{ view.name }}</span>
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
