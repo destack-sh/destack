@@ -11,11 +11,13 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
+import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ fileId: string; focused: boolean }>();
+const emit = defineEmits<{ (e: "close"): void }>();
 const editor = useEditorState();
 const actions = useActions();
 
@@ -180,6 +182,38 @@ function renameFile(newName: string) {
   ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
 }
 const renameFileDebounced = useDebounceFn(renameFile, 500);
+
+// file meta actions
+const metaActions = computed(() => [
+  {
+    label: "Duplicate",
+    icon: DocumentDuplicateIcon,
+    action: () => {
+      // not implemented yet
+    },
+    enabled: false,
+  },
+  {
+    label: "Move",
+    icon: ArrowUturnRightIcon,
+    action: () => {
+      // not implemented yet
+    },
+    enabled: false,
+  },
+  {
+    label: "Delete",
+    icon: TrashIcon,
+    action: () => {
+      if (fileHeader.value == null) {
+        return;
+      }
+      ops.file.delete(fileHeader.value?.id);
+      emit("close");
+    },
+    enabled: !editor.readonly,
+  },
+]);
 </script>
 
 <template>
@@ -222,25 +256,41 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
     <div class="relative flex flex-col bg-white px-12" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
-      <!-- File name & meta -->
+      <!-- File name & meta actions -->
       <div
-        class="relative mx-auto w-full max-w-[800px] px-2 pt-6 font-bold text-gray-900"
+        class="group/meta relative mx-auto flex w-full max-w-[800px] flex-row items-center px-2 pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
       >
-        <EditableSpan
-          ref="nameRef"
-          class="text-3xl"
-          :readonly="editor.readonly || isDeleted || isOtherVersion"
-          @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
-          :model-value="name"
-          @keyup.up.prevent="() => ({}) /* noop */"
-        />
-        <span
-          class="cursor-text select-none text-3xl text-gray-300"
-          v-if="name?.trim().length == 0"
-          @click="nameRef?.focus()"
-        >
-          Untitled AI
+        <!-- Name -->
+        <span>
+          <EditableSpan
+            ref="nameRef"
+            class="text-3xl"
+            :readonly="editor.readonly || isDeleted || isOtherVersion"
+            @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
+            :model-value="name"
+            @keyup.up.prevent="() => ({}) /* noop */"
+          />
+          <span
+            class="cursor-text select-none text-3xl text-gray-300"
+            v-if="name?.trim().length == 0"
+            @click="nameRef?.focus()"
+          >
+            Untitled AI
+          </span>
+        </span>
+        <!-- Actions -->
+        <span class="ml-4 flex flex-row gap-1">
+          <button
+            v-for="action in metaActions"
+            :key="action.label"
+            class="p-1 text-gray-300 hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
+            :class="[action.enabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
+            @click="action.action()"
+            :disabled="!action.enabled"
+          >
+            <component :is="action.icon" class="h-5 w-5" />
+          </button>
         </span>
       </div>
       <!-- Add statement to start -->

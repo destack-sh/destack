@@ -77,6 +77,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     :focused="focused"
     :state="editor.localState"
     @update:state="Object.assign(editor.localState, $event)"
+    @close="editorState.closeEditor(editor)"
   />
   <RunInterface
     ref="containerRef"
@@ -84,8 +85,9 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     :focused="focused"
     :runnableId="(editor as RunEditor).symbolId"
     :runnableType="(editor as RunEditor).symbolType"
+    @close="editorState.closeEditor(editor)"
   />
-  <RunsInterface v-else-if="editor.type == 'runs'" :focused="focused" />
+  <RunsInterface v-else-if="editor.type == 'runs'" :focused="focused" @close="editorState.closeEditor(editor)" />
   <div v-else class="h-full w-full text-center">
     <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
   </div>
