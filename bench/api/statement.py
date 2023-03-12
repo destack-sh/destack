@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytz
 from django.core.exceptions import ValidationError
+from django.db.models import F
 from strawberry import UNSET, lazy
 from strawberry.scalars import JSON
 from strawberry_django_plus import gql
@@ -209,14 +210,6 @@ class StatementCommentedInput(gql.NodeInput):
 
 
 @gql.input
-class StatementBatchMoveInput:
-    file_id: GlobalID
-    parent_id: Optional[GlobalID] = None
-    order_key: Optional[str] = None
-    ids: list[GlobalID]
-
-
-@gql.input
 class StatementBatchSoftDeleteInput:
     ids: list[GlobalID]
 
@@ -229,6 +222,14 @@ class StatementBatchRestoreInput:
 @gql.input
 class StatementBatchCommentedInput:
     commented: bool
+    ids: list[GlobalID]
+
+
+@gql.input
+class StatementBatchMoveInput:
+    file_id: GlobalID
+    parent_ids: list[Optional[GlobalID]]
+    order_keys: list[str]
     ids: list[GlobalID]
 
 
@@ -402,6 +403,23 @@ class StatementMutation:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         statements = models.Statement.objects.filter(id__in=statement_ids)
         models.Statement.objects.get_descendants(statement_ids).update(commented=input.commented)
+        return StatementBatch(statements=list(statements))
+
+    @project_mutation(PMT.MOVE_STATEMENT, atomic=True, batch=True)
+    def batch_move_statement(
+        self, input: StatementBatchMoveInput
+    ) -> StatementBatch | OperationInfo:
+        statement_ids = [UUID(i.node_id) for i in input.ids]
+        statements = models.Statement.objects.filter(id__in=statement_ids)
+        file_id = UUID(input.file_id.node_id)
+        for i, statement in enumerate(statements):
+            statement.file_id = file_id
+            statement.parent_id = UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
+            statement.order_key = input.order_keys[i]
+            statement.revision = F("revision") + 1
+        models.Statement.objects.bulk_update(
+            statements, ["file_id", "parent_id", "order_key", "revision"]
+        )
         return StatementBatch(statements=list(statements))
 
 

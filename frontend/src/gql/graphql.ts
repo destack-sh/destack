@@ -510,6 +510,7 @@ export type Mutation = {
   acceptOrganizationInvite: UserOperationInfo;
   addDeployedStatement: DeploymentOperationInfo;
   batchCommentStatement: StatementBatchOperationInfo;
+  batchMoveStatement: StatementBatchOperationInfo;
   batchRestoreStatement: StatementBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
@@ -575,6 +576,10 @@ export type MutationAddDeployedStatementArgs = {
 
 export type MutationBatchCommentStatementArgs = {
   input: StatementBatchCommentedInput;
+};
+
+export type MutationBatchMoveStatementArgs = {
+  input: StatementBatchMoveInput;
 };
 
 export type MutationBatchRestoreStatementArgs = {
@@ -1559,6 +1564,13 @@ export type StatementBatch = {
 export type StatementBatchCommentedInput = {
   commented: Scalars["Boolean"];
   ids: Array<Scalars["GlobalID"]>;
+};
+
+export type StatementBatchMoveInput = {
+  fileId: Scalars["GlobalID"];
+  ids: Array<Scalars["GlobalID"]>;
+  orderKeys: Array<Scalars["String"]>;
+  parentIds: Array<InputMaybe<Scalars["GlobalID"]>>;
 };
 
 export type StatementBatchOperationInfo = OperationInfo | StatementBatch;
@@ -3110,6 +3122,32 @@ export type MoveStatementMutation = {
         revision: number;
         file: { __typename?: "File"; id: any };
         parent?: { __typename?: "Statement"; id: any } | null;
+      };
+};
+
+export type BatchMoveStatementMutationVariables = Exact<{
+  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+  fileId: Scalars["GlobalID"];
+  parentIds: Array<InputMaybe<Scalars["GlobalID"]>> | InputMaybe<Scalars["GlobalID"]>;
+  orderKeys: Array<Scalars["String"]> | Scalars["String"];
+}>;
+
+export type BatchMoveStatementMutation = {
+  __typename?: "Mutation";
+  batchMoveStatement:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "StatementBatch";
+        statements: Array<{
+          __typename?: "Statement";
+          id: any;
+          orderKey: string;
+          revision: number;
+          file: { __typename?: "File"; id: any };
+          parent?: { __typename?: "Statement"; id: any } | null;
+        }>;
       };
 };
 
@@ -8338,6 +8376,137 @@ export const MoveStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MoveStatementMutation, MoveStatementMutationVariables>;
+export const BatchMoveStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "batchMoveStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+            },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "parentIds" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "ListType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "orderKeys" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "batchMoveStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ids" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "fileId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "parentIds" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "parentIds" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "orderKeys" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "orderKeys" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "StatementBatch" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                            { kind: "Field", name: { kind: "Name", value: "revision" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "file" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "parent" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<BatchMoveStatementMutation, BatchMoveStatementMutationVariables>;
 export const RenameStatementDocument = {
   kind: "Document",
   definitions: [
