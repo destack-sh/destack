@@ -141,6 +141,9 @@ export function useStatementOps() {
       undo: async () => {
         await deleteStatementMut({ id });
       },
+      redo: async () => {
+        return await restoreStatementMut({ id });
+      },
     });
   }
 
@@ -742,6 +745,9 @@ export function useStatementOps() {
       },
       undo: async () => {
         return await deleteTypeNodeMut({ id: typeNode.id });
+      },
+      redo: async () => {
+        return await restoreTypeNodeMut({ id: typeNode.id });
       },
     });
   }
