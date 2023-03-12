@@ -13,7 +13,7 @@ import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, shallowRef, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ fileId: string; focused: boolean }>();
 const editor = useEditorState();
@@ -69,36 +69,44 @@ type PositionedStatement = {
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
   statement: StatementContentFragment;
+  ancestors: string[];
 };
 const positionedStatements = computed(() => {
   const positionedStatements: PositionedStatement[] = [];
   let lineNumberBase = 0;
 
   // depth first traversal
-  function walkDfs(statement: StatementContentFragment, depth: number, isLast: boolean) {
+  function walkDfs(statement: StatementContentFragment, ancestors: string[], isLast: boolean) {
     if (statement?.id == null) {
       // bail in case a bad statement ends in here due to some other bug to prevent recursion death
-      console.warn("got bad statement with null id", statement, depth, isLast);
+      console.warn("got bad statement with null id", statement, ancestors, isLast);
       return;
     }
 
     const children = statements.value.filter((child) => child.parent?.id == statement.id);
-
-    const isFirstInGroup = depth == 0;
+    const isFirstInGroup = ancestors.length == 0;
     const isLastInRoot = isLast && children.length == 0;
 
-    positionedStatements.push({ depth, lineNumberBase, statement, isFirstInGroup, isLastInGroup: isLastInRoot });
+    positionedStatements.push({
+      depth: ancestors.length,
+      lineNumberBase,
+      statement,
+      ancestors,
+      isFirstInGroup,
+      isLastInGroup: isLastInRoot,
+    });
     lineNumberBase += 1;
 
-    // sort by order key
+    // walk children, sorted by order key
+    ancestors = [...ancestors, statement.id];
     children.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
-    children.forEach((child, i) => walkDfs(child, depth + 1, isLast && i == children.length - 1));
+    children.forEach((child, i) => walkDfs(child, ancestors, isLast && i == children.length - 1));
   }
 
   // start with roots sorted by order key
   const roots = rootStatements.value;
   roots.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
-  roots.forEach((root) => walkDfs(root, 0, true));
+  roots.forEach((root) => walkDfs(root, [], true));
 
   // group groupable sibling statements at root
   for (const [i, positioned] of positionedStatements.entries()) {
@@ -215,7 +223,6 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta -->
-      <!-- TODO @UX: move nav focus smoothly between file name and statements (up/down)  -->
       <div
         class="relative mx-auto w-full max-w-[800px] px-2 pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
@@ -249,6 +256,7 @@ const renameFileDebounced = useDebounceFn(renameFile, 500);
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
+          :ancestors="positioned.ancestors"
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"
           :lineNumberBase="positioned.lineNumberBase"

@@ -83,8 +83,11 @@ function edit(event: KeyboardEvent | MouseEvent) {
   if (props.readonly) {
     return;
   }
-  event.stopPropagation();
   event.preventDefault();
+  if (event instanceof KeyboardEvent) {
+    // we want to propagate clicks to manage focus upstream
+    event.stopPropagation();
+  }
 
   if (props.type.tag == TypeTag.Boolean) {
     writeValue(!readValue.value);

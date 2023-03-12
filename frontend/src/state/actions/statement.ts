@@ -91,6 +91,15 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
 
   const above = computed(() => statements.value[position.value - 1]);
   const below = computed(() => statements.value[position.value + 1]);
+  const aboveCurGroup = computed(() => {
+    // previous statement before this with depth <= this depth
+    for (let i = position.value - 1; i >= 0; i--) {
+      if (depths.value[i] <= depths.value[position.value]) {
+        return statements.value[i];
+      }
+    }
+    return undefined;
+  });
   const belowCurGroup = computed(() => {
     // next statement after this with depth <= this depth
     for (let i = position.value + 1; i < statements.value.length; i++) {
@@ -173,7 +182,9 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       if (belowCurGroup.value == null) return;
       // insert between the next group below and its next sibling (if any)
       const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
-      const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.value.orderKey);
+      const belowNextSibling = belowSiblings.find(
+        (s) => s.orderKey > (belowCurGroup.value as StatementHeader).orderKey
+      );
       const targetLocation = {
         fileId: file.value?.file.id,
         parentId: belowCurGroup.value?.parent?.id,
@@ -187,15 +198,16 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const moveFocusUp = provideSharedAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
-    shortcuts: ["up", "shift+up"],
+    shortcuts: ["up"],
     enabled: computed(() => navigatingFile.value),
     apply: () => {
+      editor.clearSelection();
       if (above.value != null) {
         editor.focusElement(above.value, true);
-        //
       } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus last statement
-        // note: I have disabled auto-focus last since it leads to annoying behaviour
+        // note: I have disabled auto-focus last since it leads to some annoying behaviour,
+        // particularly when you think something is focused but it's not this leads to jumping
         // editor.focusElement(statements.value[statements.value.length - 1], true);
       } else if (statement.value != null) {
         // navigate up from statements
@@ -207,8 +219,9 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.moveFocusDown",
     label: "Move focus down",
     enabled: computed(() => navigatingFile.value),
-    shortcuts: ["down", "shift+down"],
+    shortcuts: ["down"],
     apply: () => {
+      editor.clearSelection();
       if (below.value != null) {
         editor.focusElement(below.value, true);
       } else if (statement.value == null && statements.value.length > 0) {
@@ -227,6 +240,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     shortcuts: ["right"],
     enabled: computed(() => navigatingFile.value && statement.value != null && children.value?.length > 0),
     apply: () => {
+      editor.clearSelection();
       editor.focusElement(children.value[0], true);
     },
   });
@@ -236,6 +250,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     shortcuts: ["left"],
     enabled: computed(() => navigatingFile.value && statement.value != null && statement.value.parent != null),
     apply: () => {
+      editor.clearSelection();
       const parent = statementsById.value[statement.value.parent?.id];
       editor.focusElement(parent, true);
     },
@@ -260,6 +275,41 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.stopEditingElement(statement.value);
     },
   });
+
+  // manage selection
+  const expandSelectionUp = provideSharedAction({
+    id: "statement.expandSelectionUp",
+    label: "Expand selection up",
+    shortcuts: ["shift+up"],
+    enabled: computed(() => statement.value != null && above.value != null && editor.hasSelection),
+    apply: () => {
+      // remove self from selection if previous selected (last is current) is above
+      // (that means we're expanding down)
+      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
+      if (prevSelectedPosition > -1 && prevSelectedPosition < position.value) {
+        editor.removeFromSelection(statement.value);
+      }
+      // then move focus up to previous sibling or parent
+      // (if above != null, then aboveCurGroup must also be non null)
+      editor.focusElement(aboveCurGroup.value as StatementHeader, false);
+    },
+  });
+  const expandSelectionDown = provideSharedAction({
+    id: "statement.expandSelectionDown",
+    label: "Expand selection down",
+    shortcuts: ["shift+down"],
+    enabled: computed(() => statement.value != null && belowCurGroup.value != null && editor.hasSelection),
+    apply: () => {
+      // remove self from selection if previous selected (last is current) is below
+      // (that means we're expanding up)
+      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
+      if (prevSelectedPosition > -1 && prevSelectedPosition > position.value) {
+        editor.removeFromSelection(statement.value);
+      }
+      // then move focus down
+      editor.focusElement(belowCurGroup.value as StatementHeader, false);
+    },
+  });
   const cancelSelection = provideSharedAction({
     id: "statement.cancelSelection",
     label: "Cancel selection",
@@ -269,12 +319,21 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.clearSelection();
     },
   });
+  const selectAll = provideSharedAction({
+    id: "statement.selectAll",
+    label: "Select all",
+    shortcuts: ["ctrl+a"],
+    enabled: computed(() => navigatingFile.value),
+    apply: () => {
+      statements.value.forEach(editor.addToSelection);
+    },
+  });
 
   // delete statement
   const deleteCurrent = provideSharedAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
-    shortcuts: ["d", "backspace", "delete"],
+    shortcuts: ["backspace", "delete"],
     enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: async () => {
       const current = statement.value.id;
@@ -408,6 +467,10 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     moveFocusDown,
     moveFocusIn,
     moveFocusOut,
+    expandSelectionUp,
+    expandSelectionDown,
+    cancelSelection,
+    selectAll,
     editCurrent,
     stopEditingCurrent,
     deleteCurrent,
