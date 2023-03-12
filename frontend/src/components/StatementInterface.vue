@@ -19,6 +19,7 @@ const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
   depth: number;
+  ancestors: string[];
   readonly: boolean;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
@@ -26,7 +27,6 @@ const props = defineProps<{
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
-const depthOffsetX = computed(() => props.depth * 20);
 
 const editor = useEditorState();
 
@@ -37,6 +37,16 @@ const isComment = computed(() => statement.value?.type == StatementType.Comment)
 const isCommented = computed(() => statement.value?.commented);
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
+);
+
+// ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
+const ancestorHighlightDepth = computed(() =>
+  props.ancestors.findIndex((s) => editor.focusedElementId == s || editor.selectedElementIds.includes(s))
+);
+const isAncestorHighlight = computed(() => !editor.editingElement && ancestorHighlightDepth.value > -1);
+const contentOffsetX = computed(() => props.depth * 20);
+const highlightOffsetX = computed(() =>
+  isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
 );
 
 // if holding shift and is focused, add to selection
@@ -53,7 +63,7 @@ const context: Ref<StatementContext> = computed(() => ({
   focused: isFocused.value,
   editing: isEditing.value,
   depth: props.depth,
-  xOffset: depthOffsetX.value,
+  xOffset: contentOffsetX.value,
   lineNumberBase: props.lineNumberBase,
   statement: props.statement,
   reference: symbolOf(statement.value.reference?.id) ?? null,
@@ -142,12 +152,12 @@ watch(
 
 // focus root cell if editing in editor but not in container
 whenever(isEditing, () => {
-  if (isEditing.value && !inRootCellFocused.value) {
+  if (isEditing.value && (!inContainerFocused.value || containerFocused.value)) {
     rootCellRef.value?.focus();
   }
 });
 
-// blur root cell if focused in container but no longer editing (or focused)
+// blur root cell if focused in container (but no longer editing or focused)
 watch(
   () => [isEditing.value, inRootCellFocused.value],
   () => {
@@ -160,7 +170,7 @@ watch(
 // cancel focus if clicked outside
 onClickOutside(containerRef, () => {
   if (isFocused.value) {
-    rootCellRef.value?.blur();
+    // We don't blur the root cell here because the focus is already elsewhere.
     editor.blurElement(statement.value as StatementHeader);
   }
 });
@@ -172,6 +182,7 @@ whenever(inRootCellFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
+  console.log("root cell focused");
   if (altKeyState.value || containerFocused.value) {
     return;
   }
@@ -228,12 +239,12 @@ const isStale = isSymbolStale(statement);
       'pb-0.5': true,
       'focus:bg-orange-50': !isCommentish,
       'focus:bg-gray-50': isCommentish,
-      'bg-orange-50': !isCommentish && isSelected,
-      'bg-gray-50': isCommentish && isSelected,
+      'bg-orange-50': !isCommentish && (isSelected || isAncestorHighlight),
+      'bg-gray-50': isCommentish && (isSelected || isAncestorHighlight),
       'font-mono': editor.fontMono && !isComment,
       'text-gray-700': isCommented,
     }"
-    :style="{ marginLeft: depthOffsetX + 'px' }"
+    :style="{ marginLeft: highlightOffsetX + 'px', paddingLeft: contentOffsetX - highlightOffsetX + 'px' }"
     @click="onClickContainer"
   >
     <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
@@ -243,7 +254,7 @@ const isStale = isSymbolStale(statement);
     <span
       v-if="editor.showLineNumbers"
       class="duration-50 absolute top-[3px] w-6 select-none text-right not-italic transition-colors"
-      :style="{ left: -30 - depthOffsetX + 'px' }"
+      :style="{ left: -30 - highlightOffsetX + 'px' }"
       :class="{
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,
@@ -302,8 +313,14 @@ const isStale = isSymbolStale(statement);
       <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->
-    <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
-      <template v-if="isFocused">f</template>
+    <div
+      v-if="editor.debug"
+      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
+      :style="{ marginRight: isAncestorHighlight ? 0 : contentOffsetX + 'px' }"
+    >
+      <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
+      <template v-if="isFocused">F</template>
+      <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="containerFocused">.</template>
       <template v-if="isEditing">e</template>

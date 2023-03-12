@@ -223,6 +223,12 @@ export const useEditorState = defineStore("editor", {
     hasSelection(): boolean {
       return this.selectedElementIds.length > 0;
     },
+    currentSelectedElementId(): string | null {
+      return this.selectedElementIds[this.selectedElementIds.length - 1] ?? null;
+    },
+    previousSelectedElementId(): string | null {
+      return this.selectedElementIds[this.selectedElementIds.length - 2] ?? null;
+    },
     theme(): Theme {
       const appearance = useAppearanceState();
       return appearance.theme;
