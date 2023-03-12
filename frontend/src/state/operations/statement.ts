@@ -3,6 +3,7 @@ import {
   StatementType,
   TypeTag,
   type BatchDeleteStatementsMutation,
+  type BatchMoveStatementMutation,
   type BatchRestoreStatementsMutation,
   type CreateStatementMutation,
   type CreateTypeNodeMutation,
@@ -279,6 +280,57 @@ export function useStatementOps() {
     }
   );
 
+  const { mutate: batchMoveStatementMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchMoveStatement(
+        $ids: [GlobalID!]!
+        $fileId: GlobalID!
+        $parentIds: [GlobalID]!
+        $orderKeys: [String!]!
+      ) {
+        batchMoveStatement(input: { ids: $ids, fileId: $fileId, parentIds: $parentIds, orderKeys: $orderKeys }) {
+          ... on StatementBatch {
+            statements {
+              id
+              orderKey
+              revision
+              file {
+                id
+              }
+              parent {
+                id
+              }
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        ids: string[];
+        fileId: string;
+        parentIds: (string | undefined)[];
+        orderKeys: string[];
+      }) =>
+        ({
+          batchMoveStatement: {
+            __typename: "StatementBatch",
+            statements: vars.ids.map((id, i) => ({
+              __typename: "Statement",
+              id: id,
+              orderKey: vars.orderKeys[i],
+              file: {
+                id: vars.fileId,
+              },
+              revision: PENDING_REVISION,
+              parent: vars.parentIds[i] ? { id: vars.parentIds[i] } : null,
+            })),
+          },
+        } as BatchMoveStatementMutation),
+    }
+  );
+
   async function move(
     id: string,
     oldLoc: { fileId: string; parentId?: string; orderKey: string },
@@ -300,6 +352,32 @@ export function useStatementOps() {
           fileId: oldLoc.fileId,
           parentId: oldLoc.parentId,
           orderKey: oldLoc.orderKey,
+        });
+      },
+    });
+  }
+
+  async function batchMove(
+    ids: string[],
+    oldLocs: { fileId: string; parentId?: string; orderKey: string }[],
+    newLocs: { fileId: string; parentId?: string; orderKey: string }[]
+  ) {
+    await operations.perform({
+      type: "statement.move",
+      do: async () => {
+        return await batchMoveStatementMut({
+          ids: ids,
+          fileId: newLocs[0].fileId,
+          parentIds: newLocs.map((loc) => loc.parentId),
+          orderKeys: newLocs.map((loc) => loc.orderKey),
+        });
+      },
+      undo: async () => {
+        return await batchMoveStatementMut({
+          ids: ids,
+          fileId: oldLocs[0].fileId,
+          parentIds: oldLocs.map((loc) => loc.parentId),
+          orderKeys: oldLocs.map((loc) => loc.orderKey),
         });
       },
     });
@@ -741,6 +819,7 @@ export function useStatementOps() {
     modify,
     setReference,
     move,
+    batchMove,
     comment,
     rename,
     delete: delete_,

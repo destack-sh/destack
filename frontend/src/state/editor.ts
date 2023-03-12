@@ -427,6 +427,8 @@ export const useEditorState = defineStore("editor", {
     },
 
     clearSelection(): void {
+      if (this.selectedElementIds.length == 0) return;
+      console.log("clear selection");
       this.selectedElementIds = [];
     },
 

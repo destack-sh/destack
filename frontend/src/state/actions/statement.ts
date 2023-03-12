@@ -111,7 +111,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
   const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
 
-  // move statement
+  // indent statement
   const moveCurrentIn = provideSharedAction({
     id: "statement.moveCurrentIn",
     label: "Move statement in",
@@ -132,7 +132,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       });
     },
   });
-
   const moveCurrentOut = provideSharedAction({
     id: "statement.moveCurrentOut",
     label: "Move statement out",
@@ -152,6 +151,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
+  // move statement up/down
   const moveCurrentUp = provideSharedAction({
     id: "statement.moveCurrentUp",
     label: "Move statement up",
@@ -172,7 +172,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
-
   const moveCurrentDown = provideSharedAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
