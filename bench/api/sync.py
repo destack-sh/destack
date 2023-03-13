@@ -113,7 +113,6 @@ def project_mutation(
 def pub_project_mutation(
     type: PMT,
     things: list[Union[models.File, models.Statement, models.SimpleTypeNode, models.DatasetRecord]],
-    revision: Optional[int] = None,
 ):
     """Publish a project mutation to the project change pub socket."""
     if not things:
@@ -142,7 +141,7 @@ def pub_project_mutation(
             project_version_id=project_version_id,
             file_id=file_id,
             statement_id=statement_id,
-            revision=revision,
+            revision=thing.revision,
         )
         mutations.append(mutation)
     # TODO @Performance: using async_to_sync to publish mutation is inefficient

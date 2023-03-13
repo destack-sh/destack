@@ -528,6 +528,7 @@ type Mutation {
   batchRestoreStatement(input: StatementBatchRestoreInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
   batchCommentStatement(input: StatementBatchCommentedInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
+  batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo! @canWriteProject(atRoot: true)
   updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
@@ -1373,12 +1374,21 @@ input StatementBatchMoveInput {
 
 union StatementBatchOperationInfo = StatementBatch | OperationInfo
 
+input StatementBatchPasteInput {
+  ids: [GlobalID!]!
+  targetIds: [GlobalID!]!
+  targetFileId: GlobalID!
+  targetParentIds: [GlobalID]!
+  targetOrderKeys: [String!]!
+}
+
 input StatementBatchRestoreInput {
   ids: [GlobalID!]!
 }
 
 input StatementBatchSoftDeleteInput {
   ids: [GlobalID!]!
+  deletedAt: DateTime = null
 }
 
 input StatementCommentedInput {

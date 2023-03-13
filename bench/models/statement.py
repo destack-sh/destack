@@ -120,35 +120,43 @@ class StatementManager(models.Manager["Statement"]):
     def copy_statements(
         self,
         statements: models.QuerySet[Statement],
-        new_files: dict[UUID, File],
-        source: ProjectVersion,
-        target: ProjectVersion,
+        target_files: dict[UUID, File],
+        source_version: ProjectVersion,
+        target_version: ProjectVersion,
         copy_generated_mappings: bool,
-        new_statement_ids: dict[UUID, UUID] | None = None,
+        target_statement_ids: dict[UUID, UUID] | None = None,
+        target_parent_ids: dict[UUID, UUID] | None = None,
+        target_order_keys: dict[UUID, str] | None = None,
     ) -> list["RefMapping"]:
         """Copies the given source statements into the target version in given new files"""
+        # TODO @Performance: copy statements server-side (in SQL)
 
         from bench.models import RefMapping, RefType  # avoid circular import
 
         ref_mappings: list[RefMapping] = []
+        ref_mappings_ids: dict[UUID, UUID] = {}
 
         def _refmap(type: RefType, old_id: UUID, old_revision: int, new: models.Model):
             ref_mapping = RefMapping(
                 type=type,
-                source_version=source,
-                target_version=target,
+                source_version=source_version,
+                target_version=target_version,
                 source_id=old_id,
                 target_id=new.id,
                 source_revision=old_revision,
                 target_revision=new.revision,
             )
+            ref_mappings_ids[old_id] = ref_mapping.id
             ref_mappings.append(ref_mapping)
 
+        # nocheckin: this is broken if statements are not at root level
         statements_bfs = list(walk_children_bfs(statements.filter(parent=None), "children"))
         # (pre-determine new statement ids to re-create source mappings in one go)
-        new_statements_ids: dict[UUID, UUID] = new_statement_ids or {
+        target_statement_ids = target_statement_ids or {
             statement.id: uuid4() for statement in statements_bfs
         }
+        target_parent_ids = {}
+        target_order_keys = {}
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
@@ -165,10 +173,10 @@ class StatementManager(models.Manager["Statement"]):
                         old_revision = type_node.revision
                         type_node.id = uuid4()
                         type_node._state.adding = True
-                        type_node.statement_id = new_statements_ids[statement.id]
+                        type_node.statement_id = target_statement_ids[statement.id]
                         if type_node.reference_id is not None:
                             # replace type node reference if it was copied (default to same for externals)
-                            type_node.reference_id = new_statements_ids.get(
+                            type_node.reference_id = target_statement_ids.get(
                                 type_node.reference_id, type_node.reference_id
                             )
                         new_type_nodes[old_id] = type_node
@@ -181,7 +189,7 @@ class StatementManager(models.Manager["Statement"]):
                         old_revision = record.revision
                         record.id = uuid4()
                         record._state.adding = True
-                        record.statement_id = new_statements_ids[statement.id]
+                        record.statement_id = target_statement_ids[statement.id]
                         new_records[old_id] = record
                         _refmap(RefType.RECORD, old_id, old_revision, record)
 
@@ -189,11 +197,11 @@ class StatementManager(models.Manager["Statement"]):
                 elif statement.symbol_type == SymbolType.BUILD and copy_generated_mappings:
                     for mapping in statement.generated_mappings.all():
                         mapping.pk = None
-                        mapping.statement_id = new_statements_ids[mapping.statement_id]
-                        mapping.source_id = new_statements_ids.get(
+                        mapping.statement_id = target_statement_ids[mapping.statement_id]
+                        mapping.source_id = ref_mappings_ids.get(
                             mapping.source_id, mapping.source_id
                         )
-                        mapping.target_id = new_statements_ids.get(
+                        mapping.target_id = ref_mappings_ids.get(
                             mapping.target_id, mapping.target_id
                         )
                         mapping.source_revision = 0
@@ -204,11 +212,13 @@ class StatementManager(models.Manager["Statement"]):
             # automatically copies all non-relational columns
             old_id = statement.id
             old_revision = statement.revision
-            statement.id = new_statements_ids[old_id]
+            statement.id = target_statement_ids[old_id]
             statement._state.adding = True
+            statement.parent_id = target_parent_ids.get(old_id, statement.parent_id)
+            statement.order_key = target_order_keys.get(old_id, statement.order_key)
             statement.revision = 0  # reset revision
-            statement.file = new_files[statement.file_id]
-            statement.project_version = target
+            statement.file = target_files[statement.file_id]
+            statement.project_version = target_version
             statement.reference = None
             statement.parent = new_statements.get(statement.parent_id)
             statement.save()

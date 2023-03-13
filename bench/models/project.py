@@ -371,8 +371,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         else:
             statements = Statement.objects.filter(file__in=files).filter(deleted_at=None)
 
-        # TODO @Performance: copy project version on commit server-side (in SQL)
-        #  (generally good, but also especially for dataset records, mappings and other relations)
+        # TODO @Performance: copy project version server-side (in SQL)
         # TODO @Cleanup: created_at/updated_at are not copied correctly (auto-reset to now)
         #  (could set them manually in project mutation wrapper)
         # copy files

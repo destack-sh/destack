@@ -5,6 +5,7 @@ import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { useClipboard } from "@vueuse/core";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
 
@@ -178,7 +179,12 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         editor.focusElement(below.value, true);
       } else if (statement.value == null && statements.value.length > 0) {
         // nothing focused, focus first statement
-        editor.focusElement(statements.value[0], true);
+        if (editor.hasSelection) {
+          const selectedRoots = getSelectedRoots();
+          editor.focusElement(selectedRoots[0]);
+        } else {
+          editor.focusElement(statements.value[0], true);
+        }
       } else if (statement.value != null) {
         // navigate down from statements
         file.value?.navigateDown();
@@ -577,28 +583,34 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
   const insertAboveCurrent = provideSharedAction({
     id: "statement.insertAboveCurrent",
-    label: "Insert statement above current",
+    label: "Insert statement above",
     shortcuts: ["a"],
-    enabled: computed(() => statement.value != null && navigatingFile.value),
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
     apply: () => {
+      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
+      const top = selectedRoots[0];
+      const previousSibling = getPreviousSibling(top);
       operations.statement.create(
         newStatementId(),
         file.value?.file.id,
-        statement.value.parent?.id ?? null,
-        generateKeyBetween(previousSibling.value?.orderKey ?? null, orderKey.value)
+        top.parent?.id ?? null,
+        generateKeyBetween(previousSibling?.orderKey ?? null, orderKey.value)
       );
       // don't switch focus if inserting _before_ current
     },
   });
   const insertBelowCurrent = provideSharedAction({
     id: "statement.insertBelowCurrent",
-    label: "Insert statement below current",
+    label: "Insert statement below",
     shortcuts: ["i", "b", "shift+enter", "plus"],
-    enabled: computed(() => statement.value != null && navigatingFile.value),
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
     apply: () => {
+      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
+      const bottom = selectedRoots[selectedRoots.length - 1];
+      const nextSibling = getNextSibling(bottom);
       const newStatement = _insertOptimistic(
-        statement.value.parent?.id ?? null,
-        generateKeyBetween(orderKey.value, nextSibling.value?.orderKey ?? null)
+        bottom.parent?.id ?? null,
+        generateKeyBetween(orderKey.value, nextSibling?.orderKey ?? null)
       );
       // wait for next tick to ensure there is something to focus
       // this feels a bit hacky, but focus management will likely be overhauled anyway
@@ -620,6 +632,50 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     ),
     apply: async () => {
       await operations.statement.comment(statement.value.id, !statement.value.commented);
+    },
+  });
+
+  // cut/copy/paste/duplicate
+  const clipboard = useClipboard();
+  const copy = provideSharedAction({
+    id: "statement.copy",
+    label: "Copy statements",
+    shortcuts: ["ctrl+c"],
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    apply: () => {
+      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
+      // nocheckin
+    },
+  });
+  const cut = provideSharedAction({
+    id: "statement.cut",
+    label: "Cut statements",
+    shortcuts: ["ctrl+x"],
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    apply: async () => {
+      copy.value.apply();
+      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
+      editor.blurElement();
+      await operations.statement.batchDelete(selectedRoots.map((s) => s.id));
+    },
+  });
+  const paste = provideSharedAction({
+    id: "statement.paste",
+    label: "Paste statements",
+    shortcuts: ["ctrl+v"],
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    apply: async () => {
+      // nocheckin: paste from clipboard
+    },
+  });
+  const duplicate = provideSharedAction({
+    id: "statement.duplicate",
+    label: "Duplicate statements",
+    shortcuts: ["ctrl+d"],
+    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    apply: async () => {
+      copy.value.apply();
+      paste.value.apply();
     },
   });
 
@@ -651,5 +707,9 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     insertAboveCurrent,
     insertBelowCurrent,
     toggleCommentedCurrent,
+    copy,
+    cut,
+    paste,
+    duplicate,
   };
 }
