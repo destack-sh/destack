@@ -1,26 +1,26 @@
 import { graphql } from "@/gql";
 import {
-  StatementType,
-  TypeTag,
-  type BatchDeleteStatementsMutation,
-  type BatchMoveStatementMutation,
-  type BatchRestoreStatementsMutation,
-  type CreateStatementMutation,
-  type CreateTypeNodeMutation,
-  type DeleteStatementMutation,
-  type DeleteTypeNodeMutation,
-  type MorphStatementMutation,
-  type MoveStatementMutation,
-  type RenameStatementMutation,
-  type RestoreStatementMutation,
-  type RestoreTypeNodeMutation,
-  type StatementModifier,
-  type StatementMorphInput,
-  type SymbolType,
-  type TypeNodeCreateInput,
-  type TypeNodeUpdateInput,
-  type UpdateStatementModifierMutation,
-  type UpdateTypeNodeMutation,
+StatementType,
+TypeTag,
+type BatchDeleteStatementsMutation,
+type BatchMoveStatementMutation,
+type BatchRestoreStatementsMutation,
+type CreateStatementMutation,
+type CreateTypeNodeMutation,
+type DeleteStatementMutation,
+type DeleteTypeNodeMutation,
+type MorphStatementMutation,
+type MoveStatementMutation,
+type RenameStatementMutation,
+type RestoreStatementMutation,
+type RestoreTypeNodeMutation,
+type StatementModifier,
+type StatementMorphInput,
+type SymbolType,
+type TypeNodeCreateInput,
+type TypeNodeUpdateInput,
+type UpdateStatementModifierMutation,
+type UpdateTypeNodeMutation
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -366,7 +366,7 @@ export function useStatementOps() {
     newLocs: { fileId: string; parentId?: string; orderKey: string }[]
   ) {
     await operations.perform({
-      type: "statement.move",
+      type: "statement.batchMove",
       do: async () => {
         return await batchMoveStatementMut({
           ids: ids,
@@ -560,6 +560,85 @@ export function useStatementOps() {
       },
       undo: async () => {
         return await batchRestoreStatementMut({ ids: ids });
+      },
+    });
+  }
+
+  const { mutate: batchPasteMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchPasteStatement(
+        $sourceIds: [GlobalID!]!
+        $targetIds: [GlobalID!]!
+        $targetFileId: GlobalID!
+        $targetParentIds: [GlobalID]!
+        $targetOrderKeys: [String!]!
+      ) {
+        batchPasteStatement(
+          input: {
+            sourceIds: $sourceIds
+            targetIds: $targetIds
+            targetFileId: $targetFileId
+            targetParentIds: $targetParentIds
+            targetOrderKeys: $targetOrderKeys
+          }
+        ) {
+          ... on StatementBatch {
+            statements {
+              id
+              ...StatementContent
+              file {
+                id
+              }
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      update(cache, { data: batchPasteStatement }) {
+        if (batchPasteStatement?.batchPasteStatement.__typename != "StatementBatch") {
+          return; // error
+        }
+        // extend File.statements array with (ref to) new statements
+        batchPasteStatement.batchPasteStatement.statements.forEach((statement) => {
+          cache.modify({
+            id: cache.identify(statement.file),
+            fields: {
+              statements(currentStatements = []) {
+                return [...currentStatements, { __ref: cache.identify(statement) }];
+              },
+            },
+            optimistic: true,
+          });
+        });
+      },
+    }
+  );
+
+  async function batchPaste(
+    sourceIds: string[],
+    targetIds: string[],
+    targetFileId: string,
+    targetParentIds: (string | null)[],
+    targetOrderKeys: string[]
+  ) {
+    await operations.perform({
+      type: "statement.batchPaste",
+      do: async () => {
+        return await batchPasteMut({
+          sourceIds: sourceIds,
+          targetIds: targetIds,
+          targetFileId: targetFileId,
+          targetParentIds: targetParentIds,
+          targetOrderKeys: targetOrderKeys,
+        });
+      },
+      undo: async () => {
+        return await batchDeleteStatementMut({ ids: targetIds });
+      },
+      redo: async () => {
+        return await batchRestoreStatementMut({ ids: targetIds });
       },
     });
   }
@@ -826,6 +905,7 @@ export function useStatementOps() {
     setReference,
     move,
     batchMove,
+    batchPaste,
     comment,
     rename,
     delete: delete_,

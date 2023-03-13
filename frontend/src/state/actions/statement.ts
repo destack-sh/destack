@@ -112,6 +112,15 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       .map((s) => statementsById.value[s]);
   }
 
+  function getDescendants(statement: StatementHeader): StatementHeader[] {
+    const result: StatementHeader[] = [];
+    for (const child of statementsByParentId.value[statement.id] ?? []) {
+      result.push(child);
+      result.push(...getDescendants(child));
+    }
+    return result.sort((a, b) => statementPositions.value[a.id] - statementPositions.value[b.id]);
+  }
+
   function getAboveCurGroup(statement: StatementHeader) {
     // previous statement before this with depth <= this depth
     for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
@@ -130,6 +139,17 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
     }
     return undefined;
+  }
+
+  function getSelectionBottom(): StatementHeader | undefined {
+    if (editor.hasSelection) {
+      const selectedRoots = getSelectedRoots();
+      return selectedRoots[selectedRoots.length - 1];
+    } else if (statement.value != null) {
+      return statement.value;
+    } else {
+      return statements.value[statements.value.length - 1];
+    }
   }
 
   // actions for currently focused statement
@@ -602,15 +622,14 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const insertBelowCurrent = provideSharedAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below",
-    shortcuts: ["i", "b", "shift+enter", "plus"],
+    shortcuts: ["b", "shift+enter", "plus"],
     enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
     apply: () => {
-      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
-      const bottom = selectedRoots[selectedRoots.length - 1];
-      const nextSibling = getNextSibling(bottom);
+      const bottom = getSelectionBottom();
+      const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
       const newStatement = _insertOptimistic(
-        bottom.parent?.id ?? null,
-        generateKeyBetween(orderKey.value, nextSibling?.orderKey ?? null)
+        bottom?.parent?.id ?? null,
+        generateKeyBetween(bottom?.orderKey ?? null, nextSibling?.orderKey ?? null)
       );
       // wait for next tick to ensure there is something to focus
       // this feels a bit hacky, but focus management will likely be overhauled anyway
@@ -636,21 +655,54 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // cut/copy/paste/duplicate
-  const clipboard = useClipboard();
+  // nocheckin: use custom mime type (getting DOMException?)
+  const CLIPBOARD_CONTENT_TYPE = "text/plain";
+  type CopiedStatement = {
+    id: string;
+    parentId: string | null; // if part of copied statements only
+    orderKey: string;
+  };
   const copy = provideSharedAction({
     id: "statement.copy",
     label: "Copy statements",
-    shortcuts: ["ctrl+c"],
+    shortcuts: ["ctrl+c", "meta+c"],
     enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
-    apply: () => {
+    apply: async () => {
       const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
-      // nocheckin
+      const copiedStatements = []; // include selected roots and all descendants
+      for (const root of selectedRoots) {
+        // getDescendants is ordered already
+        copiedStatements.push(root);
+        copiedStatements.push(...getDescendants(root));
+      }
+      const copiedStatementsIds = new Set<string>();
+      copiedStatements.forEach((s) => copiedStatementsIds.add(s.id));
+      // write to clipboard as text/_bench-v0
+      const sourceStatements = copiedStatements.map(
+        (s) =>
+          ({
+            id: s.id,
+            parentId: copiedStatementsIds.has(s.parent?.id ?? "") ? s.parent?.id : null,
+            orderKey: s.orderKey,
+          } as CopiedStatement)
+      );
+      const clipboardItem = [
+        new ClipboardItem({
+          [CLIPBOARD_CONTENT_TYPE]: new Blob([JSON.stringify(sourceStatements)], { type: CLIPBOARD_CONTENT_TYPE }),
+        }),
+      ];
+      try {
+        await navigator.clipboard.write(clipboardItem);
+        console.log("copied " + copiedStatements.length + " statements");
+      } catch (err) {
+        console.error("failed to copy statements", err);
+      }
     },
   });
   const cut = provideSharedAction({
     id: "statement.cut",
     label: "Cut statements",
-    shortcuts: ["ctrl+x"],
+    shortcuts: ["ctrl+x", "meta+x"],
     enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
     apply: async () => {
       copy.value.apply();
@@ -662,19 +714,73 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const paste = provideSharedAction({
     id: "statement.paste",
     label: "Paste statements",
-    shortcuts: ["ctrl+v"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    shortcuts: ["ctrl+v", "meta+v"],
+    enabled: computed(() => navigatingFile.value),
     apply: async () => {
-      // nocheckin: paste from clipboard
+      try {
+        const cliboardItems = await navigator.clipboard.read();
+        const clipboardDataStr = await (await cliboardItems[0].getType(CLIPBOARD_CONTENT_TYPE)).text();
+        const sourceStatements = JSON.parse(clipboardDataStr) as CopiedStatement[];
+
+        // insert at bottom of current selection or file (like in insertBelow, below bottom and its next sibling)
+        const bottom = getSelectionBottom();
+        const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
+        // project source ids and locations to target at insert point (with new ids)
+        const sourceIds = sourceStatements.map((s) => s.id);
+        const targetIds: Record<string, string> = {};
+        sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
+        const targetParentIds = sourceStatements.map((s) => targetIds[s.parentId ?? ""]);
+        // order keys for root are between bottom and next sibling, all other orders are reset
+        const sourceStatementsByParentId: Record<string, string[]> = {};
+        sourceStatements.forEach((s) => {
+          // group children by parents
+          const parentId = s.parentId ?? "";
+          if (sourceStatementsByParentId[parentId] == null) {
+            sourceStatementsByParentId[parentId] = [];
+          }
+          sourceStatementsByParentId[parentId].push(s.id);
+        });
+        const orderKeysByParentId: Record<string, string[]> = {}; // assign order keys by parent
+        Object.entries(sourceStatementsByParentId).forEach(([parentId, childIds]) => {
+          if (parentId == "") {
+            orderKeysByParentId[""] = generateNKeysBetween(
+              bottom?.orderKey ?? null,
+              nextSibling?.orderKey ?? null,
+              childIds.length
+            );
+            console.log(orderKeysByParentId[""], bottom?.orderKey, nextSibling?.orderKey, childIds.length);
+          } else {
+            orderKeysByParentId[parentId] = generateNKeysBetween(null, null, childIds.length);
+          }
+        });
+        const targetOrderKeys: string[] = sourceStatements.map((s) => {
+          const parentId = s.parentId ?? "";
+          const orderKeys = orderKeysByParentId[parentId];
+          const childIndex = sourceStatementsByParentId[parentId].indexOf(s.id);
+          return orderKeys[childIndex];
+        });
+
+        await operations.statement.batchPaste(
+          sourceIds,
+          sourceIds.map((id) => targetIds[id]),
+          file.value?.file.id,
+          targetParentIds,
+          targetOrderKeys
+        );
+        console.log("pasted " + sourceStatements.length + " statements");
+      } catch (err) {
+        console.error("failed to parse clipboard data", err);
+        return;
+      }
     },
   });
   const duplicate = provideSharedAction({
     id: "statement.duplicate",
     label: "Duplicate statements",
-    shortcuts: ["ctrl+d"],
+    shortcuts: ["ctrl+d", "meta+d"],
     enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
     apply: async () => {
-      copy.value.apply();
+      await copy.value.apply();
       paste.value.apply();
     },
   });

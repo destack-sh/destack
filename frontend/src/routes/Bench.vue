@@ -47,10 +47,10 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useTitle } from "@vueuse/core";
+import { useTitle, whenever } from "@vueuse/core";
 import { DateTime } from "luxon";
 import Mousetrap from "mousetrap";
-import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -375,6 +375,8 @@ function clearSelectionIfLeftClick(e: MouseEvent) {
 }
 document.addEventListener("click", clearSelectionIfLeftClick);
 onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
+// whenever editing -> clears selection
+whenever(toRef(editor, "editingElement"), () => editor.clearSelection());
 
 const { load } = useEditorPersistence();
 const { migrateTo, migrating } = useEditorMigrations();
