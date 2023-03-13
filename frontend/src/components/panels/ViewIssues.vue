@@ -2,7 +2,7 @@
 import type { InterpError } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/runtime";
-import { XCircleIcon } from "@heroicons/vue/24/outline";
+import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();
 const errors = useVisibleErrors();
@@ -41,6 +41,10 @@ function focusError(error: InterpError) {
           <span>{{ error.message }}</span>
         </span>
       </li>
+      <div v-if="errors.length == 0" class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center">
+        <FaceSmileIcon class="h-7 w-7 text-gray-500" />
+        <span class="text-sm text-gray-700">A tidy Bench. The bots like it.</span>
+      </div>
     </ul>
   </div>
 </template>
