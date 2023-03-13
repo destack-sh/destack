@@ -219,8 +219,11 @@ class StatementManager(models.Manager["Statement"]):
             old_revision = statement.revision
             statement.id = target_statement_ids[old_id]
             statement._state.adding = True
-            statement.parent_id = target_parent_ids.get(statement.id, statement.parent_id)
+            statement.parent_id = target_parent_ids.get(
+                statement.id, target_statement_ids.get(statement.parent_id)
+            )
             statement.order_key = target_order_keys.get(statement.id, statement.order_key)
+            statement.deleted_at = None  # restore in copy if it was deleted
             statement.revision = 0  # reset revision
             statement.file = target_files[statement.file_id]
             statement.project_version = target_version
@@ -229,17 +232,16 @@ class StatementManager(models.Manager["Statement"]):
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
 
-        # re-assign references
-        for old in statements:
+        # re-assign references (can't be part of bfs walk)
+        for old in statements.only("id", "reference_id"):
             if old.id not in new_statements:
                 # skip ghost statement whose parent was deleted or lost somehow
-                # TODO @Cleanup: fix/prevent ghost orphan statements on insert
+                # TODO @Robustness: fix/prevent ghost orphan statements on insert
                 continue
             new = new_statements[old.id]
-            new.parent = new_statements.get(old.parent_id)  # may be null
             # replace ref (default to same ref if not in refs since library refs are not copied)
-            new.reference = new_statements.get(old.reference_id, old.reference)
-        Statement.objects.bulk_update(new_statements.values(), ["parent", "reference"])
+            new.reference_id = new_statements.get(old.reference_id, old.reference_id)
+        Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
 
         # save statement's relations
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())

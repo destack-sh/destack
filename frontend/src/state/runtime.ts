@@ -4,8 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, isRef, ref, watch, watchEffect, type Ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, isRef, ref, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {

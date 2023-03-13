@@ -31,7 +31,7 @@ import {
 import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { symbolOf, useCurrentModuleRuntime } from "@/state/runtime";
+import { symbolOf, useCurrentModuleRuntime, useVisibleErrors } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
@@ -316,6 +316,7 @@ Mousetrap.bind(["ctrl+s"], () => {
 });
 
 const runtime = useCurrentModuleRuntime();
+const visibleErrors = useVisibleErrors();
 
 // show notification if disconnected/reconnected
 const connectionLost = ref(false);
@@ -541,11 +542,11 @@ onBeforeUnmount(() => {
           <!-- Errors -->
           <button
             class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-50"
-            v-if="runtime.errors.value?.length || 0 > 0"
+            v-if="visibleErrors?.length || 0 > 0"
             @click="openIssues.apply"
           >
             <XCircleIcon class="h-5 w-5 text-red-700" />
-            <span class="text-sm text-gray-700">{{ runtime.errors.value?.length }}</span>
+            <span class="text-sm text-gray-700">{{ visibleErrors?.length }}</span>
           </button>
         </div>
         <!-- Current worker jobs -->

@@ -655,11 +655,13 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // cut/copy/paste/duplicate
-  // nocheckin: use custom mime type (getting DOMException?)
+  // TODO @Cleanup: use custom mime type for copied statements
+  //  Getting DOMException when trying, likely because the new clipboard API doesn't allow this yet.
   const CLIPBOARD_CONTENT_TYPE = "text/plain";
   type CopiedStatement = {
     id: string;
-    parentId: string | null; // if part of copied statements only
+    parentId: string | null;
+    parentInCopy: boolean;
     orderKey: string;
   };
   const copy = provideSharedAction({
@@ -682,7 +684,8 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         (s) =>
           ({
             id: s.id,
-            parentId: copiedStatementsIds.has(s.parent?.id ?? "") ? s.parent?.id : null,
+            parentId: s.parent?.id,
+            parentInCopy: copiedStatementsIds.has(s.parent?.id ?? ""),
             orderKey: s.orderKey,
           } as CopiedStatement)
       );
@@ -729,12 +732,14 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         const sourceIds = sourceStatements.map((s) => s.id);
         const targetIds: Record<string, string> = {};
         sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
-        const targetParentIds = sourceStatements.map((s) => targetIds[s.parentId ?? ""]);
+        const targetParentIds = sourceStatements.map((s) =>
+          s.parentInCopy ? targetIds[s.parentId ?? ""] : s.parentId ?? null
+        );
         // order keys for root are between bottom and next sibling, all other orders are reset
         const sourceStatementsByParentId: Record<string, string[]> = {};
         sourceStatements.forEach((s) => {
           // group children by parents
-          const parentId = s.parentId ?? "";
+          const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
           if (sourceStatementsByParentId[parentId] == null) {
             sourceStatementsByParentId[parentId] = [];
           }
@@ -748,13 +753,12 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
               nextSibling?.orderKey ?? null,
               childIds.length
             );
-            console.log(orderKeysByParentId[""], bottom?.orderKey, nextSibling?.orderKey, childIds.length);
           } else {
             orderKeysByParentId[parentId] = generateNKeysBetween(null, null, childIds.length);
           }
         });
         const targetOrderKeys: string[] = sourceStatements.map((s) => {
-          const parentId = s.parentId ?? "";
+          const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
           const orderKeys = orderKeysByParentId[parentId];
           const childIndex = sourceStatementsByParentId[parentId].indexOf(s.id);
           return orderKeys[childIndex];
@@ -768,6 +772,14 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
           targetOrderKeys
         );
         console.log("pasted " + sourceStatements.length + " statements");
+        // select the pasted stuff
+        if (editor.focusedElementId != null && sourceIds.includes(editor.focusedElementId)) {
+          editor.focusElement({ id: targetIds[editor.focusedElementId], __typename: "Statement" });
+        } else {
+          editor.blurElement();
+        }
+        editor.clearSelection();
+        Object.values(targetIds).forEach((targetId) => editor.addToSelection({ id: targetId }));
       } catch (err) {
         console.error("failed to parse clipboard data", err);
         return;
