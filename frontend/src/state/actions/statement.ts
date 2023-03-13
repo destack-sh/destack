@@ -661,7 +661,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   type CopiedStatement = {
     id: string;
     parentId: string | null;
-    parentInCopy: boolean;
+    parentInCopy?: boolean;
     orderKey: string;
   };
   const copy = provideSharedAction({
@@ -685,7 +685,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
           ({
             id: s.id,
             parentId: s.parent?.id,
-            parentInCopy: copiedStatementsIds.has(s.parent?.id ?? ""),
+            parentInCopy: s.parent == null ? undefined : copiedStatementsIds.has(s.parent?.id ?? ""),
             orderKey: s.orderKey,
           } as CopiedStatement)
       );

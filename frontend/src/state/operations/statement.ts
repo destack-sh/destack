@@ -1,26 +1,26 @@
 import { graphql } from "@/gql";
 import {
-StatementType,
-TypeTag,
-type BatchDeleteStatementsMutation,
-type BatchMoveStatementMutation,
-type BatchRestoreStatementsMutation,
-type CreateStatementMutation,
-type CreateTypeNodeMutation,
-type DeleteStatementMutation,
-type DeleteTypeNodeMutation,
-type MorphStatementMutation,
-type MoveStatementMutation,
-type RenameStatementMutation,
-type RestoreStatementMutation,
-type RestoreTypeNodeMutation,
-type StatementModifier,
-type StatementMorphInput,
-type SymbolType,
-type TypeNodeCreateInput,
-type TypeNodeUpdateInput,
-type UpdateStatementModifierMutation,
-type UpdateTypeNodeMutation
+  StatementType,
+  TypeTag,
+  type BatchDeleteStatementsMutation,
+  type BatchMoveStatementMutation,
+  type BatchRestoreStatementsMutation,
+  type CreateStatementMutation,
+  type CreateTypeNodeMutation,
+  type DeleteStatementMutation,
+  type DeleteTypeNodeMutation,
+  type MorphStatementMutation,
+  type MoveStatementMutation,
+  type RenameStatementMutation,
+  type RestoreStatementMutation,
+  type RestoreTypeNodeMutation,
+  type StatementModifier,
+  type StatementMorphInput,
+  type SymbolType,
+  type TypeNodeCreateInput,
+  type TypeNodeUpdateInput,
+  type UpdateStatementModifierMutation,
+  type UpdateTypeNodeMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -564,6 +564,7 @@ export function useStatementOps() {
     });
   }
 
+  // TODO @Performance: make statement paste optimistic
   const { mutate: batchPasteMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation batchPasteStatement(
