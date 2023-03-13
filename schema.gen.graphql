@@ -1375,7 +1375,7 @@ input StatementBatchMoveInput {
 union StatementBatchOperationInfo = StatementBatch | OperationInfo
 
 input StatementBatchPasteInput {
-  ids: [GlobalID!]!
+  sourceIds: [GlobalID!]!
   targetIds: [GlobalID!]!
   targetFileId: GlobalID!
   targetParentIds: [GlobalID]!

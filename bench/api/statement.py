@@ -238,7 +238,7 @@ class StatementBatchMoveInput:
 
 @gql.input
 class StatementBatchPasteInput:
-    ids: list[GlobalID]
+    source_ids: list[GlobalID]
     target_ids: list[GlobalID]
     target_file_id: GlobalID
     target_parent_ids: list[Optional[GlobalID]]
@@ -437,9 +437,9 @@ class StatementMutation:
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
-        source_statement_ids = [UUID(i.node_id) for i in input.source_statement_ids]
-        source_statements = models.Statement._base_manager.filter(id__in=input.source_statement_ids)
-        if source_statements.count() != len(input.statement_ids):
+        source_ids = [UUID(i.node_id) for i in input.source_ids]
+        source_statements = models.Statement._base_manager.filter(id__in=source_ids)
+        if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
 
         # check that the user can read the source
@@ -450,24 +450,30 @@ class StatementMutation:
         check_can_view_project(info, source_project_v.project)
         # check that the user can write the target
         source_file_ids = set(s.file_id for s in source_statements)
-        target_file = models.File.objects.get(id=input.file_id.node_id)
+        target_file = models.File.objects.get(id=input.target_file_id.node_id)
         check_can_write_project(info, target_file)
 
         # actually paste and store paste refmappings
-        target_statement_ids = [UUID(i.node_id) for i in input.statement_ids]
+        target_ids = [UUID(i.node_id) for i in input.target_ids]
+        target_parent_ids = {
+            s: UUID(t.node_id) if t is not None else None
+            for s, t in zip(target_ids, input.target_parent_ids)
+        }
         ref_mappings = models.Statement.objects.copy_statements(
             statements=source_statements,
             target_files={s: target_file for s in source_file_ids},
             source_version=source_project_v,
             target_version=target_file.project_version,
             copy_generated_mappings=False,
-            target_statement_ids={s: t for s, t in zip(source_statement_ids, target_statement_ids)},
+            target_statement_ids={s: t for s, t in zip(source_ids, target_ids)},
+            target_parent_ids=target_parent_ids,
+            target_order_keys={s: t for s, t in zip(target_ids, input.target_order_keys)},
         )
         for mapping in ref_mappings:
             mapping.kind = models.RefMappingKind.PASTE
         models.RefMapping.objects.bulk_create(ref_mappings)
 
-        target_statements = models.Statement.objects.filter(id__in=input.target_ids)
+        target_statements = models.Statement.objects.filter(id__in=target_ids)
         return StatementBatch(statements=target_statements)
 
 

@@ -149,14 +149,19 @@ class StatementManager(models.Manager["Statement"]):
             ref_mappings_ids[old_id] = ref_mapping.id
             ref_mappings.append(ref_mapping)
 
-        # nocheckin: this is broken if statements are not at root level
-        statements_bfs = list(walk_children_bfs(statements.filter(parent=None), "children"))
+        # walk statements BFS, starting at roots that are _within_ selection (may not be actual roots)
+        statements_bfs = list(
+            walk_children_bfs(
+                statements.exclude(parent_id__in=statements.values_list("id", flat=True)),
+                "children",
+            )
+        )
         # (pre-determine new statement ids to re-create source mappings in one go)
         target_statement_ids = target_statement_ids or {
-            statement.id: uuid4() for statement in statements_bfs
+            statement.id: uuid4() for statement in statements
         }
-        target_parent_ids = {}
-        target_order_keys = {}
+        target_parent_ids = target_parent_ids or {}
+        target_order_keys = target_order_keys or {}
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
@@ -214,13 +219,12 @@ class StatementManager(models.Manager["Statement"]):
             old_revision = statement.revision
             statement.id = target_statement_ids[old_id]
             statement._state.adding = True
-            statement.parent_id = target_parent_ids.get(old_id, statement.parent_id)
-            statement.order_key = target_order_keys.get(old_id, statement.order_key)
+            statement.parent_id = target_parent_ids.get(statement.id, statement.parent_id)
+            statement.order_key = target_order_keys.get(statement.id, statement.order_key)
             statement.revision = 0  # reset revision
             statement.file = target_files[statement.file_id]
             statement.project_version = target_version
             statement.reference = None
-            statement.parent = new_statements.get(statement.parent_id)
             statement.save()
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
