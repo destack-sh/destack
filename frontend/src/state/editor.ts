@@ -384,7 +384,7 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusElement(element: StatementHeader | FileHeader, retainEditing = false) {
+    focusElement(element: { id: string; __typename: string } | StatementHeader | FileHeader, retainEditing = false) {
       if (this.focusedElementId == element.id) return;
       console.log(`focus element ${element.id}`);
       this.focusedElementId = element.id;

@@ -50,6 +50,8 @@ def project_mutation(
             if batch:
                 # assumes things property on any returned batches (see StatementBatch)
                 things = ret.things
+                if len(things) == 0:
+                    raise RuntimeError("batch mutation returned empty batch")
                 thing = things[0]
             else:
                 thing = ret

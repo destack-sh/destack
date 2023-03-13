@@ -12,8 +12,8 @@ import { StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
-import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, useMagicKeys, whenever } from "@vueuse/core";
-import { computed, nextTick, provide, ref, watch, watchEffect, type Component, type Ref } from "vue";
+import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
+import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -198,6 +198,7 @@ function onClickContainer(e: MouseEvent) {
   }
   if (!editor.readonly) {
     editor.editElement(statement.value as StatementHeader);
+    containerFocused.value = false;
   } else {
     containerFocused.value = true;
   }
@@ -229,10 +230,10 @@ const isStale = isSymbolStale(statement);
     class="group/statement relative min-h-[30px] outline-none transition-colors duration-75 focus:outline-none"
     :class="{
       'pb-0.5': true,
-      'focus:bg-orange-50': !isCommentish,
-      'focus:bg-gray-50': isCommentish,
-      'bg-orange-50': !isCommentish && (isSelected || isAncestorHighlight),
-      'bg-gray-50': isCommentish && (isSelected || isAncestorHighlight),
+      'focus:bg-orange-100': !isCommentish,
+      'focus:bg-gray-100': isCommentish,
+      'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight),
+      'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight),
       'font-mono': editor.fontMono && !isComment,
       'text-gray-700': isCommented,
     }"
@@ -255,9 +256,10 @@ const isStale = isSymbolStale(statement);
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,
         'font-mono': editor.fontMono,
-        'text-orange-200 group-focus-within/statement:text-orange-400 group-focus/statement:text-orange-400':
+        'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-focus/statement:text-orange-500':
           !isCommentish,
-        'text-gray-200 group-focus-within/statement:text-gray-400 group-focus/statement:text-gray-400': isCommentish,
+        'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-focus/statement:text-gray-500':
+          isCommentish,
       }"
     >
       {{ lineNumberBase + 1 }}
@@ -272,30 +274,31 @@ const isStale = isSymbolStale(statement);
       </span>
     </span>
     <!-- Statement focus indicator (left side if not editing) -->
+    <!-- (the z-[5] puts it in front of the statement focus border) -->
     <div
-      class="absolute -left-0.5 top-0 h-full w-1.5 transition-colors duration-75"
+      class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition-colors duration-75"
       :class="{
-        'group-focus-within/statement:bg-orange-100 group-hover/statement:bg-orange-50': !isCommentish,
-        'group-focus-within/statement:bg-gray-100 group-hover/statement:bg-gray-50': isCommentish,
+        'group-focus-within/statement:bg-orange-200 group-hover/statement:bg-orange-300': !isCommentish,
+        'group-focus-within/statement:bg-gray-200 group-hover/statement:bg-gray-300': isCommentish,
       }"
     />
     <!-- Statement focus indicator (all around if editing) -->
     <template v-if="isEditing">
       <div
         class="duration-50 absolute top-0 left-0 h-0.5 w-full transition-colors"
-        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
       />
       <div
         class="duration-50 absolute bottom-0 left-0 h-0.5 w-full transition-colors"
-        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
       />
       <div
         class="duration-50 absolute top-0 left-0 h-full w-0.5 transition-colors"
-        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
       />
       <div
         class="duration-50 absolute right-0 top-0 h-full w-0.5 transition-colors"
-        :class="isCommentish ? 'bg-gray-100' : 'bg-orange-100'"
+        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
       />
     </template>
     <!-- Main cell -->
