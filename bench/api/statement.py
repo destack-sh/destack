@@ -7,12 +7,14 @@ from django.core.exceptions import ValidationError
 from django.db.models import F
 from strawberry import UNSET, lazy
 from strawberry.scalars import JSON
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
+from bench.api.auth import check_can_view_project, check_can_write_project
 from bench.api.sync import PMT, project_mutation
 
 if TYPE_CHECKING:
@@ -212,6 +214,7 @@ class StatementCommentedInput(gql.NodeInput):
 @gql.input
 class StatementBatchSoftDeleteInput:
     ids: list[GlobalID]
+    deleted_at: Optional[datetime] = None
 
 
 @gql.input
@@ -235,10 +238,11 @@ class StatementBatchMoveInput:
 
 @gql.input
 class StatementBatchPasteInput:
-    file_id: GlobalID
-    parent_id: Optional[GlobalID] = None
-    order_key: Optional[str] = None
     ids: list[GlobalID]
+    target_ids: list[GlobalID]
+    target_file_id: GlobalID
+    target_parent_ids: list[Optional[GlobalID]]
+    target_order_keys: list[str]
 
 
 @gql.type
@@ -371,12 +375,12 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.soft_delete but for a batch
-        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        deleted_at = input.deleted_at or datetime.utcnow().replace(tzinfo=pytz.utc)
         models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
         models.Statement.objects.get_descendants(statement_ids).filter(deleted_at=None).update(
             deleted_at=deleted_at
         )
-        # use base manager since they're now deleted
+        # use base manager since the statements are now deleted
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
         return StatementBatch(statements=list(statements))
 
@@ -427,6 +431,44 @@ class StatementMutation:
         for i, statement in enumerate(statements):
             statement.revision = new_revisions[i][0]
         return StatementBatch(statements=list(statements))
+
+    # no directives because we check auth manually here
+    @project_mutation(PMT.CREATE_STATEMENT, atomic=True, batch=True, directives=[])
+    def batch_paste_statement(
+        self, info: Info, input: StatementBatchPasteInput
+    ) -> StatementBatch | OperationInfo:
+        source_statement_ids = [UUID(i.node_id) for i in input.source_statement_ids]
+        source_statements = models.Statement._base_manager.filter(id__in=input.source_statement_ids)
+        if source_statements.count() != len(input.statement_ids):
+            raise ValidationError("statements not found")
+
+        # check that the user can read the source
+        source_project_v = source_statements[0].project_version
+        source_project_v_ids = set(s.project_version_id for s in source_statements)
+        if len(source_project_v_ids) > 1:
+            raise ValidationError("statements must be from the same project version")
+        check_can_view_project(info, source_project_v.project)
+        # check that the user can write the target
+        source_file_ids = set(s.file_id for s in source_statements)
+        target_file = models.File.objects.get(id=input.file_id.node_id)
+        check_can_write_project(info, target_file)
+
+        # actually paste and store paste refmappings
+        target_statement_ids = [UUID(i.node_id) for i in input.statement_ids]
+        ref_mappings = models.Statement.objects.copy_statements(
+            statements=source_statements,
+            target_files={s: target_file for s in source_file_ids},
+            source_version=source_project_v,
+            target_version=target_file.project_version,
+            copy_generated_mappings=False,
+            target_statement_ids={s: t for s, t in zip(source_statement_ids, target_statement_ids)},
+        )
+        for mapping in ref_mappings:
+            mapping.kind = models.RefMappingKind.PASTE
+        models.RefMapping.objects.bulk_create(ref_mappings)
+
+        target_statements = models.Statement.objects.filter(id__in=input.target_ids)
+        return StatementBatch(statements=target_statements)
 
 
 #

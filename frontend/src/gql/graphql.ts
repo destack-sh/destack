@@ -511,6 +511,7 @@ export type Mutation = {
   addDeployedStatement: DeploymentOperationInfo;
   batchCommentStatement: StatementBatchOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
+  batchPasteStatement: StatementBatchOperationInfo;
   batchRestoreStatement: StatementBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
@@ -580,6 +581,10 @@ export type MutationBatchCommentStatementArgs = {
 
 export type MutationBatchMoveStatementArgs = {
   input: StatementBatchMoveInput;
+};
+
+export type MutationBatchPasteStatementArgs = {
+  input: StatementBatchPasteInput;
 };
 
 export type MutationBatchRestoreStatementArgs = {
@@ -1575,11 +1580,20 @@ export type StatementBatchMoveInput = {
 
 export type StatementBatchOperationInfo = OperationInfo | StatementBatch;
 
+export type StatementBatchPasteInput = {
+  ids: Array<Scalars["GlobalID"]>;
+  targetFileId: Scalars["GlobalID"];
+  targetIds: Array<Scalars["GlobalID"]>;
+  targetOrderKeys: Array<Scalars["String"]>;
+  targetParentIds: Array<InputMaybe<Scalars["GlobalID"]>>;
+};
+
 export type StatementBatchRestoreInput = {
   ids: Array<Scalars["GlobalID"]>;
 };
 
 export type StatementBatchSoftDeleteInput = {
+  deletedAt?: InputMaybe<Scalars["DateTime"]>;
   ids: Array<Scalars["GlobalID"]>;
 };
 

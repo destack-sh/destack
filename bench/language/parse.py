@@ -1663,7 +1663,7 @@ def interp(
 
 def symbol_mentions_symbol(symbol: InterpSymbol, other: InterpSymbol) -> bool:
     """Return whether the given symbol mentions the other symbol."""
-    # TODO @Robustness: improve symbol mention detection & extraction
+    # TODO @Robustness: use :WeakReferences instead of symbol mentions
     if isinstance(symbol, Code) and symbol.code is not None:
         return other.name in symbol.code
     else:
