@@ -71,8 +71,10 @@ def project_mutation(
             if project_version.committed:
                 raise PermissionDenied("cannot mutate committed project version")
 
-            # validate
-            thing.full_clean(validate_unique=False, validate_constraints=False)
+            # validate (ignoring uniqueness, constraints, and 'revision' field which may be an F expression)
+            thing.full_clean(
+                validate_unique=False, validate_constraints=False, exclude=["revision"]
+            )
 
             if not batch:
                 # save and bump revision (if not new or batched)

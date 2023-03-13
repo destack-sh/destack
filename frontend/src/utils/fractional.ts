@@ -211,7 +211,12 @@ export function generateKeyBetween(a: string | null, b: string | null, digits: s
 // If a and b are both null, returns [a0, a1, ...]
 // If one or the other is null, returns consecutive "integer" keys.
 // Otherwise, returns relatively short keys between a and b.
-export function generateNKeysBetween(a: string, b: string, n: number, digits: string = BASE_95_DIGITS): string[] {
+export function generateNKeysBetween(
+  a: string | null,
+  b: string | null,
+  n: number,
+  digits: string = BASE_95_DIGITS
+): string[] {
   if (n === 0) {
     return [];
   }
