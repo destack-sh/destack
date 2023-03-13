@@ -420,6 +420,12 @@ class StatementMutation:
         models.Statement.objects.bulk_update(
             statements, ["file_id", "parent_id", "order_key", "revision"]
         )
+        # refresh revisions from DB
+        new_revisions = models.Statement.objects.filter(id__in=statement_ids).values_list(
+            "revision"
+        )
+        for i, statement in enumerate(statements):
+            statement.revision = new_revisions[i][0]
         return StatementBatch(statements=list(statements))
 
 

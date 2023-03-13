@@ -49,14 +49,6 @@ const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
 );
 
-// if holding shift and is focused, add to selection
-const { shift } = useMagicKeys();
-watchEffect(() => {
-  if (shift.value && isFocused.value) {
-    editor.addToSelection(statement.value);
-  }
-});
-
 // manage cells
 const context: Ref<StatementContext> = computed(() => ({
   readonly: editor.readonly || props.readonly,
@@ -234,7 +226,7 @@ const isStale = isSymbolStale(statement);
   <div
     tabindex="-1"
     ref="containerRef"
-    class="group/statement relative min-h-[30px] rounded-sm outline-none transition-colors duration-75 focus:outline-none"
+    class="group/statement relative min-h-[30px] outline-none transition-colors duration-75 focus:outline-none"
     :class="{
       'pb-0.5': true,
       'focus:bg-orange-50': !isCommentish,
@@ -244,7 +236,11 @@ const isStale = isSymbolStale(statement);
       'font-mono': editor.fontMono && !isComment,
       'text-gray-700': isCommented,
     }"
-    :style="{ marginLeft: highlightOffsetX + 'px', paddingLeft: contentOffsetX - highlightOffsetX + 'px' }"
+    :style="{
+      marginLeft: highlightOffsetX + 'px',
+      paddingLeft: contentOffsetX - highlightOffsetX + 'px',
+      width: `calc(100% - ${highlightOffsetX}px)`,
+    }"
     @click="onClickContainer"
   >
     <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
@@ -253,8 +249,8 @@ const isStale = isSymbolStale(statement);
     <!-- Monaco-like line numbers on the left margin -->
     <span
       v-if="editor.showLineNumbers"
-      class="duration-50 absolute top-[3px] w-6 select-none text-right not-italic transition-colors"
-      :style="{ left: -30 - highlightOffsetX + 'px' }"
+      class="absolute top-[3px] w-6 select-none text-right not-italic transition-colors duration-75"
+      :style="{ transform: 'translateX(' + (-30 - contentOffsetX) + 'px)' }"
       :class="{
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,

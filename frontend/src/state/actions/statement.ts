@@ -4,7 +4,7 @@ import { useEditorState, type FileHeader, type StatementHeader } from "@/state/e
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation } from "@/state/runtime";
-import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
 
@@ -44,8 +44,14 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const editor = useEditorState();
   const operations = useOperations();
 
-  const enabled = computed(() => file.value != null);
   const statements = computed(() => file.value?.statements ?? []);
+  const statementPositions = computed(() => {
+    const result: Record<string, number> = {};
+    for (let i = 0; i < statements.value.length; i++) {
+      result[statements.value[i].id] = i;
+    }
+    return result;
+  });
   const depths = computed(() => file.value?.depths ?? []);
 
   function getLocation(statement: StatementHeader) {
@@ -77,121 +83,68 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     return result;
   });
 
+  function getSiblings(statement?: StatementHeader) {
+    return statementsByParentId.value[statement?.parent?.id ?? ""];
+  }
+
+  function getPreviousSibling(statement: StatementHeader) {
+    const siblings = getSiblings(statement);
+    return siblings[siblings.findIndex((s) => s.id === statement.id) - 1];
+  }
+
+  function getNextSibling(statement: StatementHeader) {
+    const siblings = getSiblings(statement);
+    return siblings[siblings.findIndex((s) => s.id === statement.id) + 1];
+  }
+
+  function getSelectedRoots(): StatementHeader[] {
+    // Gets the in-selection roots of selected statements (ordered by position)
+    // (it can happen that we first select a child, then expand to parent, we only want parent)
+    let selectedRoots = editor.selectedElementIds.slice();
+    // trim statements whose parents are also selected
+    for (const id of editor.selectedElementIds) {
+      const children = statementsByParentId.value[id] ?? [];
+      selectedRoots = selectedRoots.filter((r) => !children.find((s) => s.id == r));
+    }
+    return selectedRoots
+      .sort((a, b) => statementPositions.value[a] - statementPositions.value[b])
+      .map((s) => statementsById.value[s]);
+  }
+
+  function getAboveCurGroup(statement: StatementHeader) {
+    // previous statement before this with depth <= this depth
+    for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
+      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
+        return statements.value[i];
+      }
+    }
+    return undefined;
+  }
+
+  function getBelowCurGroup(statement: StatementHeader) {
+    // next statement after this with depth <= this depth
+    for (let i = statementPositions.value[statement.id] + 1; i < statements.value.length; i++) {
+      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
+        return statements.value[i];
+      }
+    }
+    return undefined;
+  }
+
   // actions for currently focused statement
   const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
   const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
-  const siblings = computed(() => statementsByParentId.value[statement.value?.parent?.id ?? ""]);
-  const previousSibling = computed(
-    () => siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) - 1]
-  );
-  const nextSibling = computed(() => siblings.value[siblings.value.findIndex((s) => s.id === statement.value.id) + 1]);
+  const previousSibling = computed(() => getPreviousSibling(statement.value));
+  const nextSibling = computed(() => getNextSibling(statement.value));
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
-  const position = computed(() => statements.value.findIndex((s) => s.id === statement.value?.id));
+  const position = computed(() => statementPositions.value[statement.value?.id]);
   const location = computed(() => getLocation(statement.value));
 
   const above = computed(() => statements.value[position.value - 1]);
   const below = computed(() => statements.value[position.value + 1]);
-  const aboveCurGroup = computed(() => {
-    // previous statement before this with depth <= this depth
-    for (let i = position.value - 1; i >= 0; i--) {
-      if (depths.value[i] <= depths.value[position.value]) {
-        return statements.value[i];
-      }
-    }
-    return undefined;
-  });
-  const belowCurGroup = computed(() => {
-    // next statement after this with depth <= this depth
-    for (let i = position.value + 1; i < statements.value.length; i++) {
-      if (depths.value[i] <= depths.value[position.value]) {
-        return statements.value[i];
-      }
-    }
-    return undefined;
-  });
+  const aboveCurGroup = computed(() => getAboveCurGroup(statement.value));
+  const belowCurGroup = computed(() => getBelowCurGroup(statement.value));
   const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
-
-  // indent statement
-  const moveCurrentIn = provideSharedAction({
-    id: "statement.moveCurrentIn",
-    label: "Move statement in",
-    shortcuts: ["tab"],
-    enabled: computed(() => statement.value != null && above.value != null),
-    // we can only indent if there is a sibling above
-    apply: async () => {
-      // move to end of previous sibling's children
-      if (previousSibling.value == null) {
-        return;
-      }
-      const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
-      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
-      await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.file.id,
-        parentId: previousSibling.value?.id,
-        orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
-      });
-    },
-  });
-  const moveCurrentOut = provideSharedAction({
-    id: "statement.moveCurrentOut",
-    label: "Move statement out",
-    shortcuts: ["shift+tab"],
-    enabled: computed(() => statement.value != null && statement.value.parent != null),
-    apply: async () => {
-      // move to after parent in grandparent's children
-      const parent = statementsById.value[statement.value.parent?.id];
-      const grandparent = statementsById.value[parent.parent?.id];
-      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
-      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
-      await operations.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.file.id,
-        parentId: grandparent?.id,
-        orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
-      });
-    },
-  });
-
-  // move statement up/down
-  const moveCurrentUp = provideSharedAction({
-    id: "statement.moveCurrentUp",
-    label: "Move statement up",
-    shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => statement.value != null && above.value != null),
-    apply: async () => {
-      // insert between above and above prev sibling (if any)
-      const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
-      const abovePrevSibling = aboveSiblings
-        .slice()
-        .reverse()
-        .find((s) => s.orderKey < above.value.orderKey);
-      const targetLocation = {
-        fileId: file.value?.file.id,
-        parentId: above.value?.parent?.id,
-        orderKey: generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.value.orderKey),
-      };
-      await operations.statement.move(statement.value.id, location.value, targetLocation);
-    },
-  });
-  const moveCurrentDown = provideSharedAction({
-    id: "statement.moveCurrentDown",
-    label: "Move statement down",
-    shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => statement.value != null && belowCurGroup.value != null),
-    apply: async () => {
-      if (belowCurGroup.value == null) return;
-      // insert between the next group below and its next sibling (if any)
-      const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
-      const belowNextSibling = belowSiblings.find(
-        (s) => s.orderKey > (belowCurGroup.value as StatementHeader).orderKey
-      );
-      const targetLocation = {
-        fileId: file.value?.file.id,
-        parentId: belowCurGroup.value?.parent?.id,
-        orderKey: generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null),
-      };
-      await operations.statement.move(statement.value.id, location.value, targetLocation);
-    },
-  });
 
   // move focus
   const moveFocusUp = provideSharedAction({
@@ -258,7 +211,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   // start / stop editing current statement
   const editCurrent = provideSharedAction({
     id: "statement.editCurrent",
-    label: "Edit current statement",
+    label: "Edit statement",
     shortcuts: ["enter"],
     enabled: computed(() => statement.value != null && navigatingFile.value),
     apply: () => {
@@ -267,11 +220,206 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
   const stopEditingCurrent = provideSharedAction({
     id: "statement.stopEditingCurrent",
-    label: "Stop editing current statement",
+    label: "Stop editing statement",
     shortcuts: ["escape"],
     enabled: computed(() => statement.value != null && editor.editingElement && !editor.hasSelection),
     apply: () => {
       editor.stopEditingElement(statement.value);
+    },
+  });
+
+  // indent statement
+  const indentCurrent = provideSharedAction({
+    id: "statement.indentCurrent",
+    label: "Indent statement",
+    shortcuts: ["tab"],
+    enabled: computed(() => statement.value != null && above.value != null && !editor.hasSelection),
+    // we can only indent if there is a sibling above
+    apply: async () => {
+      // move to end of previous sibling's children
+      if (previousSibling.value == null) {
+        return;
+      }
+      const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
+      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
+      await operations.statement.move(statement.value.id, location.value, {
+        fileId: file.value?.file.id,
+        parentId: previousSibling.value?.id,
+        orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
+      });
+    },
+  });
+  const unindentCurrent = provideSharedAction({
+    id: "statement.unindentCurrent",
+    label: "Unindent statement",
+    shortcuts: ["shift+tab"],
+    enabled: computed(() => statement.value != null && statement.value.parent != null && !editor.hasSelection),
+    apply: async () => {
+      // move to after parent in grandparent's children
+      const parent = statementsById.value[statement.value.parent?.id];
+      const grandparent = statementsById.value[parent.parent?.id];
+      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
+      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
+      await operations.statement.move(statement.value.id, location.value, {
+        fileId: file.value?.file.id,
+        parentId: grandparent?.id,
+        orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
+      });
+    },
+  });
+  const indentSelection = provideSharedAction({
+    id: "statement.indentSelection",
+    label: "Indent selection",
+    shortcuts: ["tab"],
+    enabled: computed(() => editor.hasSelection),
+    apply: async () => {
+      // indent selected roots in line with the topmost selected statement
+      const selectedRoots = getSelectedRoots();
+      const previousSibling = getPreviousSibling(selectedRoots[0]);
+      if (previousSibling == null) {
+        return;
+      }
+      const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
+      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
+      // insert all selected roots in order after previous sibling's children
+      const ids = selectedRoots.map((r) => r.id);
+      const oldLocations = selectedRoots.map((s) => getLocation(s));
+      const insertOrderKeys = generateNKeysBetween(
+        previousSiblingChildrenLast?.orderKey ?? null,
+        null,
+        selectedRoots.length
+      );
+      await operations.statement.batchMove(
+        ids,
+        oldLocations,
+        insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: previousSibling.id, orderKey: k }))
+      );
+    },
+  });
+  const unindentSelection = provideSharedAction({
+    id: "statement.unindentSelection",
+    label: "Unindent selection",
+    shortcuts: ["shift+tab"],
+    enabled: computed(() => editor.hasSelection),
+    apply: async () => {
+      // unindent selected roots in line with the topmost selected statement
+      const selectedRoots = getSelectedRoots();
+      const parent = statementsById.value[selectedRoots[0].parent?.id];
+      const grandparent = statementsById.value[parent.parent?.id];
+      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
+      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
+      // insert all selected roots in order after parent
+      const ids = selectedRoots.map((r) => r.id);
+      const oldLocations = selectedRoots.map((s) => getLocation(s));
+      const insertOrderKeys = generateNKeysBetween(
+        parent.orderKey,
+        parentNextSibling?.orderKey ?? null,
+        selectedRoots.length
+      );
+      await operations.statement.batchMove(
+        ids,
+        oldLocations,
+        insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: grandparent?.id, orderKey: k }))
+      );
+    },
+  });
+
+  // move statement up/down
+  const moveCurrentUp = provideSharedAction({
+    id: "statement.moveCurrentUp",
+    label: "Move statement up",
+    shortcuts: ["alt+up", "meta+up"],
+    enabled: computed(() => statement.value != null && above.value != null && !editor.hasSelection),
+    apply: async () => {
+      // insert between above and above prev sibling (if any)
+      const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
+      const abovePrevSibling = aboveSiblings
+        .slice()
+        .reverse()
+        .find((s) => s.orderKey < above.value.orderKey);
+      const orderKey = generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.value.orderKey);
+      const targetLocation = {
+        fileId: file.value?.file.id,
+        parentId: above.value?.parent?.id,
+        orderKey,
+      };
+      await operations.statement.move(statement.value.id, location.value, targetLocation);
+    },
+  });
+  const moveCurrentDown = provideSharedAction({
+    id: "statement.moveCurrentDown",
+    label: "Move statement down",
+    shortcuts: ["alt+down", "meta+down"],
+    enabled: computed(() => statement.value != null && belowCurGroup.value != null && !editor.hasSelection),
+    apply: async () => {
+      if (belowCurGroup.value == null) return;
+      // insert between the next group below and its next sibling (if any)
+      const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
+      const belowNextSibling = belowSiblings.find(
+        (s) => s.orderKey > (belowCurGroup.value as StatementHeader).orderKey
+      );
+      const orderKey = generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null);
+      const targetLocation = {
+        fileId: file.value?.file.id,
+        parentId: belowCurGroup.value?.parent?.id,
+        orderKey,
+      };
+      await operations.statement.move(statement.value.id, location.value, targetLocation);
+    },
+  });
+  const moveSelectionUp = provideSharedAction({
+    id: "statement.moveSelectionUp",
+    label: "Move selection up",
+    shortcuts: ["alt+up", "meta+up"],
+    enabled: computed(() => editor.hasSelection),
+    apply: async () => {
+      // move selected roots in line with the topmost selected statement
+      // (insert between above and above prev sibling (if any))
+      const selectedRoots = getSelectedRoots();
+      const above = statements.value[statementPositions.value[selectedRoots[0].id] - 1];
+      if (above == null) return;
+      const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
+      const abovePrevSibling = aboveSiblings
+        .slice()
+        .reverse()
+        .find((s) => s.orderKey < above.orderKey);
+      const ids = selectedRoots.map((r) => r.id);
+      const oldLocations = selectedRoots.map((s) => getLocation(s));
+      const orderKeys = generateNKeysBetween(abovePrevSibling?.orderKey ?? null, above.orderKey, selectedRoots.length);
+      const targetLocations = orderKeys.map((k) => ({
+        fileId: file.value?.file.id,
+        parentId: above.parent?.id,
+        orderKey: k,
+      }));
+      await operations.statement.batchMove(ids, oldLocations, targetLocations);
+    },
+  });
+  const moveSelectionDown = provideSharedAction({
+    id: "statement.moveSelectionDown",
+    label: "Move selection down",
+    shortcuts: ["alt+down", "meta+down"],
+    enabled: computed(() => editor.hasSelection),
+    apply: async () => {
+      // move selected roots in line with the bottommost selected statement
+      // (insert between the next group below and its next sibling (if any))
+      const selectedRoots = getSelectedRoots();
+      const belowCurGroup = getBelowCurGroup(selectedRoots[selectedRoots.length - 1]);
+      if (belowCurGroup == null) return;
+      const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
+      const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.orderKey);
+      const ids = selectedRoots.map((r) => r.id);
+      const oldLocations = selectedRoots.map((s) => getLocation(s));
+      const orderKeys = generateNKeysBetween(
+        belowCurGroup.orderKey,
+        belowNextSibling?.orderKey ?? null,
+        selectedRoots.length
+      );
+      const targetLocations = orderKeys.map((k) => ({
+        fileId: file.value?.file.id,
+        parentId: belowCurGroup.parent?.id,
+        orderKey: k,
+      }));
+      await operations.statement.batchMove(ids, oldLocations, targetLocations);
     },
   });
 
@@ -280,13 +428,16 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.expandSelectionUp",
     label: "Expand selection up",
     shortcuts: ["shift+up"],
-    enabled: computed(() => statement.value != null && above.value != null && editor.hasSelection),
+    enabled: computed(() => statement.value != null && above.value != null),
     apply: () => {
       // remove self from selection if previous selected (last is current) is above
       // (that means we're expanding down)
       const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
       if (prevSelectedPosition > -1 && prevSelectedPosition < position.value) {
         editor.removeFromSelection(statement.value);
+      } else {
+        editor.addToSelection(statement.value);
+        editor.addToSelection(aboveCurGroup.value as StatementHeader);
       }
       // then move focus up to previous sibling or parent
       // (if above != null, then aboveCurGroup must also be non null)
@@ -297,13 +448,16 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.expandSelectionDown",
     label: "Expand selection down",
     shortcuts: ["shift+down"],
-    enabled: computed(() => statement.value != null && belowCurGroup.value != null && editor.hasSelection),
+    enabled: computed(() => statement.value != null && belowCurGroup.value != null),
     apply: () => {
       // remove self from selection if previous selected (last is current) is below
       // (that means we're expanding up)
       const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
       if (prevSelectedPosition > -1 && prevSelectedPosition > position.value) {
         editor.removeFromSelection(statement.value);
+      } else {
+        editor.addToSelection(statement.value);
+        editor.addToSelection(belowCurGroup.value as StatementHeader);
       }
       // then move focus down
       editor.focusElement(belowCurGroup.value as StatementHeader, false);
@@ -333,23 +487,27 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["backspace", "delete"],
-    enabled: computed(() => statement.value != null && navigatingFile.value),
+    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
-      // after delete focus next statement above
-      if (editor.hasSelection) {
-        // batch delete
-        editor.blurElement();
-        await operations.statement.batchDelete(editor.selectedElementIds);
-      } else {
-        // single delete
-        const current = statement.value.id;
-        if (above.value) {
-          editor.focusElement(above.value);
-        }
-        await operations.statement.delete(current);
+      const current = statement.value.id;
+      if (above.value) {
+        editor.focusElement(above.value);
       }
+      await operations.statement.delete(current);
     },
   });
+  const deleteSelection = provideSharedAction({
+    id: "statement.deleteSelection",
+    label: "Delete selected statements",
+    shortcuts: ["backspace", "delete"],
+    enabled: computed(() => editor.hasSelection && navigatingFile.value),
+    apply: async () => {
+      // after delete focus next statement above
+      editor.blurElement();
+      await operations.statement.batchDelete(editor.selectedElementIds);
+    },
+  });
+
   // TODO @Cleanup @Incomplete: provide statement surrounding context to all statements
   //  deleteAboveCurrent action very specific because we don't have
   //  the relevant above/below context in the statement and have no way of
@@ -466,10 +624,14 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   return {
-    moveCurrentIn,
-    moveCurrentOut,
+    indentCurrent,
+    unindentCurrent,
+    indentSelection,
+    unindentSelection,
     moveCurrentUp,
     moveCurrentDown,
+    moveSelectionUp,
+    moveSelectionDown,
     moveFocusUp,
     moveFocusDown,
     moveFocusIn,
@@ -481,6 +643,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     editCurrent,
     stopEditingCurrent,
     deleteCurrent,
+    deleteSelection,
     deleteAboveCurrent,
     jumpToReference,
     insertStart,
