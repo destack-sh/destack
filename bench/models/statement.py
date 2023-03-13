@@ -240,7 +240,7 @@ class StatementManager(models.Manager["Statement"]):
                 continue
             new = new_statements[old.id]
             # replace ref (default to same ref if not in refs since library refs are not copied)
-            new.reference_id = new_statements.get(old.reference_id, old.reference_id)
+            new.reference_id = target_statement_ids.get(old.reference_id, old.reference_id)
         Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
 
         # save statement's relations
