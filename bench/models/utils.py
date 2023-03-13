@@ -1,6 +1,6 @@
 import json
 import uuid
-from collections import deque
+from collections import defaultdict, deque
 from typing import Any, Deque, Iterator, Type, TypeVar
 
 from django.db import models
@@ -51,9 +51,9 @@ def is_jsonable(value: Any) -> bool:
 T = TypeVar("T")
 
 
-def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
+def walk_children_bfs_qs(objects: list[T], child_attr: str) -> Iterator[T]:
     """
-    Walk all children of an object in breadth-first order.
+    Walk all children of an object in breadth-first order using a children attribute.
     """
     queue: Deque[T] = deque(objects)
     while queue:
@@ -62,3 +62,42 @@ def walk_children_bfs(objects: list[T], child_attr: str) -> Iterator[T]:
         children = list(getattr(obj, child_attr).all())
         yield obj
         queue.extend(children)
+
+
+def walk_children_bfs_batched(objects: list[T], parent_id_attr: str) -> Iterator[T]:
+    """
+    Walk all children of an object in breadth-first order
+    by building the tree in-memory with the parent attribute.
+
+    Yields batches of *all* children at each level.
+    """
+    children_by_parent_id = defaultdict(list)
+    for obj in objects:
+        children_by_parent_id[getattr(obj, parent_id_attr)].append(obj)
+
+    # first batch by level (breadth-first) since source objects may be mutated during iteration
+    seen_ids = set()
+    children_levels = []
+    children = children_by_parent_id[None]
+    while children:
+        children_levels.append(children)
+        next_children = []
+        for obj in children:
+            if obj.id in seen_ids:
+                continue  # ignore cycles here (shouldn't happen)
+            seen_ids.add(obj.id)
+            if obj.id in children_by_parent_id:
+                next_children.extend(children_by_parent_id[obj.id])
+        children = next_children
+    # then yield from each level
+    yield from children_levels
+
+
+def walk_children_bfs(objects: list[T], parent_attr: str) -> Iterator[T]:
+    """
+    Walk all children of an object in breadth-first order
+    by building the tree in-memory with the parent attribute.
+    """
+    for batch in walk_children_bfs_batched(objects, parent_attr):
+        for obj in batch:
+            yield obj

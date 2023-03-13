@@ -174,7 +174,7 @@ defineExpose({
     tabindex="-1"
     v-if="description.length == 0"
     @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
     +description
   </button>
@@ -186,7 +186,7 @@ defineExpose({
     }"
   >
     <!-- Field types -->
-    <div v-for="field in fieldTypeNodes" :key="field?.id" class="flex flex-row gap-1 focus-within:bg-orange-50">
+    <div v-for="field in fieldTypeNodes" :key="field?.id" class="flex flex-row gap-1 focus-within:bg-orange-100">
       <InlineValueCell
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
         :immediate="false"
@@ -195,7 +195,7 @@ defineExpose({
         :model-value="field.name"
         :readonly="context.readonly.value"
         @update:model-value="(val: any) => updateFieldName(field, val)"
-        class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
         @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
         @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
         @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
@@ -206,7 +206,7 @@ defineExpose({
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
         :type="field"
         :readonly="context.readonly.value"
-        class="rounded-sm border border-transparent py-0.5 text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent py-0.5 text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
         :model-value="field"
         @update:model-value="(node: any) => updateFieldType(field, node)"
         @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
@@ -232,7 +232,7 @@ defineExpose({
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
           @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
       </template>
@@ -243,7 +243,7 @@ defineExpose({
     v-if="!context.readonly.value"
     tabindex="-1"
     ref="addRecordRef"
-    class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
+    class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
     @click="insertRecord()"
     @enter="insertRecord()"
     @keydown.up.exact="focusLastRecord"
@@ -257,7 +257,7 @@ defineExpose({
     v-if="!context.readonly.value"
     tabindex="-1"
     ref="addFieldRef"
-    class="ml-1 w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
+    class="ml-1 w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
     @click="insertField()"
     @enter="insertField()"
     @keydown.up.exact="focusLastRecord"

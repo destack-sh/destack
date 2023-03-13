@@ -425,16 +425,14 @@ export function useStatementOps() {
   }
 
   const { mutate: deleteStatementMut } = useMutation(
+    // we don't bother updating descendants here since they will be automatically hidden
+    // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
       mutation deleteStatement($id: GlobalID!) {
         softDeleteStatement(input: { id: $id }) {
           ... on Statement {
             id
             deletedAt
-            descendants {
-              id
-              deletedAt
-            }
           }
           ...OperationInfoContent
         }
@@ -447,7 +445,6 @@ export function useStatementOps() {
             __typename: "Statement",
             id: vars.id,
             deletedAt: new Date().toISOString(),
-            descendants: [], // unknown
           },
         } as DeleteStatementMutation),
     }

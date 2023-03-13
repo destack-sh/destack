@@ -3189,12 +3189,7 @@ export type DeleteStatementMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | {
-        __typename?: "Statement";
-        id: any;
-        deletedAt?: any | null;
-        descendants: Array<{ __typename?: "Statement"; id: any; deletedAt?: any | null }>;
-      };
+    | { __typename?: "Statement"; id: any; deletedAt?: any | null };
 };
 
 export type BatchDeleteStatementsMutationVariables = Exact<{
@@ -8663,17 +8658,6 @@ export const DeleteStatementDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "descendants" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                          ],
-                        },
-                      },
                     ],
                   },
                 },

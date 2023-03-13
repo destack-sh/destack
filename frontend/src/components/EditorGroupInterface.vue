@@ -4,7 +4,7 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, watch } from "vue";
+import { computed, ref, toRef, watch } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
@@ -36,6 +36,16 @@ const mountAllPanels = ref(false);
 setTimeout(() => {
   mountAllPanels.value = true;
 }, 2000);
+// reset whenever project version changes
+watch(
+  toRef(editor, "currentProjectVersionId"),
+  () => (
+    (mountAllPanels.value = false),
+    setTimeout(() => {
+      mountAllPanels.value = true;
+    }, 2000)
+  )
+);
 
 const actions = useActions();
 async function createFileInEditorGroup() {

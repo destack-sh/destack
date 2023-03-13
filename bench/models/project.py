@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional, TypedDict
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytz
 from django.core.validators import validate_slug
@@ -13,7 +13,7 @@ from strawberry_django_plus import gql
 
 from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
 from bench.models.statement import Statement
-from bench.models.utils import UUIDModel, walk_children_bfs
+from bench.models.utils import UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -361,6 +361,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target: ProjectVersion,
         files: Optional[models.QuerySet[File]] = None,
         copy_mappings: bool = True,
+        target_files_ids: dict[UUID, UUID] = None,
     ) -> list["RefMapping"]:
         """Copies the given files from a source version to a target version (by default everything)"""
 
@@ -377,24 +378,27 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # copy files
         new_files: dict[UUID, File] = {}
         file_mappings: list[RefMapping] = []
-        for file in walk_children_bfs(files.filter(parent=None), "files"):
-            old_id = file.id
-            old_revision = file.revision
-            file.pk = None
-            file.project_version = target
-            file.parent = new_files.get(file.parent_id)
-            file.save()
-            new_files[old_id] = file
-            file_mapping = RefMapping(
-                source_version=source,
-                target_version=target,
-                type=RefType.FILE,
-                source_id=old_id,
-                target_id=file.id,
-                source_revision=old_revision,
-                target_revision=file.revision,
-            )
-            file_mappings.append(file_mapping)
+        target_files_ids = target_files_ids or {file.id: uuid4() for file in files}
+        for files in walk_children_bfs_batched(files.filter(parent=None), "parent_id"):
+            for file in files:
+                old_id = file.id
+                old_revision = file.revision
+                file.id = target_files_ids[old_id]
+                file._state.adding = True
+                file.project_version = target
+                file.parent = new_files.get(file.parent_id)
+                new_files[old_id] = file
+                file_mapping = RefMapping(
+                    source_version=source,
+                    target_version=target,
+                    type=RefType.FILE,
+                    source_id=old_id,
+                    target_id=file.id,
+                    source_revision=old_revision,
+                    target_revision=file.revision,
+                )
+                file_mappings.append(file_mapping)
+            File.objects.bulk_create(files)
 
         # copy statements
         statement_mappings = Statement.objects.copy_statements(

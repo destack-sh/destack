@@ -122,14 +122,14 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
         <!-- Deploy link/help -->
         <span class="flex flex-row items-center gap-0.5">
           <button
-            class="rounded-sm px-1 text-gray-700 hover:bg-orange-50 hover:text-gray-900"
+            class="rounded-sm px-1 text-gray-700 hover:bg-orange-100 hover:text-gray-900"
             @click="actions.apply('version.deploy')"
           >
             Deploy
           </button>
           <router-link
             to="/symbolx/docs#Deploying"
-            class="text-gray-400 hover:bg-orange-50 hover:text-gray-900"
+            class="text-gray-400 hover:bg-orange-100 hover:text-gray-900"
             target="_blank"
           >
             <QuestionMarkCircleIcon class="h-4 w-4" />
@@ -157,7 +157,7 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
             @navigate-right="argumentsGrid.navigateRight(field?.id, 'value')"
             @navigate-up="argumentsGrid.navigateUp(field?.id, 'value')"
             @navigate-down="argumentsGrid.navigateDown(field?.id, 'value')"
-            class="my-0.5 w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+            class="my-0.5 w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
           />
           <!-- :EditableCellStyle -->
         </template>
@@ -167,7 +167,7 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
     <div class="my-2 flex w-full flex-row justify-center">
       <button
         ref="runButtonRef"
-        class="p-1 text-orange-600 outline-none hover:bg-orange-50 focus:bg-orange-50"
+        class="p-1 text-orange-600 outline-none hover:bg-orange-100 focus:bg-orange-100"
         @click="run"
         @keydown.enter.prevent="run"
         @keydown.space.prevent="run"
@@ -191,7 +191,7 @@ const outputColumns = computed(() => (outputField.value == null ? undefined : [[
         <div class="p-2 text-gray-500">
           No output yet. You should
           <button
-            class="text-gray-700 underline decoration-dashed underline-offset-2 hover:bg-orange-50 hover:text-gray-900 hover:decoration-solid focus:bg-orange-50"
+            class="text-gray-700 underline decoration-dashed underline-offset-2 hover:bg-orange-100 hover:text-gray-900 hover:decoration-solid focus:bg-orange-100"
             @click="run"
           >
             run</button
