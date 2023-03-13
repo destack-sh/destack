@@ -432,8 +432,8 @@ class StatementMutation:
             statement.revision = new_revisions[i][0]
         return StatementBatch(statements=list(statements))
 
-    # no directives because we check auth manually here
-    @project_mutation(PMT.CREATE_STATEMENT, atomic=True, batch=True, directives=[])
+    # we check auth manually here (simpler for copy/paste across projects & versions)
+    @project_mutation(PMT.CREATE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
@@ -474,6 +474,8 @@ class StatementMutation:
         models.RefMapping.objects.bulk_create(ref_mappings)
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)
+        if target_statements.count() != len(input.target_ids):
+            raise RuntimeError(f"failed to paste statements {target_statements} is incomplete")
         return StatementBatch(statements=target_statements)
 
 

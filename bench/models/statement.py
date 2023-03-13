@@ -15,7 +15,7 @@ from strawberry_django_plus import gql
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 from bench.models.data import DatasetContentMixin, DatasetRecord
 from bench.models.generated import GeneratedContentMixin, GeneratedMapping
-from bench.models.utils import UUIDModel, walk_children_bfs
+from bench.models.utils import UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -149,13 +149,6 @@ class StatementManager(models.Manager["Statement"]):
             ref_mappings_ids[old_id] = ref_mapping.id
             ref_mappings.append(ref_mapping)
 
-        # walk statements BFS, starting at roots that are _within_ selection (may not be actual roots)
-        statements_bfs = list(
-            walk_children_bfs(
-                statements.exclude(parent_id__in=statements.values_list("id", flat=True)),
-                "children",
-            )
-        )
         # (pre-determine new statement ids to re-create source mappings in one go)
         target_statement_ids = target_statement_ids or {
             statement.id: uuid4() for statement in statements
@@ -167,7 +160,8 @@ class StatementManager(models.Manager["Statement"]):
         new_records: dict[UUID, DatasetRecord] = {}
         new_gen_mappings: list[GeneratedMapping] = []
 
-        for statement in statements_bfs:
+        def _copy_statement(statement: Statement) -> Statement:
+            """Copies a single statement and its contents (without saving)"""
             # copy statement contents/relations
             if statement.type == StatementType.DEFINITION:
                 # the relations are saved below after statement creation
@@ -228,9 +222,17 @@ class StatementManager(models.Manager["Statement"]):
             statement.file = target_files[statement.file_id]
             statement.project_version = target_version
             statement.reference = None
-            statement.save()
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
+            return statement
+
+        # walk statements BFS, starting at roots that are _within_ selection (may not be actual roots)
+        for old_statements_batch in walk_children_bfs_batched(list(statements), "parent_id"):
+            new_statements_batch = []
+            for old_statement in old_statements_batch:
+                new_statement = _copy_statement(old_statement)
+                new_statements_batch.append(new_statement)
+            Statement.objects.bulk_create(new_statements_batch)
 
         # re-assign references (can't be part of bfs walk)
         for old in statements.only("id", "reference_id"):
@@ -251,6 +253,7 @@ class StatementManager(models.Manager["Statement"]):
         return ref_mappings
 
     def get_descendants(self, statement_ids: list[UUID]) -> models.QuerySet[Statement]:
+        """Gets descendants of statements with given ids (including the statements themselves)."""
         query = """
            WITH RECURSIVE descendants(id, parent_id) AS (
                SELECT id, parent_id
@@ -264,7 +267,7 @@ class StatementManager(models.Manager["Statement"]):
            SELECT id
            FROM descendants
         """
-        return Statement.objects.filter(id__in=RawSQL(query, (statement_ids,)))
+        return Statement._base_manager.filter(id__in=RawSQL(query, (statement_ids,)))
 
 
 # sync with actual symbol content fields of Statement

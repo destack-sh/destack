@@ -28,6 +28,7 @@ def project_mutation(
     *,
     atomic: bool = False,
     batch: bool = False,
+    skip_auth_check: bool = False,
     directives: Optional[Sequence[object]] = None,
 ):
     """
@@ -41,7 +42,9 @@ def project_mutation(
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
     """
 
-    directives = directives or [CanWriteProject()]
+    directives = directives or []
+    if not skip_auth_check:
+        directives.append(CanWriteProject())
 
     def make_resolver(func):
         @functools.wraps(func)

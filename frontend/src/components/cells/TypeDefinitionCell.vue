@@ -156,7 +156,7 @@ defineExpose({
     tabindex="-1"
     v-if="description.length == 0 && !context.readonly.value"
     @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-50 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
     +description
   </button>
@@ -195,7 +195,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="isEditing || deleteMember(member.id)"
-          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
           :class="{
             'text-gray-400': column == 'type',
           }"
@@ -208,7 +208,7 @@ defineExpose({
       v-show="!context.readonly.value"
       tabindex="-1"
       ref="addMemberRef"
-      class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/statement:text-gray-400"
+      class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertBelow()"
       @enter="insertBelow()"
       @keydown.up.exact="focusLast"

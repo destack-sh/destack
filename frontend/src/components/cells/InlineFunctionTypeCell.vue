@@ -131,7 +131,7 @@ defineExpose({
     <span
       v-for="inputNode in inputNodes"
       :key="inputNode.id"
-      class="inline-flex gap-1 focus-within:bg-orange-50"
+      class="inline-flex gap-1 focus-within:bg-orange-100"
       @keydown.delete.exact="isEditing || deleteNode(inputNode)"
     >
       <InlineValueCell
@@ -147,7 +147,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'name')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'name')"
-        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
       />
       <!-- Note :EditableCellStyle (should be symmetric) -->
       <InlineTypeCell
@@ -160,7 +160,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'type')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'type')"
-        class="rounded-sm border border-transparent text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent text-gray-400 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
       />
     </span>
     <!-- Add input button -->
@@ -174,7 +174,7 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.enter.exact.prevent="insertInput"
       @click="insertInput"
-      class="-ml-1 w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+      class="-ml-1 w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
     >
       +input
     </button>
@@ -189,7 +189,7 @@ defineExpose({
       @keydown.enter.exact.prevent="insertOutput()"
       tabindex="-1"
       @click="insertOutput()"
-      class="relative w-fit items-baseline rounded-sm px-0.5 pl-5 text-gray-400 outline-none hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50"
+      class="relative w-fit items-baseline rounded-sm px-0.5 pl-5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
     >
       <ArrowLongRightIcon v-if="!hasOutput" class="absolute left-0 top-0.5 h-4 w-4 text-gray-600" />
       +output
@@ -208,7 +208,7 @@ defineExpose({
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
         @navigate-right="emit('navigateRight')"
-        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-50"
+        class="rounded-sm border border-transparent focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
       />
     </span>
   </div>

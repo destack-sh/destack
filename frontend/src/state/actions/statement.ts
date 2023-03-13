@@ -733,7 +733,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         const targetIds: Record<string, string> = {};
         sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
         const targetParentIds = sourceStatements.map((s) =>
-          s.parentInCopy ? targetIds[s.parentId ?? ""] : s.parentId ?? null
+          s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
         );
         // order keys for root are between bottom and next sibling, all other orders are reset
         const sourceStatementsByParentId: Record<string, string[]> = {};
