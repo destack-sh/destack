@@ -409,7 +409,7 @@ class ModuleWorker:
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
         except Exception as e:
-            self.log.exception("queue_run_fail_instantiate", exc_info=e)
+            self.log.exception("module.run.instantiate.failed", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
         job = RunJob(

@@ -292,7 +292,7 @@ class ModuleRuntimeMutation:
             runnable_type=None,
             build=UUID(input.build_id.node_id) if input.build_id else None,
             arguments=input.arguments,
-            blocking=True,
+            blocking=False,
             tracing_level=input.tracing,
             deployment_id=deployment_id,
             trigger_type=ExecutionTriggerType.UI_INTERACTIVE,

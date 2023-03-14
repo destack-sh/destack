@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { provideGlobalAction } from "@/state/actions";
+import { hostStatementActions } from "@/state/actions/statement";
 import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
@@ -89,6 +90,9 @@ provideGlobalAction({
     appearance.fullscreen = !appearance.fullscreen;
   },
 });
+
+// host all statement actions (bound to root component)
+hostStatementActions();
 </script>
 
 <template>

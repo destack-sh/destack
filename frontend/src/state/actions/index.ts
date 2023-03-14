@@ -95,18 +95,11 @@ export function provideSingletonAction(action: RegisteredAction): Ref<Action> {
   return provideAction(action, "singleton");
 }
 
-export function provideSharedAction(action: RegisteredAction): Ref<Action> {
-  return provideAction(action, "shared");
-}
-
-export function provideAction(
-  action: RegisteredAction,
-  mode: "global" | "singleton" | "shared" = "singleton"
-): Ref<Action> {
+export function provideAction(action: RegisteredAction, mode: "global" | "singleton" = "singleton"): Ref<Action> {
   const actionsStore = useActionsStore();
 
   // if this action can be reused just return a ref to the existing action
-  if ((mode == "global" || mode == "shared") && actionsStore.has(action.id)) {
+  if (mode == "global" && actionsStore.has(action.id)) {
     // TODO @Robustness: error if registered actions are different
     return computed(() => actionsStore.action(action.id));
   }
@@ -147,7 +140,6 @@ export function provideAction(
     { deep: true }
   );
   onBeforeUnmount(() => {
-    if (mode == "shared") return; // don't unmount
     mounted.value = false;
     if (mode == "singleton") {
       // remove by instance, not id (in case of singleton actions)
