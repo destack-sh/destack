@@ -64,7 +64,7 @@ defineExpose({
       <ComboboxInput
         as="input"
         ref="inputRef"
-        class="w-fit min-w-fit rounded-sm border-0 px-0 text-sm underline-offset-4 placeholder-gray-400 outline-none ring-0 focus:bg-orange-50 focus:underline focus:ring-0"
+        class="w-fit min-w-fit rounded-sm border-0 px-0 text-sm underline-offset-4 placeholder-gray-400 outline-none ring-0 focus:bg-orange-100 focus:underline focus:ring-0"
         @change="query = $event.target.value"
         :display-value="(stmt: any) => stmt?.username ?? query"
         :placeholder="placeholder"
@@ -78,7 +78,7 @@ defineExpose({
       <!-- Note that for some reason we can't use { email: query } as the value, so we use null to indicate new -->
       <!-- Invite non-existing user option -->
       <ComboboxOption v-if="query.length > 0 && validEmail && matchesCount == 0" :key="1" :value="null">
-        <div class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-50">
+        <div class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-100">
           <span class="text-gray-900">(Invite to sign up)</span>
           <span class="text-gray-500">{{ query }}</span>
         </div>
@@ -92,8 +92,8 @@ defineExpose({
       <!-- Matches -->
       <ComboboxOption v-for="user in matchingUsers" v-slot="{ active, selected }" :key="user.id" :value="user">
         <div
-          class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-50"
-          :class="[active ? 'bg-orange-50' : '', selected ? 'text-orange-600' : 'text-gray-900']"
+          class="flex flex-col px-2 py-1 hover:cursor-pointer hover:bg-orange-100"
+          :class="[active ? 'bg-orange-100' : '', selected ? 'text-orange-600' : 'text-gray-900']"
         >
           <span class="">{{ user.username }}</span>
           <span class="text-gray-500">{{ user.email }}</span>

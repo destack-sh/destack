@@ -442,7 +442,7 @@ onBeforeUnmount(() => {
           class="ml-2.5 flex flex-row items-baseline gap-0.5 whitespace-nowrap"
         >
           <!-- Owner -->
-          <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-50">
+          <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-100">
             {{ props.owner }}
           </router-link>
           <span class="text-gray-500">/</span>
@@ -450,8 +450,8 @@ onBeforeUnmount(() => {
           <ProjectPopover v-if="projectLoaded" :project="project">
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-50 focus:outline-none"
-                :class="{ 'bg-orange-50 focus:bg-orange-50': open }"
+                class="flex h-full items-center justify-between rounded-sm bg-white p-1 text-left hover:bg-orange-100 focus:outline-none"
+                :class="{ 'bg-orange-100 focus:bg-orange-100': open }"
               >
                 <span class="truncate text-sm font-bold">{{ props.project }}</span>
                 <FadeTransition mode="out-in">
@@ -542,7 +542,7 @@ onBeforeUnmount(() => {
         <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
           <!-- Errors -->
           <button
-            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-50"
+            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
             v-if="visibleErrors?.length || 0 > 0"
             @click="openIssues.apply"
           >
@@ -601,7 +601,7 @@ onBeforeUnmount(() => {
           <!-- View selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-50"
+              class="rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-100"
               :class="view.name == activeView.name && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in views"
               :key="view.name"
@@ -615,7 +615,7 @@ onBeforeUnmount(() => {
           <HelpPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
                 :class="open ? 'border-orange-600 text-orange-600' : ''"
               >
                 <span class="sr-only">Help</span>
@@ -626,7 +626,7 @@ onBeforeUnmount(() => {
           <SettingsPopover>
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-50 focus:ring-0"
+                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
                 :class="open ? 'border-orange-600 text-orange-600' : ''"
               >
                 <span class="sr-only">Settings</span>

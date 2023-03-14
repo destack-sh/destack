@@ -112,7 +112,7 @@ async function createOrganization() {
             maxlength="128"
             v-model="name"
             @input="syncSlugIfUnmodified"
-            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             spellcheck="false"
           />
           <FadeTransition mode="out-in">
@@ -133,7 +133,7 @@ async function createOrganization() {
             pattern="[a-z0-9_-]+"
             :value="slug"
             @input="(event) => ((slug = event.target?.value), (slugModified = true))"
-            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             spellcheck="false"
           />
           <FadeTransition mode="out-in">

@@ -55,7 +55,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
         <div class="px-2">
           <div class="flex flex-row justify-center py-1 text-sm">
             <button
-              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-50"
+              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-100"
               :class="{ 'text-orange-600': project.visibility === ProjectVisibility.Private }"
               @click="updateVisibility(ProjectVisibility.Private)"
             >
@@ -63,7 +63,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
               <span>Private</span>
             </button>
             <button
-              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-50"
+              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-100"
               :class="{ 'text-orange-600': project.visibility === ProjectVisibility.Public }"
               @click="updateVisibility(ProjectVisibility.Public)"
             >
@@ -77,7 +77,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
           v-for="action in projectActions"
           :key="action.name"
           class="flex flex-row items-center gap-1.5 py-1 px-2 text-left text-sm"
-          :class="{ 'cursor-not-allowed text-gray-500': !action.enabled, 'hover:bg-orange-50': action.enabled }"
+          :class="{ 'cursor-not-allowed text-gray-500': !action.enabled, 'hover:bg-orange-100': action.enabled }"
           :disabled="!action.enabled"
         >
           <component :is="action.icon" class="h-4 w-4 text-gray-700" />

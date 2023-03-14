@@ -236,7 +236,7 @@ defineExpose({
           class="group outline-none"
         >
           <!-- Focus border is inside the inner div because of the vertical margin required for the line -->
-          <div class="relative mb-2 border border-transparent pb-1 hover:bg-orange-50 group-focus:border-orange-600">
+          <div class="relative mb-2 border border-transparent pb-1 hover:bg-orange-100 group-focus:border-orange-600">
             <!-- Vertical line connecting versions -->
             <div class="mx-3">
               <span
@@ -249,7 +249,7 @@ defineExpose({
             <div class="relative flex space-x-2 px-3 py-0.5">
               <!-- Version icon -->
               <span
-                class="ring-6 flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 ring-gray-50 group-hover:bg-orange-50"
+                class="ring-6 flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 ring-gray-50 group-hover:bg-orange-100"
               >
                 <BookmarkIcon
                   class="h-5 w-5"
@@ -284,8 +284,8 @@ defineExpose({
                     <!-- Edit button -->
                     <PopoverButton
                       v-if="project.canWrite"
-                      class="p-0.5 text-gray-300 outline-none hover:bg-orange-50 hover:text-gray-700 group-hover:visible"
-                      :class="open ? 'visible bg-orange-50 text-gray-700' : 'invisible'"
+                      class="p-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 group-hover:visible"
+                      :class="open ? 'visible bg-orange-100 text-gray-700' : 'invisible'"
                     >
                       <PencilIcon class="h-3 w-3" />
                     </PopoverButton>
@@ -295,8 +295,8 @@ defineExpose({
                     class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs outline-none"
                     :class="[
                       version.tag == null ? 'text-gray-300 ' : 'text-gray-700',
-                      project.canWrite ? 'hover:bg-orange-50 hover:text-gray-700' : '',
-                      open ? 'bg-orange-50' : '',
+                      project.canWrite ? 'hover:bg-orange-100 hover:text-gray-700' : '',
+                      open ? 'bg-orange-100' : '',
                     ]"
                     :disabled="!project.canWrite"
                   >

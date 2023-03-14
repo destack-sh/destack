@@ -116,7 +116,7 @@ async function completeSignup() {
             maxlength="128"
             :placeholder="auth.me.value?.name || 'Yatima'"
             v-model="name"
-            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillName"
             spellcheck="false"
           />
@@ -138,7 +138,7 @@ async function completeSignup() {
             pattern="[a-z0-9_-]+"
             :placeholder="auth.me.value?.username || 'yatima'"
             v-model="username"
-            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillUsername"
             spellcheck="false"
           />

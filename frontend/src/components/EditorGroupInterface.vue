@@ -84,7 +84,10 @@ async function createFileInEditorGroup() {
           class="group mx-0.5 py-1 px-2 outline-none ring-0"
           @click="createFileInEditorGroup"
         >
-          <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-500" aria-hidden="true" />
+          <PlusIcon
+            class="h-4 w-4 text-gray-400 group-hover:bg-orange-100 group-hover:text-gray-700"
+            aria-hidden="true"
+          />
         </button>
       </TabList>
       <!-- Contents -->

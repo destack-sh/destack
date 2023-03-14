@@ -156,7 +156,7 @@ async function createProject() {
               maxlength="128"
               v-model="name"
               @input="syncSlugIfUnmodified"
-              class="mt-1 w-full rounded-sm rounded-r-none border border-r-0 border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+              class="mt-1 w-full rounded-sm rounded-r-none border border-r-0 border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
             <!-- Visbility -->
@@ -167,7 +167,7 @@ async function createProject() {
               class="relative"
             >
               <ListboxButton
-                class="mt-1 rounded-l-none border border-l-0 border-orange-600 py-1.5 px-2 hover:bg-orange-50 focus:bg-orange-50 focus:outline-none"
+                class="mt-1 rounded-l-none border border-l-0 border-orange-600 py-1.5 px-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
               >
                 <span>
                   <component
@@ -190,7 +190,7 @@ async function createProject() {
                     <div
                       class="flex flex-row items-center gap-3 text-left hover:cursor-pointer"
                       :class="[
-                        active ? 'bg-orange-50' : '',
+                        active ? 'bg-orange-100' : '',
                         'block py-1.5 px-2 text-sm text-gray-900',
                         selected ? 'text-orange-600' : '',
                       ]"
@@ -223,8 +223,8 @@ async function createProject() {
             <OwnerSelect v-model="owner">
               <template v-slot:button="{ open }">
                 <ListboxButton
-                  class="mt-1 flex flex-row items-center gap-1 rounded-sm rounded-r-none border border-orange-600 px-3 py-1 py-1 hover:bg-orange-50 focus:bg-orange-50 focus:outline-none"
-                  :class="open ? 'bg-orange-50' : ''"
+                  class="mt-1 flex flex-row items-center gap-1 rounded-sm rounded-r-none border border-orange-600 px-3 py-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+                  :class="open ? 'bg-orange-100' : ''"
                 >
                   <p class="">{{ owner?.slug }}</p>
                   <span class="text-gray-500">/</span>
@@ -238,7 +238,7 @@ async function createProject() {
               pattern="[a-z0-9_-]+"
               :value="slug"
               @input="(event) => ((slug = event.target?.value), (slugModified = true))"
-              class="mt-1 w-full rounded-sm rounded-l-none border border-l-0 border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+              class="mt-1 w-full rounded-sm rounded-l-none border border-l-0 border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
           </div>

@@ -27,7 +27,7 @@ function focusError(error: InterpError) {
       <li
         v-for="(error, i) in errors ?? []"
         :key="i"
-        class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-50"
+        class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-100"
         @click="focusError(error as InterpError)"
       >
         <div v-if="error.symbol != null" class="px-3">

@@ -28,14 +28,14 @@ const actions = useActions();
           <!-- <span class="text-xs text-gray-500">Style</span> -->
           <div class="flex flex-row justify-center">
             <button
-              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-50"
+              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-100"
               @click="appearance.fontMono = false"
             >
               <span class="font-sans text-2xl" :class="{ 'text-orange-600': !editor.fontMono }">Ag</span>
               <span class="text-xs text-gray-500">Default</span>
             </button>
             <button
-              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-50"
+              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-100"
               @click="appearance.fontMono = true"
             >
               <span class="font-mono text-2xl" :class="{ 'text-orange-600': editor.fontMono }">Ag</span>

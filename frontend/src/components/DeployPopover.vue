@@ -116,9 +116,9 @@ provideGlobalAction({
       ref="deployButtonRef"
       class="relative rounded-sm p-1 text-sm focus:outline-none"
       :class="{
-        'text-gray-500 hover:bg-orange-50': !canDeploy,
-        'text-orange-600 hover:bg-orange-50': canDeploy,
-        'bg-orange-50': open,
+        'text-gray-500 hover:bg-orange-100': !canDeploy,
+        'text-orange-600 hover:bg-orange-100': canDeploy,
+        'bg-orange-100': open,
       }"
     >
       <CloudIcon v-if="!isDeployed" class="h-5 w-5" />
@@ -211,7 +211,7 @@ provideGlobalAction({
             >
               <PopoverButton
                 class="w-fit self-end border border-transparent px-3 py-1 text-gray-700 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
-                :class="{ 'pointer-events-none opacity-50': !canDeploy, 'bg-orange-50': open }"
+                :class="{ 'pointer-events-none opacity-50': !canDeploy, 'bg-orange-100': open }"
               >
                 Archive deployment
               </PopoverButton>

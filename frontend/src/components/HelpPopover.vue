@@ -56,7 +56,7 @@ const helpActions = [
             :is="action.to == null ? 'a' : RouterLink"
             v-bind="action.to == null ? { href: action.href } : { to: action.to }"
             target="_blank"
-            class="flex flex-row items-center gap-2 rounded-sm px-2 py-1 hover:bg-orange-50"
+            class="flex flex-row items-center gap-2 rounded-sm px-2 py-1 hover:bg-orange-100"
           >
             <component :is="action.icon" class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">{{ action.name }}</span>

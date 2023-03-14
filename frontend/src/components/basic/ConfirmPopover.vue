@@ -22,7 +22,7 @@ const emit = defineEmits<{ (e: "action"): void; (e: "cancel"): void }>();
             close();
             emit('cancel');
           "
-          class="rounded-sm px-1.5 py-0.5 text-gray-700 hover:bg-orange-50"
+          class="rounded-sm px-1.5 py-0.5 text-gray-700 hover:bg-orange-100"
         >
           {{ cancelText ?? "Cancel" }}
         </button>
@@ -31,7 +31,7 @@ const emit = defineEmits<{ (e: "action"): void; (e: "cancel"): void }>();
             close();
             emit('action');
           "
-          class="rounded-sm px-1.5 py-0.5 text-gray-900 hover:bg-orange-50"
+          class="rounded-sm px-1.5 py-0.5 text-gray-900 hover:bg-orange-100"
         >
           {{ confirmText ?? "Confirm" }}
         </button>

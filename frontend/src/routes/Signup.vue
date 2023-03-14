@@ -35,7 +35,7 @@ watchEffect(() => {
       <template v-slot:right>
         <router-link
           :to="{ name: 'Login', query: { next } }"
-          class="mx-2 rounded-sm py-1 px-2 text-sm hover:bg-orange-50"
+          class="mx-2 rounded-sm py-1 px-2 text-sm hover:bg-orange-100"
         >
           Log in
         </router-link>
