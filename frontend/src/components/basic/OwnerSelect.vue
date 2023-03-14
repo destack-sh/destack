@@ -34,8 +34,8 @@ const possibleOwners = computed(() => {
     >
       <slot name="button" :open="open">
         <ListboxButton
-          class="flex flex-row items-center gap-1 py-1 hover:bg-orange-50 focus:bg-orange-50 focus:outline-none"
-          :class="open ? 'bg-orange-50' : ''"
+          class="flex flex-row items-center gap-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+          :class="open ? 'bg-orange-100' : ''"
         >
           <p class="text-sm">{{ modelValue?.slug }}</p>
           <ChevronDownIcon class="h-4 w-4 text-gray-400" aria-hidden="true" />
@@ -55,7 +55,7 @@ const possibleOwners = computed(() => {
             <div
               class="flex flex-row items-center gap-3 text-left hover:cursor-pointer"
               :class="[
-                active ? 'bg-orange-50' : '',
+                active ? 'bg-orange-100' : '',
                 'block py-1.5 px-2 text-sm text-gray-900',
                 selected ? 'text-orange-600' : '',
               ]"

@@ -27,7 +27,7 @@ defineExpose({ show, hide });
         leave-from="opacity-100"
         leave-to="opacity-0"
       >
-        <div class="fixed inset-0 transition-opacity" :class="{ 'bg-orange-500 bg-opacity-20': blurBackground }" />
+        <div class="fixed inset-0 transition-opacity" :class="{ 'bg-orange-1000 bg-opacity-20': blurBackground }" />
       </TransitionChild>
 
       <div class="fixed inset-0 z-10 overflow-y-auto p-4 sm:p-6 md:p-20">

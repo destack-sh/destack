@@ -58,7 +58,7 @@ defineExpose({
   />
   <button
     v-if="code.trim().length == 0"
-    class="absolute bottom-1 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-50 hover:text-gray-700"
+    class="absolute bottom-1 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
     @click="monacoRef?.focus()"
   >
     +code

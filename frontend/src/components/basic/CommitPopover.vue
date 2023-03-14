@@ -115,7 +115,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
               maxlength="128"
               :placeholder="suggestedName"
               v-model="name"
-              class="flex-1 rounded-l-sm border-0 py-1 text-sm placeholder:text-gray-400 focus:bg-orange-50 focus:outline-none focus:ring-0"
+              class="flex-1 rounded-l-sm border-0 py-1 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
             <div class="relative flex flex-row">
@@ -130,7 +130,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
                 maxlength="32"
                 :placeholder="suggestedTag"
                 v-model="tag"
-                class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-50 focus:outline-none focus:ring-0"
+                class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
                 :class="{ 'text-yellow-600': !validTag, 'text-red-600': !availableTag }"
                 spellcheck="false"
               />
@@ -143,7 +143,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
           <textarea
             ref="descriptionRef"
             v-model="description"
-            class="rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-50 focus:outline-none focus:ring-0"
+            class="rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             spellcheck="false"
             rows="3"
             placeholder="Optional details for future you."

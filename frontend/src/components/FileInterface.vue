@@ -309,7 +309,7 @@ const metaActions = computed(() => [
           <button
             v-for="action in metaActions"
             :key="action.label"
-            class="p-1 text-gray-300 hover:bg-orange-50 hover:text-gray-700 focus:bg-orange-50 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
+            class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
             :class="[action.enabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
             @click="action.action()"
             :disabled="!action.enabled"

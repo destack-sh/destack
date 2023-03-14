@@ -94,7 +94,7 @@ watch(
             <button
               v-for="action in panel.actions.filter((action) => action.enabled)"
               :key="action.label"
-              class="inline-flex flex-row rounded-sm p-0.5 hover:bg-gray-100 hover:text-gray-700"
+              class="inline-flex flex-row rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
               @click.prevent="action.action"
             >
               <component :is="action.icon" class="h-4 w-4 text-gray-400" />

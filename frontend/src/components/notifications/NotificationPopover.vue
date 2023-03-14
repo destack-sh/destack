@@ -107,9 +107,9 @@ const { getTimeFromNowString } = useTimeFromNow();
     <PopoverButton
       class="rounded-sm p-1 text-sm outline-none transition-colors"
       :class="{
-        'text-gray-500 hover:bg-orange-50': !hasUnreadNotifications,
-        'text-orange-600 hover:bg-orange-50': hasUnreadNotifications,
-        'bg-orange-50': open,
+        'text-gray-500 hover:bg-orange-100': !hasUnreadNotifications,
+        'text-orange-600 hover:bg-orange-100': hasUnreadNotifications,
+        'bg-orange-100': open,
       }"
     >
       <BellIcon class="h-5 w-5" />
@@ -143,7 +143,7 @@ const { getTimeFromNowString } = useTimeFromNow();
             <div
               v-for="notification in renderedNotifications"
               :key="notification.id"
-              class="flex w-full flex-row items-baseline justify-between overflow-hidden rounded-sm border-l-2 py-1.5 pl-1.5 pr-2 hover:cursor-pointer hover:bg-orange-50"
+              class="flex w-full flex-row items-baseline justify-between overflow-hidden rounded-sm border-l-2 py-1.5 pl-1.5 pr-2 hover:cursor-pointer hover:bg-orange-100"
               :class="{
                 'border-orange-600': notification.status === NotificationStatus.Active,
                 'border-gray-200': notification.status === NotificationStatus.Read,

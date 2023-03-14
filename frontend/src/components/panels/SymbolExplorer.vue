@@ -73,7 +73,7 @@ defineExpose({
       :key="symbol.id"
       :ref="(ref) => symbolsGrid.registerColumnRef(symbol.id, 'name', ref)"
       tabindex="-1"
-      class="flex flex-row gap-1 border border-transparent py-0.5 px-3 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-50 hover:text-gray-900 focus:border-orange-600"
+      class="flex flex-row gap-1 border border-transparent py-0.5 px-3 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 hover:text-gray-900 focus:border-orange-600"
       :class="{
         'border-l-2 border-orange-200 pl-2.5': symbol.generated,
         'bg-orange-100 text-orange-600': symbol.id == editor?.focusedElementId,

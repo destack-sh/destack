@@ -150,7 +150,7 @@ async function removeMembership(membership: OrganizationMembership) {
           <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Role</th>
           <th scope="col" class="px-3 py-2 text-center text-sm font-semibold text-gray-900" v-if="canWrite">
             <button
-              class="mt-1 text-center text-orange-600 hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
+              class="mt-1 text-center text-orange-600 hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
               @click="addMemberRef?.focus"
             >
               <PlusIcon class="h-5 w-5" />
@@ -198,7 +198,7 @@ async function removeMembership(membership: OrganizationMembership) {
               cancelText="Keep"
               v-slot="{ open }"
             >
-              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-50 text-red-600' : ''">
+              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-100 text-red-600' : ''">
                 <MinusCircleIcon class="h-4 w-4" />
               </PopoverButton>
             </ConfirmPopover>
@@ -236,7 +236,7 @@ async function removeMembership(membership: OrganizationMembership) {
               cancelText="Keep"
               v-slot="{ open }"
             >
-              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-50 text-red-600' : ''">
+              <PopoverButton class="hover:text-red-600" :class="open ? 'bg-orange-100 text-red-600' : ''">
                 <MinusCircleIcon class="h-4 w-4" />
               </PopoverButton>
             </ConfirmPopover>

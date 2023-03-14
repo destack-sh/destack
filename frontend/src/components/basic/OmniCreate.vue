@@ -36,8 +36,8 @@ const addables = computed(() =>
     v-slot="{ open }"
   >
     <MenuButton
-      class="flex items-center p-1 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
-      :class="{ 'bg-orange-50': open }"
+      class="flex items-center p-1 text-left hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
+      :class="{ 'bg-orange-100': open }"
     >
       <PlusIcon class="h-5 w-5 text-orange-600" />
     </MenuButton>
@@ -50,7 +50,7 @@ const addables = computed(() =>
             v-if="item.to"
             :to="item.to"
             class="flex flex-row items-center gap-2"
-            :class="[active ? 'bg-orange-50' : '', 'block py-2 px-2 text-sm text-gray-900']"
+            :class="[active ? 'bg-orange-100' : '', 'block py-2 px-2 text-sm text-gray-900']"
           >
             <component :is="item.icon" class="h-5 w-5 text-gray-700" />
             {{ item.name }}
@@ -58,7 +58,7 @@ const addables = computed(() =>
           <button
             v-else
             class="flex flex-row items-center gap-2"
-            :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
+            :class="[active ? 'bg-orange-100' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
             @click="item.action"
           >
             <component :is="item.icon" class="h-5 w-5 text-gray-700" />

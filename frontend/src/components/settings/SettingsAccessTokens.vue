@@ -182,7 +182,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Created</th>
           <th scope="col" class="py-2 pr-1 text-left text-sm font-semibold text-gray-900">
             <button
-              class="focuus:bg-gray-100 mt-1 text-orange-600 hover:bg-orange-50 focus:outline-none"
+              class="focuus:bg-gray-100 mt-1 text-orange-600 hover:bg-orange-100 focus:outline-none"
               @click="createAccessToken"
               :disabled="creating"
             >
@@ -210,7 +210,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
             </span>
           </td>
           <td class="px-3">
-            <span v-for="scope in token.scopes" :key="scope" class="rounded-sm bg-orange-50 p-1 text-orange-900">
+            <span v-for="scope in token.scopes" :key="scope" class="rounded-sm bg-orange-100 p-1 text-orange-900">
               {{ scope.toLowerCase() }}
             </span>
           </td>

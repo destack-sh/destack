@@ -28,15 +28,15 @@ const userNavigation = computed(() => [
       </router-link>
       <router-link
         :to="{ name: 'Login', query: { next: location.href } }"
-        class="rounded-sm px-2 py-1 text-sm hover:bg-orange-50"
+        class="rounded-sm px-2 py-1 text-sm hover:bg-orange-100"
       >
         Log in
       </router-link>
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
       <MenuButton
-        class="flex h-full items-center px-3 text-left hover:bg-orange-50 focus:bg-gray-100 focus:outline-none"
-        :class="{ 'bg-orange-50': open }"
+        class="flex h-full items-center px-3 text-left hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
+        :class="{ 'bg-orange-100': open }"
       >
         <div class="flex flex-col">
           <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
@@ -52,7 +52,7 @@ const userNavigation = computed(() => [
               v-if="item.to"
               :to="item.to"
               class="flex flex-row items-center gap-2"
-              :class="[active ? 'bg-orange-50' : '', 'block py-2 px-2 text-sm text-gray-900']"
+              :class="[active ? 'bg-orange-100' : '', 'block py-2 px-2 text-sm text-gray-900']"
             >
               <component :is="item.icon" class="h-5 w-5 text-gray-700" />
               {{ item.name }}
@@ -60,7 +60,7 @@ const userNavigation = computed(() => [
             <button
               v-else
               class="flex flex-row items-center gap-2"
-              :class="[active ? 'bg-orange-50' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
+              :class="[active ? 'bg-orange-100' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
               @click="item.action"
             >
               <component :is="item.icon" class="h-5 w-5 text-gray-700" />

@@ -226,7 +226,7 @@ watchEffect(() => {
               <button
                 class="relative flex flex-row items-baseline gap-1 rounded-sm border-l-2 px-2 py-1 focus:outline-none"
                 :class="{
-                  'border-orange-600 bg-orange-50 text-orange-600': selected,
+                  'border-orange-600 bg-orange-100 text-orange-600': selected,
                   'border-transparent text-gray-700 ': !selected && !tab.disabled,
                   'border-transparent text-gray-400': !selected && tab.disabled,
                 }"
