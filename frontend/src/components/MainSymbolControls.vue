@@ -117,7 +117,7 @@ const mainActions = [
     action: () => runMain.value.apply(),
   },
   {
-    label: "Test",
+    label: "Evaluate",
     icon: CheckCircleIcon,
     enabled: computed(() => testMain.value.enabled),
     active: ref(false),

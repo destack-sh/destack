@@ -286,7 +286,7 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
       }
     }
     return allSymbols.filter((s) => {
-      if (!filterRef.value.includeAnonymous || (s.name?.length ?? 0) == 0) {
+      if (filterRef.value.includeAnonymous || (s.name?.length ?? 0) == 0) {
         return false;
       }
       if (!filterRef.value.includeGenerated && s.generated) {

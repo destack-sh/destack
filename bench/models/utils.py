@@ -1,6 +1,7 @@
 import json
 import uuid
 from collections import defaultdict, deque
+from itertools import chain
 from typing import Any, Deque, Iterator, Type, TypeVar
 
 from django.db import models
@@ -72,13 +73,21 @@ def walk_children_bfs_batched(objects: list[T], parent_id_attr: str) -> Iterator
     Yields batches of *all* children at each level.
     """
     children_by_parent_id = defaultdict(list)
+    all_ids = set()
     for obj in objects:
         children_by_parent_id[getattr(obj, parent_id_attr)].append(obj)
-
-    # first batch by level (breadth-first) since source objects may be mutated during iteration
+        all_ids.add(obj.id)
+    # find roots (objects without parent in the set)
+    root_ids = set()
+    for parent_id in children_by_parent_id:
+        if parent_id not in all_ids:
+            root_ids.add(parent_id)
+    roots = list(chain.from_iterable(children_by_parent_id.pop(root_id) for root_id in root_ids))
+    # batch by level (breadth-first)
+    # source objects may be mutated during iteration so do this upfront
     seen_ids = set()
     children_levels = []
-    children = children_by_parent_id[None]
+    children = roots
     while children:
         children_levels.append(children)
         next_children = []

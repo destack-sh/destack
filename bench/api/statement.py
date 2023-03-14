@@ -439,20 +439,23 @@ class StatementMutation:
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
         source_ids = [UUID(i.node_id) for i in input.source_ids]
-        source_statements = models.Statement._base_manager.filter(id__in=source_ids)
+        source_statements = models.Statement._base_manager.prefetch_related(
+            "records", "type_nodes"
+        ).filter(id__in=source_ids)
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
 
-        # check that the user can read the source
-        source_project_v = source_statements[0].project_version
-        source_project_v_ids = set(s.project_version_id for s in source_statements)
-        if len(source_project_v_ids) > 1:
-            raise ValidationError("statements must be from the same project version")
-        check_can_view_project(info, source_project_v.project)
         # check that the user can write the target
         source_file_ids = set(s.file_id for s in source_statements)
         target_file = models.File.objects.get(id=input.target_file_id.node_id)
         check_can_write_project(info, target_file)
+        source_project_v = source_statements[0].project_version
+        source_project_v_ids = set(s.project_version_id for s in source_statements)
+        if len(source_project_v_ids) > 1:
+            raise ValidationError("statements must be from the same project version")
+        # check that the user can read the source (if different)
+        if source_project_v != target_file.project_version:
+            check_can_view_project(info, source_project_v.project)
 
         # actually paste and store paste refmappings
         target_ids = [UUID(i.node_id) for i in input.target_ids]
@@ -476,7 +479,9 @@ class StatementMutation:
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)
         if target_statements.count() != len(input.target_ids):
-            raise RuntimeError(f"failed to paste statements {target_statements} is incomplete")
+            raise RuntimeError(
+                f"failed to paste statements {target_statements} is incomplete (wanted {input.target_ids})"
+            )
         return StatementBatch(statements=target_statements)
 
 
