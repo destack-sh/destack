@@ -145,6 +145,7 @@ defineExpose({
       @navigate-left="gapRef?.focus"
       @insert-below="context.insertBelow"
       :can-define-in-place="context.statement.value.symbolType != null"
+      can-define-anonymous
       @define-in-place="morphToDefinition"
       @set-reference="(ref) => ref == null || morphToReference(ref)"
       @escape="context.escape"

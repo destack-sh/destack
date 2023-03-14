@@ -143,11 +143,16 @@ watch(
 );
 
 // focus root cell if editing in editor but not in container
-whenever(isEditing, () => {
-  if (isEditing.value && (!inContainerFocused.value || containerFocused.value)) {
-    rootCellRef.value?.focus();
-  }
-});
+whenever(
+  isEditing,
+  () => {
+    if (isEditing.value && (!inContainerFocused.value || containerFocused.value)) {
+      rootCellRef.value?.focus();
+      nextTick(() => rootCellRef.value?.focus()); // required to focus if just loaded
+    }
+  },
+  { immediate: true }
+);
 
 // blur root cell if focused in container (but no longer editing or focused)
 watch(

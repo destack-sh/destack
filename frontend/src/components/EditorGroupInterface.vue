@@ -75,7 +75,7 @@ async function createFileInEditorGroup() {
             @click.middle.prevent="editor.closeEditor(e)"
             @click.prevent="focus(e)"
           >
-            {{ e.path }}
+            {{ e.path.length > 0 ? e.path : "(Untitled)" }}
           </button>
         </Tab>
         <!-- Little button tab to create new file -->

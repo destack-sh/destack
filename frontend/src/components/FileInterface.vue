@@ -14,7 +14,7 @@ import { INTEGER_ZERO } from "@/utils/fractional";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -176,12 +176,35 @@ watch(
   }
 );
 function renameFile(newName: string) {
-  if (fileHeader.value == null || newName.trim().length == 0) {
+  if (fileHeader.value == null) {
     return;
   }
   ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
 }
 const renameFileDebounced = useDebounceFn(renameFile, 500);
+
+// auto-focus name once loaded and if contents are empty
+watch(
+  () => [name.value, props.focused],
+  () => {
+    if (name.value == null) {
+      return;
+    }
+    if (props.focused && statements.value.length == 0 && name.value == "") {
+      nameRef.value?.focus();
+      nextTick(() => nameRef.value?.focus()); // required to focus if just loaded
+    }
+  }
+);
+
+function goToContent() {
+  nameRef.value?.blur();
+  if (positionedStatements.value.length == 0) {
+    insertStatementStart();
+  } else {
+    insertOrFocusStatementEnd();
+  }
+}
 
 // file meta actions
 const metaActions = computed(() => [
@@ -269,6 +292,7 @@ const metaActions = computed(() => [
             :readonly="editor.readonly || isDeleted || isOtherVersion"
             @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
             :model-value="name"
+            @enter="goToContent"
             @keyup.up.prevent="() => ({}) /* noop */"
           />
           <span
