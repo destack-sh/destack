@@ -16,7 +16,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ fileId: string; focused: boolean }>();
+const props = defineProps<{ editorId: string; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const editor = useEditorState();
 const actions = useActions();
@@ -137,6 +137,7 @@ const fileState: Ref<FileState | null> = computed(() => {
     return null;
   }
   return {
+    editorId: props.editorId,
     focused: props.focused,
     file: fileHeader.value as any,
     statements: orderedStatements.value,

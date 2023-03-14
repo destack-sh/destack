@@ -1,15 +1,15 @@
 import { StatementType } from "@/gql/graphql";
-import { provideSharedAction } from "@/state/actions";
+import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { useClipboard } from "@vueuse/core";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
 
 export type FileState = {
+  editorId: string;
   focused: boolean;
   file: FileHeader;
   statements: StatementHeader[]; // ordered
@@ -22,24 +22,26 @@ export type FileState = {
 // so we have a global reference here that is automatically set to the focused file.
 // We can't just use singleton actions here because multiple files may have
 // 'focused' set during moves or transition.
-const activeFileState: Ref<FileState | null> = ref(null);
+
+const activeFileState = ref<FileState | null>(null);
 export function provideStatementActions(file: Ref<FileState | null>) {
   watchEffect(() => {
     if (file.value?.focused) {
       activeFileState.value = file.value;
     }
   });
-
   onBeforeUnmount(() => {
-    if (activeFileState.value?.file.id == file.value?.file.id) {
+    if (activeFileState.value?.editorId === file.value?.editorId) {
       activeFileState.value = null;
     }
   });
-
-  doProvideStatementActions(activeFileState);
 }
 
-const doProvideStatementActions = createSharedComposable(_doProvideStatementActions);
+export const hostStatementActions = createSharedComposable(_provideStatementActions);
+
+function _provideStatementActions() {
+  _doProvideStatementActions(activeFileState);
+}
 
 function _doProvideStatementActions(file: Ref<FileState | null>) {
   const editor = useEditorState();
@@ -64,7 +66,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   }
 
   const statementsById: Ref<Record<string, StatementHeader>> = computed(() => {
-    if (!file.value) return {};
     const result: Record<string, StatementHeader> = {};
     for (const statement of statements.value) {
       result[statement.id] = statement;
@@ -74,7 +75,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
 
   // statementsByParentId must be ordered like orderedStatements
   const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
-    if (!file.value) return {};
     const result: Record<string, StatementHeader[]> = {};
     for (const statement of statements.value) {
       const parentId = statement.parent?.id ?? "";
@@ -156,7 +156,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
   const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
   const previousSibling = computed(() => getPreviousSibling(statement.value));
-  const nextSibling = computed(() => getNextSibling(statement.value));
   const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
   const position = computed(() => statementPositions.value[statement.value?.id]);
   const location = computed(() => getLocation(statement.value));
@@ -168,7 +167,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
 
   // move focus
-  const moveFocusUp = provideSharedAction({
+  const moveFocusUp = provideGlobalAction({
     id: "statement.moveFocusUp",
     label: "Move focus up",
     shortcuts: ["up"],
@@ -188,7 +187,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
     },
   });
-  const moveFocusDown = provideSharedAction({
+  const moveFocusDown = provideGlobalAction({
     id: "statement.moveFocusDown",
     label: "Move focus down",
     enabled: computed(() => navigatingFile.value),
@@ -212,7 +211,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
   // move focus in/out
-  const moveFocusIn = provideSharedAction({
+  const moveFocusIn = provideGlobalAction({
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
@@ -222,7 +221,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.focusElement(children.value[0], true);
     },
   });
-  const moveFocusOut = provideSharedAction({
+  const moveFocusOut = provideGlobalAction({
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
@@ -235,7 +234,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // start / stop editing current statement
-  const editCurrent = provideSharedAction({
+  const editCurrent = provideGlobalAction({
     id: "statement.editCurrent",
     label: "Edit statement",
     shortcuts: ["enter"],
@@ -244,7 +243,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(statement.value);
     },
   });
-  const stopEditingCurrent = provideSharedAction({
+  const stopEditingCurrent = provideGlobalAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing statement",
     shortcuts: ["escape"],
@@ -255,7 +254,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // indent statement
-  const indentCurrent = provideSharedAction({
+  const indentCurrent = provideGlobalAction({
     id: "statement.indentCurrent",
     label: "Indent statement",
     shortcuts: ["tab"],
@@ -275,7 +274,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       });
     },
   });
-  const unindentCurrent = provideSharedAction({
+  const unindentCurrent = provideGlobalAction({
     id: "statement.unindentCurrent",
     label: "Unindent statement",
     shortcuts: ["shift+tab"],
@@ -293,7 +292,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       });
     },
   });
-  const indentSelection = provideSharedAction({
+  const indentSelection = provideGlobalAction({
     id: "statement.indentSelection",
     label: "Indent selection",
     shortcuts: ["tab"],
@@ -322,7 +321,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       );
     },
   });
-  const unindentSelection = provideSharedAction({
+  const unindentSelection = provideGlobalAction({
     id: "statement.unindentSelection",
     label: "Unindent selection",
     shortcuts: ["shift+tab"],
@@ -351,7 +350,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // move statement up/down
-  const moveCurrentUp = provideSharedAction({
+  const moveCurrentUp = provideGlobalAction({
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
@@ -372,7 +371,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
-  const moveCurrentDown = provideSharedAction({
+  const moveCurrentDown = provideGlobalAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
@@ -393,7 +392,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
-  const moveSelectionUp = provideSharedAction({
+  const moveSelectionUp = provideGlobalAction({
     id: "statement.moveSelectionUp",
     label: "Move selection up",
     shortcuts: ["alt+up", "meta+up"],
@@ -420,7 +419,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.batchMove(ids, oldLocations, targetLocations);
     },
   });
-  const moveSelectionDown = provideSharedAction({
+  const moveSelectionDown = provideGlobalAction({
     id: "statement.moveSelectionDown",
     label: "Move selection down",
     shortcuts: ["alt+down", "meta+down"],
@@ -450,7 +449,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // manage selection
-  const expandSelectionUp = provideSharedAction({
+  const expandSelectionUp = provideGlobalAction({
     id: "statement.expandSelectionUp",
     label: "Expand selection up",
     shortcuts: ["shift+up"],
@@ -470,7 +469,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.focusElement(aboveCurGroup.value as StatementHeader, false);
     },
   });
-  const expandSelectionDown = provideSharedAction({
+  const expandSelectionDown = provideGlobalAction({
     id: "statement.expandSelectionDown",
     label: "Expand selection down",
     shortcuts: ["shift+down"],
@@ -489,7 +488,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.focusElement(belowCurGroup.value as StatementHeader, false);
     },
   });
-  const cancelSelection = provideSharedAction({
+  const cancelSelection = provideGlobalAction({
     id: "statement.cancelSelection",
     label: "Cancel selection",
     shortcuts: ["escape"],
@@ -498,7 +497,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.clearSelection();
     },
   });
-  const selectAll = provideSharedAction({
+  const selectAll = provideGlobalAction({
     id: "statement.selectAll",
     label: "Select all",
     shortcuts: ["ctrl+a"],
@@ -509,7 +508,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // delete statement
-  const deleteCurrent = provideSharedAction({
+  const deleteCurrent = provideGlobalAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["backspace", "delete"],
@@ -522,7 +521,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.delete(current);
     },
   });
-  const deleteSelection = provideSharedAction({
+  const deleteSelection = provideGlobalAction({
     id: "statement.deleteSelection",
     label: "Delete selected statements",
     shortcuts: ["backspace", "delete"],
@@ -541,7 +540,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   //  We should introduce an intermediate statement local context that statement interfaces
   //  can use as well, which could also reduce move focus up/down latency.
   //  :MissingStatementContext
-  const deleteAboveCurrent = provideSharedAction({
+  const deleteAboveCurrent = provideGlobalAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
@@ -557,7 +556,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
 
   // jump to reference
   const { focusSymbol } = useSymbolNavigation();
-  const jumpToReference = provideSharedAction({
+  const jumpToReference = provideGlobalAction({
     id: "statement.jumpToReference",
     label: "Jump to reference",
     shortcuts: ["ctrl+b"],
@@ -577,7 +576,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   }
 
   // insert statement (as a sibling)
-  const insertStart = provideSharedAction({
+  const insertStart = provideGlobalAction({
     id: "statement.insertStart",
     label: "Insert statement at start of file",
     shortcuts: [],
@@ -589,7 +588,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertEnd = provideSharedAction({
+  const insertEnd = provideGlobalAction({
     id: "statement.insertEnd",
     label: "Insert statement at end of file",
     shortcuts: [],
@@ -601,7 +600,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertAboveCurrent = provideSharedAction({
+  const insertAboveCurrent = provideGlobalAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above",
     shortcuts: ["a"],
@@ -619,7 +618,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       // don't switch focus if inserting _before_ current
     },
   });
-  const insertBelowCurrent = provideSharedAction({
+  const insertBelowCurrent = provideGlobalAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below",
     shortcuts: ["b", "shift+enter", "plus"],
@@ -638,7 +637,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // toggle comment statement
-  const toggleCommentedCurrent = provideSharedAction({
+  const toggleCommentedCurrent = provideGlobalAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
@@ -664,7 +663,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     parentInCopy?: boolean;
     orderKey: string;
   };
-  const copy = provideSharedAction({
+  const copy = provideGlobalAction({
     id: "statement.copy",
     label: "Copy statements",
     shortcuts: ["ctrl+c", "meta+c"],
@@ -702,7 +701,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
     },
   });
-  const cut = provideSharedAction({
+  const cut = provideGlobalAction({
     id: "statement.cut",
     label: "Cut statements",
     shortcuts: ["ctrl+x", "meta+x"],
@@ -714,7 +713,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       await operations.statement.batchDelete(selectedRoots.map((s) => s.id));
     },
   });
-  const paste = provideSharedAction({
+  const paste = provideGlobalAction({
     id: "statement.paste",
     label: "Paste statements",
     shortcuts: ["ctrl+v", "meta+v"],
@@ -786,7 +785,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
     },
   });
-  const duplicate = provideSharedAction({
+  const duplicate = provideGlobalAction({
     id: "statement.duplicate",
     label: "Duplicate statements",
     shortcuts: ["ctrl+d", "meta+d"],

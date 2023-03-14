@@ -73,6 +73,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
   <FileInterface
     ref="containerRef"
     v-if="editor.type == 'file'"
+    :editorId="editor.id"
     :fileId="(editor as FileEditor).fileId"
     :focused="focused"
     :state="editor.localState"
@@ -82,6 +83,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
   <RunInterface
     ref="containerRef"
     v-else-if="editor.type == 'run'"
+    :editorId="editor.id"
     :focused="focused"
     :runnableId="(editor as RunEditor).symbolId"
     :runnableType="(editor as RunEditor).symbolType"

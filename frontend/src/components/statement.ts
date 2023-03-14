@@ -191,7 +191,7 @@ export function useStatementContext() {
     await operations.statement.setReference(
       statement.value.id,
       statement.value.reference?.id,
-      context?.value.reference?.name,
+      context?.value.reference?.name ?? null,
       reference?.id ?? null,
       reference?.name ?? null
     );

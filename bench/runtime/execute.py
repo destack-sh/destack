@@ -373,6 +373,8 @@ def instantiate(
         if build is None:
             raise ValueError(f"cannot instantiate task without build: {symbol}")
         target_id = build.get_target(symbol.id)
+        if target_id is None:
+            raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
         code = idx.symbol_by_id(target_id, Code)
         code_instance = instantiate(code, idx=idx, build=build, proxy=proxy)
         task = TaskInstance(
