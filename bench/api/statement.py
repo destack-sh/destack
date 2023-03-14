@@ -270,7 +270,7 @@ class StatementBatch(Iterable):
 
 @gql.type
 class StatementMutation:
-    @project_mutation(PMT.CREATE_STATEMENT)
+    @project_mutation(PMT.CREATE_STATEMENT_BLANK)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
