@@ -20,6 +20,7 @@ class ProjectMutationType(enum.Enum):
     MOVE_FILE = "MOVE_FILE"
     # Statement mutations
     CREATE_STATEMENT = "CREATE_STATEMENT"
+    CREATE_STATEMENT_BLANK = "CREATE_STATEMENT_BLANK"
     SOFT_DELETE_STATEMENT = "DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
     UPDATE_STATEMENT_MODIFIER = "UPDATE_STATEMENT_MODIFIER"
@@ -56,7 +57,7 @@ class ProjectMutation:
 NON_SEMANTIC_MUTATION_TYPES = {
     ProjectMutationType.COMMIT,
     ProjectMutationType.CREATE_FILE,
-    ProjectMutationType.CREATE_STATEMENT,  # statements start as blanks
+    ProjectMutationType.CREATE_STATEMENT_BLANK,
     ProjectMutationType.UPDATE_STATEMENT_TEXT,  # for comments
     ProjectMutationType.MOVE_STATEMENT_TYPE_NODE,
     ProjectMutationType.MOVE_STATEMENT_RECORD,
