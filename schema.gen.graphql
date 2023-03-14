@@ -1244,6 +1244,8 @@ input RunInput {
   buildId: GlobalID = null
   arguments: JSON!
   tracing: ExecutionTracingLevel! = ALL_FRAMES_WITH_DATA
+  blocking: Boolean! = true
+  timeoutSeconds: Int = null
 }
 
 type RunState {

@@ -206,6 +206,8 @@ class RunInput:
     build_id: Optional[GlobalID] = None
     arguments: JSON
     tracing: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
+    blocking: bool = True
+    timeout_seconds: Optional[int] = None
 
 
 ModuleRunErrorType = gql.enum(messages.ModuleRunErrorType)
@@ -292,13 +294,15 @@ class ModuleRuntimeMutation:
             runnable_type=None,
             build=UUID(input.build_id.node_id) if input.build_id else None,
             arguments=input.arguments,
-            blocking=False,
+            blocking=input.blocking,
             tracing_level=input.tracing,
             deployment_id=deployment_id,
             trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
             trigger_id=user.id,
         )
-        rep = await request(NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload)
+        rep = await request(
+            NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload, timeout=input.timeout_seconds
+        )
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,

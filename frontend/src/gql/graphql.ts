@@ -1446,9 +1446,11 @@ export type RestoreInput = {
 
 export type RunInput = {
   arguments: Scalars["JSON"];
+  blocking?: Scalars["Boolean"];
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
   tracing?: ExecutionTracingLevel;
 };
 
@@ -3038,6 +3040,8 @@ export type RunMutationVariables = Exact<{
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   arguments: Scalars["JSON"];
+  blocking?: InputMaybe<Scalars["Boolean"]>;
+  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type RunMutation = {
@@ -7995,6 +7999,16 @@ export const RunDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "blocking" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8028,6 +8042,16 @@ export const RunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "arguments" },
                       value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "blocking" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "blocking" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "timeoutSeconds" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
                     },
                   ],
                 },

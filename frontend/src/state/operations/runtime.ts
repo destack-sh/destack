@@ -35,13 +35,22 @@ export function useRuntimeOps() {
 
   const { mutate: runMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation run($projectVersionId: GlobalID!, $runnableId: GlobalID, $buildId: GlobalID, $arguments: JSON!) {
+      mutation run(
+        $projectVersionId: GlobalID!
+        $runnableId: GlobalID
+        $buildId: GlobalID
+        $arguments: JSON!
+        $blocking: Boolean
+        $timeoutSeconds: Int
+      ) {
         run(
           input: {
             projectVersionId: $projectVersionId
             runnableId: $runnableId
             buildId: $buildId
             arguments: $arguments
+            blocking: $blocking
+            timeoutSeconds: $timeoutSeconds
           }
         ) {
           ... on RunState {
@@ -58,7 +67,12 @@ export function useRuntimeOps() {
     `)
   );
 
-  async function run(runnableId?: string, buildId?: string, arguments_?: Record<string, any>) {
+  async function run(
+    runnableId?: string,
+    buildId?: string,
+    arguments_?: Record<string, any>,
+    options?: { blocking?: boolean; timeoutSeconds?: number }
+  ) {
     return await operations.perform({
       type: "runtime.run",
       stateless: true,
@@ -68,6 +82,8 @@ export function useRuntimeOps() {
           runnableId,
           buildId,
           arguments: arguments_,
+          blocking: options?.blocking,
+          timeoutSeconds: options?.timeoutSeconds,
         });
       },
     });

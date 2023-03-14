@@ -69,7 +69,8 @@ async function run() {
   );
   console.log("run " + symbol.value?.name, args);
   lastOutputDirty.value = true;
-  const ret = await ops.runtime.run(symbol.value.id, build.value?.id, args);
+  const runOptions = { blocking: true, timeoutSeconds: 120 };
+  const ret = await ops.runtime.run(symbol.value.id, build.value?.id, args, runOptions);
   if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
     notifications.show({
       type: "run.fail",
