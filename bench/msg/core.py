@@ -36,19 +36,19 @@ nc_closed = asyncio.Event()
 
 async def nats_error_cb(e: Exception) -> None:
     sentry_enabled = sentry_capture_if_enabled(e)
-    log.error("nats_error", exc_info=e, sentry_enabled=sentry_enabled)
+    log.error("nats.error", exc_info=e, sentry_enabled=sentry_enabled)
 
 
 async def nats_disconnected_cb() -> None:
-    log.error("nats_disconnected")
+    log.error("nats.disconnected")
 
 
 async def nats_reconnected_cb() -> None:
-    log.info("nats_reconnected")
+    log.info("nats.reconnected")
 
 
 async def nats_closed_cb() -> None:
-    log.info("nats_closed")
+    log.info("nats.closed")
     nc_closed.set()
 
 
@@ -140,7 +140,7 @@ def _parse_message(message_json: str) -> NMessage:
         except (ValueError, TypeError, AttributeError) as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             logger.exception(
-                "parse_message_failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
+                "message.parsed.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
             )
             raise
     message_dict["type"] = NMessageType(message_dict["type"])
@@ -224,7 +224,7 @@ async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscripti
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply
-    log.info("handle_reply", topic=type, group=group)
+    log.info("subscribe", type="reply", topic=type, group=group)
     return await nc.subscribe(type, cb=cb, queue=group)
 
 
