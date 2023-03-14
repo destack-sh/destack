@@ -54,14 +54,15 @@ async function createFileInEditorGroup() {
 </script>
 <template>
   <!-- Tabbed editors for this group -->
-  <div class="flex flex-col">
+  <div class="relative flex flex-col">
     <TabGroup :selected-index="selectedTab">
       <!-- Tabs -->
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
+      <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast -->
       <TabList
-        class="flex flex-shrink-0 border-b border-orange-900 border-opacity-[12%]"
+        class="sticky top-0 z-[5] flex flex-shrink-0 border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="editor.showEditorGroupHeader"
       >
         <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
