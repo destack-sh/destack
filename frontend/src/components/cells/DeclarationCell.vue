@@ -7,7 +7,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType } from "@/gql/graphql";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 
@@ -18,6 +18,7 @@ const emit = defineEmits<{
 
 const name: Ref<string> = ref(context.statement.value.name ?? "");
 context.syncName(name);
+const hasName = computed(() => name.value.trim().length > 0);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -107,6 +108,14 @@ defineExpose({
       @enter="context.insertBelow"
       @set-reference="context.setReference"
     />
+    <button
+      tabindex="-1"
+      v-if="!hasName"
+      @click="nameRef?.focus()"
+      class="-ml-1 w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+    >
+      +name
+    </button>
     <!-- Error underline for declaration if unlocated -->
     <div
       v-if="localErrors != null && localErrors.length > 0"

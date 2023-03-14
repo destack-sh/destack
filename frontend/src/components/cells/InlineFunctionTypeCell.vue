@@ -174,7 +174,7 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.enter.exact.prevent="insertInput"
       @click="insertInput"
-      class="-ml-1 w-fit rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
+      class="-ml-1 w-fit select-none rounded-sm px-0.5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
     >
       +input
     </button>
@@ -189,7 +189,7 @@ defineExpose({
       @keydown.enter.exact.prevent="insertOutput()"
       tabindex="-1"
       @click="insertOutput()"
-      class="relative w-fit items-baseline rounded-sm px-0.5 pl-5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
+      class="relative w-fit select-none items-baseline rounded-sm px-0.5 pl-5 text-gray-400 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100"
     >
       <ArrowLongRightIcon v-if="!hasOutput" class="absolute left-0 top-0.5 h-4 w-4 text-gray-600" />
       +output

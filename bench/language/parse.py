@@ -1408,10 +1408,11 @@ def index_module(
         file_scope = Scope(
             id=file.id, name=file.path_without_extension, file=file, parent=None, statement=None
         )
-        if file_scope.name in idx.scopes_by_name:
+        if file_scope.name and file_scope.name in idx.scopes_by_name:
             _error(ET.AMBIGUOUS_DEFINITION, file, path=file_scope.name)
-            continue
-        idx.add_scope(file_scope)
+            idx.add_scope(file_scope, anonymous=True)
+        else:
+            idx.add_scope(file_scope)
 
         for statement in file.statements:
             if statement.name is None:
@@ -1427,8 +1428,9 @@ def index_module(
                 parent=file_scope,
                 statement=statement,
             )
-            if statement_scope.name in idx.scopes_by_name:
-                _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
+            if not statement.name or statement_scope.name in idx.scopes_by_name:
+                if statement.name:
+                    _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
                 idx.add_scope(statement_scope, anonymous=True)
             else:
                 idx.add_scope(statement_scope)
@@ -1437,6 +1439,9 @@ def index_module(
     for statement in idx.statements.values():
         if statement.parent_id is not None:
             statement_scope = idx.scopes[statement.id]
+            if statement.parent_id not in idx.scopes:
+                _error(ET.UNEXPECTED_CHILDREN, statement)
+                continue
             parent_scope = idx.scopes[statement.parent_id]
             statement_scope.parent = parent_scope
 

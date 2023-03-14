@@ -261,7 +261,10 @@ def render_type_node(
 
 
 def render_type_node_func(node: TypeNode, statement: Statement) -> str:
-    input_str = render_type_node_struct(node.input, statement, seperator=", ")
+    if not node.input.children:
+        input_str = ""
+    else:
+        input_str = render_type_node_struct(node.input, statement, seperator=", ")
     if node.output.tag != TypeTag.NULL:
         output_str = render_type_node(node.output, statement, ignore_name=True)
         return f"({input_str}) -> {output_str}"
