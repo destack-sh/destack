@@ -38,7 +38,7 @@ def get_operation_name(operation_name: Optional[str], graphql_document: GraphQLD
     return definition.name.value
 
 
-graphql_operation_types = Literal["QUERY", "MUTATION"]
+graphql_operation_types = Literal["QUERY", "MUTATION", "SUBSCRIPTION"]
 
 
 def get_operation_type(
@@ -65,7 +65,9 @@ def get_operation_type(
 
 class SentryPerformanceExtension(Extension):
     def on_request_start(self):
-        self._transaction = sentry_sdk.start_transaction(op="api")
+        self._transaction = sentry_sdk.start_transaction(
+            op="api", custom_sampling_context={"strawberry_context": self.execution_context}
+        )
         self._transaction.__enter__()
 
     def on_parsing_start(self):
