@@ -539,6 +539,8 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         status = models.ExecutionStatus.Failed
     elif frame.exited_at:
         status = models.ExecutionStatus.Completed
+    elif frame.queue_position:
+        status = models.ExecutionStatus.Queued
     else:
         status = models.ExecutionStatus.Running
     # additional context

@@ -131,6 +131,8 @@ class ExecutionTracer(Tracer):
         model: typing.Optional[ModelInstance] = None,
         inference_context: typing.Optional[InferenceContext] = None,
         inputs: dict[str, Any] | None = None,
+        trace: bool = True,
+        queue_position: int | None = None,
     ):
         root = self.stacktrace[0] if self.stacktrace else None
         parent = self.stacktrace[-1] if self.stacktrace else None
@@ -149,9 +151,19 @@ class ExecutionTracer(Tracer):
             outputs=None,
             inference_context_id=inference_context.id if inference_context else None,
             error=None,
+            queue_position=queue_position,
         )
-        self.trace.frames.append(frame)
+        if trace:
+            self.trace.frames.append(frame)
         return frame
+
+    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+        # don't trace this because it's not part of the stacktrace
+        frame = self._create_frame(
+            code=code, inputs=inputs, trace=False, queue_position=queue_position
+        )
+        self.tracker(frame)
+        logger.debug("trace.queue", frame=frame)
 
     def code_enter(self, code: CodeInstance, args, kwargs):
         inputs = {

@@ -127,6 +127,7 @@ class ExecutionFrame:
     inputs: Optional[dict[str, LiteralValue]]
     outputs: Optional[LiteralValue]
     error: Optional[Exception]
+    queue_position: Optional[int]
 
     def __str__(self):
         # get str of all non-null fields
@@ -144,6 +145,7 @@ class ExecutionFrame:
             f"inputs={summarize_args(self.inputs)}",
             f"outputs={summarize_args(self.outputs)}" if self.outputs else None,
             f"error={self.error}" if self.error else None,
+            f"queue_position={self.queue_position}" if self.queue_position else None,
         ]
         fields_str = [s for s in fields_strs if s]
         return f"id={self.id} ({', '.join(fields_str)})"
@@ -179,6 +181,7 @@ class ExecutionFrameData:
     inputs: dict[str, Any]
     outputs: Optional[Any]
     error: Optional[ErrorData]
+    queue_position: Optional[int]
     # additional context data not in ExecutionFrame
     project_id: UUID
     tracing_level: Optional[ExecutionTracingLevel]
@@ -221,6 +224,7 @@ class ExecutionFrameData:
             outputs=frame.outputs,
             inference_context_id=frame.inference_context_id,
             error=error_data,
+            queue_position=frame.queue_position,
             project_id=project_id,
             tracing_level=tracing_level,
             deployment_id=deployment_id,
