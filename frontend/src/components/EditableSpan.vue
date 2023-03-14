@@ -39,6 +39,7 @@ function navigateLeftIfAtStart(event: any) {
 function navigateRightIfAtEnd(event: any) {
   // check if cursor is at the end of the text
   const selection = window.getSelection();
+  console.log(selection);
   if (selection && selection.anchorOffset == props.modelValue.length) {
     emit("navigateRight");
     event.preventDefault();
@@ -56,8 +57,19 @@ function focus() {
   const selection = window.getSelection();
   if (selection && spanRef.value != null) {
     // select end of text
-    selection.selectAllChildren(spanRef.value);
-    selection.collapseToEnd();
+    if (spanRef.value.childNodes.length > 0) {
+      selection.selectAllChildren(spanRef.value.childNodes[0]);
+      selection.setBaseAndExtent(
+        spanRef.value.childNodes[0],
+        props.modelValue.length,
+        spanRef.value.childNodes[0],
+        props.modelValue.length
+      );
+    } else {
+      // span has no text content yet
+      selection.selectAllChildren(spanRef.value);
+      selection.collapseToEnd();
+    }
   }
 }
 

@@ -592,7 +592,7 @@ class File(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
     revision = models.IntegerField(default=1)
-    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
+    name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

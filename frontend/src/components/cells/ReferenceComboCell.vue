@@ -10,6 +10,7 @@ const props = defineProps<{
   self?: StatementHeader;
   reference?: StatementHeader | InterpSymbol | null;
   canDefineInPlace?: boolean;
+  canDefineAnonymous?: boolean;
   availableSymbols: InterpSymbol[];
 }>();
 const emit = defineEmits<{
@@ -43,20 +44,20 @@ const filteredSymbols = computed(() =>
 
 // define in place if query ends with :
 watch(
-  () => [query.value, props.canDefineInPlace],
+  () => [query.value, props.canDefineInPlace, props.canDefineAnonymous],
   () => {
-    if (props.canDefineInPlace && query.value.length > 1 && query.value.endsWith(":")) {
+    if (props.canDefineInPlace && (query.value.length > 1 || props.canDefineAnonymous) && query.value.endsWith(":")) {
       emit("defineInPlace", query.value.slice(0, -1));
     }
   }
 );
 
 function setReference(ref: InterpSymbol | null) {
-  if (ref == null && query.value.length < 1) {
-    // headless ui auto-selects an option when it matches the name
-    // but we don't want that if we are defining in place
-    return;
-  }
+  // if (ref == null && query.value.length < 1) {
+  //   // headless ui auto-selects an option when it matches the name
+  //   // but we don't want that if we are defining in place
+  //   return;
+  // }
   selecting.value = false;
   if (ref == null && props.canDefineInPlace) {
     emit("defineInPlace", query.value);
@@ -189,7 +190,7 @@ defineExpose({
       v-show="selecting"
     >
       <!-- define in-place option (weirdly, value must not be {} or headlessui will freak) -->
-      <ComboboxOption v-if="query.length > 0" :key="0" :value="null" v-slot="{ active }">
+      <ComboboxOption v-if="query.length > 0 || canDefineAnonymous" :key="0" :value="null" v-slot="{ active }">
         <li
           :class="[
             'relative flex cursor-default select-none items-baseline justify-between py-0.5 px-2  text-sm',
@@ -197,7 +198,8 @@ defineExpose({
             editor.fontMono ? 'font-mono' : '',
           ]"
         >
-          {{ query }}:
+          <span v-if="query.trim().length > 0">{{ query }}:</span>
+          <span v-else class="">(unnamed)</span>
           <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
             (define)
           </span>
