@@ -102,7 +102,7 @@ function indexModule(module: InterpModule): ModuleIndex {
 // TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
 function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   const {
-    result: runtime,
+    result: fetchedRuntime,
     loading,
     error,
     start,
@@ -154,8 +154,16 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     { immediate: true }
   );
 
+  // cache last runtime
+  const runtime: Ref<typeof fetchedRuntime.value | null> = ref(null);
+  watch(fetchedRuntime, (newRuntime) => {
+    if (newRuntime != null) {
+      runtime.value = newRuntime;
+    }
+  });
+
   const connected = computed(
-    () => WS_CONNECTED.value && !!runtime.value && !error.value && !loading.value && projectVersionId.value != null
+    () => WS_CONNECTED.value && fetchedRuntime.value && !error.value && !loading.value && projectVersionId.value != null
   );
   const lastUpdated: Ref<string | null> = ref(null);
   runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
@@ -278,7 +286,7 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
       }
     }
     return allSymbols.filter((s) => {
-      if (!filterRef.value.includeAnonymous && (s.name?.length ?? 0) == 0) {
+      if (!filterRef.value.includeAnonymous || (s.name?.length ?? 0) == 0) {
         return false;
       }
       if (!filterRef.value.includeGenerated && s.generated) {
