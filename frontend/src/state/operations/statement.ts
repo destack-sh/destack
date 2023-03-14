@@ -21,6 +21,7 @@ import {
   type TypeNodeUpdateInput,
   type UpdateStatementModifierMutation,
   type UpdateTypeNodeMutation,
+  type SetReferenceMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -674,29 +675,53 @@ export function useStatementOps() {
 
   const { mutate: setReferenceMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {
-        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
+      mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {
+        updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {
           ... on Statement {
             id
             revision
             reference {
-              ...StatementHeader
+              id
+              name
             }
           }
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; referenceId: string | null; referenceName: string | null }) =>
+        ({
+          updateStatementReference: {
+            __typename: "Statement",
+            id: vars.id,
+            revision: PENDING_REVISION,
+            reference: vars.referenceId
+              ? {
+                  __typename: "Statement",
+                  id: vars.referenceId,
+                  name: vars.referenceName,
+                }
+              : null,
+          },
+        } as SetReferenceMutation),
+    }
   );
 
-  async function setReference(id: string, oldReferenceId: string | null, newReferenceId: string | null) {
+  async function setReference(
+    id: string,
+    oldReferenceId: string | null,
+    oldReferenceName: string | null,
+    newReferenceId: string | null,
+    newReferenceName: string | null
+  ) {
     await operations.perform({
       type: "statement.setReference",
       do: async () => {
-        return await setReferenceMut({ id: id, referenceId: newReferenceId });
+        return await setReferenceMut({ id: id, referenceId: newReferenceId, referenceName: newReferenceName });
       },
       undo: async () => {
-        return await setReferenceMut({ id: id, referenceId: oldReferenceId });
+        return await setReferenceMut({ id: id, referenceId: oldReferenceId, referenceName: oldReferenceName });
       },
     });
   }

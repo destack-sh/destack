@@ -31,7 +31,7 @@ export type StatementContext = {
   editing: boolean;
   statement: FragmentType<typeof StatementContentType>;
   file: FragmentType<typeof FileHeaderType>;
-  reference: InterpSymbol | null;
+  reference: InterpSymbol | { id: string; name: string } | null;
 };
 
 export function useStatementContext() {
@@ -188,10 +188,13 @@ export function useStatementContext() {
   }
 
   async function setReference(reference: { id: string; name: string } | null) {
-    // TODO @Cleanup: setting reference and naming a reference shouldn't be separate
-    //  Indeed, we probably don't want names on references at all (creates weird aliasing).
-    operations.statement.rename(statement.value.id, statement.value.name ?? null, reference?.name ?? null);
-    await operations.statement.setReference(statement.value.id, statement.value.reference?.id, reference?.id ?? null);
+    await operations.statement.setReference(
+      statement.value.id,
+      statement.value.reference?.id,
+      context?.value.reference?.name,
+      reference?.id ?? null,
+      reference?.name ?? null
+    );
   }
 
   // one-way syncs from current state to backend (:Singleplayer)

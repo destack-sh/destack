@@ -407,9 +407,4 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
                 check=models.Q(reference__isnull=True) | models.Q(symbol_type__isnull=False),
                 name="bench_statement_reference_symbol_type_set",
             ),
-            # if reference is set name must also be set
-            models.CheckConstraint(
-                check=models.Q(reference__isnull=True) | models.Q(name__isnull=False),
-                name="bench_statement_reference_name_set",
-            ),
         ]

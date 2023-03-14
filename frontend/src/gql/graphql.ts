@@ -1681,6 +1681,7 @@ export type StatementSetModifierInput = {
 export type StatementSetReferenceInput = {
   id: Scalars["GlobalID"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceName?: InputMaybe<Scalars["String"]>;
 };
 
 export type StatementSoftDeleteInput = {
@@ -3289,6 +3290,7 @@ export type CommentStatementMutation = {
 export type SetReferenceMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceName?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type SetReferenceMutation = {
@@ -3301,9 +3303,7 @@ export type SetReferenceMutation = {
         __typename?: "Statement";
         id: any;
         revision: number;
-        reference?:
-          | ({ __typename?: "Statement" } & { " $fragmentRefs"?: { StatementHeaderFragment: StatementHeaderFragment } })
-          | null;
+        reference?: { __typename?: "Statement"; id: any; name?: string | null } | null;
       };
 };
 
@@ -9132,6 +9132,11 @@ export const SetReferenceDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceName" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -9156,6 +9161,11 @@ export const SetReferenceDocument = {
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceName" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceName" } },
+                    },
                   ],
                 },
               },
@@ -9176,7 +9186,10 @@ export const SetReferenceDocument = {
                         name: { kind: "Name", value: "reference" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementHeader" } }],
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                          ],
                         },
                       },
                     ],
@@ -9189,7 +9202,6 @@ export const SetReferenceDocument = {
         ],
       },
     },
-    ...StatementHeaderFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SetReferenceMutation, SetReferenceMutationVariables>;

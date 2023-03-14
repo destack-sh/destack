@@ -44,7 +44,7 @@ def lookup_in_db_module(
     if version is None:
         raise ValueError(f"could not find module {requirement}")
 
-    wire_module: wire.ModuleData = read_module(version, path)
+    wire_module: wire.ModuleData = read_module(version)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)
     return idx.get_scope(path)
@@ -66,10 +66,9 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
 @transaction.atomic(savepoint=False)  # read-only
 def read_module(
     project_v: ProjectVersion,
-    path: StatementPath | None = None,
     add_implicit_requirements: bool = True,
 ) -> wire.ModuleData:
-    """Reads the DB module to satisfy the given path. Currently, reads the entire module (ignoring path)."""
+    """Reads the DB module."""
     wire_module = wire.ModuleData(
         id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
     )
@@ -90,7 +89,11 @@ def read_module(
         wire_module.files.append(wire_file)
 
     # map statements
-    statements = list(project_v.statements.filter(deleted_at=None).all())
+    statements = list(
+        project_v.statements.filter(deleted_at=None)
+        .select_related("reference")
+        .prefetch_related("records", "type_nodes")
+    )
     for statement in statements:
         wire_statement = rmap_statement(statement, file=wire_files[statement.file_id])
         wire_statements[statement.id] = wire_statement
@@ -248,16 +251,21 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
     """Reads a database statement into a wire statement."""
     # map reference into wire-able reference (convert module-external ref to statement path)
     reference = rmap_reference(statement, statement.reference)
+    if statement.type == StatementType.REFERENCE:
+        # references are stored without name
+        name = statement.reference.name
+    else:
+        name = statement.name
     data = wire.StatementData(
         id=statement.id,
         module_id=file.module_id,
         file_id=file.id,
         revision=statement.revision,
-        parent_id=statement.parent.id if statement.parent else None,
+        parent_id=statement.parent_id,
         order_key=statement.order_key,
         type=statement.type,
         modifier=statement.modifier,
-        name=statement.name,
+        name=name,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
         reference=reference,

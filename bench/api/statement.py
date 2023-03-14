@@ -179,6 +179,7 @@ class StatementSetModifierInput(gql.NodeInput):
 @gql.input
 class StatementSetReferenceInput(gql.NodeInput):
     reference_id: Optional[GlobalID] = None
+    reference_name: Optional[str] = None  # unused, only for optimistic updates
 
 
 @gql.django.partial(models.Statement)
