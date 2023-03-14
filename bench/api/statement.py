@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Annotated, Iterable, Optional
 from uuid import UUID
 
 import pytz
+import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from strawberry import UNSET, lazy
@@ -19,6 +20,8 @@ from bench.api.sync import PMT, project_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
+
+log = structlog.get_logger(__name__)
 
 StatementType = gql.enum(models.StatementType)
 StatementModifier = gql.enum(language.StatementModifier)

@@ -7,6 +7,22 @@ from sentry_sdk.integrations.logging import LoggingIntegration
 
 logger = structlog.get_logger(__name__)
 
+IGNORED_PATHS = {"/", "/metrics", "/healthz", "/readiness", "/liveness"}
+IGNORED_GRAPHQL_OPS = {"IntrospectionQuery", "systemInfo", "newNotifications"}
+
+
+def traces_sampler(sampling_context: dict):
+    if "asgi_scope" in sampling_context:
+        path = sampling_context["asgi_scope"]["path"]
+        if path in IGNORED_PATHS:
+            return 0.0
+    if "strawberry_context" in sampling_context:
+        operation = sampling_context["strawberry_context"].operation_name
+        if operation in IGNORED_GRAPHQL_OPS:
+            return 0.0
+
+    return 1.0  # by default sample everything
+
 
 def init_sentry(*, django: bool):
     sentry_sdk.utils.MAX_STRING_LENGTH = 10_000_000
@@ -27,7 +43,7 @@ def init_sentry(*, django: bool):
         request_bodies="always",
         sample_rate=1.0,
         send_default_pii=True,
-        traces_sample_rate=1.0,
+        traces_sampler=traces_sampler,
     )
     logger.info(
         "initialized_sentry",
