@@ -208,7 +208,7 @@ defineExpose({
       v-show="!context.readonly.value"
       tabindex="-1"
       ref="addMemberRef"
-      class="w-fit rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertBelow()"
       @enter="insertBelow()"
       @keydown.up.exact="focusLast"

@@ -641,16 +641,5 @@ class File(UUIDModel):
 
     class Meta:
         ordering = ["name"]
-        constraints = [
-            # ensure that the path is unique per project version (includes parent directory)
-            models.UniqueConstraint(
-                name="bench_project_file_project_name_ak",
-                fields=["project_version_id", "name"],
-                condition=models.Q(parent_id__isnull=True, deleted_at__isnull=True),
-            ),
-            models.UniqueConstraint(
-                name="bench_project_file_project_parent_name_ak",
-                fields=["project_version_id", "parent_id", "name"],
-                condition=models.Q(parent_id__isnull=False, deleted_at__isnull=True),
-            ),
-        ]
+        # path doesn't have to be unique
+        constraints = []
