@@ -203,13 +203,15 @@ defineExpose({
                     'text-gray-500':
                       execution.status == ExecutionStatus.Created ||
                       execution.status == ExecutionStatus.Scheduled ||
+                      execution.status == ExecutionStatus.Queued ||
                       execution.status == ExecutionStatus.Running,
                     'animate-spin': execution.status == ExecutionStatus.Running,
                   }"
                 >
                   <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />
                 </svg>
-                <span class="text-gray-900" v-if="execution.terminatedAt != null">
+                <span class="text-gray-700" v-if="execution.status == ExecutionStatus.Queued">queue</span>
+                <span class="text-gray-900" v-else-if="execution.terminatedAt != null">
                   {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
                 </span>
                 <span class="text-gray-900" v-else-if="execution.startedAt != null">

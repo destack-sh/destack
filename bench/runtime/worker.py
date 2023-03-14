@@ -244,7 +244,6 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
 RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in the DB
 
 
-@dataclass
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
@@ -277,17 +276,19 @@ class ModuleWorker:
     def idx(self) -> language.ModuleIndex:
         return self.interp.module_idx
 
-    def _queue_job(self, job: Job, priority: int = None):
+    def _queue_job(self, job: Job, priority: int = None) -> int:
         priority = priority or job.default_priority
         if isinstance(job, RunJob):
             self.run_jobs.put_nowait((priority, job))
+            qpos = self.run_jobs.qsize()
         else:
             self.stateful_jobs.put_nowait((priority, job))
-
+            qpos = self.stateful_jobs.qsize()
         # track recent jobs in a buffer
         self.recent_jobs.append(job)
         if len(self.recent_jobs) > RECENT_JOBS_BUFFER_SIZE:
             self.recent_jobs.pop(0)
+        return qpos
 
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
         job = InterpJob(new_source=source)
@@ -402,9 +403,12 @@ class ModuleWorker:
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
             )
-            tracer = MultiTracer([ExecutionTracer(self.module_id, tracker), ValidationTracer()])
+            tracer = ExecutionTracer(self.module_id, tracker)
             runnable_instance = instantiate(
-                runnable, idx=self.idx, build=build, proxy=Proxy(tracer=tracer)
+                runnable,
+                idx=self.idx,
+                build=build,
+                proxy=Proxy(tracer=MultiTracer([tracer, ValidationTracer()])),
             )
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
@@ -421,7 +425,13 @@ class ModuleWorker:
             trigger_type=trigger_type,
             trigger_id=trigger_id,
         )
-        self._queue_job(job)
+        qpos = self._queue_job(job)
+        # emit queued status immediately
+        if isinstance(runnable_instance, TaskInstance):
+            code_instance = runnable_instance.code
+        else:
+            code_instance = runnable_instance
+        tracer.queue_enter(code_instance, arguments, qpos)
         return job
 
     async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
@@ -614,7 +624,6 @@ class Worker:
             await msg.reply(RepModuleRunPayload(None, run_job, None, None))
         else:
             if msg.p.blocking:
-                # TODO @Cleanup: don't clog up running queue if blocking :AsyncClientServer
                 await run_job.terminated.wait()
             rep = RepModuleRunPayload(
                 run_job.id, run_job.error, run_job.error_details, run_job.output
