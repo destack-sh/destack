@@ -136,7 +136,7 @@ const documents = {
     types.BatchPasteStatementDocument,
   "\n      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {\n        commentStatement(input: { id: $id, commented: $commented }) {\n          ... on Statement {\n            id\n            commented\n            revision\n            descendants {\n              id\n              commented\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CommentStatementDocument,
-  "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n              name\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.SetReferenceDocument,
   "\n      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {\n        createStatementTypeNode(input: $typeNode) {\n          ... on SimpleTypeNode {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            statement {\n              id\n            }\n            ...SimpleTypeNodeContent\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateTypeNodeDocument,
@@ -576,8 +576,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              ...StatementHeader\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n              name\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n              name\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

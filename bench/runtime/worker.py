@@ -539,6 +539,7 @@ class Worker:
         self.worker_id = worker_id
         self.module_workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
+        self.cached_committed_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
 
     async def run(self):
         await nc_init.wait()
@@ -656,11 +657,17 @@ class Worker:
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""
-        logger.debug("module.fetch", module_id=module_id)
+        log = logger.bind(module_id=module_id)
+        cached = self.cached_committed_modules.get(module_id)
+        if cached is not None:
+            log.debug("module.fetch", cached=True)
+            return cached
         module_rep = await request(
             NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(module_id), RepReadModulePayload
         )
-        # TODO @Performance: cache committed modules in worker
+        if module_rep.p.module.committed:
+            self.cached_committed_modules[module_id] = module_rep.p.module, module_rep.p.project_id
+        log.debug("module.fetch", cached=False)
         return module_rep.p.module, module_rep.p.project_id
 
     async def stop(self):

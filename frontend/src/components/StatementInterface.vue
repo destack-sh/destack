@@ -179,7 +179,6 @@ whenever(inRootCellFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
-  console.log("root cell focused");
   if (altKeyState.value || containerFocused.value) {
     return;
   }

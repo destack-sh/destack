@@ -110,7 +110,7 @@ defineExpose({
     />
     <button
       tabindex="-1"
-      v-if="!hasName"
+      v-if="!hasName && context.statement.value.type == StatementType.Definition"
       @click="nameRef?.focus()"
       class="-ml-1 w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
