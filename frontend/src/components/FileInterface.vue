@@ -290,6 +290,7 @@ const metaActions = computed(() => [
           <EditableSpan
             ref="nameRef"
             class="text-3xl"
+            suppress-shortcuts
             :readonly="editor.readonly || isDeleted || isOtherVersion"
             @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
             :model-value="name"

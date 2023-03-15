@@ -129,10 +129,10 @@ async function init() {
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
   window.addEventListener("drop", (e) => e.preventDefault(), false);
 
-  // capture ctrl + s
+  // handle shortcuts
   applyShortcuts();
 
-  // init monaco once the app is mounted (for faster response if once a monaco editor is opened)
+  // init monaco once the app is mounted (for faster response on first monaco editor open)
   monacoLoader.init();
 }
 

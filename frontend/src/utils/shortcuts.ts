@@ -32,4 +32,30 @@ export function applyShortcuts() {
       boundShortcuts.push(...action.shortcuts);
     });
   });
+
+  // supprres undo/redo actions if mousetrap-no-do class is present
+  // this is a custom implementation of Mousetrap.stopCallback, see https://craig.is/killing/mice
+  const suppressedUndoRedoShortcuts = ["ctrl+z", "ctrl+shift+z"];
+  Mousetrap.prototype.stopCallback = function (e: any, element: HTMLElement, combo: string) {
+    console.log(element, combo);
+    // If the element has the class "mousetrap-no-do", stop the callback for the specified shortcuts
+    if ((" " + element.className + " ").indexOf(" mousetrap-no-do ") > -1) {
+      if (suppressedUndoRedoShortcuts.includes(combo)) {
+        return true;
+      }
+    }
+
+    // If the element has the class "mousetrap" then no need to stop
+    if ((" " + element.className + " ").indexOf(" mousetrap ") > -1) {
+      return false;
+    }
+
+    // Stop for input, select, and textarea
+    return (
+      element.tagName == "INPUT" ||
+      element.tagName == "SELECT" ||
+      element.tagName == "TEXTAREA" ||
+      (element.contentEditable && element.contentEditable == "true")
+    );
+  };
 }
