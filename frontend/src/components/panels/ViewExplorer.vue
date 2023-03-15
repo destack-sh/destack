@@ -2,7 +2,7 @@
 import FileExplorer from "@/components/panels/FileExplorer.vue";
 import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
-import { useEditorState, type FileHeader } from "@/state/editor";
+import type { FileHeader } from "@/state/editor";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
@@ -15,6 +15,7 @@ const actions = useActions();
 type Panel = {
   title: string;
   actions: Action[];
+  count?: number;
 };
 
 type Action = {
@@ -27,6 +28,7 @@ type Action = {
 const panels: Ref<Panel[]> = computed(() => [
   {
     title: "Files",
+    count: fileExplorer.value?.count,
     actions: [
       {
         icon: PlusIcon,
@@ -38,6 +40,7 @@ const panels: Ref<Panel[]> = computed(() => [
   } as Panel,
   {
     title: "Symbols",
+    count: symbolExplorer.value?.count,
     actions: [],
   } as Panel,
 ]);
@@ -74,7 +77,7 @@ watch(
 );
 </script>
 <template>
-  <div ref="containerRef">
+  <div ref="containerRef" class="relative flex h-full flex-col">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
@@ -83,11 +86,14 @@ watch(
     </div>
     <!-- View panels -->
     <div class="flex flex-1 flex-col gap-y-2 divide-y divide-orange-900 divide-opacity-[12%]">
-      <div v-for="panel in panels" :key="panel.title">
+      <div v-for="panel in panels" :key="panel.title" class="min-h-0 flex-1 basis-0">
         <!-- Panel header -->
-        <div class="flex flex-row items-center justify-between px-3 py-1">
+        <div class="flex flex-shrink-0 flex-row items-center justify-between px-3 py-1">
           <span class="select-none text-xs font-bold uppercase">
             {{ panel.title }}
+            <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="panel.count != null">
+              {{ panel.count }}
+            </span>
           </span>
           <!-- Panel actions -->
           <span class="inline-flex flex-row gap-1">
@@ -103,18 +109,20 @@ watch(
           </span>
         </div>
         <!-- Panel content -->
-        <FileExplorer
-          :ref="(ref) => (fileExplorer = ref as any)"
-          v-if="panel.title == 'Files'"
-          :files="props.files"
-          @navigate-down="symbolExplorer?.focus()"
-        />
-        <SymbolExplorer
-          :ref="(ref) => (symbolExplorer = ref as any)"
-          v-else-if="panel.title == 'Symbols'"
-          @navigate-up="fileExplorer?.focus()"
-        />
-        <span v-else class="text-red-500">panic!</span>
+        <div class="h-full min-h-0 overflow-y-auto">
+          <FileExplorer
+            :ref="(ref) => (fileExplorer = ref as any)"
+            v-if="panel.title == 'Files'"
+            :files="props.files"
+            @navigate-down="symbolExplorer?.focus()"
+          />
+          <SymbolExplorer
+            :ref="(ref) => (symbolExplorer = ref as any)"
+            v-else-if="panel.title == 'Symbols'"
+            @navigate-up="fileExplorer?.focus()"
+          />
+          <!-- <span v-else class="text-red-500">panic!</span> -->
+        </div>
       </div>
     </div>
   </div>

@@ -104,19 +104,26 @@ hostStatementActions();
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans&display=swap");
 
 ::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
+  transition: opacity 0.075s ease-in-out;
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(113, 122, 148, 0.4);
+  background-color: rgba(113, 122, 148, 0);
   background-clip: padding-box;
   border: 2px solid rgba(0, 0, 0, 0);
-  border-radius: 4px;
+  border-radius: 2px;
+  transition: background-color 0.075s ease-in-out;
 }
 
+/* TODO @UX: make scrollbar visible when active in container */
 ::-webkit-scrollbar-thumb:hover {
   background-color: #fdba74;
+}
+
+::-webkit-scrollbar:hover {
+  opacity: 1;
 }
 
 ::-webkit-scrollbar-track {

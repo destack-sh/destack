@@ -66,7 +66,7 @@ function blur() {
 }
 
 defineExpose({
-  count: computed(() => props.files?.length),
+  count: computed(() => filesSorted.value.length),
   focus,
   blur,
 });
