@@ -13,12 +13,13 @@ import { useActions } from "@/state/actions";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, inject, watch, watchEffect, type Ref } from "vue";
+import { computed, inject, ref, watch, watchEffect, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { newTypeNodeId } from "@/state/operations/statement";
 import { contextOf } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
+import { syncProperty } from "@/utils/sync";
 
 export const STATEMENT_CONTEXT = Symbol();
 
@@ -206,30 +207,22 @@ export function useStatementContext() {
   // That's why we only save the properties while the user is editing, otherwise we would have
 
   function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    function syncName() {
-      operations.statement.rename(statement.value.id, statement.value.name ?? null, content.value);
-    }
-    const saveNameDebounced = useDebounceFn(syncName, 400, { maxWait: 2000 });
-    watch(content, () => !editing.value || saveNameDebounced());
-    // sync name into content when not editing
-    watchEffect(() => {
-      if (!editing.value) {
-        content.value = statement.value.name ?? "";
-      }
+    syncProperty({
+      value: content,
+      editing,
+      read: () => (content.value = statement.value?.name ?? ""),
+      write: () => operations.statement.rename(statement.value.id, statement.value.name ?? "", content.value),
     });
   }
 
   function syncCode(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    function saveCode() {
-      operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", content.value);
-    }
-    const saveCodeDebounced = useDebounceFn(saveCode, 400, { maxWait: 5000 });
-    watch(content, () => !editing.value || saveCodeDebounced());
-    // sync code into content when not editing
-    watchEffect(() => {
-      if (!editing.value) {
-        content.value = statement.value.code ?? "";
-      }
+    syncProperty({
+      value: content,
+      editing,
+      read: () => (content.value = statement.value?.code ?? ""),
+      write: () => operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", content.value),
+      debounceMs: 1000,
+      debounceMaxWait: 5000,
     });
   }
 
@@ -237,20 +230,16 @@ export function useStatementContext() {
   const syncText = syncCode;
 
   function syncDescription(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    function saveDescription() {
-      operations.symbol.updateStatementDescription(
-        statement.value.id,
-        statement.value.description ?? "",
-        content.value
-      );
-    }
-    const saveDescriptionDebounced = useDebounceFn(saveDescription, 400, { maxWait: 2500 });
-    watch(content, () => !editing.value || saveDescriptionDebounced());
-    // sync statement.value.description into content if not editing
-    watchEffect(() => {
-      if (!editing.value) {
-        content.value = statement.value.description ?? "";
-      }
+    syncProperty({
+      value: content,
+      editing,
+      read: () => (content.value = statement.value?.description ?? ""),
+      write: () =>
+        operations.symbol.updateStatementDescription(
+          statement.value.id,
+          statement.value.description ?? "",
+          content.value
+        ),
     });
   }
 
