@@ -648,30 +648,28 @@ onBeforeUnmount(() => {
           v-show="editor.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
-          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
-            <ViewExplorer
-              v-show="activeView.id == 'explorer'"
-              @show="editor.focusView('explorer')"
-              @blur="editor.blurView('explorer')"
-              :files="files"
-              :focused="editor.focusedViewId == 'explorer'"
-            />
-            <ViewHistory
-              v-show="activeView.id == 'history'"
-              v-if="project != null"
-              @show="editor.focusView('history')"
-              @blur="editor.blurView('history')"
-              :project="project"
-              :focused="editor.focusedViewId == 'history'"
-              :current-version="version"
-            />
-            <ViewIssues
-              v-show="activeView.id == 'issues'"
-              @show="editor.focusView('issues')"
-              @blur="editor.blurView('issues')"
-              :focused="editor.focusedViewId == 'issues'"
-            />
-          </div>
+          <ViewExplorer
+            v-show="activeView.id == 'explorer'"
+            @show="editor.focusView('explorer')"
+            @blur="editor.blurView('explorer')"
+            :files="files"
+            :focused="editor.focusedViewId == 'explorer'"
+          />
+          <ViewHistory
+            v-show="activeView.id == 'history'"
+            v-if="project != null"
+            @show="editor.focusView('history')"
+            @blur="editor.blurView('history')"
+            :project="project"
+            :focused="editor.focusedViewId == 'history'"
+            :current-version="version"
+          />
+          <ViewIssues
+            v-show="activeView.id == 'issues'"
+            @show="editor.focusView('issues')"
+            @blur="editor.blurView('issues')"
+            :focused="editor.focusedViewId == 'issues'"
+          />
         </div>
       </aside>
       <!-- Main editor area -->

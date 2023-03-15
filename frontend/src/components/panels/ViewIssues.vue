@@ -16,7 +16,7 @@ function focusError(error: InterpError) {
 }
 </script>
 <template>
-  <div class="h-full w-full">
+  <div class="">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
@@ -28,7 +28,7 @@ function focusError(error: InterpError) {
         </span>
       </span>
     </div>
-    <ul class="flex h-full w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
+    <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
       <li
         v-for="(error, i) in errors ?? []"
         :key="i"

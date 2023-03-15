@@ -109,7 +109,7 @@ watch(
           </span>
         </div>
         <!-- Panel content -->
-        <div class="h-full min-h-0 overflow-y-auto">
+        <div class="min-h-0 overflow-y-auto">
           <FileExplorer
             :ref="(ref) => (fileExplorer = ref as any)"
             v-if="panel.title == 'Files'"

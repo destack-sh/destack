@@ -191,7 +191,7 @@ defineExpose({
 </script>
 <template>
   <!-- Container (views should be a single root element) -->
-  <div ref="containerRef" class="h-full w-full">
+  <div ref="containerRef">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
@@ -228,9 +228,9 @@ defineExpose({
       </CommitPopover>
     </div>
     <!-- View versions -->
-    <div class="relative h-full w-full flex-1" v-if="!loading">
+    <div class="relative flex-1" v-if="!loading">
       <!-- Versions -->
-      <ul role="list" class="-mb-8 h-full w-full overflow-y-auto pt-2 pb-10">
+      <ul role="list" class="-mb-8 h-full w-full pt-2 pb-10">
         <li
           v-for="(version, versionIdx) in versions"
           :key="version.id"
