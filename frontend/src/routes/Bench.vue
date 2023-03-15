@@ -268,6 +268,11 @@ watchEffect(() => {
 // routing
 const consideredUrl = ref(false);
 
+function prettifyPath(path: string) {
+  // replace non-URL friendly characters with dashes
+  return path.replace(/[^a-zA-Z0-9-_./]/g, "-");
+}
+
 // focus file from url if hash changes and none is open (once)
 watchEffect(() => {
   const hash = router.currentRoute.value.hash;
@@ -275,7 +280,7 @@ watchEffect(() => {
     let file = null;
     if (hash) {
       const path = hash.substring(1);
-      file = files.value.find((file) => file.path === path);
+      file = files.value.find((file) => prettifyPath(file.path) === path);
     } else if (files.value.length == 1) {
       // special case: open "Getting Started" file if it exists and nothing is open :GettingStarted
       file = files.value.find((file) => file.path === "Getting Started");
@@ -292,7 +297,8 @@ watchEffect(() => {
   if (editor.focusedEditor != null) {
     // set hash to open path
     if (consideredUrl.value) {
-      router.replace({ hash: `#${editor.focusedEditor.path}`, query: router.currentRoute.value.query });
+      const prettyPath = prettifyPath(editor.focusedEditor.path);
+      router.replace({ hash: `#${prettyPath}`, query: router.currentRoute.value.query });
     }
   } else if (editorReady.value && consideredUrl.value) {
     // clear hash
