@@ -13,7 +13,10 @@ const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncDescription(description);
+context.syncDescription(
+  description,
+  computed(() => descriptionRef.value?.focused)
+);
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);

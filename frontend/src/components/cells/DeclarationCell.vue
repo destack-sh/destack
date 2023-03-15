@@ -16,12 +16,15 @@ const emit = defineEmits<{
   (e: "navigateRight"): void;
 }>();
 
+const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const name: Ref<string> = ref(context.statement.value.name ?? "");
-context.syncName(name);
+context.syncName(
+  name,
+  computed(() => nameRef.value?.focused)
+);
 const hasName = computed(() => name.value.trim().length > 0);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
-const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],

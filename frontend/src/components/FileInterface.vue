@@ -287,12 +287,13 @@ const metaActions = computed(() => [
       >
         <!-- Name -->
         <span>
+          <!-- Note the :EditableSyncDance on the name update -->
           <EditableSpan
             ref="nameRef"
             class="text-3xl"
             suppress-shortcuts
             :readonly="editor.readonly || isDeleted || isOtherVersion"
-            @update:model-value="(newName) => ((name = newName), renameFileDebounced(newName))"
+            @update:model-value="(newName) => ((name = newName), !nameRef?.focused || renameFileDebounced(newName))"
             :model-value="name"
             @enter="goToContent"
             @keyup.up.prevent="() => ({}) /* noop */"

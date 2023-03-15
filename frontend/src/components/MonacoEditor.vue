@@ -2,7 +2,7 @@
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
 import type * as monaco from "monaco-editor";
-import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -23,7 +23,8 @@ const emit = defineEmits<{
   (e: "enter"): void;
 }>();
 
-let editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
+const editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
+const focused: Ref<boolean> = ref(false);
 
 function getEditorHeight(code: string) {
   let lines = code.split("\n").length;
@@ -175,6 +176,14 @@ function initMonaco(monaco: Monaco) {
       document.activeElement?.blur();
     }
   });
+
+  // update focused when editor is focused/defocused
+  editor.value.onDidFocusEditorWidget(() => {
+    focused.value = true;
+  });
+  editor.value.onDidBlurEditorWidget(() => {
+    focused.value = false;
+  });
 }
 
 // sync modelValue into editor
@@ -231,7 +240,7 @@ function blur() {
   // no op?
 }
 
-defineExpose({ focus, blur });
+defineExpose({ focus, blur, focused });
 </script>
 
 <template>

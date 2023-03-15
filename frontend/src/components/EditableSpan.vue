@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useFocus } from "@vueuse/core";
 import { ref } from "vue";
 
 const props = defineProps<{
@@ -82,9 +83,12 @@ function blur() {
   }
 }
 
+const { focused } = useFocus(spanRef);
+
 defineExpose({
   focus,
   blur,
+  focused,
   modelValue: props.modelValue,
 });
 </script>

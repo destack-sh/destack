@@ -3,7 +3,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
 // which are implicitly typed only for now
@@ -14,11 +14,14 @@ defineProps<{
 const context = useStatementContext();
 
 const description: Ref<string> = ref(context.statement.value.description ?? "");
-context.syncDescription(description);
+const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+context.syncDescription(
+  description,
+  computed(() => descriptionRef.value?.focused)
+);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
-const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
