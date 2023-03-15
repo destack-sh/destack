@@ -11,6 +11,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { INTEGER_ZERO } from "@/utils/fractional";
+import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
@@ -167,19 +168,12 @@ const ops = useOperations();
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-// set name first if not yet loaded or not editing
-watchEffect(() => {
-  if (name.value == null || !nameRef.value?.focused) {
-    name.value = fileHeader.value?.name ?? null;
-  }
+syncProperty({
+  value: name,
+  editing: computed(() => nameRef.value?.focused),
+  read: () => (name.value = fileHeader.value?.name ?? null),
+  write: () => ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
 });
-function renameFile(newName: string) {
-  if (fileHeader.value == null) {
-    return;
-  }
-  ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", newName);
-}
-const renameFileDebounced = useDebounceFn(renameFile, 500);
 
 // auto-focus name once loaded and if contents are empty
 watch(
@@ -290,8 +284,7 @@ const metaActions = computed(() => [
             class="text-3xl"
             suppress-shortcuts
             :readonly="editor.readonly || isDeleted || isOtherVersion"
-            @update:model-value="(newName) => ((name = newName), !nameRef?.focused || renameFileDebounced(newName))"
-            :model-value="name"
+            v-model="name"
             @enter="goToContent"
             @keyup.up.prevent="() => ({}) /* noop */"
           />
