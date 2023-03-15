@@ -4,7 +4,7 @@ import { ref } from "vue";
 const props = defineProps<{
   modelValue: string;
   readonly: boolean;
-  suppressShortcuts?: boolean;
+  suppressAllShortcuts?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -90,13 +90,14 @@ defineExpose({
 </script>
 <template>
   <!-- mousetrap class to enable keyboard shortcuts while editing -->
+  <!-- except (undo redo which we want to keep native) -->
   <!-- https://craig.is/killing/mice#api.trigger -->
   <span
     tabindex="-1"
     spellcheck="false"
     ref="spanRef"
     class="outline-none"
-    :class="suppressShortcuts ? '' : 'mousetrap'"
+    :class="suppressAllShortcuts ? '' : 'mousetrap mousetrap-no-do'"
     :contenteditable="!readonly"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
