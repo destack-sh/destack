@@ -13,7 +13,7 @@ import { useActions } from "@/state/actions";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, inject, watch, type Ref } from "vue";
+import { computed, inject, watch, watchEffect, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { newTypeNodeId } from "@/state/operations/statement";
@@ -199,29 +199,44 @@ export function useStatementContext() {
 
   // one-way syncs from current state to backend (:Singleplayer)
 
-  function syncName(content: Ref<string>) {
+  // :EditableSyncDance
+  // There is a bit of a delicate dance when syncing these properties since we want to
+  // preserve the users local edits, but also want to sync from server/cache when not editing
+  // since that includes updates and redo/undo data while not editing.
+  // That's why we only save the properties while the user is editing, otherwise we would have
+
+  function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
     function syncName() {
       operations.statement.rename(statement.value.id, statement.value.name ?? null, content.value);
     }
-    watch(content, useDebounceFn(syncName, 200, { maxWait: 1000 }));
+    const saveNameDebounced = useDebounceFn(syncName, 400, { maxWait: 2000 });
+    watch(content, () => !editing.value || saveNameDebounced());
+    // sync name into content when not editing
+    watchEffect(() => {
+      if (!editing.value) {
+        content.value = statement.value.name ?? "";
+      }
+    });
   }
 
-  function syncCode(content: Ref<string>) {
+  function syncCode(content: Ref<string>, editing: Ref<boolean | undefined>) {
     function saveCode() {
       operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", content.value);
     }
-    watch(content, useDebounceFn(saveCode, 200, { maxWait: 1000 }));
+    const saveCodeDebounced = useDebounceFn(saveCode, 400, { maxWait: 5000 });
+    watch(content, () => !editing.value || saveCodeDebounced());
+    // sync code into content when not editing
+    watchEffect(() => {
+      if (!editing.value) {
+        content.value = statement.value.code ?? "";
+      }
+    });
   }
 
-  function syncText(content: Ref<string>) {
-    function saveText() {
-      // :StatementCodeTextReuse
-      operations.symbol.updateStatementText(statement.value.id, statement.value.code ?? "", content.value);
-    }
-    watch(content, useDebounceFn(saveText, 1000, { maxWait: 2000 }));
-  }
+  // :StatementCodeTextReuse
+  const syncText = syncCode;
 
-  function syncDescription(content: Ref<string>) {
+  function syncDescription(content: Ref<string>, editing: Ref<boolean | undefined>) {
     function saveDescription() {
       operations.symbol.updateStatementDescription(
         statement.value.id,
@@ -229,7 +244,14 @@ export function useStatementContext() {
         content.value
       );
     }
-    watch(content, useDebounceFn(saveDescription, 200, { maxWait: 1000 }));
+    const saveDescriptionDebounced = useDebounceFn(saveDescription, 400, { maxWait: 2500 });
+    watch(content, () => !editing.value || saveDescriptionDebounced());
+    // sync statement.value.description into content if not editing
+    watchEffect(() => {
+      if (!editing.value) {
+        content.value = statement.value.description ?? "";
+      }
+    });
   }
 
   // one-way writes to backend (:Singleplayer)

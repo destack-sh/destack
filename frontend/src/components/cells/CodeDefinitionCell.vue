@@ -3,16 +3,19 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 
 const code: Ref<string> = ref(context.statement.value.code ?? "");
-context.syncCode(code);
+const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
+context.syncCode(
+  code,
+  computed(() => monacoRef.value?.focused)
+);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
-const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),

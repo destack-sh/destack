@@ -11,7 +11,10 @@ const context = useStatementContext();
 const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
 const renderedRef = ref<HTMLDivElement | null>(null);
 const content: Ref<string> = ref(context.statement.value.code ?? "");
-context.syncText(content);
+context.syncText(
+  content,
+  computed(() => monacoEditorRef.value?.focused)
+);
 
 const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value || "")));
 
