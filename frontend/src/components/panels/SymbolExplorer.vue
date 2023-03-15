@@ -5,6 +5,7 @@ import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useCurrentModuleRuntime, useSymbolNavigation } from "@/state/runtime";
 import { computed } from "vue";
 
+const props = defineProps<{ showAllSymbols?: boolean }>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
@@ -14,11 +15,19 @@ const runtime = useCurrentModuleRuntime();
 const editor = useEditorState();
 const nav = useSymbolNavigation();
 
-const allSymbols = computed(() => {
+const filteredSymbols = computed(() => {
   const symbols = [];
+
+  if (!props.showAllSymbols && editor.focusedFileId == null) {
+    return undefined;
+  }
 
   // TODO @Cleanup: order and group symbols
   for (const file of runtime.moduleIndex.value?.module.files ?? []) {
+    if (!props.showAllSymbols && file.id != editor.focusedFileId) {
+      continue;
+    }
+
     for (const symbol of file.symbols) {
       if (
         symbol.name == null ||
@@ -33,9 +42,10 @@ const allSymbols = computed(() => {
 
   return symbols;
 });
+
 const symbolsGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
-  allSymbols,
+  computed(() => filteredSymbols.value ?? []),
   {
     gridNavigateUp: () => emit("navigateUp"),
     gridNavigateDown: () => emit("navigateDown"),
@@ -52,8 +62,8 @@ function focusSymbolAndGoThere(symbol: SymbolHeader) {
   nav.focusSymbol(symbol);
 }
 
-function focus() {
-  symbolsGrid.focus(0, "name");
+function focus(target: "first" | "last" = "first") {
+  symbolsGrid.focus(target == "first" ? 0 : -1, "name");
 }
 
 function blur() {
@@ -61,15 +71,15 @@ function blur() {
 }
 
 defineExpose({
-  count: computed(() => allSymbols.value.length),
+  count: computed(() => filteredSymbols.value?.length),
   focus,
   blur,
 });
 </script>
 <template>
-  <ul role="list" class="flex flex-col py-1 text-sm">
+  <ul v-if="filteredSymbols != null" role="list" class="flex flex-col py-1 text-sm">
     <li
-      v-for="symbol in allSymbols"
+      v-for="symbol in filteredSymbols"
       :key="symbol.id"
       :ref="(ref) => symbolsGrid.registerColumnRef(symbol.id, 'name', ref)"
       tabindex="-1"
@@ -88,4 +98,7 @@ defineExpose({
       <span class="">{{ symbol.name }}</span>
     </li>
   </ul>
+  <div v-else class="my-2 px-3">
+    <span class="text-sm text-gray-700">No file in focus.</span>
+  </div>
 </template>
