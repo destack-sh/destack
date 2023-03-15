@@ -86,7 +86,7 @@ watch(
     </div>
     <!-- View panels -->
     <div class="flex flex-1 flex-col gap-y-2 divide-y divide-orange-900 divide-opacity-[12%]">
-      <div v-for="panel in panels" :key="panel.title" class="min-h-0 flex-1 basis-0">
+      <div v-for="panel in panels" :key="panel.title" class="min-h-0">
         <!-- Panel header -->
         <div class="flex flex-shrink-0 flex-row items-center justify-between px-3 py-1">
           <span class="select-none text-xs font-bold uppercase">
@@ -114,12 +114,14 @@ watch(
             :ref="(ref) => (fileExplorer = ref as any)"
             v-if="panel.title == 'Files'"
             :files="props.files"
-            @navigate-down="symbolExplorer?.focus()"
+            @navigate-down="symbolExplorer?.focus('first')"
+            @navigate-up="symbolExplorer?.focus('last')"
           />
           <SymbolExplorer
             :ref="(ref) => (symbolExplorer = ref as any)"
             v-else-if="panel.title == 'Symbols'"
-            @navigate-up="fileExplorer?.focus()"
+            @navigate-up="fileExplorer?.focus('last')"
+            @navigate-down="fileExplorer?.focus('first')"
           />
           <!-- <span v-else class="text-red-500">panic!</span> -->
         </div>

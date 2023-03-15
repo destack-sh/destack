@@ -52,12 +52,12 @@ onClickOutside(listRef, () => {
   }
 });
 
-function focus() {
+function focus(target?: "first" | "last") {
   // focus currently focused file if nothing was directly selected (and thus focused)
-  if (focusedFileId.value && !listRefFocused.value) {
+  if (!target && focusedFileId.value && !listRefFocused.value) {
     nextTick(() => filesGrid.focus(focusedFileId.value, "name"));
   } else if (!listRefFocused.value && (props.files?.length ?? 0) > 0) {
-    nextTick(() => filesGrid.focus(0, "name"));
+    nextTick(() => filesGrid.focus(target == "first" ? 0 : -1, "name"));
   }
 }
 
