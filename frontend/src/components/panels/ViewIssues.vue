@@ -16,14 +16,19 @@ function focusError(error: InterpError) {
 }
 </script>
 <template>
-  <div>
+  <div class="h-full w-full">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
     >
-      <span class="text-xs font-bold uppercase">Issues</span>
+      <span class="text-xs font-bold uppercase">
+        Issues
+        <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="errors.length">
+          {{ errors.length }}
+        </span>
+      </span>
     </div>
-    <ul class="flex flex-col gap-2 py-2">
+    <ul class="flex h-full w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
       <li
         v-for="(error, i) in errors ?? []"
         :key="i"

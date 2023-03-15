@@ -93,6 +93,12 @@ async function createFileInEditorGroup() {
       </TabList>
       <!-- Contents -->
       <TabPanels class="relative h-full w-full flex-1">
+        <!-- TODO @Robustness: handle resizable scrollable flex containers (editor, views) better -->
+        <!-- Scrolling currently relies on this weird relative/absolute hack, but it's not
+             easy to apply to proper resizable elements and it cuts off areas (e.g. the bottom),
+            because it includes more width/height than it should, so we have extra padding
+            (e.g. in FileInterface and ViewExplorer/ViewHistory/etc.)
+            -->
         <TabPanel
           as="div"
           class="h-full w-full overflow-auto bg-white outline-none"

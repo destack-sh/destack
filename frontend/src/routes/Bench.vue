@@ -638,32 +638,34 @@ onBeforeUnmount(() => {
         <!-- View content -->
         <div
           ref="viewsContainerRef"
-          class="relative flex-1 flex-col border-r border-orange-900 border-opacity-[12%]"
+          class="relative h-full flex-1 border-r border-orange-900 border-opacity-[12%]"
           v-show="editor.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
-          <ViewExplorer
-            v-show="activeView.id == 'explorer'"
-            @show="editor.focusView('explorer')"
-            @blur="editor.blurView('explorer')"
-            :files="files"
-            :focused="editor.focusedViewId == 'explorer'"
-          />
-          <ViewHistory
-            v-show="activeView.id == 'history'"
-            v-if="project != null"
-            @show="editor.focusView('history')"
-            @blur="editor.blurView('history')"
-            :project="project"
-            :focused="editor.focusedViewId == 'history'"
-            :current-version="version"
-          />
-          <ViewIssues
-            v-show="activeView.id == 'issues'"
-            @show="editor.focusView('issues')"
-            @blur="editor.blurView('issues')"
-            :focused="editor.focusedViewId == 'issues'"
-          />
+          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
+            <ViewExplorer
+              v-show="activeView.id == 'explorer'"
+              @show="editor.focusView('explorer')"
+              @blur="editor.blurView('explorer')"
+              :files="files"
+              :focused="editor.focusedViewId == 'explorer'"
+            />
+            <ViewHistory
+              v-show="activeView.id == 'history'"
+              v-if="project != null"
+              @show="editor.focusView('history')"
+              @blur="editor.blurView('history')"
+              :project="project"
+              :focused="editor.focusedViewId == 'history'"
+              :current-version="version"
+            />
+            <ViewIssues
+              v-show="activeView.id == 'issues'"
+              @show="editor.focusView('issues')"
+              @blur="editor.blurView('issues')"
+              :focused="editor.focusedViewId == 'issues'"
+            />
+          </div>
         </div>
       </aside>
       <!-- Main editor area -->
