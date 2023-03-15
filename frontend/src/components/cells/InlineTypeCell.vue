@@ -25,8 +25,10 @@ const emit = defineEmits<{
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
   (e: "deleteLeft"): void;
+  (e: "deleteSelf"): void;
   (e: "enter"): void;
   (e: "escape"): void;
+  (e: "focus", event: FocusEvent): void;
 }>();
 
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
@@ -91,14 +93,15 @@ function edit() {
 
 function cancel() {
   editing.value = false;
-  nextTick(() => buttonRef.value?.focus());
+  nextTick(() => buttonRef.value?.focus({ preventScroll: true }));
   emit("escape");
 }
 
 function focus() {
   query.value = "";
   if (!editing.value) {
-    buttonRef.value?.focus();
+    console.log("focus inline type");
+    buttonRef.value?.focus({ preventScroll: true });
   } else {
     valueRefFocused.focused.value = true;
   }
@@ -120,14 +123,16 @@ defineExpose({
   <button
     v-if="!editing"
     ref="buttonRef"
-    tabeindex="-1"
+    tabindex="-1"
+    :disabled="readonly"
+    @click="edit"
+    @keydown.enter.exact.prevent="edit"
     @keydown.left.exact.prevent="emit('navigateLeft')"
     @keydown.right.exact.prevent="emit('navigateRight')"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
-    @keydown.enter.exact.prevent="edit"
-    @click="edit"
-    :disabled="readonly"
+    @keydown.delete.exact="editing || emit('deleteSelf')"
+    @focus.stop.prevent="emit('focus', $event)"
     class="text-left outline-none"
   >
     {{ renderSimpleType(value) }}

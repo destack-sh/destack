@@ -211,17 +211,6 @@ function onClickContainer(e: MouseEvent) {
   }
 }
 
-// auto scroll into focus once the element is focused if outside of viewport
-// (this isn't great because it always scrolls and doesn't consider the container size)
-watch(
-  () => isFocused.value,
-  (isFocused) => {
-    if (isFocused && containerRef.value) {
-      containerRef.value.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    }
-  }
-);
-
 // runtime
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
