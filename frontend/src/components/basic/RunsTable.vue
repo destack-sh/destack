@@ -17,7 +17,12 @@ import {
   XMarkIcon,
 } from "@heroicons/vue/20/solid";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watchEffect } from "vue";
+
+type Column = {
+  name: string;
+  type: SimpleType;
+};
 
 const props = defineProps<{
   projectId: string;
@@ -26,8 +31,8 @@ const props = defineProps<{
   buildIds?: string[];
   taskIds?: string[];
   codeIds?: string[];
-  inputColumns?: [string, SimpleType][];
-  outputColumns?: [string, SimpleType][];
+  inputColumns?: Column[];
+  outputColumns?: Column[];
   overrideFromProps?: boolean;
 }>();
 
@@ -41,8 +46,8 @@ const symbolIds = computed(() => [...buildIds.value, ...taskIds.value, ...codeId
 const symbols = computed(() => symbolIds.value.map((id) => symbolOf(id)).filter((s) => s != undefined));
 
 // default input columns to any-typed catch-all columns
-const inputColumns = computed(() => props.inputColumns ?? [["Input", ANY_TYPE_NODE]]);
-const outputColumns = computed(() => props.outputColumns ?? [["Output", ANY_TYPE_NODE]]);
+const inputColumns = computed(() => props.inputColumns ?? [{ name: "Input", type: ANY_TYPE_NODE }]);
+const outputColumns = computed(() => props.outputColumns ?? [{ name: "Output", type: ANY_TYPE_NODE }]);
 
 const showSymbols = computed(
   () =>
@@ -53,38 +58,12 @@ const showSymbols = computed(
 );
 
 // watch and sync fields from props if enabled
-watch(
-  () => [props.buildIds, props.overrideFromProps],
-  () => {
-    if (props.overrideFromProps) {
-      buildIds.value = props.buildIds ?? [];
-    }
-  }
-);
-watch(
-  () => [props.taskIds, props.overrideFromProps],
-  () => {
-    if (props.overrideFromProps) {
-      taskIds.value = props.taskIds ?? [];
-    }
-  }
-);
-watch(
-  () => [props.codeIds, props.overrideFromProps],
-  () => {
-    if (props.overrideFromProps) {
-      codeIds.value = props.codeIds ?? [];
-    }
-  }
-);
-watch(
-  () => [props.includeAncestorVersions, props.overrideFromProps],
-  () => {
-    if (props.overrideFromProps) {
-      includeAncestorVersions.value = props.includeAncestorVersions;
-    }
-  }
-);
+if (props.overrideFromProps) {
+  watchEffect(() => (buildIds.value = props.buildIds ?? []));
+  watchEffect(() => (taskIds.value = props.taskIds ?? []));
+  watchEffect(() => (codeIds.value = props.codeIds ?? []));
+  watchEffect(() => (includeAncestorVersions.value = props.includeAncestorVersions));
+}
 
 const { result: runsInfoResult } = useQuery(
   graphql(/* GraphQL */ `
@@ -176,11 +155,11 @@ defineExpose({
         <tr class="text-center">
           <th class="px-3 py-2 font-semibold text-gray-700">Status</th>
           <th v-if="showSymbols" class="px-3 py-2 font-semibold text-gray-700">Symbols</th>
-          <th v-for="[name, field] in inputColumns" :key="field.id" class="px-3 py-2 font-semibold text-gray-700">
-            {{ name }}
+          <th v-for="column in inputColumns" :key="column.type.id" class="px-3 py-2 font-semibold text-gray-700">
+            {{ column.name }}
           </th>
-          <th v-for="[name, field] in outputColumns" :key="field.id" class="px-3 py-2 font-semibold text-gray-700">
-            {{ name }}
+          <th v-for="column in outputColumns" :key="column.type.id" class="px-3 py-2 font-semibold text-gray-700">
+            {{ column.name }}
           </th>
           <!-- <th class="px-3"><span class="sr-only">Action</span></th> -->
         </tr>
@@ -246,22 +225,26 @@ defineExpose({
             </div>
           </td>
           <!-- Inputs -->
-          <td v-for="[name, field] in inputColumns" :key="field.id" class="px-3 py-3">
+          <td v-for="column in inputColumns" :key="column.type.id" class="px-3 py-3">
             <InlineValueCell
-              :type="field"
-              :model-value="field.name == null ? execution.inputs : execution.inputs?.[field.name]"
+              :type="column.type"
+              :model-value="column.type.name == null ? execution.inputs : execution.inputs?.[column.type.name]"
               :readonly="true"
               :immediate="false"
             />
           </td>
           <!-- Outputs -->
-          <td v-for="[name, field] in outputColumns" :key="field.id" class="px-3 py-3">
+          <td v-for="column in outputColumns" :key="column.type.id" class="px-3 py-3">
             <InlineValueCell
-              :type="field"
-              :model-value="field.name == null ? execution.outputs : execution.outputs?.[field.name]"
+              v-if="execution.status != ExecutionStatus.Failed"
+              :type="column.type"
+              :model-value="column.type.name == null ? execution.outputs : execution.outputs?.[column.type.name]"
               :readonly="true"
               :immediate="false"
             />
+            <div v-else class="truncate text-red-600">
+              {{ execution.error["type"] }}
+            </div>
           </td>
           <!-- Actions? -->
           <!-- <td class="w-full px-1 py-2.5">.</td> -->

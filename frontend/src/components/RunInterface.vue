@@ -91,9 +91,11 @@ function openRunsEditor() {
 }
 
 const inputColumns = computed(() =>
-  inputFields.value == null ? undefined : inputFields.value.map((f) => [f.name, f])
+  inputFields.value == null ? undefined : inputFields.value.map((f) => ({ name: f.name, type: f }))
 );
-const outputColumns = computed(() => (outputField.value == null ? undefined : [["Output", outputField.value]]));
+const outputColumns = computed(() =>
+  outputField.value == null ? undefined : [{ name: "Output", type: outputField.value }]
+);
 </script>
 <template>
   <div
