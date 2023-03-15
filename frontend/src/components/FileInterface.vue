@@ -14,7 +14,7 @@ import { INTEGER_ZERO } from "@/utils/fractional";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ editorId: string; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -167,15 +167,12 @@ const ops = useOperations();
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-// set name first if not yet loaded
-watch(
-  () => fileHeader.value?.name,
-  () => {
-    if (name.value == null) {
-      name.value = fileHeader.value?.name ?? null;
-    }
+// set name first if not yet loaded or not editing
+watchEffect(() => {
+  if (name.value == null || !nameRef.value?.focused) {
+    name.value = fileHeader.value?.name ?? null;
   }
-);
+});
 function renameFile(newName: string) {
   if (fileHeader.value == null) {
     return;
