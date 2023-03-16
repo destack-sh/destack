@@ -260,9 +260,9 @@ export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Re
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function isSymbolStale(symbol: Ref<{ id: string }>, projectVersionId?: Ref<string | null>) {
+export function isSymbolStale(symbol: Ref<{ id: string } | undefined>, projectVersionId?: Ref<string | null>) {
   const { staleSymbols } = useCurrentModuleRuntime(projectVersionId);
-  return computed(() => staleSymbols.value?.some((s) => s.id == symbol.value.id));
+  return computed(() => (symbol.value == null ? undefined : staleSymbols.value?.some((s) => s.id == symbol.value.id)));
 }
 
 export type SymbolFilter = {

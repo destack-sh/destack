@@ -8,6 +8,7 @@ from uuid import UUID
 
 from bench.language import GeneratedMapping, ModuleIndex
 from bench.language.type import (
+    Build,
     Code,
     Dataset,
     Expectation,
@@ -168,6 +169,11 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
         revision=1,
         parent_id=symbol.source.parent_id,
     )
+
+    # track build dependencies
+    if isinstance(symbol, Build):
+        for symbol in chain(symbol.tasks, symbol.models):
+            track_interp_symbol(tree, symbol)
 
     # track record subsymbols
     if isinstance(symbol, Dataset):
