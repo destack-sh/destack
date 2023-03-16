@@ -21,7 +21,6 @@ import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { JobStatus, JobType, ProjectVisibility, type InterpJob, type InterpSymbol } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { hostStatementActions, provideStatementActions } from "@/state/actions/statement";
 import {
   useEditorMigrations,
   useEditorPersistence,

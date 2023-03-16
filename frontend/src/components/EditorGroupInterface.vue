@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import EditorInterface from "@/components/EditorInterface.vue";
+import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
@@ -108,6 +109,7 @@ async function createFileInEditorGroup() {
         >
           <EditorInterface :editor="e" />
         </TabPanel>
+        <EmptyEditorInterface v-if="group.editors.length === 0" class="relative h-full w-full flex-1" />
       </TabPanels>
     </TabGroup>
   </div>
