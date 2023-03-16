@@ -20,7 +20,8 @@ import { contextOf } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 
-export const STATEMENT_CONTEXT = Symbol();
+// not using Symbol here to improve hotreload experience (Symbol is not a constant)
+export const STATEMENT_CONTEXT = "__statementContext__" as const;
 
 export type StatementContext = {
   depth: number;
