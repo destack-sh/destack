@@ -14,8 +14,7 @@ import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useDebounceFn } from "@vueuse/shared";
-import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ editorId: string; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
