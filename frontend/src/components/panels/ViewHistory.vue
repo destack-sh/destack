@@ -78,7 +78,7 @@ const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(nu
 const commit = provideGlobalAction({
   id: "version.commit",
   label: "Snapshot...",
-  shortcuts: ["ctrl+k"],
+  shortcuts: ["ctrl+k", "meta+k"],
   enabled: computed(
     () =>
       props.project.canWrite &&
@@ -114,7 +114,7 @@ async function doCommit(c: {
 provideGlobalAction({
   id: "version.commitInstant",
   label: "Snapshot (auto)",
-  shortcuts: ["ctrl+shift+k"],
+  shortcuts: ["ctrl+shift+k", "meta+shift+k"],
   enabled: computed(
     () =>
       props.project.canWrite &&

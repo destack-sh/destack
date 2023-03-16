@@ -53,7 +53,10 @@ function autofillUsername(event: KeyboardEvent) {
 
 // valid names just need to be >= 2 characters
 const nameValidation = useValidName(name);
-const slugValidation = useValidSlug(username, auth.me);
+const slugValidation = useValidSlug(
+  username,
+  computed(() => auth.me.value ?? null)
+);
 
 // auto-focus name on load
 const nameRef: Ref<HTMLInputElement | null> = ref(null);

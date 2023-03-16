@@ -9,14 +9,14 @@ export function useOperationsActions() {
   const undo = provideGlobalAction({
     id: "operations.undo",
     label: "Undo",
-    shortcuts: ["ctrl+z"],
+    shortcuts: ["ctrl+z", "meta+z"],
     enabled: toRef(operations, "canUndo"),
     apply: () => operations.undo(),
   });
   const redo = provideGlobalAction({
     id: "operations.redo",
     label: "Redo",
-    shortcuts: ["ctrl+shift+z"],
+    shortcuts: ["ctrl+shift+z", "meta+shift+z"],
     enabled: toRef(operations, "canRedo"),
     apply: () => operations.redo(),
   });
