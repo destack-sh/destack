@@ -1229,6 +1229,30 @@ class ModuleIndex:
         return symbol
 
 
+def sort(module: Module):
+    """Sorts the modules statements in-place according to parent & order keys."""
+
+    for file in module.files:
+        # per parent (incl. root = None) sort by order key
+        sorted_statements = []
+        statements_by_parent_id = defaultdict(list)
+        for statement in file.statements:
+            statements_by_parent_id[statement.parent_id].append(statement)
+
+        def walk_dfs(statement: Statement):
+            sorted_statements.append(statement)
+            children = statements_by_parent_id.get(statement.id)
+            if children is not None:
+                for child in sorted(children, key=lambda s: s.order_key):
+                    walk_dfs(child)
+
+        roots = statements_by_parent_id.get(None)
+        for statement in sorted(roots, key=lambda s: s.order_key):
+            walk_dfs(statement)
+
+        file.statements = sorted_statements
+
+
 def resolve(
     module: Module,
     lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],

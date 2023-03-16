@@ -11,7 +11,7 @@ import structlog
 
 from bench import language
 from bench.language import wire
-from bench.language.parse import ErrorCollector, interp, resolve
+from bench.language.parse import ErrorCollector, interp, resolve, sort
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
@@ -194,6 +194,7 @@ def interp_module(
     module = wire.wmap_module(source)
     # TODO @Language: revert explicit statement references to StatementPath to lookup refs properly?
     collector = ErrorCollector()
+    sort(module)  # for nicer debugging and automatically sorted module index
     module_idx = resolve(
         module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
     )

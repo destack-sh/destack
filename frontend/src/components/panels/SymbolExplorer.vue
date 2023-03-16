@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
-import { StatementType } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
+import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import { SYMBOL_TYPE_KEYWORD, useEditorState, type ViewId } from "@/state/editor";
 import { useCurrentModuleRuntime, useSymbolNavigation } from "@/state/runtime";
-import { computed } from "vue";
+import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllSymbols?: boolean }>();
 const emit = defineEmits<{
@@ -52,13 +52,14 @@ const symbolsGrid = useNavigationGrid<"name", HTMLElement>(
   }
 );
 
-function focusSymbol(symbol: SymbolHeader) {
+function focusSymbol(symbol: InterpSymbol) {
   const focusedViewId = editor.focusedViewId;
   nav.focusSymbol(symbol);
   editor.focusView(focusedViewId as ViewId); // keep focused view
+  nextTick(() => nav.focusSymbol(symbol));
 }
 
-function focusSymbolAndGoThere(symbol: SymbolHeader) {
+function focusSymbolAndGoThere(symbol: InterpSymbol) {
   nav.focusSymbol(symbol);
 }
 
@@ -89,7 +90,8 @@ defineExpose({
         'bg-orange-100 text-orange-600': symbol.id == editor?.focusedElementId,
         'text-gray-700 hover:text-orange-600': symbol.id != editor?.focusedElementId,
       }"
-      @click="focusSymbol(symbol)"
+      @click.prevent="focusSymbol(symbol)"
+      @mousedown.prevent="focusSymbol(symbol)"
       @keydown.enter.exact.prevent="focusSymbolAndGoThere(symbol)"
       @keydown.up.exact.prevent="symbolsGrid.navigateUp(symbol.id, 'name')"
       @keydown.down.exact.prevent="symbolsGrid.navigateDown(symbol.id, 'name')"

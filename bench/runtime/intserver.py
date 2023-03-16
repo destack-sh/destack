@@ -49,7 +49,7 @@ class InternalServer:
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
-        module = await sync_to_async(read_module)(project_v)
+        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
         await msg.reply(RepReadModulePayload(module=module, project_id=project_v.project_id))
 
     @message_handler
@@ -73,7 +73,7 @@ class InternalServer:
         await msg.reply(RepWriteModulePayload(success=success))
 
         # republish entire module  :PartialModuleUpdates
-        module = await sync_to_async(read_module)(project_v)
+        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
         await publish(
             NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
         )
@@ -97,7 +97,7 @@ class InternalServer:
         project_v = await ProjectVersion.objects.filter(id=msg.p.project_version_id).afirst()
         if project_v is None:
             return  # just ignore, was probably deleted
-        module = await sync_to_async(read_module)(project_v)
+        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
         await publish(
             NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
         )
