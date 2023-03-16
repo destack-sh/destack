@@ -385,6 +385,7 @@ export type FileEdge = {
 };
 
 export type FileFilter = {
+  isGenerated?: InputMaybe<Scalars["Boolean"]>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -4578,6 +4579,11 @@ export const EmptyEditorSuggestedFilesDocument = {
                             kind: "ObjectField",
                             name: { kind: "Name", value: "isVisible" },
                             value: { kind: "BooleanValue", value: true },
+                          },
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isGenerated" },
+                            value: { kind: "BooleanValue", value: false },
                           },
                         ],
                       },

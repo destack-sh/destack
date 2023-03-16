@@ -374,6 +374,7 @@ type FileEdge {
 
 input FileFilter {
   isVisible: Boolean = true
+  isGenerated: Boolean = null
 }
 
 input FileMoveInput {
