@@ -29,6 +29,7 @@ from bench.language.type import (
 )
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
+from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
 from bench.runtime.type import ExecutionFrameData
 from bench.utils.fractional import generate_n_keys_between
 
@@ -66,6 +67,7 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
 @transaction.atomic(savepoint=False)  # read-only
 def read_module(
     project_v: ProjectVersion,
+    exclude_non_semantic: bool = False,
     add_implicit_requirements: bool = True,
 ) -> wire.ModuleData:
     """Reads the DB module."""
@@ -89,11 +91,14 @@ def read_module(
         wire_module.files.append(wire_file)
 
     # map statements
-    statements = list(
+    statements = (
         project_v.statements.filter(deleted_at=None)
         .select_related("reference")
         .prefetch_related("records", "type_nodes")
     )
+    if exclude_non_semantic:
+        statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
+
     for statement in statements:
         wire_statement = rmap_statement(statement, file=wire_files[statement.file_id])
         wire_statements[statement.id] = wire_statement

@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
+from bench.language import StatementType
+
 
 class ProjectMutationType(enum.Enum):
     COMMIT = "COMMIT"
@@ -62,6 +64,14 @@ NON_SEMANTIC_MUTATION_TYPES = {
     ProjectMutationType.MOVE_STATEMENT_TYPE_NODE,
     ProjectMutationType.MOVE_STATEMENT_RECORD,
 }
+NON_SEMANTIC_STATEMENT_TYPES = {
+    StatementType.COMMENT,
+    StatementType.BLANK,
+}
+
+
+def is_semantic_statement(statement_type: StatementType) -> bool:
+    return statement_type not in NON_SEMANTIC_STATEMENT_TYPES
 
 
 def is_semantic_mutation(mutation: ProjectMutation) -> bool:

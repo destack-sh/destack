@@ -177,7 +177,9 @@ def wmap_module(data: ModuleData) -> language.Module:
     for data_file, file in zip(data.files, module.files):
         for data_statement, statement in zip(data_file.statements, file.statements):
             if data_statement.parent_id is not None:
-                statement.parent = statements[data_statement.parent_id]
+                # parent should exist but may not if it was not included in the module data
+                # but exists in the source (e.g. an invalid comment parent)
+                statement.parent = statements.get(data_statement.parent_id)
 
             # resolve references in statement and in symbol content
             # ignore references we couldn't find since are either
