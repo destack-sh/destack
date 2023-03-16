@@ -5,8 +5,6 @@
 # 2. Load it with env of target env from the local file
 #
 
-#!/bin/bash
-
 set -e
 
 # Parse command line arguments

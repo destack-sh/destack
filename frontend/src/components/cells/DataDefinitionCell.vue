@@ -183,13 +183,17 @@ defineExpose({
   </button>
   <!-- Dataset type and records -->
   <div
-    class="grid min-w-fit gap-x-3"
+    class="grid min-w-fit"
     :style="{
       'grid-template-columns': `repeat(${columnsInOrder.length}, minmax(40px, 1fr))`,
     }"
   >
     <!-- Field types -->
-    <div v-for="field in fieldTypeNodes" :key="field?.id" class="flex flex-row gap-1 focus-within:bg-orange-100">
+    <div
+      v-for="field in fieldTypeNodes"
+      :key="field?.id"
+      class="flex flex-row gap-1 border-b border-orange-900 border-opacity-[12%] focus-within:bg-orange-100"
+    >
       <InlineValueCell
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
         :immediate="false"

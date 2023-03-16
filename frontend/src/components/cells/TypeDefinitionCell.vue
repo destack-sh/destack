@@ -141,11 +141,13 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <DeclarationCell
-    ref="declarationRef"
-    @navigate-down="descriptionRef?.focus()"
-    @navigate-right="descriptionRef?.focus()"
-  />
+  <div class="flex flex-wrap items-baseline">
+    <DeclarationCell
+      ref="declarationRef"
+      @navigate-down="descriptionRef?.focus()"
+      @navigate-right="descriptionRef?.focus()"
+    />
+  </div>
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"

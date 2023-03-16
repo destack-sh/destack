@@ -58,6 +58,7 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
+    class="mt-1"
   />
   <button
     v-if="code.trim().length == 0"

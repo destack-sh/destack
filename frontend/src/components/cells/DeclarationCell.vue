@@ -5,7 +5,7 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementType } from "@/gql/graphql";
+import { StatementType, TypeTag, SymbolType } from "@/gql/graphql";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
 import { computed, ref, type Ref } from "vue";
 
@@ -119,6 +119,10 @@ defineExpose({
     >
       +name
     </button>
+    <!-- Indicate specific kind of type definition (e.g. choice if a type) -->
+    <span class="ml-1 text-orange-600" :contenteditable="false" v-if="context.symbolSubtype.value != null">
+      {{ context.symbolSubtype.value }}
+    </span>
     <!-- Error underline for declaration if unlocated -->
     <div
       v-if="localErrors != null && localErrors.length > 0"

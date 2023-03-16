@@ -12,8 +12,7 @@ import {
 import { useActions } from "@/state/actions";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import { useDebounceFn } from "@vueuse/shared";
-import { computed, inject, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, inject, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { newTypeNodeId } from "@/state/operations/statement";
@@ -60,6 +59,17 @@ export function useStatementContext() {
       .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
   );
+
+  const symbolSubtype: Ref<string | null> = computed(() => {
+    if (
+      (statement.value.type == StatementType.Definition ||
+        (statement.value.type == StatementType.Blank && statement.value.symbolType == SymbolType.Type)) &&
+      rootTypeTag.value == TypeTag.Enum
+    ) {
+      return "choice";
+    }
+    return null;
+  });
 
   // basic actions
 
@@ -291,6 +301,7 @@ export function useStatementContext() {
     xOffset: computed(() => context.value.xOffset),
     lineNumberBase: computed(() => context.value.lineNumberBase),
     typeRootTag: rootTypeTag,
+    symbolSubtype,
     typeNodes,
     records,
     // actions

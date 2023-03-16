@@ -11,7 +11,7 @@ source venv/bin/activate
 
 # confirm unless --force is passed
 if [ "$1" != "--force" ]; then
-    read -p "Reset the DB (and all migrations if --hard) [y/N]" -n 1 -r
+    read -p "Reset the DB [y/N]" -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo "Aborted"
@@ -19,27 +19,8 @@ if [ "$1" != "--force" ]; then
     fi
 fi
 
-# reset hard if --hard is passed (recreate migrations)
-if [ "$1" == "--hard" ]; then
-    # shut down docker and wipe volumes
-    docker compose -f docker-compose.dev.yml down --volumes
-
-    # create new docker env
-    docker compose -f docker-compose.dev.yml up -d
-
-    # wait a bit for the db to start
-    sleep 3
-
-    # remove all migrations
-    rm -rf bench/migrations
-
-    # create new migrations
-    python manage.py makemigrations bench
-# else reset soft (just the db content)
-else
-    # reset the db content
-    python manage.py flush --no-input
-fi
+# reset the db content
+python manage.py flush --no-input
 
 # run migrations
 python manage.py migrate

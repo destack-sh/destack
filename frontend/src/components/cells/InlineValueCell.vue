@@ -146,7 +146,7 @@ defineExpose({
 </script>
 <template>
   <!-- Wrapper for selectable value container -->
-  <div class="relative h-full w-full">
+  <div class="relative">
     <button
       ref="buttonRef"
       tabindex="-1"

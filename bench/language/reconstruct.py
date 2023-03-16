@@ -261,10 +261,7 @@ def render_type_node(
 
 
 def render_type_node_func(node: TypeNode, statement: Statement) -> str:
-    if not node.input.children:
-        input_str = ""
-    else:
-        input_str = render_type_node_struct(node.input, statement, seperator=", ")
+    input_str = render_type_node_struct(node.input, statement, seperator=", ")
     if node.output.tag != TypeTag.NULL:
         output_str = render_type_node(node.output, statement, ignore_name=True)
         return f"({input_str}) -> {output_str}"
@@ -274,13 +271,13 @@ def render_type_node_func(node: TypeNode, statement: Statement) -> str:
 
 def render_type_node_struct(node: TypeNode, statement: Statement | None, seperator: str) -> str:
     if node.children is None:
-        raise ValueError(f"expected type with elements: {node}")
+        return ""
     field_strs = [render_type_node(field, statement) for field in node.children]
     return seperator.join(field_strs)
 
 
 def render_description(value: str) -> str:
-    return f'"{value}"'
+    return f'"{value or ""}"'
 
 
 def render_literal(value: str, lang: Optional[str] = None) -> str:

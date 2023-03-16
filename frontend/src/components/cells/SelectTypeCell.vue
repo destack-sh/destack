@@ -43,7 +43,7 @@ watch(content, (newContent) => {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContentTrim]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSep && newContentTrim == "enum") {
+  } else if (endsInSep && (newContentTrim == "enum" || newContentTrim == "choice")) {
     context.setSymbolTypeEnum();
     content.value = "";
     emit("morphed");
