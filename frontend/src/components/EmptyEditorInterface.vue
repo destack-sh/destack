@@ -13,7 +13,7 @@ const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
     query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {
       projectVersion(id: $projectVersionId) {
-        files(filters: { isVisible: true }, last: $last) {
+        files(filters: { isVisible: true, isGenerated: false }, last: $last) {
           totalCount
           edges {
             node {
