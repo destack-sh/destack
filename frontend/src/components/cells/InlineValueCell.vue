@@ -94,6 +94,9 @@ function edit(event: KeyboardEvent | MouseEvent) {
     // we want to propagate clicks to manage focus upstream
     event.stopPropagation();
   }
+  if (editing.value) {
+    return;
+  }
 
   if (props.type.tag == TypeTag.Boolean) {
     writeValue(!readValue.value);
@@ -143,73 +146,75 @@ defineExpose({
 </script>
 <template>
   <!-- Wrapper for selectable value container -->
-  <button
-    ref="buttonRef"
-    tabindex="-1"
-    :disabled="readonly"
-    @click="edit"
-    @keydown.enter.exact="edit"
-    @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
-    @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
-    @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
-    @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
-    @keydown.backspace.exact="editing || emitPrevent($event, 'deleteLeft')"
-    @keydown.delete.exact="editing || emitPrevent($event, 'deleteSelf')"
-    @focus.stop.prevent="emit('focus', $event)"
-    class="relative text-left outline-none"
-    :class="{
-      'font-mono': editor.fontMono,
-      'text-sm': editor.textSmall,
-      'text-md': !editor.textSmall,
-      'text-gray-300': readValue == placeholderValue,
-    }"
-  >
-    <!-- Default content if empty and no special rendering-->
-    <!-- TODO @Incomplete: edit array & struct values values -->
-    <!-- TODO @UX: array & struct rendering (esp. nested) is ugly and hacky (nested InlineValueCells, see below) -->
-    <div v-if="type.isArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
-      <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
-      <InlineValueCell
-        v-for="(value, index) in modelValue"
-        :type="type"
-        :model-value="value"
-        :key="index"
-        :readonly="true"
-        :immediate="false"
-        :value="value"
-        parent-array
-      />
-    </div>
-    <span v-else-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
-    <!-- Content preview -->
-    <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}</span>
-    <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
-    <input
-      ref="valueRef"
-      type="checkbox"
-      class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
-      v-else-if="type.tag == TypeTag.Boolean"
-      :checked="readValue"
-      :disabled="props.readonly"
-    />
-    <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
-    <div
-      v-else-if="type.tag == TypeTag.Struct"
-      class="flex w-full flex-row flex-wrap gap-2 rounded-sm border border-orange-900 border-opacity-[12%] p-1"
+  <div class="relative h-full w-full">
+    <button
+      ref="buttonRef"
+      tabindex="-1"
+      :disabled="readonly"
+      @click="edit"
+      @keydown.enter.exact="edit"
+      @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
+      @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
+      @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
+      @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
+      @keydown.backspace.exact="editing || emitPrevent($event, 'deleteLeft')"
+      @keydown.delete.exact="editing || emitPrevent($event, 'deleteSelf')"
+      @focus.stop.prevent="emit('focus', $event)"
+      class="relative h-full w-full text-left outline-none"
+      :class="{
+        'font-mono': editor.fontMono,
+        'text-sm': editor.textSmall,
+        'text-md': !editor.textSmall,
+        'text-gray-300': readValue == placeholderValue,
+      }"
     >
-      <div v-for="field in structFields" :key="field.name" class="flex flex-col">
-        <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
+      <!-- Default content if empty and no special rendering-->
+      <!-- TODO @Incomplete: edit array & struct values values -->
+      <!-- TODO @UX: array & struct rendering (esp. nested) is ugly and hacky (nested InlineValueCells, see below) -->
+      <div v-if="type.isArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
+        <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
-          :type="field"
-          :modelValue="readValue[field.name]"
-          :placeholderValue="field.name"
+          v-for="(value, index) in modelValue"
+          :type="type"
+          :model-value="value"
+          :key="index"
           :readonly="true"
           :immediate="false"
+          :value="value"
+          parent-array
         />
       </div>
-    </div>
-    <!-- Can't render this type! -->
-    <span ref="valueRef" v-else class="">{{ readValue }}</span>
+      <span v-else-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
+      <!-- Content preview -->
+      <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}</span>
+      <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
+      <input
+        ref="valueRef"
+        type="checkbox"
+        class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        v-else-if="type.tag == TypeTag.Boolean"
+        :checked="readValue"
+        :disabled="props.readonly"
+      />
+      <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
+      <div
+        v-else-if="type.tag == TypeTag.Struct"
+        class="flex w-full flex-row flex-wrap gap-2 rounded-sm border border-orange-900 border-opacity-[12%] p-1"
+      >
+        <div v-for="field in structFields" :key="field.name" class="flex flex-col">
+          <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
+          <InlineValueCell
+            :type="field"
+            :modelValue="readValue[field.name]"
+            :placeholderValue="field.name"
+            :readonly="true"
+            :immediate="false"
+          />
+        </div>
+      </div>
+      <!-- Can't render this type! -->
+      <span ref="valueRef" v-else class="">{{ readValue }}</span>
+    </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
       class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline rounded-sm border border-solid border-orange-600 bg-orange-100 p-1"
@@ -290,5 +295,5 @@ defineExpose({
       <!-- Uneditable -->
       <span v-else class="text-red-500">{{ readValue || "panic!" }}</span>
     </div>
-  </button>
+  </div>
 </template>
