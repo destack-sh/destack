@@ -307,7 +307,7 @@ watchEffect(() => {
 });
 
 // suppress control+s (offer named commit instead)
-Mousetrap.bind(["ctrl+s"], () => {
+Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   notifications.showIf(
     {
       type: "saveSuppressed",

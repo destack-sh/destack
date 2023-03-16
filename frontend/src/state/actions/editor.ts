@@ -9,14 +9,14 @@ export function useEditorActions() {
   const moveEditorLeft = provideGlobalAction({
     id: "editor.moveEditorLeft",
     label: "Move Editor Left",
-    shortcuts: ["ctrl+shift+left"],
+    shortcuts: ["ctrl+shift+left", "meta+shift+left"],
     enabled: computed(() => editor.focusedEditor != null),
     apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.left),
   });
   const moveEditorRight = provideGlobalAction({
     id: "editor.moveEditorRight",
     label: "Move Editor Right",
-    shortcuts: ["ctrl+shift+right"],
+    shortcuts: ["ctrl+shift+right", "meta+shift+right"],
     enabled: computed(() => editor.focusedEditor != null),
     apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.right),
   });
@@ -25,7 +25,7 @@ export function useEditorActions() {
   const closeEditor = provideGlobalAction({
     id: "editor.closeEditor",
     label: "Close Editor",
-    shortcuts: ["alt+w"],
+    shortcuts: ["alt+w", "ctrl+w", "meta+w"],
     enabled: computed(() => editor.focusedEditor != null),
     apply: () => editor.closeEditor(editor.focusedEditor as Editor),
   });
@@ -34,7 +34,7 @@ export function useEditorActions() {
   const toggleDebugMode = provideGlobalAction({
     id: "editor.toggleDebugMode",
     label: "Toggle Debug Mode",
-    shortcuts: ["ctrl+shift+d"],
+    shortcuts: ["ctrl+shift+d", "meta+shift+d"],
     enabled: computed(() => true),
     apply: () => {
       console.log("toggle debug mode");

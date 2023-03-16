@@ -12,7 +12,7 @@ export function useUserActions() {
   const signup = provideGlobalAction({
     id: "user.startSignup",
     label: "Signup",
-    shortcuts: ["ctrl+s"],
+    shortcuts: [],
     enabled: computed(() => !auth.loggedIn),
     apply: () => {
       router.push({ name: "Signup" });
@@ -22,7 +22,7 @@ export function useUserActions() {
   const login = provideGlobalAction({
     id: "user.startLogin",
     label: "Login",
-    shortcuts: ["ctrl+l"],
+    shortcuts: [],
     enabled: computed(() => !auth.loggedIn),
     apply: () => {
       router.push({ name: "Login" });
