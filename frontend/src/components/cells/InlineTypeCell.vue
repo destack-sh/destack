@@ -8,7 +8,7 @@ import {
 } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
-import { symbolsLike } from "@/state/runtime";
+import { fileOf, symbolsLike } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -164,12 +164,23 @@ defineExpose({
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2 ',
+            'relative cursor-default select-none py-0.5 px-2',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected ? 'underline' : '',
           ]"
         >
-          {{ renderSimpleType(node) }}
+          <div class="flex items-baseline justify-between">
+            <span class="truncate">
+              {{ renderSimpleType(node) }}
+            </span>
+            <span
+              v-if="node.tag == TypeTag.TypeReference && node.reference != null"
+              class="text-xs"
+              :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']"
+            >
+              {{ fileOf(node.reference)?.path }}
+            </span>
+          </div>
         </li>
       </ComboboxOption>
     </ComboboxOptions>
