@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import asyncio
 import enum
 import json
 import uuid
@@ -80,7 +81,6 @@ class BuildError(ValueError):
 class BuildState:
     build: Build
     candidates: list[BuildCandidate] = field(default_factory=list)
-    best_candidate: Optional[BuildCandidate] = None
 
 
 @dataclass(repr=False)
@@ -160,6 +160,12 @@ class BuildCandidate:
         self.source_mappings.append(
             RawMapping(type=TrackedNodeType.STATEMENT, source_id=source.id, target_id=target.id)
         )
+
+    def merge(self, other: BuildCandidate) -> None:
+        self.target_symbols.extend(other.target_symbols)
+        self.dependencies.merge(other.dependencies)
+        self.source_mappings.extend(other.source_mappings)
+        self.weak_references.extend(other.weak_references)
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
@@ -340,15 +346,23 @@ class PromptBuilder:
 
 async def make_build(build: Build) -> BuildResult:
     logger.debug("build.start", build=build)
-    if len(build.tasks) != 1 or len(build.models) != 1:
+    if len(build.models) != 1:
         raise BuildError(BuildErrorType.INTERNAL, build)
 
     state = BuildState(build=build)
-    candidate = BuildCandidate(state=state, build=build, task=build.tasks[0], model=build.models[0])
-    await _build_task(candidate, candidate.task)
-    state.best_candidate = candidate
-    logger.debug("build.end", build=build, state=candidate)
-    return state.best_candidate.to_result()
+    # parallelize by task (don't have metrics yet so can't parallelize by model)
+    candidates = [
+        BuildCandidate(state=state, build=build, task=task, model=build.models[0])
+        for task in build.tasks
+    ]
+    builds = [_build_task(candidate, candidate.task) for candidate in candidates]
+    await asyncio.gather(*builds)
+    logger.debug("build.end", build=build, candidates=candidates)
+    # merge candidates
+    first_candidate = candidates[0]
+    for candidate in candidates[1:]:
+        first_candidate.merge(candidate)
+    return first_candidate.to_result()
 
 
 Expect = Union[Task, Code, Dataset, Expectation]

@@ -96,6 +96,9 @@ class TrackedNode:
 class TrackedTree:
     nodes: dict[UUID, TrackedNode] = field(default_factory=dict)
 
+    def merge(self, other: TrackedTree):
+        self.nodes.update(other.nodes)
+
     def __str__(self):
         return str(len(self.nodes))
 
