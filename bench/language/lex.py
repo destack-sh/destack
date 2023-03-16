@@ -73,7 +73,7 @@ MULTILINE_LITERAL_REGEX = re.compile(
 )
 INLINE_LITERAL_REGEX = re.compile(r"`(?P<value>[^`\n]+)`({\.(?P<lang>\w+)})?")
 # descriptions as "<value>"
-DESCRIPTION_REGEX = re.compile(r'"(?P<value>[^"\n]+)"')
+DESCRIPTION_REGEX = re.compile(r'"(?P<value>[^"\n]*)"')
 
 # token type + corresponding pattern in lex order
 TOKEN_PATTERNS = [
