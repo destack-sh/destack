@@ -107,7 +107,6 @@ function edit(event: KeyboardEvent | MouseEvent) {
 
 function focus() {
   if (!editing.value) {
-    console.log("focus inline value cell");
     buttonRef.value?.focus({ preventScroll: true });
   } else {
     valueRefFocused.focused.value = true;
