@@ -15,7 +15,7 @@ title.value = "Bench - Sign up";
 const router = useRouter();
 const auth = useAuth();
 watchEffect(() => {
-  if (auth.loggedIn) {
+  if (auth.loggedIn.value) {
     // assume next is on the same host, so trim to get path
     if (props.next) {
       const url = new URL(props.next);
