@@ -5,7 +5,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
+import { fileOf, isSymbolStale, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
@@ -17,14 +17,7 @@ const runtime = useCurrentModuleRuntime();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
 
-// TODO @Cleanup: stale & active state for current main symbol are global, not specific
-const mainSymbolStale = computed(() => {
-  if (runtime.staleSymbols.value == null) {
-    return undefined;
-  } else {
-    return runtime.staleSymbols.value.length > 0;
-  }
-});
+const mainSymbolStale = isSymbolStale(mainSymbol);
 const buildRunning = computed(
   () => runtime.jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Build) != null
 );

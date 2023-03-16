@@ -11,6 +11,7 @@ from typing import Any, Optional, Union
 
 import structlog
 
+from bench.language import ModuleIndex
 from bench.language.reconstruct import render_type_node, render_type_node_struct
 from bench.language.type import (
     Build,
@@ -98,6 +99,11 @@ class BuildCandidate:
     # later/soon we'll want this strongly linked inside the symbol content probably
     # :WeakReferences
     weak_references: list[InterpSymbol] = field(default_factory=list)
+
+    def __post_init__(self):
+        self.track_dependency(self.build)
+        self.track_dependency(self.task)
+        self.track_dependency(self.model)
 
     def use_weak_ref(self, symbol: InterpSymbol):
         self.track_dependency(symbol)
@@ -551,3 +557,14 @@ def generate_code_content(code: Code) -> CodeContent:
         type_node=code.type_node,
         code=code.code,
     )
+
+
+def get_builds_for(symbol: Task, module_idx: ModuleIndex) -> list[Build]:
+    """Get all builds for a given task."""
+    builds = []
+    for build in module_idx.symbols_of_type(Build):
+        if not build.is_definition:
+            continue
+        if any(t.definition.id == symbol.id for t in build.tasks):
+            builds.append(build)
+    return builds

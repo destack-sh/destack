@@ -33,7 +33,7 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqWriteModulePayload,
 )
-from bench.runtime.build import BuildResult, make_build
+from bench.runtime.build import BuildResult, get_builds_for, make_build
 from bench.runtime.execute import Proxy, RunError, instantiate, run
 from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings, tree_from_module
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
@@ -76,6 +76,7 @@ class JobStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
+    CANCELLED = "cancelled"
     FAILED = "failed"
 
 
@@ -232,12 +233,18 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
             continue
 
         # mark generated statements as stale
+        # also mark generator and the directly mapped source of the generated symbol
+        # ideally we would also track which generator the symbol is stale in
         for source_mapping in source_mappings:
             if source_mapping.target_id is None:
                 continue
-            generated = idx.get_symbol_by_id(source_mapping.target_id)
-            if generated is not None:  # ignore if no longer exists
-                stale_symbols.append(generated.source)
+            generated_target = idx.get_symbol_by_id(source_mapping.target_id)
+            generated_source = idx.get_symbol_by_id(source_mapping.source_id)
+            if generated_target is not None:
+                # ignore if no target (was deleted or undirected dependency)
+                stale_symbols.append(generated_target.source)
+                stale_symbols.append(generated_source.source)
+        stale_symbols.append(symbol.source)
 
     return stale_symbols
 
@@ -313,12 +320,20 @@ class ModuleWorker:
         self.interp_dependencies_cached[module_id] = interp
         return interp
 
+    async def _interp_requirements(self, requirements: set[ModuleReference]) -> list[InterpModule]:
+        # return immediately if all cached (saves context switching)
+        all_cached = all(r.id in self.interp_dependencies_cached for r in requirements)
+        if all_cached:
+            return [self.interp_dependencies_cached[r.id] for r in requirements]
+        dependencies = await asyncio.gather(
+            *[self._interp_requirement_rec(r.id) for r in requirements], return_exceptions=False
+        )
+        return cast(list[InterpModule], dependencies)
+
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
-        dependencies = await asyncio.gather(
-            *[self._interp_requirement_rec(req.id) for req in requirements]
-        )
+        dependencies = await self._interp_requirements(requirements)
 
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
@@ -334,7 +349,15 @@ class ModuleWorker:
         }
 
         # reactively trigger build jobs for all affected builds (and other reactors)
-        # TODO @Incomplete: implement reactive job trigger on stale symbol
+        self._fire_reactive_jobs(self.stale_symbols)
+
+    def _fire_reactive_jobs(self, stale_symbols: list[language.Statement]) -> None:
+        stale_builds = [
+            symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
+        ]
+        for build in stale_builds:
+            self.queue_build(build.id)
+            # TODO @Broken: cancel any running jobs for this build
 
     def queue_build(self, buildable_id: UUID) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
@@ -343,12 +366,7 @@ class ModuleWorker:
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
             # collect any builds that reference this task
-            builds = []
-            for build in self.interp.module_idx.symbols_of_type(Build):
-                if not build.is_definition:
-                    continue
-                if any(t.definition.id == buildable.id for t in build.tasks):
-                    builds.append(build)
+            builds = get_builds_for(buildable, self.interp.module_idx)
         elif isinstance(buildable, language.Build):
             builds = [buildable]
         else:
@@ -453,7 +471,7 @@ class ModuleWorker:
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
 
-    async def _run_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
+    async def _process_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
         """Process module jobs sequentially"""
         while True:
             _, job = await queue.get()
@@ -503,8 +521,10 @@ class ModuleWorker:
 
         # start running both queues (for stateful and run)
         main = asyncio.gather(
-            wrap_task(self._run_queue(self.stateful_jobs), f"worker_run_stateful_{self.module_id}"),
-            wrap_task(self._run_queue(self.run_jobs), f"worker_run_{self.module_id}"),
+            wrap_task(
+                self._process_queue(self.stateful_jobs), f"worker_run_stateful_{self.module_id}"
+            ),
+            wrap_task(self._process_queue(self.run_jobs), f"worker_run_{self.module_id}"),
         )
         # wait for the first interp job to complete
         await interp_job.terminated.wait()
@@ -517,7 +537,13 @@ class ModuleWorker:
         await main  # (this will never return)
 
 
-def make_full_change_payload(module_worker: ModuleWorker, cls):
+def make_change_payload(
+    module_worker: ModuleWorker,
+    cls,
+    include_jobs: bool = False,
+    include_module: bool = False,
+    include_dependencies: bool = False,
+):
     """Builds a complete runtime change message from the module worker's state"""
     relevant_jobs = [
         job
@@ -537,11 +563,21 @@ def make_full_change_payload(module_worker: ModuleWorker, cls):
     return cls(
         module_id=module_worker.module_id,
         updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-        module=module_worker.wire_module,
-        dependencies=dependencies,
-        errors=module_worker.wire_errors,
-        jobs=[rmap_job(job) for job in relevant_jobs],
-        stale_symbols=stale_symbols,
+        module=module_worker.wire_module if include_module else None,
+        dependencies=dependencies if include_dependencies else None,
+        errors=module_worker.wire_errors if include_module else None,
+        jobs=[rmap_job(job) for job in relevant_jobs] if include_jobs else None,
+        stale_symbols=stale_symbols if include_module else None,
+    )
+
+
+def make_full_change_payload(module_worker: ModuleWorker, cls):
+    return make_change_payload(
+        module_worker,
+        cls,
+        include_jobs=True,
+        include_module=True,
+        include_dependencies=True,
     )
 
 
