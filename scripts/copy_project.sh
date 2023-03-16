@@ -49,7 +49,7 @@ LOCAL_ENV="$source_env" python manage.py dump "$project_path" > "tmp_$tmp_name.b
 
 # Load the project to target DB environment
 echo "loading $project_path from tmp_$tmp_name.bench to $target_env"
-LOCAL_ENV="$target_env" python manage.py load "$project_path" "tmp_$tmp_name.bench" > /dev/null 2>&1
+LOCAL_ENV="$target_env" python manage.py load "$project_path" "tmp_$tmp_name.bench"
 
 # Remove temporary dump file
 rm "tmp_$tmp_name.bench"

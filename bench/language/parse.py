@@ -423,9 +423,6 @@ def preparse(
         else:  # parse statement
             if len(local.ancestors) < local.indent:  # too much indentation
                 raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
-            if local.parent and local.parent.type in (StatementType.BLANK, StatementType.COMMENT):
-                # can't have children
-                raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
 
             errors: list[ParseError] = []
             tokens.indent_level = local.indent  # skip indent tokens at current level
@@ -455,6 +452,15 @@ def preparse(
                 continue
 
             statement._source = tokens.eaten(start_mark)
+
+            # only comments/blanks can have comments/blanks as parents
+            if (
+                local.parent
+                and local.parent.type in (StatementType.BLANK, StatementType.COMMENT)
+                and statement.type not in (StatementType.BLANK, StatementType.COMMENT)
+            ):
+                # can't have children
+                raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
             local.add_statement(statement)
 
     return [state.file for state in states.values()]
