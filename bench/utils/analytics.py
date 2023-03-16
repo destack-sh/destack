@@ -44,6 +44,9 @@ def init_sentry(*, django: bool):
         sample_rate=1.0,
         send_default_pii=True,
         traces_sampler=traces_sampler,
+        _experiments={
+            "profiles_sample_rate": 1.0,
+        },
     )
     logger.info(
         "initialized_sentry",
