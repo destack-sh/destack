@@ -500,7 +500,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const selectAll = provideGlobalAction({
     id: "statement.selectAll",
     label: "Select all",
-    shortcuts: ["ctrl+a"],
+    shortcuts: ["ctrl+a", "meta+a"],
     enabled: computed(() => navigatingFile.value),
     apply: () => {
       statements.value.forEach(editor.addToSelection);
@@ -559,7 +559,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const jumpToReference = provideGlobalAction({
     id: "statement.jumpToReference",
     label: "Jump to reference",
-    shortcuts: ["ctrl+b"],
+    shortcuts: ["ctrl+b", "meta+b"],
     enabled: computed(() => statement.value != null && statement.value.reference != null),
     apply: () => {
       if (statement.value.reference != null) {
