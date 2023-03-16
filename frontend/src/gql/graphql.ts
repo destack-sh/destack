@@ -1960,6 +1960,23 @@ export type ProjectDeploymentsQuery = {
   } | null;
 };
 
+export type EmptyEditorSuggestedFilesQueryVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  last: Scalars["Int"];
+}>;
+
+export type EmptyEditorSuggestedFilesQuery = {
+  __typename?: "Query";
+  projectVersion?: {
+    __typename?: "ProjectVersion";
+    files: {
+      __typename?: "FileConnection";
+      totalCount?: number | null;
+      edges: Array<{ __typename?: "FileEdge"; node: { __typename?: "File"; id: any; name: string; path: string } }>;
+    };
+  } | null;
+};
+
 export type FileContentByIdQueryVariables = Exact<{
   fileId: Scalars["GlobalID"];
 }>;
@@ -4512,6 +4529,101 @@ export const ProjectDeploymentsDocument = {
     },
   ],
 } as unknown as DocumentNode<ProjectDeploymentsQuery, ProjectDeploymentsQueryVariables>;
+export const EmptyEditorSuggestedFilesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "emptyEditorSuggestedFiles" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "last" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "files" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "last" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "last" } },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "path" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<EmptyEditorSuggestedFilesQuery, EmptyEditorSuggestedFilesQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [

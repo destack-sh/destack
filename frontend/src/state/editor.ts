@@ -128,7 +128,7 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
   };
 }
 
-export function makeFileEditor(file: FileHeader): FileEditor {
+export function makeFileEditor(file: { id: string; path: string }): FileEditor {
   return {
     // append random string to enable multiple editors for the same file
     id: file.id + "-" + Math.random().toString(16).substring(2, 8),
@@ -322,7 +322,7 @@ export const useEditorState = defineStore("editor", {
       }
     },
 
-    openFile(file: FileHeader, options?: { group?: EditorGroup; create?: boolean }): Editor {
+    openFile(file: { id: string; path: string }, options?: { group?: EditorGroup; create?: boolean }): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       if (!editor || options?.create) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
