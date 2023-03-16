@@ -1252,7 +1252,7 @@ def sort(module: Module):
                 for child in sorted(children, key=lambda s: s.order_key):
                     walk_dfs(child)
 
-        roots = statements_by_parent_id.get(None)
+        roots = statements_by_parent_id.get(None, [])
         for statement in sorted(roots, key=lambda s: s.order_key):
             walk_dfs(statement)
 
