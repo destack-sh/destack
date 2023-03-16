@@ -28,21 +28,22 @@ const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(
 
 // parse content changes :ParseStatementInput
 watch(content, (newContent) => {
-  const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
+  const endsInSep =
+    newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
   const includesNonalpha = !newContent.match(/^[a-zA-Z]*$/);
   const tooLong = newContent.length > MAX_KEYWORD_LENGTH;
-  const newContentTrim = newContent.trim();
+  const newContentTrim = newContent.slice(0, -1);
 
   // if it matches an allowed keyword, apply the keyword
-  if (endsInSpace && MODIFIER_BY_KEYWORD[newContentTrim]) {
+  if (endsInSep && MODIFIER_BY_KEYWORD[newContentTrim]) {
     context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContentTrim]) {
+  } else if (endsInSep && SYMBOL_TYPE_BY_KEYWORD[newContentTrim]) {
     context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContentTrim]);
     content.value = "";
     emit("morphed");
-  } else if (endsInSpace && newContentTrim == "enum") {
+  } else if (endsInSep && newContentTrim == "enum") {
     context.setSymbolTypeEnum();
     content.value = "";
     emit("morphed");

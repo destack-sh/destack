@@ -40,7 +40,6 @@ function navigateLeftIfAtStart(event: any) {
 function navigateRightIfAtEnd(event: any) {
   // check if cursor is at the end of the text
   const selection = window.getSelection();
-  console.log(selection);
   if (selection && selection.anchorOffset == props.modelValue.length) {
     emit("navigateRight");
     event.preventDefault();

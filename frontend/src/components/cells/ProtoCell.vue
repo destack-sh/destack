@@ -40,9 +40,10 @@ watch(
       return;
     }
     // :ParseStatementInput
-    const endsInSpace = newContent.endsWith(" ") || newContent.endsWith(" "); // non-breaking spaces
-    newContent = newContent.trim();
-    if (endsInSpace && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
+    const endsInSep =
+      newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
+    newContent = newContent.slice(0, -1);
+    if (endsInSep && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
       context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
       nameRef.value?.clearQuery();
     }
