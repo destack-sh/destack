@@ -11,7 +11,7 @@ export function isValidSlug(slug: string): boolean {
 }
 
 export function useValidSlug(slug: Ref<string | null>, me?: Ref<{ id: string } | null>) {
-  const valid = computed(() => isValidSlug(slug.value));
+  const valid = computed(() => isValidSlug(slug.value ?? ""));
   const available = computed(() => owner.value == null || owner.value.ownerBySlug?.id == me?.value?.id);
   const { result: owner, loading } = useQuery(
     graphql(/* GraphQL */ `
