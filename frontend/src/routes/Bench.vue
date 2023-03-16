@@ -479,7 +479,7 @@ onBeforeUnmount(() => {
           <FadeTransition>
             <div
               v-if="versionToViewId != project?.head?.id && versionLoaded"
-              class="ml-1 flex flex-row gap-2 rounded-sm bg-orange-600 px-3 py-1 text-sm text-white"
+              class="ml-1 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-600 px-3 py-1 text-sm text-white"
             >
               <span class="relative">
                 <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
           <!-- Read-only project info -->
           <div
             v-if="project != null && !project?.canWrite"
-            class="ml-2 flex flex-row gap-2 rounded-sm bg-orange-100 px-2 py-1 text-sm"
+            class="ml-2 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIcon class="absolute top-0.5 h-4 w-4" />

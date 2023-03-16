@@ -100,7 +100,6 @@ function cancel() {
 function focus() {
   query.value = "";
   if (!editing.value) {
-    console.log("focus inline type");
     buttonRef.value?.focus({ preventScroll: true });
   } else {
     valueRefFocused.focused.value = true;
