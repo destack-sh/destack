@@ -129,12 +129,6 @@ function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
 
-function onFocus(e: FocusEvent) {
-  console.log(e);
-  e.preventDefault();
-  e.stopPropagation();
-}
-
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
