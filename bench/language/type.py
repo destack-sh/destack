@@ -19,6 +19,8 @@ from typing import (
 )
 from uuid import UUID
 
+import PIL.Image
+import pydub
 from django.db import models
 
 from bench.utils.utils import required_field
@@ -444,7 +446,9 @@ class SymbolContent:
 
 
 # Danger: the order of these types is important because it influences deserialization order.
-LiteralValue = Union[dict[str, Any], list[Any], bool, int, float, str, None]
+LiteralValue = Union[
+    dict[str, Any], list[Any], bool, int, float, str, PIL.Image.Image, pydub.AudioSegment, None
+]
 PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 
@@ -665,11 +669,45 @@ class Model(InterpSymbol, ModelContent):
     pass
 
 
+class XKind(enum.StrEnum):
+    Static = "static"
+    Input = "input"
+    Output = "output"
+
+
+class XSource(enum.StrEnum):
+    System = "system"
+    User = "user"
+    Developer = "developer"
+
+
+ValueT = typing.TypeVar("ValueT", bound=typing.Any)
+SettingsT = typing.TypeVar("SettingsT", bound=typing.Any)
+
+
+@dataclass(repr=False)
+class XBlock(SymbolContent, typing.Generic[ValueT, SettingsT]):
+    kind: XKind
+    source: XSource
+    type_node: TypeNode
+    value: Optional[ValueT]
+    path: Optional[str]  # jsonpath of value if partial block
+    settings: Optional[SettingsT]
+
+
+@dataclass(repr=False)
+class XBlockContent(XBlock, typing.Generic[ValueT, SettingsT]):
+    description: Optional[str]
+    order_key: str
+    id: UUID = field(default_factory=uuid.uuid4)
+
+
 @dataclass(repr=False)
 class CodeContent(SymbolContent):
     description: Optional[str]
-    language: Literal["python"] | Literal["bpl"]
+    language: Literal["python"] | Literal["x"]
     code: Optional[str]
+    xblocks: Optional[list[XBlockContent]]
     type_node: TypeNode
 
     def __str__(self):

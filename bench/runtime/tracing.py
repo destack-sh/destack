@@ -10,15 +10,10 @@ from typing import Any
 import pytz
 import structlog
 
+from bench.language.type import XBlock
 from bench.language.typer import check_type
-from bench.runtime.bpl import InferenceContext
-from bench.runtime.type import (
-    CodeInstance,
-    DecoderSettings,
-    ExecutionFrame,
-    ModelInstance,
-    TextGeneration,
-)
+from bench.runtime.inference import InferenceContext
+from bench.runtime.type import CodeInstance, ExecutionFrame, ModelInstance
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -39,18 +34,10 @@ class Tracer:
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         pass
 
-    def inference_enter(self, ctx: InferenceContext):
+    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
         pass
 
-    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
-        pass
-
-    def inference_generate_exit(
-        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
-    ):
-        pass
-
-    def inference_exit(self, ctx: InferenceContext):
+    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
         pass
 
 
@@ -75,23 +62,13 @@ class MultiTracer(Tracer):
         for tracer in reversed(self.tracers):
             tracer.code_exception(code, args, kwargs, exception)
 
-    def inference_enter(self, ctx: InferenceContext):
+    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
         for tracer in self.tracers:
-            tracer.inference_enter(ctx)
+            tracer.inference_enter(ctx, blocks)
 
-    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
-        for tracer in self.tracers:
-            tracer.inference_generate_enter(ctx, step)
-
-    def inference_generate_exit(
-        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
-    ):
-        for tracer in self.tracers:
-            tracer.inference_generate_exit(ctx, step, generation)
-
-    def inference_exit(self, ctx: InferenceContext):
+    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
         for tracer in reversed(self.tracers):
-            tracer.inference_exit(ctx)
+            tracer.inference_exit(ctx, blocks, result)
 
 
 class Trace:
@@ -149,7 +126,7 @@ class ExecutionTracer(Tracer):
             exited_at=None,
             inputs=inputs,
             outputs=None,
-            inference_context_id=inference_context.id if inference_context else None,
+            inference_id=inference_context.id if inference_context else None,
             error=None,
             queue_position=queue_position,
         )
@@ -189,40 +166,13 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_enter(self, ctx: InferenceContext):
+    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
         frame = self._create_frame(model=ctx.model, inference_context=ctx)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_generate_enter(self, ctx: InferenceContext, step: DecoderSettings):
-        frame = self._create_frame(model=ctx.model, inputs={"prefix": ctx.current})
-        self.stacktrace.append(frame)
-        self.tracker(frame)
-        logger.debug(
-            "trace.inference.generate.enter",
-            frame=frame,
-            stackdepth=len(self.stacktrace),
-            step=step,
-        )
-
-    def inference_generate_exit(
-        self, ctx: InferenceContext, step: DecoderSettings, generation: TextGeneration
-    ):
-        frame = self.stacktrace.pop()
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = {
-            "text": generation.text,
-            "tokens": generation.tokens,
-            "logits": generation.logits,
-            "finish_reason": generation.finish_reason,
-        }
-        self.tracker(frame)
-        logger.debug(
-            "trace.inference.generate.exit", frame=frame, stackdepth=len(self.stacktrace), step=step
-        )
-
-    def inference_exit(self, ctx: InferenceContext):
+    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker(frame)

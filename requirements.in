@@ -10,8 +10,8 @@ asgiref==3.5.2
 cachetools==5.2.0
 channels==4.0.0
 dacite==1.7.0
-dataclasses_json==0.5.7
 daphne==4.0.0
+dataclasses_json==0.5.7
 dj-database-url==1.0.0
 django-axes==5.39.0
 django-cors-headers==3.13.0
@@ -32,8 +32,11 @@ drf-spectacular==0.24.2
 gunicorn==20.1.0
 more-itertools==9.0.0
 nats-py==2.2.0
+openai==0.27.2
+Pillow==9.4.0
 posthog==2.3.1
 psycopg2==2.9.5
+pydub==0.25.1
 python-dotenv==0.21.0
 pytz==2022.1
 sentry-sdk[django]==1.16.0

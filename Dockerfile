@@ -4,8 +4,11 @@ FROM python:3.11-slim
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench API"
 
+RUN apt-get update
 # Install postgresql-libs
-RUN apt-get update && apt-get install -y libpq-dev libzbar-dev
+RUN apt-get install -y libpq-dev libzbar-dev
+# Install ML libs
+RUN apt-get install -y ffmpeg
 
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
