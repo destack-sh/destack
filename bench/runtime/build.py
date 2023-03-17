@@ -195,6 +195,10 @@ class BuildResult:
     source_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
 
+    @staticmethod
+    def empty(build: Build) -> BuildResult:
+        return BuildResult(build=build, target_symbols=[], source_mappings=[], weak_references=[])
+
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
@@ -361,6 +365,9 @@ async def make_build(build: Build) -> BuildResult:
         BuildCandidate(state=state, build=build, task=task, model=build.models[0])
         for task in build.tasks
     ]
+    if not candidates:
+        return BuildResult.empty(build)
+
     builds = [_build_task(candidate, candidate.task) for candidate in candidates]
     await asyncio.gather(*builds)
     logger.debug("build.end", build=build, candidates=candidates)

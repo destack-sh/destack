@@ -109,7 +109,10 @@ async function createFileInEditorGroup() {
         >
           <EditorInterface :editor="e" />
         </TabPanel>
-        <EmptyEditorInterface v-if="group.editors.length === 0" class="relative h-full w-full flex-1" />
+        <EmptyEditorInterface
+          v-if="editor.currentProjectVersionId != null && group.editors.length === 0"
+          class="relative h-full w-full flex-1"
+        />
       </TabPanels>
     </TabGroup>
   </div>
