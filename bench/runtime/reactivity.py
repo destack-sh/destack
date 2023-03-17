@@ -123,9 +123,11 @@ def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
     return tree
 
 
-def tree_from_module(revmap: RevisionMap, idx: ModuleIndex) -> TrackedTree:
+def tree_from_module(revmap: RevisionMap, idx: ModuleIndex, exclude_generated: bool) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for symbol in idx.symbols.values():
+        if exclude_generated and symbol.source.generated:
+            continue
         track_interp_symbol(tree, symbol)
     # assign revisions from revmap
     for node in tree.nodes.values():
@@ -161,7 +163,7 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     If nodes are already present, they are skipped.
     """
     if symbol.id in tree.nodes and tree.nodes[symbol.id].type == TrackedNodeType.STATEMENT:
-        # we can overwrite the none if it's not a statement
+        # we can overwrite the node if it's not a statement
         return
     tree.nodes[symbol.id] = TrackedNode(
         type=TrackedNodeType.STATEMENT,
@@ -178,6 +180,7 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     # track record subsymbols
     if isinstance(symbol, Dataset):
         for record in symbol.records:
+            # this will have to change later, see :NaiveTreeTracking
             tree.nodes[record.id] = TrackedNode(
                 type=TrackedNodeType.RECORD,
                 revision=1,
@@ -196,6 +199,7 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
             if isinstance(type_node, InterpSymbol):
                 track_interp_symbol(tree, type_node)
             elif type_node.id not in tree.nodes:  # id may be re-used, prefer symbol node
+                # this will have to change later, see :NaiveTreeTracking
                 tree.nodes[type_node.id] = TrackedNode(
                     type=TrackedNodeType.TYPE_NODE, revision=1, id=type_node.id, parent_id=symbol.id
                 )
