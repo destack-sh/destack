@@ -281,7 +281,7 @@ def render_description(value: str) -> str:
 
 
 def render_literal(value: str, lang: Optional[str] = None) -> str:
-    prefer_multiline = lang in ("python", "jsonl", "bpl")
+    prefer_multiline = lang in ("python", "jsonl", "x")
     if INLINE_LITERAL_REGEX.fullmatch(f"`{value}`") and not prefer_multiline:
         if lang is None:
             return f"`{value}`"

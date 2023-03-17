@@ -28,7 +28,7 @@ task 'react' :: (input: string, max_steps: number) -> string | null "Answer":
     task 'decide step' :: (input: string, i: number) -> ReactStep:
     "Decide what to do next"
 
-    # buildd implementation
+    # build implementation
     with code implementation :: ():
     ```bpl
     # context

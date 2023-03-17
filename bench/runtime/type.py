@@ -19,6 +19,7 @@ from bench.language.type import (
     Task,
     Type,
     Value,
+    XBlockContent,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
@@ -94,7 +95,6 @@ class CodeInstance(SymbolInstance, Code):
     transformed_code: str = required_field()
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
     is_async: bool = required_field()
-    prompt: Optional[DynamicPrompt] = required_field()
 
     @property
     def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
@@ -121,7 +121,7 @@ class ExecutionFrame:
     model: Optional[ModelInstance]
     root: Optional[ExecutionFrame]
     parent: Optional[ExecutionFrame]
-    inference_context_id: Optional[UUID]
+    inference_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
     inputs: Optional[dict[str, LiteralValue]]
@@ -139,7 +139,7 @@ class ExecutionFrame:
             f"model={self.model}" if self.model else None,
             f"root={self.root.id}" if self.root else None,
             f"parent={self.parent.id}" if self.parent else None,
-            f"inference_context={self.inference_context_id}" if self.inference_context_id else None,
+            f"inference_context={self.inference_id}" if self.inference_id else None,
             f"entered={self.entered_at}",
             f"exited={self.exited_at}" if self.exited_at else None,
             f"inputs={summarize_args(self.inputs)}",
@@ -175,7 +175,7 @@ class ExecutionFrameData:
     model_id: Optional[UUID]
     root_id: Optional[UUID]
     parent_id: Optional[UUID]
-    inference_context_id: Optional[UUID]
+    inference_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
     inputs: dict[str, Any]
@@ -222,7 +222,7 @@ class ExecutionFrameData:
             exited_at=frame.exited_at,
             inputs=frame.inputs,
             outputs=frame.outputs,
-            inference_context_id=frame.inference_context_id,
+            inference_id=frame.inference_id,
             error=error_data,
             queue_position=frame.queue_position,
             project_id=project_id,
@@ -231,36 +231,6 @@ class ExecutionFrameData:
             trigger_type=trigger_type,
             trigger_id=trigger_id,
         )
-
-
-@dataclass
-class DynamicPrompt:
-    python_code: str
-    settings: "PromptSettings"
-
-
-@dataclass(slots=True)
-class DecoderSettings:
-    temperature: float
-    max_tokens: int
-    stop: list[str] | None
-
-    def __post_init__(self):
-        # max tokens must be > 0
-        if self.max_tokens <= 0:
-            raise ValueError("max_tokens must be greater than 0")
-        # temperature must be [0, 1]
-        if self.temperature < 0 or self.temperature > 1:
-            raise ValueError("temperature must be between 0 and 1")
-
-
-@dataclass(slots=True)
-class PromptSettings:
-    model: ModelInstance
-    temperature: float
-    max_tokens: int
-    max_generated_tokens: int
-    stop: list[str] | None
 
 
 class FinishReason(enum.StrEnum):

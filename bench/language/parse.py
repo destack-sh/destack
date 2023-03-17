@@ -608,7 +608,7 @@ def _parse_definition_content(
         lang = literal.value_extras.get("lang")
         if lang is None:
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
-        if lang not in ("python", "bpl"):
+        if lang not in ("python", "x"):
             raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
         code_text = _strip_literal_indent(literal.value, tokens.indent_level)
         return CodeContent(

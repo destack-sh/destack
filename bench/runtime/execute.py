@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-import functools
 import inspect
 import re
 import textwrap
@@ -13,6 +12,8 @@ from random import Random
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
+import PIL.Image
+import pydub
 import structlog
 from django.db import models
 
@@ -29,27 +30,18 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
     Value,
+    XBlock,
 )
-from bench.runtime.bpl import (
-    BPL_BUILTINS,
-    DynamicPrompt,
-    InferenceContext,
-    parse_bpl,
-    run_bpl_controlled,
-    run_bpl_speculative,
-)
-from bench.runtime.inference import LocalHfTransformersInference, OpenAIInference
+from bench.runtime.inference import InferenceContext, InferenceEndpoint
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
-    DecoderSettings,
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
     TaskInstance,
-    TextGeneration,
     TypeInstance,
     ValueInstance,
     summarize_args,
@@ -65,7 +57,9 @@ class ProviderKey(models.TextChoices):
     AI21 = "ai21"
     FOREFRONT = "forefront"
     COHERE = "cohere"
-    TRANSFORMERS = "transformers"
+    ANTHROPIC = "anthropic"
+    STABILITYAI = "stabilityai"
+    HUGGINGFACE = "huggingface"
 
 
 # TODO @Cleanup: static builtins should be in the run environment context?
@@ -153,37 +147,23 @@ class AsyncCodeProxy:
             raise
 
 
-class InferenceContextProxy:
+class InferenceProxy:
     """A worker-side proxy for inference tracing."""
 
-    def __init__(self, context: InferenceContext, tracer: Tracer):
-        self.context = context
+    def __init__(self, endpoint: InferenceEndpoint, tracer: Tracer):
+        self.endpoint = endpoint
         self.tracer = tracer
-        # inference immediately enters on init (maybe not great?)
-        # see InferenceContext for the actual implementation
-        self.tracer.inference_enter(self.context)
-        logger.debug("inference.enter", context=self.context)
 
-    async def generate(self, step: DecoderSettings) -> TextGeneration:
+    async def __call__(self, ctx: InferenceContext, *blocks: XBlock) -> Any:
         start_time = time.time()
-        self.tracer.inference_generate_enter(self.context, step)
-        generation = await self.context.generate(step)
-        self.tracer.inference_generate_exit(self.context, step, generation)
+        self.tracer.inference_enter(ctx, blocks)
+        ret = await self.endpoint(ctx, *blocks)
+        self.tracer.inference_exit(ctx, blocks, ret)
         logger.debug(
             "inference.generate",
-            step=step,
-            ret=len(generation.text),
             duration=time.time() - start_time,
         )
-        return generation
-
-    def close(self):
-        self.tracer.inference_exit(self.context)
-        logger.debug("inference.exit", context=self.context)
-
-    # forward all other methods to the underlying context
-    def __getattr__(self, name):
-        return getattr(self.context, name)
+        return ret
 
 
 class Proxy:
@@ -200,9 +180,8 @@ class Proxy:
         code.code_callable = code_proxy
         return code
 
-    def proxy_inference(self, context: InferenceContext) -> InferenceContext:
-        proxy = InferenceContextProxy(context, self.tracer)
-        return typing.cast(InferenceContext, proxy)  # not same type, but duck-typed
+    def proxy_inference(self, endpoint: InferenceEndpoint) -> InferenceEndpoint:
+        return InferenceProxy(endpoint, self.tracer)
 
 
 def unwrap(value: SymbolInstance):
@@ -223,6 +202,10 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         return type(None)
     elif node.tag == TypeTag.BOOLEAN:
         return bool
+    elif node.tag == TypeTag.IMAGE:
+        return PIL.Image.Image
+    elif node.tag == TypeTag.AUDIO:
+        return pydub.AudioSegment
     elif node.tag == TypeTag.ARRAY:
         return list
     elif node.tag == TypeTag.UNION:
@@ -252,11 +235,15 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         raise ValueError(f"unexpected type node: {node}")
 
 
+def _to_pyidentifier(name: str) -> str:
+    return re.sub(r"\W|^(?=\d)", "_", name)
+
+
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
     proxy: Proxy | None,
-) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable, DynamicPrompt | None]:
+) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable]:
     """
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
@@ -266,7 +253,7 @@ def _instantiate_code_callable(
     # inline all possible context variables
     # collect transformed invalid identifiers
     inlined_context = {
-        re.sub(r"\W|^(?=\d)", "_", name): value
+        _to_pyidentifier(name): value
         for name, value in unwrapped_context.items()
         if not name.isidentifier()
     }
@@ -292,7 +279,7 @@ def _instantiate_code_callable(
         python_code = code.code or ""
         locals = {**STATIC_BUILTINS, **dynamic_context}
         is_async = "await " in python_code  # TODO @Cleanup: detect async python code properly
-    elif code.language == "bpl":
+    elif code.language == "x":
         prompt = parse_bpl(code.code or "", dynamic_context)
         python_code = prompt.python_code
         locals = {**STATIC_BUILTINS, **BPL_BUILTINS, **dynamic_context}
@@ -302,7 +289,7 @@ def _instantiate_code_callable(
 
     # create python function from python code
     input_keys = code.type_node.input.keys
-    func_name = f"_anon_{code.source.id.hex}"
+    func_name = f"_{code.name}_{code.source.id.hex[:3]}"
     async_str = "async " if is_async else ""
     func_params = ", ".join(input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
@@ -314,38 +301,10 @@ def _instantiate_code_callable(
         raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
 
     # wrap function to manage inference contexts
-    if code.language == "bpl":
+    if code.language == "x":
         callable = wrap_prompt_callable(callable, prompt, proxy)
 
     return python_code, callable, prompt
-
-
-def wrap_prompt_callable(
-    callable: AsyncCodeCallable, prompt: DynamicPrompt, proxy: Proxy | None
-) -> AsyncCodeCallable:
-    """Wraps a BPL callable to manage inference contexts."""
-
-    @functools.wraps(callable)
-    async def wrapped_callable(*args, **kwargs):
-        if prompt.settings.model.provider == ProviderKey.TRANSFORMERS:
-            inference = LocalHfTransformersInference(prompt.settings.model)
-            run = run_bpl_controlled
-        elif prompt.settings.model.provider == ProviderKey.OPENAI:
-            inference = OpenAIInference(prompt.settings.model)
-            run = run_bpl_speculative
-        else:
-            raise ValueError(f"unknown inference provider: {prompt.settings.model.provider}")
-
-        ctx = InferenceContext(prompt.settings, inference)
-        if proxy is not None:
-            ctx = proxy.proxy_inference(ctx)
-        try:
-            generator = callable(*args, **kwargs)
-            return await run(generator, ctx)
-        finally:
-            ctx.close()
-
-    return wrapped_callable
 
 
 def instantiate(
@@ -385,16 +344,13 @@ def instantiate(
         code_instance.task = task
         return task
     elif isinstance(symbol, Code):
-        code_str, code_callable, prompt = _instantiate_code_callable(
-            symbol, instantiated_context, proxy
-        )
+        code_str, code_callable = _instantiate_code_callable(symbol, instantiated_context, proxy)
         code_instance = CodeInstance(
             **symbol.__dict__,
             build=build,
             transformed_code=code_str,
             code_callable=code_callable,
             is_async=inspect.iscoroutinefunction(code_callable),
-            prompt=prompt,
         )
         # TODO @Broken: set task on code instance if instantiated directly
         #  Likely will require breaking circles with a refmap.

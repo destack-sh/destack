@@ -21,6 +21,8 @@ config:
     secure: AAABAKGJYWYdzK1qSL0JL7dmzsmR55HcceQTZCTm/mtwHJj7bmPxfF1GI+06wXsY7uSISumEejggQqGZv71HrniCm/rMHRLm4/Lola1UsAHdcRrt9OIF+QNvDjLo5+FGQJzic2STT70=
   Bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
+  Bench:STABILITYAI_API_KEY:
+    secure: AAABAM2Xg3uvdc5mnl9V5usqOYJy1hq5y3kUXUPruoHP3pvzYtZnv4VbXOJCaF3MCIxBSRgj6h5zOoFfu1cNvxFGZV2qBMLqU4AcDythIogFgHI=
   Bench:apiAllowedHosts: "*"
   Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
   Bench:dbPassword:
