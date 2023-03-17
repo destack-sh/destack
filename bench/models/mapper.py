@@ -256,8 +256,9 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
     """Reads a database statement into a wire statement."""
     # map reference into wire-able reference (convert module-external ref to statement path)
     reference = rmap_reference(statement, statement.reference)
-    if statement.type == StatementType.REFERENCE:
+    if statement.type == StatementType.REFERENCE and reference is not None:
         # references are stored without name
+        # reference may be none if it was deleted
         name = statement.reference.name
     else:
         name = statement.name

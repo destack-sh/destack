@@ -51,7 +51,7 @@ const createActions = computed(() => [
     enabled: false,
   },
   {
-    label: "New file",
+    label: "Create file",
     icon: PlusIcon,
     action: () => actions.file.create.value.apply(),
     enabled: actions.file.create.value.enabled,
