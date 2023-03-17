@@ -104,13 +104,6 @@ function open() {
   });
 }
 
-function onInputEnter() {
-  // auto-define on enter to input (happens if input is empty)
-  if (props.canDefineInPlace && (query.value.length > 0 || props.canDefineAnonymous)) {
-    setReference(null);
-  }
-}
-
 // alt-click focuses source reference
 const { focusSymbol } = useSymbolNavigation();
 function clickOpen(click: MouseEvent) {
@@ -186,7 +179,6 @@ defineExpose({
       placeholder="..."
       @keydown.escape.prevent=""
       @keyup.escape.prevent="escape"
-      @keydown.enter.exact.prevent="onInputEnter"
       @keydown.shift.enter.exact.prevent="emit('insertBelow')"
       @keydown.delete="deleteLeftIfAtStart"
     />

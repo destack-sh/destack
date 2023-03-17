@@ -214,7 +214,15 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
     # These are because 1) checks for changes in known dependencies,
     # while 2) checks for new symbols that affect the dependencies.
 
-    new_tree = tree_from_module(revmap, idx)
+    # (we exclude generated symbols here because we only need to consider source symbols)
+    # TODO @Robustness: tree_from_module reactivity does not work with imports/redefs (incl. generated)
+    #  TrackedTree assumes that each nodes dependencies are its revisioned children, and
+    #  and any transient dependencies are tracked by walking descendants and adding them
+    #  to the overall dependencies. The tree stores nodes by their source id, so with
+    #  imports and redefs only the first instance of each descendant is tracked.
+    #  This is not a problem with regular refs since you can't refer to refs.
+    #  :NaiveTreeTracking
+    new_tree = tree_from_module(revmap, idx, exclude_generated=True)
 
     stale_symbols = []
     for symbol in idx.symbols.values():
