@@ -32,7 +32,7 @@ from bench.language.type import (
     Value,
     XBlock,
 )
-from bench.runtime.inference import InferenceContext, InferenceEndpoint
+from bench.runtime.model import InferenceContext, InferenceEndpoint
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,

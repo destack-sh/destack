@@ -91,13 +91,13 @@ export type BuildInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
-export type BuildState = {
-  __typename?: "BuildState";
+export type BuildContext = {
+  __typename?: "BuildContext";
   projectVersionId: Scalars["GlobalID"];
   success: Scalars["Boolean"];
 };
 
-export type BuildStateOperationInfo = BuildState | OperationInfo;
+export type BuildStateOperationInfo = BuildContext | OperationInfo;
 
 export type CommitInput = {
   autoDeploy?: Scalars["Boolean"];
@@ -3050,7 +3050,7 @@ export type BuildMutationVariables = Exact<{
 
 export type BuildMutation = {
   __typename?: "Mutation";
-  build: { __typename?: "BuildState"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
+  build: { __typename?: "BuildContext"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
 };
 
 export type RunMutationVariables = Exact<{
@@ -8072,7 +8072,7 @@ export const BuildDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildState" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildContext" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [

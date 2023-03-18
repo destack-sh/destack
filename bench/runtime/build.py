@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import ast
 import asyncio
 import enum
 import uuid
 from dataclasses import dataclass, field
 from typing import Optional, Union
+from uuid import UUID
 
 import structlog
 
@@ -30,8 +30,11 @@ from bench.language.type import (
     TypeNode,
 )
 from bench.language.typer import check_type
+from bench.runtime.evaluate import Evaluation
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.utils.fractional import generate_n_keys_between
+
+Expect = Union[Task, Code, Dataset, Expectation]
 
 logger = structlog.get_logger(__name__)
 
@@ -71,18 +74,21 @@ class BuildError(ValueError):
 
 
 @dataclass(repr=False)
-class BuildState:
+class BuildContext:
     build: Build
+    max_candidates: int = 10
     candidates: list[BuildCandidate] = field(default_factory=list)
+    best_candidate: Optional[BuildCandidate] = field(default=None)
+
+    @property
+    def exhausted(self) -> bool:
+        """Whether we can make any more candidates"""
+        return len(self.candidates) >= self.max_candidates
 
 
 @dataclass(repr=False)
-class BuildCandidate:
-    state: BuildState
+class BuildState:
     build: Build
-    root_task: Task
-    models: list[Model]
-    candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
     dependencies: TrackedTree = field(default_factory=TrackedTree)
     source_mappings: list[RawMapping] = field(default_factory=list)
@@ -91,53 +97,6 @@ class BuildCandidate:
     # later/soon we'll want this strongly linked inside the symbol content probably
     # :WeakReferences
     weak_references: list[InterpSymbol] = field(default_factory=list)
-
-    def __post_init__(self):
-        self.track_dependency(self.build)
-
-    def use_weak_ref(self, symbol: InterpSymbol):
-        self.track_dependency(symbol)
-        existing_symbol = next((s for s in self.weak_references if s.name == symbol.name), None)
-        if existing_symbol is not None and existing_symbol.name == symbol.name:
-            # This fragile since it means we can't use the same name for different symbols
-            #  without aliasing/scoping them, which would require hacking any "weak" output (like BPL code).
-            #  I hope we'll fix :WeakReferences before this becomes a problem.
-            if existing_symbol.id != symbol.id:
-                raise ValueError(f"weakly referenced symbol already exists: {symbol.name}")
-            else:
-                return
-        self.weak_references.append(symbol)
-
-    def create_data(self, builder: DataBuilder) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, len(builder.records))
-        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
-        dataset = Dataset(
-            name=builder.name,
-            type_node=builder.type_node,
-            type=builder.type_node.to_type(),
-            records=records,
-            description=None,
-            language="jsonl",
-        )
-        # type check records
-        for record in dataset.records:
-            check_type(record, dataset.type)
-        self.target_symbols.append(dataset)
-        return dataset
-
-    def create_code(self, builder: XBuilder) -> Code:
-        code = Code(
-            name=builder.name,
-            type_node=builder.type_node,
-            type=builder.type_node.to_type(),
-            language="x",
-            code=builder.to_code_content(),
-            description=None,
-        )
-        # try to parse code just to make sure it's syntactically valid
-        ast.parse(code.code)
-        self.target_symbols.append(code)
-        return code
 
     def track_dependency(self, source: InterpSymbol):
         """
@@ -157,11 +116,18 @@ class BuildCandidate:
             RawMapping(type=TrackedNodeType.STATEMENT, source_id=source.id, target_id=target.id)
         )
 
-    def merge(self, other: BuildCandidate) -> None:
-        self.target_symbols.extend(other.target_symbols)
-        self.dependencies.merge(other.dependencies)
-        self.source_mappings.extend(other.source_mappings)
-        self.weak_references.extend(other.weak_references)
+    def use_weak_ref(self, symbol: InterpSymbol):
+        self.track_dependency(symbol)
+        existing_symbol = next((s for s in self.weak_references if s.name == symbol.name), None)
+        if existing_symbol is not None and existing_symbol.name == symbol.name:
+            # This fragile since it means we can't use the same name for different symbols
+            #  without aliasing/scoping them, which would require hacking any "weak" output (like BPL code).
+            #  I hope we'll fix :WeakReferences before this becomes a problem.
+            if existing_symbol.id != symbol.id:
+                raise ValueError(f"weakly referenced symbol already exists: {symbol.name}")
+            else:
+                return
+        self.weak_references.append(symbol)
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
@@ -178,12 +144,63 @@ class BuildCandidate:
         )
 
 
+@dataclass(repr=False)
+class InstructionOp:
+    include: bool
+    samples: int
+
+
+@dataclass(repr=False)
+class BuildPlan:
+    models: list[Model]
+    instruction_nodes: dict[UUID, InstructionOp] = field(default_factory=dict)
+
+
+@dataclass(repr=False)
+class BuildCandidate:
+    ctx: BuildContext
+    root_tasks: list[Task]
+    plan: BuildPlan
+    state: BuildState = field(default_factory=BuildState)
+    evaluation: Optional[Evaluation] = field(default=None)
+    id: UUID = field(default_factory=uuid.uuid4)
+
+    def __post_init__(self):
+        self.state.track_dependency(self.ctx.build)
+
+    @property
+    def build(self) -> Build:
+        return self.ctx.build
+
+    @property
+    def models(self) -> list[Model]:
+        return self.plan.models
+
+    def create_data(self, builder: DataBuilder) -> Dataset:
+        order_keys = generate_n_keys_between(None, None, len(builder.records))
+        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
+        dataset = Dataset(
+            name=builder.name,
+            type_node=builder.type_node,
+            type=builder.type_node.to_type(),
+            records=records,
+            description=None,
+            language="jsonl",
+        )
+        # type check records
+        for record in dataset.records:
+            check_type(record, dataset.type)
+        self.target_symbols.append(dataset)
+        return dataset
+
+
 @dataclass
 class BuildResult:
     build: Build
     target_symbols: list[InterpSymbol]
     source_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
+    evaluation: Evaluation | None = None
 
     @staticmethod
     def empty(build: Build) -> BuildResult:
@@ -196,8 +213,46 @@ class BuildResult:
         return generate(self.target_symbols, self.weak_references, file)
 
 
-class BuildContext:
-    pass
+async def build(build: Build) -> BuildResult:
+    log = logger.bind(build=build)
+    log.info("build.start")
+    if len(build.models) != 1:
+        raise BuildError(BuildErrorType.INTERNAL, build)
+
+    ctx = BuildContext(build=build)
+    if not build.tasks:
+        log.info("build.abort", reason="no tasks")
+        return BuildResult.empty(build)
+
+    while not ctx.exhausted:
+        log.info("build.iter", best_candidate=ctx.best_candidate)
+        plans = await generate_plans(ctx)
+        candidates = [BuildCandidate(ctx=ctx, root_tasks=build.tasks, plan=plan) for plan in plans]
+        build_tasks = [do_build(candidate) for candidate in candidates]
+        await asyncio.gather(*build_tasks)
+
+    log.info("build.complete", best_candidate=ctx.best_candidate)
+    return ctx.best_candidate.state.to_result()
+
+
+async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
+    raise NotImplementedError
+
+
+async def do_build(candidate: BuildCandidate) -> None:
+    raise NotImplementedError
+
+
+def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
+    expects = []
+    if isinstance(symbol, Expectation):
+        expects.append(symbol)
+    if isinstance(symbol, (Type, Task, Expectation)):
+        for child in symbol.expectations:
+            if not isinstance(child, Expectation):
+                expects.append(child)
+            expects.extend(_gather_expectations(child))
+    return expects
 
 
 class DataBuilder:
@@ -228,60 +283,6 @@ class XBuilder:
     def __init__(self, name: str, type: TypeNode):
         self.name = name
         self.type = type
-
-
-async def make_build(build: Build) -> BuildResult:
-    logger.debug("build.start", build=build)
-    if len(build.models) != 1:
-        raise BuildError(BuildErrorType.INTERNAL, build)
-
-    state = BuildState(build=build)
-    # parallelize by task (don't have metrics yet so can't parallelize by model)
-    candidates = [
-        BuildCandidate(state=state, build=build, root_task=task, models=build.models)
-        for task in build.tasks
-    ]
-    if not candidates:
-        return BuildResult.empty(build)
-
-    builds = [_build_task(candidate, candidate.root_task) for candidate in candidates]
-    await asyncio.gather(*builds)
-    logger.debug("build.end", build=build, candidates=candidates)
-    # merge candidates (should really merge results)
-    first_candidate = candidates[0]
-    for candidate in candidates[1:]:
-        first_candidate.merge(candidate)
-    return first_candidate.to_result()
-
-
-Expect = Union[Task, Code, Dataset, Expectation]
-
-
-def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
-    expects = []
-    if isinstance(symbol, Expectation):
-        expects.append(symbol)
-    if isinstance(symbol, (Type, Task, Expectation)):
-        for child in symbol.expectations:
-            if not isinstance(child, Expectation):
-                expects.append(child)
-            expects.extend(_gather_expectations(child))
-    return expects
-
-
-async def _build_task(state: BuildCandidate, task: Task) -> None:
-    target_code_type = task.type_node.deepcopy(keep_id=False, keep_reference=True)
-    target_code = XBuilder(name=task.name, type=target_code_type)
-
-    # ensure weak references are available for parsing
-    for node in task.type.output.walk():
-        if isinstance(node.reference, Type):
-            state.use_weak_ref(node.reference)
-    for model in state.models:
-        state.use_weak_ref(model)
-
-    code = state.create_code(target_code)
-    state.map_source(task.definition, code)
 
 
 def generate(
@@ -353,6 +354,7 @@ def generate_code_content(code: Code) -> CodeContent:
         language=code.language,
         type_node=code.type_node,
         code=code.code,
+        xblocks=code.xblocks,
     )
 
 

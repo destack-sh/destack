@@ -89,6 +89,32 @@ class SimpleTypeNode(UUIDModel):
         ]
 
 
+class XKind(models.TextChoices):
+    Static = "static"
+    Input = "input"
+    Output = "output"
+
+
+class XSource(models.TextChoices):
+    System = "system"
+    User = "user"
+    Developer = "developer"
+    Model = "model"
+
+
+class XBlock(UUIDModel):
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="xblocks")
+    created_at = models.DateTimeField(auto_now_add=True)
+    # not actually revisioned yet (only accessed programmatically)
+    revision = models.IntegerField(default=1)
+    order_key = models.CharField(max_length=MAX_NAME_LENGTH)
+    kind = TextChoicesField(choices_enum=XKind)
+    source = TextChoicesField(choices_enum=XSource)
+    value = models.JSONField(null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
+    settings = models.JSONField(null=True, blank=True)
+
+
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
@@ -158,6 +184,7 @@ class StatementManager(models.Manager["Statement"]):
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
+        new_xblocks: dict[UUID, XBlock] = {}
         new_gen_mappings: list[GeneratedMapping] = []
 
         def _copy_statement(statement: Statement) -> Statement:
@@ -191,6 +218,17 @@ class StatementManager(models.Manager["Statement"]):
                         record.statement_id = target_statement_ids[statement.id]
                         new_records[old_id] = record
                         _refmap(RefType.RECORD, old_id, old_revision, record)
+
+                # copy xblocks
+                elif statement.symbol_type == SymbolType.CODE:
+                    for xblock in statement.xblocks.all():
+                        old_id = xblock.id
+                        old_revision = xblock.revision
+                        xblock.id = uuid4()
+                        xblock._state.adding = True
+                        xblock.statement_id = target_statement_ids[statement.id]
+                        new_xblocks[old_id] = xblock
+                        _refmap(RefType.XBLOCK, old_id, old_revision, xblock)
 
                 # copy generated mappings (only Builds can have them right now)
                 elif statement.symbol_type == SymbolType.BUILD and copy_generated_mappings:
@@ -248,6 +286,7 @@ class StatementManager(models.Manager["Statement"]):
         # save statement's relations
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
         DatasetRecord.objects.bulk_create(new_records.values())
+        XBlock.objects.bulk_create(new_xblocks.values())
         GeneratedMapping.objects.bulk_create(new_gen_mappings)
 
         return ref_mappings
@@ -268,21 +307,6 @@ class StatementManager(models.Manager["Statement"]):
            FROM descendants
         """
         return Statement._base_manager.filter(id__in=RawSQL(query, (statement_ids,)))
-
-
-# sync with actual symbol content fields of Statement
-SYMBOL_CONTENT_VALUE_FIELDS = (
-    "language",
-    "code",
-    "description",
-    "value",
-    "type_nodes",
-)
-SYMBOL_CONTENT_RELATION_1TOM_FIELDS = ("reference_project_version",)
-SYMBOL_CONTENT_RELATION_MTOM_FIELDS = (
-    "mappings",
-    "builds",
-)
 
 
 class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
@@ -323,6 +347,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
+    xblocks: models.QuerySet[XBlock]  # noqa via XBlock.statement
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement
     lang = models.CharField(max_length=32, null=True, blank=True)

@@ -304,6 +304,8 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
             )
             for record in statement.records.filter(deleted_at=None).all()
         ]
+    elif statement.symbol_type == SymbolType.CODE:
+        data.xblocks = rmap_xblocks(statement.xblocks.all())
     elif statement.symbol_type == SymbolType.BUILD:
         data.generated_mappings = [
             rmap_source_mapping(m) for m in statement.generated_mappings.all()
@@ -345,6 +347,9 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             for record in data.records
         ]
         relations.extend(model_records)
+    elif data.xblocks:
+        model_xblocks = wmap_xblocks(statement, data.xblocks)
+        relations.extend(model_xblocks)
     elif data.generated_mappings:
         mappings = wmap_source_mappings(statement.id, data.generated_mappings)
         relations.extend(mappings)
@@ -386,6 +391,41 @@ def rmap_source_mapping(source_mapping: models.GeneratedMapping) -> language.Gen
         target_id=source_mapping.target_id,
         target_revision=source_mapping.target_revision,
     )
+
+
+def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
+    """Reads a list of database xblocks into a list of wire xblocks."""
+    return [
+        wire.XBlockData(
+            id=x.id,
+            order_key=x.order_key,
+            kind=x.kind,
+            source=x.source,
+            value=x.value,
+            description=x.description,
+            settings=x.settings,
+        )
+        for x in xblocks
+    ]
+
+
+def wmap_xblocks(
+    statement: models.Statement, xblocks: list[wire.XBlockData]
+) -> list[models.XBlock]:
+    """Writes a list of wire xblocks into a list of database xblocks."""
+    return [
+        models.XBlock(
+            id=x.id,
+            statement=statement,
+            order_key=x.order_key,
+            kind=x.kind,
+            source=x.source,
+            value=x.value,
+            description=x.description,
+            settings=x.settings,
+        )
+        for x in xblocks
+    ]
 
 
 def wmap_type_nodes(

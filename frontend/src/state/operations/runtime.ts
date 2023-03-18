@@ -11,7 +11,7 @@ export function useRuntimeOps() {
     graphql(/* GraphQL */ `
       mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {
         build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {
-          ... on BuildState {
+          ... on BuildContext {
             projectVersionId
             success
           }

@@ -1,6 +1,8 @@
 import typing
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
+from uuid import UUID
 
 import openai
 import PIL.Image
@@ -19,20 +21,21 @@ class InferenceContext:
     n: int
     user_opaque_id: str
     streaming_callback: Optional[Callable[[XBlock], None]]
+    id: UUID = field(default_factory=uuid.uuid4)
 
     @property
     def streaming(self) -> bool:
         return self.streaming_callback is not None
 
 
+InferenceEndpoint = typing.Callable[[InferenceContext, ...], typing.Awaitable[Any]]
+
+
 @dataclass
 class OpenAITextModel:
-    complete_chat: "OpenAIChatCompletion"
-    complete_text: "OpenAITextCompletion"
-    embed_text: "OpenAITextEmbedding"
-
-
-InferenceEndpoint = typing.Callable[[InferenceContext, ...], typing.Coroutine[Any]]
+    complete_chat: Optional["OpenAIChatCompletion"]
+    complete_text: Optional["OpenAITextCompletion"]
+    embed_text: Optional["OpenAITextEmbedding"]
 
 
 @dataclass
@@ -52,7 +55,7 @@ class OpenAIChatCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str]],
+        input: list[XBlock[str, None]],
         output: XBlock[None, OpenAIChatCompletionSettings],
     ) -> str:
         role_map = {
@@ -94,7 +97,7 @@ class OpenAITextCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str]],
+        input: list[XBlock[str, None]],
         output: XBlock[None, OpenAITextCompletionSettings],
     ) -> str:
         role_map = {
@@ -145,7 +148,7 @@ class OpenAIAudioTranscription:
 
     async def __call__(
         self,
-        input: XBlock[pydub.AudioSegment],
+        input: XBlock[pydub.AudioSegment, None],
         output: XBlock[None, OpenAIAudioTranscriptionSettings],
     ) -> str:
         raise NotImplementedError
@@ -172,7 +175,7 @@ class AnthropicTextCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str]],
+        input: list[XBlock[str, None]],
         output: XBlock[None, AnthropicTextCompletionSettings],
     ) -> str:
         raise NotImplementedError
@@ -197,7 +200,7 @@ class StabilityAIImageGeneration:
     async def __call__(
         self,
         ctx: InferenceContext,
-        input: XBlock[StabilityAIImageGenerationInput],
+        input: XBlock[StabilityAIImageGenerationInput, None],
         output: XBlock[None, StabilityAIImageGenerationSettings],
     ) -> PIL.Image:
         raise NotImplementedError

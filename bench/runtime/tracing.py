@@ -12,7 +12,7 @@ import structlog
 
 from bench.language.type import XBlock
 from bench.language.typer import check_type
-from bench.runtime.inference import InferenceContext
+from bench.runtime.model import InferenceContext
 from bench.runtime.type import CodeInstance, ExecutionFrame, ModelInstance
 from bench.utils.uuidt import UUIDT
 

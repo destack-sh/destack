@@ -61,7 +61,7 @@ const buildMain = provideGlobalAction({
   enabled: canBuild,
   apply: async () => {
     const ret = await operations.runtime.build(mainSymbol.value?.id);
-    if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
+    if (ret?.data?.build.__typename != "BuildContext" || !ret.data.build.success) {
       notifications.show({
         type: "build.fail",
         kind: "error",

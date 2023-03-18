@@ -21,7 +21,7 @@ from .project import (
     RefMappingKind,
     RefType,
 )
-from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
+from .statement import SimpleTypeNode, Statement, StatementType, SymbolType, XBlock, XKind, XSource
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import User
 
@@ -60,5 +60,8 @@ __all__ = [
     "Statement",
     "StatementType",
     "SymbolType",
+    "XBlock",
+    "XKind",
+    "XSource",
     "User",
 ]

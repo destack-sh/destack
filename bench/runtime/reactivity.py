@@ -83,7 +83,7 @@ class RevisionMap:
         return RevisionMap(module_id=module.id, revisions=revisions)
 
 
-@dataclass
+@dataclass(slots=True)
 class TrackedNode:
     type: TrackedNodeType
     id: UUID
@@ -92,10 +92,23 @@ class TrackedNode:
     reference_id: Optional[UUID] = None
     order_key: Optional[str] = None
 
+    def copy(self) -> TrackedNode:
+        return TrackedNode(
+            type=self.type,
+            id=self.id,
+            revision=self.revision,
+            parent_id=self.parent_id,
+            reference_id=self.reference_id,
+            order_key=self.order_key,
+        )
+
 
 @dataclass
 class TrackedTree:
     nodes: dict[UUID, TrackedNode] = field(default_factory=dict)
+
+    def copy(self) -> TrackedTree:
+        return TrackedTree(nodes={k: v.copy() for k, v in self.nodes.items()})
 
     def merge(self, other: TrackedTree):
         self.nodes.update(other.nodes)
