@@ -4,7 +4,7 @@ import asyncio
 import enum
 import uuid
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -144,16 +144,54 @@ class BuildState:
         )
 
 
+class InstructionSource:
+    @property
+    def type(self) -> Type:
+        raise NotImplementedError
+
+    def read(self) -> list[LiteralValue]:
+        raise NotImplementedError
+
+
 @dataclass(repr=False)
-class InstructionOp:
-    include: bool
-    samples: int
+class InstructionDatasetSampleSource:
+    dataset: Dataset
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class InstructionCodeSampleSource:
+    code: Code
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class InstructionGenerateSource:
+    type: Type
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class TaskOutputSettings:
+    settings: dict[str, Any]
+    model: Model
+
+
+@dataclass(repr=False)
+class InstructionRender:
+    pass
 
 
 @dataclass(repr=False)
 class BuildPlan:
     models: list[Model]
-    instruction_nodes: dict[UUID, InstructionOp] = field(default_factory=dict)
+    instruction_sources: list[InstructionSource] = field(default_factory=dict)
+    finetunes: list[Any] = field(default_factory=list)
+    task_output_settings: dict[UUID, TaskOutputSettings] = field(default_factory=dict)
+    instruction_renders: list[InstructionRender] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -190,7 +228,7 @@ class BuildCandidate:
         # type check records
         for record in dataset.records:
             check_type(record, dataset.type)
-        self.target_symbols.append(dataset)
+        self.state.target_symbols.append(dataset)
         return dataset
 
 
@@ -225,18 +263,23 @@ async def build(build: Build) -> BuildResult:
         return BuildResult.empty(build)
 
     while not ctx.exhausted:
-        log.info("build.iter", best_candidate=ctx.best_candidate)
+        log.info("build.step", best_candidate=ctx.best_candidate)
         plans = await generate_plans(ctx)
         candidates = [BuildCandidate(ctx=ctx, root_tasks=build.tasks, plan=plan) for plan in plans]
+        ctx.candidates.extend(candidates)
         build_tasks = [do_build(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
+        # evaluate and rank candidates
+        build_results = [candidate.state.to_result() for candidate in candidates]
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
     return ctx.best_candidate.state.to_result()
 
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
-    raise NotImplementedError
+    # TODO @Broken: don't assume all models are equally capable
+    for model in ctx.build.models:
+        raise NotImplementedError
 
 
 async def do_build(candidate: BuildCandidate) -> None:
