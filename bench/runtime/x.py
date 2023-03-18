@@ -15,6 +15,10 @@ def parse_string_output(value: str, type: TypeNode) -> Any:
         raise ValueError(f"invalid JSON: {e}")
 
 
+def render_string_input(value: Any, type: TypeNode) -> str:
+    return json.dumps(value)
+
+
 class GenerationErrorType(enum.Enum):
     INTERNAL = 0, "internal error"
     EXCEEDED_CONTEXT = 1, "ran out of tokens"

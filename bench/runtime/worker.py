@@ -33,9 +33,9 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqWriteModulePayload,
 )
-from bench.runtime.build import BuildResult, get_builds_for, make_build
-from bench.runtime.execute import Proxy, RunError, instantiate, run
+from bench.runtime.build import BuildResult, build, get_builds_for
 from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings, tree_from_module
+from bench.runtime.run import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
 from bench.utils.func import wrap_task
@@ -76,6 +76,7 @@ class JobStatus(enum.StrEnum):
     QUEUED = "queued"
     RUNNING = "running"
     COMPLETED = "completed"
+    CANCELLING = "cancelling"
     CANCELLED = "cancelled"
     FAILED = "failed"
 
@@ -87,6 +88,7 @@ class Job:
     status: JobStatus = JobStatus.QUEUED
     started_at: Optional[datetime] = None
     terminated_at: Optional[datetime] = None
+    task: Optional[asyncio.Task] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
 
     def __str__(self):
@@ -97,6 +99,14 @@ class Job:
 
     def __lt__(self, other):
         return self.default_priority < other.default_priority
+
+    async def cancel(self):
+        if self.task is None or self.task.done() or self.status != JobStatus.RUNNING:
+            logger.warning(f"job.cancel.ignored", job=self)
+            return
+        self.status = JobStatus.CANCELLING
+        logger.info("job.cancel", job=self)
+        self.task.cancel()
 
     @property
     def success(self) -> bool:
@@ -386,9 +396,10 @@ class ModuleWorker:
 
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
         self.log.info("module.build", builds=builds)
-        build_processes = [wrap_task(make_build(build), f"build_{build.id}") for build in builds]
-        build_results = await asyncio.gather(*build_processes, return_exceptions=False)
-        return cast(list[BuildResult], build_results)
+        build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
+        build_results = await asyncio.gather(*build_processes, return_exceptions=True)
+        build_results = [b for b in build_results if isinstance(b, BuildResult)]
+        return build_results
 
     def queue_run(
         self,
@@ -488,26 +499,27 @@ class ModuleWorker:
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.log.info("module.job.start", job=job)
                 self.master.notify_job_status(self, job)
-
                 if isinstance(job, InterpJob):
-                    await self.do_interp(job.new_source)
+                    job.task = self.do_interp(job.new_source)
+                    await job.task
                     job.success = True
-
                 elif isinstance(job, RunJob):
-                    error, ret = await self.do_run(job.runnable, job.arguments)
+                    job.task = self.do_run(job.runnable, job.arguments)
+                    ret, error = await job.task
                     if error is None:
                         job.output = ret
                     else:
                         job.error = error
                         job.error_details = ret
-
                 elif isinstance(job, BuildJob):
-                    build_results = await self.do_build(job.revmap, job.builds)
-                    job.build_results = build_results
-
+                    job.task = self.do_build(job.revmap, job.builds)
+                    job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
                 self.log.info("module.job.completed", job=job)
+            except asyncio.CancelledError:
+                self.log.info("module.job.cancelled", job=job)
+                # keep the queue running?
             except Exception as e:
                 sentry_enabled = sentry_capture_if_enabled(e)
                 job.error = str(e)

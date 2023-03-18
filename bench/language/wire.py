@@ -19,6 +19,8 @@ from bench.language.type import (
     StatementType,
     SymbolType,
     TypeTag,
+    XKind,
+    XSource,
 )
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 
@@ -27,7 +29,7 @@ from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 #
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class TypeNodeData:
     id: UUID
     revision: int
@@ -47,7 +49,7 @@ class TypeNodeData:
         return f"<TypeNode {str(self)}>"
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class RecordData:
     id: UUID
     order_key: str
@@ -55,7 +57,19 @@ class RecordData:
     data: Optional[typing.Any] = None
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
+class XBlockData:
+    id: UUID
+    order_key: str
+    kind: XKind
+    source: XSource
+    value: Optional[typing.Any] = None
+    settings: Optional[typing.Any] = None
+    path: Optional[str] = None
+    description: Optional[str] = None
+
+
+@dataclass(repr=False, slots=True)
 class ModuleData:
     id: UUID
     name: str
@@ -69,7 +83,7 @@ class ModuleData:
         return f"<Module {str(self)}>"
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class FileData:
     id: UUID
     module_id: UUID
@@ -91,7 +105,7 @@ ModuleReference = typing.NamedTuple(
 )
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class StatementData:
     id: UUID
     module_id: UUID
@@ -111,6 +125,7 @@ class StatementData:
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
+    xblocks: Optional[list[XBlockData]] = None
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
@@ -134,29 +149,6 @@ class StatementData:
 
     def __repr__(self):
         return f"<Statement {str(self)}>"
-
-
-@dataclass(repr=False)
-class ErrorData:
-    type: ErrorType
-    statement_id: Optional[UUID]
-    message: str
-    verbose_message: Optional[str]
-
-    def __str__(self):
-        return f"{self.type.name}: {self.message}"
-
-    def __repr__(self):
-        return f"<Error {str(self)}>"
-
-
-def rmap_error(error: language.Error) -> ErrorData:
-    return ErrorData(
-        type=error.type,
-        statement_id=error.statement.id if error.statement is not None else None,
-        message=error.message,
-        verbose_message=error.verbose_message,
-    )
 
 
 def rmap_module(module: language.Module) -> ModuleData:
@@ -296,6 +288,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.code = content.code
         data.type_nodes = rmap_type_node(content.type_node)
+        data.xblocks = [rmap_xblock(xblock) for xblock in content.xblocks]
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
         data.external_name = content.external_name
@@ -338,6 +331,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             language=data.lang,
             code=data.code,
             type_node=wmap_type_node(data.type_nodes),
+            xblocks=[wmap_xblock(x) for x in data.xblocks],
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
@@ -448,6 +442,34 @@ def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
     return list(nodes_data.values())
 
 
+def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
+    """Maps an xblock data object to an xblock."""
+    return language.XBlockContent(
+        id=xblock.id,
+        order_key=xblock.order_key,
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        settings=xblock.settings,
+        path=xblock.path,
+        description=xblock.description,
+    )
+
+
+def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
+    """Maps an xblock to an xblock data object."""
+    return XBlockData(
+        id=xblock.id,
+        order_key=xblock.order_key,
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        settings=xblock.settings,
+        path=xblock.path,
+        description=xblock.description,
+    )
+
+
 #
 # Change tracking
 #
@@ -468,6 +490,34 @@ class ModuleMutation:
     type: ModuleMutationType
     file: Optional[FileData]
     statement: Optional[StatementData]
+
+
+#
+# Errors
+#
+
+
+@dataclass(repr=False)
+class ErrorData:
+    type: ErrorType
+    statement_id: Optional[UUID]
+    message: str
+    verbose_message: Optional[str]
+
+    def __str__(self):
+        return f"{self.type.name}: {self.message}"
+
+    def __repr__(self):
+        return f"<Error {str(self)}>"
+
+
+def rmap_error(error: language.Error) -> ErrorData:
+    return ErrorData(
+        type=error.type,
+        statement_id=error.statement.id if error.statement is not None else None,
+        message=error.message,
+        verbose_message=error.verbose_message,
+    )
 
 
 #
