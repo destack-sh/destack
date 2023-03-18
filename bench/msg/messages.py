@@ -111,7 +111,7 @@ class ReqModuleRunPayload:
     runnable_type: Optional[str]
     build: Optional[UUID | str]
     arguments: dict[str, wire.LiteralValue]
-    blocking: bool
+    block: bool
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
     trigger_id: Optional[UUID]

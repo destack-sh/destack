@@ -679,6 +679,7 @@ class XSource(enum.StrEnum):
     System = "system"
     User = "user"
     Developer = "developer"
+    Model = "model"
 
 
 ValueT = typing.TypeVar("ValueT", bound=typing.Any)
@@ -689,7 +690,6 @@ SettingsT = typing.TypeVar("SettingsT", bound=typing.Any)
 class XBlock(SymbolContent, typing.Generic[ValueT, SettingsT]):
     kind: XKind
     source: XSource
-    type_node: TypeNode
     value: Optional[ValueT]
     path: Optional[str]  # jsonpath of value if partial block
     settings: Optional[SettingsT]

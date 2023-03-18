@@ -668,7 +668,7 @@ class Worker:
         if isinstance(run_job, ModuleRunErrorType):
             await msg.reply(RepModuleRunPayload(None, run_job, None, None))
         else:
-            if msg.p.blocking:
+            if msg.p.block:
                 await run_job.terminated.wait()
             rep = RepModuleRunPayload(
                 run_job.id, run_job.error, run_job.error_details, run_job.output

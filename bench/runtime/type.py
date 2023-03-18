@@ -19,7 +19,6 @@ from bench.language.type import (
     Task,
     Type,
     Value,
-    XBlockContent,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
@@ -241,7 +240,7 @@ class FinishReason(enum.StrEnum):
 @dataclass
 class TextGeneration:
     text: str
-    tokens: list[str]
+    tokens: Optional[list[str]]
     logits: Optional[list[float]]
     finish_reason: FinishReason
 
