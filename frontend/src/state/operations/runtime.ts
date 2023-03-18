@@ -40,7 +40,7 @@ export function useRuntimeOps() {
         $runnableId: GlobalID
         $buildId: GlobalID
         $arguments: JSON!
-        $blocking: Boolean
+        $block: Boolean
         $timeoutSeconds: Int
       ) {
         run(
@@ -49,7 +49,7 @@ export function useRuntimeOps() {
             runnableId: $runnableId
             buildId: $buildId
             arguments: $arguments
-            blocking: $blocking
+            block: $block
             timeoutSeconds: $timeoutSeconds
           }
         ) {
@@ -71,7 +71,7 @@ export function useRuntimeOps() {
     runnableId?: string,
     buildId?: string,
     arguments_?: Record<string, any>,
-    options?: { blocking?: boolean; timeoutSeconds?: number }
+    options?: { block?: boolean; timeoutSeconds?: number }
   ) {
     return await operations.perform({
       type: "runtime.run",
@@ -82,7 +82,7 @@ export function useRuntimeOps() {
           runnableId,
           buildId,
           arguments: arguments_,
-          blocking: options?.blocking,
+          block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,
         });
       },

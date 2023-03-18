@@ -205,8 +205,8 @@ class RunInput:
     runnable_id: Optional[GlobalID] = None
     build_id: Optional[GlobalID] = None
     arguments: JSON
-    tracing: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
-    blocking: bool = True
+    trace: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
+    block: bool = True
     timeout_seconds: Optional[int] = None
 
 
@@ -261,7 +261,6 @@ class ModuleRuntimeMutation:
         user = cast(User, info.context.request.scope["user"]._wrapped)
         await sync_to_async(check_can_write_project)(user, project_version_id)
 
-        # :BlockingWorkerMessages
         req = ReqModuleBuildPayload(
             module_id=project_version_id, buildable_id=input.buildable_id.node_id
         )
@@ -294,8 +293,8 @@ class ModuleRuntimeMutation:
             runnable_type=None,
             build=UUID(input.build_id.node_id) if input.build_id else None,
             arguments=input.arguments,
-            blocking=input.blocking,
-            tracing_level=input.tracing,
+            block=input.block,
+            tracing_level=input.trace,
             deployment_id=deployment_id,
             trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
             trigger_id=user.id,

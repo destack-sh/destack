@@ -69,6 +69,8 @@ STATIC_BUILTINS = {
     "number": float,
     "null": None,
     "boolean": bool,
+    "image": PIL.Image.Image,
+    "audio": pydub.AudioSegment,
 }
 
 
@@ -273,16 +275,13 @@ def _instantiate_code_callable(
         "random": Random(code.source.id.hex.encode()),
     }
 
-    # transform to python code if necessary
-    prompt = None
     if code.language == "python":
         python_code = code.code or ""
         locals = {**STATIC_BUILTINS, **dynamic_context}
-        is_async = "await " in python_code  # TODO @Cleanup: detect async python code properly
+        is_async = "await " in python_code  # TODO @Robustness: detect async python code properly
     elif code.language == "x":
-        prompt = parse_bpl(code.code or "", dynamic_context)
-        python_code = prompt.python_code
-        locals = {**STATIC_BUILTINS, **BPL_BUILTINS, **dynamic_context}
+        python_code = code.code or ""
+        locals = {**STATIC_BUILTINS, **dynamic_context}
         is_async = True
     else:
         raise ValueError(f"unknown code language: {code}")
@@ -300,11 +299,7 @@ def _instantiate_code_callable(
         # shouldn't error unless it's a python parse issue since we're just defining a function
         raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
 
-    # wrap function to manage inference contexts
-    if code.language == "x":
-        callable = wrap_prompt_callable(callable, prompt, proxy)
-
-    return python_code, callable, prompt
+    return python_code, callable
 
 
 def instantiate(

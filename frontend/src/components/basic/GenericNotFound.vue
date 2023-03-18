@@ -23,7 +23,7 @@
     <footer class="mx-auto w-full max-w-7xl flex-shrink-0 px-4 sm:px-6 lg:px-8">
       <nav class="flex justify-center space-x-4">
         <a href="mailto:florian@symbolx.com" class="text-sm font-medium text-gray-500 hover:text-gray-600"
-          >Message Us</a
+          >Message us</a
         >
       </nav>
     </footer>

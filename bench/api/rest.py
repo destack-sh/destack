@@ -27,7 +27,8 @@ class RunInputSerializer(serializers.Serializer):
     code = serializers.CharField(default=None, allow_null=True)
     build = serializers.CharField(default=None, allow_null=True)
     inputs = serializers.JSONField(default=None, allow_null=True)
-    tracing = serializers.ChoiceField(
+    block = serializers.BooleanField(default=True)
+    trace = serializers.ChoiceField(
         default=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA, choices=ExecutionTracingLevel.choices
     )
 
@@ -145,8 +146,8 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         runnable_type=runnable_type,
         build=data["build"],
         arguments=data["inputs"],
-        blocking=True,
-        tracing_level=data["tracing"],
+        block=data["block"],
+        tracing_level=data["trace"],
         trigger_type=ExecutionTriggerType.REST_API,
         trigger_id=access.access_token_id,
     )

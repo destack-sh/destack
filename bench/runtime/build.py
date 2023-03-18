@@ -45,9 +45,6 @@ logger = structlog.get_logger(__name__)
 # Implementing build entails interesting optimization problems, we'll see...
 #
 
-LITERAL_DELIMITER_START = "<BENCH_LITERAL>"
-LITERAL_DELIMITER_END = "</BENCH_LITERAL>"
-
 
 class BuildErrorType(enum.Enum):
     INTERNAL = 0, "Internal error"
@@ -83,8 +80,8 @@ class BuildState:
 class BuildCandidate:
     state: BuildState
     build: Build
-    task: Task
-    model: Model
+    root_task: Task
+    models: list[Model]
     candidate_id: uuid = field(default_factory=uuid.uuid4)
     target_symbols: list[InterpSymbol] = field(default_factory=list)
     dependencies: TrackedTree = field(default_factory=TrackedTree)
@@ -97,8 +94,6 @@ class BuildCandidate:
 
     def __post_init__(self):
         self.track_dependency(self.build)
-        self.track_dependency(self.task)
-        self.track_dependency(self.model)
 
     def use_weak_ref(self, symbol: InterpSymbol):
         self.track_dependency(symbol)
@@ -201,6 +196,10 @@ class BuildResult:
         return generate(self.target_symbols, self.weak_references, file)
 
 
+class BuildContext:
+    pass
+
+
 class DataBuilder:
     """Build a dataset."""
 
@@ -226,8 +225,9 @@ class DataBuilder:
 class XBuilder:
     """Build a structured X prompt."""
 
-    def __init__(self, name: str | None = None):
+    def __init__(self, name: str, type: TypeNode):
         self.name = name
+        self.type = type
 
 
 async def make_build(build: Build) -> BuildResult:
@@ -238,16 +238,16 @@ async def make_build(build: Build) -> BuildResult:
     state = BuildState(build=build)
     # parallelize by task (don't have metrics yet so can't parallelize by model)
     candidates = [
-        BuildCandidate(state=state, build=build, task=task, model=build.models[0])
+        BuildCandidate(state=state, build=build, root_task=task, models=build.models)
         for task in build.tasks
     ]
     if not candidates:
         return BuildResult.empty(build)
 
-    builds = [_build_task(candidate, candidate.task) for candidate in candidates]
+    builds = [_build_task(candidate, candidate.root_task) for candidate in candidates]
     await asyncio.gather(*builds)
     logger.debug("build.end", build=build, candidates=candidates)
-    # merge candidates
+    # merge candidates (should really merge results)
     first_candidate = candidates[0]
     for candidate in candidates[1:]:
         first_candidate.merge(candidate)
@@ -271,20 +271,15 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
 
 async def _build_task(state: BuildCandidate, task: Task) -> None:
     target_code_type = task.type_node.deepcopy(keep_id=False, keep_reference=True)
-    target_code = XBuilder(name=task.name, type_node=target_code_type)
+    target_code = XBuilder(name=task.name, type=target_code_type)
 
-    # ensure type references are available for parsing (referenced in target bpl code)
+    # ensure weak references are available for parsing
     for node in task.type.output.walk():
         if isinstance(node.reference, Type):
             state.use_weak_ref(node.reference)
+    for model in state.models:
+        state.use_weak_ref(model)
 
-    # target pragma
-    # TODO @Feature: generate task target pragma properly
-    #  1. Get temperature from task description + type info
-    #  2. Get max_tokens from emitted size..? Set max_new_tokens instead?
-    state.use_weak_ref(state.model)
-
-    state.create_data(examples_data)
     code = state.create_code(target_code)
     state.map_source(task.definition, code)
 
