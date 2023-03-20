@@ -51,11 +51,11 @@ class SymbolInstance:
 
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
-    code: CodeInstance = required_field()
+    implementation_instance: CodeInstance = required_field()
 
     @property
     def py_handle(self) -> Any:
-        return self.code.py_handle
+        return self.implementation_instance.py_handle
 
 
 @dataclass(repr=False)

@@ -670,6 +670,7 @@ class Model(InterpSymbol, ModelContent):
 
 
 class XKind(enum.StrEnum):
+    Settings = "settings"
     Static = "static"
     Input = "input"
     Output = "output"
@@ -683,22 +684,20 @@ class XSource(enum.StrEnum):
 
 
 ValueT = typing.TypeVar("ValueT", bound=typing.Any)
-SettingsT = typing.TypeVar("SettingsT", bound=typing.Any)
 
 
 @dataclass(repr=False)
-class XBlock(SymbolContent, typing.Generic[ValueT, SettingsT]):
+class XBlock(SymbolContent, typing.Generic[ValueT]):
     kind: XKind
     source: XSource
     value: Optional[ValueT]
-    path: Optional[str]  # jsonpath of value if partial block
-    settings: Optional[SettingsT]
+    path: Optional[str] = None  # jsonpath of value if partial block
 
 
 @dataclass(repr=False)
-class XBlockContent(XBlock, typing.Generic[ValueT, SettingsT]):
-    description: Optional[str]
-    order_key: str
+class XBlockContent(XBlock, typing.Generic[ValueT]):
+    description: Optional[str] = None
+    order_key: str = required_field()
     id: UUID = field(default_factory=uuid.uuid4)
 
 

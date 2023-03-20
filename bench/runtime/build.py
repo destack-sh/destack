@@ -4,6 +4,7 @@ import asyncio
 import enum
 import uuid
 from dataclasses import dataclass, field
+from itertools import chain
 from typing import Any, Optional, Union
 from uuid import UUID
 
@@ -24,9 +25,10 @@ from bench.language.type import (
     Task,
     Type,
     TypeNode,
+    XBlock,
 )
 from bench.language.typer import check_type
-from bench.runtime.evaluate import Evaluation
+from bench.runtime.evaluate import Evaluation, aggregate_evaluations, evaluate_task
 from bench.runtime.generate import generate
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.utils.fractional import generate_n_keys_between
@@ -73,7 +75,7 @@ class BuildError(ValueError):
 @dataclass(repr=False)
 class BuildContext:
     build: Build
-    max_candidates: int = 10
+    max_candidates: int = 10  # TODO @Build: pick candidates limit settings more carefully
     candidates: list[BuildCandidate] = field(default_factory=list)
     best_candidate: Optional[BuildCandidate] = field(default=None)
 
@@ -126,6 +128,23 @@ class BuildState:
                 return
         self.weak_references.append(symbol)
 
+    def create_data(self, builder: DataBuilder) -> Dataset:
+        order_keys = generate_n_keys_between(None, None, len(builder.records))
+        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
+        dataset = Dataset(
+            name=builder.name,
+            type_node=builder.type_node,
+            type=builder.type_node.to_type(),
+            records=records,
+            description=None,
+            language="jsonl",
+        )
+        # type check records
+        for record in dataset.records:
+            check_type(record, dataset.type)
+        self.target_symbols.append(dataset)
+        return dataset
+
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
         combined_mappings = [*self.source_mappings]
@@ -141,54 +160,34 @@ class BuildState:
         )
 
 
+@dataclass(repr=False)
 class InstructionSource:
-    @property
-    def type(self) -> Type:
+    target_symbol: InterpSymbol
+
+    async def __call__(self):
         raise NotImplementedError
-
-    def read(self) -> list[LiteralValue]:
-        raise NotImplementedError
-
-
-@dataclass(repr=False)
-class InstructionDatasetSampleSource:
-    dataset: Dataset
-    count: int
-    seed: int
-
-
-@dataclass(repr=False)
-class InstructionCodeSampleSource:
-    code: Code
-    count: int
-    seed: int
-
-
-@dataclass(repr=False)
-class InstructionGenerateSource:
-    type: Type
-    count: int
-    seed: int
-
-
-@dataclass(repr=False)
-class TaskOutputSettings:
-    settings: dict[str, Any]
-    model: Model
 
 
 @dataclass(repr=False)
 class InstructionRender:
-    pass
+    def __call__(self) -> list[XBlock]:
+        raise NotImplementedError
+
+
+@dataclass(repr=False)
+class InstructionPlan:
+    task: Task
+    model: Model
+    base_settings: Optional[dict[str, Any]]
+    sources: list[InstructionSource] = field(default_factory=dict)
+    renders: list[InstructionRender] = field(default_factory=list)
 
 
 @dataclass(repr=False)
 class BuildPlan:
     models: list[Model]
-    instruction_sources: list[InstructionSource] = field(default_factory=dict)
-    finetunes: list[Any] = field(default_factory=list)
-    task_output_settings: dict[UUID, TaskOutputSettings] = field(default_factory=dict)
-    instruction_renders: list[InstructionRender] = field(default_factory=list)
+    finetunes: list[Any] = field(default_factory=list)  # not used yet
+    task_plans: list[InstructionPlan] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -210,23 +209,6 @@ class BuildCandidate:
     @property
     def models(self) -> list[Model]:
         return self.plan.models
-
-    def create_data(self, builder: DataBuilder) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, len(builder.records))
-        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
-        dataset = Dataset(
-            name=builder.name,
-            type_node=builder.type_node,
-            type=builder.type_node.to_type(),
-            records=records,
-            description=None,
-            language="jsonl",
-        )
-        # type check records
-        for record in dataset.records:
-            check_type(record, dataset.type)
-        self.state.target_symbols.append(dataset)
-        return dataset
 
 
 @dataclass
@@ -259,17 +241,22 @@ async def build(build: Build) -> BuildResult:
         log.info("build.abort", reason="no tasks")
         return BuildResult.empty(build)
 
-    while not ctx.exhausted:
+    plans = await generate_plans(ctx)
+    while not ctx.exhausted and len(plans) > 0:
         log.info("build.step", best_candidate=ctx.best_candidate)
-        plans = await generate_plans(ctx)
         candidates = [BuildCandidate(ctx=ctx, root_tasks=build.tasks, plan=plan) for plan in plans]
         ctx.candidates.extend(candidates)
         build_tasks = [do_build(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
         # evaluate and rank candidates
         build_results = [candidate.state.to_result() for candidate in candidates]
-        for build_result in build_results:
+        for candidate, build_result in zip(candidates, build_results):
             tasks = [t for t in build_result.target_symbols if isinstance(t, Task)]
+            evaluations = await asyncio.gather(*[evaluate_task(t) for t in tasks])
+            candidate.evaluation = evaluation = aggregate_evaluations(evaluations)
+
+        # update the best candidate (if changed)
+        raise NotImplementedError
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
     return ctx.best_candidate.state.to_result()
@@ -282,7 +269,14 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
 
 
 async def do_build(candidate: BuildCandidate) -> None:
-    raise NotImplementedError
+    """Populates candidate state according to the build plan."""
+
+    # gather instruction sources in parallel
+    all_sources = list(chain(*[plan.sources for plan in candidate.plan.task_plans]))
+    await asyncio.gather(*[source() for source in all_sources])
+
+    for task_plan in candidate.plan.task_plans:
+        xbuilder = XBuilder(task_plan.task.name, task_plan.task.type)
 
 
 def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
@@ -325,6 +319,51 @@ class XBuilder:
     def __init__(self, name: str, type: TypeNode):
         self.name = name
         self.type = type
+
+    def append(self, xblock: XBlock):
+        pass
+
+
+@dataclass(repr=False)
+class InstructionDatasetSampleSource(InstructionSource):
+    dataset: Dataset
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class InstructionCodeSampleSource(InstructionSource):
+    code: Code
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class InstructionGenerateSource(InstructionSource):
+    type: Type
+    count: int
+    seed: int
+
+
+@dataclass(repr=False)
+class InstructionRenderTask(InstructionRender):
+    task: Task
+
+
+@dataclass(repr=False)
+class InstructionRenderFewshot(InstructionRender):
+    source: InstructionSource
+
+
+@dataclass(repr=False)
+class InstructionRenderType(InstructionRender):
+    type: Type
+    include_sample: bool = False
+
+
+@dataclass(repr=False)
+class InstructionRenderOutput(InstructionRender):
+    output_type: Type
 
 
 def get_builds_for(symbol: Task, module_idx: ModuleIndex) -> list[Build]:

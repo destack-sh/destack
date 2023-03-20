@@ -1,6 +1,10 @@
 import enum
-from dataclasses import dataclass
+import uuid
+from collections import defaultdict
+from dataclasses import dataclass, field
+from typing import Optional
 
+from bench.language.type import InterpSymbol
 from bench.runtime.type import TaskInstance
 
 
@@ -27,8 +31,24 @@ class BaseMetric(enum.StrEnum):
 
 @dataclass
 class Evaluation:
+    symbol: Optional[InterpSymbol]
     aggregate_metrics: dict[SummaryMetric, float]
+    base_metrics: dict[BaseMetric, float]
+    id: uuid.UUID = field(default_factory=uuid.uuid4)
 
 
-async def evaluate(task: TaskInstance) -> Evaluation:
+async def evaluate_task(task: TaskInstance) -> Evaluation:
+    # TODO @Incomplete: implement real evaluation
+    return Evaluation(
+        symbol=task,
+        # zero everything
+        aggregate_metrics={metric: 0.0 for metric in SummaryMetric},
+        base_metrics={metric: 0.0 for metric in BaseMetric},
+    )
+
+
+async def aggregate_evaluations(
+    evaluations: list[Evaluation], weights: dict[uuid.UUID, float] = None
+) -> Evaluation:
+    weights = weights or defaultdict(lambda: 1.0)
     raise NotImplementedError

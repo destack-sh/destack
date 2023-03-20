@@ -403,7 +403,6 @@ def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
             source=x.source,
             value=x.value,
             description=x.description,
-            settings=x.settings,
         )
         for x in xblocks
     ]
@@ -422,7 +421,6 @@ def wmap_xblocks(
             source=x.source,
             value=x.value,
             description=x.description,
-            settings=x.settings,
         )
         for x in xblocks
     ]

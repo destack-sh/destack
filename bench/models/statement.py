@@ -90,6 +90,7 @@ class SimpleTypeNode(UUIDModel):
 
 
 class XKind(models.TextChoices):
+    Settings = "settings"
     Static = "static"
     Input = "input"
     Output = "output"
@@ -112,7 +113,6 @@ class XBlock(UUIDModel):
     source = TextChoicesField(choices_enum=XSource)
     value = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    settings = models.JSONField(null=True, blank=True)
 
 
 class StatementManager(models.Manager["Statement"]):
