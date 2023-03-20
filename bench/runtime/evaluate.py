@@ -11,12 +11,18 @@ class SummaryMetric(enum.StrEnum):
 
 
 class BaseMetric(enum.StrEnum):
-    ExecutionDuration = "execution_duration"
-    NodesCount = "nodes_count"
-    StepsCount = "steps_count"
+    # Performance related
+    TypeCorrectness = "type_correctness"
+    ExpectationSatisfaction = "expectation_satisfaction"
+    FeedbackCorrelation = "feedback_correlation"
+    # Clarity related
     InstructionPerplexity = "instruction_perplexity"
     InstructionAgreement = "instruction_agreement"
     InstructionOverlap = "instruction_overlap"
+    # Complexity related
+    ExecutionDuration = "execution_duration"
+    NodesCount = "nodes_count"
+    StepsCount = "steps_count"
 
 
 @dataclass

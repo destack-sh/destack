@@ -1,6 +1,5 @@
 from bench.language.parse import parse_string
-from bench.runtime.bpl import parse_bpl
-from bench.runtime.execute import instantiate, run_sync
+from bench.runtime.run import instantiate, run_sync
 
 
 def test_execute_single_code():
@@ -49,18 +48,3 @@ return 5 * val
     )
     code = instantiate(idx.symbol(".test:function"), idx)
     assert run_sync(code, {"val": 2}) == 10
-
-
-def test_parse_bpl():
-    bpl = r"""
-pragma(model="gpt2", max_tokens=2000, temperature=0.7)
-"Count the animals in the {zoo}."
-# some comment
-animals = []
-for _ in range(max_animals):
-    " - [animal: string]\n"
-    animals.append(animal)
-return animals
-    """
-    prompt = parse_bpl(bpl, {})
-    print(prompt.python_code)

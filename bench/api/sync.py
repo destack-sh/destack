@@ -93,6 +93,7 @@ def project_mutation(
             # TODO @Robustness @Performance: trigger pub_project_mutation after resolver
             #  Currently this is also triggered even if permission check (on ret) fails,
             #  because the permission check runs after the return value is computed.
+            #  This also creates a race condition where the mutation may be published before it's written.
             # publish change
             pub_project_mutation(type, things)
 

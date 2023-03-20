@@ -91,13 +91,13 @@ export type BuildInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
-export type BuildContext = {
-  __typename?: "BuildContext";
+export type BuildState = {
+  __typename?: "BuildState";
   projectVersionId: Scalars["GlobalID"];
   success: Scalars["Boolean"];
 };
 
-export type BuildStateOperationInfo = BuildContext | OperationInfo;
+export type BuildStateOperationInfo = BuildState | OperationInfo;
 
 export type CommitInput = {
   autoDeploy?: Scalars["Boolean"];
@@ -1439,6 +1439,7 @@ export enum RefType {
   Record = "RECORD",
   Statement = "STATEMENT",
   TypeNode = "TYPE_NODE",
+  Xblock = "XBLOCK",
 }
 
 export type RestoreInput = {
@@ -1447,12 +1448,12 @@ export type RestoreInput = {
 
 export type RunInput = {
   arguments: Scalars["JSON"];
-  blocking?: Scalars["Boolean"];
+  block?: Scalars["Boolean"];
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
-  tracing?: ExecutionTracingLevel;
+  trace?: ExecutionTracingLevel;
 };
 
 export type RunState = {
@@ -3050,7 +3051,7 @@ export type BuildMutationVariables = Exact<{
 
 export type BuildMutation = {
   __typename?: "Mutation";
-  build: { __typename?: "BuildContext"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
+  build: { __typename?: "BuildState"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
 };
 
 export type RunMutationVariables = Exact<{
@@ -3058,7 +3059,7 @@ export type RunMutationVariables = Exact<{
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   arguments: Scalars["JSON"];
-  blocking?: InputMaybe<Scalars["Boolean"]>;
+  block?: InputMaybe<Scalars["Boolean"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 }>;
 
@@ -8072,7 +8073,7 @@ export const BuildDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildContext" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildState" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -8119,7 +8120,7 @@ export const RunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "blocking" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "block" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
         {
@@ -8163,8 +8164,8 @@ export const RunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "blocking" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "blocking" } },
+                      name: { kind: "Name", value: "block" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "block" } },
                     },
                     {
                       kind: "ObjectField",

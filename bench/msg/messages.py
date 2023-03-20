@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import ExecutionFrameData
+from bench.runtime.type import ExecutionFrameData, JobData
 
 PROTOCOL_VERSION = 1
 
@@ -44,6 +44,8 @@ class NMessageType(StrEnum):
     REPLY_WRITE_MODULE = "module.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
+    JOB_CHANGED = "job.changed"
+    JOB_SAVED = "job.saved"
 
     # API <-> Worker
     REQUEST_MODULE_BUILD = "runtime.build"
@@ -144,6 +146,18 @@ class ExecutionSavedPayload:
     frames: list[ExecutionFrameData]
 
 
+@_register_payload(NMessageType.JOB_CHANGED)
+class JobChangedPayload:
+    job_id: UUID
+    job: JobData
+
+
+@_register_payload(NMessageType.JOB_SAVED)
+class JobSavedPayload:
+    job_id: UUID
+    job: JobData
+
+
 @_register_payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
@@ -179,7 +193,7 @@ class RepModuleRuntimePayload:
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
-    jobs: list[wire.JobData]
+    jobs: list[JobData]
     stale_symbols: list[UUID]
 
 
@@ -191,7 +205,7 @@ class ModuleRuntimeChangedPayload:
     module: Optional[wire.ModuleData | None]
     dependencies: Optional[list[wire.ModuleData]]
     errors: Optional[list[wire.ErrorData]]
-    jobs: Optional[list[wire.JobData]]
+    jobs: Optional[list[JobData]]
     stale_symbols: Optional[list[UUID]]
 
 
