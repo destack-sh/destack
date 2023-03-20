@@ -63,7 +63,6 @@ class XBlockData:
     kind: XKind
     source: XSource
     value: Optional[typing.Any] = None
-    settings: Optional[typing.Any] = None
     path: Optional[str] = None
     description: Optional[str] = None
 
@@ -449,7 +448,6 @@ def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
         kind=xblock.kind,
         source=xblock.source,
         value=xblock.value,
-        settings=xblock.settings,
         path=xblock.path,
         description=xblock.description,
     )
@@ -463,7 +461,6 @@ def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
         kind=xblock.kind,
         source=xblock.source,
         value=xblock.value,
-        settings=xblock.settings,
         path=xblock.path,
         description=xblock.description,
     )

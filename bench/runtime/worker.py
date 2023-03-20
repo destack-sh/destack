@@ -375,7 +375,7 @@ class ModuleWorker:
         qpos = self._queue_job(job)
         # emit queued status immediately
         if isinstance(runnable_instance, TaskInstance):
-            code_instance = runnable_instance.code
+            code_instance = runnable_instance.implementation_instance
         else:
             code_instance = runnable_instance
         tracer.queue_enter(code_instance, arguments, qpos)
@@ -384,7 +384,7 @@ class ModuleWorker:
     async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
         try:
             if isinstance(runnable, TaskInstance):
-                code_instance = runnable.code
+                code_instance = runnable.implementation_instance
             else:
                 code_instance = runnable
             self.log.info("module.run", code_instance=code_instance)

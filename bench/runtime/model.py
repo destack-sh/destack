@@ -32,6 +32,15 @@ InferenceEndpoint = typing.Callable[[InferenceContext, ...], typing.Awaitable[An
 
 
 @dataclass
+class BaseTextSettings:
+    temperature: float
+    max_tokens: int
+    top_p: Optional[float]
+    stop: Optional[list[str]]
+    logit_bias: Optional[dict[str, float]]
+
+
+@dataclass
 class OpenAITextModel:
     complete_chat: Optional["OpenAIChatCompletion"]
     complete_text: Optional["OpenAITextCompletion"]
@@ -39,7 +48,7 @@ class OpenAITextModel:
 
 
 @dataclass
-class OpenAIChatCompletionSettings:
+class OpenAIChatCompletionSettings(BaseTextSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -55,8 +64,8 @@ class OpenAIChatCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str, None]],
-        output: XBlock[None, OpenAIChatCompletionSettings],
+        input: list[XBlock[str]],
+        settings: OpenAIChatCompletionSettings,
     ) -> str:
         role_map = {
             XSource.System: "system",
@@ -68,13 +77,13 @@ class OpenAIChatCompletion:
         response = await openai.Completion.create(
             model=self.ctx.model.external_name,
             messages=messages,
-            temperature=output.settings.temperature,
-            max_tokens=output.settings.max_tokens,
-            top_p=output.settings.top_p,
-            stop=output.settings.stop,
-            presence_penalty=output.settings.presence_penalty,
-            frequency_penalty=output.settings.frequency_penalty,
-            logit_bias=output.settings.logit_bias,
+            temperature=settings.temperature,
+            max_tokens=settings.max_tokens,
+            top_p=settings.top_p,
+            stop=settings.stop,
+            presence_penalty=settings.presence_penalty,
+            frequency_penalty=settings.frequency_penalty,
+            logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
         )
         text = response["choices"][0]["message"]["content"]
@@ -82,7 +91,7 @@ class OpenAIChatCompletion:
 
 
 @dataclass
-class OpenAITextCompletionSettings:
+class OpenAITextCompletionSettings(BaseTextSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -97,8 +106,8 @@ class OpenAITextCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str, None]],
-        output: XBlock[None, OpenAITextCompletionSettings],
+        input: list[XBlock[str]],
+        settings: OpenAITextCompletionSettings,
     ) -> str:
         role_map = {
             XSource.System: "system",
@@ -111,12 +120,12 @@ class OpenAITextCompletion:
         response = await openai.Completion.create(
             model=self.ctx.model.external_name,
             prompt=prompt,
-            max_tokens=output.settings.max_tokens,
-            temperature=output.settings.temperature,
-            top_p=output.settings.top_p,
-            top_k=output.settings.top_k,
-            stop=output.settings.stop,
-            logit_bias=output.settings.logit_bias,
+            max_tokens=settings.max_tokens,
+            temperature=settings.temperature,
+            top_p=settings.top_p,
+            top_k=settings.top_k,
+            stop=settings.stop,
+            logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
         )
         text = response["choices"][0]["text"]
@@ -127,7 +136,7 @@ class OpenAITextCompletion:
 class OpenAITextEmbedding:
     ctx: InferenceContext
 
-    async def __call__(self, input: XBlock[str, None]) -> list[float]:
+    async def __call__(self, input: XBlock[str]) -> list[float]:
         rep = await openai.Embedding.acreate(input.value, model=self.ctx.model.external_name)
         return rep["data"][0]["embedding"]
 
@@ -148,8 +157,8 @@ class OpenAIAudioTranscription:
 
     async def __call__(
         self,
-        input: XBlock[pydub.AudioSegment, None],
-        output: XBlock[None, OpenAIAudioTranscriptionSettings],
+        input: XBlock[pydub.AudioSegment],
+        settings: OpenAIAudioTranscriptionSettings,
     ) -> str:
         raise NotImplementedError
 
@@ -160,7 +169,7 @@ class AnthropicTextModel:
 
 
 @dataclass
-class AnthropicTextCompletionSettings:
+class AnthropicTextCompletionSettings(BaseTextSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -175,8 +184,8 @@ class AnthropicTextCompletion:
 
     async def __call__(
         self,
-        input: list[XBlock[str, None]],
-        output: XBlock[None, AnthropicTextCompletionSettings],
+        input: list[XBlock[str]],
+        settings: AnthropicTextCompletionSettings,
     ) -> str:
         raise NotImplementedError
 
@@ -200,7 +209,7 @@ class StabilityAIImageGeneration:
     async def __call__(
         self,
         ctx: InferenceContext,
-        input: XBlock[StabilityAIImageGenerationInput, None],
-        output: XBlock[None, StabilityAIImageGenerationSettings],
+        input: XBlock[StabilityAIImageGenerationInput],
+        settings: StabilityAIImageGenerationSettings,
     ) -> PIL.Image:
         raise NotImplementedError

@@ -329,14 +329,14 @@ def instantiate(
         target_id = build.get_target(symbol.id)
         if target_id is None:
             raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
-        code = idx.symbol_by_id(target_id, Code)
-        code_instance = instantiate(code, idx=idx, build=build, proxy=proxy)
+        implementation = idx.symbol_by_id(target_id, Code)
+        implementation_instance = instantiate(implementation, idx=idx, build=build, proxy=proxy)
         task = TaskInstance(
             **symbol.__dict__,
             build=build,
-            code=typing.cast(CodeInstance, code_instance),
+            implementation_instance=typing.cast(CodeInstance, implementation_instance),
         )
-        code_instance.task = task
+        implementation_instance.task = task
         return task
     elif isinstance(symbol, Code):
         code_str, code_callable = _instantiate_code_callable(symbol, instantiated_context, proxy)
