@@ -13,7 +13,7 @@ import { useTitle } from "@vueuse/core";
 import { computed } from "vue";
 
 const title = useTitle();
-title.value = "Home";
+title.value = "Home • Bench";
 
 const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
   graphql(/* GraphQL */ `

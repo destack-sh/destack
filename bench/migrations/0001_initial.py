@@ -658,7 +658,7 @@ class Migration(migrations.Migration):
                 (
                     "started_at",
                     models.DateTimeField(
-                        blank=True, help_text="Time of transition to RUNNING status.", null=True
+                        blank=True, help_text="Time of transition to Running status.", null=True
                     ),
                 ),
                 (

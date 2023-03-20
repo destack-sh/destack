@@ -1,6 +1,5 @@
 import asyncio
-import enum
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
 from typing import Any, ClassVar, NamedTuple, Optional, cast
@@ -18,6 +17,7 @@ from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish_soon, request, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
+    JobChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
     ModuleRunErrorType,
@@ -34,10 +34,19 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
 )
 from bench.runtime.build import BuildResult, build, get_builds_for
-from bench.runtime.reactivity import RevisionMap, diff_trees, tree_from_mappings, tree_from_module
+from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
-from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, TaskInstance
+from bench.runtime.type import (
+    CodeInstance,
+    ExecutionFrame,
+    ExecutionFrameData,
+    Job,
+    JobData,
+    JobStatus,
+    JobType,
+    TaskInstance,
+)
 from bench.utils.func import wrap_task
 from bench.utils.utils import required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -50,71 +59,6 @@ InterpModule = NamedTuple(
     errors=list[language.Error],
     dependencies=list[language.ModuleIndex],
 )
-
-
-class JobType(enum.StrEnum):
-    INTERP = "interp"
-    GENERATE = "generate"
-    BUILD = "build"
-    EVALUATE = "evaluate"
-    LINT = "lint"
-    RUN = "run"
-
-
-# lower is higher
-JOB_PRIORITY = {
-    JobType.INTERP: 0,
-    JobType.RUN: 0,
-    JobType.GENERATE: 1,
-    JobType.BUILD: 2,
-    JobType.EVALUATE: 3,
-    JobType.LINT: 4,
-}
-
-
-class JobStatus(enum.StrEnum):
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    CANCELLING = "cancelling"
-    CANCELLED = "cancelled"
-    FAILED = "failed"
-
-
-@dataclass(repr=False)
-class Job:
-    type: ClassVar[JobType]
-    id: UUID = field(default_factory=UUIDT)
-    status: JobStatus = JobStatus.QUEUED
-    started_at: Optional[datetime] = None
-    terminated_at: Optional[datetime] = None
-    task: Optional[asyncio.Task] = None
-    terminated: asyncio.Event = field(default_factory=asyncio.Event)
-
-    def __str__(self):
-        return f"{self.type} {self.id} ({self.status})"
-
-    def __repr__(self):
-        return f"<Job {self}>"
-
-    def __lt__(self, other):
-        return self.default_priority < other.default_priority
-
-    async def cancel(self):
-        if self.task is None or self.task.done() or self.status != JobStatus.RUNNING:
-            logger.warning(f"job.cancel.ignored", job=self)
-            return
-        self.status = JobStatus.CANCELLING
-        logger.info("job.cancel", job=self)
-        self.task.cancel()
-
-    @property
-    def success(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def default_priority(self) -> int:
-        return JOB_PRIORITY[self.type]
 
 
 @dataclass(repr=False)
@@ -146,7 +90,6 @@ class RunJob(Job):
     error_details: Optional[Any] = None
     output: Optional[LiteralValue] = None
     tracing_level: ExecutionTracingLevel = required_field()
-    deployment_id: UUID = required_field()
     trigger_type: str = required_field()
     trigger_id: Optional[UUID] = None
 
@@ -155,9 +98,12 @@ class RunJob(Job):
         return self.error is None
 
 
-def rmap_job(job: Job) -> wire.JobData:
-    data = wire.JobData(
+def rmap_job(job: Job) -> JobData:
+    data = JobData(
         type=job.type,
+        project_id=job.project_id,
+        project_version_id=job.project_version_id,
+        deployment_id=job.deployment_id,
         id=job.id,
         status=job.status,
         started_at=job.started_at,
@@ -215,58 +161,7 @@ def interp_module(
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
-def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:
-    """Gets the stale generated or generator symbols in the given module"""
-
-    # A generated/generator symbol is stale if
-    #  1) one of its dependencies has changed
-    #  2) one of its dependencies is affected by another change
-    # These are because 1) checks for changes in known dependencies,
-    # while 2) checks for new symbols that affect the dependencies.
-
-    # (we exclude generated symbols here because we only need to consider source symbols)
-    # TODO @Robustness: tree_from_module reactivity does not work with imports/redefs (incl. generated)
-    #  TrackedTree assumes that each nodes dependencies are its revisioned children, and
-    #  and any transient dependencies are tracked by walking descendants and adding them
-    #  to the overall dependencies. The tree stores nodes by their source id, so with
-    #  imports and redefs only the first instance of each descendant is tracked.
-    #  This is not a problem with regular refs since you can't refer to refs.
-    #  :NaiveTreeTracking
-    new_tree = tree_from_module(revmap, idx, exclude_generated=True)
-
-    stale_symbols = []
-    for symbol in idx.symbols.values():
-        if not symbol.is_generator:
-            continue
-        if isinstance(symbol, Build):
-            source_mappings = symbol.source_mappings
-        else:
-            raise ValueError(f"unexpected generator symbol: {symbol}")
-
-        # rebuild old tree for this generator
-        old_tree = tree_from_mappings(source_mappings)
-        diff_nodes = list(diff_trees(old_tree, new_tree))
-        if not diff_nodes:
-            # nothing relevant changed
-            continue
-
-        # mark generated statements as stale
-        # also mark generator and the directly mapped source of the generated symbol
-        # ideally we would also track which generator the symbol is stale in
-        for source_mapping in source_mappings:
-            if source_mapping.target_id is None:
-                continue
-            generated_target = idx.get_symbol_by_id(source_mapping.target_id)
-            generated_source = idx.get_symbol_by_id(source_mapping.source_id)
-            if generated_target is not None:
-                # ignore if no target (was deleted or undirected dependency)
-                stale_symbols.append(generated_target.source)
-                stale_symbols.append(generated_source.source)
-        stale_symbols.append(symbol.source)
-
-    return stale_symbols
-
-
+# TODO @Cleanup: remove recent jobs buffer once all job history is in DB
 RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in the DB
 
 
@@ -277,6 +172,7 @@ class ModuleWorker:
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
+        self.deployment_id: UUID = None  # TODO @Broken: assign workers to deployments
         self.ready = asyncio.Event()
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
@@ -317,7 +213,12 @@ class ModuleWorker:
         return qpos
 
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
-        job = InterpJob(new_source=source)
+        job = InterpJob(
+            new_source=source,
+            project_id=self.project_id,
+            project_version_id=self.module_id,
+            deployment_id=self.deployment_id,
+        )
         self._queue_job(job)
         return job
 
@@ -373,8 +274,8 @@ class ModuleWorker:
         stale_builds = [
             symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
         ]
-        for build in stale_builds:
-            self.queue_build(build.id)
+        for b in stale_builds:
+            self.queue_build(b.id)
             # TODO @Broken: cancel any running jobs for this build
 
     def queue_build(self, buildable_id: UUID) -> BuildJob | ModuleBuildErrorType:
@@ -390,7 +291,14 @@ class ModuleWorker:
         else:
             return ModuleBuildErrorType.INVALID_BUILDABLE
 
-        job = BuildJob(revmap=self.revmap, buildable_id=buildable_id, builds=builds)
+        job = BuildJob(
+            revmap=self.revmap,
+            buildable_id=buildable_id,
+            builds=builds,
+            project_id=self.project_id,
+            project_version_id=self.module_id,
+            deployment_id=self.deployment_id,
+        )
         self._queue_job(job)
         return job
 
@@ -409,7 +317,6 @@ class ModuleWorker:
         build: str | UUID,
         arguments: dict[str, Any],
         tracing_level: ExecutionTracingLevel,
-        deployment_id: UUID,
         trigger_type: ExecutionTriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | ModuleRunErrorType:
@@ -437,7 +344,7 @@ class ModuleWorker:
                 root_id,
                 project_id=self.project_id,
                 tracing_level=tracing_level,
-                deployment_id=deployment_id,
+                deployment_id=self.deployment_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
             )
@@ -459,9 +366,11 @@ class ModuleWorker:
             runnable=runnable_instance,
             arguments=arguments,
             tracing_level=tracing_level,
-            deployment_id=deployment_id,
             trigger_type=trigger_type,
             trigger_id=trigger_id,
+            project_id=self.project_id,
+            project_version_id=self.module_id,
+            deployment_id=self.deployment_id,
         )
         qpos = self._queue_job(job)
         # emit queued status immediately
@@ -495,7 +404,7 @@ class ModuleWorker:
         while True:
             _, job = await queue.get()
             try:
-                job.status = JobStatus.RUNNING
+                job.status = JobStatus.Running
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.log.info("module.job.start", job=job)
                 self.master.notify_job_status(self, job)
@@ -525,7 +434,7 @@ class ModuleWorker:
                 job.error = str(e)
                 self.log.exception("module.job.failed", job=job, sentry_enabled=sentry_enabled)
             finally:
-                job.status = JobStatus.COMPLETED if job.success else JobStatus.FAILED
+                job.status = JobStatus.Completed if job.success else JobStatus.Failed
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
                 self.master.notify_job_status(self, job)
@@ -548,7 +457,7 @@ class ModuleWorker:
         )
         # wait for the first interp job to complete
         await interp_job.terminated.wait()
-        if interp_job.status != JobStatus.COMPLETED:
+        if interp_job.status != JobStatus.Completed:
             self.log.error("module_worker_init_failed", job=interp_job)
             raise RuntimeError(f"failed to initialize module worker: {interp_job}")
 
@@ -672,7 +581,6 @@ class Worker:
             runnable_type=msg.p.runnable_type,
             build=msg.p.build,
             arguments=msg.p.arguments,
-            deployment_id=msg.p.deployment_id,
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
@@ -689,11 +597,15 @@ class Worker:
 
     def notify_job_status(self, module_worker: ModuleWorker, job: Job):
         """Publishes the new job status (sends out module runtime updates)"""
+        # TODO @Cleanup: disentangle job status update and module state updates
+        publish_soon(
+            NMessageType.JOB_CHANGED, JobChangedPayload(module_worker.module_id, rmap_job(job))
+        )
         # publish job status
         change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
         publish_soon(NMessageType.MODULE_RUNTIME_CHANGED, change)
         # write back build results to internal server
-        if isinstance(job, BuildJob) and job.status == JobStatus.COMPLETED:
+        if isinstance(job, BuildJob) and job.status == JobStatus.Completed:
             asyncio.get_running_loop().create_task(
                 wrap_task(self.write_build_job_results(module_worker, job))
             )

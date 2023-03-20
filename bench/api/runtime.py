@@ -12,7 +12,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language, models
+from bench import language, models, runtime
 from bench.api.auth import can_view_project, can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType, expand_project_version_ids
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
@@ -32,6 +32,7 @@ from bench.msg.messages import (
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
 )
+from bench.runtime.type import JobData
 
 logger = structlog.get_logger(__name__)
 
@@ -51,8 +52,8 @@ class InterpFile:
     symbols: list["InterpSymbol"]
 
 
-JobType = gql.enum(wire.JobType)
-JobStatus = gql.enum(wire.JobStatus)
+JobType = gql.enum(runtime.type.JobType)
+JobStatus = gql.enum(runtime.type.JobStatus)
 
 
 @gql.type
@@ -62,7 +63,6 @@ class InterpJob:
     status: JobStatus
     started_at: Optional[datetime]
     terminated_at: Optional[datetime]
-    symbol: Optional["InterpSymbol"]
 
 
 @gql.type
@@ -103,13 +103,11 @@ class InterpError:
     symbol: Optional[InterpSymbol]
 
 
-# TODO @Cleanup: distinguish project change, module static analysis, module jobs and module runtime
-#  Right now it's all intermingled.
 @gql.type
 class ModuleRuntime:
     updated_at: datetime
     module: InterpModule
-    jobs: list[InterpJob]
+    jobs: list[InterpJob]  # TODO @Cleanup: remove jobs from ModuleRuntime
     dependencies: list[InterpModule]
     errors: list["InterpError"]
     stale_symbols: list[InterpSymbol]
@@ -171,16 +169,14 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     return errors
 
 
-def rmap_job(wire_job: wire.JobData, module: InterpModule) -> InterpJob:
+def rmap_job(wire_job: JobData, module: InterpModule) -> InterpJob:
     """Maps a wire job into a GQL job"""
-    symbol = _get_symbol_from_module(module, wire_job.statement_id)
     return InterpJob(
         id=GlobalID("Job", str(wire_job.id)),
         type=wire_job.type,
         status=wire_job.status,
         started_at=wire_job.started_at,
         terminated_at=wire_job.terminated_at,
-        symbol=symbol,
     )
 
 

@@ -2,7 +2,6 @@ import enum
 import typing
 from collections import OrderedDict
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Optional, Union
 from uuid import UUID
 
@@ -520,42 +519,7 @@ def rmap_error(error: language.Error) -> ErrorData:
     )
 
 
-#
-# Jobs
-#
-
-
-class JobType(enum.StrEnum):
-    INTERP = "interp"
-    BUILD = "build"
-    GENERATE = "generate"
-    EVALUATE = "evaluate"
-
-
-class JobStatus(enum.StrEnum):
-    QUEUED = "queued"
-    RUNNING = "running"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-@dataclass(repr=False)
-class JobData:
-    id: UUID
-    type: JobType
-    status: JobStatus
-    started_at: Optional[datetime] = None
-    terminated_at: Optional[datetime] = None
-    error: Optional[typing.Any] = None
-    # Job-specific data
-    statement_id: Optional[UUID] = None
-
-    def __str__(self):
-        return f"{self.type} {self.id} ({self.status})"
-
-    def __repr__(self):
-        return f"<JobData {self}>"
-
+# TODO @Cleanup: execution data doesn't belong to language wire format
 
 #
 # Executions

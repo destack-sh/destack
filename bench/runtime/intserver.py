@@ -3,13 +3,15 @@ import asyncio
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.models import Execution, ProjectVersion, mapper
+from bench.models import Execution, Job, ProjectVersion, mapper
 from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ExecutionSavedPayload,
+    JobChangedPayload,
+    JobSavedPayload,
     ModuleChangedPayload,
     NMessageType,
     ProjectVersionChangedPayload,
@@ -19,7 +21,7 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
 )
 from bench.msg.sync import is_semantic_mutation
-from bench.runtime.type import ExecutionFrameData
+from bench.runtime.type import ExecutionFrameData, JobData
 from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
@@ -41,6 +43,7 @@ class InternalServer:
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
+            await subscribe(f"{NMessageType.JOB_CHANGED}.*", cb=self.job_changed),
             await subscribe(
                 f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
             ),
@@ -89,6 +92,16 @@ class InternalServer:
             )
 
     @message_handler
+    async def job_changed(self, msg: NMessage[JobChangedPayload]) -> None:
+        save_success = await sync_to_async(save_jobs)(msg.payload.jobs)
+        if save_success:
+            # forward to API clients now that DB jobs are saved
+            await publish(
+                NMessageType.JOB_SAVED,
+                JobSavedPayload(module_id=msg.p.module_id, jobs=msg.p.jobs),
+            )
+
+    @message_handler
     async def project_version_changed(self, msg: NMessage[ProjectVersionChangedPayload]) -> None:
         # reload project version as module
         # TODO @Performance: send partial module updates :PartialModuleUpdates
@@ -125,4 +138,25 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
         return True
     except Exception as e:
         logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
+        return False
+
+
+def save_jobs(jobs: list[JobData]) -> bool:
+    model_jobs: list[Job] = []
+    for job in jobs:
+        model_job = mapper.rmap_job(job)
+        model_jobs.append(model_job)
+
+    try:
+        # upsert jobs
+        Job.objects.bulk_create(
+            model_jobs,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["status", "terminated_at"],
+        )
+        logger.debug("save_jobs", jobs=model_jobs)
+        return True
+    except Exception as e:
+        logger.error("save_jobs_failed", exc_info=e, jobs=model_jobs)
         return False

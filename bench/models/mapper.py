@@ -30,7 +30,7 @@ from bench.language.type import (
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
 from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
-from bench.runtime.type import ExecutionFrameData
+from bench.runtime.type import ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -578,6 +578,17 @@ def rmap_type_nodes(
         # find revision from child nodes (default to statement's revision)
         wire_node.revision = type_nodes_revisions.get(wire_node.id, for_statement.revision)
     return wire_nodes_data
+
+
+def rmap_job(job: JobData) -> models.Job:
+    return models.Job(
+        id=job.id,
+        type=job.type,
+        status=job.status,
+        project_id=job.project_id,
+        project_version_id=job.project_version_id,
+        deployment_id=job.deployment_id,
+    )
 
 
 def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:

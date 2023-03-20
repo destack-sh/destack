@@ -2,6 +2,7 @@ from .data import DatasetRecord
 from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
+from .job import Job, JobStatus, JobType
 from .model import ModelInference
 from .notification import Notification, NotificationStatus, NotificationType
 from .organization import (
@@ -38,6 +39,11 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionTriggerType",
     "File",
+    "GeneratedMapping",
+    "GeneratedMappingType",
+    "Job",
+    "JobStatus",
+    "JobType",
     "ModelInference",
     "Notification",
     "NotificationStatus",
@@ -55,13 +61,11 @@ __all__ = [
     "RefMappingKind",
     "RefType",
     "SimpleTypeNode",
-    "GeneratedMapping",
-    "GeneratedMappingType",
     "Statement",
     "StatementType",
     "SymbolType",
+    "User",
     "XBlock",
     "XKind",
     "XSource",
-    "User",
 ]

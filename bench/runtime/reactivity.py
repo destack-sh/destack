@@ -6,6 +6,7 @@ from itertools import chain
 from typing import Iterator, Optional
 from uuid import UUID
 
+from bench import language
 from bench.language import GeneratedMapping, ModuleIndex
 from bench.language.type import (
     Build,
@@ -236,3 +237,55 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
             track_interp_symbol(tree, step)
         if symbol.implementation is not None:
             track_interp_symbol(tree, symbol.implementation)
+
+
+def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:
+    """Gets the stale generated or generator symbols in the given module"""
+
+    # A generated/generator symbol is stale if
+    #  1) one of its dependencies has changed
+    #  2) one of its dependencies is affected by another change
+    # These are because 1) checks for changes in known dependencies,
+    # while 2) checks for new symbols that affect the dependencies.
+
+    # (we exclude generated symbols here because we only need to consider source symbols)
+    # TODO @Robustness: tree_from_module reactivity does not work with imports/redefs (incl. generated)
+    #  TrackedTree assumes that each nodes dependencies are its revisioned children, and
+    #  and any transient dependencies are tracked by walking descendants and adding them
+    #  to the overall dependencies. The tree stores nodes by their source id, so with
+    #  imports and redefs only the first instance of each descendant is tracked.
+    #  This is not a problem with regular refs since you can't refer to refs.
+    #  :NaiveTreeTracking
+    new_tree = tree_from_module(revmap, idx, exclude_generated=True)
+
+    stale_symbols = []
+    for symbol in idx.symbols.values():
+        if not symbol.is_generator:
+            continue
+        if isinstance(symbol, Build):
+            source_mappings = symbol.source_mappings
+        else:
+            raise ValueError(f"unexpected generator symbol: {symbol}")
+
+        # rebuild old tree for this generator
+        old_tree = tree_from_mappings(source_mappings)
+        diff_nodes = list(diff_trees(old_tree, new_tree))
+        if not diff_nodes:
+            # nothing relevant changed
+            continue
+
+        # mark generated statements as stale
+        # also mark generator and the directly mapped source of the generated symbol
+        # ideally we would also track which generator the symbol is stale in
+        for source_mapping in source_mappings:
+            if source_mapping.target_id is None:
+                continue
+            generated_target = idx.get_symbol_by_id(source_mapping.target_id)
+            generated_source = idx.get_symbol_by_id(source_mapping.source_id)
+            if generated_target is not None:
+                # ignore if no target (was deleted or undirected dependency)
+                stale_symbols.append(generated_target.source)
+                stale_symbols.append(generated_source.source)
+        stale_symbols.append(symbol.source)
+
+    return stale_symbols

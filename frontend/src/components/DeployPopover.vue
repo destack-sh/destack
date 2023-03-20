@@ -12,9 +12,10 @@ import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { CheckIcon } from "@heroicons/vue/20/solid";
-import { CloudArrowUpIcon, CloudIcon } from "@heroicons/vue/24/outline";
+import { CloudArrowUpIcon, CloudIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref } from "vue";
+import { useClipboard } from "@vueuse/core";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
 const emit = defineEmits<{ (e: "show"): void }>();
@@ -108,6 +109,12 @@ provideGlobalAction({
     deployButtonRef.value?.$el?.click();
   },
 });
+
+const clipboard = useClipboard();
+function copyApiUrlToClipboard() {
+  const url = `https://api.symbolx.com/${project.value.owner.slug}/${project.value.slug}/run`;
+  clipboard.copy(url);
+}
 </script>
 
 <template>
@@ -151,15 +158,18 @@ provideGlobalAction({
             >
             at:
           </p>
-          <p class="mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
-            <a
-              :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`"
-              class="text-gray-900 underline-offset-4 hover:underline"
-            >
+          <p class="relative mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
+            <span :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`" class="text-gray-900">
               api.symbolx.com/<span class="text-orange-600">{{ project.owner.slug }}</span
               >/<span class="text-orange-600">{{ project.slug }}</span
               >/run
-            </a>
+            </span>
+            <button
+              class="absolute right-1 top-[4px] rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-900"
+              @click="copyApiUrlToClipboard"
+            >
+              <DocumentDuplicateIcon class="h-4 w-4 text-gray-500" />
+            </button>
           </p>
         </div>
 

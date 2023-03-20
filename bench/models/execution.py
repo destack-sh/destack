@@ -54,10 +54,13 @@ class Execution(UUIDTModel):
     deployment = models.ForeignKey(
         "Deployment", on_delete=models.CASCADE, related_name="executions+"
     )
+    job = models.ForeignKey(
+        "Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
-        null=True, blank=True, help_text="Time of transition to RUNNING status."
+        null=True, blank=True, help_text="Time of transition to Running status."
     )
     terminated_at = models.DateTimeField(
         null=True, blank=True, help_text="Time of transition to a terminal status."
@@ -89,6 +92,7 @@ class Execution(UUIDTModel):
         on_delete=models.SET_NULL,
         related_name="executions+",
     )
+    build_hash = models.CharField(max_length=64, null=True, blank=True)
     task = models.ForeignKey(
         "Statement",
         null=True,
