@@ -616,6 +616,7 @@ def _parse_definition_content(
             language=lang,  # noqa
             code=code_text,
             type_node=type,
+            xblocks=[],  # not parsed yet
         )
     elif symbol_type.value == SymbolType.DATA:
         tokens.eat_space()
