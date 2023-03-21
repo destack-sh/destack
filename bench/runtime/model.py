@@ -1,5 +1,6 @@
 import typing
 import uuid
+from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 from uuid import UUID
