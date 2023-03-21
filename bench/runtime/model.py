@@ -1,6 +1,5 @@
 import typing
 import uuid
-from collections import namedtuple
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional
 from uuid import UUID
@@ -11,7 +10,7 @@ import pydub
 import structlog
 
 from bench.language.type import XBlock, XSource
-from bench.runtime.type import ModelInstance
+from bench.runtime.type import ModelInference, ModelInstance, TextGenerationSettings
 
 logger = structlog.get_logger(__name__)
 
@@ -33,23 +32,7 @@ InferenceEndpoint = typing.Callable[[InferenceContext, ...], typing.Awaitable[An
 
 
 @dataclass
-class BaseTextSettings:
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    stop: Optional[list[str]]
-    logit_bias: Optional[dict[str, float]]
-
-
-@dataclass
-class OpenAITextModel:
-    complete_chat: Optional["OpenAIChatCompletion"]
-    complete_text: Optional["OpenAITextCompletion"]
-    embed_text: Optional["OpenAITextEmbedding"]
-
-
-@dataclass
-class OpenAIChatCompletionSettings(BaseTextSettings):
+class OpenAIChatCompletionSettings(TextGenerationSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -60,10 +43,10 @@ class OpenAIChatCompletionSettings(BaseTextSettings):
 
 
 @dataclass
-class OpenAIChatCompletion:
+class OpenAIChatCompletion(ModelInference):
     ctx: InferenceContext
 
-    async def __call__(
+    async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: OpenAIChatCompletionSettings,
@@ -92,7 +75,7 @@ class OpenAIChatCompletion:
 
 
 @dataclass
-class OpenAITextCompletionSettings(BaseTextSettings):
+class OpenAITextCompletionSettings(TextGenerationSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -102,10 +85,10 @@ class OpenAITextCompletionSettings(BaseTextSettings):
 
 
 @dataclass
-class OpenAITextCompletion:
+class OpenAITextCompletion(ModelInference):
     ctx: InferenceContext
 
-    async def __call__(
+    async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: OpenAITextCompletionSettings,
@@ -134,43 +117,27 @@ class OpenAITextCompletion:
 
 
 @dataclass
-class OpenAITextEmbedding:
+class OpenAITextEmbedding(ModelInference):
     ctx: InferenceContext
 
-    async def __call__(self, input: XBlock[str]) -> list[float]:
+    async def embed_text(self, input: XBlock[str]) -> list[float]:
         rep = await openai.Embedding.acreate(input.value, model=self.ctx.model.external_name)
         return rep["data"][0]["embedding"]
 
 
 @dataclass
-class OpenAIAudioModel:
-    transcribe: "OpenAIAudioTranscription"
-
-
-@dataclass
-class OpenAIAudioTranscriptionSettings:
-    prompt: Optional[str]
-
-
-@dataclass
-class OpenAIAudioTranscription:
+class OpenAIAudioTranscription(ModelInference):
     ctx: InferenceContext
 
-    async def __call__(
+    async def transcribe_audio(
         self,
-        input: XBlock[pydub.AudioSegment],
-        settings: OpenAIAudioTranscriptionSettings,
+        input: XBlock[pydub.AudioSegment | str],
     ) -> str:
-        raise NotImplementedError
+        raise IncapableError
 
 
 @dataclass
-class AnthropicTextModel:
-    complete_text: "AnthropicTextCompletion"
-
-
-@dataclass
-class AnthropicTextCompletionSettings(BaseTextSettings):
+class AnthropicTextCompletionSettings(TextGenerationSettings):
     temperature: float
     max_tokens: int
     top_p: Optional[float]
@@ -180,10 +147,10 @@ class AnthropicTextCompletionSettings(BaseTextSettings):
 
 
 @dataclass
-class AnthropicTextCompletion:
+class AnthropicTextCompletion(ModelInference):
     ctx: InferenceContext
 
-    async def __call__(
+    async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: AnthropicTextCompletionSettings,
@@ -206,10 +173,12 @@ class StabilityAIImageGenerationInput:
     init_image: Optional[PIL.Image.Image]
 
 
-class StabilityAIImageGeneration:
-    async def __call__(
+@dataclass(repr=False)
+class StabilityAIImageGeneration(ModelInference):
+    ctx: InferenceContext
+
+    async def generate_image(
         self,
-        ctx: InferenceContext,
         input: XBlock[StabilityAIImageGenerationInput],
         settings: StabilityAIImageGenerationSettings,
     ) -> PIL.Image:
