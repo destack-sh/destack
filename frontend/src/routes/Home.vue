@@ -17,8 +17,9 @@ title.value = "Home • Bench";
 
 const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
   graphql(/* GraphQL */ `
-    query home {
+    query homeBenches {
       me {
+        id
         slug
         projects {
           totalCount
@@ -31,7 +32,7 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
               createdAt
               type
               visibility
-              createdAt
+              description
             }
           }
         }
@@ -49,7 +50,7 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
                     createdAt
                     type
                     visibility
-                    createdAt
+                    description
                   }
                 }
               }
@@ -61,12 +62,35 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
   `)
 );
 
-const benches = computed(() => {
+const { result: communityBenchesResult, loading: communityBenchesLoading } = useQuery(
+  graphql(/* GraphQL */ `
+    query featuredBenches {
+      featuredProjects(last: 5) {
+        totalCount
+        edges {
+          node {
+            id
+            name
+            slug
+            path
+            createdAt
+            type
+            visibility
+            description
+          }
+        }
+      }
+    }
+  `)
+);
+
+const myBenches = computed(() => {
   return myBenchesResult.value?.me?.projects.edges
     .map((e) => e.node)
     .concat(myBenchesResult.value?.me?.organizations.edges.flatMap((org) => org.node.projects.edges.map((e) => e.node)))
     .sort((a, b) => (b.createdAt < a.createdAt ? -1 : 1));
 });
+const communityBenches = computed(() => communityBenchesResult.value?.featuredProjects.edges.map((e) => e.node));
 </script>
 <template>
   <div class="h-full w-full bg-gray-50">
@@ -95,7 +119,7 @@ const benches = computed(() => {
         <!-- Empty state -->
         <router-link
           :to="{ name: 'CreateProject' }"
-          v-if="benches == null || benches?.length == 0"
+          v-if="myBenches == null || myBenches?.length == 0"
           class="col-span-full text-gray-900"
         >
           <div>Nothing here yet.</div>
@@ -106,7 +130,7 @@ const benches = computed(() => {
         </router-link>
         <!-- Bench card :BenchCard -->
         <router-link
-          v-for="project of benches"
+          v-for="project of myBenches"
           :key="project.id"
           class="group flex h-28 flex-col justify-between rounded-sm border border-orange-900 border-opacity-20 bg-white p-3 shadow-sm ring-0 ring-orange-900 ring-opacity-5 transition-colors duration-75 hover:border-orange-600"
           :to="`/${project.path.replace('.', '/')}`"
@@ -124,10 +148,33 @@ const benches = computed(() => {
         </router-link>
       </div>
     </div>
-    <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!myBenchesLoading">
-      <h1 class="text-2xl font-bold text-gray-900">Community</h1>
-      <div class="mt-4 grid grid-cols-4 text-gray-900">
-        <div>Coming soon!</div>
+    <!-- Featured/community work -->
+    <div class="mx-auto mt-8 max-w-[1000px] px-8 py-4" v-show="!communityBenchesLoading">
+      <h1 class="flex items-center gap-2.5 text-2xl font-bold text-gray-900">
+        Community
+        <!-- Soon -->
+        <span class="rounded-sm border border-orange-600 px-1 text-sm font-bold text-orange-600"> soon </span>
+      </h1>
+      <!-- Communuity Benches grid -->
+      <div class="mt-4 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+        <!-- Bench card :BenchCard -->
+        <router-link
+          v-for="project of communityBenches"
+          :key="project.id"
+          class="group flex h-28 flex-col justify-between rounded-sm border border-orange-900 border-opacity-20 bg-white p-3 shadow-sm ring-0 ring-orange-900 ring-opacity-5 transition-colors duration-75 hover:border-orange-600"
+          :to="`/${project.path.replace('.', '/')}`"
+        >
+          <div class="flex max-w-full flex-row items-center justify-between gap-2">
+            <h3 class="flex max-w-full flex-row items-center font-bold text-gray-900">
+              <span class="flex-shrink truncate">{{ project.name }}</span>
+              <component
+                :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
+                class="ml-1.5 h-4 w-4 flex-shrink-0 text-gray-700"
+              />
+            </h3>
+          </div>
+          <div class="max-w-full truncate text-xs text-gray-500">{{ project.path.replace(".", "/") }}</div>
+        </router-link>
       </div>
     </div>
     <NotificationArea />

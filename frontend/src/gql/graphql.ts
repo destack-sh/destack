@@ -278,7 +278,7 @@ export type Execution = Node & {
   project: Project;
   projectVersion: ProjectVersion;
   root?: Maybe<Execution>;
-  /** Time of transition to RUNNING status. */
+  /** Time of transition to Running status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: ExecutionStatus;
   task?: Maybe<Statement>;
@@ -423,7 +423,6 @@ export type InterpJob = {
   id: Scalars["GlobalID"];
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: JobStatus;
-  symbol?: Maybe<InterpSymbol>;
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   type: JobType;
 };
@@ -476,10 +475,12 @@ export type InterpSymbol = SimplyTyped & {
 };
 
 export enum JobStatus {
-  Completed = "COMPLETED",
-  Failed = "FAILED",
-  Queued = "QUEUED",
-  Running = "RUNNING",
+  Cancelled = "Cancelled",
+  Cancelling = "Cancelling",
+  Completed = "Completed",
+  Failed = "Failed",
+  Queued = "Queued",
+  Running = "Running",
 }
 
 export enum JobType {
@@ -487,6 +488,8 @@ export enum JobType {
   Evaluate = "EVALUATE",
   Generate = "GENERATE",
   Interp = "INTERP",
+  Lint = "LINT",
+  Run = "RUN",
 }
 
 export enum ModuleRunErrorType {
@@ -1100,6 +1103,7 @@ export type Project = Node & {
   canWrite: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   deployments: DeploymentConnection;
+  description?: Maybe<Scalars["String"]>;
   head: ProjectVersion;
   id: Scalars["GlobalID"];
   migrationMappings: ProjectMigrationInfo;
@@ -1273,6 +1277,7 @@ export enum ProjectVisibility {
 export type Query = {
   __typename?: "Query";
   executions: ExecutionConnection;
+  featuredProjects: ProjectConnection;
   file?: Maybe<File>;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
@@ -1303,6 +1308,13 @@ export type QueryExecutionsArgs = {
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
   taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+};
+
+export type QueryFeaturedProjectsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type QueryFileArgs = {
@@ -2363,12 +2375,13 @@ export type ExistingProjectBySlugQuery = {
   projectBySlug?: { __typename?: "Project"; id: any; slug: string } | null;
 };
 
-export type HomeQueryVariables = Exact<{ [key: string]: never }>;
+export type HomeBenchesQueryVariables = Exact<{ [key: string]: never }>;
 
-export type HomeQuery = {
+export type HomeBenchesQuery = {
   __typename?: "Query";
   me?: {
     __typename?: "User";
+    id: any;
     slug: string;
     projects: {
       __typename?: "ProjectConnection";
@@ -2384,6 +2397,7 @@ export type HomeQuery = {
           createdAt: any;
           type: ProjectType;
           visibility: ProjectVisibility;
+          description?: string | null;
         };
       }>;
     };
@@ -2407,6 +2421,7 @@ export type HomeQuery = {
                 createdAt: any;
                 type: ProjectType;
                 visibility: ProjectVisibility;
+                description?: string | null;
               };
             }>;
           };
@@ -2414,6 +2429,30 @@ export type HomeQuery = {
       }>;
     };
   } | null;
+};
+
+export type FeaturedBenchesQueryVariables = Exact<{ [key: string]: never }>;
+
+export type FeaturedBenchesQuery = {
+  __typename?: "Query";
+  featuredProjects: {
+    __typename?: "ProjectConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "ProjectEdge";
+      node: {
+        __typename?: "Project";
+        id: any;
+        name: string;
+        slug: string;
+        path: string;
+        createdAt: any;
+        type: ProjectType;
+        visibility: ProjectVisibility;
+        description?: string | null;
+      };
+    }>;
+  };
 };
 
 export type ProfileHomeQueryVariables = Exact<{
@@ -3706,17 +3745,6 @@ export type InterpJobContentFragment = {
   status: JobStatus;
   startedAt?: any | null;
   terminatedAt?: any | null;
-  symbol?: {
-    __typename?: "InterpSymbol";
-    id: any;
-    name?: string | null;
-    type: StatementType;
-    symbolType?: SymbolType | null;
-    modifier?: StatementModifier | null;
-    parentId?: any | null;
-    rootTypeTag?: TypeTag | null;
-    generated: boolean;
-  } | null;
 } & { " $fragmentName"?: "InterpJobContentFragment" };
 
 export type ModuleRuntimeChangedSubscriptionVariables = Exact<{
@@ -4418,23 +4446,6 @@ export const InterpJobContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "status" } },
           { kind: "Field", name: { kind: "Name", value: "startedAt" } },
           { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "symbol" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "symbolType" } },
-                { kind: "Field", name: { kind: "Name", value: "modifier" } },
-                { kind: "Field", name: { kind: "Name", value: "parentId" } },
-                { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
-                { kind: "Field", name: { kind: "Name", value: "generated" } },
-              ],
-            },
-          },
         ],
       },
     },
@@ -6062,13 +6073,13 @@ export const ExistingProjectBySlugDocument = {
     },
   ],
 } as unknown as DocumentNode<ExistingProjectBySlugQuery, ExistingProjectBySlugQueryVariables>;
-export const HomeDocument = {
+export const HomeBenchesDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "home" },
+      name: { kind: "Name", value: "homeBenches" },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -6078,6 +6089,7 @@ export const HomeDocument = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "slug" } },
                 {
                   kind: "Field",
@@ -6105,7 +6117,7 @@ export const HomeDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                   { kind: "Field", name: { kind: "Name", value: "type" } },
                                   { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "description" } },
                                 ],
                               },
                             },
@@ -6159,7 +6171,7 @@ export const HomeDocument = {
                                                     { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                                     { kind: "Field", name: { kind: "Name", value: "type" } },
                                                     { kind: "Field", name: { kind: "Name", value: "visibility" } },
-                                                    { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                                    { kind: "Field", name: { kind: "Name", value: "description" } },
                                                   ],
                                                 },
                                               },
@@ -6185,7 +6197,61 @@ export const HomeDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<HomeQuery, HomeQueryVariables>;
+} as unknown as DocumentNode<HomeBenchesQuery, HomeBenchesQueryVariables>;
+export const FeaturedBenchesDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "featuredBenches" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "featuredProjects" },
+            arguments: [
+              { kind: "Argument", name: { kind: "Name", value: "last" }, value: { kind: "IntValue", value: "5" } },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "slug" } },
+                            { kind: "Field", name: { kind: "Name", value: "path" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "visibility" } },
+                            { kind: "Field", name: { kind: "Name", value: "description" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<FeaturedBenchesQuery, FeaturedBenchesQueryVariables>;
 export const ProfileHomeDocument = {
   kind: "Document",
   definitions: [

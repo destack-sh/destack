@@ -106,6 +106,7 @@ class Project(gql.Node):
     type: ProjectType
     visibility: ProjectVisibility
     path: auto
+    description: auto
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
     created_at: auto
     updated_at: auto

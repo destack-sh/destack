@@ -26,6 +26,7 @@ from bench.api.project import (
     ProjectMutation,
     ProjectVersion,
     ProjectVersionMutation,
+    ProjectVisibility,
 )
 from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
 from bench.api.sentry import SentryPerformanceExtension
@@ -107,6 +108,13 @@ def get_organization_by_slug(organization: str):
         return None
 
 
+def get_featured_projects(self) -> typing.Iterable[Project]:
+    # just return symbolx projects for now
+    return models.Project.objects.filter(
+        organization__owner_slug_id="symbolx", visibility=ProjectVisibility.PUBLIC
+    )
+
+
 @strawberry.type
 class Query(ExecutionQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
@@ -134,6 +142,9 @@ class Query(ExecutionQuery):
         resolver=get_project_version_by_tag, directives=[CanViewProject()]
     )
     file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
+    featured_projects: gql.relay.Connection[Project] = gql.django.connection(
+        resolver=get_featured_projects
+    )
 
 
 @strawberry.type
