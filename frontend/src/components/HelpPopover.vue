@@ -60,10 +60,7 @@ const helpActions = [
           >
             <component :is="action.icon" class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">{{ action.name }}</span>
-            <span
-              class="rounded-2xl border border-orange-600 px-1 text-xs font-bold text-orange-600"
-              v-if="action.soon"
-            >
+            <span class="rounded-sm border border-orange-600 px-1 text-xs font-bold text-orange-600" v-if="action.soon">
               soon
             </span>
           </component>

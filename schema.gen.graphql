@@ -894,6 +894,7 @@ type Project implements Node {
   type: ProjectType!
   visibility: ProjectVisibility!
   path: String!
+  description: String
   owner: UserOrganization!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1163,6 +1164,19 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File @canViewProject(atRoot: true)
+  featuredProjects(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+  ): ProjectConnection!
 }
 
 input RecordCreateInput {

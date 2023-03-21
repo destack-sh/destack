@@ -67,16 +67,6 @@ export const InterpJobContentType = graphql(/* GraphQL */ `
     status
     startedAt
     terminatedAt
-    symbol {
-      id
-      name
-      type
-      symbolType
-      modifier
-      parentId
-      rootTypeTag
-      generated
-    }
   }
 `);
 
