@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import json
 import uuid
 from dataclasses import dataclass, field
 from itertools import chain
@@ -14,6 +15,7 @@ from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
+    CodeContent,
     Dataset,
     Expectation,
     File,
@@ -26,11 +28,15 @@ from bench.language.type import (
     Type,
     TypeNode,
     XBlock,
+    XBlockContent,
+    XSource,
 )
-from bench.language.typer import check_type
+from bench.language.typer import check_type, fabricate_value
 from bench.runtime.evaluate import Evaluation, aggregate_evaluations, evaluate_task
 from bench.runtime.generate import generate
+from bench.runtime.model import BaseTextSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
+from bench.runtime.x import xsettings, xstatic
 from bench.utils.fractional import generate_n_keys_between
 
 Expect = Union[Task, Code, Dataset, Expectation]
@@ -75,7 +81,7 @@ class BuildError(ValueError):
 @dataclass(repr=False)
 class BuildContext:
     build: Build
-    max_candidates: int = 10  # TODO @Build: pick candidates limit settings more carefully
+    max_candidates: int = 2  # TODO @Build: pick candidates limit settings more carefully
     candidates: list[BuildCandidate] = field(default_factory=list)
     best_candidate: Optional[BuildCandidate] = field(default=None)
 
@@ -128,22 +134,8 @@ class BuildState:
                 return
         self.weak_references.append(symbol)
 
-    def create_data(self, builder: DataBuilder) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, len(builder.records))
-        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, builder.records)]
-        dataset = Dataset(
-            name=builder.name,
-            type_node=builder.type_node,
-            type=builder.type_node.to_type(),
-            records=records,
-            description=None,
-            language="jsonl",
-        )
-        # type check records
-        for record in dataset.records:
-            check_type(record, dataset.type)
-        self.target_symbols.append(dataset)
-        return dataset
+    def add_target(self, symbol: InterpSymbol):
+        self.target_symbols.append(symbol)
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
@@ -169,8 +161,8 @@ class InstructionSource:
 
 
 @dataclass(repr=False)
-class InstructionRender:
-    def __call__(self) -> list[XBlock]:
+class InstructionEmit:
+    async def __call__(self) -> XBlock | list[XBlock] | tuple[list[XBlock], Code]:
         raise NotImplementedError
 
 
@@ -178,9 +170,9 @@ class InstructionRender:
 class InstructionPlan:
     task: Task
     model: Model
-    base_settings: Optional[dict[str, Any]]
+    base_settings: Optional[dict[str, Any]] = None
     sources: list[InstructionSource] = field(default_factory=dict)
-    renders: list[InstructionRender] = field(default_factory=list)
+    targets: list[InstructionEmit] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -211,7 +203,7 @@ class BuildCandidate:
         return self.plan.models
 
 
-@dataclass
+@dataclass(repr=False)
 class BuildResult:
     build: Build
     target_symbols: list[InterpSymbol]
@@ -264,8 +256,18 @@ async def build(build: Build) -> BuildResult:
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     # TODO @Broken: don't assume all models are equally capable
+    plans = []
+    root_tasks = ctx.build.tasks  # TODO @Broken: filter out tasks that are subtasks
     for model in ctx.build.models:
-        raise NotImplementedError
+        instruction_plans = []
+        for task in root_tasks:
+            plan = InstructionPlan(task=task, model=model)
+            plan.targets.append(InstructionEmitTask(task=task))
+            plan.targets.append(InstructionEmitOutput(output_type=task.type.output))
+            plan.targets.append(InstructionEmitSettings())
+            instruction_plans.append(plan)
+        plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
+    return plans
 
 
 async def do_build(candidate: BuildCandidate) -> None:
@@ -274,9 +276,23 @@ async def do_build(candidate: BuildCandidate) -> None:
     # gather instruction sources in parallel
     all_sources = list(chain(*[plan.sources for plan in candidate.plan.task_plans]))
     await asyncio.gather(*[source() for source in all_sources])
+    for source in all_sources:
+        candidate.state.add_target(source.target_symbol)
 
+    # render instructions
     for task_plan in candidate.plan.task_plans:
         xbuilder = XBuilder(task_plan.task.name, task_plan.task.type)
+        for render in task_plan.targets:
+            xblocks = await render()
+            if isinstance(xblocks, tuple):
+                # this feels a bit wonky
+                xblocks, code = xblocks
+                xbuilder.extend(xblocks)
+                xbuilder.use_code(code)
+            else:
+                xbuilder.extend(xblocks)
+        implementation = xbuilder.to_symbol()
+        candidate.state.add_target(implementation)
 
 
 def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
@@ -312,6 +328,22 @@ class DataBuilder:
                 if not ignore_type_errors:
                     raise e
 
+    def to_symbol(self) -> Dataset:
+        order_keys = generate_n_keys_between(None, None, len(self.records))
+        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, self.records)]
+        dataset = Dataset(
+            name=self.name,
+            type_node=self.type_node,
+            type=self.type_node.to_type(),
+            records=records,
+            description=None,
+            language="jsonl",
+        )
+        # type check records
+        for record in dataset.records:
+            check_type(record, dataset.type)
+        return dataset
+
 
 class XBuilder:
     """Build a structured X prompt."""
@@ -319,59 +351,148 @@ class XBuilder:
     def __init__(self, name: str, type: TypeNode):
         self.name = name
         self.type = type
+        self.xblocks: list[XBlock] = []
+        self.code: Optional[CodeContent] = None
+
+    def use_code(self, code: CodeContent):
+        if self.code:
+            # no idea what to do here - merge/stack somehow?
+            raise ValueError("code already set")
+        self.code = code
 
     def append(self, xblock: XBlock):
-        pass
+        self.xblocks.append(xblock)
+
+    def extend(self, xblocks: list[XBlock]):
+        for xblock in xblocks:
+            self.append(xblock)
+
+    def to_symbol(self) -> Code:
+        if self.code is None:
+            raise ValueError("code not set")
+        order_keys = generate_n_keys_between(None, None, len(self.xblocks))
+        xblocks = [
+            XBlockContent(order_key=ok, **x.__dict__) for ok, x in zip(order_keys, self.xblocks)
+        ]
+        return Code(
+            name=self.name,
+            type=self.type,
+            type_node=self.type,
+            xblocks=xblocks,
+            code=self.code.code,
+            description=self.code.description,
+            language="python",
+        )
 
 
 @dataclass(repr=False)
-class InstructionDatasetSampleSource(InstructionSource):
+class InstructionSourceSampleDataset(InstructionSource):
     dataset: Dataset
     count: int
     seed: int
 
 
 @dataclass(repr=False)
-class InstructionCodeSampleSource(InstructionSource):
+class InstructionSourceSampleCode(InstructionSource):
+    """Runs the code"""
+
     code: Code
     count: int
     seed: int
 
 
 @dataclass(repr=False)
-class InstructionGenerateSource(InstructionSource):
+class InstructionSourceGenerate(InstructionSource):
+    """Generates a dataset of the given type and count"""
+
     type: Type
     count: int
     seed: int
 
 
 @dataclass(repr=False)
-class InstructionRenderTask(InstructionRender):
+class InstructionEmitSystem(InstructionEmit):
+    async def __call__(self) -> XBlock:
+        return xstatic(
+            f"You are a helpful, attentive and precise agent that follows instructions exactly as intended.\n"
+            f"The data types and schemas must be followed exactly.\n",
+            XSource.System,
+        )
+
+
+@dataclass(repr=False)
+class InstructionEmitTask(InstructionEmit):
+    """Emits the task exactly as written"""
+
     task: Task
 
-
-@dataclass(repr=False)
-class InstructionRenderFewshot(InstructionRender):
-    source: InstructionSource
+    async def __call__(self) -> XBlock:
+        return xstatic(f"Task {self.task.name}: {self.task.description}", XSource.Developer)
 
 
 @dataclass(repr=False)
-class InstructionRenderType(InstructionRender):
+class InstructionEmitFewshot(InstructionEmit):
+    """Emits fewshot examples in a specific format"""
+
+    task: Task
+    source: Dataset
+
+    async def __call__(self) -> XBlock:
+        return xstatic(
+            f"Some examples of {self.task.name}:\n"
+            "\n".join(json.dumps(record.data) for record in self.source.records)
+        )
+
+
+@dataclass(repr=False)
+class InstructionEmitType(InstructionEmit):
+    """Emits the type exactly as written"""
+
     type: Type
-    include_sample: bool = False
+
+    async def __call__(self) -> XBlock:
+        return xstatic(f"Type {self.type.name}: {self.type.description}", XSource.Developer)
 
 
 @dataclass(repr=False)
-class InstructionRenderOutput(InstructionRender):
+class InstructionEmitTypeSample(InstructionEmit):
+    """Emits a fabricated sample of the given type"""
+
+    type: Type
+
+    async def __call__(self) -> XBlock:
+        fabricated_sample = fabricate_value(self.type)
+        return xstatic(
+            f"Example of a {self.type.name}:\n" f"{json.dumps(fabricated_sample)}\n",
+            XSource.Developer,
+        )
+
+
+@dataclass(repr=False)
+class InstructionEmitOutput(InstructionEmit):
+    """Emits the code to read generated output of the given type"""
+
     output_type: Type
+
+    async def __call__(self) -> tuple[list[XBlock], CodeContent]:
+        raise NotImplementedError
+
+
+@dataclass(repr=False)
+class InstructionEmitSettings(InstructionEmit):
+    base_settings: Optional[dict[str, Any]] = None
+
+    async def __call__(self) -> XBlock:
+        settings = BaseTextSettings(**(self.base_settings or {}))
+        return xsettings(settings)
 
 
 def get_builds_for(symbol: Task, module_idx: ModuleIndex) -> list[Build]:
     """Get all builds for a given task."""
     builds = []
-    for build in module_idx.symbols_of_type(Build):
-        if not build.is_definition:
+    for b in module_idx.symbols_of_type(Build):
+        if not b.is_definition:
             continue
-        if any(t.definition.id == symbol.id for t in build.tasks):
-            builds.append(build)
+        if any(t.definition.id == symbol.id for t in b.tasks):
+            builds.append(b)
     return builds

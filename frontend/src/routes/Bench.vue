@@ -36,9 +36,9 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
-  ClipboardDocumentIcon,
   ClockIcon,
   Cog8ToothIcon,
+  DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   GlobeAltIcon,
@@ -66,7 +66,7 @@ type View = {
   icon: Component;
 };
 const views: View[] = [
-  { id: "explorer", name: "Explorer", icon: ClipboardDocumentIcon },
+  { id: "explorer", name: "Explorer", icon: DocumentDuplicateIcon },
   { id: "history", name: "History", icon: ClockIcon },
   { id: "issues", name: "Issues", icon: ExclamationTriangleIcon },
 ];

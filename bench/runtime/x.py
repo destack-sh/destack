@@ -1,22 +1,8 @@
 import enum
-import json
-from typing import Any
+import typing
 
-from bench.language import TypeNode
-from bench.language.typer import check_type
-
-
-def parse_string_output(value: str, type: TypeNode) -> Any:
-    try:
-        json_value = json.loads(value)
-        check_type(json_value, type)
-        return json_value
-    except json.JSONDecodeError as e:
-        raise ValueError(f"invalid JSON: {e}")
-
-
-def render_string_input(value: Any, type: TypeNode) -> str:
-    return json.dumps(value)
+from bench.language import XBlock
+from bench.language.type import XKind, XSource
 
 
 class GenerationErrorType(enum.Enum):
@@ -40,3 +26,22 @@ class GenerationError(ValueError):
         self.type = _t
         self.cause = cause
         self.message_detail = message_detail
+
+
+ValueT = typing.TypeVar("ValueT", bound=typing.Any)
+
+
+def xsettings(value: ValueT, source: XSource = XSource.System) -> XBlock[ValueT]:
+    return XBlock(kind=XKind.Settings, source=source, value=value)
+
+
+def xstatic(value: ValueT, source: XSource = XSource.Developer) -> XBlock[ValueT]:
+    return XBlock(kind=XKind.Static, source=source, value=value)
+
+
+def xinput(value: ValueT, source: XSource = XSource.User) -> XBlock[ValueT]:
+    return XBlock(kind=XKind.Input, source=source, value=value)
+
+
+def xoutput(value: ValueT, source: XSource = XSource.Model) -> XBlock[ValueT]:
+    return XBlock(kind=XKind.Output, source=source, value=value)
