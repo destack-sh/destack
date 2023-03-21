@@ -276,11 +276,11 @@ def _instantiate_code_callable(
     }
 
     if code.language == "python":
-        python_code = code.code or ""
+        python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
         is_async = "await " in python_code  # TODO @Robustness: detect async python code properly
     elif code.language == "x":
-        python_code = code.code or ""
+        python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
         is_async = True
     else:

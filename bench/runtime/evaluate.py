@@ -17,6 +17,7 @@ class SummaryMetric(enum.StrEnum):
 
 class BaseMetric(enum.StrEnum):
     # Performance related
+    ModelSuccessRate = "model_success_rate"
     TypeCorrectness = "type_correctness"
     ExpectationSatisfaction = "expectation_satisfaction"
     FeedbackCorrelation = "feedback_correlation"
@@ -28,6 +29,7 @@ class BaseMetric(enum.StrEnum):
     ExecutionDuration = "execution_duration"
     NodesCount = "nodes_count"
     StepsCount = "steps_count"
+    TokensCount = "tokens_count"
 
 
 @dataclass

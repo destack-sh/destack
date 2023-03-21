@@ -6,7 +6,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -20,24 +20,19 @@ from bench.language.type import (
     Expectation,
     File,
     InterpSymbol,
-    LiteralValue,
     Model,
     Module,
-    Record,
     Task,
     Type,
-    TypeNode,
     XBlock,
-    XBlockContent,
     XSource,
 )
-from bench.language.typer import check_type, fabricate_value
+from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import Evaluation, aggregate_evaluations, evaluate_task
 from bench.runtime.generate import generate
 from bench.runtime.model import BaseTextSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
-from bench.runtime.x import xsettings, xstatic
-from bench.utils.fractional import generate_n_keys_between
+from bench.runtime.x import XBuilder, xinput, xoutput, xsettings, xstatic
 
 Expect = Union[Task, Code, Dataset, Expectation]
 
@@ -162,7 +157,7 @@ class InstructionSource:
 
 @dataclass(repr=False)
 class InstructionEmit:
-    async def __call__(self) -> XBlock | list[XBlock] | tuple[list[XBlock], Code]:
+    async def __call__(self) -> XBlock | list[XBlock] | tuple[list[XBlock], Callable]:
         raise NotImplementedError
 
 
@@ -173,6 +168,12 @@ class InstructionPlan:
     base_settings: Optional[dict[str, Any]] = None
     sources: list[InstructionSource] = field(default_factory=dict)
     targets: list[InstructionEmit] = field(default_factory=list)
+
+    def source(self, source: InstructionSource):
+        self.sources.append(source)
+
+    def emit(self, target: InstructionEmit):
+        self.targets.append(target)
 
 
 @dataclass(repr=False)
@@ -262,9 +263,10 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
         instruction_plans = []
         for task in root_tasks:
             plan = InstructionPlan(task=task, model=model)
-            plan.targets.append(InstructionEmitTask(task=task))
-            plan.targets.append(InstructionEmitOutput(output_type=task.type.output))
-            plan.targets.append(InstructionEmitSettings())
+            plan.emit(InstructionEmitTask(task=task))
+            plan.emit(InstructionEmitInput(input_type=task.type.input, path=""))
+            plan.emit(InstructionEmitSettings())
+            plan.emit(InstructionEmitOutput(output_type=task.type.output, path=""))
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
     return plans
@@ -281,14 +283,16 @@ async def do_build(candidate: BuildCandidate) -> None:
 
     # render instructions
     for task_plan in candidate.plan.task_plans:
-        xbuilder = XBuilder(task_plan.task.name, task_plan.task.type)
+        xbuilder = XBuilder(
+            name=task_plan.task.name, type=task_plan.task.type, model=task_plan.model
+        )
         for render in task_plan.targets:
             xblocks = await render()
             if isinstance(xblocks, tuple):
                 # this feels a bit wonky
                 xblocks, code = xblocks
                 xbuilder.extend(xblocks)
-                xbuilder.use_code(code)
+                xbuilder.use_handler(code)
             else:
                 xbuilder.extend(xblocks)
         implementation = xbuilder.to_symbol()
@@ -305,84 +309,6 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
                 expects.append(child)
             expects.extend(_gather_expectations(child))
     return expects
-
-
-class DataBuilder:
-    """Build a dataset."""
-
-    def __init__(self, name: str, type_node: TypeNode):
-        self.name = name
-        self.type_node = type_node
-        self.records: list[LiteralValue] = []
-
-    def append(self, record: LiteralValue):
-        check_type(record, self.type_node)
-        self.records.append(record)
-
-    def extend(self, records: list[LiteralValue], ignore_type_errors: bool):
-        # ignore_type_errors is a stopgap since records should already be checked here
-        for record in records:
-            try:
-                self.append(record)
-            except TypeError as e:
-                if not ignore_type_errors:
-                    raise e
-
-    def to_symbol(self) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, len(self.records))
-        records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, self.records)]
-        dataset = Dataset(
-            name=self.name,
-            type_node=self.type_node,
-            type=self.type_node.to_type(),
-            records=records,
-            description=None,
-            language="jsonl",
-        )
-        # type check records
-        for record in dataset.records:
-            check_type(record, dataset.type)
-        return dataset
-
-
-class XBuilder:
-    """Build a structured X prompt."""
-
-    def __init__(self, name: str, type: TypeNode):
-        self.name = name
-        self.type = type
-        self.xblocks: list[XBlock] = []
-        self.code: Optional[CodeContent] = None
-
-    def use_code(self, code: CodeContent):
-        if self.code:
-            # no idea what to do here - merge/stack somehow?
-            raise ValueError("code already set")
-        self.code = code
-
-    def append(self, xblock: XBlock):
-        self.xblocks.append(xblock)
-
-    def extend(self, xblocks: list[XBlock]):
-        for xblock in xblocks:
-            self.append(xblock)
-
-    def to_symbol(self) -> Code:
-        if self.code is None:
-            raise ValueError("code not set")
-        order_keys = generate_n_keys_between(None, None, len(self.xblocks))
-        xblocks = [
-            XBlockContent(order_key=ok, **x.__dict__) for ok, x in zip(order_keys, self.xblocks)
-        ]
-        return Code(
-            name=self.name,
-            type=self.type,
-            type_node=self.type,
-            xblocks=xblocks,
-            code=self.code.code,
-            description=self.code.description,
-            language="python",
-        )
 
 
 @dataclass(repr=False)
@@ -469,13 +395,36 @@ class InstructionEmitTypeSample(InstructionEmit):
 
 
 @dataclass(repr=False)
+class InstructionEmitInput(InstructionEmit):
+    """Emits the code to input the given type"""
+
+    input_type: Type
+    path: str
+
+    async def __call__(self) -> tuple[list[XBlock], Callable]:
+        input = xinput(None, path=self.path)
+
+        def impute_input():
+            raise NotImplementedError
+
+        return [input], impute_input
+
+
+@dataclass(repr=False)
 class InstructionEmitOutput(InstructionEmit):
-    """Emits the code to read generated output of the given type"""
+    """Emits the code to request and read generated output of the given type"""
 
     output_type: Type
+    path: str
 
-    async def __call__(self) -> tuple[list[XBlock], CodeContent]:
-        raise NotImplementedError
+    async def __call__(self) -> tuple[list[XBlock], Callable]:
+        output_request = xstatic("Output in JSON", XSource.System)
+        output = xoutput(None, path=self.path)
+
+        def parse_output():
+            raise NotImplementedError
+
+        return [output_request, output], parse_output
 
 
 @dataclass(repr=False)
