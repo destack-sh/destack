@@ -1,6 +1,7 @@
 import enum
 import inspect
 import typing
+from uuid import UUID
 
 from bench.language import XBlock
 from bench.language.type import (
@@ -90,14 +91,15 @@ class XBuilder:
         self.type = type
         self.model = model
         self.xblocks: list[XBlock] = []
-        self.input_modifiers: list[Code] = []
-        self.output_parsers: list[Code] = []
+        self.modifiers: list[Code] = []
+        self.parsers: list[Code] = []
 
     def use_handler(self, code: typing.Callable):
-        if "input" in code.__name__:
-            self.input_modifiers.append(xcode(code))
-        elif "output" in code.__name__:
-            self.output_parsers.append(xcode(code))
+        # determining input or output handler like this is hacky
+        if "modify" in code.__name__:
+            self.modifiers.append(xcode(code))
+        elif "parse" in code.__name__:
+            self.parsers.append(xcode(code))
         else:
             raise ValueError(f"unknown code type: {code.__name__}")
 
@@ -114,10 +116,13 @@ class XBuilder:
             XBlockContent(order_key=ok, **x.__dict__) for ok, x in zip(order_keys, self.xblocks)
         ]
 
-        input_modifiers_names = [x.name for x in self.input_modifiers]
-        output_parsers_names = [x.name for x in self.output_parsers]
+        modifiers_names = [x.name for x in self.modifiers]
+        parsers_names = [x.name for x in self.parsers]
+
+        context: dict
 
         def x():
+            model = context[self.model.name]
             pass
 
         return xcode()

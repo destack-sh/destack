@@ -8,6 +8,8 @@ from datetime import datetime
 from typing import Any, Callable, ClassVar, Coroutine, Optional
 from uuid import UUID
 
+import PIL.Image
+
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Build,
@@ -20,6 +22,8 @@ from bench.language.type import (
     Task,
     Type,
     Value,
+    XBlock,
+    XBlockContent,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
@@ -85,9 +89,11 @@ class ValueInstance(SymbolInstance, Value):
 
 @dataclass(repr=False)
 class ModelInstance(SymbolInstance, Model):
+    inference: ModelInference = required_field()
+
     @property
     def py_handle(self):
-        return self
+        return self.inference
 
 
 @dataclass(repr=False)
@@ -234,17 +240,51 @@ class ExecutionFrameData:
         )
 
 
-class FinishReason(enum.StrEnum):
-    MAX_TOKENS = "max_tokens"
-    STOP = "stop"
+class X:
+    """Convenient wrapper for accessing X blocks."""
+
+    def __init__(self, blocks: list[XBlockContent]):
+        self.blocks = blocks
+
+    def by_id(self, id: UUID) -> XBlockContent:
+        for block in self.blocks:
+            if block.id == id:
+                return block
+        raise KeyError(id)
+
+
+class IncapableError(NotImplementedError):
+    pass
 
 
 @dataclass
-class TextGeneration:
-    text: str
-    tokens: Optional[list[str]]
-    logits: Optional[list[float]]
-    finish_reason: FinishReason
+class TextGenerationSettings:
+    temperature: float
+    max_tokens: int
+    top_p: Optional[float]
+    stop: Optional[list[str]]
+    logit_bias: Optional[dict[str, float]]
+
+
+class ModelCapability(enum.StrEnum):
+    """Core modality capabilities of a model."""
+
+    GenerateText = "generate_text"
+    EmbedText = "embed_text"
+    GenerateImage = "generate_image"
+
+
+class ModelInference:
+    """Generic model with an endpoint for each core modality capability."""
+
+    async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
+        raise IncapableError()
+
+    async def embed_text(self, input: list[XBlock]) -> list[float]:
+        raise IncapableError()
+
+    async def generate_image(self, input: list[XBlock], settings: Any) -> PIL.Image:
+        raise IncapableError()
 
 
 def summarize_args(arguments: Any) -> str:

@@ -38,12 +38,14 @@ from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
+    ModelCapability,
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
     TaskInstance,
     TypeInstance,
     ValueInstance,
+    X,
     summarize_args,
 )
 from bench.utils.record import RecordList
@@ -60,6 +62,7 @@ class ProviderKey(models.TextChoices):
     ANTHROPIC = "anthropic"
     STABILITYAI = "stabilityai"
     HUGGINGFACE = "huggingface"
+    ASSEMBLYAI = "assemblyai"
 
 
 # TODO @Cleanup: static builtins should be in the run environment context?
@@ -150,9 +153,10 @@ class AsyncCodeProxy:
 
 
 class InferenceProxy:
-    """A worker-side proxy for inference tracing."""
+    """A worker-side proxy for inference tracing on a specific capability endpoint."""
 
-    def __init__(self, endpoint: InferenceEndpoint, tracer: Tracer):
+    def __init__(self, capability: ModelCapability, endpoint: InferenceEndpoint, tracer: Tracer):
+        self.capability = capability
         self.endpoint = endpoint
         self.tracer = tracer
 
@@ -163,6 +167,7 @@ class InferenceProxy:
         self.tracer.inference_exit(ctx, blocks, ret)
         logger.debug(
             "inference.generate",
+            capability=self.capability,
             duration=time.time() - start_time,
         )
         return ret
@@ -182,8 +187,15 @@ class Proxy:
         code.code_callable = code_proxy
         return code
 
-    def proxy_inference(self, endpoint: InferenceEndpoint) -> InferenceEndpoint:
-        return InferenceProxy(endpoint, self.tracer)
+    def proxy_model(self, model: ModelInstance) -> ModelInstance:
+        # proxy every inference endpoint (i.e. method) on the model
+        proxy_model = object.__new__(type(model))
+        for capability in ModelCapability:
+            endpoint = getattr(model, capability)
+            if endpoint is not None:
+                inference_proxy = InferenceProxy(capability, endpoint, self.tracer)
+                setattr(proxy_model, capability, inference_proxy)
+        return proxy_model
 
 
 def unwrap(value: SymbolInstance):
@@ -268,6 +280,8 @@ def _instantiate_code_callable(
     dynamic_context = {
         "source_context": context,
         "context": unwrapped_context,
+        "xblocks": code.xblocks,
+        "x": X(code.xblocks),
         **inlined_context,
         "__statement__": code.source,
         "__file__": code.source.file,
@@ -353,7 +367,8 @@ def instantiate(
     elif isinstance(symbol, Value):
         return ValueInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Model):
-        return ModelInstance(**symbol.__dict__, build=build)
+        inference = _instantiate_model_inference(symbol, instantiated_context, proxy)
+        return ModelInstance(**symbol.__dict__, inference=inference, build=build)
     elif isinstance(symbol, Dataset):
         records_data = [r.data for r in symbol.records]
         return DatasetInstance(

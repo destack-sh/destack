@@ -15,7 +15,6 @@ from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
-    CodeContent,
     Dataset,
     Expectation,
     File,
@@ -30,8 +29,9 @@ from bench.language.type import (
 from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import Evaluation, aggregate_evaluations, evaluate_task
 from bench.runtime.generate import generate
-from bench.runtime.model import BaseTextSettings
+from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
+from bench.runtime.type import X
 from bench.runtime.x import XBuilder, xinput, xoutput, xsettings, xstatic
 
 Expect = Union[Task, Code, Dataset, Expectation]
@@ -289,10 +289,9 @@ async def do_build(candidate: BuildCandidate) -> None:
         for render in task_plan.targets:
             xblocks = await render()
             if isinstance(xblocks, tuple):
-                # this feels a bit wonky
-                xblocks, code = xblocks
+                xblocks, handler = xblocks
                 xbuilder.extend(xblocks)
-                xbuilder.use_handler(code)
+                xbuilder.use_handler(handler)
             else:
                 xbuilder.extend(xblocks)
         implementation = xbuilder.to_symbol()
@@ -404,10 +403,12 @@ class InstructionEmitInput(InstructionEmit):
     async def __call__(self) -> tuple[list[XBlock], Callable]:
         input = xinput(None, path=self.path)
 
-        def impute_input():
-            raise NotImplementedError
+        x: X
 
-        return [input], impute_input
+        def modify_input():
+            input = x.by_id
+
+        return [input], modify_input
 
 
 @dataclass(repr=False)
@@ -432,7 +433,7 @@ class InstructionEmitSettings(InstructionEmit):
     base_settings: Optional[dict[str, Any]] = None
 
     async def __call__(self) -> XBlock:
-        settings = BaseTextSettings(**(self.base_settings or {}))
+        settings = TextGenerationSettings(**(self.base_settings or {}))
         return xsettings(settings)
 
 
