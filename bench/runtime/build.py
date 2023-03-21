@@ -253,7 +253,7 @@ async def build(build: Build) -> BuildResult:
         for candidate, build_result in zip(candidates, build_results):
             tasks = [t for t in build_result.target_symbols if isinstance(t, Task)]
             evaluations = await asyncio.gather(*[evaluate_task(t) for t in tasks])
-            candidate.evaluation = evaluation = aggregate_evaluations(evaluations)
+            candidate.evaluation = aggregate_evaluations(evaluations)
 
         # update the best candidate (if changed)
         raise NotImplementedError

@@ -83,6 +83,7 @@ class User(AbstractUser, UUIDModel):
             raise RuntimeError("update_username must be atomic")
         self.username = username
         self.owner_slug.delete()
+        # TODO @UX: keep previous slug for redirect for user/org (under prev_slug)
         self.owner_slug = OwnerSlug.objects.create_slug(username)
         self.save()
 

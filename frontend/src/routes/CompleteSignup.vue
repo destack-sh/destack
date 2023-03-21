@@ -51,7 +51,6 @@ function autofillUsername(event: KeyboardEvent) {
   }
 }
 
-// valid names just need to be >= 2 characters
 const nameValidation = useValidName(name);
 const slugValidation = useValidSlug(
   username,
