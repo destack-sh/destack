@@ -1,6 +1,7 @@
 import abc
 import dataclasses
 import functools
+import random
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Self, Union, cast
 
 import strawberry
@@ -31,6 +32,7 @@ from strawberry_django_plus.utils import aio, resolvers
 from bench import models
 from bench.models import Notification, Organization, User
 from bench.models.notification import create_notifications_on_signup
+from bench.models.owner import OwnerSlug, slugify
 
 if TYPE_CHECKING:
     from bench.models.organization import OrganizationMembershipLevel
@@ -417,7 +419,11 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
     if user:
         return {"is_new": False}
 
-    username = details.get("username")
+    username = slugify(details.get("username"))
+    # if username is taken, add random suffix
+    while OwnerSlug.objects.filter(slug=username).exists():
+        username = f"{username}{random.randint(10, 99)}"
+
     email = details["email"][0] if isinstance(details["email"], (list, tuple)) else details["email"]
     full_name = (
         details.get("fullname")
