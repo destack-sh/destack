@@ -102,7 +102,7 @@ async function createFileInEditorGroup() {
             -->
         <TabPanel
           as="div"
-          class="h-full w-full overflow-auto bg-white outline-none"
+          class="h-full w-full overflow-y-scroll bg-white outline-none"
           v-for="e in group.editors"
           :key="e.id"
           :unmount="!mountAllPanels"
