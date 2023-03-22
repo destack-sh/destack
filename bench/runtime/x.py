@@ -1,7 +1,8 @@
 import enum
 import inspect
+import textwrap
 import typing
-from uuid import UUID
+from dataclasses import dataclass
 
 from bench.language import XBlock
 from bench.language.type import (
@@ -17,6 +18,7 @@ from bench.language.type import (
     XSource,
 )
 from bench.language.typer import check_type
+from bench.runtime.type import Modality
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -46,32 +48,40 @@ class GenerationError(ValueError):
 ValueT = typing.TypeVar("ValueT", bound=typing.Any)
 
 
-def xsettings(value: ValueT, source: XSource = XSource.System, path: str = None) -> XBlock[ValueT]:
-    return XBlock(kind=XKind.Settings, source=source, value=value, path=path)
+def xsettings(
+    value: ValueT, source: XSource = XSource.System, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Settings, source=source, value=value, path=path)
 
 
-def xstatic(value: ValueT, source: XSource = XSource.Developer, path: str = None) -> XBlock[ValueT]:
-    return XBlock(kind=XKind.Static, source=source, value=value, path=path)
+def xstatic(
+    value: ValueT, source: XSource = XSource.Developer, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Static, source=source, value=value, path=path)
 
 
-def xinput(value: ValueT, source: XSource = XSource.User, path: str = None) -> XBlock[ValueT]:
-    return XBlock(kind=XKind.Input, source=source, value=value, path=path)
+def xinput(
+    value: ValueT, source: XSource = XSource.User, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Input, source=source, value=value, path=path)
 
 
-def xoutput(value: ValueT, source: XSource = XSource.Model, path: str = None) -> XBlock[ValueT]:
-    return XBlock(kind=XKind.Output, source=source, value=value, path=path)
+def xoutput(
+    value: ValueT, source: XSource = XSource.Model, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Output, source=source, value=value, path=path)
 
 
 def xcode(
-    callable: typing.Callable,
+    source: typing.Callable | str,
     type: TypeNode = EMPTY_FUNC_TYPE,
     language: str = "python",
     xblocks: list[XBlock] = None,
     name: str = None,
 ) -> Code:
     """Creates a Code instance from the source and name of the given callable"""
-    source = inspect.getsource(callable)
-    name = name or callable.__name__
+    source = inspect.getsource(source) if inspect.isfunction(source) else source
+    name = name or source.__name__
     return Code(
         code=source,
         name=name,
@@ -83,49 +93,83 @@ def xcode(
     )
 
 
+XInputHandler = typing.Callable[[XBlock, typing.Any], None]
+XOutputHandler = typing.Callable[[XBlock], typing.Any]
+
+
+@dataclass
+class DynamicXBlock:
+    xblock: XBlockContent
+    handler: XInputHandler | XOutputHandler
+
+
 class XBuilder:
     """Build a structured X prompt."""
 
-    def __init__(self, name: str, type: TypeNode, model: Model):
+    def __init__(self, name: str, type: TypeNode, model: Model, modality: Modality):
         self.name = name
         self.type = type
         self.model = model
-        self.xblocks: list[XBlock] = []
-        self.modifiers: list[Code] = []
-        self.parsers: list[Code] = []
+        self.modality = modality
+        self.xblocks: list[XBlockContent] = []
+        self.dynamic_xblocks: list[DynamicXBlock] = []
 
-    def use_handler(self, code: typing.Callable):
-        # determining input or output handler like this is hacky
-        if "modify" in code.__name__:
-            self.modifiers.append(xcode(code))
-        elif "parse" in code.__name__:
-            self.parsers.append(xcode(code))
+    def append(self, xblock: XBlockContent | DynamicXBlock):
+        if isinstance(xblock, DynamicXBlock):
+            self.dynamic_xblocks.append(xblock)
+            self.xblocks.append(xblock.xblock)
         else:
-            raise ValueError(f"unknown code type: {code.__name__}")
+            self.xblocks.append(xblock)
 
-    def append(self, xblock: XBlock):
-        self.xblocks.append(xblock)
-
-    def extend(self, xblocks: list[XBlock]):
+    def extend(self, xblocks: list[XBlockContent | DynamicXBlock]):
         for xblock in xblocks:
             self.append(xblock)
 
     def to_symbol(self) -> Code:
         order_keys = generate_n_keys_between(None, None, len(self.xblocks))
-        xblocks = [
-            XBlockContent(order_key=ok, **x.__dict__) for ok, x in zip(order_keys, self.xblocks)
-        ]
+        # assign order keys
+        for xblock, order_key in zip(self.xblocks, order_keys):
+            xblock.order_key = order_key
 
-        modifiers_names = [x.name for x in self.modifiers]
-        parsers_names = [x.name for x in self.parsers]
+        model_call = (
+            f"input_blocks = [xblock for xblock in self.xblocks if xblock.kind == XKind.Input]\n"
+            f"settings = last([xblock.value for xblock in self.xblocks if xblock.kind == XKind.Settings])\n"
+            f"model_output = await model.{self.modality}(input_blocks, settings)"
+        )
 
-        context: dict
+        # inline handler methods
+        input_handler_defs: list[str] = []
+        input_handler_calls: list[str] = []
+        output_handler_defs: list[str] = []
+        output_handler_calls: list[str] = []
+        for i, block in enumerate(self.dynamic_xblocks):
+            if block.xblock.kind == XKind.Input:
+                handler_def = f"def input_handler_{i}(xblock, value):" + textwrap.indent(
+                    inspect.getsource(block.handler), "    "
+                )
+                input_handler_defs.append(handler_def)
+                handler_call = f"value = " f"input_handler_{i}(self.xblocks[{i}], value)"
+                input_handler_calls.append(handler_call)
+            elif block.xblock.kind == XKind.Output:
+                handler_def = f"def output_handler_{i}(xblock):" + textwrap.indent(
+                    inspect.getsource(block.handler), "    "
+                )
+                output_handler_defs.append(handler_def)
+                handler_call = f"output_handler_{i}(self.xblocks[{i}])"
 
-        def x():
-            model = context[self.model.name]
-            pass
-
-        return xcode()
+        x_source = (
+            # context
+            f"model = context[{self.model.name}]",
+            *input_handler_defs,
+            *output_handler_defs,
+            # run input handlers
+            *input_handler_calls,
+            # run model
+            *model_call,
+            # run output handlers
+            *output_handler_calls,  # TODO @Broken: return output handler value(s?)
+        )
+        return xcode("\n".join(x_source), name=self.name, type=self.type, xblocks=self.xblocks)
 
 
 class DataBuilder:

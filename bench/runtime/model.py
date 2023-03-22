@@ -10,7 +10,13 @@ import pydub
 import structlog
 
 from bench.language.type import XBlock, XSource
-from bench.runtime.type import ModelInference, ModelInstance, TextGenerationSettings
+from bench.runtime.type import (
+    IncapableError,
+    ModelInference,
+    ModelInstance,
+    TextGenerationSettings,
+    Modality,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -18,6 +24,7 @@ logger = structlog.get_logger(__name__)
 @dataclass(repr=False)
 class InferenceContext:
     model: ModelInstance
+    modality: Modality
     n: int
     user_opaque_id: str
     streaming_callback: Optional[Callable[[XBlock], None]]
@@ -32,24 +39,13 @@ InferenceEndpoint = typing.Callable[[InferenceContext, ...], typing.Awaitable[An
 
 
 @dataclass
-class OpenAIChatCompletionSettings(TextGenerationSettings):
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    stop: Optional[list[str]]
-    presence_penalty: Optional[float]
-    frequency_penalty: Optional[float]
-    logit_bias: Optional[dict[str, float]]
-
-
-@dataclass
 class OpenAIChatCompletion(ModelInference):
     ctx: InferenceContext
 
     async def generate_text(
         self,
         input: list[XBlock[str]],
-        settings: OpenAIChatCompletionSettings,
+        settings: TextGenerationSettings,
     ) -> str:
         role_map = {
             XSource.System: "system",
@@ -65,23 +61,11 @@ class OpenAIChatCompletion(ModelInference):
             max_tokens=settings.max_tokens,
             top_p=settings.top_p,
             stop=settings.stop,
-            presence_penalty=settings.presence_penalty,
-            frequency_penalty=settings.frequency_penalty,
             logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
         )
         text = response["choices"][0]["message"]["content"]
         return text
-
-
-@dataclass
-class OpenAITextCompletionSettings(TextGenerationSettings):
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    top_k: Optional[int]
-    stop: Optional[list[str]]
-    logit_bias: Optional[dict[str, float]]
 
 
 @dataclass
@@ -91,7 +75,7 @@ class OpenAITextCompletion(ModelInference):
     async def generate_text(
         self,
         input: list[XBlock[str]],
-        settings: OpenAITextCompletionSettings,
+        settings: TextGenerationSettings,
     ) -> str:
         role_map = {
             XSource.System: "system",
@@ -107,7 +91,6 @@ class OpenAITextCompletion(ModelInference):
             max_tokens=settings.max_tokens,
             temperature=settings.temperature,
             top_p=settings.top_p,
-            top_k=settings.top_k,
             stop=settings.stop,
             logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
@@ -120,8 +103,9 @@ class OpenAITextCompletion(ModelInference):
 class OpenAITextEmbedding(ModelInference):
     ctx: InferenceContext
 
-    async def embed_text(self, input: XBlock[str]) -> list[float]:
-        rep = await openai.Embedding.acreate(input.value, model=self.ctx.model.external_name)
+    async def embed(self, input: list[XBlock[str]], settings: None) -> list[float]:
+        prompt = "\n".join(x.value for x in input)
+        rep = await openai.Embedding.acreate(prompt, model=self.ctx.model.external_name)
         return rep["data"][0]["embedding"]
 
 
@@ -129,21 +113,12 @@ class OpenAITextEmbedding(ModelInference):
 class OpenAIAudioTranscription(ModelInference):
     ctx: InferenceContext
 
-    async def transcribe_audio(
+    async def generate_text(
         self,
-        input: XBlock[pydub.AudioSegment | str],
+        input: list[XBlock[pydub.AudioSegment | str]],
+        settings: None,
     ) -> str:
         raise IncapableError
-
-
-@dataclass
-class AnthropicTextCompletionSettings(TextGenerationSettings):
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    top_k: Optional[int]
-    stop: Optional[list[str]]
-    logit_bias: Optional[dict[str, float]]
 
 
 @dataclass
@@ -153,7 +128,7 @@ class AnthropicTextCompletion(ModelInference):
     async def generate_text(
         self,
         input: list[XBlock[str]],
-        settings: AnthropicTextCompletionSettings,
+        settings: TextGenerationSettings,
     ) -> str:
         raise NotImplementedError
 

@@ -38,14 +38,14 @@ from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
-    ModelCapability,
+    Modality,
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
     TaskInstance,
     TypeInstance,
     ValueInstance,
-    X,
+    XBlocks,
     summarize_args,
 )
 from bench.utils.record import RecordList
@@ -155,7 +155,7 @@ class AsyncCodeProxy:
 class InferenceProxy:
     """A worker-side proxy for inference tracing on a specific capability endpoint."""
 
-    def __init__(self, capability: ModelCapability, endpoint: InferenceEndpoint, tracer: Tracer):
+    def __init__(self, capability: Modality, endpoint: InferenceEndpoint, tracer: Tracer):
         self.capability = capability
         self.endpoint = endpoint
         self.tracer = tracer
@@ -190,11 +190,11 @@ class Proxy:
     def proxy_model(self, model: ModelInstance) -> ModelInstance:
         # proxy every inference endpoint (i.e. method) on the model
         proxy_model = object.__new__(type(model))
-        for capability in ModelCapability:
-            endpoint = getattr(model, capability)
+        for modality in Modality:
+            endpoint = getattr(model, modality)
             if endpoint is not None:
-                inference_proxy = InferenceProxy(capability, endpoint, self.tracer)
-                setattr(proxy_model, capability, inference_proxy)
+                inference_proxy = InferenceProxy(modality, endpoint, self.tracer)
+                setattr(proxy_model, modality, inference_proxy)
         return proxy_model
 
 
@@ -281,7 +281,7 @@ def _instantiate_code_callable(
         "source_context": context,
         "context": unwrapped_context,
         "xblocks": code.xblocks,
-        "x": X(code.xblocks),
+        "x": XBlocks(code.xblocks),
         **inlined_context,
         "__statement__": code.source,
         "__file__": code.source.file,
@@ -314,6 +314,10 @@ def _instantiate_code_callable(
         raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
 
     return python_code, callable
+
+
+def _instantiate_model_inference(model: Model, proxy: Proxy) -> ModelInference:
+    raise NotImplementedError
 
 
 def instantiate(
@@ -353,7 +357,7 @@ def instantiate(
         implementation_instance.task = task
         return task
     elif isinstance(symbol, Code):
-        code_str, code_callable = _instantiate_code_callable(symbol, instantiated_context, proxy)
+        code_str, code_callable = _instantiate_code_callable(symbol, proxy)
         code_instance = CodeInstance(
             **symbol.__dict__,
             build=build,

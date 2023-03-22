@@ -6,7 +6,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -31,8 +31,8 @@ from bench.runtime.evaluate import Evaluation, aggregate_evaluations, evaluate_t
 from bench.runtime.generate import generate
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
-from bench.runtime.type import X
-from bench.runtime.x import XBuilder, xinput, xoutput, xsettings, xstatic
+from bench.runtime.type import Modality
+from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 
 Expect = Union[Task, Code, Dataset, Expectation]
 
@@ -157,7 +157,7 @@ class InstructionSource:
 
 @dataclass(repr=False)
 class InstructionEmit:
-    async def __call__(self) -> XBlock | list[XBlock] | tuple[list[XBlock], Callable]:
+    async def __call__(self) -> XBlock | DynamicXBlock | list[XBlock | DynamicXBlock]:
         raise NotImplementedError
 
 
@@ -165,6 +165,7 @@ class InstructionEmit:
 class InstructionPlan:
     task: Task
     model: Model
+    modality: Modality
     base_settings: Optional[dict[str, Any]] = None
     sources: list[InstructionSource] = field(default_factory=dict)
     targets: list[InstructionEmit] = field(default_factory=list)
@@ -262,7 +263,8 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     for model in ctx.build.models:
         instruction_plans = []
         for task in root_tasks:
-            plan = InstructionPlan(task=task, model=model)
+            # TODO @Broken: set modality based on task type & model capabilities
+            plan = InstructionPlan(task=task, model=model, modality=Modality.GenerateText)
             plan.emit(InstructionEmitTask(task=task))
             plan.emit(InstructionEmitInput(input_type=task.type.input, path=""))
             plan.emit(InstructionEmitSettings())
@@ -400,15 +402,15 @@ class InstructionEmitInput(InstructionEmit):
     input_type: Type
     path: str
 
-    async def __call__(self) -> tuple[list[XBlock], Callable]:
+    @staticmethod
+    def impute_input(input: XBlock, value: Any):
+        import json
+
+        input.value = json.dumps(value)
+
+    async def __call__(self) -> DynamicXBlock:
         input = xinput(None, path=self.path)
-
-        x: X
-
-        def modify_input():
-            input = x.by_id
-
-        return [input], modify_input
+        return DynamicXBlock(input, self.impute_input)
 
 
 @dataclass(repr=False)
@@ -418,14 +420,16 @@ class InstructionEmitOutput(InstructionEmit):
     output_type: Type
     path: str
 
-    async def __call__(self) -> tuple[list[XBlock], Callable]:
-        output_request = xstatic("Output in JSON", XSource.System)
+    @staticmethod
+    def parse_output(output: XBlock):
+        import json
+
+        return json.loads(output.value)
+
+    async def __call__(self) -> list[XBlock | DynamicXBlock]:
+        output_request = xstatic("Output in JSON:", XSource.System)
         output = xoutput(None, path=self.path)
-
-        def parse_output():
-            raise NotImplementedError
-
-        return [output_request, output], parse_output
+        return [output_request, DynamicXBlock(output, self.parse_output)]
 
 
 @dataclass(repr=False)
