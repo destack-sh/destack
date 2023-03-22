@@ -240,7 +240,7 @@ class ExecutionFrameData:
         )
 
 
-class X:
+class XBlocks:
     """Convenient wrapper for accessing X blocks."""
 
     def __init__(self, blocks: list[XBlockContent]):
@@ -266,24 +266,28 @@ class TextGenerationSettings:
     logit_bias: Optional[dict[str, float]]
 
 
-class ModelCapability(enum.StrEnum):
+class Modality(enum.StrEnum):
     """Core modality capabilities of a model."""
 
-    GenerateText = "generate_text"
-    EmbedText = "embed_text"
-    GenerateImage = "generate_image"
+    GenerateText = "generate_text"  # any -> text
+    GenerateImage = "generate_image"  # any -> image
+    Embed = "embed"  # any -> embedding
 
 
 class ModelInference:
-    """Generic model with an endpoint for each core modality capability."""
+    """Generic model with an endpoint for each core modality."""
 
-    async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
+    async def generate_text(
+        self, input: list[XBlock], settings: TextGenerationSettings
+    ) -> str | list[str]:
         raise IncapableError()
 
-    async def embed_text(self, input: list[XBlock]) -> list[float]:
+    async def generate_image(
+        self, input: list[XBlock], settings: Any
+    ) -> PIL.Image | list[PIL.Image]:
         raise IncapableError()
 
-    async def generate_image(self, input: list[XBlock], settings: Any) -> PIL.Image:
+    async def embed(self, input: list[XBlock], settings: Any) -> list[float]:
         raise IncapableError()
 
 
