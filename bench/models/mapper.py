@@ -263,8 +263,6 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         name = statement.reference.name
     else:
         name = statement.name
-    # is this right? (what about nested statements?)
-    fqn = file.path.replace("/", ".") + "." + name
     data = wire.StatementData(
         id=statement.id,
         module_id=file.module_id,
@@ -275,7 +273,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         type=statement.type,
         modifier=statement.modifier,
         name=name,
-        fqn=fqn,
+        fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
         reference=reference,

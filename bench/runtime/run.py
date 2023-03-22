@@ -8,6 +8,7 @@ import textwrap
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
+from dataclasses import dataclass
 from random import Random
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -158,24 +159,31 @@ class AsyncCodeProxy:
 class InferenceProxy:
     """A worker-side proxy for inference tracing on a specific capability endpoint."""
 
-    def __init__(self, capability: Modality, endpoint: InferenceEndpoint, tracer: Tracer):
+    def __init__(
+        self,
+        ctx: InferenceContext,
+        capability: Modality,
+        endpoint: InferenceEndpoint,
+        tracer: Tracer,
+    ):
+        self.ctx = ctx
         self.capability = capability
         self.endpoint = endpoint
         self.tracer = tracer
 
-    async def __call__(self, ctx: InferenceContext, *blocks: XBlock) -> Any:
+    async def __call__(self, *blocks: XBlock) -> Any:
         log = logger.bind(
-            capability=self.capability, endpoint=self.endpoint, ctx=ctx, blocks=len(blocks)
+            capability=self.capability, endpoint=self.endpoint, ctx=self.ctx, blocks=len(blocks)
         )
         try:
-            self.tracer.inference_enter(ctx, blocks)
+            self.tracer.inference_enter(self.ctx, blocks)
             log.debug("inference.call.enter")
-            ret = await self.endpoint(ctx, *blocks)
-            self.tracer.inference_exit(ctx, blocks, ret)
+            ret = await self.endpoint(*blocks)
+            self.tracer.inference_exit(self.ctx, blocks, ret)
             log.debug("inference.call.exit", ret=summarize_args(ret))
             return ret
         except Exception as exception:
-            self.tracer.inference_exception(ctx, blocks, exception)
+            self.tracer.inference_exception(self.ctx, blocks, exception)
             log.debug("inference.call.exception", excinfo=True)
             raise
 
@@ -196,11 +204,13 @@ class Proxy:
 
     def proxy_model(self, model: ModelInstance) -> ModelInstance:
         # proxy every available modality endpoint (i.e. method) on the model
-        inference_proxy = object.__new__(type(model))
+        inference = typing.cast(ModelInferenceImpl, model.inference)
+        inference_proxy = ModelInferenceImpl(ctx=inference.ctx)
+
         for modality in Modality:
-            if hasattr(model.inference, modality):
-                endpoint = getattr(model.inference, modality)
-                endpoint_proxy = InferenceProxy(modality, endpoint, self.tracer)
+            if hasattr(inference, modality):
+                endpoint = getattr(inference, modality)
+                endpoint_proxy = InferenceProxy(inference.ctx, modality, endpoint, self.tracer)
                 setattr(inference_proxy, modality, endpoint_proxy)
         model.inference = inference_proxy
         return model
@@ -323,21 +333,26 @@ def _instantiate_code_callable(
     return python_code, callable
 
 
+@dataclass
+class ModelInferenceImpl(ModelInference):
+    ctx: InferenceContext
+
+
 def _instantiate_model_inference(model: Model) -> ModelInference:
     # Model inference assumes its context is unique per instance :ReusableInstances
     #  (could also just use context vars for this)
     ctx = InferenceContext(model=model, n=1, user_opaque_id=None, streaming_callback=None)
 
-    class ModelInferenceImpl(ModelInference):
-        pass
+    impl = ModelInferenceImpl(ctx)
 
-    ModelInferenceImpl.__name__ = f"{model.name}Inference"
-
-    for modality, endpoint_cls in get_endpoints(model):
+    endpoints = get_endpoints(model)
+    if not endpoints:
+        raise RuntimeError(f"no endpoints found for model: {model}")
+    for modality, endpoint_cls in endpoints:
         endpoint = getattr(endpoint_cls(ctx), modality)
-        setattr(ModelInferenceImpl, modality, endpoint)
+        setattr(impl, modality, endpoint)
 
-    return ModelInferenceImpl()
+    return impl
 
 
 def instantiate(

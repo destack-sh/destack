@@ -421,8 +421,8 @@ class InterpSymbol:
         return self.definition is not None and self.definition.id == self.id
 
     @property
-    def fqn(self):
-        return self.source.fqn if self.source else None
+    def fqn(self) -> str:
+        return self.definition.source.fqn if self.definition.source else None
 
     @property
     def is_root(self):
