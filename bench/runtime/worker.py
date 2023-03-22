@@ -354,7 +354,9 @@ class ModuleWorker:
                 runnable,
                 idx=self.idx,
                 build=build,
-                proxy=Proxy(tracer=MultiTracer([tracer, ValidationTracer()])),
+                proxy=Proxy(
+                    tracer=MultiTracer([tracer, ValidationTracer()]), cache_inferences=True
+                ),
             )
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")

@@ -4,7 +4,7 @@ import uuid
 from typing import Optional, Union
 from uuid import UUID
 
-from bench.msg.serialize import from_dict, to_dict
+from bench.utils.serialize import from_dict, to_dict
 
 
 @dataclasses.dataclass(eq=False)

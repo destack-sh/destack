@@ -154,6 +154,34 @@ const DB_ENV_VARS = [
   },
 ];
 
+// Create persistent ElastiCache Redis cluster
+const redisSecurityGroup = new aws.ec2.SecurityGroup("redis", {
+  ingress: [
+    {
+      fromPort: 6379,
+      toPort: 6379,
+      protocol: "tcp",
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+  egress: [
+    {
+      fromPort: 0,
+      toPort: 0,
+      protocol: "-1",
+      cidrBlocks: ["0.0.0.0/0"],
+    },
+  ],
+});
+const redis = new aws.elasticache.Cluster("redis", {
+  engine: "redis",
+  nodeType: "cache.t3.micro",
+  numCacheNodes: 1,
+  port: 6379,
+  parameterGroupName: "default.redis7",
+  securityGroupIds: [redisSecurityGroup.id],
+});
+
 // NATS chart
 const nats = new k8s.helm.v3.Release("nats", {
   namespace: "default",
@@ -181,6 +209,11 @@ const BACKEND_ENV_VARS = [
   {
     name: "NATS_SERVER",
     value: nats.name.apply((name) => `nats://${name}:4222`),
+  },
+  // redis
+  {
+    name: "REDIS_URL",
+    value: redis.cacheNodes[0].address.apply((address) => `redis://:${address}6379`),
   },
 ];
 

@@ -149,6 +149,8 @@ gunicorn==20.1.0
     # via -r requirements.in
 h11==0.14.0
     # via uvicorn
+hiredis==2.2.2
+    # via redis
 huggingface-hub==0.12.0
     # via transformers
 hyperlink==21.0.0
@@ -268,6 +270,8 @@ pyyaml==6.0
     #   drf-spectacular
     #   huggingface-hub
     #   transformers
+redis[hiredis]==4.5.3
+    # via -r requirements.in
 regex==2022.10.31
     # via transformers
 requests==2.27.1

@@ -145,6 +145,8 @@ gunicorn==20.1.0
     # via -r requirements.in
 h11==0.14.0
     # via uvicorn
+hiredis==2.2.2
+    # via redis
 hyperlink==21.0.0
     # via
     #   autobahn
@@ -244,6 +246,8 @@ pytz==2022.1
     #   djangorestframework
 pyyaml==6.0
     # via drf-spectacular
+redis[hiredis]==4.5.3
+    # via -r requirements.in
 requests==2.27.1
     # via
     #   anthropic

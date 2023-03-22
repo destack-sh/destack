@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import hashlib
 import inspect
+import json
 import re
 import textwrap
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import dataclass
+from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
 from uuid import UUID, uuid4
@@ -52,6 +55,7 @@ from bench.runtime.type import (
     summarize_args,
 )
 from bench.runtime.x import X_BUILTINS
+from bench.utils.cache import redis
 from bench.utils.record import RecordList
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -157,33 +161,67 @@ class AsyncCodeProxy:
 
 
 class InferenceProxy:
-    """A worker-side proxy for inference tracing on a specific capability endpoint."""
+    """A worker-side proxy for tracing (and caching) a specific inference endpoint."""
 
     def __init__(
         self,
         ctx: InferenceContext,
-        capability: Modality,
+        modality: Modality,
         endpoint: InferenceEndpoint,
         tracer: Tracer,
+        cache_inferences: bool,
     ):
         self.ctx = ctx
-        self.capability = capability
+        self.modality = modality
         self.endpoint = endpoint
         self.tracer = tracer
+        self.cache_inferences = cache_inferences
 
-    async def __call__(self, *blocks: XBlock) -> Any:
+    # insecure hash is fine here, it's just for caching
+    # noinspection InsecureHash
+    async def __call__(self, blocks: list[XBlock], settings: Any) -> Any:
+        # make hash key
+        block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
+        blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
+        settings_hash = hashlib.sha256(
+            json.dumps(settings, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+        cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{blocks_hash}:{settings_hash}"
+
         log = logger.bind(
-            capability=self.capability, endpoint=self.endpoint, ctx=self.ctx, blocks=len(blocks)
+            modality=self.modality,
+            ctx=self.ctx,
+            blocks=len(blocks),
+            cache_key=cache_key,
+            cache_inferences=self.cache_inferences,
         )
+
+        if self.cache_inferences:
+            cached_ret = await redis.get(cache_key)
+            if cached_ret is not None:
+                try:
+                    ret = json.loads(cached_ret)
+                    log.debug("inference.cache.hit", ret=summarize_args(ret))
+                    return ret
+                except JSONDecodeError:
+                    log.error("inference.cache.error", excinfo=True)
+                    # ignore and continue, will be overwritten
+
         try:
-            self.tracer.inference_enter(self.ctx, blocks)
+            self.tracer.inference_enter(self.ctx, blocks, settings)
             log.debug("inference.call.enter")
-            ret = await self.endpoint(*blocks)
-            self.tracer.inference_exit(self.ctx, blocks, ret)
+            ret = await self.endpoint(blocks, settings)
+            self.tracer.inference_exit(self.ctx, blocks, settings, ret)
             log.debug("inference.call.exit", ret=summarize_args(ret))
+
+            if self.cache_inferences:
+                # ret is assumed to be JSON-serializable
+                # (may not be true when we get to images, but this will error obviously enough)
+                await redis.set(cache_key, json.dumps(ret))
+
             return ret
         except Exception as exception:
-            self.tracer.inference_exception(self.ctx, blocks, exception)
+            self.tracer.inference_exception(self.ctx, blocks, settings, exception)
             log.debug("inference.call.exception", excinfo=True)
             raise
 
@@ -191,8 +229,9 @@ class InferenceProxy:
 class Proxy:
     """A worker-side proxy for wrapping symbol access."""
 
-    def __init__(self, tracer: Tracer):
+    def __init__(self, tracer: Tracer, cache_inferences: bool):
         self.tracer = tracer
+        self.cache_inferences = cache_inferences
 
     def proxy_code(self, code: CodeInstance) -> CodeInstance:
         code_proxy_cls = (
@@ -210,7 +249,13 @@ class Proxy:
         for modality in Modality:
             if hasattr(inference, modality):
                 endpoint = getattr(inference, modality)
-                endpoint_proxy = InferenceProxy(inference.ctx, modality, endpoint, self.tracer)
+                endpoint_proxy = InferenceProxy(
+                    ctx=inference.ctx,
+                    modality=modality,
+                    endpoint=endpoint,
+                    tracer=self.tracer,
+                    cache_inferences=self.cache_inferences,
+                )
                 setattr(inference_proxy, modality, endpoint_proxy)
         model.inference = inference_proxy
         return model
@@ -364,7 +409,7 @@ def instantiate(
     """Instantiate a symbol in a build with all relevant context recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
-    proxy = proxy or Proxy(tracer=Tracer())
+    proxy = proxy or Proxy(tracer=Tracer(), cache_inferences=False)
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():

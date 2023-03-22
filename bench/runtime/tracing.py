@@ -34,14 +34,16 @@ class Tracer:
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         pass
 
-    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
+    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
         pass
 
-    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
+    def inference_exit(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
+    ):
         pass
 
     def inference_exception(
-        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         pass
 
@@ -67,19 +69,21 @@ class MultiTracer(Tracer):
         for tracer in reversed(self.tracers):
             tracer.code_exception(code, args, kwargs, exception)
 
-    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
+    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
         for tracer in self.tracers:
-            tracer.inference_enter(ctx, blocks)
+            tracer.inference_enter(ctx, blocks, settings)
 
-    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
-        for tracer in reversed(self.tracers):
-            tracer.inference_exit(ctx, blocks, result)
-
-    def inference_exception(
-        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+    def inference_exit(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
     ):
         for tracer in reversed(self.tracers):
-            tracer.inference_exception(ctx, blocks, exception)
+            tracer.inference_exit(ctx, blocks, settings, result)
+
+    def inference_exception(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
+    ):
+        for tracer in reversed(self.tracers):
+            tracer.inference_exception(ctx, blocks, settings, exception)
 
 
 class Trace:
@@ -177,20 +181,22 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_enter(self, ctx: InferenceContext, blocks: tuple[XBlock]):
+    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
         frame = self._create_frame(model=ctx.model, inference_context=ctx)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
+    def inference_exit(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
+    ):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_exception(
-        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         frame = self.stacktrace.pop()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
