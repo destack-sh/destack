@@ -341,7 +341,7 @@ class ModelInferenceImpl(ModelInference):
 def _instantiate_model_inference(model: Model) -> ModelInference:
     # Model inference assumes its context is unique per instance :ReusableInstances
     #  (could also just use context vars for this)
-    ctx = InferenceContext(model=model, n=1, user_opaque_id=None, streaming_callback=None)
+    ctx = InferenceContext(model=model, n=1, user_opaque_id=model.id.hex, streaming_callback=None)
 
     impl = ModelInferenceImpl(ctx)
 

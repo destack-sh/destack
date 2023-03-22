@@ -172,6 +172,7 @@ class ModuleWorker:
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
+        # TODO @Broken: track module worker deployment id, make Execution.deployment non-nullable
         self.deployment_id: UUID = deployment_id
         self.ready = asyncio.Event()
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
@@ -305,8 +306,7 @@ class ModuleWorker:
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
         self.log.info("module.build", builds=builds)
         build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
-        build_results = await asyncio.gather(*build_processes, return_exceptions=True)
-        build_results = [b for b in build_results if isinstance(b, BuildResult)]
+        build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         return build_results
 
     def queue_run(
@@ -512,6 +512,8 @@ def make_full_change_payload(module_worker: ModuleWorker, cls):
 
 
 class Worker:
+    """A community worker or single deployment worker."""
+
     def __init__(self, worker_id: str | UUID, deployment_id: UUID | None):
         self.worker_id = worker_id
         self.deployment_id = deployment_id

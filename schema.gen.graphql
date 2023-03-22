@@ -254,7 +254,7 @@ type Execution implements Node {
   id: GlobalID!
   project: Project!
   projectVersion: ProjectVersion!
-  deployment: Deployment!
+  deployment: Deployment
   createdAt: DateTime!
   updatedAt: DateTime!
 

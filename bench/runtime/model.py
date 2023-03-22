@@ -10,7 +10,13 @@ import pydub
 import structlog
 
 from bench.language.type import Model, XBlock, XSource
-from bench.runtime.type import IncapableError, Modality, ModelInference, TextGenerationSettings
+from bench.runtime.type import (
+    ImageGenerationSettings,
+    IncapableError,
+    Modality,
+    ModelInference,
+    TextGenerationSettings,
+)
 
 logger = structlog.get_logger(__name__)
 
@@ -70,18 +76,18 @@ class OpenAIChatCompletion(ModelInference):
     ) -> str:
         role_map = {
             XSource.System: "system",
-            XSource.Developer: "developer",
+            XSource.Developer: "system",
             XSource.User: "user",
             XSource.Model: "assistant",
         }
         messages = [{"role": role_map[x.source], "content": x.value} for x in input]
-        response = await openai.Completion.create(
+        response = await openai.ChatCompletion.acreate(
             model=self.ctx.model.external_name,
             messages=messages,
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
             top_p=settings.top_p,
-            stop=settings.stop,
+            stop=settings.stop or None,
             logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
         )
@@ -108,13 +114,13 @@ class OpenAITextCompletion(ModelInference):
         }
         messages = [{"role": role_map[x.source], "content": x.value} for x in input]
         prompt = "\n".join(f"{x['role']}: {x['content']}" for x in messages)
-        response = await openai.Completion.create(
+        response = await openai.Completion.acreate(
             model=self.ctx.model.external_name,
             prompt=prompt,
             max_tokens=settings.max_tokens,
             temperature=settings.temperature,
             top_p=settings.top_p,
-            stop=settings.stop,
+            stop=settings.stop or None,
             logit_bias=settings.logit_bias,
             user=self.ctx.user_opaque_id,
         )
@@ -154,15 +160,6 @@ class AnthropicTextCompletion(ModelInference):
         settings: TextGenerationSettings,
     ) -> str:
         raise NotImplementedError
-
-
-@dataclass
-class ImageGenerationSettings:
-    seed: int
-    steps: int
-    width: int
-    height: int
-    cfg_scale: float
 
 
 @dataclass(repr=False)

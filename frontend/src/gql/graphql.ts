@@ -266,7 +266,7 @@ export type Execution = Node & {
   build?: Maybe<Statement>;
   code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
-  deployment: Deployment;
+  deployment?: Maybe<Deployment>;
   descendants: Array<Execution>;
   durationMillis?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
@@ -2642,7 +2642,7 @@ export type ExecutionContentFragment = {
   outputs?: any | null;
   error?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
-  deployment: { __typename?: "Deployment"; id: any };
+  deployment?: { __typename?: "Deployment"; id: any } | null;
   user?: { __typename?: "User"; id: any; slug: string } | null;
   accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
   root?: { __typename?: "Execution"; id: any } | null;

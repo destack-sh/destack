@@ -26,7 +26,7 @@ ExecutionTriggerType = gql.enum(models.ExecutionTriggerType)
 class Execution(gql.Node):
     project: Annotated["Project", lazy(".project")]
     project_version: Annotated["ProjectVersion", lazy(".project")]
-    deployment: Annotated["Deployment", lazy(".deployment")]
+    deployment: Optional[Annotated["Deployment", lazy(".deployment")]]
     created_at: auto
     updated_at: auto
     started_at: auto
