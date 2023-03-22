@@ -52,7 +52,7 @@ class Execution(UUIDTModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
     )
     deployment = models.ForeignKey(
-        "Deployment", on_delete=models.CASCADE, related_name="executions+"
+        "Deployment", null=True, blank=True, on_delete=models.CASCADE, related_name="executions+"
     )
     job = models.ForeignKey(
         "Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"

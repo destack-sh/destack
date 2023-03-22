@@ -292,6 +292,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             plan.emit(InstructionEmitTask(task=task))
             plan.emit(InstructionEmitInput(input_type=task.type.input, path=""))
             plan.emit(InstructionEmitSettings(base_settings=settings.__dict__))
+            plan.emit(InstructionEmitTypeSample(type=task.type.output))
             plan.emit(InstructionEmitOutput(output_type=task.type.output, path=""))
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
@@ -315,8 +316,8 @@ async def do_build(candidate: BuildCandidate) -> None:
             model=task_plan.model,
             modality=task_plan.modality,
         )
-        emitted_blocks = await asyncio.gather(*[emit() for emit in task_plan.targets])
-        for emit in emitted_blocks:
+        emissions = await asyncio.gather(*[emit() for emit in task_plan.targets])
+        for emit in emissions:
             if isinstance(emit, list):
                 xbuilder.extend(emit)
             else:
@@ -482,7 +483,7 @@ class InstructionEmitOutput(InstructionEmit):
         return json.loads(output.value)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        output_request = xstatic("Output in JSON:", XSource.System)
+        output_request = xstatic("Output:", XSource.System)
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
 

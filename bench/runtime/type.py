@@ -257,13 +257,31 @@ class IncapableError(NotImplementedError):
     pass
 
 
+# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib.
+# For now, we just use internal dataclasses. :TypeSafeSettings
+
+
 @dataclass
 class TextGenerationSettings:
     temperature: float
     max_tokens: int
     top_p: Optional[float]
-    stop: Optional[list[str]] = None
-    logit_bias: Optional[dict[str, float]] = None
+    stop: Optional[list[str]] = field(default_factory=list)
+    logit_bias: Optional[dict[str, float]] = field(default_factory=dict)
+
+
+@dataclass
+class EmbeddingSettings:
+    pass
+
+
+@dataclass
+class ImageGenerationSettings:
+    seed: int
+    steps: int
+    width: int
+    height: int
+    cfg_scale: float
 
 
 class Modality(enum.StrEnum):
@@ -283,12 +301,19 @@ class ModelInference:
         raise IncapableError()
 
     async def generate_image(
-        self, input: list[XBlock], settings: Any
+        self, input: list[XBlock], settings: ImageGenerationSettings
     ) -> PIL.Image | list[PIL.Image]:
         raise IncapableError()
 
-    async def embed(self, input: list[XBlock], settings: Any) -> list[float]:
+    async def embed(self, input: list[XBlock], settings: EmbeddingSettings) -> list[float]:
         raise IncapableError()
+
+
+BASE_SETTINGS_BY_MODALITY = {
+    Modality.GenerateText: TextGenerationSettings,
+    Modality.GenerateImage: ImageGenerationSettings,
+    Modality.Embed: EmbeddingSettings,
+}
 
 
 def summarize_args(arguments: Any) -> str:

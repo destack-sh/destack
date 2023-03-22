@@ -18,7 +18,13 @@ from bench.language.type import (
     XSource,
 )
 from bench.language.typer import check_type
-from bench.runtime.type import Modality
+from bench.runtime.type import (
+    BASE_SETTINGS_BY_MODALITY,
+    EmbeddingSettings,
+    ImageGenerationSettings,
+    Modality,
+    TextGenerationSettings,
+)
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import get_method_source
 
@@ -103,6 +109,9 @@ X_BUILTINS = {
     "XSource": XSource,
     "XBlock": XBlock,
     "Modality": Modality,
+    "TextGenerationSettings": TextGenerationSettings,
+    "ImageGenerationSettings": ImageGenerationSettings,
+    "EmbeddingSettings": EmbeddingSettings,
 }
 
 XInputHandler = typing.Callable[[XBlock, typing.Any], None]
@@ -152,7 +161,8 @@ class XBuilder:
         input_handler_calls: list[str] = []
         output_handler_defs: list[str] = []
         output_handler_calls: list[str] = []
-        for i, block in enumerate(self.dynamic_xblocks):
+        for block in self.dynamic_xblocks:
+            i = self.xblocks.index(block.xblock)
             if block.xblock.kind == XKind.Input:
                 handler_def = f"def _input_handler_{i}(input, value):\n" + (
                     textwrap.indent(get_method_source(block.handler), " " * 4)
@@ -174,10 +184,13 @@ class XBuilder:
                 )
                 output_handler_calls.append(handler_call)
 
+        settings_type = BASE_SETTINGS_BY_MODALITY[self.modality]
         model_call = (
             f"model = context['{self.model.name}']\n"
-            f"input_blocks = [xblock for xblock in xblocks if xblock.kind == XKind.Input]\n"
+            f"input_blocks = [xblock for xblock in xblocks if xblock.kind in (XKind.Input, XKind.Static)]\n"
             f"settings = last([xblock.value for xblock in xblocks if xblock.kind == XKind.Settings])\n"
+            # cast settings to right type  :TypeSafeSettings
+            f"settings = {settings_type.__name__}(**settings)\n"
             f"model_output = await model.{self.modality}(input_blocks, settings)"
         )
 
