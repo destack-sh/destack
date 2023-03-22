@@ -141,7 +141,7 @@ class OpenAIAudioTranscription(ModelInference):
         input: list[XBlock[pydub.AudioSegment | str]],
         settings: None,
     ) -> str:
-        raise IncapableError
+        raise IncapableError()
 
 
 @endpoint(["anthropic.std.text.claude", "anthropic.std.text.claude-instant"], Modality.GenerateText)
