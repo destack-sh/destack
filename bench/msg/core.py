@@ -21,8 +21,8 @@ from bench.msg.messages import (
     NMessageType,
     to_topic,
 )
-from bench.msg.serialize import from_dict, to_dict
 from bench.utils.func import wrap_task
+from bench.utils.serialize import from_dict, to_dict
 from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)

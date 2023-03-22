@@ -34,7 +34,7 @@ class InferenceContext:
         return self.streaming_callback is not None
 
 
-InferenceEndpoint = typing.Callable[[...], typing.Awaitable[Any]]
+InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
 
 endpoints: dict[(str, Modality), InferenceEndpoint] = {}
 

@@ -252,6 +252,10 @@ h11==0.14.0
     # via
     #   -c requirements.txt
     #   uvicorn
+hiredis==2.2.2
+    # via
+    #   -c requirements.txt
+    #   redis
 huggingface-hub==0.12.1
     # via transformers
 hyperlink==21.0.0
@@ -492,6 +496,10 @@ pyyaml==6.0
     #   huggingface-hub
     #   pre-commit
     #   transformers
+redis[hiredis]==4.5.3
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 regex==2022.10.31
     # via transformers
 requests==2.27.1

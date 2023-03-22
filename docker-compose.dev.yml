@@ -31,3 +31,13 @@ services:
             - '4222:4222'
             - '6222:6222'
             - '8222:8222'
+
+    redis:
+        image: redis:7.0-bullseye
+        restart: on-failure
+        ports:
+            - '6379:6379'
+        command: redis-server --appendonly yes
+
+volumes:
+    redis-data:
