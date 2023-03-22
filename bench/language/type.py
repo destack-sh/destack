@@ -23,6 +23,7 @@ import PIL.Image
 import pydub
 from django.db import models
 
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.utils import required_field
 
 
@@ -315,6 +316,10 @@ class Statement(Generic[SymbolContentT]):
         return ".".join(reversed(ancestor_parts))
 
     @property
+    def fqn(self) -> str:
+        return f"{self.file.module.name}.{self.file.path.replace('/', '.')}.{self.name}"
+
+    @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent else None
 
@@ -414,6 +419,10 @@ class InterpSymbol:
     @property
     def is_definition(self) -> bool:
         return self.definition is not None and self.definition.id == self.id
+
+    @property
+    def fqn(self):
+        return self.source.fqn if self.source else None
 
     @property
     def is_root(self):
@@ -590,7 +599,6 @@ class TaskContent(SymbolContent):
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
     type: Type = required_field()
-    implementation: Optional[Code] = field(default=None)
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
 
@@ -697,7 +705,7 @@ class XBlock(SymbolContent, typing.Generic[ValueT]):
 @dataclass(repr=False)
 class XBlockContent(XBlock, typing.Generic[ValueT]):
     description: Optional[str] = None
-    order_key: str = required_field()
+    order_key: str = field(default=INTEGER_ZERO)
     id: UUID = field(default_factory=uuid.uuid4)
 
 

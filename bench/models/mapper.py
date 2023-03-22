@@ -135,6 +135,7 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
         implicit_statement = wire.StatementData(
             id=uuid4(),
             name=module,
+            fqn=None,
             type=StatementType.DEFINITION,
             symbol_type=SymbolType.REQUIREMENT,
             reference_module=reference_module,
@@ -262,6 +263,8 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         name = statement.reference.name
     else:
         name = statement.name
+    # is this right? (what about nested statements?)
+    fqn = file.path.replace("/", ".") + "." + name
     data = wire.StatementData(
         id=statement.id,
         module_id=file.module_id,
@@ -272,6 +275,7 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         type=statement.type,
         modifier=statement.modifier,
         name=name,
+        fqn=fqn,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
         reference=reference,

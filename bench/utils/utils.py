@@ -1,4 +1,6 @@
+import inspect
 import os
+import textwrap
 from dataclasses import field
 from typing import Any, Callable, Optional
 
@@ -49,6 +51,18 @@ def required_field(**kwargs):
 
     _field = field(default_factory=_raise_must_set, **kwargs)
     return _field
+
+
+def get_method_source(method) -> str:
+    cleaned_lines = []
+    for line in inspect.getsourcelines(method)[0]:
+        if line.strip().startswith("@"):
+            continue
+        if "def " in line:
+            continue
+        cleaned_lines.append(line)
+
+    return textwrap.dedent("".join(cleaned_lines))
 
 
 def sentry_capture_if_enabled(e: Exception) -> bool:

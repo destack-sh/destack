@@ -32,11 +32,37 @@ class BaseMetric(enum.StrEnum):
     TokensCount = "tokens_count"
 
 
+HIGHER_IS_BETTER = {
+    SummaryMetric.Performance,
+    SummaryMetric.Clarity,
+    BaseMetric.ModelSuccessRate,
+    BaseMetric.TypeCorrectness,
+    BaseMetric.ExpectationSatisfaction,
+    BaseMetric.FeedbackCorrelation,
+    BaseMetric.InstructionAgreement,
+    BaseMetric.InstructionOverlap,
+}
+LOWER_IS_BETTER = {
+    SummaryMetric.Complexity,
+    BaseMetric.InstructionPerplexity,
+    BaseMetric.ExecutionDuration,
+    BaseMetric.NodesCount,
+    BaseMetric.StepsCount,
+    BaseMetric.TokensCount,
+}
+
+
 @dataclass
 class Evaluation:
     symbol: Optional[InterpSymbol]
     metrics: dict[str, float]
     id: uuid.UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return ", ".join(f"{k}: {v:0.02f}" for k, v in self.metrics.items())
+
+    def __repr__(self):
+        return f"<Evaluation {self.symbol} {self}>"
 
     @property
     def summary_metrics(self):
@@ -45,6 +71,11 @@ class Evaluation:
     @property
     def base_metrics(self):
         return {metric: self.metrics[metric] for metric in BaseMetric}
+
+
+def compare_evaluations(a: Evaluation, b: Evaluation) -> bool:
+    """If a is better than b, return True."""
+    return b  # TODO @Broken: actually compare
 
 
 async def evaluate_task(task: TaskInstance) -> Evaluation:

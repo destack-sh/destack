@@ -113,6 +113,7 @@ class StatementData:
     type: StatementType
     modifier: Optional[StatementModifier]
     name: Optional[str]
+    fqn: Optional[str]
     parent_id: Optional[UUID]
     reference: Union[None, StatementPath, UUID]
     text: Optional[str]
@@ -240,6 +241,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         modifier=statement.modifier,
         reference=reference,
         name=statement.name,
+        fqn=statement.fqn,
         text=statement.text,
         symbol_type=statement.symbol_type,
         generated=statement.generated,
