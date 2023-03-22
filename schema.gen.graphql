@@ -454,6 +454,7 @@ type InterpSymbol implements SimplyTyped {
   orderKey: String!
   parentId: GlobalID
   name: String
+  fqn: String!
   type: StatementType!
   generated: Boolean!
   modifier: StatementModifier

@@ -40,6 +40,11 @@ class Tracer:
     def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
         pass
 
+    def inference_exception(
+        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+    ):
+        pass
+
 
 class MultiTracer(Tracer):
     """
@@ -69,6 +74,12 @@ class MultiTracer(Tracer):
     def inference_exit(self, ctx: InferenceContext, blocks: tuple[XBlock], result: Any):
         for tracer in reversed(self.tracers):
             tracer.inference_exit(ctx, blocks, result)
+
+    def inference_exception(
+        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+    ):
+        for tracer in reversed(self.tracers):
+            tracer.inference_exception(ctx, blocks, exception)
 
 
 class Trace:
@@ -177,6 +188,15 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
+
+    def inference_exception(
+        self, ctx: InferenceContext, blocks: tuple[XBlock], exception: Exception
+    ):
+        frame = self.stacktrace.pop()
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.error = exception
+        self.tracker(frame)
+        logger.debug("trace.inference.exception", frame=frame, stackdepth=len(self.stacktrace))
 
 
 class ValidationError(Exception):

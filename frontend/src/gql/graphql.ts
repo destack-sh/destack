@@ -462,6 +462,7 @@ export type InterpSimpleType = Node &
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
   file: InterpFile;
+  fqn: Scalars["String"];
   generated: Scalars["Boolean"];
   id: Scalars["GlobalID"];
   modifier?: Maybe<StatementModifier>;

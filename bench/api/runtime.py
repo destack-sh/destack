@@ -85,6 +85,7 @@ class InterpSymbol(SimplyTyped):
     order_key: str
     parent_id: Optional[GlobalID]
     name: Optional[str]
+    fqn: str
     type: StatementType
     generated: bool
     modifier: Optional[StatementModifier]
@@ -140,6 +141,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 order_key=statement.order_key,
                 parent_id=statement.parent_id,
                 name=statement.name,
+                fqn=statement.fqn,
                 type=statement.type,
                 generated=statement.generated,
                 modifier=statement.modifier,

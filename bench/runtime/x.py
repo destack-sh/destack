@@ -20,6 +20,7 @@ from bench.language.type import (
 from bench.language.typer import check_type
 from bench.runtime.type import Modality
 from bench.utils.fractional import generate_n_keys_between
+from bench.utils.utils import get_method_source
 
 
 class GenerationErrorType(enum.Enum):
@@ -93,6 +94,17 @@ def xcode(
     )
 
 
+X_BUILTINS = {
+    "xinput": xinput,
+    "xoutput": xoutput,
+    "xstatic": xstatic,
+    "xsettings": xsettings,
+    "XKind": XKind,
+    "XSource": XSource,
+    "XBlock": XBlock,
+    "Modality": Modality,
+}
+
 XInputHandler = typing.Callable[[XBlock, typing.Any], None]
 XOutputHandler = typing.Callable[[XBlock], typing.Any]
 
@@ -131,11 +143,9 @@ class XBuilder:
         for xblock, order_key in zip(self.xblocks, order_keys):
             xblock.order_key = order_key
 
-        model_call = (
-            f"input_blocks = [xblock for xblock in self.xblocks if xblock.kind == XKind.Input]\n"
-            f"settings = last([xblock.value for xblock in self.xblocks if xblock.kind == XKind.Settings])\n"
-            f"model_output = await model.{self.modality}(input_blocks, settings)"
-        )
+        input_dict_def = "from collections import OrderedDict\n" "_input_dict = OrderedDict()"
+        for input in self.type.input.children:
+            input_dict_def += f"\n_input_dict['{input.name}'] = {input.name}"
 
         # inline handler methods
         input_handler_defs: list[str] = []
@@ -144,32 +154,53 @@ class XBuilder:
         output_handler_calls: list[str] = []
         for i, block in enumerate(self.dynamic_xblocks):
             if block.xblock.kind == XKind.Input:
-                handler_def = f"def input_handler_{i}(xblock, value):" + textwrap.indent(
-                    inspect.getsource(block.handler), "    "
+                handler_def = f"def _input_handler_{i}(input, value):\n" + (
+                    textwrap.indent(get_method_source(block.handler), " " * 4)
                 )
                 input_handler_defs.append(handler_def)
-                handler_call = f"value = " f"input_handler_{i}(self.xblocks[{i}], value)"
+                handler_call = f"_input_handler_{i}(xblocks[{i}], _input_dict)"
                 input_handler_calls.append(handler_call)
             elif block.xblock.kind == XKind.Output:
-                handler_def = f"def output_handler_{i}(xblock):" + textwrap.indent(
-                    inspect.getsource(block.handler), "    "
+                handler_def = f"def _output_handler_{i}(output):\n" + (
+                    textwrap.indent(get_method_source(block.handler), " " * 4)
                 )
                 output_handler_defs.append(handler_def)
-                handler_call = f"output_handler_{i}(self.xblocks[{i}])"
+                if output_handler_calls:
+                    # TODO @Incomplete: support multiple output handlers (multiple paths?)
+                    raise ValueError(f"already have output handler for {self.name}")
+                handler_call = (
+                    f"xblocks[{i}].value = model_output\n"
+                    f"return _output_handler_{i}(xblocks[{i}])"
+                )
+                output_handler_calls.append(handler_call)
+
+        model_call = (
+            f"model = context['{self.model.name}']\n"
+            f"input_blocks = [xblock for xblock in xblocks if xblock.kind == XKind.Input]\n"
+            f"settings = last([xblock.value for xblock in xblocks if xblock.kind == XKind.Settings])\n"
+            f"model_output = await model.{self.modality}(input_blocks, settings)"
+        )
 
         x_source = (
             # context
-            f"model = context[{self.model.name}]",
+            input_dict_def,
             *input_handler_defs,
             *output_handler_defs,
             # run input handlers
             *input_handler_calls,
             # run model
-            *model_call,
+            model_call,
             # run output handlers
-            *output_handler_calls,  # TODO @Broken: return output handler value(s?)
+            *output_handler_calls,
         )
-        return xcode("\n".join(x_source), name=self.name, type=self.type, xblocks=self.xblocks)
+        x_source = "\n".join(x_source)
+        return xcode(
+            x_source,
+            name=self.name,
+            type=self.type.deepcopy(keep_id=False, keep_reference=True),
+            xblocks=self.xblocks,
+            language="x",
+        )
 
 
 class DataBuilder:
@@ -177,11 +208,11 @@ class DataBuilder:
 
     def __init__(self, name: str, type_node: TypeNode):
         self.name = name
-        self.type_node = type_node
+        self.type = type_node
         self.records: list[LiteralValue] = []
 
     def append(self, record: LiteralValue):
-        check_type(record, self.type_node)
+        check_type(record, self.type)
         self.records.append(record)
 
     def extend(self, records: list[LiteralValue], ignore_type_errors: bool):
@@ -198,8 +229,8 @@ class DataBuilder:
         records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, self.records)]
         dataset = Dataset(
             name=self.name,
-            type_node=self.type_node,
-            type=self.type_node.to_type(),
+            type_node=self.type,
+            type=self.type.to_type().deepcopy(keep_id=False, keep_reference=True),
             records=records,
             description=None,
             language="jsonl",

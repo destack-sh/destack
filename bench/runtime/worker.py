@@ -168,11 +168,11 @@ RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in 
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
-    def __init__(self, module_id: UUID, master: "Worker"):
+    def __init__(self, module_id: UUID, master: "Worker", deployment_id: UUID):
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
-        self.deployment_id: UUID = None  # TODO @Broken: assign workers to deployments
+        self.deployment_id: UUID = deployment_id
         self.ready = asyncio.Event()
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
@@ -339,6 +339,7 @@ class ModuleWorker:
         # root execution id is pre-set for tracking (run job gets the same id)
         root_id = UUIDT()
         try:
+            # TODO @Performance: instantiate runs once and use context vars for tracking :ReusableInstances
             # trace level filtering happens in this tracker
             tracker = pub_filtered_execution_tracker(
                 root_id,
@@ -375,7 +376,7 @@ class ModuleWorker:
         qpos = self._queue_job(job)
         # emit queued status immediately
         if isinstance(runnable_instance, TaskInstance):
-            code_instance = runnable_instance.implementation_instance
+            code_instance = runnable_instance.implementation
         else:
             code_instance = runnable_instance
         tracer.queue_enter(code_instance, arguments, qpos)
@@ -384,7 +385,7 @@ class ModuleWorker:
     async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
         try:
             if isinstance(runnable, TaskInstance):
-                code_instance = runnable.implementation_instance
+                code_instance = runnable.implementation
             else:
                 code_instance = runnable
             self.log.info("module.run", code_instance=code_instance)
@@ -455,7 +456,7 @@ class ModuleWorker:
             ),
             wrap_task(self._process_queue(self.run_jobs), f"worker_run_{self.module_id}"),
         )
-        # wait for the first interp job to complete
+        # wait for the initial interp job to complete
         await interp_job.terminated.wait()
         if interp_job.status != JobStatus.Completed:
             self.log.error("module_worker_init_failed", job=interp_job)
@@ -511,8 +512,9 @@ def make_full_change_payload(module_worker: ModuleWorker, cls):
 
 
 class Worker:
-    def __init__(self, worker_id: str | UUID):
+    def __init__(self, worker_id: str | UUID, deployment_id: UUID | None):
         self.worker_id = worker_id
+        self.deployment_id = deployment_id
         self.module_workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
         self.cached_committed_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
@@ -538,7 +540,8 @@ class Worker:
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:
             # start module worker if not already started
-            worker = ModuleWorker(module_id, self)
+            # TODO @Broken: assign workers to deployments
+            worker = ModuleWorker(module_id, self, self.deployment_id)
             self.module_workers[module_id] = worker
             asyncio.get_running_loop().create_task(
                 wrap_task(worker.run(), "worker_run_" + str(module_id))

@@ -235,8 +235,6 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     if isinstance(symbol, Task):
         for step in symbol.steps:
             track_interp_symbol(tree, step)
-        if symbol.implementation is not None:
-            track_interp_symbol(tree, symbol.implementation)
 
 
 def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:

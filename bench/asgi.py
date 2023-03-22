@@ -79,7 +79,7 @@ if RUN_WORKER:
     from bench.runtime.worker import Worker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
-    worker = Worker(worker_id=f"local.{hex(local_id)[2:]}")
+    worker = Worker(worker_id=f"local.{hex(local_id)[2:]}", deployment_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

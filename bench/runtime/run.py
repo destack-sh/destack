@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import enum
 import inspect
 import re
 import textwrap
-import time
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
@@ -16,6 +16,7 @@ import PIL.Image
 import pydub
 import structlog
 from django.db import models
+from more_itertools import first, last
 
 from bench.language import ModuleIndex
 from bench.language.type import (
@@ -32,13 +33,14 @@ from bench.language.type import (
     Value,
     XBlock,
 )
-from bench.runtime.model import InferenceContext, InferenceEndpoint
+from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoints
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,
     CodeInstance,
     DatasetInstance,
     Modality,
+    ModelInference,
     ModelInstance,
     SymbolInstance,
     SyncCodeCallable,
@@ -48,6 +50,7 @@ from bench.runtime.type import (
     XBlocks,
     summarize_args,
 )
+from bench.runtime.x import X_BUILTINS
 from bench.utils.record import RecordList
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -74,6 +77,9 @@ STATIC_BUILTINS = {
     "boolean": bool,
     "image": PIL.Image.Image,
     "audio": pydub.AudioSegment,
+    # functional builtins
+    "first": first,
+    "last": last,
 }
 
 
@@ -101,9 +107,6 @@ class RunError(Exception):
         self.symbol = symbol
         self.cause = cause
         super().__init__(self.type.description)
-
-
-ModelInference = typing.NamedTuple("ModelInference", [("id", UUID), ("output", dict)])
 
 
 class SyncCodeProxy:
@@ -161,16 +164,20 @@ class InferenceProxy:
         self.tracer = tracer
 
     async def __call__(self, ctx: InferenceContext, *blocks: XBlock) -> Any:
-        start_time = time.time()
-        self.tracer.inference_enter(ctx, blocks)
-        ret = await self.endpoint(ctx, *blocks)
-        self.tracer.inference_exit(ctx, blocks, ret)
-        logger.debug(
-            "inference.generate",
-            capability=self.capability,
-            duration=time.time() - start_time,
+        log = logger.bind(
+            capability=self.capability, endpoint=self.endpoint, ctx=ctx, blocks=len(blocks)
         )
-        return ret
+        try:
+            self.tracer.inference_enter(ctx, blocks)
+            log.debug("inference.call.enter")
+            ret = await self.endpoint(ctx, *blocks)
+            self.tracer.inference_exit(ctx, blocks, ret)
+            log.debug("inference.call.exit", ret=summarize_args(ret))
+            return ret
+        except Exception as exception:
+            self.tracer.inference_exception(ctx, blocks, exception)
+            log.debug("inference.call.exception", excinfo=True)
+            raise
 
 
 class Proxy:
@@ -188,14 +195,15 @@ class Proxy:
         return code
 
     def proxy_model(self, model: ModelInstance) -> ModelInstance:
-        # proxy every inference endpoint (i.e. method) on the model
-        proxy_model = object.__new__(type(model))
+        # proxy every available modality endpoint (i.e. method) on the model
+        inference_proxy = object.__new__(type(model))
         for modality in Modality:
-            endpoint = getattr(model, modality)
-            if endpoint is not None:
-                inference_proxy = InferenceProxy(modality, endpoint, self.tracer)
-                setattr(proxy_model, modality, inference_proxy)
-        return proxy_model
+            if hasattr(model.inference, modality):
+                endpoint = getattr(model.inference, modality)
+                endpoint_proxy = InferenceProxy(modality, endpoint, self.tracer)
+                setattr(inference_proxy, modality, endpoint_proxy)
+        model.inference = inference_proxy
+        return model
 
 
 def unwrap(value: SymbolInstance):
@@ -256,7 +264,6 @@ def _to_pyidentifier(name: str) -> str:
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
-    proxy: Proxy | None,
 ) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable]:
     """
     Instantiates code into a Python callable in the context.
@@ -295,14 +302,14 @@ def _instantiate_code_callable(
         is_async = "await " in python_code  # TODO @Robustness: detect async python code properly
     elif code.language == "x":
         python_code = code.code or "pass"
-        locals = {**STATIC_BUILTINS, **dynamic_context}
+        locals = {**STATIC_BUILTINS, **X_BUILTINS, **dynamic_context}
         is_async = True
     else:
         raise ValueError(f"unknown code language: {code}")
 
     # create python function from python code
     input_keys = code.type_node.input.keys
-    func_name = f"_{code.name}_{code.source.id.hex[:3]}"
+    func_name = f"_{_to_pyidentifier(code.name)}_{code.source.id.hex[:6]}"
     async_str = "async " if is_async else ""
     func_params = ", ".join(input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
@@ -316,8 +323,21 @@ def _instantiate_code_callable(
     return python_code, callable
 
 
-def _instantiate_model_inference(model: Model, proxy: Proxy) -> ModelInference:
-    raise NotImplementedError
+def _instantiate_model_inference(model: Model) -> ModelInference:
+    # Model inference assumes its context is unique per instance :ReusableInstances
+    #  (could also just use context vars for this)
+    ctx = InferenceContext(model=model, n=1, user_opaque_id=None, streaming_callback=None)
+
+    class ModelInferenceImpl(ModelInference):
+        pass
+
+    ModelInferenceImpl.__name__ = f"{model.name}Inference"
+
+    for modality, endpoint_cls in get_endpoints(model):
+        endpoint = getattr(endpoint_cls(ctx), modality)
+        setattr(ModelInferenceImpl, modality, endpoint)
+
+    return ModelInferenceImpl()
 
 
 def instantiate(
@@ -352,12 +372,12 @@ def instantiate(
         task = TaskInstance(
             **symbol.__dict__,
             build=build,
-            implementation_instance=typing.cast(CodeInstance, implementation_instance),
+            implementation=typing.cast(CodeInstance, implementation_instance),
         )
         implementation_instance.task = task
         return task
     elif isinstance(symbol, Code):
-        code_str, code_callable = _instantiate_code_callable(symbol, proxy)
+        code_str, code_callable = _instantiate_code_callable(symbol, instantiated_context)
         code_instance = CodeInstance(
             **symbol.__dict__,
             build=build,
@@ -371,8 +391,9 @@ def instantiate(
     elif isinstance(symbol, Value):
         return ValueInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Model):
-        inference = _instantiate_model_inference(symbol, instantiated_context, proxy)
-        return ModelInstance(**symbol.__dict__, inference=inference, build=build)
+        inference = _instantiate_model_inference(symbol)
+        model_instance = ModelInstance(**symbol.__dict__, inference=inference, build=build)
+        return proxy.proxy_model(model_instance)
     elif isinstance(symbol, Dataset):
         records_data = [r.data for r in symbol.records]
         return DatasetInstance(
@@ -386,6 +407,7 @@ def instantiate(
 
 
 def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
+    """Runs the code instance synchronously. Not to be used in production."""
     arguments = arguments or {}
     try:
         if code.is_async:
@@ -401,7 +423,7 @@ async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = No
         if code.is_async:
             return await code.py_handle(**arguments)
         else:
-            return code.py_handle(**arguments)
+            return await asyncio.to_thread(code.py_handle, **arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 

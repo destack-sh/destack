@@ -1,5 +1,5 @@
 import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import structlog
@@ -12,7 +12,7 @@ from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_in_db_module, write_module
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
-from bench.runtime.execute import ProviderKey
+from bench.runtime.run import ProviderKey
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -22,31 +22,43 @@ logger = structlog.get_logger(__name__)
 class Provider:
     name: str
     slug: str
-    models: list[str]
+    text_models: list[str | tuple[str, str]] = field(default_factory=list)
+    image_models: list[str | tuple[str, str]] = field(default_factory=list)
+    audio_models: list[str | tuple[str, str]] = field(default_factory=list)
 
 
 providers: list[Provider] = [
     Provider(
         name="OpenAI",
         slug="openai",
-        models=[
+        text_models=[
             ("gpt-3-5-turbo", "gpt-3.5-turbo"),
             "text-davinci-003",
-            "text-davinci-002",
-            "text-curie-001",
-            "text-babbage-001",
             "text-ada-001",
-            "code-davinci-002",
-            "code-cushman-001",
         ],
-    ),
-    Provider("Goose AI", "gooseai", ["fairseq-13b", "fairseq-6b-7b", "gpt-j-20b", "gpt-j-6b"]),
-    Provider(
-        "Cohere", "cohere", ["xlarge", "medium", "command-xlarge-beta", "command-xlarge-nightly"]
+        audio_models=["whisper"],
     ),
     Provider(
-        "Forefront", "forefront", ["codegen-16b", "gpt-j-6b", "gpt-neox-20b", "codegen-16b-nl"]
+        name="Goose AI",
+        slug="gooseai",
+        text_models=["fairseq-13b", "fairseq-6b-7b", "gpt-j-20b", "gpt-j-6b"],
     ),
+    Provider(
+        name="Cohere",
+        slug="cohere",
+        text_models=["xlarge", "command-xlarge-beta", "command-xlarge-nightly"],
+    ),
+    Provider(
+        name="Forefront",
+        slug="forefront",
+        text_models=["codegen-16b", "gpt-j-6b", "gpt-neox-20b", "codegen-16b-nl"],
+    ),
+    Provider(
+        name="Anthropic",
+        slug="anthropic",
+        text_models=[("claude-instant", "claude-instant-v1.0"), ("claude", "claude-v1.2")],
+    ),
+    Provider(name="Stability AI", slug="stabilityai", text_models=[]),
 ]
 
 
@@ -115,9 +127,30 @@ def create_model_providers():
         # add models to library
         # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers
         #  (not yet possible since models can't be expressed in bench yet)
+        for type, models in (("text", provider.text_models),):
+            models_file = std_v.create_file(name=type)
+            order_keys = generate_n_keys_between(None, None, len(models))
+            for order_key, model_id in zip(order_keys, models):
+                if isinstance(model_id, tuple):
+                    model_id, external_name = model_id
+                else:
+                    external_name = model_id
+                provider_key = ProviderKey[provider.slug.upper()]
+                Statement.objects.create(
+                    project_version=std_v,
+                    file=models_file,
+                    parent=None,
+                    order_key=order_key,
+                    type=StatementType.DEFINITION,
+                    symbol_type=SymbolType.MODEL,
+                    name=model_id,
+                    provider=provider_key,
+                    external_name=external_name,
+                )
+
         models_file = std_v.create_file(name="text")
-        order_keys = generate_n_keys_between(None, None, len(provider.models))
-        for order_key, model_id in zip(order_keys, provider.models):
+        order_keys = generate_n_keys_between(None, None, len(provider.text_models))
+        for order_key, model_id in zip(order_keys, provider.text_models):
             if isinstance(model_id, tuple):
                 model_id, external_name = model_id
             else:
@@ -140,7 +173,7 @@ def create_model_providers():
         std.head = std_v
         std.save()
 
-        logger.info(f"Created provider library {std_v} with models: {provider.models}")
+        logger.info(f"Created provider library {std_v} with models: {provider.text_models}")
 
 
 def get_or_create_std(organization_name: str, organization_slug: str) -> Project:

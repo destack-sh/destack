@@ -55,11 +55,11 @@ class SymbolInstance:
 
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
-    implementation_instance: CodeInstance = required_field()
+    implementation: CodeInstance = required_field()
 
     @property
     def py_handle(self) -> Any:
-        return self.implementation_instance.py_handle
+        return self.implementation.py_handle
 
 
 @dataclass(repr=False)
@@ -262,8 +262,8 @@ class TextGenerationSettings:
     temperature: float
     max_tokens: int
     top_p: Optional[float]
-    stop: Optional[list[str]]
-    logit_bias: Optional[dict[str, float]]
+    stop: Optional[list[str]] = None
+    logit_bias: Optional[dict[str, float]] = None
 
 
 class Modality(enum.StrEnum):
