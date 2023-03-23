@@ -701,12 +701,24 @@ class XBlock(SymbolContent, typing.Generic[ValueT]):
     value: Optional[ValueT]
     path: Optional[str] = None  # jsonpath of value if partial block
 
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+
+    def __repr__(self):
+        return f"<XBlock {str(self)}>"
+
 
 @dataclass(repr=False)
 class XBlockContent(XBlock, typing.Generic[ValueT]):
     description: Optional[str] = None
     order_key: str = field(default=INTEGER_ZERO)
     id: UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+
+    def __repr__(self):
+        return f"<XBlockContent {str(self)}>"
 
 
 @dataclass(repr=False)
