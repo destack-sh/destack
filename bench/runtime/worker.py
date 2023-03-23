@@ -61,14 +61,14 @@ InterpModule = NamedTuple(
 )
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class InterpJob(Job):
     type: ClassVar[JobType] = JobType.INTERP
     new_source: wire.ModuleData = None
     success: bool = False
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class BuildJob(Job):
     type: ClassVar[JobType] = JobType.BUILD
     buildable_id: UUID = None
@@ -81,7 +81,7 @@ class BuildJob(Job):
         return self.build_results is not None
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class RunJob(Job):
     type: ClassVar[JobType] = JobType.RUN
     runnable: TaskInstance | CodeInstance = None
@@ -355,7 +355,10 @@ class ModuleWorker:
                 idx=self.idx,
                 build=build,
                 proxy=Proxy(
-                    tracer=MultiTracer([tracer, ValidationTracer()]), cache_inferences=True
+                    tracer=MultiTracer([tracer, ValidationTracer()]),
+                    cache_inferences=True,
+                    inference_timeout=15,
+                    inference_retries=2,
                 ),
             )
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
@@ -417,7 +420,7 @@ class ModuleWorker:
                     job.success = True
                 elif isinstance(job, RunJob):
                     job.task = self.do_run(job.runnable, job.arguments)
-                    ret, error = await job.task
+                    error, ret = await job.task
                     if error is None:
                         job.output = ret
                     else:
@@ -598,7 +601,10 @@ class Worker:
             if msg.p.block:
                 await run_job.terminated.wait()
             rep = RepModuleRunPayload(
-                run_job.id, run_job.error, run_job.error_details, run_job.output
+                execution_id=run_job.id,
+                error=run_job.error,
+                error_details=run_job.error_details,
+                output=run_job.output,
             )
             await msg.reply(rep)
 

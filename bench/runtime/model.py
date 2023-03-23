@@ -162,7 +162,7 @@ class AnthropicTextCompletion(ModelInference):
         raise NotImplementedError
 
 
-@dataclass(repr=False)
+@endpoint(["stabilityai.std.image.stable-diffusion"], Modality.GenerateImage)
 class StabilityAIImageGeneration(ModelInference):
     ctx: InferenceContext
 

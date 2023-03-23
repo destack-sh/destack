@@ -10,7 +10,7 @@ import textwrap
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
@@ -170,12 +170,18 @@ class InferenceProxy:
         endpoint: InferenceEndpoint,
         tracer: Tracer,
         cache_inferences: bool,
+        timeout: int,
+        retries: int,
     ):
+        if retries < 0:
+            raise ValueError("retries must be >= 0")
         self.ctx = ctx
         self.modality = modality
         self.endpoint = endpoint
         self.tracer = tracer
         self.cache_inferences = cache_inferences
+        self.timeout = timeout
+        self.retries = retries
 
     # insecure hash is fine here, it's just for caching
     # noinspection InsecureHash
@@ -184,7 +190,7 @@ class InferenceProxy:
         block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
         blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
         settings_hash = hashlib.sha256(
-            json.dumps(settings, sort_keys=True).encode("utf-8")
+            json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
         ).hexdigest()
         cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{blocks_hash}:{settings_hash}"
 
@@ -207,31 +213,43 @@ class InferenceProxy:
                     log.error("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
 
-        try:
-            self.tracer.inference_enter(self.ctx, blocks, settings)
-            log.debug("inference.call.enter")
-            ret = await self.endpoint(blocks, settings)
-            self.tracer.inference_exit(self.ctx, blocks, settings, ret)
-            log.debug("inference.call.exit", ret=summarize_args(ret))
-
-            if self.cache_inferences:
-                # ret is assumed to be JSON-serializable
-                # (may not be true when we get to images, but this will error obviously enough)
-                await redis.set(cache_key, json.dumps(ret))
-
-            return ret
-        except Exception as exception:
-            self.tracer.inference_exception(self.ctx, blocks, settings, exception)
-            log.debug("inference.call.exception", excinfo=True)
-            raise
+        remaining_attempts = self.retries + 1
+        while remaining_attempts > 0:
+            remaining_attempts -= 1
+            try:
+                self.tracer.inference_enter(self.ctx, blocks, settings)
+                log.debug("inference.call.enter")
+                ret = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
+                self.tracer.inference_exit(self.ctx, blocks, settings, ret)
+                log.debug("inference.call.exit", ret=summarize_args(ret))
+                if self.cache_inferences:
+                    # ret is assumed to be JSON-serializable
+                    # (may not be true when we get to images, but this will error obviously enough)
+                    await redis.set(cache_key, json.dumps(ret))
+                return ret
+            except TimeoutError as exception:
+                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
+                log.debug("inference.call.exception", excinfo=True)
+            except Exception as exception:
+                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
+                log.debug("inference.call.exception", excinfo=True)
+                raise
 
 
 class Proxy:
     """A worker-side proxy for wrapping symbol access."""
 
-    def __init__(self, tracer: Tracer, cache_inferences: bool):
+    def __init__(
+        self,
+        tracer: Tracer,
+        cache_inferences: bool,
+        inference_timeout: int = 10,
+        inference_retries: int = 3,
+    ):
         self.tracer = tracer
         self.cache_inferences = cache_inferences
+        self.inference_timeout = inference_timeout
+        self.inference_retries = inference_retries
 
     def proxy_code(self, code: CodeInstance) -> CodeInstance:
         code_proxy_cls = (
@@ -255,6 +273,8 @@ class Proxy:
                     endpoint=endpoint,
                     tracer=self.tracer,
                     cache_inferences=self.cache_inferences,
+                    timeout=self.inference_timeout,
+                    retries=self.inference_retries,
                 )
                 setattr(inference_proxy, modality, endpoint_proxy)
         model.inference = inference_proxy

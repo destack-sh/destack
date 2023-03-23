@@ -23,6 +23,8 @@ from bench.language.type import (
     Module,
     Task,
     Type,
+    TypeNode,
+    TypeTag,
     XBlock,
     XSource,
 )
@@ -248,7 +250,7 @@ async def build(build: Build) -> BuildResult:
 
     plans = await generate_plans(ctx)
     while not ctx.exhausted and len(plans) > 0:
-        log.info("build.step", best_candidate=ctx.best_candidate)
+        log.debug("build.step", best_candidate=ctx.best_candidate)
         # build all candidates
         candidates = [
             BuildCandidate(
@@ -282,7 +284,7 @@ async def build(build: Build) -> BuildResult:
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     # TODO @Broken: don't assume all models are equally capable
     plans = []
-    root_tasks = ctx.build.tasks  # TODO @Broken: filter out tasks that are subtasks
+    root_tasks = ctx.build.tasks  # TODO @Broken: group/filter tasks that are subtasks
     for model in ctx.build.models:
         instruction_plans = []
         for task in root_tasks:
@@ -292,7 +294,15 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             plan.emit(InstructionEmitTask(task=task))
             plan.emit(InstructionEmitInput(input_type=task.type.input, path=""))
             plan.emit(InstructionEmitSettings(base_settings=settings.__dict__))
-            plan.emit(InstructionEmitTypeSample(type=task.type.output))
+            plan.emit(
+                InstructionEmitTypeExplanation(
+                    type=task.type.output,
+                    type_label="Output",
+                    include_descriptions=True,
+                    recursive=True,
+                )
+            )
+            plan.emit(InstructionEmitTypeSample(type=task.type.output, type_label="Output"))
             plan.emit(InstructionEmitOutput(output_type=task.type.output, path=""))
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
@@ -417,14 +427,49 @@ class InstructionEmitFewshot(InstructionEmit):
 
 
 @dataclass(repr=False)
-class InstructionEmitType(InstructionEmit):
+class InstructionEmitTypeExplanation(InstructionEmit):
     """Emits the type exactly as written"""
 
     type: Type
+    type_label: Optional[str]
+    include_descriptions: bool
+    recursive: bool
 
     async def __call__(self) -> XBlock:
-        return xstatic(f"Type {self.type.name}: {self.type.description}", XSource.Developer)
+        unexplained_types = [(self.type_label or self.type.name, self.type)]
 
+        def _render_description(d: str):
+            return " # " + d if d and self.include_descriptions else ""
+
+        def _render_simple_type(t: TypeNode):
+            if t.is_union_with_null:
+                return _render_simple_type(t.children[0]) + "?"
+            return t.source_reference.name if t.source_reference else t.tag.value
+
+        el_strs = []
+        while unexplained_types:
+            label, type = unexplained_types.pop()
+            if type.tag == TypeTag.ENUM:
+                el_str = f"\n{label} enum:{_render_description(type.description)}\n"
+                for choice in type.members:
+                    el_str += f"- {choice.name}{_render_description(choice.description)}\n"
+            elif type.tag == TypeTag.STRUCT:
+                el_str = f"\n{label} struct:{_render_description(type.description)}\n"
+                for f in type.children:
+                    el_str += f"- {f.name}: {_render_simple_type(f)}{_render_description(f.description)}\n"
+            else:
+                el_str = f"{label}: {_render_simple_type(type)} {_render_description(type.description)}\n"
+            el_strs.append(el_str)
+
+            if self.recursive:
+                for f in type.children:
+                    if isinstance(f.reference, TypeNode):
+                        unexplained_types.append((f.reference.name, f.reference))
+
+        el_str = f"Type schemas:\n{''.join(el_strs)}"
+        return xstatic(el_str, XSource.Developer)
+
+    @property
     def sources(self) -> list[InterpSymbol]:
         return [self.type]
 
@@ -434,13 +479,16 @@ class InstructionEmitTypeSample(InstructionEmit):
     """Emits a fabricated sample of the given type"""
 
     type: Type
+    type_label: Optional[str]
 
-    async def __call__(self) -> XBlock:
+    async def __call__(self) -> list[XBlock]:
         fabricated_sample = fabricate_value(self.type)
-        return xstatic(
-            f"Example of a {self.type.name}:\n" f"{json.dumps(fabricated_sample)}\n",
-            XSource.Developer,
+        sample_declaration = xstatic(
+            f"Example {self.type_label or self.type.name}:",
+            XSource.System,
         )
+        sample = xstatic(json.dumps(fabricated_sample), XSource.Developer)
+        return [sample_declaration, sample]
 
     @property
     def sources(self) -> list[InterpSymbol]:
@@ -460,9 +508,10 @@ class InstructionEmitInput(InstructionEmit):
 
         input.value = json.dumps(value)
 
-    async def __call__(self) -> DynamicXBlock:
+    async def __call__(self) -> list[XBlock | DynamicXBlock]:
+        input_declaration = xstatic("Input:", XSource.System)
         input = xinput(None, path=self.path)
-        return DynamicXBlock(input, self.impute_input)
+        return [input_declaration, DynamicXBlock(input, self.impute_input)]
 
     @property
     def sources(self) -> list[InterpSymbol]:
@@ -480,7 +529,12 @@ class InstructionEmitOutput(InstructionEmit):
     def parse_output(output: XBlock):
         import json
 
-        return json.loads(output.value)
+        # escape the output if needed (handles basic model confusions)
+        value = output.value.strip()
+        if not value.startswith("{") and not value.startswith("[") and not value.startswith('"'):
+            value = f'"{value}"'
+
+        return json.loads(value)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         output_request = xstatic("Output:", XSource.System)

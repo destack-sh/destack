@@ -17,7 +17,6 @@ class SummaryMetric(enum.StrEnum):
 
 class BaseMetric(enum.StrEnum):
     # Performance related
-    ModelSuccessRate = "model_success_rate"
     TypeCorrectness = "type_correctness"
     ExpectationSatisfaction = "expectation_satisfaction"
     FeedbackCorrelation = "feedback_correlation"
@@ -26,16 +25,17 @@ class BaseMetric(enum.StrEnum):
     InstructionAgreement = "instruction_agreement"
     InstructionOverlap = "instruction_overlap"
     # Complexity related
-    ExecutionDuration = "execution_duration"
+    ExecutionDuration = "execution_duration"  # need to consider caching
     NodesCount = "nodes_count"
     StepsCount = "steps_count"
     TokensCount = "tokens_count"
 
 
+ALL_METRICS = set(chain(SummaryMetric, BaseMetric))
+
 HIGHER_IS_BETTER = {
     SummaryMetric.Performance,
     SummaryMetric.Clarity,
-    BaseMetric.ModelSuccessRate,
     BaseMetric.TypeCorrectness,
     BaseMetric.ExpectationSatisfaction,
     BaseMetric.FeedbackCorrelation,
