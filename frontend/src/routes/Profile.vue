@@ -126,9 +126,11 @@ const { getTimeFromNowLongString } = useTimeFromNow();
         <!-- Name / username -->
         <div class="border-b-2 border-orange-900 border-opacity-[12%] pb-2">
           <h1 class="flex max-w-full flex-row items-center gap-2 text-gray-900">
-            <span class="flex flex-row items-baseline gap-2">
+            <span class="flex flex-row items-center gap-2">
               <span class="truncate text-2xl font-bold">{{ user?.name || organization?.name }}</span>
-              <span class="rounded-md bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900">
+              <span
+                class="rounded-md border border-orange-900 border-opacity-[12%] bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900"
+              >
                 {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
               </span>
             </span>
