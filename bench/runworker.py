@@ -22,11 +22,11 @@ worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()), deployment_
 init_sentry(django=False)
 
 
-async def run():
+async def _run():
     await init_nats(name=f"worker-{worker.worker_id}")
     await worker.run_forever()
 
 
 asyncio.run(test_redis_connection())  # fail early
 
-asyncio.run(run())
+asyncio.run(_run())

@@ -15,6 +15,7 @@ from bench.language.type import (
     Build,
     Code,
     Dataset,
+    InterpSymbol,
     LiteralValue,
     Model,
     Module,
@@ -326,6 +327,13 @@ def summarize_args(arguments: Any) -> str:
         return ", ".join(type(value).__name__ for value in arguments)
     else:
         return type(arguments).__name__
+
+
+BuildMap = Callable[[InterpSymbol], Optional[InterpSymbol]]
+
+#
+# Jobs
+#
 
 
 class JobType(enum.StrEnum):

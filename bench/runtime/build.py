@@ -4,7 +4,7 @@ import asyncio
 import enum
 import json
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import chain
 from typing import Any, Optional, Union
 from uuid import UUID
@@ -30,7 +30,9 @@ from bench.language.type import (
 )
 from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import (
+    BaseMetric,
     Evaluation,
+    SummaryMetric,
     aggregate_evaluations,
     compare_evaluations,
     evaluate_task,
@@ -38,6 +40,7 @@ from bench.runtime.evaluate import (
 from bench.runtime.generate import generate
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
+from bench.runtime.run import instantiate
 from bench.runtime.type import Modality
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 
@@ -148,8 +151,12 @@ class BuildState:
             combined_mappings.append(
                 RawMapping(type=dependency.type, source_id=dependency.id, target_id=None)
             )
+        # the mappings here are raw mappings (without revision info), if that errors come back
+        # here and figure out a way to get revmaps here for the updated build
+        updated_build = replace(self.build, source_mappings=combined_mappings)
+
         return BuildResult(
-            build=self.build,
+            build=updated_build,
             target_symbols=self.target_symbols,
             source_mappings=combined_mappings,
             weak_references=self.weak_references,
@@ -160,7 +167,7 @@ class BuildState:
 class InstructionSource:
     target_symbol: InterpSymbol
 
-    async def __call__(self):
+    async def __call__(self) -> InterpSymbol:
         raise NotImplementedError
 
 
@@ -172,6 +179,17 @@ class InstructionEmit:
     @property
     def sources(self) -> list[InterpSymbol]:
         return []
+
+
+# annotation for source and emit class
+def instruction_source(func):
+    # just forward to dataclass(repr=False, slots=True)
+    return dataclass(repr=False, slots=True)(func)
+
+
+def instruction_emit(func):
+    # just forward to dataclass(repr=False, slots=True)
+    return dataclass(repr=False, slots=True)(func)
 
 
 @dataclass(repr=False)
@@ -230,6 +248,11 @@ class BuildResult:
     def empty(build: Build) -> BuildResult:
         return BuildResult(build=build, target_symbols=[], source_mappings=[], weak_references=[])
 
+    def get_target(self, symbol: InterpSymbol) -> Optional[InterpSymbol]:
+        target_id = self.build.get_target(symbol.id)
+        # doesn't seem worth making a dict for this yet
+        return next((s for s in self.target_symbols if s.id == target_id), None)
+
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
@@ -248,6 +271,11 @@ async def build(build: Build) -> BuildResult:
         log.info("build.abort", reason="no tasks")
         return BuildResult.empty(build)
 
+    metric_weights = {
+        SummaryMetric.Performance: 1,
+        BaseMetric.TypeCorrectness: 1,
+        BaseMetric.ExpectationSatisfaction: 1,
+    }
     plans = await generate_plans(ctx)
     while not ctx.exhausted and len(plans) > 0:
         log.debug("build.step", best_candidate=ctx.best_candidate)
@@ -259,26 +287,40 @@ async def build(build: Build) -> BuildResult:
             for plan in plans
         ]
         ctx.candidates.extend(candidates)
+        ctx.best_candidate = candidates[0]  # doesn't matter
         build_tasks = [do_build(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
 
-        # evaluate and rank
+        # evaluate, rank and update best
         build_results = [candidate.state.to_result() for candidate in candidates]
-        for candidate, build_result in zip(candidates, build_results):
-            tasks = [t for t in build_result.target_symbols if isinstance(t, Task)]
-            evaluations = await asyncio.gather(*[evaluate_task(t) for t in tasks])
-            candidate.evaluation = aggregate_evaluations(evaluations)
-
-        # update the best candidate (if changed)
-        for candidate in candidates:
-            if ctx.best_candidate is None or compare_evaluations(
-                candidate.evaluation, ctx.best_candidate.evaluation
-            ):
-                log.debug("build.new_best_candidate", candidate=candidate)
+        evaluations = await asyncio.gather(
+            *[evaluate_candidate(c, r) for c, r in zip(candidates, build_results)]
+        )
+        for evaluation, candidate in zip(evaluations, candidates):
+            candidate.evaluation = evaluation
+            improvement = compare_evaluations(
+                candidate.evaluation, ctx.best_candidate.evaluation, metric_weights
+            )
+            if improvement > 0.0:
+                log.debug(
+                    "build.new_best_candidate",
+                    candidate=candidate,
+                    evaluation=candidate.evaluation,
+                    improvement=improvement,
+                )
                 ctx.best_candidate = candidate
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
     return ctx.best_candidate.state.to_result()
+
+
+async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> Evaluation:
+    tasks = candidate.root_tasks
+    task_instances = [
+        instantiate(task, build=result.build, buildmap=result.get_target) for task in tasks
+    ]
+    tasks_evaluations = await asyncio.gather((evaluate_task(task) for task in task_instances))
+    return aggregate_evaluations(tasks_evaluations)
 
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
@@ -357,7 +399,7 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
     return expects
 
 
-@dataclass(repr=False)
+@instruction_source
 class InstructionSourceSampleDataset(InstructionSource):
     """Samples the given dataset"""
 
@@ -366,7 +408,7 @@ class InstructionSourceSampleDataset(InstructionSource):
     seed: int
 
 
-@dataclass(repr=False)
+@instruction_source
 class InstructionSourceSampleCode(InstructionSource):
     """Runs the code to create samples (for like/unlike)"""
 
@@ -375,7 +417,7 @@ class InstructionSourceSampleCode(InstructionSource):
     seed: int
 
 
-@dataclass(repr=False)
+@instruction_source
 class InstructionSourceGenerate(InstructionSource):
     """Generates a dataset of the given type and count"""
 
@@ -383,18 +425,21 @@ class InstructionSourceGenerate(InstructionSource):
     count: int
     seed: int
 
+    async def __call__(self) -> Dataset:
+        pass
+
 
 @dataclass(repr=False)
 class InstructionEmitSystem(InstructionEmit):
     async def __call__(self) -> XBlock:
         return xstatic(
-            "You are a helpful, attentive and precise agent that follows instructions exactly as intended.\n"
+            "You are a helpful, attentive and precise agent that follows instructions as intended.\n"
             "The data types and schemas must be followed exactly (e.g. output only JSON when asked).\n",
             XSource.System,
         )
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitTask(InstructionEmit):
     """Emits the task exactly as written"""
 
@@ -408,7 +453,7 @@ class InstructionEmitTask(InstructionEmit):
         return [self.task]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitFewshot(InstructionEmit):
     """Emits fewshot examples in a specific format"""
 
@@ -426,7 +471,7 @@ class InstructionEmitFewshot(InstructionEmit):
         return [self.task, self.source]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitTypeExplanation(InstructionEmit):
     """Emits the type exactly as written"""
 
@@ -474,7 +519,7 @@ class InstructionEmitTypeExplanation(InstructionEmit):
         return [self.type]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitTypeSample(InstructionEmit):
     """Emits a fabricated sample of the given type"""
 
@@ -495,7 +540,7 @@ class InstructionEmitTypeSample(InstructionEmit):
         return [self.type]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitInput(InstructionEmit):
     """Emits the code to input the given type"""
 
@@ -518,7 +563,7 @@ class InstructionEmitInput(InstructionEmit):
         return [self.input_type]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitOutput(InstructionEmit):
     """Emits the code to request and read generated output of the given type"""
 
@@ -546,7 +591,7 @@ class InstructionEmitOutput(InstructionEmit):
         return [self.output_type]
 
 
-@dataclass(repr=False)
+@instruction_emit
 class InstructionEmitSettings(InstructionEmit):
     base_settings: Optional[dict[str, Any]] = None
 

@@ -352,8 +352,8 @@ class ModuleWorker:
             tracer = ExecutionTracer(self.module_id, tracker)
             runnable_instance = instantiate(
                 runnable,
-                idx=self.idx,
                 build=build,
+                buildmap=lambda source: self.idx.get_symbol_by_id(build.get_target(source.id)),
                 proxy=Proxy(
                     tracer=MultiTracer([tracer, ValidationTracer()]),
                     cache_inferences=True,
