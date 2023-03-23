@@ -213,7 +213,7 @@ const BACKEND_ENV_VARS = [
   // redis
   {
     name: "REDIS_URL",
-    value: redis.cacheNodes[0].address.apply((address) => `redis://:${address}6379`),
+    value: redis.cacheNodes[0].address.apply((address) => `redis://${address}:6379`),
   },
 ];
 

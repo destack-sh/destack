@@ -12,7 +12,11 @@ from bench.utils.analytics import init_sentry
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
 
-worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()))
+DEPLOYMENT_ID = os.environ.get("DEPLOYMENT_ID")
+if DEPLOYMENT_ID is not None:
+    DEPLOYMENT_ID = uuid.UUID(DEPLOYMENT_ID)
+
+worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()), deployment_id=DEPLOYMENT_ID)
 
 init_sentry(django=False)
 
