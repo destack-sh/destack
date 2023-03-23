@@ -41,6 +41,7 @@ from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoin
 from bench.runtime.tracing import Tracer
 from bench.runtime.type import (
     AsyncCodeCallable,
+    BuildMap,
     CodeInstance,
     DatasetInstance,
     Modality,
@@ -422,13 +423,14 @@ def _instantiate_model_inference(model: Model) -> ModelInference:
 
 def instantiate(
     symbol: InterpSymbol,
-    idx: ModuleIndex,
     build: Optional[Build] = None,
+    buildmap: Optional[BuildMap] = None,
     proxy: Proxy | None = None,
 ) -> SymbolInstance:
     """Instantiate a symbol in a build with all relevant context recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
+    buildmap = buildmap or (lambda s: None)
     proxy = proxy or Proxy(tracer=Tracer(), cache_inferences=False)
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
@@ -439,16 +441,17 @@ def instantiate(
             #  1) allowing invalid/mock initial instance state (and populate that later)
             #  2) tracking and somehow swapping the reference after it is actually created
             continue
-        instantiated_context[name] = instantiate(value, idx=idx, build=build, proxy=proxy)
+        instantiated_context[name] = instantiate(value, build=build, buildmap=buildmap, proxy=proxy)
 
     if isinstance(symbol, Task):
-        if build is None:
+        if buildmap is None:
             raise ValueError(f"cannot instantiate task without build: {symbol}")
-        target_id = build.get_target(symbol.id)
-        if target_id is None:
+        implementation = buildmap(symbol)
+        if implementation is None:
             raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
-        implementation = idx.symbol_by_id(target_id, Code)
-        implementation_instance = instantiate(implementation, idx=idx, build=build, proxy=proxy)
+        implementation_instance = instantiate(
+            implementation, build=build, buildmap=buildmap, proxy=proxy
+        )
         task = TaskInstance(
             **symbol.__dict__,
             build=build,
@@ -483,7 +486,7 @@ def instantiate(
         py_type = instantiate_py_type(symbol)
         return TypeInstance(**symbol.__dict__, build=build, py_type=py_type)
     else:
-        raise ValueError(f"cannot instantiate {symbol} in {build} (idx={idx})")
+        raise ValueError(f"cannot instantiate {symbol} in {build}")
 
 
 def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
