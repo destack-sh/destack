@@ -8,6 +8,7 @@ import dotenv
 from bench.msg.core import init_nats
 from bench.runtime.worker import Worker
 from bench.utils.analytics import init_sentry
+from bench.utils.cache import test_redis_connection
 
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
@@ -25,5 +26,7 @@ async def run():
     await init_nats(name=f"worker-{worker.worker_id}")
     await worker.run_forever()
 
+
+asyncio.run(test_redis_connection())  # fail early
 
 asyncio.run(run())
