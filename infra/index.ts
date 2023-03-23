@@ -172,6 +172,11 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis", {
       cidrBlocks: ["0.0.0.0/0"],
     },
   ],
+  vpcId: eksVpc.vpcId,
+});
+// connect redis to same VPC as EKS
+const redisSubnetGroup = new aws.elasticache.SubnetGroup("redis", {
+  subnetIds: eksVpc.privateSubnetIds,
 });
 const redis = new aws.elasticache.Cluster("redis", {
   engine: "redis",
@@ -180,6 +185,7 @@ const redis = new aws.elasticache.Cluster("redis", {
   port: 6379,
   parameterGroupName: "default.redis7",
   securityGroupIds: [redisSecurityGroup.id],
+  subnetGroupName: redisSubnetGroup.id,
 });
 
 // NATS chart
@@ -331,7 +337,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
             {
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              ports: [{ containerPort: 80 }],
+              ports: [{ containerPort: 80, name: "http" }],
               env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
