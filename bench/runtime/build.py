@@ -38,6 +38,7 @@ from bench.runtime.evaluate import (
     evaluate_task,
 )
 from bench.runtime.generate import generate
+from bench.runtime.instruct import InstructionSource
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.runtime.run import instantiate
@@ -164,27 +165,13 @@ class BuildState:
 
 
 @dataclass(repr=False)
-class InstructionSource:
-    target_symbol: InterpSymbol
-
-    async def __call__(self) -> InterpSymbol:
-        raise NotImplementedError
-
-
-@dataclass(repr=False)
-class InstructionEmit:
+class XEmit:
     async def __call__(self) -> XBlock | DynamicXBlock | list[XBlock | DynamicXBlock]:
         raise NotImplementedError
 
     @property
     def sources(self) -> list[InterpSymbol]:
         return []
-
-
-# annotation for source and emit class
-def instruction_source(func):
-    # just forward to dataclass(repr=False, slots=True)
-    return dataclass(repr=False, slots=True)(func)
 
 
 def instruction_emit(func):
@@ -199,13 +186,13 @@ class InstructionPlan:
     modality: Modality
     base_settings: Optional[dict[str, Any]] = None
     sources: list[InstructionSource] = field(default_factory=dict)
-    targets: list[InstructionEmit] = field(default_factory=list)
+    targets: list[XEmit] = field(default_factory=list)
 
     def source(self, source: InstructionSource):
         self.sources.append(source)
 
-    def emit(self, target: InstructionEmit):
-        self.targets.append(target)
+    def emit(self, *target: XEmit | list[XEmit]):
+        self.targets.extend(target)
 
 
 @dataclass(repr=False)
@@ -333,19 +320,20 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             # TODO @Incomplete: set modality based on task type & model capabilities :TextGenerationOnly
             settings = TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)
             plan = InstructionPlan(task=task, model=model, modality=Modality.GenerateText)
-            plan.emit(InstructionEmitTask(task=task))
-            plan.emit(InstructionEmitInput(input_type=task.type.input, path=""))
-            plan.emit(InstructionEmitSettings(base_settings=settings.__dict__))
             plan.emit(
-                InstructionEmitTypeExplanation(
+                XEmitSystem(),
+                XEmitTask(task=task),
+                XEmitInput(input_type=task.type.input, path=""),
+                XEmitSettings(base_settings=settings.__dict__),
+                XEmitTypeExplanation(
                     type=task.type.output,
                     type_label="Output",
                     include_descriptions=True,
                     recursive=True,
-                )
+                ),
+                XEmitTypeSample(type=task.type.output, type_label="Output"),
+                XEmitOutput(output_type=task.type.output, path=""),
             )
-            plan.emit(InstructionEmitTypeSample(type=task.type.output, type_label="Output"))
-            plan.emit(InstructionEmitOutput(output_type=task.type.output, path=""))
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
     return plans
@@ -381,7 +369,7 @@ async def do_build(candidate: BuildCandidate) -> None:
     for model in candidate.plan.models:
         candidate.state.use_weak_ref(model)
     for emit in chain(*[plan.targets for plan in candidate.plan.task_plans]):
-        emit: InstructionEmit
+        emit: XEmit
         for source in emit.sources:
             if isinstance(source, InterpSymbol) and source.source is not None:
                 candidate.state.use_weak_ref(source)
@@ -399,48 +387,22 @@ def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
     return expects
 
 
-@instruction_source
-class InstructionSourceSampleDataset(InstructionSource):
-    """Samples the given dataset"""
-
-    dataset: Dataset
-    count: int
-    seed: int
-
-
-@instruction_source
-class InstructionSourceSampleCode(InstructionSource):
-    """Runs the code to create samples (for like/unlike)"""
-
-    code: Code
-    count: int
-    seed: int
-
-
-@instruction_source
-class InstructionSourceGenerate(InstructionSource):
-    """Generates a dataset of the given type and count"""
-
-    type: Type
-    count: int
-    seed: int
-
-    async def __call__(self) -> Dataset:
-        pass
-
-
 @dataclass(repr=False)
-class InstructionEmitSystem(InstructionEmit):
+class XEmitSystem(XEmit):
+    message: str = (
+        "You are a helpful, attentive and precise agent that follows instructions as intended.\n"
+        "The data types and schemas must be followed exactly (e.g. output only JSON when asked).\n"
+    )
+
     async def __call__(self) -> XBlock:
         return xstatic(
-            "You are a helpful, attentive and precise agent that follows instructions as intended.\n"
-            "The data types and schemas must be followed exactly (e.g. output only JSON when asked).\n",
+            self.message,
             XSource.System,
         )
 
 
 @instruction_emit
-class InstructionEmitTask(InstructionEmit):
+class XEmitTask(XEmit):
     """Emits the task exactly as written"""
 
     task: Task
@@ -454,15 +416,16 @@ class InstructionEmitTask(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitFewshot(InstructionEmit):
+class XEmitFewshot(XEmit):
     """Emits fewshot examples in a specific format"""
 
     task: Task
     source: Dataset
+    task_label: Optional[str] = None
 
     async def __call__(self) -> XBlock:
         return xstatic(
-            f"Some examples of {self.task.name}:\n"
+            f"Some examples of {self.task_label or self.task.name}:\n"
             "\n".join(json.dumps(record.data) for record in self.source.records)
         )
 
@@ -472,7 +435,7 @@ class InstructionEmitFewshot(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitTypeExplanation(InstructionEmit):
+class XEmitTypeExplanation(XEmit):
     """Emits the type exactly as written"""
 
     type: Type
@@ -520,7 +483,7 @@ class InstructionEmitTypeExplanation(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitTypeSample(InstructionEmit):
+class XEmitTypeSample(XEmit):
     """Emits a fabricated sample of the given type"""
 
     type: Type
@@ -541,7 +504,7 @@ class InstructionEmitTypeSample(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitInput(InstructionEmit):
+class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
     input_type: Type
@@ -564,7 +527,7 @@ class InstructionEmitInput(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitOutput(InstructionEmit):
+class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
     output_type: Type
@@ -592,7 +555,7 @@ class InstructionEmitOutput(InstructionEmit):
 
 
 @instruction_emit
-class InstructionEmitSettings(InstructionEmit):
+class XEmitSettings(XEmit):
     base_settings: Optional[dict[str, Any]] = None
 
     async def __call__(self) -> XBlock:

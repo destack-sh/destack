@@ -6,7 +6,7 @@ from itertools import chain
 from typing import Optional
 
 from bench.language.type import Build, InterpSymbol
-from bench.runtime.build import InstructionSourceGenerate
+from bench.runtime.instruct import InstructionSourceGenerate
 from bench.runtime.run import RunError, run
 from bench.runtime.type import TaskInstance
 
@@ -137,7 +137,7 @@ async def evaluate_task(task: TaskInstance, build: Build, nsamples: int) -> Eval
     """Evaluates a task implementation against the instructions."""
     implementation = task.implementation
 
-    task_metrics = {
+    count_metrics = {
         # only 1 always for now :TaskGrouping
         BaseMetric.NodesCount: 1,
         BaseMetric.StepsCount: 1,
@@ -145,17 +145,24 @@ async def evaluate_task(task: TaskInstance, build: Build, nsamples: int) -> Eval
         BaseMetric.TokensCount: sum([len(xblock.value) for xblock in implementation.xblocks]),
     }
 
+    # generates samples to test
     samples = await InstructionSourceGenerate(task.type, count=nsamples, seed=1337)()
     n_successful_runs = 0
     for sample in samples.records:
         try:
             output = await run(implementation, sample.data)
+            sample.data["output"] = output  # maybe add to copy instead?
             n_successful_runs += 1
         except RunError as e:
             print(e)
             continue
 
+    # TODO @Incomplete: evaluate against expectations (all, implicit or otherwise)
+    performance_metrics = {
+        BaseMetric.TypeCorrectness: n_successful_runs / nsamples,
+    }
     return Evaluation(
         symbol=task,
         build=build,
+        metrics={**count_metrics, **performance_metrics},
     )
