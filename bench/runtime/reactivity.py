@@ -283,7 +283,8 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
             if generated_target is not None:
                 # ignore if no target (was deleted or undirected dependency)
                 stale_symbols.append(generated_target.source)
-                stale_symbols.append(generated_source.source)
+                if generated_source is not None:  # may have been deleted
+                    stale_symbols.append(generated_source.source)
         stale_symbols.append(symbol.source)
 
     return stale_symbols

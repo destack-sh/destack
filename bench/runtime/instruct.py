@@ -1,12 +1,30 @@
 import random
 from dataclasses import dataclass, field
-from typing import cast
+from typing import Union, cast
 
-from bench.language.type import Code, Dataset, InterpSymbol, Record, Type
+import structlog
+
+from bench.language.type import Code, Dataset, Expectation, InterpSymbol, Record, Task, Type
 from bench.language.typer import fabricate_value
 from bench.runtime.run import instantiate, run
 from bench.runtime.type import CodeInstance
 from bench.utils.fractional import generate_n_keys_between
+
+logger = structlog.get_logger(__name__)
+
+Expect = Union[Task, Code, Dataset, Expectation]
+
+
+def gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
+    expects = []
+    if isinstance(symbol, Expectation):
+        expects.append(symbol)
+    if isinstance(symbol, (Type, Task, Expectation)):
+        for child in symbol.expectations:
+            if not isinstance(child, Expectation):
+                expects.append(child)
+            expects.extend(gather_expectations(child))
+    return expects
 
 
 def instruction_source(func):
@@ -14,8 +32,12 @@ def instruction_source(func):
     return dataclass(repr=False, slots=True)(func)
 
 
-def anonymous_dataset(type: Type) -> Dataset:
-    return Dataset(name="", type=type, type_node=type, description="", records=[], language="jsonl")
+def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
+    order_keys = generate_n_keys_between(None, None, n_records)
+    records = [Record(order_key=order_key, data={}) for order_key in order_keys]
+    return Dataset(
+        name="", type=type, type_node=type, description="", records=records, language="jsonl"
+    )
 
 
 @instruction_source
@@ -98,7 +120,7 @@ class InstructionSourceGenerate(InstructionSource):
     async def __call__(self) -> Dataset:
         order_keys = generate_n_keys_between(None, None, len(self.dataset.records))
         for i in range(self.count):
-            # TODO @Broken: generate proper data
+            # TODO @Broken: generate samples
             data = fabricate_value(self.type)
             record = Record(order_key=order_keys[i], data=data)
             self.target_dataset.records.append(record)

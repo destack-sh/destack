@@ -2,31 +2,34 @@ import enum
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from itertools import chain
 from typing import Optional
 
+import structlog
+
 from bench.language.type import Build, InterpSymbol
-from bench.runtime.instruct import InstructionSourceGenerate
+from bench.runtime.instruct import InstructionSourceGenerate, anonymous_dataset
 from bench.runtime.run import RunError, run
 from bench.runtime.type import TaskInstance
 
+logger = structlog.get_logger(__name__)
 
-class SummaryMetric(enum.StrEnum):
-    Performance = "performance"
+
+class EvaluationMetric(enum.StrEnum):
+    # Summary metrics
     Clarity = "clarity"
-    Sophistication = "sophistication"
-
-
-class BaseMetric(enum.StrEnum):
-    # Performance related
-    TypeCorrectness = "type_correctness"
-    ExpectationSatisfaction = "expectation_satisfaction"
-    FeedbackCorrelation = "feedback_correlation"
-    # Clarity related
+    Performance = "performance"
+    Simplicity = "simplicity"  # == speed?
+    # Clarity related (shared across builds?)
     InstructionPerplexity = "instruction_perplexity"
     InstructionAgreement = "instruction_agreement"
     InstructionOverlap = "instruction_overlap"
+    # Performance related
+    TypeValidity = "type_correctness"
+    ExpectationSatisfaction = "expectation_satisfaction"
+    FeedbackCorrelation = "feedback_correlation"
     # Complexity related
+    EstimatedRunDuration = "estimated_run_duration"
+    InferencesCount = "inferences_count"
     NodesCount = "nodes_count"
     StepsCount = "steps_count"
     TokensCount = "tokens_count"
@@ -37,54 +40,43 @@ class MetricType(enum.StrEnum):
     COUNT = "count"
 
 
-ALL_METRICS = set(chain(SummaryMetric, BaseMetric))
+ALL_METRICS = set(EvaluationMetric)
 COUNT_METRICS = {metric for metric in ALL_METRICS if metric.endswith("_count")}
 PERCENTAGE_METRICS = ALL_METRICS - COUNT_METRICS
 
 HIGHER_IS_BETTER = {
-    SummaryMetric.Performance,
-    SummaryMetric.Clarity,
-    BaseMetric.TypeCorrectness,
-    BaseMetric.ExpectationSatisfaction,
-    BaseMetric.FeedbackCorrelation,
-    BaseMetric.InstructionAgreement,
-    BaseMetric.InstructionOverlap,
+    EvaluationMetric.Performance,
+    EvaluationMetric.Clarity,
+    EvaluationMetric.Simplicity,
+    EvaluationMetric.TypeValidity,
+    EvaluationMetric.ExpectationSatisfaction,
+    EvaluationMetric.FeedbackCorrelation,
+    EvaluationMetric.InstructionAgreement,
+    EvaluationMetric.InstructionOverlap,
 }
-LOWER_IS_BETTER = {
-    SummaryMetric.Sophistication,
-    BaseMetric.InstructionPerplexity,
-    BaseMetric.NodesCount,
-    BaseMetric.StepsCount,
-    BaseMetric.TokensCount,
-}
+LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
 
 
 @dataclass(repr=False, slots=True)
-class Evaluation:
+class EvaluationResult:
     symbol: Optional[InterpSymbol]
     build: Build
     metrics: dict[str, float]
     id: uuid.UUID = field(default_factory=uuid.uuid4)
-    children: list["Evaluation"] = field(default_factory=list)
+    children: list["EvaluationResult"] = field(default_factory=list)
 
     def __str__(self):
-        return ", ".join(f"{k}: {v:0.02f}" for k, v in self.metrics.items())
+        return ", ".join(
+            f"{k}: {self.metrics[k]:0.02f}" for k in EvaluationMetric if k in self.metrics
+        )
 
     def __repr__(self):
         return f"<Evaluation {self.symbol} {self}>"
 
-    @property
-    def summary_metrics(self):
-        return {metric: self.metrics[metric] for metric in SummaryMetric}
-
-    @property
-    def base_metrics(self):
-        return {metric: self.metrics[metric] for metric in BaseMetric}
-
 
 def aggregate_evaluations(
-    evaluations: list[Evaluation], weights: dict[uuid.UUID | str, float] = None
-) -> Evaluation:
+    evaluations: list[EvaluationResult], weights: dict[uuid.UUID | str, float] = None
+) -> EvaluationResult:
     """Combines multiple evaluations into one."""
     weights = weights or defaultdict(lambda: 1.0)
     # sum the counts
@@ -94,7 +86,7 @@ def aggregate_evaluations(
             evaluation.metrics[metric] * weights.get(evaluation.id, weights[metric])
             for evaluation in evaluations
         )
-    # average the percentages
+    # average the percentages (?)
     averaged_percentages = defaultdict(float)
     for evaluation in evaluations:
         for metric, value in evaluation.metrics.items():
@@ -107,7 +99,7 @@ def aggregate_evaluations(
     if len(build_ids) > 1:
         raise ValueError("cannot aggregate evaluations from different builds")
 
-    return Evaluation(
+    return EvaluationResult(
         symbol=None,
         build=evaluations[0].build,
         metrics={**summed_counts, **averaged_percentages},
@@ -115,7 +107,9 @@ def aggregate_evaluations(
     )
 
 
-def compare_evaluations(a: Evaluation, b: Evaluation, weights: dict[str, float]) -> float:
+def compare_evaluations(
+    a: EvaluationResult, b: EvaluationResult, weights: dict[str, float]
+) -> float:
     """
     If a is better than b, return a positive number. Otherwise, return a negative number.
     If a and b are equal, return 0.
@@ -133,35 +127,36 @@ def compare_evaluations(a: Evaluation, b: Evaluation, weights: dict[str, float])
     return diff
 
 
-async def evaluate_task(task: TaskInstance, build: Build, nsamples: int) -> Evaluation:
+async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
+    log = logger.bind(task=task, build=build)
     implementation = task.implementation
 
     count_metrics = {
         # only 1 always for now :TaskGrouping
-        BaseMetric.NodesCount: 1,
-        BaseMetric.StepsCount: 1,
+        EvaluationMetric.NodesCount: 1,
+        EvaluationMetric.StepsCount: 1,
         # this only works for strings
-        BaseMetric.TokensCount: sum([len(xblock.value) for xblock in implementation.xblocks]),
+        EvaluationMetric.TokensCount: sum([len(xblock.value) for xblock in implementation.xblocks]),
     }
 
     # generates samples to test
-    samples = await InstructionSourceGenerate(task.type, count=nsamples, seed=1337)()
+    samples = await InstructionSourceGenerate(task.type, count=n_samples, seed=1337)()
+    outputs = anonymous_dataset(task.type.output, n_samples)
     n_successful_runs = 0
-    for sample in samples.records:
+    for i, sample in samples.records:
         try:
-            output = await run(implementation, sample.data)
-            sample.data["output"] = output  # maybe add to copy instead?
+            outputs.records[i].data = await run(implementation, sample.data)
             n_successful_runs += 1
-        except RunError as e:
-            print(e)
+        except RunError:
+            log.warning("evaluate.run.failed", sample=sample, excinfo=True)
             continue
 
     # TODO @Incomplete: evaluate against expectations (all, implicit or otherwise)
     performance_metrics = {
-        BaseMetric.TypeCorrectness: n_successful_runs / nsamples,
+        EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
     }
-    return Evaluation(
+    return EvaluationResult(
         symbol=task,
         build=build,
         metrics={**count_metrics, **performance_metrics},

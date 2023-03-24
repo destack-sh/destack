@@ -6,7 +6,7 @@ import json
 import uuid
 from dataclasses import dataclass, field, replace
 from itertools import chain
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from uuid import UUID
 
 import structlog
@@ -14,9 +14,7 @@ import structlog
 from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
-    Code,
     Dataset,
-    Expectation,
     File,
     InterpSymbol,
     Model,
@@ -30,9 +28,8 @@ from bench.language.type import (
 )
 from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import (
-    BaseMetric,
-    Evaluation,
-    SummaryMetric,
+    EvaluationMetric,
+    EvaluationResult,
     aggregate_evaluations,
     compare_evaluations,
     evaluate_task,
@@ -44,20 +41,9 @@ from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, t
 from bench.runtime.run import instantiate
 from bench.runtime.type import Modality
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
-
-Expect = Union[Task, Code, Dataset, Expectation]
+from bench.utils.random import get_random_veggie_name
 
 logger = structlog.get_logger(__name__)
-
-#
-# Build
-#
-# On a high level, build is a meta-program that takes a build and produces optimal
-# executable symbols executable code (and any other symbols) given constraints (e.g. expectations).
-#
-# More formally: build is a function of task to executable code given a build.
-# Implementing build entails interesting optimization problems, we'll see...
-#
 
 
 class BuildErrorType(enum.Enum):
@@ -153,7 +139,7 @@ class BuildState:
                 RawMapping(type=dependency.type, source_id=dependency.id, target_id=None)
             )
         # the mappings here are raw mappings (without revision info), if that errors come back
-        # here and figure out a way to get revmaps here for the updated build
+        # and figure out a way to get revmaps here for the updated build
         updated_build = replace(self.build, source_mappings=combined_mappings)
 
         return BuildResult(
@@ -186,13 +172,19 @@ class InstructionPlan:
     modality: Modality
     base_settings: Optional[dict[str, Any]] = None
     sources: list[InstructionSource] = field(default_factory=dict)
-    targets: list[XEmit] = field(default_factory=list)
+    emits: list[XEmit] = field(default_factory=list)
+
+    def __str__(self):
+        return f"task={self.task}, model={self.model}, modality={self.modality}, sources={len(self.sources)}, targets={len(self.emits)}"
+
+    def __repr__(self):
+        return f"<InstructionPlan {self}>"
 
     def source(self, source: InstructionSource):
         self.sources.append(source)
 
     def emit(self, *target: XEmit | list[XEmit]):
-        self.targets.extend(target)
+        self.emits.extend(target)
 
 
 @dataclass(repr=False)
@@ -201,6 +193,12 @@ class BuildPlan:
     finetunes: list[Any] = field(default_factory=list)  # not used yet
     task_plans: list[InstructionPlan] = field(default_factory=list)
 
+    def __str__(self):
+        return f"models={self.models}, finetunes={self.finetunes}, task_plans={self.task_plans}"
+
+    def __repr__(self):
+        return f"<BuildPlan {self}>"
+
 
 @dataclass(repr=False)
 class BuildCandidate:
@@ -208,11 +206,18 @@ class BuildCandidate:
     root_tasks: list[Task]
     plan: BuildPlan
     state: BuildState
-    evaluation: Optional[Evaluation] = field(default=None)
+    name: str = field(default_factory=get_random_veggie_name)
+    evaluation: Optional[EvaluationResult] = field(default=None)
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
         self.state.track_dependency(self.ctx.build)
+
+    def __str__(self):
+        return f"{self.ctx.build} {self.name} ({self.id})"
+
+    def __repr__(self):
+        return f"<BuildCandidate {self}>"
 
     @property
     def build(self) -> Build:
@@ -229,14 +234,20 @@ class BuildResult:
     target_symbols: list[InterpSymbol]
     source_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
-    evaluation: Evaluation | None = None
+    evaluation: EvaluationResult | None = None
+
+    def __str__(self):
+        return f"{self.build} -> symbols={len(self.target_symbols)} ({self.evaluation or '<not yet evaluated>'})"
+
+    def __repr__(self):
+        return f"<BuildResult {self}>"
 
     @staticmethod
     def empty(build: Build) -> BuildResult:
         return BuildResult(build=build, target_symbols=[], source_mappings=[], weak_references=[])
 
     def get_target(self, symbol: InterpSymbol) -> Optional[InterpSymbol]:
-        target_id = self.build.get_target(symbol.id)
+        target_id = self.build.get_target(symbol.definition.id)
         # doesn't seem worth making a dict for this yet
         return next((s for s in self.target_symbols if s.id == target_id), None)
 
@@ -259,9 +270,9 @@ async def build(build: Build) -> BuildResult:
         return BuildResult.empty(build)
 
     metric_weights = {
-        SummaryMetric.Performance: 1,
-        BaseMetric.TypeCorrectness: 1,
-        BaseMetric.ExpectationSatisfaction: 1,
+        EvaluationMetric.Performance: 1,
+        EvaluationMetric.TypeValidity: 1,
+        EvaluationMetric.ExpectationSatisfaction: 1,
     }
     plans = await generate_plans(ctx)
     while not ctx.exhausted and len(plans) > 0:
@@ -301,19 +312,22 @@ async def build(build: Build) -> BuildResult:
     return ctx.best_candidate.state.to_result()
 
 
-async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> Evaluation:
-    tasks = candidate.root_tasks
+async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
     task_instances = [
-        instantiate(task, build=result.build, buildmap=result.get_target) for task in tasks
+        instantiate(task, build=result.build, buildmap=result.get_target)
+        for task in candidate.root_tasks
     ]
-    tasks_evaluations = await asyncio.gather((evaluate_task(task) for task in task_instances))
+    tasks_evaluations = await asyncio.gather(
+        (evaluate_task(task, result.build, n_samples=5) for task in task_instances)
+    )
     return aggregate_evaluations(tasks_evaluations)
 
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
-    # TODO @Broken: don't assume all models are equally capable
     plans = []
-    root_tasks = ctx.build.tasks  # TODO @Broken: group/filter tasks that are subtasks
+    # we treat all explicitly given tasks as root tasks, this seems obvious, but unclear if right
+    root_tasks = ctx.build.tasks
+    # TODO @Broken: don't assume all models are equally capable
     for model in ctx.build.models:
         instruction_plans = []
         for task in root_tasks:
@@ -356,7 +370,7 @@ async def do_build(candidate: BuildCandidate) -> None:
             model=task_plan.model,
             modality=task_plan.modality,
         )
-        emissions = await asyncio.gather(*[emit() for emit in task_plan.targets])
+        emissions = await asyncio.gather(*[emit() for emit in task_plan.emits])
         for emit in emissions:
             if isinstance(emit, list):
                 xbuilder.extend(emit)
@@ -365,40 +379,27 @@ async def do_build(candidate: BuildCandidate) -> None:
         implementation = xbuilder.to_symbol()
         candidate.state.add_target(implementation, source=task_plan.task.definition)
 
-    # add weak refs for emits referencing external symbols
+    # add weak refs for emits referencing external symbols (temporary until :WeakReferences is addressed)
     for model in candidate.plan.models:
         candidate.state.use_weak_ref(model)
-    for emit in chain(*[plan.targets for plan in candidate.plan.task_plans]):
+    for emit in chain(*[plan.emits for plan in candidate.plan.task_plans]):
         emit: XEmit
         for source in emit.sources:
             if isinstance(source, InterpSymbol) and source.source is not None:
                 candidate.state.use_weak_ref(source)
 
 
-def _gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
-    expects = []
-    if isinstance(symbol, Expectation):
-        expects.append(symbol)
-    if isinstance(symbol, (Type, Task, Expectation)):
-        for child in symbol.expectations:
-            if not isinstance(child, Expectation):
-                expects.append(child)
-            expects.extend(_gather_expectations(child))
-    return expects
-
-
 @dataclass(repr=False)
 class XEmitSystem(XEmit):
+    """Emits the system message about general expectations."""
+
     message: str = (
         "You are a helpful, attentive and precise agent that follows instructions as intended.\n"
         "The data types and schemas must be followed exactly (e.g. output only JSON when asked).\n"
     )
 
     async def __call__(self) -> XBlock:
-        return xstatic(
-            self.message,
-            XSource.System,
-        )
+        return xstatic(self.message, XSource.System)
 
 
 @instruction_emit
