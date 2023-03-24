@@ -11,6 +11,7 @@ import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
+from itertools import chain
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
@@ -19,7 +20,6 @@ from uuid import UUID, uuid4
 import PIL.Image
 import pydub
 import structlog
-from django.db import models
 from more_itertools import first, last
 
 from bench.language import ModuleIndex
@@ -62,19 +62,6 @@ from bench.utils.record import RecordList
 logger = structlog.stdlib.get_logger(__name__)
 
 
-class ProviderKey(models.TextChoices):
-    OPENAI = "openai"
-    GOOSEAI = "gooseai"
-    AI21 = "ai21"
-    FOREFRONT = "forefront"
-    COHERE = "cohere"
-    ANTHROPIC = "anthropic"
-    STABILITYAI = "stabilityai"
-    HUGGINGFACE = "huggingface"
-    ASSEMBLYAI = "assemblyai"
-
-
-# TODO @Cleanup: static builtins should be in the run environment context?
 STATIC_BUILTINS = {
     # primitive type builtins
     "string": str,
@@ -86,6 +73,7 @@ STATIC_BUILTINS = {
     # functional builtins
     "first": first,
     "last": last,
+    "chain": chain,
 }
 
 
@@ -360,16 +348,23 @@ def _instantiate_code_callable(
         {name: value for name, value in unwrapped_context.items() if name.isidentifier()}
     )
 
+    source_context = (
+        {
+            "__statement__": code.source,
+            "__file__": code.source.file,
+            "__module__": code.source.file.module,
+        }
+        if code.source
+        else {}
+    )
     dynamic_context = {
         "source_context": context,
         "context": unwrapped_context,
         "xblocks": code.xblocks,
         "x": XBlocks(code.xblocks),
         **inlined_context,
-        "__statement__": code.source,
-        "__file__": code.source.file,
-        "__module__": code.source.file.module,
-        "random": Random(code.source.id.hex.encode()),
+        "random": Random(code.id.hex.encode()),
+        **source_context,
     }
 
     if code.language == "python":
@@ -385,7 +380,7 @@ def _instantiate_code_callable(
 
     # create python function from python code
     input_keys = code.type_node.input.keys
-    func_name = f"_{_to_pyidentifier(code.name)}_{code.source.id.hex[:6]}"
+    func_name = f"_{_to_pyidentifier(code.name)}_{code.id.hex[:6]}"
     async_str = "async " if is_async else ""
     func_params = ", ".join(input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)

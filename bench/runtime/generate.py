@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import structlog
+
 from bench.language import (
     Code,
     CodeContent,
@@ -12,6 +14,8 @@ from bench.language import (
 )
 from bench.language.type import InterpSymbol
 from bench.utils.fractional import generate_n_keys_between
+
+logger = structlog.get_logger(__name__)
 
 
 def generate(

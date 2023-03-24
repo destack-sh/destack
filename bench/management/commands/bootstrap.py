@@ -12,7 +12,6 @@ from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.mapper import lookup_in_db_module, write_module
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
-from bench.runtime.run import ProviderKey
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -135,7 +134,6 @@ def create_model_providers():
                     model_id, external_name = model_id
                 else:
                     external_name = model_id
-                provider_key = ProviderKey[provider.slug.upper()]
                 Statement.objects.create(
                     project_version=std_v,
                     file=models_file,
@@ -144,7 +142,7 @@ def create_model_providers():
                     type=StatementType.DEFINITION,
                     symbol_type=SymbolType.MODEL,
                     name=model_id,
-                    provider=provider_key,
+                    provider=provider.slug,
                     external_name=external_name,
                 )
 
@@ -155,7 +153,6 @@ def create_model_providers():
                 model_id, external_name = model_id
             else:
                 external_name = model_id
-            provider_key = ProviderKey[provider.slug.upper()]
             Statement.objects.create(
                 project_version=std_v,
                 file=models_file,
@@ -164,7 +161,7 @@ def create_model_providers():
                 type=StatementType.DEFINITION,
                 symbol_type=SymbolType.MODEL,
                 name=model_id,
-                provider=provider_key,
+                provider=provider.slug,
                 external_name=external_name,
             )
 
