@@ -161,6 +161,7 @@ defineExpose({
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.enter.exact.prevent="open"
+    @keydown.shift.enter.exact.prevent="emit('insertBelow')"
     @keydown.delete.exact.prevent="emit('deleteLeft')"
     @click="clickOpen"
     class="rounded-sm decoration-dashed underline-offset-4 outline-transparent focus:underline focus:decoration-gray-900 focus:decoration-solid group-hover/statement:decoration-gray-900"
