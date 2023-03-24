@@ -272,7 +272,7 @@ const metaActions = computed(() => [
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full max-w-[800px] flex-row items-center px-2 pt-6 font-bold text-gray-900"
+        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center px-[50px] pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
       >
         <!-- Name -->
@@ -310,12 +310,12 @@ const metaActions = computed(() => [
         </span>
       </div>
       <!-- Add statement to start -->
-      <StatementAddArea class="mx-auto max-w-[850px]" @click="editor.readonly || insertStatementStart()" />
+      <StatementAddArea class="mx-auto max-w-[900px]" @click="editor.readonly || insertStatementStart()" />
       <!-- File's statements -->
       <div
         v-for="positioned in positionedStatements"
         :key="positioned.statement.id"
-        class="mx-auto w-full max-w-[800px]"
+        class="mx-auto w-full max-w-[900px]"
       >
         <StatementInterface
           :file="(fileHeader as any)"
@@ -331,7 +331,7 @@ const metaActions = computed(() => [
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
-        class="mx-auto max-w-[850px] flex-1 pb-60"
+        class="mx-auto max-w-[900px] flex-1 pb-60"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />
     </div>

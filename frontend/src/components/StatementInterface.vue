@@ -13,6 +13,7 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
@@ -213,47 +214,43 @@ function onClickContainer(e: MouseEvent) {
   }
 }
 
+function insertStatementBelow(e: MouseEvent) {
+  // TODO @UX: ensure statement below gets focus after insertion
+  onClickContainer(e);
+  actions.apply("statement.insertBelowCurrent");
+}
+
 // runtime
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
 </script>
 <template>
-  <div
-    tabindex="-1"
-    ref="containerRef"
-    class="group/statement relative min-h-[30px] outline-none transition-colors duration-75 focus:outline-none"
-    :class="{
-      'pb-0.5': true,
-      'focus:bg-orange-100': !isCommentish,
-      'focus:bg-gray-100': isCommentish,
-      'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight),
-      'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight),
-      'font-mono': editor.fontMono && !isComment,
-      'text-gray-700': isCommented,
-    }"
-    :style="{
-      marginLeft: highlightOffsetX + 'px',
-      paddingLeft: contentOffsetX - highlightOffsetX + 'px',
-      width: `calc(100% - ${highlightOffsetX}px)`,
-    }"
-    @click="onClickContainer"
-  >
-    <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
-    <!-- Commented overlay -->
-    <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-25" />
+  <!-- Statement wrapper -->
+  <div class="group/statement relative w-full px-[50px]" @click="onClickContainer">
+    <!-- Add statement below button -->
+    <button
+      v-if="!context.readonly"
+      class="invisible absolute top-0.5 rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:visible"
+      :style="{
+        left: highlightOffsetX + (highlightOffsetX != 0 ? 28 : 6) + 'px',
+      }"
+      @click="insertStatementBelow"
+    >
+      <PlusIcon class="h-4 w-4" />
+    </button>
     <!-- Monaco-like line numbers on the left margin -->
     <span
       v-if="editor.showLineNumbers"
-      class="absolute top-[3px] w-6 select-none text-right not-italic transition-colors duration-75"
-      :style="{ transform: 'translateX(' + (-30 - contentOffsetX) + 'px)' }"
+      class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-75"
+      :style="{ transform: 'translateX(' + -30 + 'px)' }"
       :class="{
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,
         'font-mono': editor.fontMono,
-        'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-focus/statement:text-orange-500':
+        'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
           !isCommentish,
-        'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-focus/statement:text-gray-500':
+        'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
           isCommentish,
       }"
     >
@@ -268,58 +265,77 @@ const isStale = isSymbolStale(statement);
         {{ localErrors?.length }}
       </span>
     </span>
-    <!-- Statement focus indicator (left side if not editing) -->
-    <!-- (the z-[5] puts it in front of the statement focus border) -->
+    <!-- Statement main -->
     <div
-      class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition-colors duration-75"
+      tabindex="-1"
+      ref="containerRef"
+      class="relative min-h-[30px] w-full outline-none transition duration-75 focus:outline-none"
       :class="{
-        'group-focus-within/statement:bg-orange-200 group-hover/statement:bg-orange-300': !isCommentish,
-        'group-focus-within/statement:bg-gray-200 group-hover/statement:bg-gray-300': isCommentish,
+        'focus:bg-orange-100': !isCommentish,
+        'focus:bg-gray-100': isCommentish,
+        'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight),
+        'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight),
+        'font-mono': editor.fontMono && !isComment,
+        'text-gray-700': isCommented,
       }"
-    />
-    <!-- Statement focus indicator (all around if editing) -->
-    <template v-if="isEditing">
-      <div
-        class="duration-50 absolute top-0 left-0 h-0.5 w-full transition-colors"
-        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-      />
-      <div
-        class="duration-50 absolute bottom-0 left-0 h-0.5 w-full transition-colors"
-        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-      />
-      <div
-        class="duration-50 absolute top-0 left-0 h-full w-0.5 transition-colors"
-        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-      />
-      <div
-        class="duration-50 absolute right-0 top-0 h-full w-0.5 transition-colors"
-        :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-      />
-    </template>
-    <!-- Main cell -->
-    <div
-      class="relative py-1 px-2"
-      :class="{
-        'text-sm': editor.textSmall,
-        'text-md': !editor.textSmall,
+      :style="{
+        marginLeft: highlightOffsetX + 'px',
+        paddingLeft: contentOffsetX - highlightOffsetX + 'px',
+        width: `calc(100% - ${highlightOffsetX}px)`,
       }"
     >
-      <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
-      <component
-        v-if="rootCell.component == DeclarationCell"
-        ref="rootCellRef"
-        :is="rootCell.component"
-        @navigate-up="actions.apply('statement.moveFocusUp')"
-        @navigate-down="actions.apply('statement.moveFocusDown')"
+      <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
+      <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
+      <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-25" />
+      <!-- Statement focus indicator (left side if not editing) -->
+      <!-- (the z-[5] puts it in front of the statement focus border) -->
+      <div
+        class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition-colors duration-75"
+        :class="{
+          'group-focus-within/statement:bg-orange-200 group-hover/statement:bg-orange-300': !isCommentish,
+          'group-focus-within/statement:bg-gray-200 group-hover/statement:bg-gray-300': isCommentish,
+        }"
       />
-      <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
+      <!-- Statement focus indicator (all around if editing) -->
+      <template v-if="isEditing">
+        <div
+          class="duration-50 absolute top-0 left-0 h-0.5 w-full transition-colors"
+          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
+        />
+        <div
+          class="duration-50 absolute bottom-0 left-0 h-0.5 w-full transition-colors"
+          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
+        />
+        <div
+          class="duration-50 absolute top-0 left-0 h-full w-0.5 transition-colors"
+          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
+        />
+        <div
+          class="duration-50 absolute right-0 top-0 h-full w-0.5 transition-colors"
+          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
+        />
+      </template>
+      <!-- Main cell -->
+      <div
+        class="relative py-1 px-2"
+        :class="{
+          'text-sm': editor.textSmall,
+          'text-md': !editor.textSmall,
+        }"
+      >
+        <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
+        <component
+          v-if="rootCell.component == DeclarationCell"
+          ref="rootCellRef"
+          :is="rootCell.component"
+          @navigate-up="actions.apply('statement.moveFocusUp')"
+          @navigate-down="actions.apply('statement.moveFocusDown')"
+        />
+        <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
+      </div>
     </div>
     <!-- Debug info -->
-    <div
-      v-if="editor.debug"
-      class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
-      :style="{ marginRight: isAncestorHighlight ? 0 : contentOffsetX + 'px' }"
-    >
+    <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isFocused">F</template>
       <template v-if="isSelected">S</template>

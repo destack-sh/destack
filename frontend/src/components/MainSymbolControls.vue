@@ -34,9 +34,7 @@ const canBuild = computed(
       mainSymbol.value?.symbolType == SymbolType.Runconfig)
 );
 const canRun = computed(
-  () =>
-    runtime.connected &&
-    (mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code)
+  () => mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code
 );
 
 const availableSymbols = symbolsLike({

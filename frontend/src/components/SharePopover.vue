@@ -6,6 +6,7 @@ import { useClipboard } from "@vueuse/core";
 
 const { copy } = useClipboard();
 const notifications = useNotifications();
+// TODO @Feature: proper sharing popover (with sharing links, access controls, etc.)
 
 const share = provideGlobalAction({
   id: "share.link",
