@@ -85,7 +85,7 @@ class InstructionSourceSampleCode(InstructionSource):
     target_dataset: Dataset = field(init=False)
 
     def __post_init__(self):
-        self.target_dataset = self.target_dataset or anonymous_dataset(self.dataset.type)
+        self.target_dataset = self.target_dataset or anonymous_dataset(self.code.type)
 
     async def __call__(self) -> Dataset:
         code_instance = cast(CodeInstance, instantiate(self.code))
@@ -112,15 +112,15 @@ class InstructionSourceGenerate(InstructionSource):
     type: Type
     count: int
     seed: int
-    target_dataset: Dataset = field(init=False)
+    target_dataset: Dataset = field(default=None)
 
     def __post_init__(self):
-        self.target_dataset = self.target_dataset or anonymous_dataset(self.dataset.type)
+        self.target_dataset = self.target_dataset or anonymous_dataset(self.type)
 
     async def __call__(self) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, len(self.dataset.records))
+        order_keys = generate_n_keys_between(None, None, self.count)
         for i in range(self.count):
-            # TODO @Broken: generate samples
+            # TODO @Incomplete: generate samples
             data = fabricate_value(self.type)
             record = Record(order_key=order_keys[i], data=data)
             self.target_dataset.records.append(record)

@@ -81,6 +81,8 @@ def fabricate_value(type: TypeNode) -> Any:
     elif type.tag == TypeTag.LITERAL:
         return type.value
     elif type.tag == TypeTag.ANY:
-        return 42
+        return 42  # not sure what to do here
+    elif type.tag == TypeTag.FUNCTION:
+        return {**fabricate_value(type.input), "output": fabricate_value(type.output)}
     else:
         raise RuntimeError(f"unexpected type {type.tag}")

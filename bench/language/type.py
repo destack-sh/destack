@@ -701,6 +701,14 @@ class XBlock(SymbolContent, typing.Generic[ValueT]):
     value: Optional[ValueT]
     path: Optional[str] = None  # jsonpath of value if partial block
 
+    def __len__(self):
+        if self.value is None:
+            return 0
+        elif isinstance(self.value, str):
+            return len(self.value)
+        else:
+            raise TypeError(f"cannot get length of {self}")
+
     def __str__(self):
         return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
 
