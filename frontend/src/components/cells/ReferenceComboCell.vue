@@ -2,7 +2,7 @@
 import type { InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState, type StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
-import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -28,6 +28,7 @@ const emit = defineEmits<{
 const inputRef: Ref<HTMLButtonElement | null> = ref(null);
 const inputRefFocus = useFocus(inputRef);
 const optionsRef: Ref<HTMLDivElement | null> = ref(null);
+const comboboxButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
 const selecting: Ref<boolean> = ref(false);
 
 // TODO @Feature: use proper search for all searches (like uFuzzy)
@@ -101,6 +102,7 @@ function open() {
   // focus input ref once we've switched to the combobox
   nextTick(() => {
     inputRefFocus.focused.value = true;
+    comboboxButtonRef.value?.$el.click();
   });
 }
 
@@ -190,6 +192,8 @@ defineExpose({
       static
       v-show="selecting"
     >
+      <!-- Hidden button to manage focus programmatically -->
+      <ComboboxButton class="hidden" ref="comboboxButtonRef" />
       <!-- define in-place option (weirdly, value must not be {} or headlessui will freak) -->
       <ComboboxOption v-if="query.length > 0 || canDefineAnonymous" :key="0" :value="null" v-slot="{ active }">
         <li

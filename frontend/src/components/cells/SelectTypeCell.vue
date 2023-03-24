@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementModifier, SymbolType } from "@/gql/graphql";
@@ -82,7 +83,7 @@ const commands = computed(() => {
   const commands: Command[] = [
     {
       label: "task",
-      description: "Instruct an AI to do something.",
+      description: "Instruct AI to do something.",
       action: () => (context.setSymbolType(SymbolType.Task), emit("morphed")),
     },
     {
@@ -92,12 +93,12 @@ const commands = computed(() => {
     },
     {
       label: "data",
-      description: "Provide examples and context data.",
+      description: "Provide examples and context.",
       action: () => (context.setSymbolType(SymbolType.Data), emit("morphed")),
     },
     {
       label: "code",
-      description: "Implement a task yourself manually.",
+      description: "Implement logic in Python.",
       action: () => (context.setSymbolType(SymbolType.Code), emit("morphed")),
     },
   ];
@@ -196,22 +197,27 @@ defineExpose({
         @keydown.escape.prevent="emit('escape')"
       />
     </span>
-    <ComboboxOptions
-      class="absolute top-7 z-20 flex max-h-80 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
-    >
-      <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
-        <li
-          class="flex flex-col"
-          :class="['cursor-pointer select-none py-0.5 px-2', active ? 'bg-orange-100 text-gray-900' : 'text-gray-900']"
-        >
-          <span class="text-orange-600">
-            {{ command.label }}
-          </span>
-          <span class="text-gray-700">
-            {{ command.description }}
-          </span>
-        </li>
-      </ComboboxOption>
-    </ComboboxOptions>
+    <FadeTransition>
+      <ComboboxOptions
+        class="absolute top-7 z-20 flex max-h-80 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+      >
+        <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
+          <li
+            class="flex flex-col"
+            :class="[
+              'cursor-pointer select-none py-0.5 px-2',
+              active ? 'bg-orange-100 text-gray-900' : 'text-gray-900',
+            ]"
+          >
+            <span class="text-orange-600">
+              {{ command.label }}
+            </span>
+            <span class="text-gray-700">
+              {{ command.description }}
+            </span>
+          </li>
+        </ComboboxOption>
+      </ComboboxOptions>
+    </FadeTransition>
   </Combobox>
 </template>
