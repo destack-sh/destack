@@ -2,6 +2,7 @@
 import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
+import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -12,6 +13,7 @@ const props = defineProps<{
   type: SimpleType;
   readonly: boolean;
   immediate: boolean;
+  debounced?: boolean;
   slim?: boolean;
   parentArray?: boolean; // hack to prevent recursion, doesn't work for nested arrays
 }>();
@@ -51,14 +53,23 @@ const readValue = computed(() => {
   }
 });
 function writeValue(val: any) {
-  if (props.type.tag == TypeTag.String) {
+  if (props.type.tag == TypeTag.String && props.slim) {
     // trim whitespace
     val = val.trim();
   }
   value.value = val;
-  if (props.immediate) {
+  if (props.immediate && !props.debounced) {
     emit("update:modelValue", val);
   }
+}
+
+if (props.debounced) {
+  syncProperty({
+    value,
+    editing,
+    read: () => (value.value = props.modelValue),
+    write: () => emit("update:modelValue", value.value),
+  });
 }
 
 function confirm() {
@@ -191,7 +202,7 @@ defineExpose({
       <input
         ref="valueRef"
         type="checkbox"
-        class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600"
         v-else-if="type.tag == TypeTag.Boolean"
         :checked="readValue"
         :disabled="props.readonly"

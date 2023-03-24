@@ -141,7 +141,8 @@ defineExpose({
         :type="STRING_TYPE_NODE"
         :readonly="context.readonly.value"
         :editing="false"
-        :immediate="false"
+        immediate
+        debounced
         slim
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
