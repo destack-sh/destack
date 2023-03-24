@@ -196,7 +196,8 @@ defineExpose({
     >
       <InlineValueCell
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
-        :immediate="false"
+        immediate
+        debounced
         :type="STRING_TYPE_NODE"
         slim
         :model-value="field.name"
@@ -233,7 +234,8 @@ defineExpose({
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :placeholder-value="context.editing.value ? field.name : undefined"
-          :immediate="false"
+          immediate
+          debounced
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
           @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"

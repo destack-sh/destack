@@ -190,7 +190,8 @@ defineExpose({
           @update:model-value="(val: any) => writeColumn(member.id, column, val)"
           :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
           :readonly="context.readonly.value"
-          :immediate="false"
+          immediate
+          debounced
           :placeholder-value="context.editing.value ? '+' + column : null"
           :type="STRING_TYPE_NODE"
           slim
