@@ -1,8 +1,12 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
+import { StatementModifier, SymbolType } from "@/gql/graphql";
+import { useAppearance } from "@/state/appearance";
 import { MODIFIER_BY_KEYWORD, SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
-import { ref, watch, type Ref } from "vue";
+import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
+import { useFocus } from "@vueuse/core";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 
@@ -28,6 +32,11 @@ const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(
 
 // parse content changes :ParseStatementInput
 watch(content, (newContent) => {
+  if (newContent == "/") {
+    openCommandSelection();
+    return;
+  }
+
   const endsInSep =
     newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
   const includesNonalpha = !newContent.match(/^[a-zA-Z]*$/);
@@ -55,15 +64,105 @@ watch(content, (newContent) => {
   }
 });
 
+// command/type selection dropdown
+// (not sure if this is the best place to put it)
+const commanding: Ref<boolean> = ref(false);
+const commandQuery: Ref<string> = ref("");
+const commandInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
+const commandButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
+const { focused: commandInputRefFocused } = useFocus(commandInputRef);
+
+type Command = {
+  label: string;
+  description: string;
+  action: () => void;
+};
+
+const commands = computed(() => {
+  const commands: Command[] = [
+    {
+      label: "task",
+      description: "Instruct an AI to do something.",
+      action: () => (context.setSymbolType(SymbolType.Task), emit("morphed")),
+    },
+    {
+      label: "expect",
+      description: "Specify desired behaviour.",
+      action: () => (context.setSymbolType(SymbolType.Expectation), emit("morphed")),
+    },
+    {
+      label: "data",
+      description: "Provide examples and context data.",
+      action: () => (context.setSymbolType(SymbolType.Data), emit("morphed")),
+    },
+    {
+      label: "code",
+      description: "Implement a task yourself manually.",
+      action: () => (context.setSymbolType(SymbolType.Code), emit("morphed")),
+    },
+  ];
+
+  if (context.statement.value.parent != null) {
+    commands.push({
+      label: "like",
+      description: "Give positive behaviour examples.",
+      action: () => (context.setModifier(StatementModifier.Like), emit("morphed")),
+    });
+    commands.push({
+      label: "unlike",
+      description: "Give negative behaviour examples.",
+      action: () => (context.setModifier(StatementModifier.Unlike), emit("morphed")),
+    });
+  }
+
+  return commands;
+});
+const filteredCommands = computed(() => {
+  return commands.value.filter((command) => {
+    return command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
+  });
+});
+
+function openCommandSelection() {
+  commanding.value = true;
+  nextTick(() => ((commandInputRefFocused.value = true), commandButtonRef.value?.$el.click()));
+}
+
+function stopCommanding() {
+  commanding.value = false;
+  content.value = "";
+  nextTick(() => spanRef.value?.focus());
+}
+
+function selectCommand(command: Command) {
+  commanding.value = false;
+  content.value = "";
+  command.action();
+}
+
+function focus() {
+  spanRef.value?.focus();
+  commanding.value = false;
+}
+
+function blur() {
+  spanRef.value?.blur();
+  commandInputRefFocused.value = false;
+  commanding.value = false;
+}
+
+const appearance = useAppearance();
+
 defineExpose({
-  focus: () => spanRef.value?.focus(),
-  blur: () => spanRef.value?.blur(),
+  focus,
+  blur,
   content,
 });
 </script>
 <template>
   <EditableSpan
     ref="spanRef"
+    v-if="!commanding"
     v-model="content"
     :readonly="context.readonly.value"
     @navigate-up="emit('navigateUp')"
@@ -74,4 +173,45 @@ defineExpose({
     @escape="emit('escape')"
     @delete-left="emit('deleteLeft')"
   />
+  <!-- Command selection -->
+  <Combobox
+    v-else
+    as="div"
+    class="relative flex w-full flex-col"
+    @update:model-value="selectCommand($event)"
+    by="label"
+  >
+    <!-- Hidden button to manage focus programmatically -->
+    <ComboboxButton class="hidden" ref="commandButtonRef" />
+    <span class="flex flex-row items-baseline">
+      /
+      <ComboboxInput
+        as="input"
+        ref="commandInputRef"
+        @change="commandQuery = $event.target.value"
+        spellcheck="false"
+        class="w-full min-w-0 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
+        :class="[appearance.textSmall ? 'text-sm' : 'text-md']"
+        @keydown.backspace.exact="commandQuery.length > 0 || stopCommanding()"
+        @keydown.escape.prevent="emit('escape')"
+      />
+    </span>
+    <ComboboxOptions
+      class="absolute top-7 z-20 flex max-h-80 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+    >
+      <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
+        <li
+          class="flex flex-col"
+          :class="['cursor-pointer select-none py-0.5 px-2', active ? 'bg-orange-100 text-gray-900' : 'text-gray-900']"
+        >
+          <span class="text-orange-600">
+            {{ command.label }}
+          </span>
+          <span class="text-gray-700">
+            {{ command.description }}
+          </span>
+        </li>
+      </ComboboxOption>
+    </ComboboxOptions>
+  </Combobox>
 </template>

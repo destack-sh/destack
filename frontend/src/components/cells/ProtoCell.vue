@@ -151,13 +151,19 @@ defineExpose({
       @set-reference="(ref) => ref == null || morphToReference(ref)"
       @escape="context.escape"
     />
-    <!-- Empty dots -->
+    <!-- Empty dots / prompt -->
     <div
-      v-if="showDots && gapRef?.content?.length == 0"
-      class="absolute bottom-0 mx-1 h-full w-full select-none text-gray-300 group-hover:opacity-100"
-      :class="{ 'opacity-100': context.focused.value, 'opacity-0': !context.focused.value }"
+      v-if="
+        showDots &&
+        context.statement.value.symbolType == null &&
+        context.statement.value.modifier == null &&
+        gapRef?.content?.length == 0 &&
+        context.focused.value
+      "
+      class="h-full w-full select-none group-hover:opacity-100"
     >
-      ...
+      <span class="text-gray-400" v-if="!context.editing.value">...</span>
+      <span class="text-gray-400" v-else>'/' for commands or just type...</span>
     </div>
   </span>
 </template>
