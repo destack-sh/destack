@@ -5,7 +5,7 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementType, TypeTag, SymbolType } from "@/gql/graphql";
+import { StatementType } from "@/gql/graphql";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
 import { computed, ref, type Ref } from "vue";
 

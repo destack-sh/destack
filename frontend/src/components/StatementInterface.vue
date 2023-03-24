@@ -9,6 +9,7 @@ import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
+import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
@@ -62,6 +63,7 @@ const context: Ref<StatementContext> = computed(() => ({
   file: props.file,
 }));
 provide(STATEMENT_CONTEXT, context);
+const actions = useActions();
 
 type Cell = {
   component: Component;
@@ -302,7 +304,15 @@ const isStale = isSymbolStale(statement);
         'text-md': !editor.textSmall,
       }"
     >
-      <component ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
+      <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
+      <component
+        v-if="rootCell.component == DeclarationCell"
+        ref="rootCellRef"
+        :is="rootCell.component"
+        @navigate-up="actions.apply('statement.moveFocusUp')"
+        @navigate-down="actions.apply('statement.moveFocusDown')"
+      />
+      <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
     </div>
     <!-- Debug info -->
     <div
