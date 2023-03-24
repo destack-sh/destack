@@ -317,9 +317,8 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
         instantiate(task, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    tasks_evaluations = await asyncio.gather(
-        (evaluate_task(task, result.build, n_samples=5) for task in task_instances)
-    )
+    evaluation_tasks = (evaluate_task(task, result.build, n_samples=5) for task in task_instances)
+    tasks_evaluations = await asyncio.gather(*evaluation_tasks)
     return aggregate_evaluations(tasks_evaluations)
 
 

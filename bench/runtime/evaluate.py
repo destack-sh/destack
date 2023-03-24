@@ -6,7 +6,7 @@ from typing import Optional
 
 import structlog
 
-from bench.language.type import Build, InterpSymbol
+from bench.language.type import Build, InterpSymbol, XKind
 from bench.runtime.instruct import InstructionSourceGenerate, anonymous_dataset
 from bench.runtime.run import RunError, run
 from bench.runtime.type import TaskInstance
@@ -18,13 +18,13 @@ class EvaluationMetric(enum.StrEnum):
     # Summary metrics
     Clarity = "clarity"
     Performance = "performance"
-    Simplicity = "simplicity"  # == speed?
+    Sophistication = "sophistication"  # == speed?
     # Clarity related (shared across builds?)
     InstructionPerplexity = "instruction_perplexity"
     InstructionAgreement = "instruction_agreement"
     InstructionOverlap = "instruction_overlap"
     # Performance related
-    TypeValidity = "type_correctness"
+    TypeValidity = "type_validity"
     ExpectationSatisfaction = "expectation_satisfaction"
     FeedbackCorrelation = "feedback_correlation"
     # Complexity related
@@ -47,7 +47,6 @@ PERCENTAGE_METRICS = ALL_METRICS - COUNT_METRICS
 HIGHER_IS_BETTER = {
     EvaluationMetric.Performance,
     EvaluationMetric.Clarity,
-    EvaluationMetric.Simplicity,
     EvaluationMetric.TypeValidity,
     EvaluationMetric.ExpectationSatisfaction,
     EvaluationMetric.FeedbackCorrelation,
@@ -130,34 +129,44 @@ def compare_evaluations(
 async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
     log = logger.bind(task=task, build=build)
-    implementation = task.implementation
-
+    tokens_count = sum(
+        [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
+    )
     count_metrics = {
         # only 1 always for now :TaskGrouping
         EvaluationMetric.NodesCount: 1,
         EvaluationMetric.StepsCount: 1,
         # this only works for strings
-        EvaluationMetric.TokensCount: sum([len(xblock.value) for xblock in implementation.xblocks]),
+        EvaluationMetric.TokensCount: tokens_count,
     }
 
     # generates samples to test
-    samples = await InstructionSourceGenerate(task.type, count=n_samples, seed=1337)()
+    inputs = await InstructionSourceGenerate(task.type.input, count=n_samples, seed=1337)()
     outputs = anonymous_dataset(task.type.output, n_samples)
     n_successful_runs = 0
-    for i, sample in samples.records:
+    for i, sample in enumerate(inputs.records):
         try:
-            outputs.records[i].data = await run(implementation, sample.data)
+            outputs.records[i].data = await run(task.implementation, sample.data)
             n_successful_runs += 1
         except RunError:
-            log.warning("evaluate.run.failed", sample=sample, excinfo=True)
+            log.debug("evaluate.run.failed", sample=sample, excinfo=True)
             continue
 
-    # TODO @Incomplete: evaluate against expectations (all, implicit or otherwise)
     performance_metrics = {
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
+        # TODO @Incomplete: evaluate against expectations (all, implicit or otherwise)
+        EvaluationMetric.ExpectationSatisfaction: 1.0,
+        EvaluationMetric.FeedbackCorrelation: 1.0,
+    }
+
+    # TODO @Broken: compute proper summary metrics
+    summary_metrics = {
+        EvaluationMetric.Clarity: 1.0,
+        EvaluationMetric.Performance: 1.0,
+        EvaluationMetric.Sophistication: 1.0,
     }
     return EvaluationResult(
         symbol=task,
         build=build,
-        metrics={**count_metrics, **performance_metrics},
+        metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )
