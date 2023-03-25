@@ -215,9 +215,10 @@ function onClickContainer(e: MouseEvent) {
 }
 
 function insertStatementBelow(e: MouseEvent) {
-  // TODO @UX: ensure statement below gets focus after insertion
   onClickContainer(e);
   actions.apply("statement.insertBelowCurrent");
+  e.preventDefault();
+  e.stopPropagation();
 }
 
 // runtime

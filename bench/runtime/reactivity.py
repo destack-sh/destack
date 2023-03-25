@@ -29,7 +29,7 @@ class TrackedNodeType(enum.Enum):
     TYPE_NODE = "type_node"
 
 
-@dataclass
+@dataclass(repr=False, slots=True)
 class RawNode:
     """Un-versioned tracked node."""
 
@@ -37,7 +37,7 @@ class RawNode:
     id: UUID
 
 
-@dataclass
+@dataclass(repr=False, slots=True)
 class RawMapping:
     """Un-versioned tracked mapping."""
 
@@ -46,7 +46,7 @@ class RawMapping:
     target_id: Optional[UUID]
 
 
-@dataclass
+@dataclass(repr=False, slots=True)
 class RevisionMap:
     """A simple lookup for the revisions used by node id in a module."""
 
@@ -104,7 +104,7 @@ class TrackedNode:
         )
 
 
-@dataclass
+@dataclass(slots=True)
 class TrackedTree:
     nodes: dict[UUID, TrackedNode] = field(default_factory=dict)
 

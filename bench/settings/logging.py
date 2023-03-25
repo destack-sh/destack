@@ -47,6 +47,21 @@ if DEBUG and not TEST:
 else:
     logged_handlers = ["json_console"]
 
+NOISY_LOG_SOURCES = {
+    "bench.msg.core",
+    "bench.api.runtime",
+    "bench.runtime.worker",
+    "bench.runtime.run",
+}
+NOISY_LOGGERS = {
+    source: {
+        "handlers": logged_handlers,
+        "level": NOISY_LOG_LEVEL,
+        "propagate": False,
+    }
+    for source in NOISY_LOG_SOURCES
+}
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -57,21 +72,7 @@ LOGGING = {
         "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
-        "bench.msg.core": {
-            "handlers": logged_handlers,
-            "level": NOISY_LOG_LEVEL,
-            "propagate": False,
-        },
-        "bench.api.runtime": {
-            "handlers": logged_handlers,
-            "level": NOISY_LOG_LEVEL,
-            "propagate": False,
-        },
-        "bench.runtime.worker": {
-            "handlers": logged_handlers,
-            "level": NOISY_LOG_LEVEL,
-            "propagate": False,
-        },
+        **NOISY_LOGGERS,
     },
 }
 

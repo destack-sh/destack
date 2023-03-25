@@ -1,3 +1,4 @@
+import asyncio
 import enum
 import uuid
 from collections import defaultdict
@@ -7,32 +8,32 @@ from typing import Optional
 import structlog
 
 from bench.language.type import Build, InterpSymbol, XKind
-from bench.runtime.instruct import InstructionSourceGenerate, anonymous_dataset
-from bench.runtime.run import RunError, run
-from bench.runtime.type import TaskInstance
+from bench.runtime.instruct import InstructionNode, SampleSourceModelGenerator, anonymous_dataset
+from bench.runtime.run import run
+from bench.runtime.type import CodeInstance, TaskInstance
 
 logger = structlog.get_logger(__name__)
 
 
 class EvaluationMetric(enum.StrEnum):
     # Summary metrics
-    Clarity = "clarity"
-    Performance = "performance"
+    Clarity = "clarity"  # [0, 1]
+    Performance = "performance"  # [0, 1]
     Sophistication = "sophistication"  # == speed?
     # Clarity related (shared across builds?)
-    InstructionPerplexity = "instruction_perplexity"
-    InstructionAgreement = "instruction_agreement"
-    InstructionOverlap = "instruction_overlap"
+    InstructionPerplexity = "instruction_perplexity"  # [0, 1]
+    InstructionAgreement = "instruction_agreement"  # [0, 1]
+    InstructionOverlap = "instruction_overlap"  # [0, 1]
     # Performance related
-    TypeValidity = "type_validity"
-    ExpectationSatisfaction = "expectation_satisfaction"
-    FeedbackCorrelation = "feedback_correlation"
+    TypeValidity = "type_validity"  # [0, 1]
+    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
+    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
     # Complexity related
-    EstimatedRunDuration = "estimated_run_duration"
-    InferencesCount = "inferences_count"
-    NodesCount = "nodes_count"
-    StepsCount = "steps_count"
-    TokensCount = "tokens_count"
+    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
+    InferencesCount = "inferences_count"  # [0, inf)
+    NodesCount = "nodes_count"  # [0, inf)
+    StepsCount = "steps_count"  # [0, inf)
+    TokensCount = "tokens_count"  # [0, inf)
 
 
 class MetricType(enum.StrEnum):
@@ -48,7 +49,7 @@ HIGHER_IS_BETTER = {
     EvaluationMetric.Performance,
     EvaluationMetric.Clarity,
     EvaluationMetric.TypeValidity,
-    EvaluationMetric.ExpectationSatisfaction,
+    EvaluationMetric.InstructionSatisfaction,
     EvaluationMetric.FeedbackCorrelation,
     EvaluationMetric.InstructionAgreement,
     EvaluationMetric.InstructionOverlap,
@@ -57,8 +58,16 @@ LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
 
 
 @dataclass(repr=False, slots=True)
+class Evaluation:
+    system: CodeInstance
+    seeds: list[InstructionNode]
+    properties: list[InstructionNode]
+    n_samples: int
+
+
+@dataclass(repr=False, slots=True)
 class EvaluationResult:
-    symbol: Optional[InterpSymbol]
+    system: Optional[InterpSymbol]
     build: Build
     metrics: dict[str, float]
     id: uuid.UUID = field(default_factory=uuid.uuid4)
@@ -70,7 +79,7 @@ class EvaluationResult:
         )
 
     def __repr__(self):
-        return f"<Evaluation {self.symbol} {self}>"
+        return f"<Evaluation {self.system} {self}>"
 
 
 def aggregate_evaluations(
@@ -99,7 +108,7 @@ def aggregate_evaluations(
         raise ValueError("cannot aggregate evaluations from different builds")
 
     return EvaluationResult(
-        symbol=None,
+        system=None,
         build=evaluations[0].build,
         metrics={**summed_counts, **averaged_percentages},
         children=evaluations,
@@ -129,33 +138,40 @@ def compare_evaluations(
 async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
     log = logger.bind(task=task, build=build)
+    # technically this is characters count, not tokens count
+    # we'll want proper token counts soon to properly optimize for the available context
+
     tokens_count = sum(
         [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
     )
     count_metrics = {
-        # only 1 always for now :TaskGrouping
         EvaluationMetric.NodesCount: 1,
+        # only 1 always for now :TaskGrouping
         EvaluationMetric.StepsCount: 1,
+        EvaluationMetric.InferencesCount: 1,
         # this only works for strings
         EvaluationMetric.TokensCount: tokens_count,
     }
 
     # generates samples to test
-    inputs = await InstructionSourceGenerate(task.type.input, count=n_samples, seed=1337)()
+    inputs = await SampleSourceModelGenerator(task.type.input, count=n_samples, seed=1337)()
+    results = await asyncio.gather(
+        *(run(task.implementation, sample.data) for sample in inputs.records),
+        return_exceptions=True,
+    )
     outputs = anonymous_dataset(task.type.output, n_samples)
     n_successful_runs = 0
-    for i, sample in enumerate(inputs.records):
-        try:
-            outputs.records[i].data = await run(task.implementation, sample.data)
-            n_successful_runs += 1
-        except RunError:
-            log.debug("evaluate.run.failed", sample=sample, excinfo=True)
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            log.warning("evaluate.run.failed", result=result)
             continue
+        outputs.records[i].data = result
+        n_successful_runs += 1
 
     performance_metrics = {
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
-        # TODO @Incomplete: evaluate against expectations (all, implicit or otherwise)
-        EvaluationMetric.ExpectationSatisfaction: 1.0,
+        # TODO @Incomplete: compute instruction satisfaction
+        EvaluationMetric.InstructionSatisfaction: 1.0,
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
@@ -163,10 +179,10 @@ async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> Eva
     summary_metrics = {
         EvaluationMetric.Clarity: 1.0,
         EvaluationMetric.Performance: 1.0,
-        EvaluationMetric.Sophistication: 1.0,
+        EvaluationMetric.Sophistication: 0.0,
     }
     return EvaluationResult(
-        symbol=task,
+        system=task,
         build=build,
         metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )

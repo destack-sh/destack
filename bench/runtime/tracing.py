@@ -214,16 +214,22 @@ class ValidationTracer(Tracer):
     A worker-side tracer that validates inputs and outputs.
     """
 
+    def __init__(self, eager_validation: bool = False):
+        """
+        @param eager_validation: whether to bail on the first error or collect all errors
+        """
+        self.eager_validation = eager_validation
+
     def code_enter(self, code: CodeInstance, args, kwargs):
         try:
             # check args
             for i, value in enumerate(args):
                 value_type = code.type_node.input.children[i]
-                check_type(value, value_type)
+                check_type(value, value_type, eager_error=self.eager_validation)
             # check kwargs
             for name, value in kwargs.items():
                 value_type = code.type_node.input.child(name)
-                check_type(value, value_type)
+                check_type(value, value_type, eager_error=self.eager_validation)
         except (KeyError, ValueError, TypeError) as e:
             raise ValidationError(f"invalid arguments for {code.name}: {e}", e)
 

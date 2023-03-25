@@ -420,13 +420,15 @@ def instantiate(
     symbol: InterpSymbol,
     build: Optional[Build] = None,
     buildmap: Optional[BuildMap] = None,
+    refmap: dict[UUID, SymbolInstance] = None,
     proxy: Proxy | None = None,
 ) -> SymbolInstance:
     """Instantiate a symbol in a build with all relevant context recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     buildmap = buildmap or (lambda s: None)
-    proxy = proxy or Proxy(tracer=Tracer(), cache_inferences=False)
+    refmap = refmap or {}
+    proxy = proxy or Proxy(tracer=Tracer(), cache_inferences=True)
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():
@@ -436,7 +438,9 @@ def instantiate(
             #  1) allowing invalid/mock initial instance state (and populate that later)
             #  2) tracking and somehow swapping the reference after it is actually created
             continue
-        instantiated_context[name] = instantiate(value, build=build, buildmap=buildmap, proxy=proxy)
+        instantiated_context[name] = instantiate(
+            value, build=build, refmap=refmap, buildmap=buildmap, proxy=proxy
+        )
 
     if isinstance(symbol, Task):
         if buildmap is None:
