@@ -7,10 +7,11 @@ from typing import Optional
 
 import structlog
 
-from bench.language.type import Build, InterpSymbol, XKind
-from bench.runtime.instruct import InstructionNode, SampleSourceModelGenerator, anonymous_dataset
+from bench.language.type import Build, InterpSymbol, Model, XKind, flatten_func_type
+from bench.runtime.instruct import InstructionNode, SampleSourceGenerator, anonymous_dataset
 from bench.runtime.run import run
 from bench.runtime.type import CodeInstance, TaskInstance
+from bench.utils.func import dict_minus
 
 logger = structlog.get_logger(__name__)
 
@@ -18,8 +19,9 @@ logger = structlog.get_logger(__name__)
 class EvaluationMetric(enum.StrEnum):
     # Summary metrics
     Clarity = "clarity"  # [0, 1]
+    Sophistication = "sophistication"  # [0, 1]
     Performance = "performance"  # [0, 1]
-    Sophistication = "sophistication"  # == speed?
+    Throughput = "throughput"  # [0, inf) (inverse of estimated run duration)
     # Clarity related (shared across builds?)
     InstructionPerplexity = "instruction_perplexity"  # [0, 1]
     InstructionAgreement = "instruction_agreement"  # [0, 1]
@@ -135,7 +137,9 @@ def compare_evaluations(
     return diff
 
 
-async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> EvaluationResult:
+async def evaluate_task(
+    task: TaskInstance, eval_model: Model, build: Build, n_samples: int
+) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
     log = logger.bind(task=task, build=build)
     # technically this is characters count, not tokens count
@@ -154,9 +158,14 @@ async def evaluate_task(task: TaskInstance, build: Build, n_samples: int) -> Eva
     }
 
     # generates samples to test
-    inputs = await SampleSourceModelGenerator(task.type.input, count=n_samples, seed=1337)()
+    inputs = await SampleSourceGenerator(
+        flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
+    )()
     results = await asyncio.gather(
-        *(run(task.implementation, sample.data) for sample in inputs.records),
+        *(
+            run(task.implementation, dict_minus(sample.data, {"output"}))
+            for sample in inputs.records
+        ),
         return_exceptions=True,
     )
     outputs = anonymous_dataset(task.type.output, n_samples)

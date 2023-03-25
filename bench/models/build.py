@@ -17,3 +17,4 @@ class BuildCandidate(UUIDModel):
         "Statement", on_delete=models.CASCADE, related_name="build_candidates+"
     )
     evaluation = models.ForeignKey("EvaluationResult", on_delete=models.CASCADE, related_name="+")
+    order_key = models.CharField(max_length=64)
