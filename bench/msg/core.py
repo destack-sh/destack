@@ -224,7 +224,7 @@ async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscripti
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply
-    log.info("subscribe", type="reply", topic=type, group=group)
+    log.debug("subscribe", type="reply", topic=type, group=group)
     return await nc.subscribe(type, cb=cb, queue=group)
 
 
@@ -272,7 +272,7 @@ async def subscribe(
     if payload_t is not None and not isinstance(payload_t, type):
         raise TypeError(f"payload_t must be a subclass of Payload, got {payload_t}")
 
-    log.info("subscribe", topic=topic, cb=cb)
+    log.debug("subscribe", topic=topic, cb=cb)
     if cb is not None:
 
         if hasattr(cb, "__wrapped_msg__"):
