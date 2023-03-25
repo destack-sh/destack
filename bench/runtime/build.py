@@ -14,6 +14,7 @@ import structlog
 from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
+    Code,
     Dataset,
     File,
     InterpSymbol,
@@ -178,7 +179,7 @@ def xemit(func):
 
 
 @dataclass(repr=False)
-class InstructionPlan:
+class TaskPlan:
     task: Task
     model: Model
     modality: Modality
@@ -190,7 +191,7 @@ class InstructionPlan:
         return f"task={self.task}, model={self.model}, modality={self.modality}, sources={len(self.sources)}, targets={len(self.emits)}"
 
     def __repr__(self):
-        return f"<InstructionPlan {self}>"
+        return f"<TaskPlan {self}>"
 
     def source(self, source: SampleSource):
         self.sources.append(source)
@@ -203,7 +204,7 @@ class InstructionPlan:
 class BuildPlan:
     models: list[Model]
     finetunes: list[Any] = field(default_factory=list)  # not used yet
-    task_plans: list[InstructionPlan] = field(default_factory=list)
+    task_plans: list[TaskPlan] = field(default_factory=list)
 
     def __str__(self):
         return f"models={self.models}, finetunes={self.finetunes}, task_plans={self.task_plans}"
@@ -329,7 +330,11 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
         instantiate(task, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    evaluation_tasks = (evaluate_task(task, result.build, n_samples=5) for task in task_instances)
+    eval_model = candidate.models[0]  # not sure which model to use here?
+    evaluation_tasks = (
+        evaluate_task(task=task, eval_model=eval_model, build=result.build, n_samples=5)
+        for task in task_instances
+    )
     tasks_evaluations = await asyncio.gather(*evaluation_tasks)
     return aggregate_evaluations(tasks_evaluations)
 
@@ -344,11 +349,11 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
         for task in root_tasks:
             # TODO @Incomplete: set modality based on task type & model capabilities :TextGenerationOnly
             settings = TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)
-            plan = InstructionPlan(task=task, model=model, modality=Modality.GenerateText)
+            plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
             plan.emit(
                 XEmitSystem(),
                 XEmitTask(task=task),
-                XEmitInput(input_type=task.type.input, path=""),
+                XEmitInput(input_type=task.type.input),
                 XEmitSettings(base_settings=settings.__dict__),
                 XEmitTypeExplanation(
                     type=task.type.output,
@@ -357,7 +362,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     recursive=True,
                 ),
                 XEmitTypeSample(type=task.type.output, type_label="Output"),
-                XEmitOutput(output_type=task.type.output, path=""),
+                XEmitOutput(output_type=task.type.output),
             )
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
@@ -365,7 +370,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
 
 
 async def do_build(candidate: BuildCandidate) -> None:
-    """Populates candidate state according to the build plan."""
+    """Builds candidate state according to the build plan."""
 
     # gather instruction sources in parallel
     all_sources = list(chain(*[plan.sources for plan in candidate.plan.task_plans]))
@@ -375,19 +380,7 @@ async def do_build(candidate: BuildCandidate) -> None:
 
     # render instructions
     for task_plan in candidate.plan.task_plans:
-        xbuilder = XBuilder(
-            name=task_plan.task.name,
-            type=task_plan.task.type,
-            model=task_plan.model,
-            modality=task_plan.modality,
-        )
-        emissions = await asyncio.gather(*[emit() for emit in task_plan.emits])
-        for emit in emissions:
-            if isinstance(emit, list):
-                xbuilder.extend(emit)
-            else:
-                xbuilder.append(emit)
-        implementation = xbuilder.to_symbol()
+        implementation = await do_build_task_plan(task_plan)
         candidate.state.add_target(implementation, source=task_plan.task.definition)
 
     # add weak refs for emits referencing external symbols (temporary until :WeakReferences is addressed)
@@ -398,6 +391,23 @@ async def do_build(candidate: BuildCandidate) -> None:
         for source in emit.sources:
             if isinstance(source, InterpSymbol) and source.source is not None:
                 candidate.state.use_weak_ref(source)
+
+
+async def do_build_task_plan(task_plan: TaskPlan) -> Code:
+    """Builds a task implementation from a task instruction plan."""
+    xbuilder = XBuilder(
+        name=task_plan.task.name,
+        type=task_plan.task.type,
+        model=task_plan.model,
+        modality=task_plan.modality,
+    )
+    emissions = await asyncio.gather(*[emit() for emit in task_plan.emits])
+    for emit in emissions:
+        if isinstance(emit, list):
+            xbuilder.extend(emit)
+        else:
+            xbuilder.append(emit)
+    return xbuilder.to_symbol()
 
 
 @dataclass(repr=False)
@@ -520,7 +530,7 @@ class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
     input_type: Type
-    path: str
+    path: str = ""
 
     @staticmethod
     def impute_input(input: XBlock, value: Any):
@@ -543,7 +553,8 @@ class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
     output_type: Type
-    path: str
+    output_label: str = "Output"
+    path: str = ""
 
     @staticmethod
     def parse_output(output: XBlock):
@@ -558,9 +569,13 @@ class XEmitOutput(XEmit):
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         if self.output_type.is_flat:
-            output_request = xstatic("Output (just the value, not an object):", XSource.System)
+            output_request = xstatic(
+                f"{self.output_label} (just the value, not an object):", XSource.System
+            )
         else:
-            output_request = xstatic("Output:", XSource.System)
+            output_request = xstatic(
+                f"{self.output_label} (JSON only, nothing else):", XSource.System
+            )
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
 

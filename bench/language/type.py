@@ -593,7 +593,7 @@ class Capability(InterpSymbol, CapabilityContent):
 @dataclass(repr=False)
 class TaskContent(SymbolContent):
     type_node: TypeNode
-    description: str
+    description: str = ""
 
 
 @dataclass(repr=False)
@@ -843,3 +843,16 @@ EMPTY_FUNC_TYPE = TypeNode(
     ],
 )
 EMPTY_STRUCT_TYPE = TypeNode(name=None, tag=TypeTag.STRUCT, children=[])
+
+
+def flatten_func_type(func_type: TypeNode) -> TypeNode:
+    """Inline the input and output types into one struct."""
+    # check that no input children are called output (hacky deluxe)
+    for child in func_type.input.children:
+        if child.name == "output":
+            raise ValueError("input child cannot be named output")
+    return TypeNode(
+        name=func_type.name,
+        tag=TypeTag.STRUCT,
+        children=[*func_type.input.children, func_type.output],
+    )
