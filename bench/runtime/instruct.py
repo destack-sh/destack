@@ -1,13 +1,22 @@
+import enum
 import random
+import uuid
 from dataclasses import dataclass, field
-from typing import Union, cast
+from typing import Union
 
 import structlog
 
-from bench.language.type import Code, Dataset, Expectation, InterpSymbol, Record, Task, Type
+from bench.language.type import (
+    Code,
+    Dataset,
+    Expectation,
+    InterpSymbol,
+    Record,
+    Task,
+    Type,
+    TypeNode,
+)
 from bench.language.typer import fabricate_value
-from bench.runtime.run import instantiate, run
-from bench.runtime.type import CodeInstance
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -15,20 +24,38 @@ logger = structlog.get_logger(__name__)
 Expect = Union[Task, Code, Dataset, Expectation]
 
 
-def gather_expectations(symbol: Type | Expectation | Task) -> list[Expect]:
-    expects = []
-    if isinstance(symbol, Expectation):
-        expects.append(symbol)
-    if isinstance(symbol, (Type, Task, Expectation)):
-        for child in symbol.expectations:
-            if not isinstance(child, Expectation):
-                expects.append(child)
-            expects.extend(gather_expectations(child))
-    return expects
+class InstructionType(enum.StrEnum):
+    """The kind of instruction expressed in a symbol (or sub-symbol)."""
+
+    TypeDefinition = "type_definition"
+    TaskDefinition = "task_definition"
+    ExpectationDefinition = "expectation_definition"
+    SampleData = "sample_data"
+    SampleCode = "sample_code"
+    EvaluateCode = "evaluate_code"
+    CheckCode = "check_code"
 
 
-def instruction_source(func):
-    # just forward to dataclass(repr=False, slots=True)
+@dataclass(repr=False, slots=True)
+class InstructionNode:
+    type: InstructionType
+    node: InterpSymbol | TypeNode
+    id: uuid.UUID
+    children: list["InstructionNode"] = field(default_factory=list)
+
+
+@dataclass(repr=False, slots=True)
+class InstructionTree:
+    nodes: dict[uuid.UUID, InstructionNode]
+    root: InstructionNode | None = None
+
+
+def instruction_tree(symbol: InterpSymbol) -> InstructionTree:
+    """Build a tree of instructions from a symbol and its referenced symbols (and sub-symbols)."""
+    raise NotImplementedError
+
+
+def source(func):
     return dataclass(repr=False, slots=True)(func)
 
 
@@ -40,91 +67,46 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
     )
 
 
-@instruction_source
-class InstructionSource:
-    async def __call__(self) -> InterpSymbol:
-        raise NotImplementedError
-
-    @property
-    def target_symbol(self) -> Dataset:
+@source
+class SampleSource:
+    async def __call__(self) -> Dataset:
         raise NotImplementedError
 
 
-@instruction_source
-class InstructionSourceSampleDataset(InstructionSource):
+@source
+class SampleSourceDataset(SampleSource):
     """Samples the given dataset"""
 
-    dataset: Dataset
+    source_dataset: Dataset
     count: int
     seed: int
-    target_dataset: Dataset = field(init=False)
-
-    def __post_init__(self):
-        self.target_dataset = self.target_dataset or anonymous_dataset(self.dataset.type)
 
     async def __call__(self) -> Dataset:
-        sample_indices = random.sample(range(len(self.dataset.records)), self.count)
-        for index in sample_indices:
-            source = self.dataset.records[index]
-            target = Record(order_key=source.order_key, data=source.data)
-            self.target_dataset.records.append(target)
-        return self.target_dataset
+        target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
+        sample_indices = random.sample(range(len(self.source_dataset.records)), self.count)
+        for i in sample_indices:
+            target_dataset.records[i].data = self.source_dataset.records[i].data
+        return target_dataset
 
     @property
     def target_symbol(self) -> Dataset:
         return self.target_dataset
 
 
-@instruction_source
-class InstructionSourceSampleCode(InstructionSource):
-    """Runs the code to create samples (for like/unlike)"""
-
-    code: Code
-    count: int
-    seed: int
-    target_dataset: Dataset = field(init=False)
-
-    def __post_init__(self):
-        self.target_dataset = self.target_dataset or anonymous_dataset(self.code.type)
-
-    async def __call__(self) -> Dataset:
-        code_instance = cast(CodeInstance, instantiate(self.code))
-        input_samples = await InstructionSourceGenerate(
-            type=self.code.type.input, count=self.count, seed=self.seed
-        )()
-        for sample in input_samples.records:
-            output_sample = await run(code_instance, sample.data)
-            combined_sample = Record(
-                order_key=sample.order_key, data=dict(**sample.data, output=output_sample)
-            )
-            self.target_dataset.records.append(combined_sample)
-        return self.target_dataset
-
-    @property
-    def target_symbol(self) -> Dataset:
-        return self.target_dataset
-
-
-@instruction_source
-class InstructionSourceGenerate(InstructionSource):
+@source
+class SampleSourceModelGenerator(SampleSource):
     """Generates a dataset of the given type and count"""
 
     type: Type
     count: int
     seed: int
-    target_dataset: Dataset = field(default=None)
-
-    def __post_init__(self):
-        self.target_dataset = self.target_dataset or anonymous_dataset(self.type)
 
     async def __call__(self) -> Dataset:
-        order_keys = generate_n_keys_between(None, None, self.count)
+        # TODO @Broken: generate with model
+        target_dataset = anonymous_dataset(self.type, self.count)
         for i in range(self.count):
-            # TODO @Incomplete: generate samples
-            data = fabricate_value(self.type)
-            record = Record(order_key=order_keys[i], data=data)
-            self.target_dataset.records.append(record)
-        return self.target_dataset
+            target_dataset.records[i].data = fabricate_value(self.type)
+        return target_dataset
 
     @property
     def target_symbol(self) -> Dataset:

@@ -18,7 +18,7 @@ from bench.utils.fractional import generate_n_keys_between
 logger = structlog.get_logger(__name__)
 
 
-def generate(
+def map_to_file(
     symbols: list[InterpSymbol], weak_references: list[InterpSymbol], file: File | None = None
 ) -> File:
     """Map high-level interpreted symbols back to lower level statements."""
@@ -50,9 +50,9 @@ def generate(
     # render symbols themselves
     for order_key, symbol in zip(order_keys, symbols):
         if isinstance(symbol, Dataset):
-            content = generate_dataset_content(symbol)
+            content = map_dataset_content(symbol)
         elif isinstance(symbol, Code):
-            content = generate_code_content(symbol)
+            content = map_code_content(symbol)
         else:
             raise RuntimeError(f"unexpected symbol {symbol}")
         statement = Statement(
@@ -72,7 +72,7 @@ def generate(
     return file
 
 
-def generate_dataset_content(dataset: Dataset) -> DatasetContent:
+def map_dataset_content(dataset: Dataset) -> DatasetContent:
     return DatasetContent(
         description=dataset.description,
         language=dataset.language,
@@ -81,7 +81,7 @@ def generate_dataset_content(dataset: Dataset) -> DatasetContent:
     )
 
 
-def generate_code_content(code: Code) -> CodeContent:
+def map_code_content(code: Code) -> CodeContent:
     return CodeContent(
         description=code.description,
         language=code.language,

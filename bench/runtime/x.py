@@ -190,7 +190,7 @@ class XBuilder:
             f"input_blocks = [xblock for xblock in xblocks if xblock.kind in (XKind.Input, XKind.Static)]\n"
             f"settings = first([xblock.value for xblock in xblocks if xblock.kind == XKind.Settings])\n"
             # cast settings to right type  :TypeSafeSettings
-            f"settings = {settings_type.__name__}(**settings)\n"
+            f"settings = {settings_type.__name__}(**settings) if not isinstance(settings, {settings_type.__name__}) else settings\n"
             f"model_output = await model.{self.modality}(input_blocks, settings)"
         )
 

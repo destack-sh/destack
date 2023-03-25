@@ -34,8 +34,8 @@ from bench.runtime.evaluate import (
     compare_evaluations,
     evaluate_task,
 )
-from bench.runtime.generate import generate
-from bench.runtime.instruct import InstructionSource
+from bench.runtime.instruct import SampleSource
+from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.runtime.run import instantiate
@@ -142,6 +142,16 @@ class BuildState:
         # and figure out a way to get revmaps here for the updated build
         updated_build = replace(self.build, source_mappings=combined_mappings)
 
+        # TODO @Cleanup: insert weak references into symbol context more orderly :WeakReferences
+        # add model weak references as context to all the targets
+        # this is usually done in interp, but we want it available immediately.. obviously hacky
+        for target in self.target_symbols:
+            for ref in self.weak_references:
+                # task is also a weak ref, would create loop here because
+                # instantiate is not smart enough to handle loops yet
+                if isinstance(ref, Model):
+                    target.context[ref.name] = ref
+
         return BuildResult(
             build=updated_build,
             target_symbols=self.target_symbols,
@@ -152,6 +162,8 @@ class BuildState:
 
 @dataclass(repr=False)
 class XEmit:
+    """Generate X blocks for models with dynamic code to manage dynamic values."""
+
     async def __call__(self) -> XBlock | DynamicXBlock | list[XBlock | DynamicXBlock]:
         raise NotImplementedError
 
@@ -160,7 +172,7 @@ class XEmit:
         return []
 
 
-def instruction_emit(func):
+def xemit(func):
     # just forward to dataclass(repr=False, slots=True)
     return dataclass(repr=False, slots=True)(func)
 
@@ -171,7 +183,7 @@ class InstructionPlan:
     model: Model
     modality: Modality
     base_settings: Optional[dict[str, Any]] = None
-    sources: list[InstructionSource] = field(default_factory=dict)
+    sources: list[SampleSource] = field(default_factory=dict)
     emits: list[XEmit] = field(default_factory=list)
 
     def __str__(self):
@@ -180,7 +192,7 @@ class InstructionPlan:
     def __repr__(self):
         return f"<InstructionPlan {self}>"
 
-    def source(self, source: InstructionSource):
+    def source(self, source: SampleSource):
         self.sources.append(source)
 
     def emit(self, *target: XEmit | list[XEmit]):
@@ -255,7 +267,7 @@ class BuildResult:
         if module:
             module = Module(name="<build>")
         file = File(path=self.build.id.hex[:8], generated=True, module=module)
-        return generate(self.target_symbols, self.weak_references, file)
+        return map_to_file(self.target_symbols, self.weak_references, file)
 
 
 async def build(build: Build) -> BuildResult:
@@ -272,7 +284,7 @@ async def build(build: Build) -> BuildResult:
     metric_weights = {
         EvaluationMetric.Performance: 1,
         EvaluationMetric.TypeValidity: 1,
-        EvaluationMetric.ExpectationSatisfaction: 1,
+        EvaluationMetric.InstructionSatisfaction: 1,
     }
     plans = await generate_plans(ctx)
     while not ctx.exhausted and len(plans) > 0:
@@ -401,7 +413,7 @@ class XEmitSystem(XEmit):
         return xstatic(self.message, XSource.System)
 
 
-@instruction_emit
+@xemit
 class XEmitTask(XEmit):
     """Emits the task exactly as written"""
 
@@ -415,7 +427,7 @@ class XEmitTask(XEmit):
         return [self.task]
 
 
-@instruction_emit
+@xemit
 class XEmitFewshot(XEmit):
     """Emits fewshot examples in a specific format"""
 
@@ -434,7 +446,7 @@ class XEmitFewshot(XEmit):
         return [self.task, self.source]
 
 
-@instruction_emit
+@xemit
 class XEmitTypeExplanation(XEmit):
     """Emits the type exactly as written"""
 
@@ -482,7 +494,7 @@ class XEmitTypeExplanation(XEmit):
         return [self.type]
 
 
-@instruction_emit
+@xemit
 class XEmitTypeSample(XEmit):
     """Emits a fabricated sample of the given type"""
 
@@ -503,7 +515,7 @@ class XEmitTypeSample(XEmit):
         return [self.type]
 
 
-@instruction_emit
+@xemit
 class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
@@ -526,7 +538,7 @@ class XEmitInput(XEmit):
         return [self.input_type]
 
 
-@instruction_emit
+@xemit
 class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
@@ -537,7 +549,7 @@ class XEmitOutput(XEmit):
     def parse_output(output: XBlock):
         import json
 
-        # escape the output if needed (handles basic model confusions)
+        # escape the output if needed (handles trivial model confusions)
         value = output.value.strip()
         if not value.startswith("{") and not value.startswith("[") and not value.startswith('"'):
             value = f'"{value}"'
@@ -545,7 +557,10 @@ class XEmitOutput(XEmit):
         return json.loads(value)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        output_request = xstatic("Output:", XSource.System)
+        if self.output_type.is_flat:
+            output_request = xstatic("Output (just the value, not an object):", XSource.System)
+        else:
+            output_request = xstatic("Output:", XSource.System)
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
 
@@ -554,7 +569,7 @@ class XEmitOutput(XEmit):
         return [self.output_type]
 
 
-@instruction_emit
+@xemit
 class XEmitSettings(XEmit):
     base_settings: Optional[dict[str, Any]] = None
 

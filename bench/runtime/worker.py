@@ -147,7 +147,7 @@ def interp_module(
     source: wire.ModuleData, dependencies: list[language.ModuleIndex]
 ) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
-    logger.info("module.interp", module=source)
+    logger.debug("module.interp", module=source)
     module = wire.wmap_module(source)
     # TODO @Language: revert explicit statement references to StatementPath to lookup refs properly?
     collector = ErrorCollector()
@@ -227,7 +227,7 @@ class ModuleWorker:
         """Fetch and interpret the requirement module (incl. transitive deps)"""
         if module_id in self.interp_dependencies_cached:
             return self.interp_dependencies_cached[module_id]
-        self.log.info("module.requirement.interp", module_id=module_id)
+        self.log.debug("module.requirement.interp", module_id=module_id)
         source, _ = await self.master.get_module(module_id)
         requirements = get_requirements(source)
         dependencies = await asyncio.gather(
