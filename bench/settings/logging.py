@@ -7,6 +7,7 @@ from bench.settings import get_from_env
 from bench.settings.base import DEBUG, TEST
 
 LOG_LEVEL = os.getenv("DJANGO_LOG_LEVEL", "DEBUG")
+NOISY_LOG_LEVEL = os.getenv("NOISY_LOG_LEVEL", "INFO")
 LOG_PATH: str = get_from_env("DJANGO_LOG_PATH", "logs")
 
 FORMATTERS = {
@@ -56,6 +57,21 @@ LOGGING = {
         "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
+        "bench.msg.core": {
+            "handlers": logged_handlers,
+            "level": NOISY_LOG_LEVEL,
+            "propagate": False,
+        },
+        "bench.api.runtime": {
+            "handlers": logged_handlers,
+            "level": NOISY_LOG_LEVEL,
+            "propagate": False,
+        },
+        "bench.runtime.worker": {
+            "handlers": logged_handlers,
+            "level": NOISY_LOG_LEVEL,
+            "propagate": False,
+        },
     },
 }
 
