@@ -17,25 +17,27 @@ logger = structlog.get_logger(__name__)
 
 
 class EvaluationMetric(enum.StrEnum):
-    # Summary metrics
+    # Summary metrics (global and build specific)
     Clarity = "clarity"  # [0, 1]
-    Difficulty = "difficulty"  # [0, 1]
+    Difficulty = "difficulty"  # [0, inf)
     Performance = "performance"  # [0, 1]
     Speed = "speed"  # [0, inf) (inverse of estimated run duration)
-    # Clarity related (shared across builds?)
+    # Clarity related (global)
     InstructionPerplexity = "instruction_perplexity"  # [0, 1]
     InstructionAgreement = "instruction_agreement"  # [0, 1]
     InstructionOverlap = "instruction_overlap"  # [0, 1]
-    # Performance related
-    TypeValidity = "type_validity"  # [0, 1]
-    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
-    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
-    # Complexity related
-    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
+    # Difficulty related (global)
     InferencesCount = "inferences_count"  # [0, inf)
     NodesCount = "nodes_count"  # [0, inf)
     StepsCount = "steps_count"  # [0, inf)
     TokensCount = "tokens_count"  # [0, inf)
+    # Performance related (build specific)
+    TypeValidity = "type_validity"  # [0, 1]
+    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
+    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
+    # Speed related (build specific)
+    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
+    AverageRunDuration = "average_run_duration"  # [0, inf)
 
 
 class MetricType(enum.StrEnum):
@@ -186,9 +188,8 @@ async def evaluate_task(
 
     # TODO @Broken: compute proper summary metrics
     summary_metrics = {
-        EvaluationMetric.Clarity: 1.0,
-        EvaluationMetric.Performance: 1.0,
-        EvaluationMetric.Sophistication: 0.0,
+        EvaluationMetric.Performance: 0.9,
+        EvaluationMetric.Difficulty: 0.14,
     }
     return EvaluationResult(
         system=task,

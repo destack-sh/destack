@@ -81,11 +81,11 @@ const runMain = provideGlobalAction({
   },
 });
 
-const testMain = provideGlobalAction({
-  id: "symbol.testMain",
-  label: computed(() => "Test " + mainSymbol.value?.name),
+const evaluateMain = provideGlobalAction({
+  id: "symbol.evaluateMain",
+  label: computed(() => "Evaluate " + mainSymbol.value?.name),
   shortcuts: ["f10"],
-  enabled: computed(() => false),
+  enabled: computed(() => true),
   apply: async () => {
     console.log("test");
   },
@@ -110,10 +110,10 @@ const mainActions = [
   {
     label: "Evaluate",
     icon: CheckCircleIcon,
-    enabled: computed(() => testMain.value.enabled),
-    active: ref(false),
+    enabled: computed(() => evaluateMain.value.enabled),
+    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })),
     stale: mainSymbolStale,
-    action: () => testMain.value.apply(),
+    action: () => evaluateMain.value.apply(),
   },
 ];
 
