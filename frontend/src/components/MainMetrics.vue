@@ -20,7 +20,7 @@ const globalMetrics: Ref<Metric[]> = computed(() => [
     label: "Difficulty",
     description: "How complex the instruction is.",
     value: 15,
-    unit: "%",
+    unit: "x",
   },
 ]);
 
@@ -28,7 +28,7 @@ const globalMetrics: Ref<Metric[]> = computed(() => [
 const localMetrics: Ref<Metric[]> = computed(() => [
   {
     label: "Performance",
-    description: "How well the AI performs.",
+    description: "How well the AI does.",
     value: 90,
     unit: "%",
   },
@@ -49,7 +49,7 @@ const metricSets = computed(() => [
   },
   {
     label: "Main",
-    description: "Build-specific metrics for <main symbol>.",
+    description: "Metrics for <main symbol> in build <build>.",
     metrics: localMetrics.value,
   },
 ]);
@@ -58,8 +58,8 @@ const metricSets = computed(() => [
   <div class="flex flex-row gap-3">
     <div v-for="metricSet in metricSets" :key="metricSet.label" class="group relative rounded-sm">
       <!-- Metric set itself -->
-      <div
-        class="relative flex flex-row gap-3 rounded-sm border border-amber-900 border-opacity-[12%] bg-amber-100 px-2"
+      <button
+        class="relative flex flex-row gap-3 rounded-sm border border-amber-900 border-opacity-[12%] bg-amber-100 px-2 hover:cursor-pointer hover:bg-amber-200"
       >
         <span
           v-if="metricSet.label != 'general' && metricSets.length > 2"
@@ -72,21 +72,21 @@ const metricSets = computed(() => [
           </span>
         </span>
         <!-- Metric set -->
-        <button
+        <div
           v-for="metric in metricSet.metrics"
           :key="metric.label"
-          class="relative flex flex-row items-baseline gap-0.5 p-1.5 text-center hover:cursor-pointer hover:bg-amber-200"
+          class="relative flex flex-row items-baseline gap-1 p-1.5 text-center"
         >
           <!-- Label -->
           <span class="text-sm text-gray-500">{{ metric.label.slice(0, 1) }}</span>
           <!-- Metric -->
           <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
           <!-- Unit -->
-        </button>
-      </div>
+        </div>
+      </button>
       <!-- Popover details if hovered -->
       <div
-        class="invisible absolute top-9 z-20 w-80 bg-white px-3 py-2 shadow-sm ring-1 ring-amber-900 ring-opacity-[12%] group-hover:visible"
+        class="invisible absolute top-10 z-20 w-80 rounded-sm bg-white px-3 py-2 shadow-sm ring-1 ring-amber-900 ring-opacity-40 group-hover:visible"
       >
         <h3 class="text-sm font-bold">{{ metricSet.label }} metrics</h3>
         <p class="text-sm text-gray-500">{{ metricSet.description }}</p>

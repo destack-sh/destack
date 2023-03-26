@@ -4,6 +4,8 @@ from bench.models.utils import UUIDModel
 
 
 class EvaluationResult(UUIDModel):
+    """A retained result from a Bench build/evaluation."""
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="+")

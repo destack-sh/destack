@@ -1,10 +1,22 @@
 from django.db import models
+from django_choices_field import TextChoicesField
 
 from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 
+class BuildCandidateStatus(models.TextChoices):
+    Planned = "planned"
+    Building = "building"
+    Evaluating = "evaluating"
+    CompletedWon = "completed_won"
+    CompletedAbandoned = "completed_abandoned"
+    Cancelled = "cancelled"
+
+
 class BuildCandidate(UUIDModel):
+    """A retained candidate from a Bench build."""
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="+")
@@ -12,6 +24,7 @@ class BuildCandidate(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
     )
     job = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="+", null=True)
+    status = TextChoicesField(BuildCandidateStatus, default=BuildCandidateStatus.Planned)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     build = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="build_candidates+"

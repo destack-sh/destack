@@ -213,9 +213,19 @@ class BuildPlan:
         return f"<BuildPlan {self}>"
 
 
+class BuildCandidateStatus(enum.StrEnum):
+    Planned = "planned"
+    Building = "building"
+    Evaluating = "evaluating"
+    CompletedWon = "completed_won"
+    CompletedAbandoned = "completed_abandoned"
+    Cancelled = "cancelled"
+
+
 @dataclass(repr=False)
 class BuildCandidate:
     ctx: BuildContext
+    status: BuildCandidateStatus
     root_tasks: list[Task]
     plan: BuildPlan
     state: BuildState
@@ -293,7 +303,11 @@ async def build(build: Build) -> BuildResult:
         # build all candidates
         candidates = [
             BuildCandidate(
-                ctx=ctx, root_tasks=build.tasks, plan=plan, state=BuildState(build=build)
+                status=BuildCandidateStatus.Building,
+                ctx=ctx,
+                root_tasks=build.tasks,
+                plan=plan,
+                state=BuildState(build=build),
             )
             for plan in plans
         ]
