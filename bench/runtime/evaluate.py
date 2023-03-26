@@ -19,9 +19,9 @@ logger = structlog.get_logger(__name__)
 class EvaluationMetric(enum.StrEnum):
     # Summary metrics
     Clarity = "clarity"  # [0, 1]
-    Sophistication = "sophistication"  # [0, 1]
+    Difficulty = "difficulty"  # [0, 1]
     Performance = "performance"  # [0, 1]
-    Throughput = "throughput"  # [0, inf) (inverse of estimated run duration)
+    Speed = "speed"  # [0, inf) (inverse of estimated run duration)
     # Clarity related (shared across builds?)
     InstructionPerplexity = "instruction_perplexity"  # [0, 1]
     InstructionAgreement = "instruction_agreement"  # [0, 1]

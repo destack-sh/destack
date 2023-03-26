@@ -8,6 +8,7 @@ import ProfileButton from "@/components/basic/ProfileButton.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
+import MainMetrics from "@/components/MainMetrics.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
@@ -567,6 +568,13 @@ onBeforeUnmount(() => {
             </span>
           </FadeTransition>
         </div>
+      </template>
+
+      <!-- Center: main metrics -->
+      <template v-slot:center>
+        <FadeTransition>
+          <MainMetrics v-if="runtime != null" class="px-4" />
+        </FadeTransition>
       </template>
 
       <!-- Right side: controls & profile -->
