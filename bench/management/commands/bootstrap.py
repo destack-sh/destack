@@ -146,25 +146,6 @@ def create_model_providers():
                     external_name=external_name,
                 )
 
-        models_file = std_v.create_file(name="text")
-        order_keys = generate_n_keys_between(None, None, len(provider.text_models))
-        for order_key, model_id in zip(order_keys, provider.text_models):
-            if isinstance(model_id, tuple):
-                model_id, external_name = model_id
-            else:
-                external_name = model_id
-            Statement.objects.create(
-                project_version=std_v,
-                file=models_file,
-                parent=None,
-                order_key=order_key,
-                type=StatementType.DEFINITION,
-                symbol_type=SymbolType.MODEL,
-                name=model_id,
-                provider=provider.slug,
-                external_name=external_name,
-            )
-
         # advance head
         std_v.commit(version_id)
         std.head = std_v
