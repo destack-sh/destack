@@ -8,17 +8,9 @@ from uuid import UUID
 
 from bench import language
 from bench.language import GeneratedMapping, ModuleIndex
-from bench.language.type import (
-    Build,
-    Code,
-    Dataset,
-    Expectation,
-    GeneratedMappingType,
-    InterpSymbol,
-    Task,
-    Type,
-)
+from bench.language.type import Build, GeneratedMappingType, InterpSymbol
 from bench.language.wire import ModuleData
+from bench.runtime.instruct import InstructionTree, map_instruction_node
 
 
 class TrackedNodeType(enum.Enum):
@@ -108,6 +100,10 @@ class TrackedNode:
 class TrackedTree:
     nodes: dict[UUID, TrackedNode] = field(default_factory=dict)
 
+    # private instruction tree for mapping instruction trees more efficiently
+    # if it's mapped over multiple passes (e.g. different symbols)
+    _instruction_tree: Optional[InstructionTree] = None
+
     def copy(self) -> TrackedTree:
         return TrackedTree(nodes={k: v.copy() for k, v in self.nodes.items()})
 
@@ -173,77 +169,15 @@ def diff_trees(old: TrackedTree, new: TrackedTree) -> list[TrackedNode]:
 
 def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     """
-    Walks all referenced symbols and subsymbols and adds them to the tree.
-    If nodes are already present, they are skipped.
+    Tracks the instruction tree for the symbol into the given tree.
     """
-    if symbol.id in tree.nodes and tree.nodes[symbol.id].type == TrackedNodeType.STATEMENT:
-        # we can overwrite the node if it's not a statement
+    if symbol.id in tree.nodes:
         return
-    # if this is a reference, walk the referenced symbol directly (can only be definition for now)
-    if symbol.reference is not None and symbol.reference != symbol:
-        track_interp_symbol(tree, symbol.reference)
-        return
+    tree._instruction_tree = tree._instruction_tree or TrackedTree()
+    map_instruction_node(tree._instruction_tree, symbol)
 
-    tree.nodes[symbol.id] = TrackedNode(
-        type=TrackedNodeType.STATEMENT,
-        id=symbol.id,
-        revision=1,
-        parent_id=symbol.source.parent_id,
-    )
-
-    # track build dependencies
-    if isinstance(symbol, Build):
-        for symbol in chain(symbol.tasks, symbol.models):
-            track_interp_symbol(tree, symbol)
-
-    # track record subsymbols
-    if isinstance(symbol, Dataset):
-        for record in symbol.records:
-            # this will have to change later, see :NaiveTreeTracking
-            tree.nodes[record.id] = TrackedNode(
-                type=TrackedNodeType.RECORD,
-                revision=1,
-                id=record.id,
-                parent_id=symbol.id,
-                order_key=record.order_key,
-            )
-
-    # track types and their subsymbols
-    if isinstance(symbol, (Task, Code, Type, Dataset)):
-        if isinstance(symbol, Type):
-            type = symbol
-        else:
-            type = symbol.type
-        for type_node in type.walk():
-            if isinstance(type_node, InterpSymbol):
-                track_interp_symbol(tree, type_node)
-            elif type_node.id not in tree.nodes:  # id may be re-used for Type, prefer symbol node
-                # this will have to change later, see :NaiveTreeTracking
-                if type_node.source_reference is not None:
-                    if not isinstance(type_node.reference, Type):
-                        raise RuntimeError(f"type node references must be imputed: {type_node}")
-                    track_interp_symbol(tree, type_node.reference)
-                else:
-                    tree.nodes[type_node.id] = TrackedNode(
-                        type=TrackedNodeType.TYPE_NODE,
-                        revision=1,
-                        id=type_node.id,
-                        parent_id=symbol.id,
-                    )
-
-    # context symbols
-    for symbol in symbol.context.values():
-        track_interp_symbol(tree, symbol)
-
-    # walk expectations
-    if isinstance(symbol, (Task, Expectation, Type)):
-        for expectation in symbol.expectations:
-            track_interp_symbol(tree, expectation)
-
-    # walk task steps & implementation
-    if isinstance(symbol, Task):
-        for step in symbol.steps:
-            track_interp_symbol(tree, step)
+    for node in tree._instruction_tree.roots:
+        pass
 
 
 def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:

@@ -13,7 +13,7 @@ type Metric = {
 const globalMetrics: Ref<Metric[]> = computed(() => [
   {
     label: "Clarity",
-    description: "How comprehensible the instruction is.",
+    description: "How comprehensible the instructions is.",
     value: 78,
     unit: "%",
   },

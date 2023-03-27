@@ -29,6 +29,7 @@ class Job(UUIDModel):
     deployment = models.ForeignKey(
         "Deployment", on_delete=models.CASCADE, related_name="jobs+", null=True, blank=True
     )
+    parent = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="children", null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)

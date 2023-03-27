@@ -15,7 +15,9 @@ class BuildCandidateStatus(models.TextChoices):
 
 
 class BuildCandidate(UUIDModel):
-    """A retained candidate from a Bench build."""
+    """
+    A retained candidate from a Bench build.
+    """
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -24,6 +26,7 @@ class BuildCandidate(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
     )
     job = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="+", null=True)
+    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="+", null=True)
     status = TextChoicesField(BuildCandidateStatus, default=BuildCandidateStatus.Planned)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
     build = models.ForeignKey(

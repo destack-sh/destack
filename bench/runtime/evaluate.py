@@ -7,7 +7,16 @@ from typing import Optional
 
 import structlog
 
-from bench.language.type import Build, InterpSymbol, Model, XKind, flatten_func_type
+from bench.language import ModuleIndex
+from bench.language.type import (
+    Build,
+    InterpSymbol,
+    Model,
+    Record,
+    TypeNode,
+    XKind,
+    flatten_func_type,
+)
 from bench.runtime.instruct import InstructionNode, SampleSourceGenerator, anonymous_dataset
 from bench.runtime.run import run
 from bench.runtime.type import CodeInstance, TaskInstance
@@ -17,25 +26,25 @@ logger = structlog.get_logger(__name__)
 
 
 class EvaluationMetric(enum.StrEnum):
-    # Summary metrics (global and build specific)
+    # Summary (global and build specific)
     Clarity = "clarity"  # [0, 1]
     Difficulty = "difficulty"  # [0, inf)
     Performance = "performance"  # [0, 1]
     Speed = "speed"  # [0, inf) (inverse of estimated run duration)
-    # Clarity related (global)
+    # Clarity (global)
     InstructionPerplexity = "instruction_perplexity"  # [0, 1]
     InstructionAgreement = "instruction_agreement"  # [0, 1]
     InstructionOverlap = "instruction_overlap"  # [0, 1]
-    # Difficulty related (global)
+    # Difficulty (global)
     InferencesCount = "inferences_count"  # [0, inf)
     NodesCount = "nodes_count"  # [0, inf)
     StepsCount = "steps_count"  # [0, inf)
     TokensCount = "tokens_count"  # [0, inf)
-    # Performance related (build specific)
+    # Performance (build specific)
     TypeValidity = "type_validity"  # [0, 1]
     InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
     FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
-    # Speed related (build specific)
+    # Speed (build specific)
     EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
     AverageRunDuration = "average_run_duration"  # [0, inf)
 
@@ -71,9 +80,9 @@ class Evaluation:
 
 @dataclass(repr=False, slots=True)
 class EvaluationResult:
-    system: Optional[InterpSymbol]
-    build: Build
     metrics: dict[str, float]
+    system: Optional[InterpSymbol | TypeNode | Record] = None
+    build: Optional[Build] = None
     id: uuid.UUID = field(default_factory=uuid.uuid4)
     children: list["EvaluationResult"] = field(default_factory=list)
 
@@ -196,3 +205,17 @@ async def evaluate_task(
         build=build,
         metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )
+
+
+async def lint(idx: ModuleIndex) -> EvaluationResult:
+    """Lints an entire module."""
+    for symbol in idx.symbols:
+        pass
+
+    summary_metrics = {
+        EvaluationMetric.Clarity: 0.9,
+        EvaluationMetric.Difficulty: 0.14,
+    }
+
+    # nocheckin: evaluate each symbol properly
+    return EvaluationResult(metrics=summary_metrics)
