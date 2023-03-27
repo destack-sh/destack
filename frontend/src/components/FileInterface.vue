@@ -272,7 +272,7 @@ const metaActions = computed(() => [
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center px-[50px] pt-6 font-bold text-gray-900"
+        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center px-[58px] pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
       >
         <!-- Name -->

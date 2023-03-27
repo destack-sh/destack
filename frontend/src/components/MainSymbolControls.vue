@@ -5,7 +5,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { fileOf, isSymbolStale, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
+import { fileOf, isSymbolStale, symbolsLike, useCurrentModuleRuntime, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
@@ -51,22 +51,15 @@ const filteredSymbols = computed(() =>
       })
 );
 
-const notifications = useNotifications();
+const symbolOps = useSymbolOps();
 const buildMain = provideGlobalAction({
   id: "symbol.buildMain",
   label: computed(() => "Build " + mainSymbol.value?.name),
   shortcuts: ["f8"],
   enabled: canBuild,
   apply: async () => {
-    const ret = await operations.runtime.build(mainSymbol.value?.id);
-    if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
-      notifications.show({
-        type: "build.fail",
-        kind: "error",
-        message: "Build failed",
-        description: `Build failed for ${mainSymbol.value?.name}`,
-      });
-    }
+    if (mainSymbol.value == null) return;
+    await symbolOps.build(mainSymbol.value);
   },
 });
 
@@ -76,8 +69,7 @@ const runMain = provideGlobalAction({
   shortcuts: ["f9"],
   enabled: canRun,
   apply: async () => {
-    const runEditor = editor.openRun(mainSymbol.value as any);
-    editor.focusEditor(runEditor);
+    await symbolOps.openRun(mainSymbol.value);
   },
 });
 
