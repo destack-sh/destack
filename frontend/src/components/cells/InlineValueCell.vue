@@ -52,13 +52,11 @@ const readValue = computed(() => {
     return props.modelValue;
   }
 });
-function writeValue(val: any) {
-  if (props.type.tag == TypeTag.String && props.slim) {
-    // trim whitespace
-    val = val.trim();
-  }
+
+// force is used for immediate updates from e.g. selects (that don't need debouncing)
+function writeValue(val: any, force?: boolean) {
   value.value = val;
-  if (props.immediate && !props.debounced) {
+  if (props.immediate && (!props.debounced || force)) {
     emit("update:modelValue", val);
   }
 }
@@ -110,7 +108,7 @@ function edit(event: KeyboardEvent | MouseEvent) {
   }
 
   if (props.type.tag == TypeTag.Boolean) {
-    writeValue(!readValue.value);
+    writeValue(!readValue.value, true);
     confirm();
     return;
   }
@@ -210,7 +208,7 @@ defineExpose({
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
       <div
         v-else-if="type.tag == TypeTag.Struct"
-        class="flex w-full flex-row flex-wrap gap-2 rounded-sm border border-orange-900 border-opacity-[12%] p-1"
+        class="flex w-full flex-row flex-wrap gap-2 border border-orange-900 border-opacity-[12%] p-1"
       >
         <div v-for="field in structFields" :key="field.name" class="flex flex-col">
           <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
@@ -228,7 +226,7 @@ defineExpose({
     </button>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline rounded-sm border border-solid border-orange-600 bg-orange-100 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline border border-solid border-orange-600 bg-orange-100 p-1"
       ref="editableContainerRef"
       v-if="editing"
       @click.prevent="emit('edit')"
@@ -271,7 +269,7 @@ defineExpose({
         as="div"
         class="flex flex-col"
         :model-value="enumMembers.find((n) => n.value == value)"
-        @update:model-value="(val: SimpleType) => (writeValue(val?.value), confirm())"
+        @update:model-value="(val: SimpleType) => (writeValue(val?.value, true), confirm())"
       >
         <ComboboxInput
           as="input"
