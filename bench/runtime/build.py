@@ -400,11 +400,6 @@ async def do_build(candidate: BuildCandidate) -> None:
     # add weak refs for emits referencing external symbols (temporary until :WeakReferences is addressed)
     for model in candidate.plan.models:
         candidate.state.use_weak_ref(model)
-    for emit in chain(*[plan.emits for plan in candidate.plan.task_plans]):
-        emit: XEmit
-        for source in emit.sources:
-            if isinstance(source, InterpSymbol) and source.source is not None:
-                candidate.state.use_weak_ref(source)
 
 
 async def do_build_task_plan(task_plan: TaskPlan) -> Code:

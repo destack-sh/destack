@@ -201,6 +201,9 @@ defineExpose({
       <ComboboxOptions
         class="absolute top-7 z-20 flex max-h-80 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
       >
+        <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
+          <span class="text-gray-700">No results</span>
+        </div>
         <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
           <li
             class="flex flex-col"

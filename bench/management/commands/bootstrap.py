@@ -34,8 +34,8 @@ providers: list[Provider] = [
             ("gpt-3-5-turbo", "gpt-3.5-turbo"),
             "text-davinci-003",
             "text-ada-001",
+            "whisper",
         ],
-        audio_models=["whisper"],
     ),
     Provider(
         name="Goose AI",
@@ -45,7 +45,7 @@ providers: list[Provider] = [
     Provider(
         name="Cohere",
         slug="cohere",
-        text_models=["xlarge", "command-xlarge-beta", "command-xlarge-nightly"],
+        text_models=["xlarge", ("command-xlarge", "command-xlarge-beta")],
     ),
     Provider(
         name="Forefront",
