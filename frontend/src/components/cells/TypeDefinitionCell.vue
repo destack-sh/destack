@@ -167,7 +167,7 @@ defineExpose({
   </button>
   <!-- Members (enum options or struct fields) -->
   <div
-    class="my-1 grid w-fit gap-x-3"
+    class="my-1 grid w-fit"
     :class="{
       'grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]': isEnum,
       'grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]': isStruct,
@@ -201,7 +201,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="isEditing || deleteMember(member.id)"
-          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
+          class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
           :class="{
             'text-gray-400': column == 'type',
           }"

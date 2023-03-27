@@ -233,7 +233,7 @@ const activeJobs = computed(() =>
 );
 
 function getJobTitle(job: InterpJob) {
-  if (job.type == JobType.Interp) {
+  if (job.type == JobType.Interp || job.type == JobType.Lint) {
     return "Analyzing";
   } else if (job.type == JobType.Build) {
     return "Building";

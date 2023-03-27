@@ -160,7 +160,7 @@ const outputColumns = computed(() =>
             @navigate-right="argumentsGrid.navigateRight(field?.id, 'value')"
             @navigate-up="argumentsGrid.navigateUp(field?.id, 'value')"
             @navigate-down="argumentsGrid.navigateDown(field?.id, 'value')"
-            class="my-0.5 w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-dashed focus-within:border-gray-700 focus-within:bg-orange-100"
+            class="my-0.5 w-full self-start border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
           />
           <!-- :EditableCellStyle -->
         </template>
