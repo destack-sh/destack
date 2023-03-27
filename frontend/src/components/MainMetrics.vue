@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { computed, type Ref } from "vue";
 
 type Metric = {

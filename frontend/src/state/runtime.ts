@@ -1,6 +1,8 @@
 import { graphql, useFragment } from "@/gql";
 import type { InterpError, InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
+import { useNotifications } from "@/state/notifications";
+import { useOperations } from "@/state/operations";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -322,4 +324,41 @@ export function useSymbolNavigation() {
   }
 
   return { focusSymbol };
+}
+
+export function useSymbolOps() {
+  const operations = useOperations();
+  const notifications = useNotifications();
+  const editor = useEditorState();
+
+  async function build(symbol: { id: string; name?: string | null }) {
+    const ret = await operations.runtime.build(symbol.id);
+    if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
+      notifications.show({
+        type: "build.fail",
+        kind: "error",
+        message: "Build failed",
+        description: `Build failed for ${symbol.name}`,
+      });
+    }
+  }
+
+  async function openRun(symbol: { id: string; name?: string | null; symbolType: SymbolType }) {
+    const runEditor = editor.openRun(symbol as any);
+    editor.focusEditor(runEditor);
+  }
+
+  async function evaluate(symbol: { id: string; name?: string | null }) {
+    const ret = await operations.runtime.evaluate(symbol.id);
+    if (ret?.data?.evaluate.__typename != "EvaluateState" || !ret.data.evaluate.success) {
+      notifications.show({
+        type: "evaluate.fail",
+        kind: "error",
+        message: "Evaluation failed",
+        description: `Evaluation failed for ${symbol.name}`,
+      });
+    }
+  }
+
+  return { build, openRun, evaluate };
 }

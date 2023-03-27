@@ -3,7 +3,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
-import { useSymbolNavigation } from "@/state/runtime";
+import { useSymbolNavigation, useSymbolOps } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
@@ -243,7 +243,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(statement.value);
     },
   });
-  const stopEditingCurrent = provideGlobalAction({
+  const stopEditing = provideGlobalAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing statement",
     shortcuts: ["escape"],
@@ -254,7 +254,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // indent statement
-  const indentCurrent = provideGlobalAction({
+  const indent = provideGlobalAction({
     id: "statement.indentCurrent",
     label: "Indent statement",
     shortcuts: ["tab"],
@@ -274,7 +274,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       });
     },
   });
-  const unindentCurrent = provideGlobalAction({
+  const unindent = provideGlobalAction({
     id: "statement.unindentCurrent",
     label: "Unindent statement",
     shortcuts: ["shift+tab"],
@@ -508,7 +508,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // delete statement
-  const deleteCurrent = provideGlobalAction({
+  const delete_ = provideGlobalAction({
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["backspace", "delete"],
@@ -540,7 +540,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   //  We should introduce an intermediate statement local context that statement interfaces
   //  can use as well, which could also reduce move focus up/down latency.
   //  :MissingStatementContext
-  const deleteAboveCurrent = provideGlobalAction({
+  const deleteAbove = provideGlobalAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
@@ -600,7 +600,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       editor.editElement(newStatement as StatementHeader);
     },
   });
-  const insertAboveCurrent = provideGlobalAction({
+  const insertAbove = provideGlobalAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above",
     shortcuts: ["a"],
@@ -618,7 +618,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       // don't switch focus if inserting _before_ current
     },
   });
-  const insertBelowCurrent = provideGlobalAction({
+  const insertBelow = provideGlobalAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below",
     shortcuts: ["b", "shift+enter", "plus"],
@@ -637,7 +637,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   });
 
   // toggle comment statement
-  const toggleCommentedCurrent = provideGlobalAction({
+  const toggleCommented = provideGlobalAction({
     id: "statement.toggleCommentCurrent",
     label: "Comment current statement",
     shortcuts: ["t", "shift+t"],
@@ -796,9 +796,39 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     },
   });
 
+  // symbol ops
+  const symbolOps = useSymbolOps();
+  const run = provideGlobalAction({
+    id: "statement.run",
+    label: "Run current statement",
+    shortcuts: ["ctrl+r", "meta+r"],
+    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    apply: async () => {
+      await symbolOps.openRun(statement.value);
+    },
+  });
+  const build = provideGlobalAction({
+    id: "statement.build",
+    label: "Build current statement",
+    shortcuts: ["ctrl+b", "meta+b"],
+    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    apply: async () => {
+      await symbolOps.build(statement.value);
+    },
+  });
+  const evaluate = provideGlobalAction({
+    id: "statement.evaluate",
+    label: "Evaluate current statement",
+    shortcuts: ["ctrl+e", "meta+e"],
+    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    apply: async () => {
+      await symbolOps.evaluate(statement.value);
+    },
+  });
+
   return {
-    indentCurrent,
-    unindentCurrent,
+    indent,
+    unindent,
     indentSelection,
     unindentSelection,
     moveCurrentUp,
@@ -814,19 +844,22 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     cancelSelection,
     selectAll,
     editCurrent,
-    stopEditingCurrent,
-    deleteCurrent,
+    stopEditing,
+    delete: delete_,
     deleteSelection,
-    deleteAboveCurrent,
+    deleteAbove,
     jumpToReference,
     insertStart,
     insertEnd,
-    insertAboveCurrent,
-    insertBelowCurrent,
-    toggleCommentedCurrent,
+    insertAbove,
+    insertBelow,
+    toggleCommented,
     copy,
     cut,
     paste,
     duplicate,
+    run,
+    build,
+    evaluate,
   };
 }

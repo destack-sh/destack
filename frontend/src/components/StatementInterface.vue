@@ -12,8 +12,8 @@ import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
+import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
 
@@ -225,6 +225,46 @@ function insertStatementBelow(e: MouseEvent) {
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
+
+// symbol ops (inline)
+type InlineAction = {
+  label: string;
+  icon: any;
+  action: () => void;
+};
+const symbolOps = useSymbolOps();
+const inlineActions = computed(() => {
+  if (statement.value.type != StatementType.Definition) {
+    return [];
+  }
+  const actions: InlineAction[] = [];
+  if (statement.value.symbolType == SymbolType.Build || statement.value.symbolType == SymbolType.Task) {
+    actions.push({
+      label: "Build",
+      icon: WrenchIcon,
+      action: () => symbolOps.build(statement.value),
+    });
+  }
+  if (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) {
+    actions.push({
+      label: "Run",
+      icon: PlayIcon,
+      action: () => symbolOps.openRun(statement.value),
+    });
+  }
+  if (
+    statement.value.symbolType == SymbolType.Task ||
+    statement.value.symbolType == SymbolType.Expectation ||
+    statement.value.symbolType == SymbolType.Build
+  ) {
+    actions.push({
+      label: "Evaluate",
+      icon: CheckCircleIcon,
+      action: () => symbolOps.evaluate(statement.value),
+    });
+  }
+  return actions;
+});
 </script>
 <template>
   <!-- Statement wrapper -->
@@ -333,6 +373,21 @@ const isStale = isSymbolStale(statement);
           @navigate-down="actions.apply('statement.moveFocusDown')"
         />
         <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
+        <!-- Inline cell actions -->
+        <span
+          v-if="inlineActions.length > 0"
+          :class="[isFocused ? '' : 'invisible']"
+          class="absolute top-0 right-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
+        >
+          <button
+            v-for="action in inlineActions"
+            :key="action.label"
+            class="p-0.5 text-gray-700 hover:bg-orange-100 hover:text-gray-900"
+            @click="action.action"
+          >
+            <component :is="action.icon" class="h-4 w-4" />
+          </button>
+        </span>
       </div>
     </div>
     <!-- Debug info -->
