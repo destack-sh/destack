@@ -313,7 +313,7 @@ async def build(build: Build) -> BuildResult:
         ]
         ctx.candidates.extend(candidates)
         ctx.best_candidate = candidates[0]  # doesn't matter
-        build_tasks = [do_build(candidate) for candidate in candidates]
+        build_tasks = [do_build_candidate(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
 
         # evaluate, rank and update best
@@ -383,7 +383,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     return plans
 
 
-async def do_build(candidate: BuildCandidate) -> None:
+async def do_build_candidate(candidate: BuildCandidate) -> None:
     """Builds candidate state according to the build plan."""
 
     # gather instruction sources in parallel
@@ -581,10 +581,17 @@ class XEmitOutput(XEmit):
             output_request = xstatic(
                 f"{self.output_label} (just the value, not an object):", XSource.System
             )
+        elif self.output_type.tag == TypeTag.ARRAY:
+            output_request = xstatic(
+                f"{self.output_label} (JSON array only, start with [, nothing else):",
+                XSource.System,
+            )
         else:
             output_request = xstatic(
-                f"{self.output_label} (JSON only, nothing else):", XSource.System
+                f"{self.output_label} (JSON object only, start with {{, nothing else):",
+                XSource.System,
             )
+
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
 
