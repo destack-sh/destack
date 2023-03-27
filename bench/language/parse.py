@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from itertools import chain
 from pathlib import Path
 from typing import Callable, Optional
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import structlog
 
@@ -65,6 +65,18 @@ def raise_error(error: ValueError):
 
 def ignore_error(*args, **kwargs):
     pass
+
+
+def get_type_root_id(statement_id: UUID):
+    """Stable method of deriving the type node root id for a statement :TypeNodeRootId"""
+    return uuid5(statement_id, "root")
+
+
+def lift_type_node_id(node: TypeNode) -> UUID:
+    """'Lifts' the id of a node to the statement and assigns a new derived root id"""
+    statement_id = node.id
+    node.id = get_type_root_id(statement_id)
+    return statement_id
 
 
 ErrorT = typing.TypeVar("ErrorT", bound=ValueError)
@@ -720,7 +732,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     struct.description = description
     tokens.eat_newline_or_eos()
     definition = Statement(
-        id=struct.id,  # share id with root type node :TypeNodeRootId
+        id=lift_type_node_id(struct),  # share deterministic id pair :TypeNodeRootId
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
@@ -789,7 +801,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         children=[member_type_node, *members],
     )
     definition = Statement(
-        id=enum_type_node.id,  # share id with root type node  :TypeNodeRootId
+        id=lift_type_node_id(enum_type_node),  # share deterministic id pair  :TypeNodeRootId
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
@@ -975,7 +987,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
     statement = Statement(
-        id=node.id,  # share id with root type node  :TypeNodeRootId
+        id=lift_type_node_id(node),  # share id with root type node  :TypeNodeRootId
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
@@ -1503,9 +1515,13 @@ def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
     for node in type.walk():
         if not isinstance(node.reference, TypeNode):
             continue
-        # this works because references can only be to other Type statements
-        # who must share their id with their type's root node  :TypeNodeRootId
-        node.reference = idx.symbols[node.reference.id]
+        if node.reference.id in idx.symbols:
+            # direct Type reference
+            node.reference = idx.symbols[node.reference.id]
+        else:
+            # this works because references can only be to other Type statements
+            # whose id must be derived with this method :TypeNodeRootId
+            node.reference = idx.symbols[get_type_root_id(node.reference.id)]
         # impute type reference
         impute_type_reference(node, keep_references=True)
 
