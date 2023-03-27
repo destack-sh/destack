@@ -18,7 +18,7 @@ from more_itertools import first
 
 from bench import language, models
 from bench.language import wire
-from bench.language.parse import index_module
+from bench.language.parse import get_type_root_id, index_module
 from bench.language.type import (
     PRIMITIVE_TYPES,
     StatementPath,
@@ -569,7 +569,15 @@ def rmap_type_nodes(
     else:
         raise ValueError(f"root type node is not represented simply: {type_nodes}")
 
-    root = TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+    if for_statement.symbol_type == SymbolType.TYPE:
+        # use the root id directly
+        root = TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+    else:
+        # statements share a deterministic id pair with their type root :TypeNodeRootId
+        root = TypeNode(
+            id=get_type_root_id(root_id), tag=root_type_tag, name=None, children=children
+        )
+
     wire_nodes_data = wire.rmap_type_node(root)
 
     type_nodes_revisions = {node.id: node.revision for node in type_nodes}

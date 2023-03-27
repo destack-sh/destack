@@ -76,10 +76,10 @@ const metricSets = computed(() => [
         <div
           v-for="metric in metricSet.metrics"
           :key="metric.label"
-          class="relative flex flex-row items-baseline gap-1 p-1.5 text-center"
+          class="relative flex flex-row items-start gap-1 p-1.5 text-center"
         >
           <!-- Label -->
-          <span class="text-sm text-gray-500">{{ metric.label.slice(0, 1) }}</span>
+          <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
           <!-- Metric -->
           <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
           <!-- Unit -->

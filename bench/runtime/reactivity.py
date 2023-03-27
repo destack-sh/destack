@@ -179,6 +179,11 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     if symbol.id in tree.nodes and tree.nodes[symbol.id].type == TrackedNodeType.STATEMENT:
         # we can overwrite the node if it's not a statement
         return
+    # if this is a reference, walk the referenced symbol directly (can only be definition for now)
+    if symbol.reference is not None and symbol.reference != symbol:
+        track_interp_symbol(tree, symbol.reference)
+        return
+
     tree.nodes[symbol.id] = TrackedNode(
         type=TrackedNodeType.STATEMENT,
         id=symbol.id,
@@ -212,19 +217,23 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
         for type_node in type.walk():
             if isinstance(type_node, InterpSymbol):
                 track_interp_symbol(tree, type_node)
-            elif type_node.id not in tree.nodes:  # id may be re-used, prefer symbol node
+            elif type_node.id not in tree.nodes:  # id may be re-used for Type, prefer symbol node
                 # this will have to change later, see :NaiveTreeTracking
-                tree.nodes[type_node.id] = TrackedNode(
-                    type=TrackedNodeType.TYPE_NODE, revision=1, id=type_node.id, parent_id=symbol.id
-                )
+                if type_node.source_reference is not None:
+                    if not isinstance(type_node.reference, Type):
+                        raise RuntimeError(f"type node references must be imputed: {type_node}")
+                    track_interp_symbol(tree, type_node.reference)
+                else:
+                    tree.nodes[type_node.id] = TrackedNode(
+                        type=TrackedNodeType.TYPE_NODE,
+                        revision=1,
+                        id=type_node.id,
+                        parent_id=symbol.id,
+                    )
 
     # context symbols
     for symbol in symbol.context.values():
         track_interp_symbol(tree, symbol)
-
-    # if this is a reference, walk the referenced symbol (can only be definition for now)
-    if symbol.reference is not None and symbol.reference != symbol:
-        track_interp_symbol(tree, symbol.reference)
 
     # walk expectations
     if isinstance(symbol, (Task, Expectation, Type)):
@@ -253,6 +262,8 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
     #  to the overall dependencies. The tree stores nodes by their source id, so with
     #  imports and redefs only the first instance of each descendant is tracked.
     #  This is not a problem with regular refs since you can't refer to refs.
+    #  To solve this, we'll probably invert nodes to track children (instead of parents),
+    #  enabling multiple dependencies per trigger.
     #  :NaiveTreeTracking
     new_tree = tree_from_module(revmap, idx, exclude_generated=True)
 

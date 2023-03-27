@@ -269,26 +269,30 @@ class ModuleWorker:
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
 
-        # reactively trigger build jobs for all affected builds (and other reactors)
+        # reactively trigger reactors for new stale symbols
         self._fire_reactive_jobs(self.stale_symbols)
 
     def _fire_reactive_jobs(self, stale_symbols: list[language.Statement]) -> None:
-        stale_builds = [
-            symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
-        ]
-        for b in stale_builds:
-            self.queue_build(b.id, cancel_running=True)
+        # if no errors, queue new builds for any stale builds
+        if not self.interp.errors:
+            stale_builds = [
+                symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
+            ]
+            for b in stale_builds:
+                self.queue_build(b.id, cancel_running=True)
 
     def queue_build(
         self, buildable_id: UUID, cancel_running: bool
     ) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
-        if not self.interpreted:
+        if not self.interpreted or self.interp.errors:
             return ModuleBuildErrorType.NOT_READY
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
             # collect any builds that reference this task
             builds = get_builds_for(buildable, self.interp.module_idx)
+            if not builds:
+                return ModuleBuildErrorType.INVALID_BUILDABLE
         elif isinstance(buildable, language.Build):
             builds = [buildable]
         else:
@@ -310,7 +314,6 @@ class ModuleWorker:
         return job
 
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
-        self.log.info("module.build", builds=builds)
         build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         return build_results
