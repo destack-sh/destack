@@ -7,18 +7,18 @@
     (all across the codebase, with slightly different % opacity) 
   -->
   <header
-    class="static mx-auto flex w-full flex-shrink-0 flex-row justify-between gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[16%] bg-white"
+    class="static mx-auto grid w-full grid-cols-3 gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[16%] bg-white"
   >
     <!-- Left side -->
     <div class="static flex items-center">
       <slot name="left" />
     </div>
     <!-- Center -->
-    <div class="self-middle flex h-full items-center"></div>
+    <div class="self-middle flex h-full items-center justify-self-center">
+      <slot name="center" />
+    </div>
     <!-- Right side -->
     <div class="self-middle flex min-w-fit flex-shrink-0 items-center justify-self-end">
-      <!-- TODO @UX: put center in center (properly) -->
-      <slot name="center" />
       <slot name="right" />
     </div>
   </header>

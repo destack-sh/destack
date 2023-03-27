@@ -3,7 +3,6 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { fileOf, isSymbolStale, symbolsLike, useCurrentModuleRuntime, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
@@ -121,7 +120,9 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
 </script>
 <template>
   <!-- Wrapper -->
-  <div class="flex items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 pr-2">
+  <div
+    class="flex flex-row items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 pr-2"
+  >
     <!-- Select main statement -->
     <Listbox
       as="div"
@@ -132,7 +133,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
       v-slot="{ open }"
     >
       <ListboxButton
-        class="flex w-fit max-w-fit flex-row items-center gap-1 rounded-sm border-none py-1.5 pl-4 pr-2 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
+        class="flex w-fit max-w-fit flex-row items-center gap-1 whitespace-nowrap rounded-sm border-none py-1.5 pl-4 pr-2 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
         :class="{
           'font-mono tracking-tighter': editor.fontMono,
           'text-sm': editor.textSmall,

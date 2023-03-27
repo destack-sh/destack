@@ -60,15 +60,15 @@ const metricSets = computed(() => [
     <div v-for="metricSet in metricSets" :key="metricSet.label" class="group relative rounded-sm">
       <!-- Metric set itself -->
       <button
-        class="relative flex flex-row gap-3 rounded-sm border border-amber-900 border-opacity-[12%] bg-amber-100 px-2 hover:cursor-pointer hover:bg-amber-200"
+        class="relative flex flex-row gap-3 rounded-sm border border-sky-900 border-opacity-[12%] bg-sky-100 px-2 hover:cursor-pointer hover:bg-sky-200"
       >
         <span
           v-if="metricSet.label != 'general' && metricSets.length > 2"
-          class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-amber-900"
+          class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
           <span
-            class="rounded-sm border border-b-0 border-l border-amber-900 border-opacity-[12%] bg-amber-100 p-0.5 py-0 text-xs"
+            class="rounded-sm border border-b-0 border-l border-sky-900 border-opacity-[12%] bg-sky-100 p-0.5 py-0 text-xs"
             >{{ metricSet.label }}
           </span>
         </span>
@@ -87,7 +87,7 @@ const metricSets = computed(() => [
       </button>
       <!-- Popover details if hovered -->
       <div
-        class="invisible absolute top-10 z-20 w-80 rounded-sm bg-white px-3 py-2 shadow-sm ring-1 ring-amber-900 ring-opacity-40 group-hover:visible"
+        class="invisible absolute top-10 z-20 w-80 rounded-sm bg-white px-3 py-2 shadow-sm ring-1 ring-sky-900 ring-opacity-40 group-hover:visible"
       >
         <h3 class="text-sm font-bold">{{ metricSet.label }} metrics</h3>
         <p class="text-sm text-gray-500">{{ metricSet.description }}</p>

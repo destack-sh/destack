@@ -81,16 +81,9 @@ function confirm() {
   });
 }
 
-function cancel() {
-  emit("escape");
-  editing.value = false;
-  value.value = props.modelValue;
-  nextTick(() => buttonRef.value?.focus({ preventScroll: true }));
-}
-
 onClickOutside(editableContainerRef, () => {
   if (editing.value) {
-    cancel();
+    confirm();
   }
 });
 
@@ -246,7 +239,7 @@ defineExpose({
         class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :class="[editor.textSmall ? 'text-sm' : '', slim ? 'min-w-[200px]' : ' min-w-[300px]']"
         @keydown.enter.exact.prevent="confirm"
-        @keydown.escape.exact.prevent="cancel"
+        @keydown.escape.exact.prevent="confirm"
         :placeholder="placeholderValue ?? ''"
         :rows="slim ? 1 : 3"
       />
@@ -260,7 +253,7 @@ defineExpose({
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
         :class="[editor.textSmall ? 'text-sm' : '']"
         @keydown.enter.exact.prevent="confirm"
-        @keydown.escape.exact.prevent="cancel"
+        @keydown.escape.exact.prevent="confirm"
         :placeholder="placeholderValue ?? ''"
       />
       <!-- Enum options -->
@@ -279,7 +272,7 @@ defineExpose({
           :class="[editor.textSmall ? 'text-sm' : '']"
           :display-value="(val: any) => val?.name"
           :placeholder="placeholderValue ?? '...'"
-          @keyup.escape.prevent="cancel"
+          @keyup.escape.prevent="confirm"
         >
         </ComboboxInput>
         <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 focus:outline-none" static>
