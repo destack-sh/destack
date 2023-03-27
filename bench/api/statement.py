@@ -66,6 +66,23 @@ class DatasetRecord(gql.Node):
     data: JSON
 
 
+XKind = gql.enum(models.XKind)
+XSource = gql.enum(models.XSource)
+
+
+@gql.django.type(models.XBlock)
+class XBlock(gql.Node):
+    id: GlobalID
+    statement: "Statement"
+    revision: auto
+    created_at: auto
+    kind: XKind
+    source: XSource
+    order_key: str
+    value: JSON
+    description: str
+
+
 TypeTag = gql.enum(language.type.TypeTag)
 
 

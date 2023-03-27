@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import Any, ClassVar, NamedTuple, Optional, cast
+from typing import Any, Callable, ClassVar, NamedTuple, Optional, cast
 from uuid import UUID
 
 import pytz
@@ -34,6 +34,7 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
 )
 from bench.runtime.build import BuildResult, build, get_builds_for
+from bench.runtime.evaluate import EvaluationResult, lint
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
@@ -75,6 +76,17 @@ class InterpJob(Job):
     type: ClassVar[JobType] = JobType.INTERP
     new_source: wire.ModuleData = None
     success: bool = False
+
+
+@dataclass(repr=False, slots=True)
+class LintJob(Job):
+    # TODO @Performance: scope lint job to specific files/symbols (cc :PartialModuleUpdates)
+    type: ClassVar[JobType] = JobType.LINT
+    evaluation: Optional[EvaluationResult] = None
+
+    @property
+    def success(self) -> bool:
+        return self.evaluation is not None
 
 
 @dataclass(repr=False, slots=True)
@@ -214,6 +226,11 @@ class ModuleWorker:
             qpos = self.stateful_jobs.qsize()
         return qpos
 
+    def _cancel_jobs_like(self, predicate: Callable[[Job], bool]):
+        for job in self.running_jobs.values():
+            if predicate(job):
+                asyncio.create_task(cancel_job(job))
+
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
         job = InterpJob(
             new_source=source,
@@ -271,6 +288,8 @@ class ModuleWorker:
 
         # reactively trigger reactors for new stale symbols
         self._fire_reactive_jobs(self.stale_symbols)
+        # fire lint job
+        self.queue_lint(cancel_running=True)
 
     def _fire_reactive_jobs(self, stale_symbols: list[language.Statement]) -> None:
         # if no errors, queue new builds for any stale builds
@@ -280,6 +299,21 @@ class ModuleWorker:
             ]
             for b in stale_builds:
                 self.queue_build(b.id, cancel_running=True)
+
+    def queue_lint(self, cancel_running: bool) -> LintJob:
+        job = LintJob(
+            project_id=self.project_id,
+            project_version_id=self.module_id,
+            deployment_id=self.deployment_id,
+        )
+        if cancel_running:
+            self._cancel_jobs_like(lambda j: isinstance(j, LintJob))
+        self._queue_job(job)
+        return job
+
+    async def do_lint(self):
+        evaluation = await lint(self.idx)
+        return evaluation
 
     def queue_build(
         self, buildable_id: UUID, cancel_running: bool
@@ -307,9 +341,9 @@ class ModuleWorker:
             deployment_id=self.deployment_id,
         )
         if cancel_running:
-            for running_b in self.running_jobs.values():
-                if isinstance(running_b, BuildJob) and running_b.buildable_id == buildable_id:
-                    asyncio.create_task(cancel_job(running_b))
+            self._cancel_jobs_like(
+                lambda j: isinstance(j, BuildJob) and j.buildable_id == buildable_id
+            )
         self._queue_job(job)
         return job
 
@@ -429,6 +463,9 @@ class ModuleWorker:
                     job.task = create_task(self.do_interp(job.new_source))
                     await job.task
                     job.success = True
+                elif isinstance(job, LintJob):
+                    job.task = create_task(self.do_lint())
+                    job.evaluation = await job.task
                 elif isinstance(job, RunJob):
                     job.task = create_task(self.do_run(job.runnable, job.arguments))
                     error, ret = await job.task

@@ -15,6 +15,7 @@ class GeneratedContentMixin:
 class GeneratedMappingType(models.TextChoices):
     STATEMENT = "statement"
     RECORD = "record"
+    XBLOCK = "xblock"
     TYPE_NODE = "type_node"
 
 

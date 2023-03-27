@@ -358,19 +358,19 @@ class Statement(Generic[SymbolContentT]):
         )
 
     @property
+    def is_expectable_symbol(self) -> bool:
+        return self.symbol_type in (SymbolType.TASK, SymbolType.CODE, SymbolType.DATA)
+
+    @property
     def is_expect(self) -> bool:
-        expectable_symbol = self.symbol_type in (
-            SymbolType.TASK,
-            SymbolType.CODE,
-            SymbolType.DATA,
-        )
         has_expect_intent = self.modifier in (
             StatementModifier.LIKE,
             StatementModifier.UNLIKE,
             StatementModifier.CHECK,
         )
         return self.is_real and (
-            self.symbol_type == SymbolType.EXPECTATION or (expectable_symbol and has_expect_intent)
+            self.symbol_type == SymbolType.EXPECTATION
+            or (self.is_expectable_symbol and has_expect_intent)
         )
 
     @property
@@ -796,6 +796,7 @@ class Build(InterpSymbol, BuildContent):
 class GeneratedMappingType(enum.StrEnum):
     STATEMENT = "statement"
     RECORD = "record"
+    XBLOCK = "xblock"
     TYPE_NODE = "type_node"
 
 
