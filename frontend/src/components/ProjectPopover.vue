@@ -34,7 +34,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
     description:
       visibility == ProjectVisibility.Public
         ? "Everyone can see and copy this Bench."
-        : `Only ${project.value.owner.slug} can work this Bench.`,
+        : `Only ${project.value.owner.slug} can work on this Bench.`,
   });
 }
 </script>

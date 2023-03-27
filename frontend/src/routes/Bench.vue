@@ -573,7 +573,7 @@ onBeforeUnmount(() => {
       <!-- Center: main metrics -->
       <template v-slot:center>
         <FadeTransition>
-          <MainMetrics v-if="runtime != null" class="px-4" />
+          <MainMetrics v-if="runtime.connected.value" class="px-4" />
         </FadeTransition>
       </template>
 

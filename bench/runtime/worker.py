@@ -61,6 +61,15 @@ InterpModule = NamedTuple(
 )
 
 
+async def cancel_job(job: Job):
+    job.status = JobStatus.Cancelling
+    job.task.cancel()
+    try:
+        await job.task
+    finally:
+        job.status = JobStatus.Cancelled
+
+
 @dataclass(repr=False, slots=True)
 class InterpJob(Job):
     type: ClassVar[JobType] = JobType.INTERP
@@ -161,10 +170,6 @@ def interp_module(
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
-# TODO @Cleanup: remove recent jobs buffer once all job history is in DB
-RECENT_JOBS_BUFFER_SIZE = 64  # won't be necessary with a proper job history in the DB
-
-
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
@@ -187,7 +192,7 @@ class ModuleWorker:
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
 
         self.stateful_jobs: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
-        self.recent_jobs: list[Job] = []
+        self.running_jobs: dict[UUID, Job] = {}
         self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
@@ -207,10 +212,6 @@ class ModuleWorker:
         else:
             self.stateful_jobs.put_nowait((priority, job))
             qpos = self.stateful_jobs.qsize()
-        # track recent jobs in a buffer
-        self.recent_jobs.append(job)
-        if len(self.recent_jobs) > RECENT_JOBS_BUFFER_SIZE:
-            self.recent_jobs.pop(0)
         return qpos
 
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
@@ -276,10 +277,11 @@ class ModuleWorker:
             symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
         ]
         for b in stale_builds:
-            self.queue_build(b.id)
-            # TODO @Broken: cancel any running jobs for this build
+            self.queue_build(b.id, cancel_running=True)
 
-    def queue_build(self, buildable_id: UUID) -> BuildJob | ModuleBuildErrorType:
+    def queue_build(
+        self, buildable_id: UUID, cancel_running: bool
+    ) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
         if not self.interpreted:
             return ModuleBuildErrorType.NOT_READY
@@ -300,6 +302,10 @@ class ModuleWorker:
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
         )
+        if cancel_running:
+            for running_b in self.running_jobs.values():
+                if isinstance(running_b, BuildJob) and running_b.buildable_id == buildable_id:
+                    asyncio.create_task(cancel_job(running_b))
         self._queue_job(job)
         return job
 
@@ -409,17 +415,19 @@ class ModuleWorker:
         """Process module jobs sequentially"""
         while True:
             _, job = await queue.get()
+            create_task = asyncio.create_task
             try:
                 job.status = JobStatus.Running
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.log.info("module.job.start", job=job)
+                self.running_jobs[job.id] = job
                 self.master.notify_job_status(self, job)
                 if isinstance(job, InterpJob):
-                    job.task = self.do_interp(job.new_source)
+                    job.task = create_task(self.do_interp(job.new_source))
                     await job.task
                     job.success = True
                 elif isinstance(job, RunJob):
-                    job.task = self.do_run(job.runnable, job.arguments)
+                    job.task = create_task(self.do_run(job.runnable, job.arguments))
                     error, ret = await job.task
                     if error is None:
                         job.output = ret
@@ -427,7 +435,7 @@ class ModuleWorker:
                         job.error = error
                         job.error_details = ret
                 elif isinstance(job, BuildJob):
-                    job.task = self.do_build(job.revmap, job.builds)
+                    job.task = create_task(self.do_build(job.revmap, job.builds))
                     job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
@@ -444,6 +452,7 @@ class ModuleWorker:
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
                 self.master.notify_job_status(self, job)
+                del self.running_jobs[job.id]
                 queue.task_done()
 
     async def run(self):
@@ -482,7 +491,7 @@ def make_change_payload(
     """Builds a complete runtime change message from the module worker's state"""
     relevant_jobs = [
         job
-        for job in module_worker.recent_jobs
+        for job in module_worker.running_jobs.values()
         if job.type in (JobType.INTERP, JobType.BUILD, JobType.GENERATE, JobType.EVALUATE)
     ]
     dependencies = (
@@ -550,9 +559,7 @@ class Worker:
             # TODO @Broken: assign workers to deployments
             worker = ModuleWorker(module_id, self, self.deployment_id)
             self.module_workers[module_id] = worker
-            asyncio.get_running_loop().create_task(
-                wrap_task(worker.run(), "worker_run_" + str(module_id))
-            )
+            asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.module_workers[module_id]
 
     async def _get_ready_module_worker(self, module_id: UUID) -> ModuleWorker:
@@ -579,7 +586,7 @@ class Worker:
     @message_handler
     async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
-        build_job = module_worker.queue_build(msg.p.buildable_id)
+        build_job = module_worker.queue_build(msg.p.buildable_id, cancel_running=True)
         error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
         await msg.reply(RepModuleBuildPayload(error=error))
 
@@ -619,9 +626,7 @@ class Worker:
         publish_soon(NMessageType.MODULE_RUNTIME_CHANGED, change)
         # write back build results to internal server
         if isinstance(job, BuildJob) and job.status == JobStatus.Completed:
-            asyncio.get_running_loop().create_task(
-                wrap_task(self.write_build_job_results(module_worker, job))
-            )
+            asyncio.create_task(wrap_task(self.write_build_job_results(module_worker, job)))
 
     async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
         """Writes the build job results back to the internal server"""
