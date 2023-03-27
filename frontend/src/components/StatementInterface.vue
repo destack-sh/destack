@@ -382,7 +382,7 @@ const inlineActions = computed(() => {
           <button
             v-for="action in inlineActions"
             :key="action.label"
-            class="p-0.5 text-gray-700 hover:bg-orange-100 hover:text-gray-900"
+            class="p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-800"
             @click="action.action"
           >
             <component :is="action.icon" class="h-4 w-4" />
