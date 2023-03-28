@@ -76,7 +76,7 @@ class InternalServer:
                 generated_mappings=msg.payload.generated_mappings,
                 project_v=project_v,
                 overwrite=True,
-                delete_generators={msg.p.build_id} if msg.p.delete_previous else None,
+                delete_files=msg.payload.delete_files,
             )
             success = True
         except Exception as e:
@@ -119,7 +119,6 @@ class InternalServer:
         logger.info(
             "module.write_evaluation",
             module_id=msg.p.module_id,
-            build_id=msg.p.build_id,
             evaluations=msg.payload.evaluations,
         )
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
@@ -148,12 +147,12 @@ class InternalServer:
 
     @message_handler
     async def job_changed(self, msg: NMessage[JobChangedPayload]) -> None:
-        save_success = await sync_to_async(save_jobs)(msg.payload.jobs)
+        save_success = await sync_to_async(save_jobs)([msg.payload.job])
         if save_success:
             # forward to API clients now that DB jobs are saved
             await publish(
                 NMessageType.JOB_SAVED,
-                JobSavedPayload(module_id=msg.p.module_id, jobs=msg.p.jobs),
+                JobSavedPayload(module_id=msg.p.module_id, job=msg.p.job),
             )
 
     @message_handler
@@ -189,10 +188,29 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
             unique_fields=["id"],
             update_fields=["status", "terminated_at", "outputs", "error"],
         )
-        logger.debug("save_execution_frames", executions=model_executions)
         return True
     except Exception as e:
         logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
+        return False
+
+
+def save_jobs(jobs: list[JobData]) -> bool:
+    model_jobs: list[Job] = []
+    for job in jobs:
+        model_job = mapper.rmap_job(job)
+        model_jobs.append(model_job)
+
+    try:
+        # upsert jobs
+        Job.objects.bulk_create(
+            model_jobs,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["status", "terminated_at"],
+        )
+        return True
+    except Exception as e:
+        logger.error("save_jobs_failed", exc_info=e, jobs=model_jobs)
         return False
 
 
@@ -208,6 +226,8 @@ def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
             build_id=evaluation.build_id,
             build_candidate_id=evaluation.build_candidate_id,
             statement_id=evaluation.statement_id,
+            aggregated_metrics=evaluation.aggregated_metrics,
+            self_metrics=evaluation.self_metrics,
         )
         model_evaluations.append(model_evaluation)
     # insert (not upsert, should only be written once?)
@@ -237,24 +257,3 @@ def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
         unique_fields=["id"],
         update_fields=["status", "job_id", "evaluation_id", "file_id"],
     )
-
-
-def save_jobs(jobs: list[JobData]) -> bool:
-    model_jobs: list[Job] = []
-    for job in jobs:
-        model_job = mapper.rmap_job(job)
-        model_jobs.append(model_job)
-
-    try:
-        # upsert jobs
-        Job.objects.bulk_create(
-            model_jobs,
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=["status", "terminated_at"],
-        )
-        logger.debug("save_jobs", jobs=model_jobs)
-        return True
-    except Exception as e:
-        logger.error("save_jobs_failed", exc_info=e, jobs=model_jobs)
-        return False

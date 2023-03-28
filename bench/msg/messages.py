@@ -21,7 +21,7 @@ def payload(message_type: "NMessageType"):
     def wrapper(cls):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
-        cls = dataclass(cls=cls, slots=True)
+        cls = dataclass(cls, slots=True)  # noqa: this is fine
         REGISTERED_MESSAGE_PAYLOADS[message_type] = cls
         return cls
 
@@ -192,8 +192,8 @@ class BuildCandidateSavedPayload:
 @payload(NMessageType.REQUEST_WRITE_BUILD)
 class ReqWriteBuildPayload:
     module_id: UUID
-    build_id: UUID
-    delete_previous: bool
+    build_ids: list[UUID]
+    delete_files: list[UUID]
     files: list[wire.FileData]
     generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
 
@@ -205,13 +205,13 @@ class RepWriteModulePayload:
 
 @payload(NMessageType.JOB_CHANGED)
 class JobChangedPayload:
-    job_id: UUID
+    module_id: UUID
     job: JobData
 
 
 @payload(NMessageType.JOB_SAVED)
 class JobSavedPayload:
-    job_id: UUID
+    module_id: UUID
     job: JobData
 
 
@@ -269,6 +269,7 @@ def to_topic(
     Gets the default topic for a message type and payload.
     :NATSTopics
     """
+    # note: this seems a tad repetitive, maybe cleanup somehow (sacrifice type safety?)
     if message_type == NMessageType.PROJECT_VERSION_CHANGED:
         payload = cast(ProjectVersionChangedPayload, payload)
         return f"{message_type}.{payload.project_version_id}"
@@ -283,6 +284,18 @@ def to_topic(
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EXECUTION_SAVED:
         payload = cast(ExecutionSavedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.JOB_CHANGED:
+        payload = cast(JobChangedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.JOB_SAVED:
+        payload = cast(JobSavedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.EVALUATION_SAVED:
+        payload = cast(EvaluationSavedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.BUILD_CANDIDATE_SAVED:
+        payload = cast(BuildCandidateSavedPayload, payload)
         return f"{message_type}.{payload.module_id}"
 
     return message_type

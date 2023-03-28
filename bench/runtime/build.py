@@ -268,7 +268,7 @@ class BuildResult:
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
-        file = File(path=self.build.id.hex[:8], generated=True, module=module)
+        file = File(path=f"build/{self.build.name}", generated=True, module=module)
         return map_to_file(self.target_symbols, self.weak_references, file)
 
 
@@ -643,12 +643,21 @@ class XEmitSettings(XEmit):
         return []
 
 
-def get_builds_for(symbol: Task, module_idx: ModuleIndex) -> list[Build]:
+def get_builds_for(symbol: Task, idx: ModuleIndex) -> list[Build]:
     """Get all builds for a given task."""
     builds = []
-    for b in module_idx.symbols_of_type(Build):
+    for b in idx.symbols_of_type(Build):
         if not b.is_definition:
             continue
         if any(t.definition.id == symbol.id for t in b.tasks):
             builds.append(b)
     return builds
+
+
+def get_build_files_for(build: Build, idx: ModuleIndex) -> list[File]:
+    build_files: dict[UUID, File] = {}
+    for symbol_id in build.targets:
+        symbol = idx.get_symbol_by_id(symbol_id)
+        if symbol is not None and symbol.source is not None:
+            build_files[symbol.source.id] = symbol.source.file
+    return list(build_files.values())

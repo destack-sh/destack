@@ -102,7 +102,9 @@ const mainActions = [
     label: "Evaluate",
     icon: CheckCircleIcon,
     enabled: computed(() => evaluateMain.value.enabled),
-    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })),
+    active: computed(
+      () => evaluateRunning.value || operations.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
+    ),
     stale: mainSymbolStale,
     action: () => evaluateMain.value.apply(),
   },
@@ -146,7 +148,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
         @contextmenu.prevent="$event.target.click()"
         :disabled="!runtime.connected.value"
       >
-        {{ mainSymbolMissing ? "???" : symbolDeclr(mainSymbol) ?? "Select" }}
+        {{ mainSymbolMissing ? "???" : symbolDeclr(mainSymbol) ?? runtime.name.value ?? "???" }}
         <ChevronDownIcon class="h-3 w-3 text-gray-400" aria-hidden="true" />
       </ListboxButton>
 
@@ -158,8 +160,23 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
         >
           <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
           <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>
-          <!-- Deselect -->
-          <ListboxOption :key="null" :value="null"> Deselect </ListboxOption>
+          <!-- Deselect (null option) -->
+          <ListboxOption :key="null" :value="null" as="template" v-slot="{ active, selected }">
+            <li
+              :class="[
+                'relative cursor-default select-none py-0.5 px-2',
+                active ? 'bg-orange-600 text-white' : 'text-gray-900',
+                selected && !active ? 'text-orange-600' : '',
+              ]"
+            >
+              <div class="flex items-baseline justify-between">
+                <span class="truncate">{{ runtime.name.value }}</span>
+                <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
+                  [Bench]
+                </span>
+              </div>
+            </li>
+          </ListboxOption>
           <!-- Actual  options -->
           <ListboxOption
             v-for="stmt in filteredSymbols"

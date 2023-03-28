@@ -161,6 +161,8 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
   runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
 
   const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.moduleRuntimeChanged.module));
+  const path = computed(() => module.value?.name);
+  const name = computed(() => module.value?.name.split(".").slice(-1)[0]);
   const dependencies = computed(() =>
     runtime.value?.moduleRuntimeChanged.dependencies.map((m) => useFragment(InterpModuleContentType, m))
   );
@@ -186,6 +188,8 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     connected,
     lastUpdated,
     module,
+    path,
+    name,
     dependencies,
     errors,
     jobs,
