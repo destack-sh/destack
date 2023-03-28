@@ -2,56 +2,28 @@ import asyncio
 import enum
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
-from typing import Optional
 
 import structlog
 
 from bench.language import ModuleIndex
-from bench.language.type import (
-    Build,
-    InterpSymbol,
-    Model,
-    Record,
-    TypeNode,
-    XKind,
-    flatten_func_type,
-)
+from bench.language.type import Build, Model, XKind, flatten_func_type
 from bench.runtime.instruct import (
+    Instruction,
     SampleSourceGenerator,
     anonymous_dataset,
     instruction_tree_from_module,
 )
 from bench.runtime.run import run
-from bench.runtime.type import TaskInstance
+from bench.runtime.type import (
+    EvaluationKind,
+    EvaluationMetric,
+    EvaluationResult,
+    EvaluationScope,
+    TaskInstance,
+)
 from bench.utils.func import dict_minus
 
 logger = structlog.get_logger(__name__)
-
-
-class EvaluationMetric(enum.StrEnum):
-    # Summary (global and build specific)
-    Clarity = "clarity"  # [0, 1]
-    Difficulty = "difficulty"  # [0, inf)
-    Performance = "performance"  # [0, 1]
-    Speed = "speed"  # [0, inf) (inverse of estimated run duration)
-    # Clarity (global)
-    InstructionPerplexity = "instruction_perplexity"  # [0, 1]
-    InstructionAgreement = "instruction_agreement"  # [0, 1]
-    InstructionOverlap = "instruction_overlap"  # [0, 1]
-    # Difficulty (global)
-    NodesCount = "nodes_count"  # [0, inf)
-    StepsCount = "steps_count"  # [0, inf)
-    # Difficulty (build specific?)
-    InferencesCount = "inferences_count"  # [0, inf)
-    TokensCount = "tokens_count"  # [0, inf)
-    # Performance (build specific)
-    TypeValidity = "type_validity"  # [0, 1]
-    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
-    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
-    # Speed (build specific)
-    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
-    AverageRunDuration = "average_run_duration"  # [0, inf)
 
 
 class MetricType(enum.StrEnum):
@@ -73,46 +45,6 @@ HIGHER_IS_BETTER = {
     EvaluationMetric.InstructionOverlap,
 }
 LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
-
-
-@dataclass(repr=False, slots=True)
-class EvaluationResult:
-    aggregated_metrics: dict[str, float]
-    self_metrics: Optional[dict[str, float]] = None
-    system: Optional[InterpSymbol | TypeNode | Record] = None
-    build: Optional[Build] = None
-    id: uuid.UUID = field(default_factory=uuid.uuid4)
-    children: list["EvaluationResult"] = field(default_factory=list)
-
-    def __str__(self):
-        return ", ".join(
-            f"{k}: {self.aggregated_metrics[k]:0.02f}"
-            for k in EvaluationMetric
-            if k in self.aggregated_metrics
-        )
-
-    def __repr__(self):
-        return f"<Evaluation {self.system} {self}>"
-
-
-def aggregate_evaluations(
-    evaluations: list[EvaluationResult], weights: dict[uuid.UUID | str, float] = None
-) -> EvaluationResult:
-    """Combines multiple evaluations into one."""
-    aggregated_metrics = aggregate_metrics(evaluations, weights)
-
-    # check that the build is the same
-    build_ids = {evaluation.build.id if evaluation.build else None for evaluation in evaluations}
-    if len(build_ids) > 1:
-        raise ValueError(f"cannot aggregate evaluations from different builds: {build_ids}")
-
-    return EvaluationResult(
-        system=None,
-        build=evaluations[0].build if len(build_ids) == 1 else None,
-        self_metrics=None,
-        aggregated_metrics=aggregated_metrics,
-        children=evaluations,
-    )
 
 
 def aggregate_metrics(
@@ -181,13 +113,10 @@ async def evaluate_task(
     inputs = await SampleSourceGenerator(
         flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
-    results = await asyncio.gather(
-        *(
-            run(task.implementation, dict_minus(sample.data, {"output"}))
-            for sample in inputs.records
-        ),
-        return_exceptions=True,
+    runs = (
+        run(task.implementation, dict_minus(sample.data, {"output"})) for sample in inputs.records
     )
+    results = await asyncio.gather(*runs, return_exceptions=True)
     outputs = anonymous_dataset(task.type.output, n_samples)
     n_successful_runs = 0
     for i, result in enumerate(results):
@@ -210,11 +139,20 @@ async def evaluate_task(
         EvaluationMetric.Difficulty: 0.14,
     }
     return EvaluationResult(
+        kind=EvaluationKind.EVALUATION,
+        scope=EvaluationScope.INSTRUCTION,
         system=task,
         build=build,
         self_metrics=None,
         aggregated_metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )
+
+
+async def lint_instruction(node: Instruction) -> dict[str, float]:
+    """Lints a single instruction."""
+    # TODO @Incomplete: compute proper lint metrics
+    self_metrics = {EvaluationMetric.NodesCount: 1}
+    return self_metrics
 
 
 async def lint(idx: ModuleIndex) -> EvaluationResult:
@@ -223,9 +161,11 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
     evaluations: dict[uuid.UUID, EvaluationResult] = {}
 
     # evaluate nodes individually
-    for node in tree.walk():
-        self_metrics = {EvaluationMetric.NodesCount: 1}
+    all_self_metrics = await asyncio.gather(*[lint_instruction(node) for node in tree.walk()])
+    for self_metrics, node in zip(all_self_metrics, tree.walk()):
         evaluation = EvaluationResult(
+            kind=EvaluationKind.LINT,
+            scope=EvaluationScope.INSTRUCTION,
             system=node,
             build=None,
             self_metrics=self_metrics,
@@ -239,5 +179,11 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         evaluations[node.id].aggregated_metrics = aggregate_metrics(child_evaluations)
 
     root_evaluations = [evaluations[root.id] for root in tree.roots]
-    root_evaluation = aggregate_evaluations(root_evaluations)
+    root_evaluation = EvaluationResult(
+        kind=EvaluationKind.LINT,
+        scope=EvaluationScope.MODULE,
+        system=None,
+        build=None,
+        aggregated_metrics=aggregate_metrics(root_evaluations),
+    )
     return root_evaluation

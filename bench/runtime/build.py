@@ -31,7 +31,7 @@ from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import (
     EvaluationMetric,
     EvaluationResult,
-    aggregate_evaluations,
+    aggregate_metrics,
     compare_evaluations,
     evaluate_task,
 )
@@ -40,7 +40,7 @@ from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.runtime.run import instantiate
-from bench.runtime.type import Modality
+from bench.runtime.type import BuildCandidateStatus, EvaluationKind, EvaluationScope, Modality
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 from bench.utils.random import get_random_veggie_name
 
@@ -213,15 +213,6 @@ class BuildPlan:
         return f"<BuildPlan {self}>"
 
 
-class BuildCandidateStatus(enum.StrEnum):
-    Planned = "planned"
-    Building = "building"
-    Evaluating = "evaluating"
-    CompletedWon = "completed_won"
-    CompletedAbandoned = "completed_abandoned"
-    Cancelled = "cancelled"
-
-
 @dataclass(repr=False)
 class BuildCandidate:
     ctx: BuildContext
@@ -350,7 +341,13 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
         for task in task_instances
     )
     tasks_evaluations = await asyncio.gather(*evaluation_tasks)
-    return aggregate_evaluations(tasks_evaluations)
+    return EvaluationResult(
+        kind=EvaluationKind.EVALUATION,
+        scope=EvaluationScope.BUILD,
+        self_metrics=None,
+        build=result.build,
+        aggregated_metrics=aggregate_metrics(tasks_evaluations),
+    )
 
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:

@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import ExecutionFrameData, JobData
+from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
 
 PROTOCOL_VERSION = 1
 
@@ -46,6 +46,10 @@ class NMessageType(StrEnum):
     EXECUTION_SAVED = "execution.saved"
     JOB_CHANGED = "job.changed"
     JOB_SAVED = "job.saved"
+    EVALUATION_CHANGED = "evaluation.changed"
+    EVALUATION_SAVED = "evaluation.saved"
+    BUILD_CHANGED = "build.changed"
+    BUILD_SAVED = "build.saved"
 
     # API <-> Worker
     REQUEST_MODULE_BUILD = "runtime.build"
@@ -146,6 +150,32 @@ class ExecutionSavedPayload:
     frames: list[ExecutionFrameData]
 
 
+@_register_payload(NMessageType.EVALUATION_CHANGED)
+class EvaluationChangedPayload:
+    module_id: UUID
+    evaluations: list[EvaluationResultData]
+
+
+@_register_payload(NMessageType.EVALUATION_SAVED)
+class EvaluationSavedPayload:
+    module_id: UUID
+    evaluations: list[EvaluationResultData]
+
+
+@_register_payload(NMessageType.BUILD_CHANGED)
+class BuildChangedPayload:
+    module_id: UUID
+    build_candidates: list[BuildCandidateData]
+    evaluations: list[EvaluationResultData]
+
+
+@_register_payload(NMessageType.BUILD_SAVED)
+class BuildSavedPayload:
+    module_id: UUID
+    build_candidates: list[BuildCandidateData]
+    evaluations: list[EvaluationResultData]
+
+
 @_register_payload(NMessageType.JOB_CHANGED)
 class JobChangedPayload:
     job_id: UUID
@@ -172,6 +202,8 @@ class RepReadModulePayload:
 @_register_payload(NMessageType.REQUEST_WRITE_MODULE)
 class ReqWriteModulePayload:
     module_id: UUID
+    build_candidates: list[BuildCandidateData]
+    evaluations: list[EvaluationResultData]
     files: list[wire.FileData]
     generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
 

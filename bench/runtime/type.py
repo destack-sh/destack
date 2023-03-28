@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import enum
 import traceback
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, ClassVar, Coroutine, Optional
@@ -19,12 +20,13 @@ from bench.language.type import (
     LiteralValue,
     Model,
     Module,
+    Record,
     SymbolType,
     Task,
     Type,
+    TypeNode,
     Value,
     XBlock,
-    XBlockContent,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
@@ -118,8 +120,12 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     CodeInstance: SymbolType.CODE,
 }
 
+#
+# Executions
+#
 
-@dataclass
+
+@dataclass(slots=True)
 class ExecutionFrame:
     id: UUID
     module_id: UUID
@@ -162,7 +168,7 @@ class ExecutionFrame:
         return f"<ExecutionFrame {self}>"
 
 
-@dataclass
+@dataclass(slots=True)
 class ErrorData:
     """Wire-able representation of an exception."""
 
@@ -171,7 +177,7 @@ class ErrorData:
     traceback: list[str]
 
 
-@dataclass
+@dataclass(slots=True)
 class ExecutionFrameData:
     """Wire-able representation of an execution frame."""
 
@@ -241,25 +247,155 @@ class ExecutionFrameData:
         )
 
 
-class XBlocks:
-    """Convenient wrapper for accessing X blocks."""
+#
+# Building
+#
 
-    def __init__(self, blocks: list[XBlockContent]):
-        self.blocks = blocks
 
-    def by_id(self, id: UUID) -> XBlockContent:
-        for block in self.blocks:
-            if block.id == id:
-                return block
-        raise KeyError(id)
+class BuildCandidateStatus(enum.StrEnum):
+    Planned = "planned"
+    Building = "building"
+    Evaluating = "evaluating"
+    CompletedWon = "completed_won"
+    CompletedAbandoned = "completed_abandoned"
+    Cancelled = "cancelled"
+
+
+@dataclass(slots=True)
+class BuildCandidateData:
+    id: UUID
+    build_id: UUID
+    status: BuildCandidateStatus
+    name: str
+    evaluation_id: Optional[UUID]
+    job_id: Optional[UUID]
+    file_id: Optional[UUID]
+    # additional context
+    project_id: UUID
+    project_version_id: UUID
+
+
+#
+# Evaluation
+#
+
+
+class EvaluationMetric(enum.StrEnum):
+    # Summary (global and build specific)
+    Clarity = "clarity"  # [0, 1]
+    Difficulty = "difficulty"  # [0, inf)
+    Performance = "performance"  # [0, 1]
+    Speed = "speed"  # [0, inf) (inverse of estimated run duration)
+    # Clarity (global)
+    InstructionPerplexity = "instruction_perplexity"  # [0, 1]
+    InstructionAgreement = "instruction_agreement"  # [0, 1]
+    InstructionOverlap = "instruction_overlap"  # [0, 1]
+    # Difficulty (global)
+    NodesCount = "nodes_count"  # [0, inf)
+    StepsCount = "steps_count"  # [0, inf)
+    # Difficulty (build specific?)
+    InferencesCount = "inferences_count"  # [0, inf)
+    TokensCount = "tokens_count"  # [0, inf)
+    # Performance (build specific)
+    TypeValidity = "type_validity"  # [0, 1]
+    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
+    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
+    # Speed (build specific)
+    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
+    AverageRunDuration = "average_run_duration"  # [0, inf)
+
+
+class EvaluationKind(enum.StrEnum):
+    EVALUATION = "evaluation"
+    LINT = "lint"
+
+
+class EvaluationScope(enum.StrEnum):
+    INSTRUCTION = "node"
+    BUILD = "build"
+    MODULE = "module"
+
+
+@dataclass(repr=False, slots=True)
+class EvaluationResult:
+    kind: EvaluationKind
+    scope: EvaluationScope
+    aggregated_metrics: dict[str, float]
+    self_metrics: Optional[dict[str, float]] = None
+    system: Optional[InterpSymbol | TypeNode | Record] = None
+    build: Optional[Build] = None
+    id: UUID = field(default_factory=uuid.uuid4)
+    children: list["EvaluationResult"] = field(default_factory=list)
+
+    def __str__(self):
+        return ", ".join(
+            f"{k}: {self.aggregated_metrics[k]:0.02f}"
+            for k in EvaluationMetric
+            if k in self.aggregated_metrics
+        )
+
+    def __repr__(self):
+        return f"<Evaluation {self.system} {self}>"
+
+
+@dataclass(slots=True)
+class EvaluationResultData:
+    aggregated_metrics: dict[str, float]
+    self_metrics: Optional[dict[str, float]]
+    statement_id: Optional[UUID]
+    type_node_id: Optional[UUID]
+    record_id: Optional[UUID]
+    build_id: Optional[UUID]
+    parent_id: Optional[UUID]
+    # additional context
+    project_id: UUID
+    project_version_id: UUID
+    job_id: Optional[UUID]
+
+    @staticmethod
+    def from_result(
+        result: EvaluationResult,
+        *,
+        project_id: UUID,
+        project_version_id: UUID,
+        job_id: Optional[UUID],
+        parent_id: Optional[UUID] = None,
+    ) -> list[EvaluationResultData]:
+        """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
+        result_data = EvaluationResultData(
+            aggregated_metrics=result.aggregated_metrics,
+            self_metrics=result.self_metrics,
+            statement_id=result.system.id if isinstance(result.system, InterpSymbol) else None,
+            type_node_id=result.system.id if isinstance(result.system, TypeNode) else None,
+            record_id=result.system.id if isinstance(result.system, Record) else None,
+            build_id=result.build.id if result.build else None,
+            project_id=project_id,
+            project_version_id=project_version_id,
+            job_id=job_id,
+            parent_id=parent_id,
+        )
+        results_data = [result_data]
+        for child in result.children:
+            results_data += EvaluationResultData.from_result(
+                child,
+                project_id=project_id,
+                project_version_id=project_version_id,
+                job_id=job_id,
+                parent_id=result.id,
+            )
+        return results_data
+
+
+#
+# Model inference
+#
+
+# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib.
+# For now, we just use internal dataclasses. :TypeSafeSettings
 
 
 class IncapableError(NotImplementedError):
     pass
-
-
-# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib.
-# For now, we just use internal dataclasses. :TypeSafeSettings
 
 
 @dataclass
@@ -398,21 +534,27 @@ class Job:
 
 @dataclass(repr=False)
 class JobData:
-    project_id: UUID
-    project_version_id: UUID
-    deployment_id: Optional[UUID]
     id: UUID
     type: JobType
     status: JobStatus
     started_at: Optional[datetime]
     terminated_at: Optional[datetime]
+    # additional context
+    project_id: UUID
+    project_version_id: UUID
+    deployment_id: Optional[UUID]
 
     @staticmethod
-    def from_job(job: Job) -> JobData:
+    def from_job(
+        job: Job, project_id: UUID, project_version_id: UUID, deployment_id: Optional[UUID]
+    ) -> JobData:
         return JobData(
             type=job.type,
             id=job.id,
             status=job.status,
             started_at=job.started_at,
             terminated_at=job.terminated_at,
+            project_id=project_id,
+            project_version_id=project_version_id,
+            deployment_id=deployment_id,
         )

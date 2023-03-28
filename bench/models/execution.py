@@ -92,7 +92,13 @@ class Execution(UUIDTModel):
         on_delete=models.SET_NULL,
         related_name="executions+",
     )
-    build_hash = models.CharField(max_length=64, null=True, blank=True)
+    build_candidate = models.ForeignKey(
+        "BuildCandidate",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions+",
+    )
     task = models.ForeignKey(
         "Statement",
         null=True,
