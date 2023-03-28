@@ -667,6 +667,9 @@ class Worker:
         # write back build results to internal server
         if isinstance(job, BuildJob) and job.status == JobStatus.Completed:
             asyncio.create_task(wrap_task(self.write_build_job_results(module_worker, job)))
+        # write lint job results to internal server
+        if isinstance(job, LintJob) and job.status == JobStatus.Completed:
+            asyncio.create_task(wrap_task(self.write_lint_job_results(module_worker, job)))
 
     async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
         """Writes the build job results back to the internal server"""
@@ -690,6 +693,9 @@ class Worker:
         if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?
             logger.error("module.write.failed", write=write, write_result=rep)
+
+    async def write_lint_job_results(self, module_worker: ModuleWorker, job: LintJob):
+        raise NotImplementedError
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""

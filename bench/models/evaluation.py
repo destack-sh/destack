@@ -9,6 +9,12 @@ class EvaluationKind(models.TextChoices):
     LINT = "lint"
 
 
+class EvaluationScope(models.TextChoices):
+    INSTRUCTION = "node"
+    BUILD = "build"
+    MODULE = "module"
+
+
 class EvaluationResult(UUIDModel):
     """
     A retained result from a Bench build/evaluation.
@@ -17,6 +23,7 @@ class EvaluationResult(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     kind = TextChoicesField(EvaluationKind)
+    scope = TextChoicesField(EvaluationScope)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="+")
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
@@ -24,6 +31,13 @@ class EvaluationResult(UUIDModel):
     job = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="+", null=True)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="+", null=True)
     build = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+", null=True)
+    build_candidate = models.ForeignKey(
+        "BuildCandidate",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="executions+",
+    )
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="+", null=True
     )

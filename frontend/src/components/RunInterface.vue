@@ -192,13 +192,12 @@ const outputColumns = computed(() =>
       </div>
       <div v-else class="flex h-full w-full flex-col items-center justify-center">
         <div class="p-2 text-gray-500">
-          No output yet. You should
-          <button
+          No output yet (<button
             class="text-gray-700 underline decoration-dashed underline-offset-2 hover:bg-orange-100 hover:text-gray-900 hover:decoration-solid focus:bg-orange-100"
             @click="run"
           >
             run</button
-          >.
+          >)
         </div>
       </div>
     </div>

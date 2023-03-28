@@ -52,7 +52,6 @@ from bench.runtime.type import (
     TaskInstance,
     TypeInstance,
     ValueInstance,
-    XBlocks,
     summarize_args,
 )
 from bench.runtime.x import X_BUILTINS
@@ -192,6 +191,7 @@ class InferenceProxy:
         )
 
         if self.cache_inferences:
+            # TODO @Performance: use leases for caching inference endpoints
             cached_ret = await redis.get(cache_key)
             if cached_ret is not None:
                 try:
@@ -361,7 +361,6 @@ def _instantiate_code_callable(
         "source_context": context,
         "context": unwrapped_context,
         "xblocks": code.xblocks,
-        "x": XBlocks(code.xblocks),
         **inlined_context,
         "random": Random(code.id.hex.encode()),
         **source_context,
