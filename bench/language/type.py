@@ -777,6 +777,10 @@ class Runconfig(InterpSymbol, RunconfigContent):
 class BuildContent(SymbolContent):
     source_mappings: list["GeneratedMapping"]
 
+    @property
+    def targets(self) -> set[UUID]:
+        return {mapping.target_id for mapping in self.source_mappings if mapping.target_id}
+
     def get_target(self, source_id: UUID) -> Optional[UUID]:
         for mapping in self.source_mappings:
             if mapping.source_id == source_id:

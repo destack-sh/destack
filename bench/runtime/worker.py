@@ -33,8 +33,15 @@ from bench.msg.messages import (
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
     ReqWriteBuildPayload,
+    ReqWriteEvaluationPayload,
 )
-from bench.runtime.build import BuildCandidate, BuildResult, build, get_builds_for
+from bench.runtime.build import (
+    BuildCandidate,
+    BuildResult,
+    build,
+    get_build_files_for,
+    get_builds_for,
+)
 from bench.runtime.evaluate import EvaluationResult, lint
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import Proxy, RunError, instantiate, run
@@ -358,7 +365,17 @@ class ModuleWorker:
         build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
         # TODO @Incomplete: track builds and write candidates & evaluations
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
-        await self.master.write_build_results(self, build_results, revmap, job_id)
+        previous_builds_files: set[UUID] = set()
+        for b in builds:
+            build_files = get_build_files_for(b, self.idx)
+            previous_builds_files.update({file.id for file in build_files})
+        await self.master.write_build_results(
+            self,
+            build_ids=[b.id for b in builds],
+            build_results=build_results,
+            revmap=revmap,
+            previous_build_files=list(previous_builds_files),
+        )
         return build_results
 
     def queue_run(
@@ -457,7 +474,7 @@ class ModuleWorker:
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
 
-    async def _process_queue(self, queue: asyncio.Queue[tuple[int, Job]]) -> None:
+    async def _process_queue(self, queue: asyncio.Queue[tuple[int, Job]], track: bool) -> None:
         """Process module jobs sequentially"""
         while True:
             _, job = await queue.get()
@@ -466,8 +483,9 @@ class ModuleWorker:
                 job.status = JobStatus.Running
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.log.info("module.job.start", job=job)
-                self.running_jobs[job.id] = job
-                self.master.notify_job_status(self, job)
+                if track:
+                    self.running_jobs[job.id] = job
+                    self.master.notify_job_status(self, job)
                 if isinstance(job, InterpJob):
                     job.task = create_task(self.do_interp(job.new_source))
                     await job.task
@@ -500,8 +518,9 @@ class ModuleWorker:
                 job.status = JobStatus.Completed if job.success else JobStatus.Failed
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
-                self.master.notify_job_status(self, job)
-                del self.running_jobs[job.id]
+                if track:
+                    self.master.notify_job_status(self, job)
+                    del self.running_jobs[job.id]
                 queue.task_done()
 
     async def run(self):
@@ -515,9 +534,12 @@ class ModuleWorker:
         # start running both queues (for stateful and run)
         main = asyncio.gather(
             wrap_task(
-                self._process_queue(self.stateful_jobs), f"worker_run_stateful_{self.module_id}"
+                self._process_queue(self.stateful_jobs, track=True),
+                f"worker_run_stateful_{self.module_id}",
             ),
-            wrap_task(self._process_queue(self.run_jobs), f"worker_run_{self.module_id}"),
+            wrap_task(
+                self._process_queue(self.run_jobs, track=False), f"worker_run_{self.module_id}"
+            ),
         )
         # wait for the initial interp job to complete
         await interp_job.terminated.wait()
@@ -686,9 +708,10 @@ class Worker:
                 project_version_id=module_worker.module_id,
                 job_id=job_id,
             )
-        rep = await request(
-            NMessageType.REQUEST_WRITE_EVALUATION, evaluations_data, RepWriteEvaluationPayload
+        write = ReqWriteEvaluationPayload(
+            module_id=module_worker.module_id, evaluations=evaluations_data
         )
+        rep = await request(NMessageType.REQUEST_WRITE_EVALUATION, write, RepWriteEvaluationPayload)
         if not rep.p.success:
             logger.error("evaluation.write.failed", evaluations_data=evaluations_data)
 
@@ -698,15 +721,17 @@ class Worker:
         build_candidates: list[BuildCandidate],
         revmap: RevisionMap,
     ):
+        # nocheckin: track build candidates
         """Writes build candidates back to the internal server"""
         raise NotImplementedError
 
     async def write_build_results(
         self,
         module_worker: ModuleWorker,
+        build_ids: UUID,
         build_results: list[BuildResult],
+        previous_build_files: list[UUID],
         revmap: RevisionMap,
-        job_id: UUID,
     ):
         """Writes build results back to the internal server"""
 
@@ -722,8 +747,10 @@ class Worker:
         # actually write to the internal server
         write = ReqWriteBuildPayload(
             module_id=module_worker.module_id,
+            build_ids=build_ids,
             files=generated_files,
             generated_mappings=generated_mappings,
+            delete_files=previous_build_files,
         )
         rep = await request(NMessageType.REQUEST_WRITE_BUILD, write, RepWriteModulePayload)
         if not rep.p.success:

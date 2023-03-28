@@ -159,12 +159,11 @@ def write_module(
     project_v: models.ProjectVersion,
     generated_mappings: list[tuple[UUID, wire.StatementData]] = None,
     overwrite: bool = False,
-    delete_generators: set[UUID] = None,
+    delete_files: set[UUID] = None,
 ) -> None:
     """Write the wire files (and their contents) as models to the database."""
-    if delete_generators:
-        # TODO @Broken: delete generators if set (cleanup)
-        raise NotImplementedError
+    if delete_files:
+        models.File.objects.filter(id__in=delete_files).delete()
 
     wire_statements: dict[UUID, wire.StatementData] = {}
     model_files: dict[UUID, models.File] = {}

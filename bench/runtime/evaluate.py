@@ -2,12 +2,12 @@ import asyncio
 import enum
 import uuid
 from collections import defaultdict
+from typing import Any
 
 import structlog
 
 from bench.language import ModuleIndex
 from bench.language.type import Build, Model, XKind, flatten_func_type
-from bench.runtime.build import BuildCandidate
 from bench.runtime.instruct import (
     Instruction,
     SampleSourceGenerator,
@@ -95,7 +95,7 @@ async def evaluate_task(
     eval_model: Model,
     build: Build,
     n_samples: int,
-    build_candidate: BuildCandidate = None,
+    build_candidate: Any = None,
 ) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
     log = logger.bind(task=task, build=build)

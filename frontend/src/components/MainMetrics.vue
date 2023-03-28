@@ -60,15 +60,14 @@ const metricSets = computed(() => [
     <div v-for="metricSet in metricSets" :key="metricSet.label" class="group relative rounded-sm">
       <!-- Metric set itself -->
       <button
-        class="relative flex flex-row gap-3 rounded-sm border border-sky-900 border-opacity-[12%] bg-sky-100 px-2 hover:cursor-pointer hover:bg-sky-200"
+        class="relative flex flex-row gap-3 rounded-sm border border-transparent px-2 hover:cursor-pointer hover:border-sky-900 hover:border-opacity-[12%] hover:bg-sky-100"
       >
         <span
           v-if="metricSet.label != 'general' && metricSets.length > 2"
           class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
-          <span
-            class="rounded-sm border border-b-0 border-l border-sky-900 border-opacity-[12%] bg-sky-100 p-0.5 py-0 text-xs"
+          <span class="rounded-sm border border-b-0 border-l border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs"
             >{{ metricSet.label }}
           </span>
         </span>
