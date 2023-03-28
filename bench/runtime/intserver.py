@@ -11,7 +11,6 @@ from bench.msg.core import handle_reply, message_handler, nc_init, publish, subs
 from bench.msg.messages import (
     ExecutionChangedPayload,
     ExecutionSavedPayload,
-    JobChangedPayload,
     JobSavedPayload,
     ModuleChangedPayload,
     NMessageType,
@@ -19,11 +18,13 @@ from bench.msg.messages import (
     RepReadModulePayload,
     RepWriteBuildCandidatePayload,
     RepWriteEvaluationPayload,
+    RepWriteJobPayload,
     RepWriteModulePayload,
     ReqReadModulePayload,
     ReqWriteBuildCandidatePayload,
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
+    ReqWriteJobPayload,
 )
 from bench.msg.sync import is_semantic_mutation
 from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
@@ -51,8 +52,8 @@ class InternalServer:
             ),
             await handle_reply(NMessageType.REQUEST_WRITE_EVALUATION, self.write_evaluation),
             await handle_reply(NMessageType.REQUEST_WRITE_BUILD, self.write_build),
+            await handle_reply(NMessageType.REQUEST_WRITE_JOB, self.write_job),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
-            await subscribe(f"{NMessageType.JOB_CHANGED}.*", cb=self.job_changed),
             await subscribe(
                 f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
             ),
@@ -136,6 +137,17 @@ class InternalServer:
         await msg.reply(RepWriteEvaluationPayload(success=success))
 
     @message_handler
+    async def write_job(self, msg: NMessage[ReqWriteJobPayload]) -> None:
+        save_success = await sync_to_async(save_jobs)([msg.payload.job])
+        await msg.reply(RepWriteJobPayload(success=save_success))
+        if save_success:
+            # forward to API clients now that DB jobs are saved
+            await publish(
+                NMessageType.JOB_SAVED,
+                JobSavedPayload(module_id=msg.p.module_id, job=msg.p.job),
+            )
+
+    @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
         save_success = await sync_to_async(save_execution_frames)(msg.payload.frames)
         if save_success:
@@ -143,16 +155,6 @@ class InternalServer:
             await publish(
                 NMessageType.EXECUTION_SAVED,
                 ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
-            )
-
-    @message_handler
-    async def job_changed(self, msg: NMessage[JobChangedPayload]) -> None:
-        save_success = await sync_to_async(save_jobs)([msg.payload.job])
-        if save_success:
-            # forward to API clients now that DB jobs are saved
-            await publish(
-                NMessageType.JOB_SAVED,
-                JobSavedPayload(module_id=msg.p.module_id, job=msg.p.job),
             )
 
     @message_handler

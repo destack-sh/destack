@@ -42,7 +42,8 @@ class NMessageType(StrEnum):
     REPLY_READ_MODULE = "module.read.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
-    JOB_CHANGED = "job.changed"
+    REQUEST_WRITE_JOB = "job.write"
+    REPLY_WRITE_JOB = "job.write.rep"
     JOB_SAVED = "job.saved"
     REQUEST_WRITE_EVALUATION = "evaluation.write"
     REPLY_WRITE_EVALUATION = "evaluation.write.rep"
@@ -68,6 +69,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_WRITE_BUILD: NMessageType.REPLY_WRITE_BUILD,
     NMessageType.REQUEST_WRITE_BUILD_CANDIDATE: NMessageType.REPLY_WRITE_BUILD_CANDIDATE,
     NMessageType.REQUEST_WRITE_EVALUATION: NMessageType.REPLY_WRITE_EVALUATION,
+    NMessageType.REQUEST_WRITE_JOB: NMessageType.REPLY_WRITE_JOB,
     NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
     NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
     NMessageType.REQUEST_MODULE_RUNTIME: NMessageType.REPLY_MODULE_RUNTIME,
@@ -203,10 +205,15 @@ class RepWriteModulePayload:
     success: bool
 
 
-@payload(NMessageType.JOB_CHANGED)
-class JobChangedPayload:
+@payload(NMessageType.REQUEST_WRITE_JOB)
+class ReqWriteJobPayload:
     module_id: UUID
     job: JobData
+
+
+@payload(NMessageType.REPLY_WRITE_JOB)
+class RepWriteJobPayload:
+    success: bool
 
 
 @payload(NMessageType.JOB_SAVED)
@@ -284,9 +291,6 @@ def to_topic(
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EXECUTION_SAVED:
         payload = cast(ExecutionSavedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.JOB_CHANGED:
-        payload = cast(JobChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.JOB_SAVED:
         payload = cast(JobSavedPayload, payload)
