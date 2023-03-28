@@ -221,7 +221,7 @@ class BuildCandidate:
     plan: BuildPlan
     state: BuildState
     name: str = field(default_factory=get_random_veggie_name)
-    evaluation: Optional[EvaluationResult] = field(default=None)
+    evaluation: Optional[EvaluationResult] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
@@ -347,6 +347,7 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
                     improvement=improvement,
                 )
                 ctx.best_candidate = candidate
+        # TODO @Feature: sort candidates by compare_evaluations (and assign order keys?)
         tracker.candidates_evaluated(candidates)
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
