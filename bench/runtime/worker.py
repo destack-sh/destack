@@ -26,20 +26,22 @@ from bench.msg.messages import (
     RepModuleRunPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
+    RepWriteEvaluationPayload,
     RepWriteModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
-    ReqWriteModulePayload,
+    ReqWriteBuildPayload,
 )
-from bench.runtime.build import BuildResult, build, get_builds_for
+from bench.runtime.build import BuildCandidate, BuildResult, build, get_builds_for
 from bench.runtime.evaluate import EvaluationResult, lint
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import (
     CodeInstance,
+    EvaluationResultData,
     ExecutionFrame,
     ExecutionFrameData,
     Job,
@@ -60,6 +62,10 @@ InterpModule = NamedTuple(
     errors=list[language.Error],
     dependencies=list[language.ModuleIndex],
 )
+
+
+def create_wrapped_task(coro, task_id: str = None):
+    asyncio.create_task(wrap_task(coro, task_id))
 
 
 async def cancel_job(job: Job):
@@ -311,8 +317,9 @@ class ModuleWorker:
         self._queue_job(job)
         return job
 
-    async def do_lint(self):
+    async def do_lint(self, job_id: UUID) -> EvaluationResult:
         evaluation = await lint(self.idx)
+        await self.master.write_evaluations(self, [evaluation], job_id)
         return evaluation
 
     def queue_build(
@@ -347,9 +354,11 @@ class ModuleWorker:
         self._queue_job(job)
         return job
 
-    async def do_build(self, revmap: RevisionMap, builds: list[language.Build]):
+    async def do_build(self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID):
         build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
+        # TODO @Incomplete: track builds and write candidates & evaluations
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
+        await self.master.write_build_results(self, build_results, revmap, job_id)
         return build_results
 
     def queue_run(
@@ -464,7 +473,7 @@ class ModuleWorker:
                     await job.task
                     job.success = True
                 elif isinstance(job, LintJob):
-                    job.task = create_task(self.do_lint())
+                    job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, RunJob):
                     job.task = create_task(self.do_run(job.runnable, job.arguments))
@@ -475,7 +484,7 @@ class ModuleWorker:
                         job.error = error
                         job.error_details = ret
                 elif isinstance(job, BuildJob):
-                    job.task = create_task(self.do_build(job.revmap, job.builds))
+                    job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
                     job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
@@ -664,38 +673,62 @@ class Worker:
         # publish job status
         change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
         publish_soon(NMessageType.MODULE_RUNTIME_CHANGED, change)
-        # write back build results to internal server
-        if isinstance(job, BuildJob) and job.status == JobStatus.Completed:
-            asyncio.create_task(wrap_task(self.write_build_job_results(module_worker, job)))
-        # write lint job results to internal server
-        if isinstance(job, LintJob) and job.status == JobStatus.Completed:
-            asyncio.create_task(wrap_task(self.write_lint_job_results(module_worker, job)))
 
-    async def write_build_job_results(self, module_worker: ModuleWorker, job: BuildJob):
-        """Writes the build job results back to the internal server"""
+    async def write_evaluations(
+        self, module_worker: ModuleWorker, evaluations: list[EvaluationResult], job_id: UUID
+    ):
+        """Writes evaluation results back to the internal server"""
+        evaluations_data = []
+        for evaluation in evaluations:
+            evaluations_data += EvaluationResultData.from_result(
+                evaluation,
+                project_id=module_worker.project_id,
+                project_version_id=module_worker.module_id,
+                job_id=job_id,
+            )
+        rep = await request(
+            NMessageType.REQUEST_WRITE_EVALUATION, evaluations_data, RepWriteEvaluationPayload
+        )
+        if not rep.p.success:
+            logger.error("evaluation.write.failed", evaluations_data=evaluations_data)
+
+    async def write_build_candidates(
+        self,
+        module_worker: ModuleWorker,
+        build_candidates: list[BuildCandidate],
+        revmap: RevisionMap,
+    ):
+        """Writes build candidates back to the internal server"""
+        raise NotImplementedError
+
+    async def write_build_results(
+        self,
+        module_worker: ModuleWorker,
+        build_results: list[BuildResult],
+        revmap: RevisionMap,
+        job_id: UUID,
+    ):
+        """Writes build results back to the internal server"""
 
         # convert build results into writes with the revisions that were used
         generated_files = []
         generated_mappings = []
-        for build_result in job.build_results:
+        for build_result in build_results:
             generated_file = build_result.to_file(module_worker.idx.module)
             generated_files.append(wire.rmap_file(generated_file))
-            mappings = [job.revmap.map_mapping(m) for m in build_result.source_mappings]
+            mappings = [revmap.map_mapping(m) for m in build_result.source_mappings]
             generated_mappings.append((build_result.build.id, mappings))
 
         # actually write to the internal server
-        write = ReqWriteModulePayload(
+        write = ReqWriteBuildPayload(
             module_id=module_worker.module_id,
             files=generated_files,
             generated_mappings=generated_mappings,
         )
-        rep = await request(NMessageType.REQUEST_WRITE_MODULE, write, RepWriteModulePayload)
+        rep = await request(NMessageType.REQUEST_WRITE_BUILD, write, RepWriteModulePayload)
         if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?
             logger.error("module.write.failed", write=write, write_result=rep)
-
-    async def write_lint_job_results(self, module_worker: ModuleWorker, job: LintJob):
-        raise NotImplementedError
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""

@@ -272,7 +272,25 @@ class BuildResult:
         return map_to_file(self.target_symbols, self.weak_references, file)
 
 
-async def build(build: Build) -> BuildResult:
+class BuildTracker:
+    def step(self, ctx: BuildContext):
+        pass
+
+    def candidates_planned(self, candidates: list[BuildCandidate]):
+        pass
+
+    def candidates_built(self, candidates: list[BuildCandidate]):
+        pass
+
+    def candidates_evaluated(self, candidates: list[BuildCandidate]):
+        pass
+
+    def completed(self, candidate: BuildCandidate, result: BuildResult):
+        pass
+
+
+async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
+    tracker = tracker or BuildTracker()
     log = logger.bind(build=build)
     log.info("build.start")
     if len(build.models) != 1:
@@ -283,6 +301,7 @@ async def build(build: Build) -> BuildResult:
         log.info("build.abort", reason="no tasks")
         return BuildResult.empty(build)
 
+    # TODO @Feature: make build/instruction metric weights configurable
     metric_weights = {
         EvaluationMetric.Performance: 1,
         EvaluationMetric.TypeValidity: 1,
@@ -291,6 +310,7 @@ async def build(build: Build) -> BuildResult:
     plans = await generate_plans(ctx)
     while not ctx.exhausted and len(plans) > 0:
         log.debug("build.step", best_candidate=ctx.best_candidate)
+        tracker.step(ctx)
         # build all candidates
         candidates = [
             BuildCandidate(
@@ -302,10 +322,12 @@ async def build(build: Build) -> BuildResult:
             )
             for plan in plans
         ]
+        tracker.candidates_planned(candidates)
         ctx.candidates.extend(candidates)
         ctx.best_candidate = candidates[0]  # doesn't matter
         build_tasks = [do_build_candidate(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
+        tracker.candidates_built(candidates)
 
         # evaluate, rank and update best
         build_results = [candidate.state.to_result() for candidate in candidates]
@@ -325,19 +347,29 @@ async def build(build: Build) -> BuildResult:
                     improvement=improvement,
                 )
                 ctx.best_candidate = candidate
+        tracker.candidates_evaluated(candidates)
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
-    return ctx.best_candidate.state.to_result()
+    best_result = ctx.best_candidate.state.to_result()
+    tracker.completed(ctx.best_candidate, best_result)
+    return best_result
 
 
 async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
+    """Evaluates the generated task implementations of a build candidate."""
     task_instances = [
         instantiate(task, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
     eval_model = candidate.models[0]  # not sure which model to use here?
     evaluation_tasks = (
-        evaluate_task(task=task, eval_model=eval_model, build=result.build, n_samples=5)
+        evaluate_task(
+            task=task,
+            eval_model=eval_model,
+            build=result.build,
+            build_candidate=candidate,
+            n_samples=5,
+        )
         for task in task_instances
     )
     tasks_evaluations = await asyncio.gather(*evaluation_tasks)

@@ -38,7 +38,7 @@ const canRun = computed(
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Runconfig, SymbolType.Task, SymbolType.Code],
+  symbolTypes: [SymbolType.Runconfig, SymbolType.Build, SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 // :ProperSymbolSearch
@@ -158,6 +158,9 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
         >
           <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
           <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>
+          <!-- Deselect -->
+          <ListboxOption :key="null" :value="null"> Deselect </ListboxOption>
+          <!-- Actual  options -->
           <ListboxOption
             v-for="stmt in filteredSymbols"
             :key="stmt.id"

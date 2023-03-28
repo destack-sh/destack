@@ -1,7 +1,7 @@
-from .build import BuildCandidate
+from .build import BuildCandidate, BuildCandidateStatus
 from .data import DatasetRecord
 from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
-from .evaluation import EvaluationResult
+from .evaluation import EvaluationKind, EvaluationResult, EvaluationScope
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
@@ -33,12 +33,15 @@ __all__ = [
     "AccessTokenScope",
     "AccessTokenStatus",
     "BuildCandidate",
+    "BuildCandidateStatus",
     "DatasetRecord",
     "DeployedStatement",
     "Deployment",
     "DeploymentStatus",
     "DeploymentType",
     "EvaluationResult",
+    "EvaluationKind",
+    "EvaluationScope",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",

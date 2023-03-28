@@ -7,6 +7,7 @@ import structlog
 
 from bench.language import ModuleIndex
 from bench.language.type import Build, Model, XKind, flatten_func_type
+from bench.runtime.build import BuildCandidate
 from bench.runtime.instruct import (
     Instruction,
     SampleSourceGenerator,
@@ -90,7 +91,11 @@ def compare_evaluations(
 
 
 async def evaluate_task(
-    task: TaskInstance, eval_model: Model, build: Build, n_samples: int
+    task: TaskInstance,
+    eval_model: Model,
+    build: Build,
+    n_samples: int,
+    build_candidate: BuildCandidate = None,
 ) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
     log = logger.bind(task=task, build=build)
@@ -143,6 +148,7 @@ async def evaluate_task(
         scope=EvaluationScope.INSTRUCTION,
         system=task,
         build=build,
+        build_candidate=build_candidate,
         self_metrics=None,
         aggregated_metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )
