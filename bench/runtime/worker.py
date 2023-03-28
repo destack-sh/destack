@@ -14,10 +14,17 @@ from bench.language.parse import ErrorCollector, interp, resolve, sort
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
-from bench.msg.core import handle_reply, message_handler, nc_init, publish_soon, request, subscribe
+from bench.msg.core import (
+    handle_reply,
+    message_handler,
+    nc_init,
+    publish,
+    publish_soon,
+    request,
+    subscribe,
+)
 from bench.msg.messages import (
     ExecutionChangedPayload,
-    JobChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
     ModuleRunErrorType,
@@ -27,6 +34,7 @@ from bench.msg.messages import (
     RepModuleRuntimePayload,
     RepReadModulePayload,
     RepWriteEvaluationPayload,
+    RepWriteJobPayload,
     RepWriteModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
@@ -34,6 +42,7 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
+    ReqWriteJobPayload,
 )
 from bench.runtime.build import (
     BuildCandidate,
@@ -485,7 +494,8 @@ class ModuleWorker:
                 self.log.info("module.job.start", job=job)
                 if track:
                     self.running_jobs[job.id] = job
-                    self.master.notify_job_status(self, job)
+                    # must wait for job to be saved since we reference job ids
+                    await self.master.notify_job_status(self, job)
                 if isinstance(job, InterpJob):
                     job.task = create_task(self.do_interp(job.new_source))
                     await job.task
@@ -519,7 +529,8 @@ class ModuleWorker:
                 job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
                 if track:
-                    self.master.notify_job_status(self, job)
+                    # no need to await this update since we don't need the result
+                    create_wrapped_task(self.master.notify_job_status(self, job))
                     del self.running_jobs[job.id]
                 queue.task_done()
 
@@ -686,15 +697,18 @@ class Worker:
             )
             await msg.reply(rep)
 
-    def notify_job_status(self, module_worker: ModuleWorker, job: Job):
-        """Publishes the new job status (sends out module runtime updates)"""
-        # TODO @Cleanup: disentangle job status update and module state updates
-        publish_soon(
-            NMessageType.JOB_CHANGED, JobChangedPayload(module_worker.module_id, rmap_job(job))
+    async def notify_job_status(self, module_worker: ModuleWorker, job: Job):
+        """Publishes the new job status"""
+        _ = await request(
+            NMessageType.REQUEST_WRITE_JOB,
+            ReqWriteJobPayload(module_worker.module_id, rmap_job(job)),
+            RepWriteJobPayload,
         )
-        # publish job status
+
+    async def notify_module_changed(self, module_worker: ModuleWorker):
+        """Publishes the new module runtime"""
         change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
-        publish_soon(NMessageType.MODULE_RUNTIME_CHANGED, change)
+        await publish(NMessageType.MODULE_RUNTIME_CHANGED, change)
 
     async def write_evaluations(
         self, module_worker: ModuleWorker, evaluations: list[EvaluationResult], job_id: UUID
@@ -721,14 +735,13 @@ class Worker:
         build_candidates: list[BuildCandidate],
         revmap: RevisionMap,
     ):
-        # nocheckin: track build candidates
         """Writes build candidates back to the internal server"""
         raise NotImplementedError
 
     async def write_build_results(
         self,
         module_worker: ModuleWorker,
-        build_ids: UUID,
+        build_ids: list[UUID],
         build_results: list[BuildResult],
         previous_build_files: list[UUID],
         revmap: RevisionMap,
