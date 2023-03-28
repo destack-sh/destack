@@ -33,6 +33,7 @@ from bench.msg.messages import (
     RepModuleRunPayload,
     RepModuleRuntimePayload,
     RepReadModulePayload,
+    RepWriteBuildCandidatePayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
     RepWriteModulePayload,
@@ -40,6 +41,7 @@ from bench.msg.messages import (
     ReqModuleRunPayload,
     ReqModuleRuntimePayload,
     ReqReadModulePayload,
+    ReqWriteBuildCandidatePayload,
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
     ReqWriteJobPayload,
@@ -47,6 +49,7 @@ from bench.msg.messages import (
 from bench.runtime.build import (
     BuildCandidate,
     BuildResult,
+    BuildTracker,
     build,
     get_build_files_for,
     get_builds_for,
@@ -56,6 +59,7 @@ from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import Proxy, RunError, instantiate, run
 from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
 from bench.runtime.type import (
+    BuildCandidateData,
     CodeInstance,
     EvaluationResultData,
     ExecutionFrame,
@@ -202,6 +206,35 @@ def interp_module(
     errors = [e.to_error() for e in collector.errors]
 
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
+
+
+class ModuleBuildTracker(BuildTracker):
+    def __init__(self, worker: "ModuleWorker", build: Build, job_id: UUID):
+        self.worker = worker
+        self.build = build
+        self.job_id = job_id
+
+    def candidates_planned(self, candidates: list[BuildCandidate]):
+        write = self.worker.master.write_build_candidates(
+            self.worker, self.build.id, candidates, job_id=self.job_id
+        )
+        create_wrapped_task(write)
+
+    def candidates_built(self, candidates: list[BuildCandidate]):
+        write = self.worker.master.write_build_candidates(
+            self.worker, self.build.id, candidates, job_id=self.job_id
+        )
+        create_wrapped_task(write)
+
+    async def _write_evaluated(self, candidates: list[BuildCandidate]):
+        evaluations = [candidate.evaluation for candidate in candidates]
+        await self.worker.master.write_evaluations(self.worker, evaluations, job_id=self.job_id)
+        await self.worker.master.write_build_candidates(
+            self.worker, self.build.id, candidates, job_id=self.job_id
+        )
+
+    def candidates_evaluated(self, candidates: list[BuildCandidate]):
+        create_wrapped_task(self._write_evaluated(candidates))
 
 
 class ModuleWorker:
@@ -371,7 +404,10 @@ class ModuleWorker:
         return job
 
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID):
-        build_processes = [wrap_task(build(b), f"build_{b.id}") for b in builds]
+        build_processes = [
+            wrap_task(build(b, tracker=ModuleBuildTracker(self, b, job_id)), f"build_{b.id}")
+            for b in builds
+        ]
         # TODO @Incomplete: track builds and write candidates & evaluations
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         previous_builds_files: set[UUID] = set()
@@ -732,11 +768,37 @@ class Worker:
     async def write_build_candidates(
         self,
         module_worker: ModuleWorker,
+        build_id: UUID,
         build_candidates: list[BuildCandidate],
-        revmap: RevisionMap,
+        job_id: UUID,
     ):
         """Writes build candidates back to the internal server"""
-        raise NotImplementedError
+        build_candidates_data = []
+        for build_candidate in build_candidates:
+            build_candidate_data = BuildCandidateData(
+                id=build_candidate.id,
+                build_id=build_id,
+                status=build_candidate.status,
+                name=build_candidate.name,
+                evaluation_id=build_candidate.evaluation.id if build_candidate.evaluation else None,
+                job_id=job_id,
+                file_id=None,  # intermediate results are not written (yet)
+                project_id=module_worker.project_id,
+                project_version_id=module_worker.module_id,
+            )
+            build_candidates_data.append(build_candidate_data)
+        write = ReqWriteBuildCandidatePayload(
+            module_id=module_worker.module_id,
+            build_id=build_id,
+            build_candidates=build_candidates_data,
+        )
+        rep = await request(
+            NMessageType.REQUEST_WRITE_BUILD_CANDIDATE, write, RepWriteBuildCandidatePayload
+        )
+        if not rep.p.success:
+            logger.error(
+                "build_candidate.write.failed", build_candidates_data=build_candidates_data
+            )
 
     async def write_build_results(
         self,

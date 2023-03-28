@@ -32,4 +32,6 @@ class BuildCandidate(UUIDModel):
     build = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="build_candidates+"
     )
-    evaluation = models.ForeignKey("EvaluationResult", on_delete=models.CASCADE, related_name="+")
+    evaluation = models.ForeignKey(
+        "EvaluationResult", on_delete=models.CASCADE, related_name="+", null=True
+    )
