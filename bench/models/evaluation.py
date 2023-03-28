@@ -24,8 +24,14 @@ class EvaluationResult(UUIDModel):
     job = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="+", null=True)
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="+", null=True)
     build = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+", null=True)
-    system = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+")
-    metrics = models.JSONField()
-    parent = models.ForeignKey(
-        "EvaluationResult", on_delete=models.CASCADE, related_name="children+", null=True
+    statement = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="+", null=True
     )
+    record = models.ForeignKey(
+        "DatasetRecord", on_delete=models.CASCADE, related_name="+", null=True
+    )
+    type_node = models.ForeignKey(
+        "SimpleTypeNode", on_delete=models.CASCADE, related_name="+", null=True
+    )
+    self_metrics = models.JSONField(null=True, blank=True)
+    aggregated_metrics = models.JSONField()

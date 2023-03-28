@@ -30,20 +30,25 @@ logger = structlog.get_logger(__name__)
 
 Expect = Union[Task, Code, Dataset, Expectation]
 
+# TODO @Architecture: merge instruction ops & nodes into lang/parse? :InstructionOps
+
 
 class InstructionOp(enum.StrEnum):
     """
     The kind of instruction expressed in a symbol (or sub-symbol).
-    TODO @Architecture: should instruction ops & nodes be built during parse?
     """
 
-    BuildDefinition = "build_definition"  # pseudo-instruction
+    # do we really need all <symbol_type> definitions here?
+    Pseudo = "pseudo"  # pseudo instructions like models, requirements, etc.
+    BuildDefinition = "build_definition"
     TypeDefinition = "type_definition"
     TaskDefinition = "task_definition"
     TaskStep = "task_step"
     ExpectationDefinition = "expectation_definition"
     DataDefinition = "data_definition"
     CodeDefinition = "code_definition"
+    ModelDefinition = "model_definition"
+    Expect = "expect"
     SampleData = "sample_data"
     SampleCode = "sample_code"
     EvaluateCode = "evaluate_code"
@@ -51,17 +56,23 @@ class InstructionOp(enum.StrEnum):
 
 
 @dataclass(repr=False, slots=True)
-class InstructionNode:
+class Instruction:
     op: InstructionOp
     node: InterpSymbol | TypeNode | Record
     id: uuid.UUID
-    children: list["InstructionNode"] = field(default_factory=list)
+    children: list["Instruction"] = field(default_factory=list)
+
+    def __str__(self):
+        return f"{self.op} {self.node}"
+
+    def __repr__(self):
+        return f"<Instruction {self}>"
 
     @property
     def is_reference(self) -> bool:
         return isinstance(self.node, InterpSymbol) and self.node.reference is not None
 
-    def walk(self, path: list["InstructionNode"] = None):
+    def walk(self, path: list["Instruction"] = None):
         """Walks the instruction tree (depth-first), ignoring cycles."""
         path = (path or []) + [self]
         yield self
@@ -69,32 +80,66 @@ class InstructionNode:
             if child not in path:  # break cycles (allowed)
                 yield from child.walk(path)
 
+    def walk_postorder(self, path: list["Instruction"] = None):
+        """Walks the instruction tree in post order ("bottom up"), ignoring cycles."""
+        path = (path or []) + [self]
+        for child in self.children:
+            if child not in path:  # break cycles (allowed)
+                yield from child.walk(path)
+        yield self
+
+    def walk_with_parent(self, path: list["Instruction"] = None):
+        """Like walk, but includes the parent node."""
+        parent = path[-1] if path else None
+        path = (path or []) + [self]
+        yield self, parent
+        for child in self.children:
+            if child not in path:
+                yield from child.walk_with_parent(path)
+
 
 @dataclass(repr=False, slots=True)
 class InstructionTree:
     """A tree of instructions, may contain cycles."""
 
-    nodes: dict[uuid.UUID, InstructionNode] = field(default_factory=dict)
+    nodes: dict[uuid.UUID, Instruction] = field(default_factory=dict)
 
     @property
-    def roots(self) -> list[InstructionNode]:
-        return [node for node in self.nodes.values() if not node.children]
+    def roots(self) -> list[Instruction]:
+        """Every node that has no parent (not the same as having no children)."""
+        children_ids = set()
+        for node in self.nodes.values():
+            for child in node.children:
+                children_ids.add(child.id)
+        root_ids = self.nodes.keys() - children_ids
+        return [self.nodes[id] for id in root_ids]
 
-    def walk(self, path: list[InstructionNode] = None) -> None:
+    def walk(self, path: list[Instruction] = None):
         """Walks the instruction tree (depth-first), ignoring cycles."""
         path = path or []
         for node in self.roots:
             yield from node.walk(path)
 
+    def walk_postorder(self, path: list[Instruction] = None):
+        """Walks the instruction tree (depth-first), ignoring cycles."""
+        path = path or []
+        for node in self.roots:
+            yield from node.walk_postorder(path)
+
+    def walk_with_parent(self, path: list[Instruction] = None):
+        """Like walk, but includes the parent node."""
+        path = path or []
+        for node in self.roots:
+            yield from node.walk_with_parent(path)
+
 
 def map_instruction_node(
     tree: InstructionTree, symbol: InterpSymbol, op: InstructionOp = None
-) -> InstructionNode:
+) -> Instruction:
     """
     Maps out the instruction tree starting from the given symbol.
     If nodes are already present, they are skipped (including the given node).
     """
-    # nocheckin, build instruction tree from symbol
 
     if symbol.id in tree.nodes and isinstance(tree.nodes[symbol.id].node, InterpSymbol):
         # we can overwrite the node if it's not a statement
@@ -107,6 +152,7 @@ def map_instruction_node(
 
     if op is None:
         # if not explicitly given, figure out instruction type from symbol
+        # yeah this kind of feels like it should be in the symbol/language, see :InstructionOps
         if symbol.symbol_type == SymbolType.BUILD:
             op = InstructionOp.BuildDefinition
         elif symbol.symbol_type == SymbolType.TYPE:
@@ -127,16 +173,18 @@ def map_instruction_node(
                 op = InstructionOp.CheckCode
             else:
                 op = InstructionOp.CodeDefinition
+        elif symbol.symbol_type in (SymbolType.MODEL, SymbolType.REQUIREMENT, SymbolType.RUNCONFIG):
+            op = InstructionOp.Pseudo
         else:
             raise ValueError(f"unexpected symbol {symbol}")
 
-    node = InstructionNode(op=op, node=symbol, id=symbol.id)
+    node = Instruction(op=op, node=symbol, id=symbol.id)
     tree.nodes[symbol.id] = node
 
     if isinstance(symbol, Dataset):
         for record in symbol.records:
             # this will have to change later, see :NaiveTreeTracking
-            tree.nodes[record.id] = InstructionNode(
+            tree.nodes[record.id] = Instruction(
                 op=InstructionOp.DataDefinition, node=record, id=record.id
             )
             node.children.append(tree.nodes[record.id])
@@ -148,7 +196,9 @@ def map_instruction_node(
         else:
             type = symbol.type
         for type_node in type.walk():
-            if isinstance(type_node, InterpSymbol):
+            if type_node.id == type.id:
+                continue
+            elif isinstance(type_node, InterpSymbol):
                 child = map_instruction_node(tree, type_node)
                 node.children.append(child)
             elif type_node.id not in tree.nodes:  # id may be re-used for Type, prefer symbol node
@@ -159,7 +209,7 @@ def map_instruction_node(
                     child = map_instruction_node(tree, type_node.reference)
                     node.children.append(child)
                 else:
-                    child = InstructionNode(
+                    child = Instruction(
                         op=InstructionOp.TypeDefinition, node=type_node, id=type_node.id
                     )
                     tree.nodes[type_node.id] = child
@@ -173,7 +223,7 @@ def map_instruction_node(
     # walk expectations
     if isinstance(symbol, (Task, Expectation, Type)):
         for expectation in symbol.expectations:
-            child = map_instruction_node(tree, expectation)
+            child = map_instruction_node(tree, expectation, op=InstructionOp.Expect)
             node.children.append(child)
 
     # walk task steps & implementation
@@ -200,6 +250,7 @@ def instruction_tree_from_module(
     """Build a tree of instructions from a module and its referenced symbols (and sub-symbols)."""
     tree = tree or InstructionTree(nodes={})
     for symbol in module.symbols.values():
+        # ignore pseudo instructions
         map_instruction_node(tree, symbol)
     return tree
 

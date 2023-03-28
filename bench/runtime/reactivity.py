@@ -8,7 +8,7 @@ from uuid import UUID
 
 from bench import language
 from bench.language import GeneratedMapping, ModuleIndex
-from bench.language.type import Build, GeneratedMappingType, InterpSymbol
+from bench.language.type import Build, GeneratedMappingType, InterpSymbol, Record, TypeNode
 from bench.language.wire import ModuleData
 from bench.runtime.instruct import InstructionTree, map_instruction_node
 
@@ -82,8 +82,6 @@ class TrackedNode:
     id: UUID
     revision: int
     parent_id: Optional[UUID] = None
-    reference_id: Optional[UUID] = None
-    order_key: Optional[str] = None
 
     def copy(self) -> TrackedNode:
         return TrackedNode(
@@ -91,8 +89,6 @@ class TrackedNode:
             id=self.id,
             revision=self.revision,
             parent_id=self.parent_id,
-            reference_id=self.reference_id,
-            order_key=self.order_key,
         )
 
 
@@ -173,11 +169,25 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     """
     if symbol.id in tree.nodes:
         return
-    tree._instruction_tree = tree._instruction_tree or TrackedTree()
+    tree._instruction_tree = tree._instruction_tree or InstructionTree()
     map_instruction_node(tree._instruction_tree, symbol)
 
-    for node in tree._instruction_tree.roots:
-        pass
+    for node, parent in tree._instruction_tree.walk_with_parent():
+        if node.id not in tree.nodes:
+            if isinstance(node.node, InterpSymbol):
+                type = TrackedNodeType.STATEMENT
+            elif isinstance(node.node, Record):
+                type = TrackedNodeType.RECORD
+            elif isinstance(node.node, TypeNode):
+                type = TrackedNodeType.TYPE_NODE
+            else:
+                raise ValueError(f"unexpected instruction node {node}")
+            tree.nodes[node.id] = TrackedNode(
+                type=type,
+                id=node.id,
+                revision=1,
+                parent_id=parent.id if parent else None,
+            )
 
 
 def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:
