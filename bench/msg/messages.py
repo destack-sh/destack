@@ -17,11 +17,11 @@ PROTOCOL_VERSION = 1
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
 
-def _register_payload(message_type: "NMessageType"):
+def payload(message_type: "NMessageType"):
     def wrapper(cls):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
-        cls = dataclass(cls)
+        cls = dataclass(cls=cls, slots=True)
         REGISTERED_MESSAGE_PAYLOADS[message_type] = cls
         return cls
 
@@ -40,16 +40,18 @@ class NMessageType(StrEnum):
     # Worker <-> Internal
     REQUEST_READ_MODULE = "module.read"
     REPLY_READ_MODULE = "module.read.rep"
-    REQUEST_WRITE_MODULE = "module.write"
-    REPLY_WRITE_MODULE = "module.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
     JOB_CHANGED = "job.changed"
     JOB_SAVED = "job.saved"
-    EVALUATION_CHANGED = "evaluation.changed"
+    REQUEST_WRITE_EVALUATION = "evaluation.write"
+    REPLY_WRITE_EVALUATION = "evaluation.write.rep"
     EVALUATION_SAVED = "evaluation.saved"
-    BUILD_CHANGED = "build.changed"
-    BUILD_SAVED = "build.saved"
+    REQUEST_WRITE_BUILD_CANDIDATE = "build.candidate.write"
+    REPLY_WRITE_BUILD_CANDIDATE = "build.candidate.write.rep"
+    BUILD_CANDIDATE_SAVED = "build.candidate.saved"
+    REQUEST_WRITE_BUILD = "build.result.write"
+    REPLY_WRITE_BUILD = "build.result.write.rep"
 
     # API <-> Worker
     REQUEST_MODULE_BUILD = "runtime.build"
@@ -63,7 +65,9 @@ class NMessageType(StrEnum):
 
 REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
-    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
+    NMessageType.REQUEST_WRITE_BUILD: NMessageType.REPLY_WRITE_BUILD,
+    NMessageType.REQUEST_WRITE_BUILD_CANDIDATE: NMessageType.REPLY_WRITE_BUILD_CANDIDATE,
+    NMessageType.REQUEST_WRITE_EVALUATION: NMessageType.REPLY_WRITE_EVALUATION,
     NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
     NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
     NMessageType.REQUEST_MODULE_RUNTIME: NMessageType.REPLY_MODULE_RUNTIME,
@@ -79,13 +83,13 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 #
 
 
-@_register_payload(NMessageType.PROJECT_VERSION_CHANGED)
+@payload(NMessageType.PROJECT_VERSION_CHANGED)
 class ProjectVersionChangedPayload:
     project_version_id: UUID
     mutations: list[sync.ProjectMutation]
 
 
-@_register_payload(NMessageType.MODULE_CHANGED)
+@payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
     module_id: UUID
     #  :PartialModuleUpdates
@@ -93,7 +97,7 @@ class ModuleChangedPayload:
     module: wire.ModuleData
 
 
-@_register_payload(NMessageType.REQUEST_MODULE_BUILD)
+@payload(NMessageType.REQUEST_MODULE_BUILD)
 class ReqModuleBuildPayload:
     module_id: UUID
     buildable_id: Optional[UUID]
@@ -104,12 +108,12 @@ class ModuleBuildErrorType(enum.Enum):
     INVALID_BUILDABLE = "invalid_buildable"
 
 
-@_register_payload(NMessageType.REPLY_MODULE_BUILD)
+@payload(NMessageType.REPLY_MODULE_BUILD)
 class RepModuleBuildPayload:
     error: Optional[ModuleBuildErrorType] = None
 
 
-@_register_payload(NMessageType.REQUEST_MODULE_RUN)
+@payload(NMessageType.REQUEST_MODULE_RUN)
 class ReqModuleRunPayload:
     deployment_id: UUID
     module_id: UUID
@@ -130,7 +134,7 @@ class ModuleRunErrorType(enum.Enum):
     RUNTIME_ERROR = "runtime_error"
 
 
-@_register_payload(NMessageType.REPLY_MODULE_RUN)
+@payload(NMessageType.REPLY_MODULE_RUN)
 class RepModuleRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[ModuleRunErrorType] = None
@@ -138,87 +142,96 @@ class RepModuleRunPayload:
     output: Optional[wire.LiteralValue] = None
 
 
-@_register_payload(NMessageType.EXECUTION_CHANGED)
+@payload(NMessageType.EXECUTION_CHANGED)
 class ExecutionChangedPayload:
     module_id: UUID
     frames: list[ExecutionFrameData]
 
 
-@_register_payload(NMessageType.EXECUTION_SAVED)
+@payload(NMessageType.EXECUTION_SAVED)
 class ExecutionSavedPayload:
     module_id: UUID
     frames: list[ExecutionFrameData]
 
 
-@_register_payload(NMessageType.EVALUATION_CHANGED)
-class EvaluationChangedPayload:
+@payload(NMessageType.REQUEST_WRITE_EVALUATION)
+class ReqWriteEvaluationPayload:
     module_id: UUID
     evaluations: list[EvaluationResultData]
 
 
-@_register_payload(NMessageType.EVALUATION_SAVED)
+@payload(NMessageType.REPLY_WRITE_EVALUATION)
+class RepWriteEvaluationPayload:
+    success: bool
+
+
+@payload(NMessageType.EVALUATION_SAVED)
 class EvaluationSavedPayload:
     module_id: UUID
     evaluations: list[EvaluationResultData]
 
 
-@_register_payload(NMessageType.BUILD_CHANGED)
-class BuildChangedPayload:
+@payload(NMessageType.REQUEST_WRITE_BUILD_CANDIDATE)
+class ReqWriteBuildCandidatePayload:
+    module_id: UUID
+    build_id: UUID
+    build_candidates: list[BuildCandidateData]
+
+
+@payload(NMessageType.REPLY_WRITE_BUILD_CANDIDATE)
+class RepWriteBuildCandidatePayload:
+    success: bool
+
+
+@payload(NMessageType.BUILD_CANDIDATE_SAVED)
+class BuildCandidateSavedPayload:
     module_id: UUID
     build_candidates: list[BuildCandidateData]
-    evaluations: list[EvaluationResultData]
 
 
-@_register_payload(NMessageType.BUILD_SAVED)
-class BuildSavedPayload:
+@payload(NMessageType.REQUEST_WRITE_BUILD)
+class ReqWriteBuildPayload:
     module_id: UUID
-    build_candidates: list[BuildCandidateData]
-    evaluations: list[EvaluationResultData]
+    build_id: UUID
+    delete_previous: bool
+    files: list[wire.FileData]
+    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
 
 
-@_register_payload(NMessageType.JOB_CHANGED)
+@payload(NMessageType.REPLY_WRITE_BUILD)
+class RepWriteModulePayload:
+    success: bool
+
+
+@payload(NMessageType.JOB_CHANGED)
 class JobChangedPayload:
     job_id: UUID
     job: JobData
 
 
-@_register_payload(NMessageType.JOB_SAVED)
+@payload(NMessageType.JOB_SAVED)
 class JobSavedPayload:
     job_id: UUID
     job: JobData
 
 
-@_register_payload(NMessageType.REQUEST_READ_MODULE)
+@payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
 
 
-@_register_payload(NMessageType.REPLY_READ_MODULE)
+@payload(NMessageType.REPLY_READ_MODULE)
 class RepReadModulePayload:
     module: wire.ModuleData
     project_id: UUID
 
 
-@_register_payload(NMessageType.REQUEST_WRITE_MODULE)
-class ReqWriteModulePayload:
-    module_id: UUID
-    build_candidates: list[BuildCandidateData]
-    evaluations: list[EvaluationResultData]
-    files: list[wire.FileData]
-    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
-
-
-@_register_payload(NMessageType.REPLY_WRITE_MODULE)
-class RepWriteModulePayload:
-    success: bool
-
-
-@_register_payload(NMessageType.REQUEST_MODULE_RUNTIME)
+@payload(NMessageType.REQUEST_MODULE_RUNTIME)
 class ReqModuleRuntimePayload:
     module_id: UUID
 
 
-@_register_payload(NMessageType.REPLY_MODULE_RUNTIME)
+@payload(NMessageType.REPLY_MODULE_RUNTIME)
 class RepModuleRuntimePayload:
     module_id: UUID
     updated_at: datetime
@@ -229,7 +242,7 @@ class RepModuleRuntimePayload:
     stale_symbols: list[UUID]
 
 
-@_register_payload(NMessageType.MODULE_RUNTIME_CHANGED)
+@payload(NMessageType.MODULE_RUNTIME_CHANGED)
 class ModuleRuntimeChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID

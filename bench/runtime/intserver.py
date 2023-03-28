@@ -3,6 +3,7 @@ import asyncio
 import structlog
 from asgiref.sync import sync_to_async
 
+from bench import models
 from bench.models import Execution, Job, ProjectVersion, mapper
 from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
@@ -16,12 +17,16 @@ from bench.msg.messages import (
     NMessageType,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
+    RepWriteBuildCandidatePayload,
+    RepWriteEvaluationPayload,
     RepWriteModulePayload,
     ReqReadModulePayload,
-    ReqWriteModulePayload,
+    ReqWriteBuildCandidatePayload,
+    ReqWriteBuildPayload,
+    ReqWriteEvaluationPayload,
 )
 from bench.msg.sync import is_semantic_mutation
-from bench.runtime.type import ExecutionFrameData, JobData
+from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
@@ -41,7 +46,11 @@ class InternalServer:
         logger.info("start")
         self.subs = [
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
+            await handle_reply(
+                NMessageType.REQUEST_WRITE_BUILD_CANDIDATE, self.write_build_candidate
+            ),
+            await handle_reply(NMessageType.REQUEST_WRITE_EVALUATION, self.write_evaluation),
+            await handle_reply(NMessageType.REQUEST_WRITE_BUILD, self.write_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(f"{NMessageType.JOB_CHANGED}.*", cb=self.job_changed),
             await subscribe(
@@ -56,8 +65,8 @@ class InternalServer:
         await msg.reply(RepReadModulePayload(module=module, project_id=project_v.project_id))
 
     @message_handler
-    async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
-        logger.info("module.write", files=msg.payload.files, module_id=msg.payload.module_id)
+    async def write_build(self, msg: NMessage[ReqWriteBuildPayload]) -> None:
+        logger.info("module.write_build", files=msg.payload.files, module_id=msg.payload.module_id)
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
         try:
             if project_v.committed:
@@ -67,6 +76,7 @@ class InternalServer:
                 generated_mappings=msg.payload.generated_mappings,
                 project_v=project_v,
                 overwrite=True,
+                delete_generators={msg.p.build_id} if msg.p.delete_previous else None,
             )
             success = True
         except Exception as e:
@@ -76,10 +86,55 @@ class InternalServer:
         await msg.reply(RepWriteModulePayload(success=success))
 
         # republish entire module  :PartialModuleUpdates
+        # the worker should probably just do this directly
         module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
         await publish(
             NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
         )
+
+    @message_handler
+    async def write_build_candidate(self, msg: NMessage[ReqWriteBuildCandidatePayload]) -> None:
+        logger.info(
+            "module.write_build_candidate",
+            module_id=msg.p.module_id,
+            build_id=msg.p.build_id,
+            candidates=msg.payload.build_candidates,
+        )
+        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        try:
+            if project_v.committed:
+                raise ValueError(f"cannot write to committed {project_v}")
+            await sync_to_async(write_build_candidates)(candidates=msg.payload.build_candidates)
+            success = True
+        except Exception as e:
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.error(
+                "module.write_build_candidate.failed", exc_info=e, sentry_enabled=sentry_enabled
+            )
+            success = False
+        await msg.reply(RepWriteBuildCandidatePayload(success=success))
+
+    @message_handler
+    async def write_evaluation(self, msg: NMessage[ReqWriteEvaluationPayload]) -> None:
+        logger.info(
+            "module.write_evaluation",
+            module_id=msg.p.module_id,
+            build_id=msg.p.build_id,
+            evaluations=msg.payload.evaluations,
+        )
+        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        try:
+            if project_v.committed:
+                raise ValueError(f"cannot write to committed {project_v}")
+            await sync_to_async(write_evaluation_results)(evaluations=msg.payload.evaluations)
+            success = True
+        except Exception as e:
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.error(
+                "module.write_evaluation.failed", exc_info=e, sentry_enabled=sentry_enabled
+            )
+            success = False
+        await msg.reply(RepWriteEvaluationPayload(success=success))
 
     @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
@@ -139,6 +194,49 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
     except Exception as e:
         logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
         return False
+
+
+def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
+    model_evaluations: list[models.EvaluationResult] = []
+    for evaluation in evaluations:
+        model_evaluation = models.EvaluationResult(
+            kind=evaluation.kind,
+            scope=evaluation.scope,
+            project_id=evaluation.project_id,
+            project_version_id=evaluation.project_version_id,
+            job_id=evaluation.job_id,
+            build_id=evaluation.build_id,
+            build_candidate_id=evaluation.build_candidate_id,
+            statement_id=evaluation.statement_id,
+        )
+        model_evaluations.append(model_evaluation)
+    # insert (not upsert, should only be written once?)
+    models.EvaluationResult.objects.bulk_create(model_evaluations)
+
+
+def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
+    model_candidates: list[models.BuildCandidate] = []
+    for candidate in candidates:
+        model_candidate = models.BuildCandidate(
+            id=candidate.id,
+            build_id=candidate.build_id,
+            status=candidate.status,
+            name=candidate.name,
+            evaluation_id=candidate.evaluation_id,
+            job_id=candidate.job_id,
+            file_id=candidate.file_id,
+            project_id=candidate.project_id,
+            project_version_id=candidate.project_version_id,
+        )
+        model_candidates.append(model_candidate)
+
+    # upsert candidates
+    models.BuildCandidate.objects.bulk_create(
+        model_candidates,
+        update_conflicts=True,
+        unique_fields=["id"],
+        update_fields=["status", "job_id", "evaluation_id", "file_id"],
+    )
 
 
 def save_jobs(jobs: list[JobData]) -> bool:

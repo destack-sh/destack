@@ -19,7 +19,7 @@ from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, Symb
 from bench.api.util import asafe_mutation, asafe_subscription, to_uuid, to_uuids
 from bench.language import wire
 from bench.language.type import StatementModifier
-from bench.models import Project, ProjectVersion, User, mapper
+from bench.models import mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import request, subscribe
 from bench.msg.messages import (
@@ -222,9 +222,9 @@ class RunState:
     error_details: Optional[JSON]
 
 
-def check_can_write_project(user: User, project_version_id: UUID):
+def check_can_write_project(user: models.User, project_version_id: UUID):
     project_version = (
-        ProjectVersion.objects.all()
+        models.ProjectVersion.objects.all()
         .prefetch_related("project", "project__user", "project__organization")
         .get(id=project_version_id)
     )
@@ -232,15 +232,17 @@ def check_can_write_project(user: User, project_version_id: UUID):
         raise PermissionDenied("You don't have permission to write to this project.")
 
 
-def check_can_view_project(user: User, project_version_id: UUID = None, project_id: UUID = None):
+def check_can_view_project(
+    user: models.User, project_version_id: UUID = None, project_id: UUID = None
+):
     if not project_version_id and not project_id:
         raise ValueError("must set project_version_id or project_id")
 
     if project_version_id is None:
-        project = Project.objects.prefetch_related("user", "organization").get(id=project_id)
+        project = models.Project.objects.prefetch_related("user", "organization").get(id=project_id)
     else:
         project_version = (
-            ProjectVersion.objects.all()
+            models.ProjectVersion.objects.all()
             .prefetch_related("project", "project__user", "project__organization")
             .get(id=project_version_id)
         )
@@ -256,7 +258,7 @@ class ModuleRuntimeMutation:
     @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = cast(User, info.context.request.scope["user"]._wrapped)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
         await sync_to_async(check_can_write_project)(user, project_version_id)
 
         req = ReqModuleBuildPayload(
@@ -271,7 +273,7 @@ class ModuleRuntimeMutation:
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = cast(User, info.context.request.scope["user"]._wrapped)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
         # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write_project)(user, project_version_id)
         # :SingleOwnedDeployment
@@ -318,7 +320,7 @@ class ModuleRuntimeSubscription:
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleRuntime, None]:
         project_version_id = UUID(project_version_id.node_id)
-        user = cast(User, info.context.request.scope["user"]._wrapped)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
         log = logger.bind(
             project_version_id=project_version_id,
             user=user,
@@ -395,7 +397,7 @@ class ModuleRuntimeSubscription:
     ) -> AsyncGenerator[Execution, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
-        user = cast(User, info.context.request.scope["user"]._wrapped)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
 
         log = logger.bind(
             project_id=project_id,

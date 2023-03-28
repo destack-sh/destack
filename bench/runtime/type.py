@@ -324,6 +324,7 @@ class EvaluationResult:
     self_metrics: Optional[dict[str, float]] = None
     system: Optional[InterpSymbol | TypeNode | Record] = None
     build: Optional[Build] = None
+    build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
     id: UUID = field(default_factory=uuid.uuid4)
     children: list["EvaluationResult"] = field(default_factory=list)
 
@@ -340,12 +341,15 @@ class EvaluationResult:
 
 @dataclass(slots=True)
 class EvaluationResultData:
+    kind: EvaluationKind
+    scope: EvaluationScope
     aggregated_metrics: dict[str, float]
     self_metrics: Optional[dict[str, float]]
     statement_id: Optional[UUID]
     type_node_id: Optional[UUID]
     record_id: Optional[UUID]
     build_id: Optional[UUID]
+    build_candidate_id: Optional[UUID]
     parent_id: Optional[UUID]
     # additional context
     project_id: UUID
@@ -363,12 +367,15 @@ class EvaluationResultData:
     ) -> list[EvaluationResultData]:
         """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
         result_data = EvaluationResultData(
+            kind=result.kind,
+            scope=result.scope,
             aggregated_metrics=result.aggregated_metrics,
             self_metrics=result.self_metrics,
             statement_id=result.system.id if isinstance(result.system, InterpSymbol) else None,
             type_node_id=result.system.id if isinstance(result.system, TypeNode) else None,
             record_id=result.system.id if isinstance(result.system, Record) else None,
             build_id=result.build.id if result.build else None,
+            build_candidate_id=result.build_candidate.id if result.build_candidate else None,
             project_id=project_id,
             project_version_id=project_version_id,
             job_id=job_id,
