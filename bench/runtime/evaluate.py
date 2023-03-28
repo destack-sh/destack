@@ -17,9 +17,13 @@ from bench.language.type import (
     XKind,
     flatten_func_type,
 )
-from bench.runtime.instruct import InstructionNode, SampleSourceGenerator, anonymous_dataset
+from bench.runtime.instruct import (
+    SampleSourceGenerator,
+    anonymous_dataset,
+    instruction_tree_from_module,
+)
 from bench.runtime.run import run
-from bench.runtime.type import CodeInstance, TaskInstance
+from bench.runtime.type import TaskInstance
 from bench.utils.func import dict_minus
 
 logger = structlog.get_logger(__name__)
@@ -36,9 +40,10 @@ class EvaluationMetric(enum.StrEnum):
     InstructionAgreement = "instruction_agreement"  # [0, 1]
     InstructionOverlap = "instruction_overlap"  # [0, 1]
     # Difficulty (global)
-    InferencesCount = "inferences_count"  # [0, inf)
     NodesCount = "nodes_count"  # [0, inf)
     StepsCount = "steps_count"  # [0, inf)
+    # Difficulty (build specific?)
+    InferencesCount = "inferences_count"  # [0, inf)
     TokensCount = "tokens_count"  # [0, inf)
     # Performance (build specific)
     TypeValidity = "type_validity"  # [0, 1]
@@ -71,16 +76,9 @@ LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
 
 
 @dataclass(repr=False, slots=True)
-class Evaluation:
-    system: CodeInstance
-    seeds: list[InstructionNode]
-    properties: list[InstructionNode]
-    n_samples: int
-
-
-@dataclass(repr=False, slots=True)
 class EvaluationResult:
-    metrics: dict[str, float]
+    aggregated_metrics: dict[str, float]
+    self_metrics: Optional[dict[str, float]] = None
     system: Optional[InterpSymbol | TypeNode | Record] = None
     build: Optional[Build] = None
     id: uuid.UUID = field(default_factory=uuid.uuid4)
@@ -88,7 +86,9 @@ class EvaluationResult:
 
     def __str__(self):
         return ", ".join(
-            f"{k}: {self.metrics[k]:0.02f}" for k in EvaluationMetric if k in self.metrics
+            f"{k}: {self.aggregated_metrics[k]:0.02f}"
+            for k in EvaluationMetric
+            if k in self.aggregated_metrics
         )
 
     def __repr__(self):
@@ -99,33 +99,42 @@ def aggregate_evaluations(
     evaluations: list[EvaluationResult], weights: dict[uuid.UUID | str, float] = None
 ) -> EvaluationResult:
     """Combines multiple evaluations into one."""
+    aggregated_metrics = aggregate_metrics(evaluations, weights)
+
+    # check that the build is the same
+    build_ids = {evaluation.build.id if evaluation.build else None for evaluation in evaluations}
+    if len(build_ids) > 1:
+        raise ValueError(f"cannot aggregate evaluations from different builds: {build_ids}")
+
+    return EvaluationResult(
+        system=None,
+        build=evaluations[0].build if len(build_ids) == 1 else None,
+        self_metrics=None,
+        aggregated_metrics=aggregated_metrics,
+        children=evaluations,
+    )
+
+
+def aggregate_metrics(
+    evaluations: list[EvaluationResult], weights: dict[uuid.UUID | str, float] = None
+) -> dict[str, float]:
     weights = weights or defaultdict(lambda: 1.0)
     # sum the counts
     summed_counts = {}
     for metric in COUNT_METRICS & summed_counts.keys():
         summed_counts[metric] = sum(
-            evaluation.metrics[metric] * weights.get(evaluation.id, weights[metric])
+            evaluation.self_metrics[metric] * weights.get(evaluation.id, weights[metric])
             for evaluation in evaluations
         )
     # average the percentages (?)
     averaged_percentages = defaultdict(float)
     for evaluation in evaluations:
-        for metric, value in evaluation.metrics.items():
+        for metric, value in evaluation.aggregated_metrics.items():
             averaged_percentages[metric] += value * weights.get(evaluation.id, weights[metric])
     for metric in PERCENTAGE_METRICS & averaged_percentages.keys():
         averaged_percentages[metric] /= len(evaluations)
-
-    # check that the build is the same
-    build_ids = {evaluation.build.id for evaluation in evaluations}
-    if len(build_ids) > 1:
-        raise ValueError("cannot aggregate evaluations from different builds")
-
-    return EvaluationResult(
-        system=None,
-        build=evaluations[0].build,
-        metrics={**summed_counts, **averaged_percentages},
-        children=evaluations,
-    )
+    aggregated_metrics = {**summed_counts, **averaged_percentages}
+    return aggregated_metrics
 
 
 def compare_evaluations(
@@ -139,8 +148,8 @@ def compare_evaluations(
     """
     diff = 0
     for metric, weight in weights.items():
-        a_value = a.metrics[metric]
-        b_value = b.metrics[metric]
+        a_value = a.aggregated_metrics[metric]
+        b_value = b.aggregated_metrics[metric]
         if metric in HIGHER_IS_BETTER:
             diff += (a_value - b_value) * weight
         elif metric in LOWER_IS_BETTER:
@@ -203,19 +212,32 @@ async def evaluate_task(
     return EvaluationResult(
         system=task,
         build=build,
-        metrics={**count_metrics, **performance_metrics, **summary_metrics},
+        self_metrics=None,
+        aggregated_metrics={**count_metrics, **performance_metrics, **summary_metrics},
     )
 
 
 async def lint(idx: ModuleIndex) -> EvaluationResult:
     """Lints an entire module."""
-    for symbol in idx.symbols:
-        pass
+    tree = instruction_tree_from_module(idx)
+    evaluations: dict[uuid.UUID, EvaluationResult] = {}
 
-    summary_metrics = {
-        EvaluationMetric.Clarity: 0.9,
-        EvaluationMetric.Difficulty: 0.14,
-    }
+    # evaluate nodes individually
+    for node in tree.walk():
+        self_metrics = {EvaluationMetric.NodesCount: 1}
+        evaluation = EvaluationResult(
+            system=node,
+            build=None,
+            self_metrics=self_metrics,
+            aggregated_metrics={**self_metrics},
+        )
+        evaluations[node.id] = evaluation
 
-    # nocheckin: evaluate each symbol properly
-    return EvaluationResult(metrics=summary_metrics)
+    # aggregate evaluations bottom-up (post-order)
+    for node in tree.walk_postorder():
+        child_evaluations = [evaluations[child.id] for child in node.children]
+        evaluations[node.id].aggregated_metrics = aggregate_metrics(child_evaluations)
+
+    root_evaluations = [evaluations[root.id] for root in tree.roots]
+    root_evaluation = aggregate_evaluations(root_evaluations)
+    return root_evaluation

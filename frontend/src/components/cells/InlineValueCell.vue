@@ -3,7 +3,7 @@ import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
-import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -44,6 +44,7 @@ const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const valueRefFocused = useFocus(valueRef as any);
 const editableContainerRef: Ref<HTMLDivElement | null> = ref(null);
+const comboboxButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
 
 const readValue = computed(() => {
   if (!editing.value && !props.modelValue && props.placeholderValue) {
@@ -115,6 +116,7 @@ function focus() {
     buttonRef.value?.focus({ preventScroll: true });
   } else {
     valueRefFocused.focused.value = true;
+    comboboxButtonRef.value?.$el.click();
   }
 }
 
@@ -264,6 +266,8 @@ defineExpose({
         :model-value="enumMembers.find((n) => n.value == value)"
         @update:model-value="(val: SimpleType) => (writeValue(val?.value, true), confirm())"
       >
+        <!-- Hidden button to manage focus programmatically -->
+        <ComboboxButton class="hidden" ref="comboboxButtonRef" />
         <ComboboxInput
           as="input"
           ref="valueRef"

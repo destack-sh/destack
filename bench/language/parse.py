@@ -1642,6 +1642,7 @@ def interp(
             interp_type_node_rec(scope.statement.content.type_node, idx)
 
     # interp symbol contents using related symbols
+    # this should probably set/work with :InstructionOps
     for id, symbol in idx.symbols.items():
         statement = idx.statements[id]
         if statement.type == StatementType.DEFINITION:
