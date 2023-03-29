@@ -1,11 +1,10 @@
-from datetime import datetime
 from itertools import chain
 from typing import AsyncGenerator, Optional, cast
 from uuid import UUID
 
 import structlog
 from asgiref.sync import sync_to_async
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -14,55 +13,37 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models, runtime
 from bench.api.auth import can_view_project, can_write_project
-from bench.api.execution import Execution, ExecutionTriggerType, expand_project_version_ids
+from bench.api.execution import ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
-from bench.api.util import asafe_mutation, asafe_subscription, to_uuid, to_uuids
+from bench.api.util import asafe_mutation, asafe_subscription
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import request, subscribe
 from bench.msg.messages import (
-    ExecutionSavedPayload,
     ModuleRuntimeChangedPayload,
+    RepInterpModulePayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
-    RepModuleRuntimePayload,
+    ReqInterpModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
-    ReqModuleRuntimePayload,
 )
-from bench.runtime.type import JobData
 
 logger = structlog.get_logger(__name__)
 
 
 @gql.type
-class InterpModule:
-    id: GlobalID
-    name: str
-    files: list["InterpFile"]
-
-
-@gql.type
 class InterpFile:
     id: GlobalID
-    module: InterpModule
+    module: "InterpModule"
     path: str
     symbols: list["InterpSymbol"]
 
 
 JobType = gql.enum(runtime.type.JobType)
 JobStatus = gql.enum(runtime.type.JobStatus)
-
-
-@gql.type
-class InterpJob:
-    id: GlobalID
-    type: JobType
-    status: JobStatus
-    started_at: Optional[datetime]
-    terminated_at: Optional[datetime]
 
 
 @gql.type
@@ -76,7 +57,17 @@ class InterpSimpleType(SimpleTypeNode):
     pass
 
 
-# not to be confused with language.InterpSymbol
+@gql.type
+class InterpModule:
+    id: GlobalID
+    name: str
+    files: list["InterpFile"]
+    dependencies: list["InterpModule"]
+    errors: list["InterpError"]
+    stale_symbols: list["InterpSymbol"]
+
+
+# not exactly like language.InterpSymbol, but should be eventually
 # which is not what we get out of the runtime worker yet
 @gql.type
 class InterpSymbol(SimplyTyped):
@@ -104,22 +95,16 @@ class InterpError:
     symbol: Optional[InterpSymbol]
 
 
-@gql.type
-class ModuleRuntime:
-    updated_at: datetime
-    module: InterpModule
-    jobs: list[InterpJob]  # TODO @Cleanup: remove jobs from ModuleRuntime
-    dependencies: list[InterpModule]
-    errors: list["InterpError"]
-    stale_symbols: list[InterpSymbol]
-
-
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     """Maps a wire module into a GQL interpreted module"""
     interp_module = InterpModule(
         id=GlobalID("ProjectVersion", str(wire_module.id)),
         name=wire_module.name,
         files=[],
+        # these are unknown at this point
+        dependencies=[],
+        errors=[],
+        stale_symbols=[],
     )
     for file in wire_module.files:
         interp_file = InterpFile(
@@ -169,17 +154,6 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
         error = InterpError(type=InterpErrorType(error.type), message=error.message, symbol=symbol)
         errors.append(error)
     return errors
-
-
-def rmap_job(wire_job: JobData, module: InterpModule) -> InterpJob:
-    """Maps a wire job into a GQL job"""
-    return InterpJob(
-        id=GlobalID("Job", str(wire_job.id)),
-        type=wire_job.type,
-        status=wire_job.status,
-        started_at=wire_job.started_at,
-        terminated_at=wire_job.terminated_at,
-    )
 
 
 @gql.input
@@ -314,11 +288,11 @@ class ModuleRuntimeMutation:
 
 
 @gql.type
-class ModuleRuntimeSubscription:
+class InterpSubscription:
     @asafe_subscription
-    async def module_runtime_changed(
+    async def interp_changed(
         self, info: Info, project_version_id: GlobalID
-    ) -> AsyncGenerator[ModuleRuntime, None]:
+    ) -> AsyncGenerator[InterpModule, None]:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         log = logger.bind(
@@ -331,38 +305,38 @@ class ModuleRuntimeSubscription:
             log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
             return
 
-        log.info("runtime.subscribe")
-        runtime_sub = await subscribe(
-            f"{NMessageType.MODULE_RUNTIME_CHANGED}.{project_version_id}",
+        log.info("interp.subscribe")
+        interp_sub = await subscribe(
+            f"{NMessageType.INTERP_MODULE_CHANGED}.{project_version_id}",
             payload_t=ModuleRuntimeChangedPayload,
         )
 
         # get initial runtime
         rep = await request(
-            NMessageType.REQUEST_MODULE_RUNTIME,
-            ReqModuleRuntimePayload(module_id=project_version_id),
-            RepModuleRuntimePayload,
+            NMessageType.REQUEST_INTERP_MODULE,
+            ReqInterpModulePayload(module_id=project_version_id),
+            RepInterpModulePayload,
         )
         payload = rep.payload
         module = rmap_module(rep.p.module)
-        runtime = ModuleRuntime(
-            updated_at=payload.updated_at,
-            module=module,
+        interp = InterpModule(
+            id=module.id,
+            name=module.name,
+            files=module.files,
             dependencies=[rmap_module(dep) for dep in payload.dependencies],
             errors=(rmap_errors(payload.errors, module)),
-            jobs=[rmap_job(job, module) for job in payload.jobs],
             stale_symbols=[
                 _get_symbol_from_module(module, symbol_id) for symbol_id in payload.stale_symbols
             ],
         )
-        yield runtime
+        yield interp
 
         # get runtime changes
-        log.info("runtime.listen")
+        log.info("interp.listen")
         while True:
-            update = await runtime_sub.next_msg()
+            update = await interp_sub.next_msg()
             payload = update.payload
-            log.debug("runtime.update", updated_at=payload.updated_at)
+            log.debug("interp.update", updated_at=payload.updated_at)
             # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
             # :PartialModuleUpdates
             # also the mapping duplication is a bit ugly
@@ -371,96 +345,11 @@ class ModuleRuntimeSubscription:
             if payload.dependencies is not None:
                 runtime.dependencies = [rmap_module(dep) for dep in payload.dependencies]
             if payload.errors is not None:
-                runtime.errors = rmap_errors(payload.errors, runtime.module)
-            if payload.jobs is not None:
-                runtime.jobs = [rmap_job(job, runtime.module) for job in payload.jobs]
+                runtime.errors = rmap_errors(payload.errors, interp)
             if payload.stale_symbols is not None:
                 runtime.stale_symbols = [
-                    _get_symbol_from_module(runtime.module, symbol_id)
+                    _get_symbol_from_module(interp, symbol_id)
                     for symbol_id in payload.stale_symbols
                 ]
             runtime.updated_at = payload.updated_at
             yield runtime
-
-    @asafe_subscription
-    async def module_execution_changed(
-        self,
-        info: Info,
-        project_id: GlobalID,
-        project_version_id: Optional[GlobalID],
-        include_ancestor_versions: bool = False,
-        build_ids: list[GlobalID] | None = None,
-        task_ids: list[GlobalID] | None = None,
-        code_ids: list[GlobalID] | None = None,
-        root_id: Optional[GlobalID] = None,
-        root_id_null: bool = False,
-    ) -> AsyncGenerator[Execution, None]:
-        project_id = UUID(project_id.node_id)
-        project_version_id = UUID(project_version_id.node_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
-
-        log = logger.bind(
-            project_id=project_id,
-            project_version_id=project_version_id,
-            build_ids=build_ids,
-            task_ids=task_ids,
-            code_ids=code_ids,
-            root_id=root_id,
-            root_id_null=root_id_null,
-            user=user,
-        )
-
-        try:
-            await sync_to_async(check_can_view_project)(
-                user, project_id=project_id, project_version_id=project_version_id
-            )
-        except PermissionDenied:
-            log.debug("executions.subscribe_denied")
-            return
-
-        log.info("executions.subscribe")
-        runtime_sub = await subscribe(
-            f"{NMessageType.EXECUTION_SAVED}.{project_version_id}", payload_t=ExecutionSavedPayload
-        )
-
-        # :ExecutionsFilter
-        project_version_id = to_uuid(project_version_id)
-        build_ids = to_uuids(build_ids)
-        task_ids = to_uuids(task_ids)
-        code_ids = to_uuids(code_ids)
-        # If filtering by a symbol and including multiple versions, expand into their mappings.
-        # We do this once before listening for performance and simplicity, though this means that new versions
-        # will not be automatically included in the execution subscription. We could periodically re-check,
-        # but that's a bit more complicated and not really worth it for now.
-        if include_ancestor_versions:
-            if project_version_id is None:
-                raise ValidationError(
-                    "project_version_id must be specified if include_ancestor_versions"
-                )
-            project_version_ids, expanded_symbol_ids = await expand_project_version_ids(
-                project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
-            )
-        else:
-            expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
-
-        log.info("executions.listen")
-        while True:
-            msg = await runtime_sub.next_msg()
-            update = msg.payload
-            for frame_data in update.frames:
-                # :ExecutionsFilter
-                other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
-                other_task = task_ids and frame_data.task_id not in expanded_symbol_ids
-                other_code = code_ids and frame_data.code_id not in expanded_symbol_ids
-                other_root = (
-                    root_id is not None
-                    and root_id.node_id != frame_data.root_id
-                    or root_id_null is True
-                    and frame_data.root_id is not None
-                )
-                if other_build or other_task or other_code or other_root:
-                    # TODO @Performance: filter execution frames more precisely via NATS?
-                    continue
-                frame = mapper.rmap_execution_frame(frame_data)
-                log.debug("executions.update", frame=frame)
-                yield frame

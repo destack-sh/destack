@@ -29,17 +29,17 @@ from bench.msg.messages import (
     ModuleChangedPayload,
     ModuleRunErrorType,
     ModuleRuntimeChangedPayload,
+    RepInterpModulePayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
-    RepModuleRuntimePayload,
     RepReadModulePayload,
     RepWriteBuildCandidatePayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
     RepWriteModulePayload,
+    ReqInterpModulePayload,
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
-    ReqModuleRuntimePayload,
     ReqReadModulePayload,
     ReqWriteBuildCandidatePayload,
     ReqWriteBuildPayload,
@@ -667,7 +667,7 @@ class Worker:
         logger.info("start", worker_id=self.worker_id)
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
-            await handle_reply(NMessageType.REQUEST_MODULE_RUNTIME, self.request_module_runtime),
+            await handle_reply(NMessageType.REQUEST_INTERP_MODULE, self.request_module_runtime),
             await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
             await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
         ]
@@ -705,9 +705,9 @@ class Worker:
         # module worker will trigger any follow-ups
 
     @message_handler
-    async def request_module_runtime(self, msg: NMessage[ReqModuleRuntimePayload]):
+    async def request_module_runtime(self, msg: NMessage[ReqInterpModulePayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
-        payload = make_full_change_payload(module_worker, RepModuleRuntimePayload)
+        payload = make_full_change_payload(module_worker, RepInterpModulePayload)
         await msg.reply(payload)
 
     @message_handler
@@ -753,7 +753,7 @@ class Worker:
     async def notify_module_changed(self, module_worker: ModuleWorker):
         """Publishes the new module runtime"""
         change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
-        await publish(NMessageType.MODULE_RUNTIME_CHANGED, change)
+        await publish(NMessageType.INTERP_MODULE_CHANGED, change)
 
     async def write_evaluations(
         self, module_worker: ModuleWorker, evaluations: list[EvaluationResult], job_id: UUID

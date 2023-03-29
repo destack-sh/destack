@@ -10,6 +10,11 @@ from bench.api.statement import Statement
 BuildCandidateStatus = gql.enum(models.BuildCandidateStatus)
 
 
+@gql.django.filter(models.BuildCandidate)
+class BuildCandidateFilter:
+    pass
+
+
 @gql.django.type(models.BuildCandidate)
 class BuildCandidate(gql.Node):
     created_at: auto
@@ -19,3 +24,13 @@ class BuildCandidate(gql.Node):
     file: Annotated["File", lazy(".project")]
     status: BuildCandidateStatus
     build: Annotated["Statement", lazy(".build")]
+
+
+@gql.type
+class BuildQuery:
+    pass
+
+
+@gql.type
+class BuildSubscription:
+    pass

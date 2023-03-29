@@ -77,3 +77,8 @@ class NotificationMutation:
         check_can_write_user(info, notification)
         notification.mark_as(input.status)
         return notification
+
+
+@gql.type
+class NotificationSubscription:
+    pass

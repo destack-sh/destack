@@ -1,6 +1,11 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useEditorState } from "@/state/editor";
+import { useCurrentModuleRuntime } from "@/state/runtime";
 import { computed, type Ref } from "vue";
+
+const editor = useEditorState();
+const runtime = useCurrentModuleRuntime();
+const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 
 type Metric = {
   label: string;
@@ -26,7 +31,7 @@ const globalMetrics: Ref<Metric[]> = computed(() => [
 ]);
 
 // local to a build for scope
-const localMetrics: Ref<Metric[]> = computed(() => [
+const buildMetrics: Ref<Metric[]> = computed(() => [
   {
     label: "Performance",
     description: "How well the AI does.",
@@ -43,15 +48,14 @@ const localMetrics: Ref<Metric[]> = computed(() => [
 
 const metricSets = computed(() => [
   {
-    // obviously <main symbol> will be replaced
     label: "General",
-    description: "Global metrics for <main symbol>.",
+    description: `Bench-wide analysis of '${mainSymbol.value?.name ?? runtime.name.value}'.`,
     metrics: globalMetrics.value,
   },
   {
     label: "Main",
-    description: "Metrics for <main symbol> in build <build>.",
-    metrics: localMetrics.value,
+    description: `build <build> on '${mainSymbol.value?.name}''.`,
+    metrics: buildMetrics.value,
   },
 ]);
 </script>
@@ -60,8 +64,9 @@ const metricSets = computed(() => [
     <div v-for="metricSet in metricSets" :key="metricSet.label" class="group relative rounded-sm">
       <!-- Metric set itself -->
       <button
-        class="relative flex flex-row gap-3 rounded-sm border border-transparent px-2 hover:cursor-pointer hover:border-sky-900 hover:border-opacity-[12%] hover:bg-sky-100"
+        class="relative flex flex-row gap-2 rounded-sm border border-transparent px-2 hover:cursor-pointer hover:border-sky-900 hover:border-opacity-[12%] hover:bg-sky-100"
       >
+        <!-- Metric set label for builds (if more than one) -->
         <span
           v-if="metricSet.label != 'general' && metricSets.length > 2"
           class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
@@ -77,11 +82,10 @@ const metricSets = computed(() => [
           :key="metric.label"
           class="relative flex flex-row items-start gap-1 p-1.5 text-center"
         >
-          <!-- Label -->
-          <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
           <!-- Metric -->
           <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
-          <!-- Unit -->
+          <!-- Label -->
+          <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
         </div>
       </button>
       <!-- Popover details if hovered -->

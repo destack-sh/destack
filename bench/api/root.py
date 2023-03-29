@@ -15,8 +15,11 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.auth import CanViewProject
+from bench.api.build import BuildSubscription
 from bench.api.deployment import DeploymentMutation
-from bench.api.execution import ExecutionQuery
+from bench.api.evaluation import EvaluationSubscription
+from bench.api.execution import ExecutionQuery, ExecutionSubscription
+from bench.api.job import JobSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
@@ -28,7 +31,7 @@ from bench.api.project import (
     ProjectVersionMutation,
     ProjectVisibility,
 )
-from bench.api.runtime import ModuleRuntimeMutation, ModuleRuntimeSubscription
+from bench.api.runtime import InterpSubscription, ModuleRuntimeMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.token import AccessTokenMutation
@@ -165,7 +168,13 @@ class Mutation(
 
 
 @strawberry.type
-class Subscription(ModuleRuntimeSubscription):
+class Subscription(
+    InterpSubscription,
+    ExecutionSubscription,
+    JobSubscription,
+    EvaluationSubscription,
+    BuildSubscription,
+):
     pass
 
 
