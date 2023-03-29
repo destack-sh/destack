@@ -50,6 +50,11 @@ else:
 NOISY_LOG_SOURCES = {
     "bench.msg.core",
     "bench.api.runtime",
+    "bench.api.job",
+    "bench.api.build",
+    "bench.api.deployment",
+    "bench.api.evaluation",
+    "bench.api.execution",
     "bench.runtime.worker",
     "bench.runtime.run",
 }

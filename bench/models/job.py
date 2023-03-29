@@ -50,3 +50,6 @@ class Job(UUIDModel):
 
     def __repr__(self):
         return f"<Job {self}>"
+
+    class Meta:
+        ordering = ["-updated_at"]

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
+import ConfirmPopover from "@/components/basic/ConfirmPopover.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
-import ConfirmPopover from "@/components/basic/ConfirmPopover.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { DeploymentStatus, DeploymentType, StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
@@ -12,10 +12,10 @@ import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, useCurrentInterpModule } from "@/state/runtime";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { CheckIcon } from "@heroicons/vue/20/solid";
-import { CloudArrowUpIcon, CloudIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
+import { CloudIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref } from "vue";
 import { useClipboard } from "@vueuse/core";
+import { computed, ref } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
 const emit = defineEmits<{ (e: "show"): void }>();
@@ -25,7 +25,7 @@ const editor = useEditorState();
 
 const { result: deploymentsResult } = useQuery(
   graphql(/* GraphQL */ `
-    query projectDeployments($projectVersionId: GlobalID!) {
+    query deployments($projectVersionId: GlobalID!) {
       projectVersion(id: $projectVersionId) {
         id
         committed
