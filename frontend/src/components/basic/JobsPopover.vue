@@ -136,6 +136,10 @@ const JOB_VERBS = {
               </svg>
             </span>
           </li>
+          <!-- Pagination (soonish) -->
+          <li v-if="allJobs.length < totalCount" class="text-center text-xs text-gray-700">
+            <span>{{ totalCount - allJobs.length }} more</span>
+          </li>
         </ul>
       </PopoverPanel>
     </FadeTransition>

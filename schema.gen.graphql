@@ -305,9 +305,10 @@ type EvaluationResult implements Node {
   file: File!
   kind: EvaluationKind!
   scope: EvaluationScope!
-  statement: Statement!
-  record: DatasetRecord!
-  typeNode: SimpleTypeNode!
+  build: Statement
+  statement: Statement
+  record: DatasetRecord
+  typeNode: SimpleTypeNode
   selfMetrics: JSON
   aggregatedMetrics: JSON!
 }
@@ -1235,8 +1236,9 @@ type Query {
     projectId: GlobalID!
     projectVersionId: GlobalID
     includeAncestorVersions: Boolean! = false
-    kind: EvaluationKind = null
-    scope: EvaluationScope = null
+    kindIn: [EvaluationKind!] = null
+    scopeIn: [EvaluationScope!] = null
+    buildIdIn: [GlobalID!] = null
     systemIdIn: [GlobalID!] = null
   ): EvaluationResultConnection! @canViewProject(atRoot: true)
   jobs(
@@ -1697,7 +1699,7 @@ type Subscription {
   interpChanged(projectVersionId: GlobalID!): InterpModule!
   executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
   jobsChanged(projectId: GlobalID!, projectVersionId: GlobalID!, typeIn: [JobType!] = null): Job!
-  evaluationsChanged: EvaluationResult!
+  evaluationsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, kindIn: [EvaluationKind!] = null, scopeIn: [EvaluationScope!] = null, buildIdIn: [GlobalID!] = null, systemIdIn: [GlobalID!] = null): EvaluationResult!
   buildCandidateChanged(projectId: GlobalID!, projectVersionId: GlobalID!, buildId: GlobalID = null): BuildCandidate!
 }
 

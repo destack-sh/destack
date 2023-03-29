@@ -68,36 +68,28 @@ class ModelInference(gql.Node):
     duration_ms: auto
 
 
-async def _expand_project_version_ids(
-    project_version_id: UUID,
-    build_ids: list[UUID] | None,
-    task_ids: list[UUID] | None,
-    code_ids: list[UUID] | None,
-    ancestor_depth: Optional[int],
-):
-    # TODO @Performance: implement symbol version id expansion in SQL
-    project_versions = await sync_to_async(models.ProjectVersion.objects.get_ancestors)(
-        version_id=project_version_id, depth=ancestor_depth
-    )
-    project_version_ids = [pv.id for pv in project_versions]
-    expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
-    # expand symbols using RefMapping.source_id/target_id up to ancestor_depth
-    expanded_symbol_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
-        expanded_symbol_ids, ancestor_depth
-    )
-    return project_version_ids, expanded_symbol_ids
-
-
 async def _expand_filter(
-    project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+    project_version_id: UUID,
+    include_ancestor_versions: bool,
+    build_ids: list[UUID] | None,
+    code_ids: list[UUID] | None,
+    task_ids: list[UUID] | None,
+    ancestor_depth: int = 8,
 ):
     if include_ancestor_versions:
         if project_version_id is None:
             raise ValidationError(
                 "project_version_id must be specified if include_ancestor_versions"
             )
-        project_version_ids, expanded_symbol_ids = await _expand_project_version_ids(
-            project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
+            # TODO @Performance: implement symbol version id expansion in SQL
+        project_versions = await sync_to_async(models.ProjectVersion.objects.get_ancestors)(
+            version_id=project_version_id, depth=ancestor_depth
+        )
+        project_version_ids = [pv.id for pv in project_versions]
+        expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
+        # expand symbols using RefMapping.source_id/target_id up to ancestor_depth
+        expanded_symbol_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
+            expanded_symbol_ids, ancestor_depth
         )
     else:
         project_version_ids = [project_version_id]
@@ -119,33 +111,30 @@ class ExecutionQuery:
         root_id: Optional[GlobalID] = None,
         root_id_null: bool = False,
     ) -> Iterable[Execution]:
-        filtered = models.Execution.objects.all()
-
+        qs = models.Execution.objects.all()
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
         build_ids = to_uuids(build_ids)
         task_ids = to_uuids(task_ids)
         code_ids = to_uuids(code_ids)
-
         # if filtering by a symbol and including multiple versions, expand into mappings
         expanded_symbol_ids, project_version_ids = await _expand_filter(
             project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
         )
-        if project_id is not None:
-            filtered = filtered.filter(project_id=project_id.node_id)
+        qs = qs.filter(project_id=project_id.node_id)
         if project_version_ids:
-            filtered = filtered.filter(project_version_id__in=project_version_ids)
+            qs = qs.filter(project_version_id__in=project_version_ids)
         if build_ids:
-            filtered = filtered.filter(build_id__in=expanded_symbol_ids)
+            qs = qs.filter(build_id__in=expanded_symbol_ids)
         if task_ids:
-            filtered = filtered.filter(task_id__in=expanded_symbol_ids)
+            qs = qs.filter(task_id__in=expanded_symbol_ids)
         if code_ids:
-            filtered = filtered.filter(code_id__in=expanded_symbol_ids)
+            qs = qs.filter(code_id__in=expanded_symbol_ids)
         if root_id is not None:
-            filtered = filtered.filter(root_id=root_id.node_id)
+            qs = qs.filter(root_id=root_id.node_id)
         if root_id_null:
-            filtered = filtered.filter(root_id__isnull=True)
-        return filtered
+            qs = qs.filter(root_id__isnull=True)
+        return qs
 
 
 @gql.type

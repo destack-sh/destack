@@ -309,17 +309,18 @@ export enum EvaluationKind {
 export type EvaluationResult = Node & {
   __typename?: "EvaluationResult";
   aggregatedMetrics: Scalars["JSON"];
+  build?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
   file: File;
   id: Scalars["GlobalID"];
   kind: EvaluationKind;
   project: Project;
   projectVersion: ProjectVersion;
-  record: DatasetRecord;
+  record?: Maybe<DatasetRecord>;
   scope: EvaluationScope;
   selfMetrics?: Maybe<Scalars["JSON"]>;
-  statement: Statement;
-  typeNode: SimpleTypeNode;
+  statement?: Maybe<Statement>;
+  typeNode?: Maybe<SimpleTypeNode>;
   updatedAt: Scalars["DateTime"];
 };
 
@@ -1421,13 +1422,14 @@ export type QueryBuildCandidatesArgs = {
 export type QueryEvaluationsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
+  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
   first?: InputMaybe<Scalars["Int"]>;
   includeAncestorVersions?: Scalars["Boolean"];
-  kind?: InputMaybe<EvaluationKind>;
+  kindIn?: InputMaybe<Array<EvaluationKind>>;
   last?: InputMaybe<Scalars["Int"]>;
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  scope?: InputMaybe<EvaluationScope>;
+  scopeIn?: InputMaybe<Array<EvaluationScope>>;
   systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
@@ -1889,6 +1891,16 @@ export type SubscriptionBuildCandidateChangedArgs = {
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionEvaluationsChangedArgs = {
+  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  includeAncestorVersions?: Scalars["Boolean"];
+  kindIn?: InputMaybe<Array<EvaluationKind>>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeIn?: InputMaybe<Array<EvaluationScope>>;
+  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type SubscriptionExecutionsChangedArgs = {
@@ -2788,6 +2800,63 @@ export type ProjectMigrationRefsQuery = {
       }>;
     };
   } | null;
+};
+
+export type EvaluationResultContentFragment = {
+  __typename?: "EvaluationResult";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  kind: EvaluationKind;
+  scope: EvaluationScope;
+  selfMetrics?: any | null;
+  aggregatedMetrics: any;
+  project: { __typename?: "Project"; id: any };
+  projectVersion: { __typename?: "ProjectVersion"; id: any };
+  build?: { __typename?: "Statement"; id: any } | null;
+  statement?: { __typename?: "Statement"; id: any } | null;
+  record?: { __typename?: "DatasetRecord"; id: any } | null;
+  typeNode?: { __typename?: "SimpleTypeNode"; id: any } | null;
+} & { " $fragmentName"?: "EvaluationResultContentFragment" };
+
+export type EvaluationsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
+  kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
+  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type EvaluationsQuery = {
+  __typename?: "Query";
+  evaluations: {
+    __typename?: "EvaluationResultConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "EvaluationResultEdge";
+      node: { __typename?: "EvaluationResult" } & {
+        " $fragmentRefs"?: { EvaluationResultContentFragment: EvaluationResultContentFragment };
+      };
+    }>;
+  };
+};
+
+export type EvaluationsChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
+  kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
+  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+}>;
+
+export type EvaluationsChangedSubscription = {
+  __typename?: "Subscription";
+  evaluationsChanged: { __typename?: "EvaluationResult" } & {
+    " $fragmentRefs"?: { EvaluationResultContentFragment: EvaluationResultContentFragment };
+  };
 };
 
 export type ExecutionContentFragment = {
@@ -3990,6 +4059,76 @@ export type SystemInfoQuery = {
   systemInfo: { __typename?: "SystemInfo"; version: string; gitCommit: string };
 };
 
+export const EvaluationResultContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "EvaluationResultContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "EvaluationResult" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "kind" } },
+          { kind: "Field", name: { kind: "Name", value: "scope" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "build" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "record" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "typeNode" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "selfMetrics" } },
+          { kind: "Field", name: { kind: "Name", value: "aggregatedMetrics" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<EvaluationResultContentFragment, unknown>;
 export const ExecutionContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -6997,6 +7136,243 @@ export const ProjectMigrationRefsDocument = {
     },
   ],
 } as unknown as DocumentNode<ProjectMigrationRefsQuery, ProjectMigrationRefsQueryVariables>;
+export const EvaluationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "evaluations" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
+          type: {
+            kind: "ListType",
+            type: {
+              kind: "NonNullType",
+              type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationScope" } },
+            },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationKind" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "evaluations" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "scopeIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "kindIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "buildIdIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "systemIdIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "EvaluationResultContent" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...EvaluationResultContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<EvaluationsQuery, EvaluationsQueryVariables>;
+export const EvaluationsChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "evaluationsChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
+          type: {
+            kind: "ListType",
+            type: {
+              kind: "NonNullType",
+              type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationScope" } },
+            },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationKind" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "evaluationsChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "scopeIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "kindIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "buildIdIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "systemIdIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "EvaluationResultContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...EvaluationResultContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<EvaluationsChangedSubscription, EvaluationsChangedSubscriptionVariables>;
 export const ExecutionsDocument = {
   kind: "Document",
   definitions: [
