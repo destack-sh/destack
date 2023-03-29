@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import JobsPopover from "@/components/basic/JobsPopover.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
@@ -18,9 +19,9 @@ import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
 import SharePopover from "@/components/SharePopover.vue";
-import { useNow, useTimeFromNow } from "@/composables/useNow";
+import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { JobStatus, JobType, ProjectVisibility, type Job } from "@/gql/graphql";
+import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import {
   useEditorMigrations,
@@ -30,7 +31,6 @@ import {
   type ViewId,
 } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
-import { useCurrentJobs } from "@/state/jobs";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentInterpModule, useVisibleErrors } from "@/state/runtime";
@@ -50,7 +50,6 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle, whenever } from "@vueuse/core";
-import { DateTime } from "luxon";
 import Mousetrap from "mousetrap";
 import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
 import { useRouter } from "vue-router";
@@ -222,29 +221,6 @@ const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurr
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
-// get currently running jobs
-const now = useNow(100);
-const { jobs } = useCurrentJobs();
-const activeJobs = computed(() =>
-  jobs.value?.filter(
-    (job) =>
-      job.status == JobStatus.Running &&
-      job.startedAt != null &&
-      now.value.diff(DateTime.fromISO(job.startedAt)).as("milliseconds") > 500
-  )
-);
-
-function getJobTitle(job: Job) {
-  if (job.type == JobType.Interp || job.type == JobType.Lint) {
-    return "Analyzing";
-  } else if (job.type == JobType.Build) {
-    return "Building";
-  } else if (job.type == JobType.Generate) {
-    return "Generating";
-  } else if (job.type == JobType.Evaluate) {
-    return "Evaluating";
-  }
-}
 // sync editor paths
 // TODO @Cleanup: move sync editor paths into EditorInterface
 watchEffect(() => {
@@ -494,7 +470,7 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </FadeTransition>
-          <!-- Read-only project info -->
+          <!-- Read-only project notice -->
           <div
             v-if="project != null && !project?.canWrite"
             class="ml-2 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
@@ -513,7 +489,10 @@ onBeforeUnmount(() => {
             <svg
               viewBox="0 0 10 10"
               class="h-1 w-1"
-              :class="{ 'text-orange-600': !hasStaleInflightStateOps, 'text-gray-400': hasStaleInflightStateOps }"
+              :class="{
+                'text-orange-600': !hasStaleInflightStateOps,
+                'animate-spin text-gray-400': hasStaleInflightStateOps,
+              }"
             >
               <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
             </svg>
@@ -550,12 +529,10 @@ onBeforeUnmount(() => {
             <span class="text-sm text-gray-700">{{ visibleErrors?.length }}</span>
           </button>
         </div>
-        <!-- Current worker jobs -->
-        <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
+        <!-- Jobs -->
+        <div class="ml-2">
           <FadeTransition>
-            <span v-for="job in activeJobs" :key="job.id" class="text-sm text-gray-500">
-              {{ getJobTitle(job as Job) }}
-            </span>
+            <JobsPopover v-if="versionLoaded" :project-id="project.id" :project-version-id="versionToViewId" />
           </FadeTransition>
         </div>
       </template>
@@ -571,7 +548,11 @@ onBeforeUnmount(() => {
       <template v-slot:right>
         <!-- Current "main" statement controls -->
         <FadeTransition>
-          <MainSymbolControls v-if="versionLoaded && !editor.readonly" />
+          <MainSymbolControls
+            v-if="versionLoaded && !editor.readonly"
+            :project-id="project.id"
+            :project-version-id="versionToViewId"
+          />
         </FadeTransition>
         <!-- Bench-global controls -->
         <FadeTransition>

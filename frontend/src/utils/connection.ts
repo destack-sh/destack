@@ -6,7 +6,11 @@ type Connection<T> = {
   pageInfo: PageInfo;
 };
 
-export function getUpdatedConnectionQuery<T>(node: T & { id: string }, prev?: Connection<T>): Connection<T> {
+export function getUpdatedConnectionQuery<T>(
+  node: T & { id: string },
+  prev?: Connection<T>,
+  maxLength?: number
+): Connection<T> {
   // cursor is base64-encoded Connection:{nodeId}
   const newEdge = {
     __typename: "NodeEdge",
@@ -42,10 +46,11 @@ export function getUpdatedConnectionQuery<T>(node: T & { id: string }, prev?: Co
     startCursor: newEdge.cursor,
     hasPreviousPage: false,
   };
+  const edges = [newEdge, ...prev.edges];
   return {
     ...prev,
     totalCount: (prev.totalCount ?? 0) + 1,
-    edges: [newEdge, ...prev.edges],
+    edges: maxLength ? edges.slice(0, maxLength) : edges,
     pageInfo,
   };
 }

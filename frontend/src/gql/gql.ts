@@ -13,8 +13,8 @@ import type { TypedDocumentNode as DocumentNode } from "@graphql-typed-document-
  * Therefore it is highly recommended to use the babel-plugin for production.
  */
 const documents = {
-  "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  ":
-    types.ProjectDeploymentsDocument,
+  "\n    query deployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  ":
+    types.DeploymentsDocument,
   "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true, isGenerated: false }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n            }\n          }\n        }\n      }\n    }\n  ":
     types.EmptyEditorSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
@@ -88,7 +88,7 @@ const documents = {
     types.StatementContentFragmentDoc,
   "\n  fragment JobContent on Job {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    status\n    type\n    projectVersion {\n      id\n    }\n  }\n":
     types.JobContentFragmentDoc,
-  "\n      query jobs($projectId: GlobalID!, $projectVersionId: GlobalID!, $statusIn: [JobStatus!], $typeIn: [JobType!]) {\n        jobs(projectId: $projectId, projectVersionId: $projectVersionId, statusIn: $statusIn, typeIn: $typeIn) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    ":
+  "\n      query jobs(\n        $projectId: GlobalID!\n        $projectVersionId: GlobalID!\n        $statusIn: [JobStatus!]\n        $typeIn: [JobType!]\n        $first: Int\n      ) {\n        jobs(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          statusIn: $statusIn\n          typeIn: $typeIn\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    ":
     types.JobsDocument,
   "\n        subscription jobsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!, $typeIn: [JobType!]) {\n          jobsChanged(projectId: $projectId, projectVersionId: $projectVersionId, typeIn: $typeIn) {\n            ...JobContent\n          }\n        }\n      ":
     types.JobsChangedDocument,
@@ -212,8 +212,8 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectDeployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query deployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query deployments($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        id\n        committed\n        tag\n        deployments(filters: { isOwned: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              createdAt\n              updatedAt\n              type\n              status\n              deployAllStatements\n            }\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -440,8 +440,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      query jobs($projectId: GlobalID!, $projectVersionId: GlobalID!, $statusIn: [JobStatus!], $typeIn: [JobType!]) {\n        jobs(projectId: $projectId, projectVersionId: $projectVersionId, statusIn: $statusIn, typeIn: $typeIn) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      query jobs($projectId: GlobalID!, $projectVersionId: GlobalID!, $statusIn: [JobStatus!], $typeIn: [JobType!]) {\n        jobs(projectId: $projectId, projectVersionId: $projectVersionId, statusIn: $statusIn, typeIn: $typeIn) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      query jobs(\n        $projectId: GlobalID!\n        $projectVersionId: GlobalID!\n        $statusIn: [JobStatus!]\n        $typeIn: [JobType!]\n        $first: Int\n      ) {\n        jobs(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          statusIn: $statusIn\n          typeIn: $typeIn\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      query jobs(\n        $projectId: GlobalID!\n        $projectVersionId: GlobalID!\n        $statusIn: [JobStatus!]\n        $typeIn: [JobType!]\n        $first: Int\n      ) {\n        jobs(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          statusIn: $statusIn\n          typeIn: $typeIn\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...JobContent\n            }\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

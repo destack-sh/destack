@@ -2105,11 +2105,11 @@ export type UserUpdateInput = {
   name: Scalars["String"];
 };
 
-export type ProjectDeploymentsQueryVariables = Exact<{
+export type DeploymentsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type ProjectDeploymentsQuery = {
+export type DeploymentsQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
@@ -3031,6 +3031,7 @@ export type JobsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   statusIn?: InputMaybe<Array<JobStatus> | JobStatus>;
   typeIn?: InputMaybe<Array<JobType> | JobType>;
+  first?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type JobsQuery = {
@@ -4715,13 +4716,13 @@ export const InterpModuleContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpModuleContentFragment, unknown>;
-export const ProjectDeploymentsDocument = {
+export const DeploymentsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "projectDeployments" },
+      name: { kind: "Name", value: "deployments" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -4805,7 +4806,7 @@ export const ProjectDeploymentsDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<ProjectDeploymentsQuery, ProjectDeploymentsQueryVariables>;
+} as unknown as DocumentNode<DeploymentsQuery, DeploymentsQueryVariables>;
 export const EmptyEditorSuggestedFilesDocument = {
   kind: "Document",
   definitions: [
@@ -7308,6 +7309,11 @@ export const JobsDocument = {
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobType" } } },
           },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -7335,6 +7341,11 @@ export const JobsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "typeIn" },
                 value: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
               },
             ],
             selectionSet: {

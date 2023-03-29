@@ -61,7 +61,7 @@ export function useExecutions(
     taskIds: Ref<string[] | null>;
     codeIds: Ref<string[] | null>;
   },
-  options: { root: boolean; live?: boolean }
+  options: { root: boolean; first?: number; live?: boolean }
 ) {
   const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
@@ -114,7 +114,7 @@ export function useExecutions(
       taskIds: filter.taskIds,
       codeIds: filter.codeIds,
       rootIdNull: options.root,
-      first: 25,
+      first: options?.first ?? 25,
     }
   );
 
@@ -156,7 +156,7 @@ export function useExecutions(
         if (!subscriptionData.data) return prev;
         const execution = useFragment(ExecutionContentType, subscriptionData.data.executionsChanged);
         return {
-          executions: getUpdatedConnectionQuery({ ...execution, descendants: [] }, prev.executions),
+          executions: getUpdatedConnectionQuery({ ...execution, descendants: [] }, prev.executions, options.first),
         };
       },
     });
