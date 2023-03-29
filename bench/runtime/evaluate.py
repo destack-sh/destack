@@ -74,20 +74,25 @@ def compare_evaluations(
     a: EvaluationResult, b: EvaluationResult, weights: dict[str, float]
 ) -> float:
     """
-    If a is better than b, return a positive number. Otherwise, return a negative number.
-    If a and b are equal, return 0.
-
-    Only metrics in `weights` are considered.
+    Compares two evaluations using the weights.
     """
-    diff = 0
+    a_score = score_evaluation(a, weights)
+    b_score = score_evaluation(b, weights)
+    return a_score - b_score
+
+
+def score_evaluation(a: EvaluationResult, weights: dict[str, float]) -> float:
+    """
+    Returns a score for the evaluation, based on the weights.
+    """
+    score = 0
     for metric, weight in weights.items():
-        a_value = a.aggregated_metrics[metric]
-        b_value = b.aggregated_metrics[metric]
+        value = a.aggregated_metrics[metric]
         if metric in HIGHER_IS_BETTER:
-            diff += (a_value - b_value) * weight
+            score += value * weight
         elif metric in LOWER_IS_BETTER:
-            diff += (b_value - a_value) * weight
-    return diff
+            score += (1 - value) * weight
+    return score
 
 
 async def evaluate_task(
