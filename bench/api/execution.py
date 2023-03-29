@@ -10,12 +10,12 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.auth import CanViewProject, check_can_view_project
+from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
 from bench.api.util import asafe_subscription, to_uuid, to_uuids
 from bench.models import mapper
 from bench.msg import NMessageType
-from bench.msg.core import subscribe
+from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ExecutionSavedPayload
 
 if TYPE_CHECKING:
@@ -159,7 +159,6 @@ class ExecutionSubscription:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
-
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
@@ -170,9 +169,8 @@ class ExecutionSubscription:
             root_id_null=root_id_null,
             user=user,
         )
-
         try:
-            await sync_to_async(check_can_view_project)(
+            await sync_to_async(check_can_view_project_by_id)(
                 user, project_id=project_id, project_version_id=project_version_id
             )
         except PermissionDenied:
@@ -180,7 +178,7 @@ class ExecutionSubscription:
             return
 
         log.info("executions.subscribe")
-        runtime_sub = await subscribe(
+        executions_sub = await subscribe(
             f"{NMessageType.EXECUTION_SAVED}.{project_version_id}", payload_t=ExecutionSavedPayload
         )
 
@@ -206,9 +204,8 @@ class ExecutionSubscription:
 
         log.info("executions.listen")
         while True:
-            msg = await runtime_sub.next_msg()
-            update = msg.payload
-            for frame_data in update.frames:
+            msg: NMessage[ExecutionSavedPayload] = await executions_sub.next_msg()
+            for frame_data in msg.payload.frames:
                 # :ExecutionsFilter
                 other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
                 other_task = task_ids and frame_data.task_id not in expanded_symbol_ids

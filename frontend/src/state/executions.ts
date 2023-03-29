@@ -1,4 +1,5 @@
 import { graphql, useFragment } from "@/gql";
+import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Ref } from "vue";
 
@@ -10,8 +11,6 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     startedAt
     terminatedAt
     status
-    # note: do not query for non-id fields on root/parent here since
-    # they may not be available when streamed directly from the runtime
     triggerType
     projectVersion {
       id
@@ -122,7 +121,7 @@ export function useExecutions(
   if (options.live) {
     subscribeToMore({
       document: graphql(/* GraphQL */ `
-        subscription moduleExecutionChanged(
+        subscription executionsChanged(
           $projectId: GlobalID!
           $projectVersionId: GlobalID
           $includeAncestorVersions: Boolean
@@ -131,7 +130,7 @@ export function useExecutions(
           $codeIds: [GlobalID!]
           $rootIdNull: Boolean
         ) {
-          moduleExecutionChanged(
+          executionsChanged(
             projectId: $projectId
             projectVersionId: $projectVersionId
             includeAncestorVersions: $includeAncestorVersions
@@ -155,51 +154,9 @@ export function useExecutions(
       },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
-        const execution = useFragment(ExecutionContentType, subscriptionData.data.moduleExecutionChanged);
-        // cursor is base64-encoded ExecutionConnection:{nodeId}
-        const newEdge = {
-          __typename: "ExecutionEdge",
-          // not sure what to put here, it's a strawberry internal
-          // should probably update all other edges' cursors as well
-          cursor: btoa(`arrayconnection:0`),
-          node: { ...execution, descendants: [] },
-        };
-
-        if (prev?.executions == null) {
-          // first execution, return directly
-          return {
-            executions: {
-              totalCount: 1,
-              edges: [newEdge],
-              pageInfo: {
-                hasNextPage: false,
-                hasPreviousPage: false,
-                startCursor: newEdge.cursor,
-                endCursor: newEdge.cursor,
-              },
-            },
-          };
-        }
-
-        const index = prev.executions.edges.findIndex((edge) => edge.node.id === execution.id);
-        if (index >= 0) {
-          // update is automatic in Apollo cache
-          return prev;
-        }
-        // insert into edges if it's new, update count and page info
-
-        const pageInfo = {
-          ...prev.executions.pageInfo,
-          startCursor: newEdge.cursor,
-          hasPreviousPage: false,
-        };
+        const execution = useFragment(ExecutionContentType, subscriptionData.data.executionsChanged);
         return {
-          executions: {
-            ...prev.executions,
-            totalCount: (prev.executions.totalCount ?? 0) + 1,
-            edges: [newEdge, ...prev.executions.edges],
-            pageInfo,
-          },
+          executions: getUpdatedConnectionQuery({ ...execution, descendants: [] }, prev.executions),
         };
       },
     });

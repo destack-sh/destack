@@ -12,7 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models, runtime
-from bench.api.auth import can_view_project, can_write_project
+from bench.api.auth import check_can_view_project_by_id, check_can_write_project
 from bench.api.execution import ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.api.util import asafe_mutation, asafe_subscription
@@ -22,7 +22,7 @@ from bench.models import mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import request, subscribe
 from bench.msg.messages import (
-    ModuleRuntimeChangedPayload,
+    InterpModuleChangedPayload,
     RepInterpModulePayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
@@ -196,44 +196,12 @@ class RunState:
     error_details: Optional[JSON]
 
 
-def check_can_write_project(user: models.User, project_version_id: UUID):
-    project_version = (
-        models.ProjectVersion.objects.all()
-        .prefetch_related("project", "project__user", "project__organization")
-        .get(id=project_version_id)
-    )
-    if not can_write_project(user, project_version.project):
-        raise PermissionDenied("You don't have permission to write to this project.")
-
-
-def check_can_view_project(
-    user: models.User, project_version_id: UUID = None, project_id: UUID = None
-):
-    if not project_version_id and not project_id:
-        raise ValueError("must set project_version_id or project_id")
-
-    if project_version_id is None:
-        project = models.Project.objects.prefetch_related("user", "organization").get(id=project_id)
-    else:
-        project_version = (
-            models.ProjectVersion.objects.all()
-            .prefetch_related("project", "project__user", "project__organization")
-            .get(id=project_version_id)
-        )
-        project = project_version.project
-        if project_id is not None and project_id != project.id:
-            raise ValueError("project_id must match project_version_id")
-    if not can_view_project(user, project):
-        raise PermissionDenied("You don't have permission to view this project.")
-
-
 @gql.type
 class ModuleRuntimeMutation:
     @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
-        await sync_to_async(check_can_write_project)(user, project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version_id)
 
         req = ReqModuleBuildPayload(
             module_id=project_version_id, buildable_id=input.buildable_id.node_id
@@ -249,7 +217,7 @@ class ModuleRuntimeMutation:
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         # TODO @Auth: should run be a guest-level permission for projects?
-        await sync_to_async(check_can_write_project)(user, project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version_id)
         # :SingleOwnedDeployment
         deployment_id = (
             await models.Deployment.objects.filter(
@@ -300,7 +268,9 @@ class InterpSubscription:
             user=user,
         )
         try:
-            await sync_to_async(check_can_view_project)(user, project_version_id=project_version_id)
+            await sync_to_async(check_can_view_project_by_id)(
+                user, project_version_id=project_version_id
+            )
         except PermissionDenied:
             log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
             return
@@ -308,7 +278,7 @@ class InterpSubscription:
         log.info("interp.subscribe")
         interp_sub = await subscribe(
             f"{NMessageType.INTERP_MODULE_CHANGED}.{project_version_id}",
-            payload_t=ModuleRuntimeChangedPayload,
+            payload_t=InterpModuleChangedPayload,
         )
 
         # get initial runtime

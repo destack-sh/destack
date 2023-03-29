@@ -15,11 +15,11 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.auth import CanViewProject
-from bench.api.build import BuildSubscription
+from bench.api.build import BuildQuery, BuildSubscription
 from bench.api.deployment import DeploymentMutation
-from bench.api.evaluation import EvaluationSubscription
+from bench.api.evaluation import EvaluationQuery, EvaluationSubscription
 from bench.api.execution import ExecutionQuery, ExecutionSubscription
-from bench.api.job import JobSubscription
+from bench.api.job import JobQuery, JobSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
@@ -119,7 +119,7 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 
 @strawberry.type
-class Query(ExecutionQuery):
+class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()

@@ -20,7 +20,7 @@ import SettingsPopover from "@/components/SettingsPopover.vue";
 import SharePopover from "@/components/SharePopover.vue";
 import { useNow, useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { JobStatus, JobType, ProjectVisibility, type InterpJob, type InterpSymbol } from "@/gql/graphql";
+import { JobStatus, JobType, ProjectVisibility, type Job } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import {
   useEditorMigrations,
@@ -29,10 +29,11 @@ import {
   type FileEditor,
   type ViewId,
 } from "@/state/editor";
-import { FileHeaderType, ProjectHeaderType } from "@/state/fragments";
+import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import { useCurrentJobs } from "@/state/jobs";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { symbolOf, useCurrentModuleRuntime, useVisibleErrors } from "@/state/runtime";
+import { useCurrentInterpModule, useVisibleErrors } from "@/state/runtime";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
@@ -128,13 +129,14 @@ const {
 );
 const projectLoaded = computed(() => !!projectResult.value?.projectBySlug);
 const project = computed(() => useFragment(ProjectHeaderType, projectResult.value?.projectBySlug));
+const projectHead = computed(() => useFragment(ProjectVersionHeaderType, project.value?.head));
 
 // default version to view = head (can be overridden by URL?)
 const versionToViewId = computed(() => {
   if (props.version != null) {
     return props.version;
   } else {
-    return project.value?.head.id;
+    return projectHead.value?.id;
   }
 });
 
@@ -192,7 +194,7 @@ const version = computed(() => versionResult.value?.projectVersion);
 const versionLoaded = computed(() => !!version.value);
 watch(versionError, () => {
   if (versionError.value != null) {
-    const atHead = version.value?.id == project.value?.head.id;
+    const atHead = version.value?.id == projectHead.value?.id;
     notifications.show({
       kind: "error",
       type: "version.loadFailed",
@@ -216,13 +218,13 @@ const files = computed(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
-const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentModuleRuntime();
+const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentInterpModule();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
 // get currently running jobs
 const now = useNow(100);
-const { jobs } = useCurrentModuleRuntime();
+const { jobs } = useCurrentJobs();
 const activeJobs = computed(() =>
   jobs.value?.filter(
     (job) =>
@@ -232,7 +234,7 @@ const activeJobs = computed(() =>
   )
 );
 
-function getJobTitle(job: InterpJob) {
+function getJobTitle(job: Job) {
   if (job.type == JobType.Interp || job.type == JobType.Lint) {
     return "Analyzing";
   } else if (job.type == JobType.Build) {
@@ -243,14 +245,6 @@ function getJobTitle(job: InterpJob) {
     return "Evaluating";
   }
 }
-function getJobSubject(job: InterpJob): InterpSymbol | undefined {
-  if (job.symbol?.id == null) {
-    return undefined;
-  } else {
-    return symbolOf(job.symbol?.id);
-  }
-}
-
 // sync editor paths
 // TODO @Cleanup: move sync editor paths into EditorInterface
 watchEffect(() => {
@@ -322,7 +316,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   return false;
 });
 
-const runtime = useCurrentModuleRuntime();
+const runtime = useCurrentInterpModule();
 const visibleErrors = useVisibleErrors();
 
 // show notification if disconnected/reconnected
@@ -394,7 +388,7 @@ watchEffect(() => {
   editor.readonly =
     !versionLoaded.value ||
     migrating.value ||
-    versionToViewId.value != project.value?.head.id ||
+    versionToViewId.value != projectHead.value?.id ||
     !project.value?.canWrite ||
     version.value?.committed == true;
 });
@@ -478,7 +472,7 @@ onBeforeUnmount(() => {
           <!-- Version info (if not at head) -->
           <FadeTransition>
             <div
-              v-if="versionToViewId != project?.head?.id && versionLoaded"
+              v-if="versionToViewId != projectHead?.id && versionLoaded"
               class="ml-1 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-600 px-3 py-1 text-sm text-white"
             >
               <span class="relative">
@@ -560,11 +554,7 @@ onBeforeUnmount(() => {
         <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
           <FadeTransition>
             <span v-for="job in activeJobs" :key="job.id" class="text-sm text-gray-500">
-              {{ getJobTitle(job as InterpJob) }}
-              <span v-if="getJobSubject(job as InterpJob) != null">
-                {{ getJobSubject(job as InterpJob)?.name }}
-              </span>
-              ...
+              {{ getJobTitle(job as Job) }}
             </span>
           </FadeTransition>
         </div>

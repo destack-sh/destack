@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional
 
+import structlog
 from django.db.models import Q
 from strawberry import auto, lazy
 from strawberry.types import Info
@@ -14,6 +15,8 @@ from bench.api.util import safe_mutation
 if TYPE_CHECKING:
     from bench.api.organization import OrganizationInvite
     from bench.api.user import User
+
+logger = structlog.get_logger(__name__)
 
 NotificationType = gql.enum(models.NotificationType)
 NotificationStatus = gql.enum(models.NotificationStatus)

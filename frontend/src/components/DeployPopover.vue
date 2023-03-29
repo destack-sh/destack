@@ -9,7 +9,7 @@ import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { fileOf, symbolsLike, useCurrentModuleRuntime } from "@/state/runtime";
+import { fileOf, symbolsLike, useCurrentInterpModule } from "@/state/runtime";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { CheckIcon } from "@heroicons/vue/20/solid";
 import { CloudArrowUpIcon, CloudIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
@@ -58,7 +58,7 @@ const isDeployed = computed(() => deployments.value.find((d) => d.type == Deploy
 const operations = useOperations();
 const notifications = useNotifications();
 
-const runtime = useCurrentModuleRuntime();
+const runtime = useCurrentInterpModule();
 const canDeploy = computed(
   () =>
     !isDeployed.value && project.value?.canWrite && runtime.errors?.value != null && runtime.errors.value.length == 0

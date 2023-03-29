@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import { useEditorState } from "@/state/editor";
-import { useCurrentModuleRuntime } from "@/state/runtime";
+import { useCurrentInterpModule } from "@/state/runtime";
 import { computed, type Ref } from "vue";
 
 const editor = useEditorState();
-const runtime = useCurrentModuleRuntime();
+const runtime = useCurrentInterpModule();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 
 type Metric = {

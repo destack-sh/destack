@@ -593,6 +593,7 @@ def rmap_type_nodes(
 
 
 def rmap_job(job: JobData) -> models.Job:
+    now = datetime.utcnow().replace(tzinfo=pytz.utc)
     return models.Job(
         id=job.id,
         type=job.type,
@@ -600,6 +601,10 @@ def rmap_job(job: JobData) -> models.Job:
         project_id=job.project_id,
         project_version_id=job.project_version_id,
         deployment_id=job.deployment_id,
+        started_at=job.started_at,
+        terminated_at=job.terminated_at,
+        created_at=now,
+        updated_at=now,
     )
 
 

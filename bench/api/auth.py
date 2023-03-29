@@ -3,6 +3,7 @@ import dataclasses
 import functools
 import random
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Self, Union, cast
+from uuid import UUID
 
 import strawberry
 import structlog
@@ -260,11 +261,42 @@ def check_can_view_project(info: Info, obj: Any) -> None:
         raise PermissionDenied("User cannot view this.")
 
 
+def check_can_view_project_by_id(
+    user: models.User, project_version_id: UUID = None, project_id: UUID = None
+):
+    if not project_version_id and not project_id:
+        raise ValueError("must set project_version_id or project_id")
+
+    if project_version_id is None:
+        project = models.Project.objects.prefetch_related("user", "organization").get(id=project_id)
+    else:
+        project_version = (
+            models.ProjectVersion.objects.all()
+            .prefetch_related("project", "project__user", "project__organization")
+            .get(id=project_version_id)
+        )
+        project = project_version.project
+        if project_id is not None and project_id != project.id:
+            raise ValueError("project_id must match project_version_id")
+    if not can_view_project(user, project):
+        raise PermissionDenied("You don't have permission to view this project.")
+
+
 def check_can_write_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot write to the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
     if not can_write_project(user, obj):
         raise PermissionDenied("User cannot write to this.")
+
+
+def check_can_write_project_by_id(user: models.User, project_version_id: UUID):
+    project_version = (
+        models.ProjectVersion.objects.all()
+        .prefetch_related("project", "project__user", "project__organization")
+        .get(id=project_version_id)
+    )
+    if not can_write_project(user, project_version.project):
+        raise PermissionDenied("You don't have permission to write to this project.")
 
 
 @strawberry.schema_directive(
@@ -303,7 +335,7 @@ class CanViewProject(HasCustomPermDirective):
         combined_filter = Q(*filters, _connector=Q.OR)
         qs = qs.filter(combined_filter)
         # distinct because of organization joins
-        # there's probably better way to do this
+        # there's probably better (and more performant?) way to do this
         return qs.distinct()
 
 

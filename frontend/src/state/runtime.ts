@@ -6,6 +6,7 @@ import { useOperations } from "@/state/operations";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
+import { DateTime } from "luxon";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
@@ -49,6 +50,30 @@ export const InterpModuleContentType = graphql(/* GraphQL */ `
         ...InterpSymbolContent
       }
     }
+    dependencies {
+      id
+      name
+      files {
+        id
+        path
+        symbols {
+          ...InterpSymbolContent
+        }
+      }
+    }
+    errors {
+      ...InterpErrorContent
+    }
+    staleSymbols {
+      id
+      name
+      type
+      symbolType
+      modifier
+      parentId
+      rootTypeTag
+      generated
+    }
   }
 `);
 
@@ -59,16 +84,6 @@ export const InterpErrorContentType = graphql(/* GraphQL */ `
     symbol {
       ...InterpSymbolContent
     }
-  }
-`);
-
-export const InterpJobContentType = graphql(/* GraphQL */ `
-  fragment InterpJobContent on InterpJob {
-    id
-    type
-    status
-    startedAt
-    terminatedAt
   }
 `);
 
@@ -92,7 +107,7 @@ function indexModule(module: InterpModule): ModuleIndex {
 }
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
-function _useModuleRuntime(projectVersionId: Ref<string | null>) {
+function _useInterpModule(projectVersionId: Ref<string | null>) {
   const {
     result: fetchedRuntime,
     loading,
@@ -102,31 +117,9 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     onResult: runtimeUpdated,
   } = useSubscription(
     graphql(/* GraphQL */ `
-      subscription moduleRuntimeChanged($projectVersionId: GlobalID!) {
-        moduleRuntimeChanged(projectVersionId: $projectVersionId) {
-          updatedAt
-          module {
-            ...InterpModuleContent
-          }
-          dependencies {
-            ...InterpModuleContent
-          }
-          errors {
-            ...InterpErrorContent
-          }
-          jobs {
-            ...InterpJobContent
-          }
-          staleSymbols {
-            id
-            name
-            type
-            symbolType
-            modifier
-            parentId
-            rootTypeTag
-            generated
-          }
+      subscription interpChanged($projectVersionId: GlobalID!) {
+        interpChanged(projectVersionId: $projectVersionId) {
+          ...InterpModuleContent
         }
       }
     `),
@@ -158,21 +151,14 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     () => WS_CONNECTED.value && fetchedRuntime.value && !error.value && !loading.value && projectVersionId.value != null
   );
   const lastUpdated: Ref<string | null> = ref(null);
-  runtimeUpdated(() => (lastUpdated.value = runtime.value?.moduleRuntimeChanged.updatedAt));
+  runtimeUpdated(() => (lastUpdated.value = DateTime.now().toISO()));
 
-  const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.moduleRuntimeChanged.module));
+  const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.interpChanged));
   const path = computed(() => module.value?.name);
   const name = computed(() => module.value?.name.split(".").slice(-1)[0]);
-  const dependencies = computed(() =>
-    runtime.value?.moduleRuntimeChanged.dependencies.map((m) => useFragment(InterpModuleContentType, m))
-  );
-  const errors = computed(() =>
-    runtime.value?.moduleRuntimeChanged.errors.map((e) => useFragment(InterpErrorContentType, e))
-  );
-  const jobs = computed(() =>
-    runtime.value?.moduleRuntimeChanged.jobs.map((j) => useFragment(InterpJobContentType, j))
-  );
-  const staleSymbols = computed(() => runtime.value?.moduleRuntimeChanged.staleSymbols);
+  const dependencies = computed(() => module.value?.dependencies.map((m) => useFragment(InterpModuleContentType, m)));
+  const errors = computed(() => module.value?.errors.map((e) => useFragment(InterpErrorContentType, e)));
+  const staleSymbols = computed(() => module.value?.staleSymbols);
 
   const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
     if (module.value) {
@@ -192,30 +178,29 @@ function _useModuleRuntime(projectVersionId: Ref<string | null>) {
     name,
     dependencies,
     errors,
-    jobs,
     staleSymbols,
     moduleIndex,
     dependenciesIndex,
   };
 }
 
-function _useCurrentModuleRuntime(projectVersionId?: Ref<string | null>) {
+function _useCurrentInterpModule(projectVersionId?: Ref<string | null>) {
   const editor = useEditorState();
   const activeVersionId = computed(() =>
     projectVersionId?.value != null ? projectVersionId.value : editor.currentProjectVersionId
   );
-  return _useModuleRuntime(activeVersionId);
+  return _useInterpModule(activeVersionId);
 }
 
-export const useCurrentModuleRuntime = createSharedComposable(_useCurrentModuleRuntime);
+export const useCurrentInterpModule = createSharedComposable(_useCurrentInterpModule);
 
 export function fileOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
-  const { moduleIndex } = useCurrentModuleRuntime(projectVersionId);
+  const { moduleIndex } = useCurrentInterpModule(projectVersionId);
   return moduleIndex.value?.fileByStatementId[symbol.id];
 }
 
 export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && symbol.id in idx.fileByStatementId) {
       return {
@@ -230,7 +215,7 @@ export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: R
 
 export function symbolOf(id: string, projectVersionId?: Ref<string | null>) {
   // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && id in idx.symbolsById) {
       return idx.symbolsById[id];
@@ -252,12 +237,12 @@ export function relativePath(from_: InterpSymbol, to_: InterpSymbol, projectVers
 }
 
 export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Ref<string | null>) {
-  const { errors } = useCurrentModuleRuntime(projectVersionId);
+  const { errors } = useCurrentInterpModule(projectVersionId);
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
 export function isSymbolStale(symbol: Ref<{ id: string } | undefined>, projectVersionId?: Ref<string | null>) {
-  const { staleSymbols } = useCurrentModuleRuntime(projectVersionId);
+  const { staleSymbols } = useCurrentInterpModule(projectVersionId);
   return computed(() => (symbol.value == null ? undefined : staleSymbols.value?.some((s) => s.id == symbol.value.id)));
 }
 
@@ -270,7 +255,7 @@ export type SymbolFilter = {
 };
 export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVersionId?: Ref<string | null>) {
   const filterRef = isRef(filter) ? filter : ref(filter);
-  const { moduleIndex, dependenciesIndex } = useCurrentModuleRuntime(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
@@ -305,7 +290,7 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
 }
 
 export function useVisibleErrors() {
-  const runtime = useCurrentModuleRuntime();
+  const runtime = useCurrentInterpModule();
   const editor = useEditorState();
   return computed(() =>
     (runtime.errors.value ?? [])
@@ -353,6 +338,7 @@ export function useSymbolOps() {
   }
 
   async function evaluate(symbol: { id: string; name?: string | null }) {
+    // TODO @Feature: support manual evaluation
     const ret = await operations.runtime.evaluate(symbol.id);
     if (ret?.data?.evaluate.__typename != "EvaluateState" || !ret.data.evaluate.success) {
       notifications.show({
