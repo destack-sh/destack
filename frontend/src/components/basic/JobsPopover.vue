@@ -15,21 +15,31 @@ const props = defineProps<{
 
 const now = useNow(100);
 const { getTimeFromNowString } = useTimeFromNow();
-const { jobs, j, totalCount } = useJobs(
+const { jobs: liveJobs, totalCount } = useJobs(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     statusIn: ref(null),
   },
-  { live: true }
+  { live: true, first: 20 }
 );
+// recent live jobs does not include potentially older still running jobs
+// so we load them in a separate query on initial load (not needed afterwards since it's live)
+const { jobs: initialActiveJobs } = useJobs(
+  {
+    projectId: toRef(props, "projectId"),
+    projectVersionId: toRef(props, "projectVersionId"),
+    statusIn: ref([JobStatus.Running, JobStatus.Cancelling]),
+  },
+  { live: false, first: 10 }
+);
+const allJobs = computed(() => [...(initialActiveJobs.value ?? []), ...(liveJobs.value ?? [])]);
 const activeJobs = computed(() =>
-  jobs.value
+  allJobs.value
     ?.filter(
       (job) =>
         job.status == JobStatus.Running &&
-        job.startedAt != null &&
-        now.value.diff(DateTime.fromISO(job.startedAt)).as("milliseconds") > 500
+        (job.startedAt == null || now.value.diff(DateTime.fromISO(job.startedAt)).as("milliseconds") > 500)
     )
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 );
@@ -93,7 +103,7 @@ const JOB_NOUNS = {
         </div>
         <!-- Recent jobs -->
         <ul class="mt-2 flex w-full flex-col gap-2">
-          <li class="flex w-full flex-row justify-between" v-for="job in jobs" :key="job.id">
+          <li class="flex w-full flex-row justify-between" v-for="job in allJobs" :key="job.id">
             <!-- Job info -->
             <span>
               {{ JOB_NOUNS[job.type] }}
