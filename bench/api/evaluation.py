@@ -33,7 +33,7 @@ class EvaluationResult(gql.Node):
 @gql.type
 class EvaluationQuery:
     @gql.connection(directives=[CanViewProject()])
-    async def evaluation_results(
+    def evaluations(
         self,
         info,
         project_id: GlobalID,

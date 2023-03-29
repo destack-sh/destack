@@ -2,7 +2,7 @@
 import { useNavigationGrid } from "@/components/cells/grid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { SYMBOL_TYPE_KEYWORD, useEditorState, type ViewId } from "@/state/editor";
-import { useCurrentModuleRuntime, useSymbolNavigation } from "@/state/runtime";
+import { useCurrentInterpModule, useSymbolNavigation } from "@/state/runtime";
 import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllSymbols?: boolean }>();
@@ -11,7 +11,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
 }>();
 
-const runtime = useCurrentModuleRuntime();
+const runtime = useCurrentInterpModule();
 const editor = useEditorState();
 const nav = useSymbolNavigation();
 

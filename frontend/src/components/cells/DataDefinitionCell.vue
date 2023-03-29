@@ -112,7 +112,7 @@ function insertRecord(belowRecordId?: string) {
     const record = context.records.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
-  operations.symbol.createRecord(newDatasetRecordId(), context.statement.value.id, orderKey, {});
+  operations.symbol.createRecord(newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
   nextTick(() => recordGrid.focus(-1, columnsInOrder.value[0]));
 }
 

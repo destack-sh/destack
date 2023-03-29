@@ -25,10 +25,10 @@ from bench.msg.core import (
 )
 from bench.msg.messages import (
     ExecutionChangedPayload,
+    InterpModuleChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
     ModuleRunErrorType,
-    ModuleRuntimeChangedPayload,
     RepInterpModulePayload,
     RepModuleBuildPayload,
     RepModuleRunPayload,
@@ -752,7 +752,7 @@ class Worker:
 
     async def notify_module_changed(self, module_worker: ModuleWorker):
         """Publishes the new module runtime"""
-        change = make_full_change_payload(module_worker, ModuleRuntimeChangedPayload)
+        change = make_full_change_payload(module_worker, InterpModuleChangedPayload)
         await publish(NMessageType.INTERP_MODULE_CHANGED, change)
 
     async def write_evaluations(

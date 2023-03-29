@@ -86,6 +86,47 @@ export enum AccessTokenStatus {
   Revoked = "REVOKED",
 }
 
+export type BuildCandidate = Node & {
+  __typename?: "BuildCandidate";
+  build: Statement;
+  createdAt: Scalars["DateTime"];
+  file: File;
+  id: Scalars["GlobalID"];
+  project: Project;
+  projectVersion: ProjectVersion;
+  status: BuildCandidateStatus;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** A connection to a list of items. */
+export type BuildCandidateConnection = {
+  __typename?: "BuildCandidateConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<BuildCandidateEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type BuildCandidateEdge = {
+  __typename?: "BuildCandidateEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: BuildCandidate;
+};
+
+export enum BuildCandidateStatus {
+  Building = "Building",
+  Cancelled = "Cancelled",
+  CompletedAbandoned = "CompletedAbandoned",
+  CompletedWon = "CompletedWon",
+  Evaluating = "Evaluating",
+  Planned = "Planned",
+}
+
 export type BuildInput = {
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -260,6 +301,54 @@ export enum ErrorType {
   UnknownToken = "UNKNOWN_TOKEN",
 }
 
+export enum EvaluationKind {
+  Evaluation = "EVALUATION",
+  Lint = "LINT",
+}
+
+export type EvaluationResult = Node & {
+  __typename?: "EvaluationResult";
+  aggregatedMetrics: Scalars["JSON"];
+  createdAt: Scalars["DateTime"];
+  file: File;
+  id: Scalars["GlobalID"];
+  kind: EvaluationKind;
+  project: Project;
+  projectVersion: ProjectVersion;
+  record: DatasetRecord;
+  scope: EvaluationScope;
+  selfMetrics?: Maybe<Scalars["JSON"]>;
+  statement: Statement;
+  typeNode: SimpleTypeNode;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** A connection to a list of items. */
+export type EvaluationResultConnection = {
+  __typename?: "EvaluationResultConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<EvaluationResultEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type EvaluationResultEdge = {
+  __typename?: "EvaluationResultEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: EvaluationResult;
+};
+
+export enum EvaluationScope {
+  Build = "BUILD",
+  Instruction = "INSTRUCTION",
+  Module = "MODULE",
+}
+
 export type Execution = Node & {
   __typename?: "Execution";
   accessToken?: Maybe<AccessToken>;
@@ -418,20 +507,14 @@ export type InterpFile = {
   symbols: Array<InterpSymbol>;
 };
 
-export type InterpJob = {
-  __typename?: "InterpJob";
-  id: Scalars["GlobalID"];
-  startedAt?: Maybe<Scalars["DateTime"]>;
-  status: JobStatus;
-  terminatedAt?: Maybe<Scalars["DateTime"]>;
-  type: JobType;
-};
-
 export type InterpModule = {
   __typename?: "InterpModule";
+  dependencies: Array<InterpModule>;
+  errors: Array<InterpError>;
   files: Array<InterpFile>;
   id: Scalars["GlobalID"];
   name: Scalars["String"];
+  staleSymbols: Array<InterpSymbol>;
 };
 
 /**
@@ -475,6 +558,42 @@ export type InterpSymbol = SimplyTyped & {
   typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
 
+export type Job = Node & {
+  __typename?: "Job";
+  buildCandidate?: Maybe<BuildCandidate>;
+  createdAt: Scalars["DateTime"];
+  deployment: Deployment;
+  id: Scalars["GlobalID"];
+  parent?: Maybe<Job>;
+  project: Project;
+  projectVersion: ProjectVersion;
+  startedAt?: Maybe<Scalars["DateTime"]>;
+  status: JobStatus;
+  terminatedAt?: Maybe<Scalars["DateTime"]>;
+  type: JobType;
+  updatedAt: Scalars["DateTime"];
+};
+
+/** A connection to a list of items. */
+export type JobConnection = {
+  __typename?: "JobConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<JobEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type JobEdge = {
+  __typename?: "JobEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Job;
+};
+
 export enum JobStatus {
   Cancelled = "Cancelled",
   Cancelling = "Cancelling",
@@ -490,7 +609,6 @@ export enum JobType {
   Generate = "GENERATE",
   Interp = "INTERP",
   Lint = "LINT",
-  Run = "RUN",
 }
 
 export enum ModuleRunErrorType {
@@ -499,16 +617,6 @@ export enum ModuleRunErrorType {
   NotReady = "NOT_READY",
   RuntimeError = "RUNTIME_ERROR",
 }
-
-export type ModuleRuntime = {
-  __typename?: "ModuleRuntime";
-  dependencies: Array<InterpModule>;
-  errors: Array<InterpError>;
-  jobs: Array<InterpJob>;
-  module: InterpModule;
-  staleSymbols: Array<InterpSymbol>;
-  updatedAt: Scalars["DateTime"];
-};
 
 export type Mutation = {
   __typename?: "Mutation";
@@ -1277,9 +1385,12 @@ export enum ProjectVisibility {
 
 export type Query = {
   __typename?: "Query";
+  buildCandidates: BuildCandidateConnection;
+  evaluations: EvaluationResultConnection;
   executions: ExecutionConnection;
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
+  jobs: JobConnection;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
@@ -1294,6 +1405,30 @@ export type Query = {
   user?: Maybe<User>;
   userBySlug?: Maybe<User>;
   users: UserConnection;
+};
+
+export type QueryBuildCandidatesArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  statusIn?: InputMaybe<Array<BuildCandidateStatus>>;
+};
+
+export type QueryEvaluationsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  includeAncestorVersions?: Scalars["Boolean"];
+  kind?: InputMaybe<EvaluationKind>;
+  last?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  scope?: InputMaybe<EvaluationScope>;
+  systemId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type QueryExecutionsArgs = {
@@ -1320,6 +1455,17 @@ export type QueryFeaturedProjectsArgs = {
 
 export type QueryFileArgs = {
   id: Scalars["GlobalID"];
+};
+
+export type QueryJobsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  statusIn?: InputMaybe<Array<JobStatus>>;
+  typeIn?: InputMaybe<Array<JobType>>;
 };
 
 export type QueryOrganizationArgs = {
@@ -1732,11 +1878,19 @@ export type StatementUpdateLanguageInput = {
 
 export type Subscription = {
   __typename?: "Subscription";
-  moduleExecutionChanged: Execution;
-  moduleRuntimeChanged: ModuleRuntime;
+  buildCandidateChanged: BuildCandidate;
+  executionsChanged: Execution;
+  interpChanged: InterpModule;
+  jobsChanged: Job;
 };
 
-export type SubscriptionModuleExecutionChangedArgs = {
+export type SubscriptionBuildCandidateChangedArgs = {
+  buildId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionExecutionsChangedArgs = {
   buildIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   includeAncestorVersions?: Scalars["Boolean"];
@@ -1747,8 +1901,14 @@ export type SubscriptionModuleExecutionChangedArgs = {
   taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
-export type SubscriptionModuleRuntimeChangedArgs = {
+export type SubscriptionInterpChangedArgs = {
   projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionJobsChangedArgs = {
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  typeIn?: InputMaybe<Array<JobType>>;
 };
 
 /** The type of symbol content. */
@@ -2689,7 +2849,7 @@ export type ExecutionsQuery = {
   };
 };
 
-export type ModuleExecutionChangedSubscriptionVariables = Exact<{
+export type ExecutionsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
@@ -2699,9 +2859,9 @@ export type ModuleExecutionChangedSubscriptionVariables = Exact<{
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type ModuleExecutionChangedSubscription = {
+export type ExecutionsChangedSubscription = {
   __typename?: "Subscription";
-  moduleExecutionChanged: { __typename?: "Execution" } & {
+  executionsChanged: { __typename?: "Execution" } & {
     " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment };
   };
 };
@@ -2853,6 +3013,48 @@ export type StatementContentFragment = {
     }>;
   };
 } & { " $fragmentName"?: "StatementContentFragment" };
+
+export type JobContentFragment = {
+  __typename?: "Job";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  startedAt?: any | null;
+  terminatedAt?: any | null;
+  status: JobStatus;
+  type: JobType;
+  projectVersion: { __typename?: "ProjectVersion"; id: any };
+} & { " $fragmentName"?: "JobContentFragment" };
+
+export type JobsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  statusIn?: InputMaybe<Array<JobStatus> | JobStatus>;
+  typeIn?: InputMaybe<Array<JobType> | JobType>;
+}>;
+
+export type JobsQuery = {
+  __typename?: "Query";
+  jobs: {
+    __typename?: "JobConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "JobEdge";
+      node: { __typename?: "Job" } & { " $fragmentRefs"?: { JobContentFragment: JobContentFragment } };
+    }>;
+  };
+};
+
+export type JobsChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  typeIn?: InputMaybe<Array<JobType> | JobType>;
+}>;
+
+export type JobsChangedSubscription = {
+  __typename?: "Subscription";
+  jobsChanged: { __typename?: "Job" } & { " $fragmentRefs"?: { JobContentFragment: JobContentFragment } };
+};
 
 export type NewNotificationsQueryVariables = Exact<{
   after?: InputMaybe<Scalars["String"]>;
@@ -3726,6 +3928,35 @@ export type InterpModuleContentFragment = {
       }
     >;
   }>;
+  dependencies: Array<{
+    __typename?: "InterpModule";
+    id: any;
+    name: string;
+    files: Array<{
+      __typename?: "InterpFile";
+      id: any;
+      path: string;
+      symbols: Array<
+        { __typename?: "InterpSymbol" } & {
+          " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
+        }
+      >;
+    }>;
+  }>;
+  errors: Array<
+    { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
+  >;
+  staleSymbols: Array<{
+    __typename?: "InterpSymbol";
+    id: any;
+    name?: string | null;
+    type: StatementType;
+    symbolType?: SymbolType | null;
+    modifier?: StatementModifier | null;
+    parentId?: any | null;
+    rootTypeTag?: TypeTag | null;
+    generated: boolean;
+  }>;
 } & { " $fragmentName"?: "InterpModuleContentFragment" };
 
 export type InterpErrorContentFragment = {
@@ -3739,49 +3970,14 @@ export type InterpErrorContentFragment = {
     | null;
 } & { " $fragmentName"?: "InterpErrorContentFragment" };
 
-export type InterpJobContentFragment = {
-  __typename?: "InterpJob";
-  id: any;
-  type: JobType;
-  status: JobStatus;
-  startedAt?: any | null;
-  terminatedAt?: any | null;
-} & { " $fragmentName"?: "InterpJobContentFragment" };
-
-export type ModuleRuntimeChangedSubscriptionVariables = Exact<{
+export type InterpChangedSubscriptionVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type ModuleRuntimeChangedSubscription = {
+export type InterpChangedSubscription = {
   __typename?: "Subscription";
-  moduleRuntimeChanged: {
-    __typename?: "ModuleRuntime";
-    updatedAt: any;
-    module: { __typename?: "InterpModule" } & {
-      " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
-    };
-    dependencies: Array<
-      { __typename?: "InterpModule" } & {
-        " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
-      }
-    >;
-    errors: Array<
-      { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
-    >;
-    jobs: Array<
-      { __typename?: "InterpJob" } & { " $fragmentRefs"?: { InterpJobContentFragment: InterpJobContentFragment } }
-    >;
-    staleSymbols: Array<{
-      __typename?: "InterpSymbol";
-      id: any;
-      name?: string | null;
-      type: StatementType;
-      symbolType?: SymbolType | null;
-      modifier?: StatementModifier | null;
-      parentId?: any | null;
-      rootTypeTag?: TypeTag | null;
-      generated: boolean;
-    }>;
+  interpChanged: { __typename?: "InterpModule" } & {
+    " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
   };
 };
 
@@ -4321,6 +4517,36 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
+export const JobContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "JobContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Job" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<JobContentFragment, unknown>;
 export const InterpSymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -4371,6 +4597,31 @@ export const InterpSymbolContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpSymbolContentFragment, unknown>;
+export const InterpErrorContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpErrorContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpError" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "symbol" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpErrorContentFragment, unknown>;
 export const InterpModuleContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -4402,56 +4653,68 @@ export const InterpModuleContentFragmentDoc = {
               ],
             },
           },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<InterpModuleContentFragment, unknown>;
-export const InterpErrorContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InterpErrorContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpError" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "message" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "symbol" },
+            name: { kind: "Name", value: "dependencies" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "files" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "symbols" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "InterpSymbolContent" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errors" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpErrorContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "staleSymbols" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                { kind: "Field", name: { kind: "Name", value: "modifier" } },
+                { kind: "Field", name: { kind: "Name", value: "parentId" } },
+                { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                { kind: "Field", name: { kind: "Name", value: "generated" } },
+              ],
             },
           },
         ],
       },
     },
   ],
-} as unknown as DocumentNode<InterpErrorContentFragment, unknown>;
-export const InterpJobContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InterpJobContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpJob" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "status" } },
-          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<InterpJobContentFragment, unknown>;
+} as unknown as DocumentNode<InterpModuleContentFragment, unknown>;
 export const ProjectDeploymentsDocument = {
   kind: "Document",
   definitions: [
@@ -6904,13 +7167,13 @@ export const ExecutionsDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ExecutionsQuery, ExecutionsQueryVariables>;
-export const ModuleExecutionChangedDocument = {
+export const ExecutionsChangedDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "subscription",
-      name: { kind: "Name", value: "moduleExecutionChanged" },
+      name: { kind: "Name", value: "executionsChanged" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -6962,7 +7225,7 @@ export const ModuleExecutionChangedDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "moduleExecutionChanged" },
+            name: { kind: "Name", value: "executionsChanged" },
             arguments: [
               {
                 kind: "Argument",
@@ -7010,7 +7273,161 @@ export const ModuleExecutionChangedDocument = {
     },
     ...ExecutionContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<ModuleExecutionChangedSubscription, ModuleExecutionChangedSubscriptionVariables>;
+} as unknown as DocumentNode<ExecutionsChangedSubscription, ExecutionsChangedSubscriptionVariables>;
+export const JobsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "jobs" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statusIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobStatus" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobType" } } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "jobs" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "statusIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statusIn" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "typeIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "JobContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...JobContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<JobsQuery, JobsQueryVariables>;
+export const JobsChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "jobsChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobType" } } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "jobsChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "typeIn" },
+                value: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "JobContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...JobContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<JobsChangedSubscription, JobsChangedSubscriptionVariables>;
 export const NewNotificationsDocument = {
   kind: "Document",
   definitions: [
@@ -10666,13 +11083,13 @@ export const RestoreDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreMutation, RestoreMutationVariables>;
-export const ModuleRuntimeChangedDocument = {
+export const InterpChangedDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "subscription",
-      name: { kind: "Name", value: "moduleRuntimeChanged" },
+      name: { kind: "Name", value: "interpChanged" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -10685,7 +11102,7 @@ export const ModuleRuntimeChangedDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "moduleRuntimeChanged" },
+            name: { kind: "Name", value: "interpChanged" },
             arguments: [
               {
                 kind: "Argument",
@@ -10695,58 +11112,7 @@ export const ModuleRuntimeChangedDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "module" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "dependencies" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "errors" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpErrorContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "jobs" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpJobContent" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "staleSymbols" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
-                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
-                      { kind: "Field", name: { kind: "Name", value: "parentId" } },
-                      { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
-                      { kind: "Field", name: { kind: "Name", value: "generated" } },
-                    ],
-                  },
-                },
-              ],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
             },
           },
         ],
@@ -10755,9 +11121,8 @@ export const ModuleRuntimeChangedDocument = {
     ...InterpModuleContentFragmentDoc.definitions,
     ...InterpSymbolContentFragmentDoc.definitions,
     ...InterpErrorContentFragmentDoc.definitions,
-    ...InterpJobContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<ModuleRuntimeChangedSubscription, ModuleRuntimeChangedSubscriptionVariables>;
+} as unknown as DocumentNode<InterpChangedSubscription, InterpChangedSubscriptionVariables>;
 export const SystemInfoDocument = {
   kind: "Document",
   definitions: [

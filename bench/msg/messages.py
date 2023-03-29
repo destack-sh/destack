@@ -250,14 +250,13 @@ class RepInterpModulePayload:
 
 
 @payload(NMessageType.INTERP_MODULE_CHANGED)
-class ModuleRuntimeChangedPayload:
+class InterpModuleChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID
     updated_at: datetime
     module: Optional[wire.ModuleData | None]
     dependencies: Optional[list[wire.ModuleData]]
     errors: Optional[list[wire.ErrorData]]
-    jobs: Optional[list[JobData]]
     stale_symbols: Optional[list[UUID]]
 
 
@@ -284,7 +283,7 @@ def to_topic(
         payload = cast(ModuleChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.INTERP_MODULE_CHANGED:
-        payload = cast(ModuleRuntimeChangedPayload, payload)
+        payload = cast(InterpModuleChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EXECUTION_CHANGED:
         payload = cast(ExecutionChangedPayload, payload)

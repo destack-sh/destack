@@ -3,8 +3,9 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
+import { useCurrentJobs } from "@/state/jobs";
 import { useOperations } from "@/state/operations";
-import { fileOf, isSymbolStale, symbolsLike, useCurrentModuleRuntime, useSymbolOps } from "@/state/runtime";
+import { fileOf, isSymbolStale, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
@@ -12,16 +13,17 @@ import { computed, ref } from "vue";
 // statement selection
 const operations = useOperations();
 const editor = useEditorState();
-const runtime = useCurrentModuleRuntime();
+const runtime = useCurrentInterpModule();
+const { jobs } = useCurrentJobs();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
 
 const mainSymbolStale = isSymbolStale(mainSymbol);
 const buildRunning = computed(
-  () => runtime.jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Build) != null
+  () => jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Build) != null
 );
 const evaluateRunning = computed(
-  () => runtime.jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Evaluate) != null
+  () => jobs.value?.find((job) => job.status == JobStatus.Running && job.type == JobType.Evaluate) != null
 );
 
 const canBuild = computed(
