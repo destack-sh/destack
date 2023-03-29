@@ -44,19 +44,19 @@ const activeJobs = computed(() =>
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 );
 
-const JOB_VERBS = {
-  [JobType.Interp]: "Analyzing",
+const JOB_VERBS_INF = {
+  [JobType.Interp]: "Interpreting",
   [JobType.Lint]: "Analyzing",
   [JobType.Build]: "Building",
   [JobType.Generate]: "Generating",
   [JobType.Evaluate]: "Evaluating",
 };
-const JOB_NOUNS = {
-  [JobType.Interp]: "Analysis",
-  [JobType.Lint]: "Analysis",
+const JOB_VERBS = {
+  [JobType.Interp]: "Interpret",
+  [JobType.Lint]: "Analyze",
   [JobType.Build]: "Build",
-  [JobType.Generate]: "Generation",
-  [JobType.Evaluate]: "Evaluation",
+  [JobType.Generate]: "Generate",
+  [JobType.Evaluate]: "Evaluate",
 };
 </script>
 <template>
@@ -78,7 +78,7 @@ const JOB_NOUNS = {
         </svg>
         <!-- Truncated jobs -->
         <span v-for="job in activeJobs.slice(0, 3)" :key="job.id" class="text-gray-500">
-          {{ JOB_VERBS[job.type] }}
+          {{ JOB_VERBS_INF[job.type] }}
         </span>
         <span v-if="activeJobs.length > 3">{{ activeJobs.length - 2 }} more</span>
       </div>
@@ -106,7 +106,7 @@ const JOB_NOUNS = {
           <li class="flex w-full flex-row justify-between" v-for="job in allJobs" :key="job.id">
             <!-- Job info -->
             <span>
-              {{ JOB_NOUNS[job.type] }}
+              {{ JOB_VERBS[job.type] }}
               <span class="pl-2 text-gray-500">{{ getTimeFromNowString(job.updatedAt) }}</span>
             </span>
             <!-- Status & duration -->

@@ -294,6 +294,10 @@ class ModuleWorker:
         for job in self.running_jobs.values():
             if predicate(job):
                 asyncio.create_task(cancel_job(job))
+        # mark pending jobs cancelled in queue
+        for (prio, job) in self.stateful_jobs._queue:
+            if predicate(job):
+                job.status = JobStatus.Cancelled
 
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
         job = InterpJob(
@@ -532,6 +536,8 @@ class ModuleWorker:
         """Process module jobs sequentially"""
         while True:
             _, job = await queue.get()
+            if job.status == JobStatus.Cancelled:
+                continue
             create_task = asyncio.create_task
             try:
                 job.status = JobStatus.Running

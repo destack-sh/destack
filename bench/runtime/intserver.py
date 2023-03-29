@@ -219,20 +219,7 @@ def save_jobs(jobs: list[JobData]) -> bool:
 def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
     model_evaluations: list[models.EvaluationResult] = []
     for evaluation in evaluations:
-        model_evaluation = models.EvaluationResult(
-            id=evaluation.id,
-            kind=evaluation.kind,
-            scope=evaluation.scope,
-            project_id=evaluation.project_id,
-            project_version_id=evaluation.project_version_id,
-            job_id=evaluation.job_id,
-            build_id=evaluation.build_id,
-            build_candidate_id=evaluation.build_candidate_id,
-            statement_id=evaluation.statement_id,
-            aggregated_metrics=evaluation.aggregated_metrics,
-            self_metrics=evaluation.self_metrics,
-        )
-        model_evaluations.append(model_evaluation)
+        model_evaluations.append(mapper.rmap_evaluation_result(evaluation))
     # insert (not upsert, should only be written once?)
     models.EvaluationResult.objects.bulk_create(model_evaluations)
 
@@ -240,19 +227,7 @@ def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
 def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
     model_candidates: list[models.BuildCandidate] = []
     for candidate in candidates:
-        model_candidate = models.BuildCandidate(
-            id=candidate.id,
-            build_id=candidate.build_id,
-            status=candidate.status,
-            name=candidate.name,
-            evaluation_id=candidate.evaluation_id,
-            order_key=candidate.order_key,
-            job_id=candidate.job_id,
-            file_id=candidate.file_id,
-            project_id=candidate.project_id,
-            project_version_id=candidate.project_version_id,
-        )
-        model_candidates.append(model_candidate)
+        model_candidates.append(mapper.rmap_build_candidate(candidate))
 
     # upsert candidates
     models.BuildCandidate.objects.bulk_create(

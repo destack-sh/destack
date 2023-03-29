@@ -1428,7 +1428,7 @@ export type QueryEvaluationsArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   scope?: InputMaybe<EvaluationScope>;
-  systemId?: InputMaybe<Scalars["GlobalID"]>;
+  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type QueryExecutionsArgs = {
@@ -1879,6 +1879,7 @@ export type StatementUpdateLanguageInput = {
 export type Subscription = {
   __typename?: "Subscription";
   buildCandidateChanged: BuildCandidate;
+  evaluationsChanged: EvaluationResult;
   executionsChanged: Execution;
   interpChanged: InterpModule;
   jobsChanged: Job;

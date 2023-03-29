@@ -5,23 +5,23 @@ import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
-import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { symbolOf, symbolsLike } from "@/state/runtime";
+import { buildsOf, symbolOf } from "@/state/runtime";
 import { QuestionMarkCircleIcon } from "@heroicons/vue/20/solid";
 import { ArrowDownIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, ref, type Ref } from "vue";
+import { computed, inject, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
 const outputField = computed(() => symbol.value?.typeNodes?.find((n) => n.isOutput));
-const availableBuilds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] });
+const availableBuilds = buildsOf(symbol);
 const includeAncestorVersions = ref(true);
 
 // local run interface state
@@ -34,6 +34,13 @@ const build: Ref<InterpSymbol | undefined> = computed(() => symbolOf(state.get("
 function setBuild(build?: InterpSymbol) {
   state?.set("buildId", build?.id);
 }
+// auto-set build if available and not set
+watchEffect(() => {
+  if (build.value == null && availableBuilds.value.length > 0) {
+    setBuild(availableBuilds.value[0]);
+  }
+});
+
 const arguments_: Ref<Record<string, any>> = computed(() => state.get("arguments", {}) as Record<string, any>);
 function setArgument(key: string, value: string) {
   const args = { ...arguments_.value };
