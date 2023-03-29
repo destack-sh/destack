@@ -35,3 +35,26 @@ class BuildCandidate(UUIDModel):
     evaluation = models.ForeignKey(
         "EvaluationResult", on_delete=models.CASCADE, related_name="+", null=True
     )
+    order_key = models.CharField(max_length=64)
+
+    def __str__(self):
+        return f"{self.build} {self.name} {self.status} ({self.id})"
+
+    def __repr__(self):
+        return f"<BuildCandidate {self}>"
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            # order key must be unique per build job
+            models.UniqueConstraint(
+                fields=["build", "job", "order_key"],
+                name="bench_buildcandidate_order_key_ak",
+            ),
+            # can only be one completed_won per build job
+            models.UniqueConstraint(
+                fields=["build", "job", "status"],
+                condition=models.Q(status=BuildCandidateStatus.CompletedWon),
+                name="bench_buildcandidate_completed_won_ak",
+            ),
+        ]

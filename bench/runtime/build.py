@@ -42,6 +42,7 @@ from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, t
 from bench.runtime.run import instantiate
 from bench.runtime.type import BuildCandidateStatus, EvaluationKind, EvaluationScope, Modality
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
+from bench.utils.fractional import generate_key_between, generate_n_keys_between
 from bench.utils.random import get_random_veggie_name
 
 logger = structlog.get_logger(__name__)
@@ -76,7 +77,37 @@ class BuildContext:
     build: Build
     max_candidates: int = 2  # TODO @Build: pick candidates limit settings more carefully
     candidates: list[BuildCandidate] = field(default_factory=list)
-    best_candidate: Optional[BuildCandidate] = field(default=None)
+    candidates_ranked: list[BuildCandidate] = field(default_factory=list)
+
+    @property
+    def best_candidate(self) -> Optional[BuildCandidate]:
+        return self.candidates_ranked[0] if self.candidates_ranked else None
+
+    @property
+    def worst_candidate(self) -> Optional[BuildCandidate]:
+        return self.candidates_ranked[-1] if self.candidates_ranked else None
+
+    @property
+    def worst_candidate_ok(self) -> Optional[str]:
+        return self.worst_candidate.order_key if self.worst_candidate else None
+
+    def ok_around(
+        self, candidate: BuildCandidate, weights: dict[str, float]
+    ) -> tuple[Optional[str], Optional[str]]:
+        for i, c in enumerate(self.candidates_ranked):
+            if compare_evaluations(c.evaluation, candidate.evaluation, weights) < 0:
+                if i > 0:
+                    return self.candidates_ranked[i - 1].order_key, c.order_key
+                else:
+                    return None, c.order_key
+        return None, None
+
+    def insert_ranked_candidate(self, candidate: BuildCandidate, weights: dict[str, float]):
+        # not super efficient, but #candidates is small
+        above_ok, below_ok = self.ok_around(candidate, weights)
+        candidate.order_key = generate_key_between(above_ok, below_ok)
+        self.candidates_ranked.append(candidate)
+        self.candidates_ranked.sort(key=lambda c: c.order_key)
 
     @property
     def exhausted(self) -> bool:
@@ -220,6 +251,7 @@ class BuildCandidate:
     root_tasks: list[Task]
     plan: BuildPlan
     state: BuildState
+    order_key: str
     name: str = field(default_factory=get_random_veggie_name)
     evaluation: Optional[EvaluationResult] = None
     id: UUID = field(default_factory=uuid.uuid4)
@@ -228,7 +260,7 @@ class BuildCandidate:
         self.state.track_dependency(self.ctx.build)
 
     def __str__(self):
-        return f"{self.ctx.build} {self.name} ({self.id})"
+        return f"{self.ctx.build} {self.name} {self.status} ({self.id})"
 
     def __repr__(self):
         return f"<BuildCandidate {self}>"
@@ -311,7 +343,9 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
     while not ctx.exhausted and len(plans) > 0:
         log.debug("build.step", best_candidate=ctx.best_candidate)
         tracker.step(ctx)
-        # build all candidates
+
+        # create candidates for plans
+        order_keys = generate_n_keys_between(ctx.worst_candidate_ok, None, len(plans))
         candidates = [
             BuildCandidate(
                 status=BuildCandidateStatus.Building,
@@ -319,14 +353,18 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
                 root_tasks=build.tasks,
                 plan=plan,
                 state=BuildState(build=build),
+                order_key=ok,
             )
-            for plan in plans
+            for ok, plan in zip(order_keys, plans)
         ]
         tracker.candidates_planned(candidates)
         ctx.candidates.extend(candidates)
-        ctx.best_candidate = candidates[0]  # doesn't matter
+
+        # build all candidates
         build_tasks = [do_build_candidate(candidate) for candidate in candidates]
         await asyncio.gather(*build_tasks)
+        for candidate in candidates:
+            candidate.status = BuildCandidateStatus.Evaluating
         tracker.candidates_built(candidates)
 
         # evaluate, rank and update best
@@ -336,19 +374,14 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
         )
         for evaluation, candidate in zip(evaluations, candidates):
             candidate.evaluation = evaluation
-            improvement = compare_evaluations(
-                candidate.evaluation, ctx.best_candidate.evaluation, metric_weights
-            )
-            if improvement > 0.0:
-                log.debug(
-                    "build.new_best_candidate",
-                    candidate=candidate,
-                    evaluation=candidate.evaluation,
-                    improvement=improvement,
-                )
-                ctx.best_candidate = candidate
-        # TODO @Feature: sort candidates by compare_evaluations (and assign order keys?)
-        tracker.candidates_evaluated(candidates)
+            ctx.insert_ranked_candidate(candidate, weights=metric_weights)
+        ctx.best_candidate.status = BuildCandidateStatus.CompletedWon
+        for candidate in ctx.candidates_ranked[1:]:
+            candidate.status = BuildCandidateStatus.CompletedAbandoned
+        tracker.candidates_evaluated(ctx.candidates_ranked)  # update all candidates
+
+        # make new build plans
+        plans = await generate_plans(ctx)
 
     log.info("build.complete", best_candidate=ctx.best_candidate)
     best_result = ctx.best_candidate.state.to_result()
@@ -385,6 +418,9 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     plans = []
+    if ctx.candidates:
+        return []  # TODO @Feature: multi-step build plans
+
     # we treat all explicitly given tasks as root tasks, this seems obvious, but unclear if right
     root_tasks = ctx.build.tasks
     # TODO @Broken: don't assume all models are equally capable

@@ -49,3 +49,12 @@ class EvaluationResult(UUIDModel):
     )
     self_metrics = models.JSONField(null=True, blank=True)
     aggregated_metrics = models.JSONField()
+
+    def __str__(self):
+        metrics_str = ", ".join(
+            f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
+        )
+        return f"{self.kind} {self.scope} {metrics_str}"
+
+    def __repr__(self):
+        return f"<EvaluationResult {self}>"

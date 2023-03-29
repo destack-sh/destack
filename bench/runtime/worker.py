@@ -213,6 +213,7 @@ class ModuleBuildTracker(BuildTracker):
         self.worker = worker
         self.build = build
         self.job_id = job_id
+        self.seen_evaluation_ids: set[UUID] = set()
 
     def candidates_planned(self, candidates: list[BuildCandidate]):
         write = self.worker.master.write_build_candidates(
@@ -227,8 +228,16 @@ class ModuleBuildTracker(BuildTracker):
         create_wrapped_task(write)
 
     async def _write_evaluated(self, candidates: list[BuildCandidate]):
-        evaluations = [candidate.evaluation for candidate in candidates]
-        await self.worker.master.write_evaluations(self.worker, evaluations, job_id=self.job_id)
+        # candidates are only evaluated once, but other candidates may be updated depending
+        # on another candidates' evaluation (e.g. to update it from won to abandoned)
+        evaluations = [
+            candidate.evaluation
+            for candidate in candidates
+            if candidate.evaluation.id not in self.seen_evaluation_ids
+        ]
+        self.seen_evaluation_ids.update(evaluation.id for evaluation in evaluations)
+        if evaluations:
+            await self.worker.master.write_evaluations(self.worker, evaluations, job_id=self.job_id)
         await self.worker.master.write_build_candidates(
             self.worker, self.build.id, candidates, job_id=self.job_id
         )
@@ -781,6 +790,7 @@ class Worker:
                 status=build_candidate.status,
                 name=build_candidate.name,
                 evaluation_id=build_candidate.evaluation.id if build_candidate.evaluation else None,
+                order_key=build_candidate.order_key,
                 job_id=job_id,
                 file_id=None,  # intermediate results are not written (yet)
                 project_id=module_worker.project_id,

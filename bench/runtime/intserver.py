@@ -220,6 +220,7 @@ def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
     model_evaluations: list[models.EvaluationResult] = []
     for evaluation in evaluations:
         model_evaluation = models.EvaluationResult(
+            id=evaluation.id,
             kind=evaluation.kind,
             scope=evaluation.scope,
             project_id=evaluation.project_id,
@@ -245,6 +246,7 @@ def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
             status=candidate.status,
             name=candidate.name,
             evaluation_id=candidate.evaluation_id,
+            order_key=candidate.order_key,
             job_id=candidate.job_id,
             file_id=candidate.file_id,
             project_id=candidate.project_id,
@@ -257,5 +259,5 @@ def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
         model_candidates,
         update_conflicts=True,
         unique_fields=["id"],
-        update_fields=["status", "job_id", "evaluation_id", "file_id"],
+        update_fields=["status", "job_id", "evaluation_id", "file_id", "order_key"],
     )

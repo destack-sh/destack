@@ -270,6 +270,7 @@ class BuildCandidateData:
     evaluation_id: Optional[UUID]
     job_id: Optional[UUID]
     file_id: Optional[UUID]
+    order_key: str
     # additional context
     project_id: UUID
     project_version_id: UUID
@@ -329,11 +330,10 @@ class EvaluationResult:
     children: list["EvaluationResult"] = field(default_factory=list)
 
     def __str__(self):
-        return ", ".join(
-            f"{k}: {self.aggregated_metrics[k]:0.02f}"
-            for k in EvaluationMetric
-            if k in self.aggregated_metrics
+        metrics_str = ", ".join(
+            f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
         )
+        return f"{self.kind} {self.scope} {metrics_str}"
 
     def __repr__(self):
         return f"<Evaluation {self.system} {self}>"
@@ -341,6 +341,7 @@ class EvaluationResult:
 
 @dataclass(slots=True)
 class EvaluationResultData:
+    id: UUID
     kind: EvaluationKind
     scope: EvaluationScope
     aggregated_metrics: dict[str, float]
@@ -367,6 +368,7 @@ class EvaluationResultData:
     ) -> list[EvaluationResultData]:
         """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
         result_data = EvaluationResultData(
+            id=result.id,
             kind=result.kind,
             scope=result.scope,
             aggregated_metrics=result.aggregated_metrics,
