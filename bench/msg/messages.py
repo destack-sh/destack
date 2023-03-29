@@ -59,9 +59,9 @@ class NMessageType(StrEnum):
     REPLY_MODULE_BUILD = "runtime.build.rep"
     REQUEST_MODULE_RUN = "runtime.run"
     REPLY_MODULE_RUN = "runtime.run.rep"
-    REQUEST_MODULE_RUNTIME = "runtime.get"
-    REPLY_MODULE_RUNTIME = "runtime.get.rep"
-    MODULE_RUNTIME_CHANGED = "runtime.changed"
+    REQUEST_INTERP_MODULE = "interp.get"
+    REPLY_INTERP_MODULE = "interp.get.rep"
+    INTERP_MODULE_CHANGED = "interp.changed"
 
 
 REPLY_BY_REQUEST_TYPE = {
@@ -72,7 +72,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_WRITE_JOB: NMessageType.REPLY_WRITE_JOB,
     NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
     NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
-    NMessageType.REQUEST_MODULE_RUNTIME: NMessageType.REPLY_MODULE_RUNTIME,
+    NMessageType.REQUEST_INTERP_MODULE: NMessageType.REPLY_INTERP_MODULE,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -233,13 +233,13 @@ class RepReadModulePayload:
     project_id: UUID
 
 
-@payload(NMessageType.REQUEST_MODULE_RUNTIME)
-class ReqModuleRuntimePayload:
+@payload(NMessageType.REQUEST_INTERP_MODULE)
+class ReqInterpModulePayload:
     module_id: UUID
 
 
-@payload(NMessageType.REPLY_MODULE_RUNTIME)
-class RepModuleRuntimePayload:
+@payload(NMessageType.REPLY_INTERP_MODULE)
+class RepInterpModulePayload:
     module_id: UUID
     updated_at: datetime
     module: wire.ModuleData
@@ -249,7 +249,7 @@ class RepModuleRuntimePayload:
     stale_symbols: list[UUID]
 
 
-@payload(NMessageType.MODULE_RUNTIME_CHANGED)
+@payload(NMessageType.INTERP_MODULE_CHANGED)
 class ModuleRuntimeChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID
@@ -283,7 +283,7 @@ def to_topic(
     elif message_type == NMessageType.MODULE_CHANGED:
         payload = cast(ModuleChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.MODULE_RUNTIME_CHANGED:
+    elif message_type == NMessageType.INTERP_MODULE_CHANGED:
         payload = cast(ModuleRuntimeChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EXECUTION_CHANGED:

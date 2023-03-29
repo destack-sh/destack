@@ -409,18 +409,13 @@ type InterpFile {
   symbols: [InterpSymbol!]!
 }
 
-type InterpJob {
-  id: GlobalID!
-  type: JobType!
-  status: JobStatus!
-  startedAt: DateTime
-  terminatedAt: DateTime
-}
-
 type InterpModule {
   id: GlobalID!
   name: String!
   files: [InterpFile!]!
+  dependencies: [InterpModule!]!
+  errors: [InterpError!]!
+  staleSymbols: [InterpSymbol!]!
 }
 
 """
@@ -466,38 +461,11 @@ The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
-enum JobStatus {
-  Queued
-  Running
-  Completed
-  Cancelling
-  Cancelled
-  Failed
-}
-
-enum JobType {
-  INTERP
-  GENERATE
-  BUILD
-  EVALUATE
-  LINT
-  RUN
-}
-
 enum ModuleRunErrorType {
   INTERNAL_ERROR
   NOT_READY
   INVALID_RUNCONFIG
   RUNTIME_ERROR
-}
-
-type ModuleRuntime {
-  updatedAt: DateTime!
-  module: InterpModule!
-  jobs: [InterpJob!]!
-  dependencies: [InterpModule!]!
-  errors: [InterpError!]!
-  staleSymbols: [InterpSymbol!]!
 }
 
 type Mutation {
@@ -1531,8 +1499,8 @@ input StatementUpdateLanguageInput {
 }
 
 type Subscription {
-  moduleRuntimeChanged(projectVersionId: GlobalID!): ModuleRuntime!
-  moduleExecutionChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
+  interpChanged(projectVersionId: GlobalID!): InterpModule!
+  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""
