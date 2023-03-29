@@ -1,7 +1,14 @@
 <script lang="ts" setup>
+import { EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
+import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
-import { computed, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
+
+const props = defineProps<{
+  projectId: string;
+  projectVersionId: string;
+}>();
 
 const editor = useEditorState();
 const runtime = useCurrentInterpModule();
@@ -15,50 +22,98 @@ type Metric = {
   unit?: string;
 };
 
+type MetricSet = {
+  label: string;
+  description: string;
+  metrics: Metric[];
+};
+
 // global to scope
-const globalMetrics: Ref<Metric[]> = computed(() => [
-  {
-    label: "Clarity",
-    description: "How comprehensible the instructions is.",
-    value: 78,
-    unit: "%",
-  },
-  {
-    label: "Difficulty",
-    description: "How complex the instruction is.",
-    value: 15,
-    unit: "x",
-  },
-]);
-
-// local to a build for scope
-const buildMetrics: Ref<Metric[]> = computed(() => [
-  {
-    label: "Performance",
-    description: "How well the AI does.",
-    value: 90,
-    unit: "%",
-  },
-  {
-    label: "Speed",
-    description: "How fast the AI is.",
-    value: 3,
-    unit: "/min",
-  },
-]);
-
-const metricSets = computed(() => [
-  {
+const globalEvaluations = useEvaluations({
+  projectId: toRef(props, "projectId"),
+  projectVersionId: toRef(props, "projectVersionId"),
+  scopeIn: ref([EvaluationScope.Module]),
+});
+const globalEvaluation = computed(() =>
+  (globalEvaluations.evaluations.value?.length ?? 0) > 0 ? globalEvaluations.evaluations.value[0] : undefined
+);
+const globalMetricSet: Ref<MetricSet | null> = computed(() => {
+  if (globalEvaluation.value == null) {
+    return null;
+  }
+  const metrics = globalEvaluation.value.aggregatedMetrics;
+  return {
     label: "General",
     description: `Bench-wide analysis of '${mainSymbol.value?.name ?? runtime.name.value}'.`,
-    metrics: globalMetrics.value,
-  },
-  {
-    label: "Main",
-    description: `Build <build> on '${mainSymbol.value?.name}'.`,
-    metrics: buildMetrics.value,
-  },
-]);
+    metrics: [
+      {
+        label: "Clarity",
+        description: "How comprehensible the instructions is.",
+        value: metrics["clarity"] != null ? (metrics["clarity"] * 100).toFixed(0) : "??",
+        unit: "%",
+      },
+      {
+        label: "Difficulty",
+        description: "How complex the instruction is.",
+        value: metrics["difficulty"] != null ? metrics["difficulty"].toFixed(1) : "??",
+        unit: "x",
+      },
+    ],
+  };
+});
+
+// local to a build for scope
+const buildEvaluations = useEvaluations({
+  projectId: toRef(props, "projectId"),
+  projectVersionId: toRef(props, "projectVersionId"),
+  scopeIn: ref([EvaluationScope.Build]),
+  buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
+  systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
+});
+
+function getBuildEvaluation(buildId: string) {
+  return buildEvaluations.evaluations.value?.find((e) => e.build?.id == buildId);
+}
+
+const buildMetricSets: Ref<MetricSet[]> = computed(() => {
+  const buildMetricSets: MetricSet[] = [];
+  for (const build of mainBuilds.value) {
+    const buildEvaluation = getBuildEvaluation(build.id);
+    if (buildEvaluation == null) {
+      continue;
+    }
+    const buildMetrics = [
+      {
+        label: "Performance",
+        description: "How well the AI does.",
+        value: 90,
+        unit: "%",
+      },
+      {
+        label: "Speed",
+        description: "How fast the AI is.",
+        value: 3,
+        unit: "/min",
+      },
+    ];
+    buildMetricSets.push({
+      label: build.name ?? "???",
+      description: `Performance of '${build.name}' on ${mainSymbol.value?.name}`,
+      metrics: buildMetrics,
+    });
+  }
+
+  return buildMetricSets;
+});
+
+const metricSets = computed(() => {
+  const metricSets = [];
+  if (globalMetricSet.value != null) {
+    metricSets.push(globalMetricSet.value);
+  }
+  metricSets.push(...buildMetricSets.value);
+  return metricSets;
+});
 </script>
 <template>
   <div class="flex flex-row gap-3">

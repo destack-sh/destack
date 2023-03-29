@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.db import models
 from django_choices_field import TextChoicesField
 
@@ -50,6 +52,14 @@ class EvaluationResult(UUIDModel):
     self_metrics = models.JSONField(null=True, blank=True)
     aggregated_metrics = models.JSONField()
 
+    @property
+    def system(self):
+        return self.statement or self.build or self.type_node
+
+    @property
+    def system_id(self) -> UUID:
+        return self.system.id if self.system else None
+
     def __str__(self):
         metrics_str = ", ".join(
             f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
@@ -58,3 +68,6 @@ class EvaluationResult(UUIDModel):
 
     def __repr__(self):
         return f"<EvaluationResult {self}>"
+
+    class Meta:
+        ordering = ["-created_at"]

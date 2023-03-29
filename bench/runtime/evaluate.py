@@ -163,6 +163,10 @@ async def lint_instruction(node: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
     # TODO @Incomplete: compute proper lint metrics
     self_metrics = {EvaluationMetric.NodesCount: 1}
+
+    # summary metrics
+    self_metrics[EvaluationMetric.Clarity] = 0.9
+    self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.NodesCount] / 2
     return self_metrics
 
 
