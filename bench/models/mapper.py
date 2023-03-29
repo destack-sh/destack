@@ -30,7 +30,7 @@ from bench.language.type import (
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
 from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
-from bench.runtime.type import ExecutionFrameData, JobData
+from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -650,4 +650,35 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         trigger_type=frame.trigger_type,
         user_id=user_id,
         access_token_id=access_token_id,
+    )
+
+
+def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.EvaluationResult:
+    return models.EvaluationResult(
+        id=evaluation.id,
+        kind=evaluation.kind,
+        scope=evaluation.scope,
+        project_id=evaluation.project_id,
+        project_version_id=evaluation.project_version_id,
+        job_id=evaluation.job_id,
+        build_id=evaluation.build_id,
+        build_candidate_id=evaluation.build_candidate_id,
+        statement_id=evaluation.statement_id,
+        aggregated_metrics=evaluation.aggregated_metrics,
+        self_metrics=evaluation.self_metrics,
+    )
+
+
+def rmap_build_candidate(candidate: BuildCandidateData) -> models.BuildCandidate:
+    return models.BuildCandidate(
+        id=candidate.id,
+        build_id=candidate.build_id,
+        status=candidate.status,
+        name=candidate.name,
+        evaluation_id=candidate.evaluation_id,
+        order_key=candidate.order_key,
+        job_id=candidate.job_id,
+        file_id=candidate.file_id,
+        project_id=candidate.project_id,
+        project_version_id=candidate.project_version_id,
     )

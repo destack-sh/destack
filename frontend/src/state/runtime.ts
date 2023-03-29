@@ -1,5 +1,12 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpError, InterpFile, InterpModule, InterpSymbol, StatementType, SymbolType } from "@/gql/graphql";
+import {
+  StatementType,
+  SymbolType,
+  type InterpError,
+  type InterpFile,
+  type InterpModule,
+  type InterpSymbol,
+} from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -243,7 +250,7 @@ export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Re
 
 export function isSymbolStale(symbol: Ref<{ id: string } | undefined>, projectVersionId?: Ref<string | null>) {
   const { staleSymbols } = useCurrentInterpModule(projectVersionId);
-  return computed(() => (symbol.value == null ? undefined : staleSymbols.value?.some((s) => s.id == symbol.value.id)));
+  return computed(() => (symbol.value == null ? undefined : staleSymbols.value?.some((s) => s.id == symbol.value?.id)));
 }
 
 export type SymbolFilter = {
@@ -287,6 +294,16 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
     });
   });
   return symbols;
+}
+
+export function buildsOf(
+  symbol: Ref<{ id: string; parentId: string } | undefined>,
+  projectVersionId?: Ref<string | null>
+) {
+  // Gets the builds explicitly referencing this symbol as a child
+  const { moduleIndex } = useCurrentInterpModule(projectVersionId);
+  const builds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] }, projectVersionId);
+  return builds; // TODO @Broken @Architecture: get builds for symbol from interpreter
 }
 
 export function useVisibleErrors() {

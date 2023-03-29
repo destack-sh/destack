@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { useEditorState } from "@/state/editor";
-import { useCurrentInterpModule } from "@/state/runtime";
+import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
 import { computed, type Ref } from "vue";
 
 const editor = useEditorState();
 const runtime = useCurrentInterpModule();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
+const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } | undefined>);
 
 type Metric = {
   label: string;
@@ -54,7 +55,7 @@ const metricSets = computed(() => [
   },
   {
     label: "Main",
-    description: `build <build> on '${mainSymbol.value?.name}''.`,
+    description: `Build <build> on '${mainSymbol.value?.name}'.`,
     metrics: buildMetrics.value,
   },
 ]);

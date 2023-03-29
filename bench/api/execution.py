@@ -68,7 +68,7 @@ class ModelInference(gql.Node):
     duration_ms: auto
 
 
-async def expand_project_version_ids(
+async def _expand_project_version_ids(
     project_version_id: UUID,
     build_ids: list[UUID] | None,
     task_ids: list[UUID] | None,
@@ -86,6 +86,23 @@ async def expand_project_version_ids(
         expanded_symbol_ids, ancestor_depth
     )
     return project_version_ids, expanded_symbol_ids
+
+
+async def _expand_filter(
+    project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+):
+    if include_ancestor_versions:
+        if project_version_id is None:
+            raise ValidationError(
+                "project_version_id must be specified if include_ancestor_versions"
+            )
+        project_version_ids, expanded_symbol_ids = await _expand_project_version_ids(
+            project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
+        )
+    else:
+        project_version_ids = [project_version_id]
+        expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
+    return expanded_symbol_ids, project_version_ids
 
 
 @gql.type
@@ -111,18 +128,9 @@ class ExecutionQuery:
         code_ids = to_uuids(code_ids)
 
         # if filtering by a symbol and including multiple versions, expand into mappings
-        if include_ancestor_versions:
-            if project_version_id is None:
-                raise ValidationError(
-                    "project_version_id must be specified if include_ancestor_versions"
-                )
-            project_version_ids, expanded_symbol_ids = await expand_project_version_ids(
-                project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
-            )
-        else:
-            project_version_ids = [project_version_id]
-            expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
-
+        expanded_symbol_ids, project_version_ids = await _expand_filter(
+            project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+        )
         if project_id is not None:
             filtered = filtered.filter(project_id=project_id.node_id)
         if project_version_ids:
@@ -133,7 +141,6 @@ class ExecutionQuery:
             filtered = filtered.filter(task_id__in=expanded_symbol_ids)
         if code_ids:
             filtered = filtered.filter(code_id__in=expanded_symbol_ids)
-
         if root_id is not None:
             filtered = filtered.filter(root_id=root_id.node_id)
         if root_id_null:
@@ -191,18 +198,10 @@ class ExecutionSubscription:
         # We do this once before listening for performance and simplicity, though this means that new versions
         # will not be automatically included in the execution subscription. We could periodically re-check,
         # but that's a bit more complicated and not really worth it for now.
-        if include_ancestor_versions:
-            if project_version_id is None:
-                raise ValidationError(
-                    "project_version_id must be specified if include_ancestor_versions"
-                )
-            project_version_ids, expanded_symbol_ids = await expand_project_version_ids(
-                project_version_id, build_ids, task_ids, code_ids, ancestor_depth=8
-            )
-        else:
-            expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
-
-        log.info("executions.listen")
+        expanded_symbol_ids, project_version_ids = await _expand_filter(
+            project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+        )
+        log.debug("executions.listen")
         while True:
             msg: NMessage[ExecutionSavedPayload] = await executions_sub.next_msg()
             for frame_data in msg.payload.frames:
