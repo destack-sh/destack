@@ -96,7 +96,6 @@ class InterpError:
 
 
 def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
-    """Maps a wire module into a GQL interpreted module"""
     interp_module = InterpModule(
         id=GlobalID("ProjectVersion", str(wire_module.id)),
         name=wire_module.name,
@@ -106,14 +105,21 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         errors=[],
         stale_symbols=[],
     )
-    for file in wire_module.files:
+    interp_module.files = rmap_files(wire_module.files, interp_module)
+    return interp_module
+
+
+def rmap_files(wire_files: list[wire.FileData], interp_module: InterpModule) -> list[InterpFile]:
+    """Maps a wire module into a GQL interpreted module"""
+    interp_files = []
+    for file in wire_files:
         interp_file = InterpFile(
             id=GlobalID("File", str(file.id)),
             module=interp_module,
             path=file.path,
             symbols=[],
         )
-        interp_module.files.append(interp_file)
+        interp_files.append(interp_file)
         for statement in file.statements:
             if statement.type in (StatementType.COMMENT, StatementType.BLANK):
                 continue  # ignore non-symbol statements
@@ -135,7 +141,7 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
                 type_nodes=type_nodes,
             )
             interp_file.symbols.append(interp_symbol)
-    return interp_module
+    return interp_files
 
 
 def _get_symbol_from_module(module: InterpModule, symbol_id: UUID) -> Optional[InterpSymbol]:
@@ -143,6 +149,7 @@ def _get_symbol_from_module(module: InterpModule, symbol_id: UUID) -> Optional[I
     for symbol in chain.from_iterable(file.symbols for file in module.files):
         if symbol.id.node_id == symbol_id_str:
             return symbol
+    # technically we should never get here, but it sometimes happens?
     return None
 
 
@@ -311,7 +318,7 @@ class InterpSubscription:
             # :PartialModuleUpdates
             # also the mapping duplication is a bit ugly
             if new_interp.module is not None:
-                interp.module = rmap_module(new_interp.module)
+                interp.files = rmap_files(new_interp.module.files, interp)
             if new_interp.dependencies is not None:
                 interp.dependencies = [rmap_module(dep) for dep in new_interp.dependencies]
             if new_interp.errors is not None:
