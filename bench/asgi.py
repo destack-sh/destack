@@ -10,6 +10,7 @@ https://channels.readthedocs.io/en/latest/deploying.html
 """
 import os
 import random
+from uuid import uuid4
 
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -79,7 +80,7 @@ if RUN_WORKER:
     from bench.runtime.worker import Worker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
-    worker = Worker(worker_id=f"local.{hex(local_id)[2:]}", deployment_id=None)
+    worker = Worker(worker_id=uuid4(), deployment_id=None, project_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

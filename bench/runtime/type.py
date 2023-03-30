@@ -204,6 +204,7 @@ class ExecutionFrameData:
     project_id: UUID
     tracing_level: Optional[ExecutionTracingLevel]
     deployment_id: UUID
+    worker_id: UUID
     trigger_type: Optional[ExecutionTriggerType]
     trigger_id: Optional[UUID]
 
@@ -214,6 +215,7 @@ class ExecutionFrameData:
         project_id: UUID,
         tracing_level: ExecutionTracingLevel,
         deployment_id: UUID,
+        worker_id: UUID,
         trigger_type: Optional[ExecutionTriggerType] = None,
         trigger_id: Optional[UUID] = None,
     ) -> ExecutionFrameData:
@@ -246,6 +248,7 @@ class ExecutionFrameData:
             project_id=project_id,
             tracing_level=tracing_level,
             deployment_id=deployment_id,
+            worker_id=worker_id,
             trigger_type=trigger_type,
             trigger_id=trigger_id,
         )
@@ -529,6 +532,7 @@ class Job:
     project_id: UUID
     project_version_id: UUID
     deployment_id: Optional[UUID]
+    worker_id: UUID
     id: UUID = field(default_factory=UUIDT)
     status: JobStatus = JobStatus.Queued
     started_at: Optional[datetime] = None
@@ -565,10 +569,15 @@ class JobData:
     project_id: UUID
     project_version_id: UUID
     deployment_id: Optional[UUID]
+    worker_id: UUID
 
     @staticmethod
     def from_job(
-        job: Job, project_id: UUID, project_version_id: UUID, deployment_id: Optional[UUID]
+        job: Job,
+        project_id: UUID,
+        project_version_id: UUID,
+        deployment_id: Optional[UUID],
+        worker_id: UUID,
     ) -> JobData:
         return JobData(
             type=job.type,
@@ -579,4 +588,15 @@ class JobData:
             project_id=project_id,
             project_version_id=project_version_id,
             deployment_id=deployment_id,
+            worker_id=worker_id,
         )
+
+
+#
+# Workers
+#
+
+
+class WorkerType(enum.StrEnum):
+    COMMUNITY = "COMMUNITY"
+    DEDICATED = "DEDICATED"

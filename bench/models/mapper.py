@@ -601,6 +601,7 @@ def rmap_job(job: JobData) -> models.Job:
         project_id=job.project_id,
         project_version_id=job.project_version_id,
         deployment_id=job.deployment_id,
+        worker_id=job.worker_id,
         started_at=job.started_at,
         terminated_at=job.terminated_at,
         created_at=now,
@@ -647,6 +648,7 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         # additional context
         tracing_level=frame.tracing_level,
         deployment_id=frame.deployment_id,
+        worker_id=frame.worker_id,
         trigger_type=frame.trigger_type,
         user_id=user_id,
         access_token_id=access_token_id,

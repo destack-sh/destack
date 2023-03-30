@@ -21,8 +21,12 @@ class ExecutionStatus(models.TextChoices):
     Completed = "completed"
 
 
-TERMINAL_STATUSES = {ExecutionStatus.Aborted, ExecutionStatus.Failed, ExecutionStatus.Completed}
-PENDING_STATUSES = set(ExecutionStatus) - TERMINAL_STATUSES
+TERMINAL_EXECUTION_STATUSES = {
+    ExecutionStatus.Aborted,
+    ExecutionStatus.Failed,
+    ExecutionStatus.Completed,
+}
+PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
 
 
 # sync with wire.ExecutionTriggerType
@@ -52,8 +56,9 @@ class Execution(UUIDTModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
     )
     deployment = models.ForeignKey(
-        "Deployment", null=True, blank=True, on_delete=models.CASCADE, related_name="executions+"
+        "Deployment", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
+    worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
     job = models.ForeignKey(
         "Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )

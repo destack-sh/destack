@@ -33,6 +33,7 @@ from bench.msg.messages import (
     RepModuleBuildPayload,
     RepModuleRunPayload,
     RepReadModulePayload,
+    RepRegisterWorkerPayload,
     RepWriteBuildCandidatePayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
@@ -41,10 +42,12 @@ from bench.msg.messages import (
     ReqModuleBuildPayload,
     ReqModuleRunPayload,
     ReqReadModulePayload,
+    ReqRegisterWorkerPayload,
     ReqWriteBuildCandidatePayload,
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
     ReqWriteJobPayload,
+    WorkerHeartbeatPayload,
 )
 from bench.runtime.build import (
     BuildCandidate,
@@ -69,13 +72,15 @@ from bench.runtime.type import (
     JobStatus,
     JobType,
     TaskInstance,
+    WorkerType,
 )
 from bench.utils.func import wrap_task
 from bench.utils.utils import required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
-logger = structlog.get_logger(__name__)
+WORKER_HEARTBEAT_INTERVAL = 5
 
+logger = structlog.get_logger(__name__)
 InterpModule = NamedTuple(
     "InterpModule",
     module_idx=Optional[language.ModuleIndex],
@@ -146,15 +151,12 @@ class RunJob(Job):
 
 
 def rmap_job(job: Job) -> JobData:
-    data = JobData(
-        type=job.type,
+    data = JobData.from_job(
+        job,
         project_id=job.project_id,
         project_version_id=job.project_version_id,
         deployment_id=job.deployment_id,
-        id=job.id,
-        status=job.status,
-        started_at=job.started_at,
-        terminated_at=job.terminated_at,
+        worker_id=job.worker_id,
     )
     if isinstance(job, RunJob):
         data.error = job.error
@@ -305,6 +307,7 @@ class ModuleWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
         )
         self._queue_job(job)
         return job
@@ -373,6 +376,7 @@ class ModuleWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
         )
         if cancel_running:
             self._cancel_jobs_like(lambda j: isinstance(j, LintJob))
@@ -408,6 +412,7 @@ class ModuleWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
         )
         if cancel_running:
             self._cancel_jobs_like(
@@ -472,21 +477,20 @@ class ModuleWorker:
                 root_id,
                 project_id=self.project_id,
                 tracing_level=tracing_level,
+                worker_id=self.master.worker_id,
                 deployment_id=self.deployment_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
             )
-            tracer = ExecutionTracer(self.module_id, tracker)
+            tracer = MultiTracer([ExecutionTracer(self.module_id, tracker), ValidationTracer()])
+            proxy = Proxy(
+                tracer=tracer, cache_inferences=True, inference_timeout=15, inference_retries=2
+            )
             runnable_instance = instantiate(
                 runnable,
                 build=build,
                 buildmap=lambda source: self.idx.get_symbol_by_id(build.get_target(source.id)),
-                proxy=Proxy(
-                    tracer=MultiTracer([tracer, ValidationTracer()]),
-                    cache_inferences=True,
-                    inference_timeout=15,
-                    inference_retries=2,
-                ),
+                proxy=proxy,
             )
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
@@ -504,6 +508,7 @@ class ModuleWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
         )
         qpos = self._queue_job(job)
         # emit queued status immediately
@@ -661,21 +666,41 @@ def make_full_change_payload(module_worker: ModuleWorker, cls):
 class Worker:
     """A community worker or single deployment worker."""
 
-    def __init__(self, worker_id: str | UUID, deployment_id: UUID | None):
+    def __init__(self, worker_id: UUID, deployment_id: UUID | None, project_id: UUID | None):
         self.worker_id = worker_id
         self.deployment_id = deployment_id
+        self.project_id = project_id
+        self.type = WorkerType.COMMUNITY if deployment_id is None else WorkerType.DEDICATED
         self.module_workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
+        self.tasks = []
         self.cached_committed_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
 
     async def run(self):
         await nc_init.wait()
-        logger.info("start", worker_id=self.worker_id)
+        logger.info(
+            "start", worker_id=self.worker_id, deployment_id=self.deployment_id, type=self.type
+        )
+        register_rep: NMessage[RepRegisterWorkerPayload] = await request(
+            NMessageType.REQUEST_REGISTER_WORKER,
+            ReqRegisterWorkerPayload(
+                worker_id=self.worker_id,
+                deployment_id=self.deployment_id,
+                project_id=self.project_id,
+                type=self.type,
+            ),
+            RepRegisterWorkerPayload,
+        )
+        if not register_rep.p.success:
+            raise RuntimeError("failed to register worker")
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
             await handle_reply(NMessageType.REQUEST_INTERP_MODULE, self.request_module_runtime),
             await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
             await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
+        ]
+        self.tasks = [
+            create_wrapped_task(self.send_heartbeats(interval_seconds=WORKER_HEARTBEAT_INTERVAL))
         ]
 
     async def run_forever(self):
@@ -685,6 +710,14 @@ class Worker:
             await asyncio.Event().wait()
         finally:
             await self.stop()
+
+    async def send_heartbeats(self, interval_seconds: float):
+        # of course, eventually this should be done on / synced with the k8s level
+        while True:
+            await publish(
+                NMessageType.WORKER_HEARTBEAT, WorkerHeartbeatPayload(worker_id=self.worker_id)
+            )
+            await asyncio.sleep(interval_seconds)
 
     def _get_module_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.module_workers:
@@ -865,6 +898,7 @@ class Worker:
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
+        await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
 
 
@@ -873,6 +907,7 @@ def pub_filtered_execution_tracker(
     *,
     project_id: UUID,
     tracing_level: ExecutionTracingLevel,
+    worker_id: UUID,
     deployment_id: UUID,
     trigger_type: ExecutionTriggerType,
     trigger_id: UUID,

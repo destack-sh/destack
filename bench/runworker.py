@@ -17,7 +17,8 @@ DEPLOYMENT_ID = os.environ.get("DEPLOYMENT_ID")
 if DEPLOYMENT_ID is not None:
     DEPLOYMENT_ID = uuid.UUID(DEPLOYMENT_ID)
 
-worker = Worker(worker_id=os.environ.get("WORKER_ID", uuid.uuid4()), deployment_id=DEPLOYMENT_ID)
+worker_id = uuid.UUID(os.environ["WORKER_ID"]) if "WORKER_ID" in os.environ else uuid.uuid4()
+worker = Worker(worker_id=worker_id, deployment_id=DEPLOYMENT_ID, project_id=None)
 
 init_sentry(django=False)
 
