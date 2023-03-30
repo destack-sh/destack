@@ -624,6 +624,15 @@ class Record:
     data: typing.Any
     id: UUID = field(default_factory=uuid.uuid4)
 
+    def __str__(self):
+        data_type = (
+            ",".join(self.data.keys()) if isinstance(self.data, dict) else type(self.data).__name__
+        )
+        return f"{self.order_key} {data_type}"
+
+    def __repr__(self):
+        return f"<Record {self}>"
+
 
 @dataclass(repr=False)
 class DatasetContent(SymbolContent):

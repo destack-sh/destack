@@ -118,9 +118,9 @@ export function useEvaluations(
       },
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
-        const evaluationresult = useFragment(EvaluationResultContentType, subscriptionData.data.evaluationsChanged);
+        const evaluation = useFragment(EvaluationResultContentType, subscriptionData.data.evaluationsChanged);
         return {
-          evaluationresults: getUpdatedConnectionQuery(evaluationresult, prev.evaluations, options.first),
+          evaluations: getUpdatedConnectionQuery(evaluation, prev.evaluations, options.first),
         };
       },
     });

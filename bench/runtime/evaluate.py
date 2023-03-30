@@ -1,5 +1,6 @@
 import asyncio
 import enum
+import random
 import uuid
 from collections import defaultdict
 from typing import Any
@@ -145,7 +146,7 @@ async def evaluate_task(
 
     # TODO @Broken: compute proper summary metrics
     summary_metrics = {
-        EvaluationMetric.Performance: 0.9,
+        EvaluationMetric.Performance: random.random(),
         EvaluationMetric.Difficulty: 0.14,
     }
     return EvaluationResult(
@@ -164,20 +165,20 @@ async def lint_instruction(node: Instruction) -> dict[str, float]:
     # TODO @Incomplete: compute proper lint metrics
     self_metrics = {EvaluationMetric.NodesCount: 1}
 
-    # summary metrics
-    self_metrics[EvaluationMetric.Clarity] = 0.9
+    # TODO @Broken: compute proper summary metrics
+    self_metrics[EvaluationMetric.Clarity] = random.random()
     self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.NodesCount] / 2
     return self_metrics
 
 
 async def lint(idx: ModuleIndex) -> EvaluationResult:
     """Lints an entire module."""
-    tree = instruction_tree_from_module(idx)
+    tree = instruction_tree_from_module(idx, exclude_generated=True)
     evaluations: dict[uuid.UUID, EvaluationResult] = {}
 
     # evaluate nodes individually
     all_self_metrics = await asyncio.gather(*[lint_instruction(node) for node in tree.walk()])
-    for self_metrics, node in zip(all_self_metrics, tree.walk()):
+    for self_metrics, node in zip(all_self_metrics, tree.walk_postorder()):
         evaluation = EvaluationResult(
             kind=EvaluationKind.LINT,
             scope=EvaluationScope.INSTRUCTION,
@@ -188,8 +189,7 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         )
         evaluations[node.id] = evaluation
 
-    # aggregate evaluations bottom-up (post-order)
-    for node in tree.walk_postorder():
+        # aggregate evaluations
         child_evaluations = [evaluations[child.id] for child in node.children]
         evaluations[node.id].aggregated_metrics = aggregate_metrics(child_evaluations)
 

@@ -18,7 +18,7 @@ const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } |
 type Metric = {
   label: string;
   description: string;
-  value: number;
+  value: number | string;
   unit?: string;
 };
 
@@ -28,12 +28,23 @@ type MetricSet = {
   metrics: Metric[];
 };
 
+function toPercent(value?: number, alt = "??"): string {
+  return value != null ? (value * 100).toFixed(0) : alt;
+}
+
+function toFixed(value?: number, alt = "??"): string {
+  return value != null ? value.toFixed(1) : alt;
+}
+
 // global to scope
-const globalEvaluations = useEvaluations({
-  projectId: toRef(props, "projectId"),
-  projectVersionId: toRef(props, "projectVersionId"),
-  scopeIn: ref([EvaluationScope.Module]),
-});
+const globalEvaluations = useEvaluations(
+  {
+    projectId: toRef(props, "projectId"),
+    projectVersionId: toRef(props, "projectVersionId"),
+    scopeIn: ref([EvaluationScope.Module]),
+  },
+  { live: true }
+);
 const globalEvaluation = computed(() =>
   (globalEvaluations.evaluations.value?.length ?? 0) > 0 ? globalEvaluations.evaluations.value[0] : undefined
 );
@@ -43,19 +54,19 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
   }
   const metrics = globalEvaluation.value.aggregatedMetrics;
   return {
-    label: "General",
+    label: "Bench",
     description: `Bench-wide analysis of '${mainSymbol.value?.name ?? runtime.name.value}'.`,
     metrics: [
       {
         label: "Clarity",
         description: "How comprehensible the instructions is.",
-        value: metrics["clarity"] != null ? (metrics["clarity"] * 100).toFixed(0) : "??",
+        value: toPercent(metrics["clarity"]),
         unit: "%",
       },
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
-        value: metrics["difficulty"] != null ? metrics["difficulty"].toFixed(1) : "??",
+        value: toFixed(metrics["difficulty"]),
         unit: "x",
       },
     ],
@@ -63,42 +74,53 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
 });
 
 // local to a build for scope
-const buildEvaluations = useEvaluations({
-  projectId: toRef(props, "projectId"),
-  projectVersionId: toRef(props, "projectVersionId"),
-  scopeIn: ref([EvaluationScope.Build]),
-  buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
-  systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
-});
+const buildEvaluations = useEvaluations(
+  {
+    projectId: toRef(props, "projectId"),
+    projectVersionId: toRef(props, "projectVersionId"),
+    scopeIn: computed(() =>
+      mainSymbol.value == null || mainSymbol.value?.symbolType == SymbolType.Build
+        ? [EvaluationScope.Build]
+        : [EvaluationScope.Instruction]
+    ),
+    buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
+    systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
+  },
+  { live: true }
+);
 
-function getBuildEvaluation(buildId: string) {
-  return buildEvaluations.evaluations.value?.find((e) => e.build?.id == buildId);
+function getBuildEvaluation(buildId: string, symbolId?: string) {
+  return buildEvaluations.evaluations.value?.find(
+    (e) => e.build?.id == buildId && (symbolId == null || e.statement?.id == symbolId)
+  );
 }
 
 const buildMetricSets: Ref<MetricSet[]> = computed(() => {
   const buildMetricSets: MetricSet[] = [];
   for (const build of mainBuilds.value) {
-    const buildEvaluation = getBuildEvaluation(build.id);
+    const nonBuildSymbolId = mainSymbol.value?.symbolType != SymbolType.Build ? mainSymbol.value?.id : null;
+    const buildEvaluation = getBuildEvaluation(build.id, nonBuildSymbolId);
     if (buildEvaluation == null) {
       continue;
     }
-    const buildMetrics = [
+    const metrics = buildEvaluation.aggregatedMetrics;
+    const buildMetrics: Metric[] = [
       {
         label: "Performance",
         description: "How well the AI does.",
-        value: 90,
+        value: toPercent(metrics["performance"]),
         unit: "%",
       },
       {
         label: "Speed",
         description: "How fast the AI is.",
-        value: 3,
+        value: toFixed(metrics["speed"]),
         unit: "/min",
       },
     ];
     buildMetricSets.push({
       label: build.name ?? "???",
-      description: `Performance of '${build.name}' on ${mainSymbol.value?.name}`,
+      description: `'${build.name}' on '${mainSymbol.value?.name}'.`,
       metrics: buildMetrics,
     });
   }
@@ -124,13 +146,11 @@ const metricSets = computed(() => {
       >
         <!-- Metric set label for builds (if more than one) -->
         <span
-          v-if="metricSet.label != 'general' && metricSets.length > 2"
+          v-if="metricSets.length > 2 && metricSet.label != 'Bench'"
           class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
-          <span class="rounded-sm border border-b-0 border-l border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs"
-            >{{ metricSet.label }}
-          </span>
+          <span class="rounded-sm border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs">{{ metricSet.label }} </span>
         </span>
         <!-- Metric set -->
         <div
@@ -144,7 +164,7 @@ const metricSets = computed(() => {
           <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
         </div>
       </button>
-      <!-- Popover details if hovered -->
+      <!-- Metric set hover popover -->
       <div
         class="invisible absolute top-10 z-20 w-80 rounded-sm bg-white px-3 py-2 shadow-sm ring-1 ring-sky-900 ring-opacity-40 group-hover:visible"
       >

@@ -10,7 +10,7 @@ from bench import language
 from bench.language import GeneratedMapping, ModuleIndex
 from bench.language.type import Build, GeneratedMappingType, InterpSymbol, Record, TypeNode
 from bench.language.wire import ModuleData
-from bench.runtime.instruct import InstructionTree, map_instruction_node
+from bench.runtime.instruct import InstructionTree, map_instruction
 
 
 class TrackedNodeType(enum.Enum):
@@ -132,7 +132,7 @@ def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
 def tree_from_module(revmap: RevisionMap, idx: ModuleIndex, exclude_generated: bool) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for symbol in idx.symbols.values():
-        if exclude_generated and symbol.source.generated:
+        if exclude_generated and symbol.is_generated:
             continue
         track_interp_symbol(tree, symbol)
     # assign revisions from revmap
@@ -170,7 +170,7 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
     if symbol.id in tree.nodes:
         return
     tree._instruction_tree = tree._instruction_tree or InstructionTree()
-    map_instruction_node(tree._instruction_tree, symbol)
+    map_instruction(symbol, tree._instruction_tree)
 
     for node, parent in tree._instruction_tree.walk_with_parent():
         if node.id not in tree.nodes:

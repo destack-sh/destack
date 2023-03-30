@@ -9,6 +9,7 @@ from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
+    EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     JobSavedPayload,
@@ -122,11 +123,11 @@ class InternalServer:
             module_id=msg.p.module_id,
             evaluations=msg.payload.evaluations,
         )
-        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         try:
             if project_v.committed:
                 raise ValueError(f"cannot write to committed {project_v}")
-            await sync_to_async(write_evaluation_results)(evaluations=msg.payload.evaluations)
+            await sync_to_async(write_evaluation_results)(evaluations=msg.p.evaluations)
             success = True
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
@@ -135,6 +136,11 @@ class InternalServer:
             )
             success = False
         await msg.reply(RepWriteEvaluationPayload(success=success))
+        if success:
+            await publish(
+                NMessageType.EVALUATION_SAVED,
+                EvaluationSavedPayload(module_id=msg.p.module_id, evaluations=msg.p.evaluations),
+            )
 
     @message_handler
     async def write_job(self, msg: NMessage[ReqWriteJobPayload]) -> None:
