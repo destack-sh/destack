@@ -80,12 +80,13 @@ class Instruction:
             if child not in path:  # break cycles (allowed)
                 yield from child.walk(path)
 
-    def walk_postorder(self, path: list["Instruction"] = None):
+    def walk_postorder(self, seen: list["Instruction"] = None):
         """Walks the instruction tree in post order ("bottom up"), ignoring cycles."""
-        path = (path or []) + [self]
+        seen = seen or []
+        seen.append(self)
         for child in self.children:
-            if child not in path:  # break cycles (allowed)
-                yield from child.walk(path)
+            if child not in seen:  # break cycles (allowed)
+                yield from child.walk_postorder(seen)
         yield self
 
     def walk_with_parent(self, path: list["Instruction"] = None):

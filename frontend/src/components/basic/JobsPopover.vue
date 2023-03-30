@@ -45,11 +45,11 @@ const activeJobs = computed(() =>
 );
 
 const JOB_VERBS_INF = {
-  [JobType.Interp]: "Interpreting",
-  [JobType.Lint]: "Analyzing",
-  [JobType.Build]: "Building",
-  [JobType.Generate]: "Generating",
-  [JobType.Evaluate]: "Evaluating",
+  [JobType.Interp]: "interpreting",
+  [JobType.Lint]: "analyzing",
+  [JobType.Build]: "building",
+  [JobType.Generate]: "generating",
+  [JobType.Evaluate]: "evaluating",
 };
 const JOB_VERBS = {
   [JobType.Interp]: "Interpret",
@@ -77,7 +77,7 @@ const JOB_VERBS = {
           <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />
         </svg>
         <!-- Truncated jobs -->
-        <span v-for="job in activeJobs.slice(0, 3)" :key="job.type" class="text-gray-500">
+        <span v-for="job in activeJobs.slice(0, 3)" :key="job.id" class="text-gray-500">
           {{ JOB_VERBS_INF[job.type] }}
         </span>
         <span v-if="activeJobs.length > 3" class="whitespace-nowrap text-gray-500">+{{ activeJobs.length - 2 }}</span>
