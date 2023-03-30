@@ -230,6 +230,7 @@ const WORKER_ENV_VARS = [
   "GOOSEAI_API_KEY",
   "FOREFRONT_API_KEY",
   "COHERE_API_KEY",
+  "ANTHROPIC_API_KEY"
 ].map((name) => ({
   name,
   value: config.requireSecret(name),

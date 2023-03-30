@@ -14,17 +14,8 @@ from bench.language.parse import ErrorCollector, interp, resolve, sort
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
-from bench.msg.core import (
-    handle_reply,
-    message_handler,
-    nc_init,
-    publish,
-    publish_soon,
-    request,
-    subscribe,
-)
+from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
-    ExecutionChangedPayload,
     InterpModuleChangedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
@@ -59,14 +50,12 @@ from bench.runtime.build import (
 )
 from bench.runtime.evaluate import EvaluationResult, lint
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
-from bench.runtime.run import Proxy, RunError, instantiate, run
-from bench.runtime.tracing import ExecutionTracer, MultiTracer, ValidationTracer
+from bench.runtime.run import RunError, instantiate, run
+from bench.runtime.tracing import WorkerContext, worker
 from bench.runtime.type import (
     BuildCandidateData,
     CodeInstance,
     EvaluationResultData,
-    ExecutionFrame,
-    ExecutionFrameData,
     Job,
     JobData,
     JobStatus,
@@ -473,26 +462,11 @@ class ModuleWorker:
         # root execution id is pre-set for tracking (run job gets the same id)
         root_id = UUIDT()
         try:
-            # TODO @Performance: instantiate runs once and use context vars for tracking :ReusableInstances
-            # trace level filtering happens in this tracker
-            tracker = pub_filtered_execution_tracker(
-                root_id,
-                project_id=self.project_id,
-                tracing_level=tracing_level,
-                worker_id=self.master.worker_id,
-                deployment_id=self.deployment_id,
-                trigger_type=trigger_type,
-                trigger_id=trigger_id,
-            )
-            tracer = MultiTracer([ExecutionTracer(self.module_id, tracker), ValidationTracer()])
-            proxy = Proxy(
-                tracer=tracer, cache_inferences=True, inference_timeout=15, inference_retries=2
-            )
+            # TODO @Performance: share/cache run instances across runs
             runnable_instance = instantiate(
                 runnable,
                 build=build,
                 buildmap=lambda source: self.idx.get_symbol_by_id(build.get_target(source.id)),
-                proxy=proxy,
             )
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
@@ -518,7 +492,8 @@ class ModuleWorker:
             code_instance = runnable_instance.implementation
         else:
             code_instance = runnable_instance
-        tracer.queue_enter(code_instance, arguments, qpos)
+        # nocheckin: notify tracer about queue enter
+        # tracer.queue_enter(code_instance, arguments, qpos)
         return job
 
     async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
@@ -545,6 +520,7 @@ class ModuleWorker:
             _, job = await queue.get()
             if job.status == JobStatus.Cancelled:
                 continue
+
             create_task = asyncio.create_task
             try:
                 job.status = JobStatus.Running
@@ -599,6 +575,15 @@ class ModuleWorker:
         self.log.info("module.start")
         source, self.project_id = await self.master.get_module(self.module_id)
         interp_job = self.on_module_changed(source)
+
+        # provide general worker context
+        ctx = WorkerContext(
+            deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
+            module_id=self.module_id,
+            project_id=self.project_id,
+        )
+        worker.set(ctx)
 
         # start running both queues (for stateful and run)
         main = asyncio.gather(
@@ -889,54 +874,3 @@ class Worker:
         logger.info("stop", worker_id=self.worker_id)
         await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
-
-
-def pub_filtered_execution_tracker(
-    root_id: UUID,
-    *,
-    project_id: UUID,
-    tracing_level: ExecutionTracingLevel,
-    worker_id: UUID,
-    deployment_id: UUID,
-    trigger_type: ExecutionTriggerType,
-    trigger_id: UUID,
-):
-    trace_all_frames = tracing_level in (
-        ExecutionTracingLevel.ALL_FRAMES,
-        ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
-    )
-    trace_data = tracing_level in (
-        ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
-        ExecutionTracingLevel.ROOT_FRAME_WITH_DATA,
-    )
-
-    def _do_track(frame: ExecutionFrame):
-        is_root = frame.root is None
-        # filter according to trace level
-        if not is_root and not trace_all_frames:
-            return
-        if is_root:
-            frame.id = root_id  # set root to fixed id (in-place)
-
-        frame_data = ExecutionFrameData.from_frame(
-            frame,
-            project_id=project_id,
-            tracing_level=tracing_level,
-            deployment_id=deployment_id,
-            trigger_type=trigger_type,
-            trigger_id=trigger_id,
-        )
-
-        # wipe data if not tracing it
-        # TODO @Cleanup: consider not tracking untracked data at all when creating execution frame
-        if not trace_data:
-            frame_data.inputs = None
-            frame_data.outputs = None
-
-        logger.debug("execution.track", frame=frame_data.id)
-        publish_soon(
-            NMessageType.EXECUTION_CHANGED,
-            ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
-        )
-
-    return _do_track

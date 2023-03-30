@@ -1,19 +1,25 @@
 from __future__ import annotations
 
+import contextvars
 import copy
 import typing
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from itertools import chain
 from typing import Any
+from uuid import UUID
 
 import pytz
 import structlog
 
 from bench.language.type import XBlock
 from bench.language.typer import check_type
+from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
+from bench.msg import NMessageType
+from bench.msg.core import publish_soon
+from bench.msg.messages import ExecutionChangedPayload
 from bench.runtime.model import InferenceContext
-from bench.runtime.type import CodeInstance, ExecutionFrame, ModelInstance
+from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, ModelInstance
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -86,11 +92,42 @@ class MultiTracer(Tracer):
             tracer.inference_exception(ctx, blocks, settings, exception)
 
 
+_context_tracers: contextvars.ContextVar[list[Tracer]] = contextvars.ContextVar(
+    "tracers", default=[]
+)
+
+
+def push_context_tracers(*tracers: Tracer):
+    _context_tracers.set(_context_tracers.get() + list(tracers))
+
+
+def pop_context_tracers(*tracers: Tracer):
+    _context_tracers.set([t for t in tracers if t not in _context_tracers.get()])
+
+
+class ContextTracer(MultiTracer):
+    """A tracer that uses dynamic tracers from context variables (and the predefined tracers)."""
+
+    @property
+    def tracers(self):
+        return chain(_context_tracers.get(), super().tracers)
+
+
 class Trace:
     """A trace collected by a worker-side tracer."""
 
     pass
 
+
+@dataclass(slots=True)
+class WorkerContext:
+    deployment_id: UUID
+    module_id: UUID
+    project_id: UUID
+    worker_id: UUID
+
+
+worker: contextvars.ContextVar[WorkerContext] = contextvars.ContextVar("worker_context")
 
 ExecutionCapture = typing.Callable[[ExecutionFrame], None]
 
@@ -109,13 +146,19 @@ class ExecutionTracer(Tracer):
     A worker-side tracer that records code and model executions.
     """
 
-    def __init__(
-        self, module_id: uuid.UUID, tracker: ExecutionCapture, trace: ExecutionTrace | None = None
-    ):
-        self.module_id = module_id
-        self.tracker = tracker
-        self.stacktrace: list[ExecutionFrame] = []
-        self.trace = trace or ExecutionTrace(frames=[])
+    def __init__(self, tracker: ExecutionCapture | None = None):
+        self.tracker = tracker or (lambda frame: None)
+        self.stacktraces: contextvars.ContextVar[list[ExecutionFrame]] = contextvars.ContextVar(
+            "stacktraces", default=[]
+        )
+
+    @property
+    def stacktrace(self) -> list[ExecutionFrame]:
+        return self.stacktraces.get()
+
+    @property
+    def trace(self) -> ExecutionTrace:
+        return self.traces.get()[-1]
 
     def _create_frame(
         self,
@@ -130,7 +173,7 @@ class ExecutionTracer(Tracer):
         parent = self.stacktrace[-1] if self.stacktrace else None
         frame = ExecutionFrame(
             id=UUIDT(),
-            module_id=self.module_id,
+            module_id=worker.get().module_id,
             build=code.build if code else parent.build,  # keep build if root had it?
             task=code.task if code else None,
             code=code,
@@ -203,6 +246,59 @@ class ExecutionTracer(Tracer):
         frame.error = exception
         self.tracker(frame)
         logger.debug("trace.inference.exception", frame=frame, stackdepth=len(self.stacktrace))
+
+
+@dataclass(slots=True)
+class PubTrackerContext:
+    tracing_level: ExecutionTracingLevel
+    trigger_type: ExecutionTriggerType
+    trigger_id: UUID
+    root_id: typing.Optional[UUID] = None
+
+
+pub_tracker_context = contextvars.ContextVar("pub_tracker_context")
+
+
+class PubExecutionTracker:
+    def __call__(self, frame: ExecutionFrame):
+        ctx = pub_tracker_context.get()
+        trace_all_frames = ctx.tracing_level in (
+            ExecutionTracingLevel.ALL_FRAMES,
+            ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+        )
+        trace_data = ctx.tracing_level in (
+            ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+            ExecutionTracingLevel.ROOT_FRAME_WITH_DATA,
+        )
+        is_root = frame.root is None
+        # filter according to trace level
+        if not is_root and not trace_all_frames:
+            return
+        if is_root and ctx.root_id is not None:
+            frame.id = ctx.root_id
+
+        w = worker.get()
+        frame_data = ExecutionFrameData.from_frame(
+            frame,
+            project_id=w.module_id,
+            tracing_level=ctx.tracing_level,
+            deployment_id=w.deployment_id,
+            worker_id=w.worker_id,
+            trigger_type=ctx.trigger_type,
+            trigger_id=ctx.trigger_id,
+        )
+
+        # wipe data if not tracing it
+        # TODO @Cleanup: consider not tracking untracked data at all when creating execution frame
+        if not trace_data:
+            frame_data.inputs = None
+            frame_data.outputs = None
+
+        logger.debug("execution.track", frame=frame_data.id)
+        publish_soon(
+            NMessageType.EXECUTION_CHANGED,
+            ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
+        )
 
 
 class ValidationError(Exception):

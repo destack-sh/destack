@@ -38,7 +38,13 @@ from bench.language.type import (
     XBlock,
 )
 from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoints
-from bench.runtime.tracing import Tracer
+from bench.runtime.tracing import (
+    ContextTracer,
+    ExecutionTracer,
+    PubExecutionTracker,
+    Tracer,
+    ValidationTracer,
+)
 from bench.runtime.type import (
     AsyncCodeCallable,
     BuildMap,
@@ -402,9 +408,7 @@ def _instantiate_model_inference(model: Model) -> ModelInference:
     # Model inference assumes its context is unique per instance :ReusableInstances
     #  (could also just use context vars for this)
     ctx = InferenceContext(model=model, n=1, user_opaque_id=model.id.hex, streaming_callback=None)
-
     impl = ModelInferenceImpl(ctx)
-
     endpoints = get_endpoints(model)
     if not endpoints:
         raise RuntimeError(f"no endpoints found for model: {model}")
@@ -413,6 +417,14 @@ def _instantiate_model_inference(model: Model) -> ModelInference:
         setattr(impl, modality, endpoint)
 
     return impl
+
+
+DEFAULT_PROXY = Proxy(
+    tracer=ContextTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()]),
+    cache_inferences=True,
+    inference_timeout=15,
+    inference_retries=2,
+)
 
 
 def instantiate(
@@ -427,7 +439,7 @@ def instantiate(
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     buildmap = buildmap or (lambda s: None)
     refmap = refmap or {}
-    proxy = proxy or Proxy(tracer=Tracer(), cache_inferences=True)
+    proxy = proxy or DEFAULT_PROXY
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():
