@@ -289,6 +289,10 @@ class BuildCandidateData:
 
 
 class EvaluationMetric(enum.StrEnum):
+    """
+    Standard evaluation metrics. Custom metrics will be allowed later (probably with a prefix).
+    """
+
     # Summary (global and build specific)
     Clarity = "clarity"  # [0, 1]
     Difficulty = "difficulty"  # [0, inf)

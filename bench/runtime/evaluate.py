@@ -144,7 +144,7 @@ async def evaluate_task(
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
-    # TODO nocheckin: compute proper summary metrics
+    # TODO @Incomplete: compute proper summary metrics
     summary_metrics = {
         EvaluationMetric.Performance: performance_metrics[EvaluationMetric.TypeValidity],
         EvaluationMetric.Speed: random.random() * 1000,
@@ -162,7 +162,7 @@ async def evaluate_task(
 
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
-    # TODO Incomplete: compute proper lint metrics
+    # TODO @Incomplete: compute proper lint metrics
     self_metrics = {EvaluationMetric.InstructionCount: 1, EvaluationMetric.Clarity: 1.0}
     self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.InstructionCount]
     return self_metrics
