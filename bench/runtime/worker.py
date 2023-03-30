@@ -361,6 +361,8 @@ class ModuleWorker:
         self._fire_reactive_jobs(self.stale_symbols)
         # fire lint job
         self.queue_lint(cancel_running=True)
+        # notify master
+        await self.master.notify_module_changed(self)
 
     def _fire_reactive_jobs(self, stale_symbols: list[language.Statement]) -> None:
         # if no errors, queue new builds for any stale builds
@@ -622,16 +624,10 @@ class ModuleWorker:
 def make_change_payload(
     module_worker: ModuleWorker,
     cls,
-    include_jobs: bool = False,
     include_module: bool = False,
     include_dependencies: bool = False,
 ):
     """Builds a complete runtime change message from the module worker's state"""
-    relevant_jobs = [
-        job
-        for job in module_worker.running_jobs.values()
-        if job.type in (JobType.INTERP, JobType.BUILD, JobType.GENERATE, JobType.EVALUATE)
-    ]
     dependencies = (
         list(module_worker.wire_dependencies.values())
         if module_worker.wire_dependencies is not None
@@ -648,19 +644,12 @@ def make_change_payload(
         module=module_worker.wire_module if include_module else None,
         dependencies=dependencies if include_dependencies else None,
         errors=module_worker.wire_errors if include_module else None,
-        jobs=[rmap_job(job) for job in relevant_jobs] if include_jobs else None,
         stale_symbols=stale_symbols if include_module else None,
     )
 
 
 def make_full_change_payload(module_worker: ModuleWorker, cls):
-    return make_change_payload(
-        module_worker,
-        cls,
-        include_jobs=True,
-        include_module=True,
-        include_dependencies=True,
-    )
+    return make_change_payload(module_worker, cls, include_module=True, include_dependencies=True)
 
 
 class Worker:

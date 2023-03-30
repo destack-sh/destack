@@ -111,13 +111,16 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
         value: toPercent(metrics["performance"]),
         unit: "%",
       },
-      {
+    ];
+    if (nonBuildSymbolId != null) {
+      buildMetrics.push({
         label: "Speed",
         description: "How fast the AI is.",
         value: toFixed(metrics["speed"]),
         unit: "/min",
-      },
-    ];
+      });
+    }
+
     buildMetricSets.push({
       label: build.name ?? "???",
       description: `'${build.name}' on '${mainSymbol.value?.name}'.`,
@@ -142,12 +145,12 @@ const metricSets = computed(() => {
     <div v-for="metricSet in metricSets" :key="metricSet.label" class="group relative rounded-sm">
       <!-- Metric set itself -->
       <button
-        class="relative flex flex-row gap-2 rounded-sm border border-transparent px-2 hover:cursor-pointer hover:border-sky-900 hover:border-opacity-[12%] hover:bg-sky-100"
+        class="relative flex flex-row gap-1 rounded-sm border border-transparent px-2 hover:cursor-pointer hover:border-sky-900 hover:border-opacity-[12%] hover:bg-sky-100"
       >
         <!-- Metric set label for builds (if more than one) -->
         <span
           v-if="metricSets.length > 2 && metricSet.label != 'Bench'"
-          class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
+          class="absolute left-0 -top-1.5 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
           <span class="rounded-sm border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs">{{ metricSet.label }} </span>

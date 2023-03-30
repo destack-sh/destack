@@ -267,7 +267,6 @@ class RepInterpModulePayload:
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
-    jobs: list[JobData]
     stale_symbols: list[UUID]
 
 

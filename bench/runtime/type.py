@@ -299,7 +299,7 @@ class EvaluationMetric(enum.StrEnum):
     InstructionAgreement = "instruction_agreement"  # [0, 1]
     InstructionOverlap = "instruction_overlap"  # [0, 1]
     # Difficulty (global)
-    NodesCount = "nodes_count"  # [0, inf)
+    InstructionCount = "instruction_count"  # [0, inf)
     StepsCount = "steps_count"  # [0, inf)
     # Difficulty (build specific?)
     InferencesCount = "inferences_count"  # [0, inf)

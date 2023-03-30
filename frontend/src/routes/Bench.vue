@@ -541,7 +541,7 @@ onBeforeUnmount(() => {
       <template v-slot:center>
         <FadeTransition>
           <MainMetrics
-            v-if="runtime.connected.value"
+            v-if="project != null && versionToViewId != null"
             :project-id="project.id"
             :project-version-id="versionToViewId"
             class="px-4"
