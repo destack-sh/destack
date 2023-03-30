@@ -8,6 +8,7 @@ import structlog
 
 from bench.language import ModuleIndex
 from bench.language.type import (
+    Build,
     Code,
     Dataset,
     Expectation,
@@ -39,7 +40,7 @@ class InstructionOp(enum.StrEnum):
     """
 
     # do we really need all <symbol_type> definitions here?
-    Pseudo = "pseudo"  # pseudo instructions like models, requirements, etc.
+    Pseudo = "pseudo"  # pseudo instructions like models, requirements, references, etc.
     BuildDefinition = "build_definition"
     TypeDefinition = "type_definition"
     TaskDefinition = "task_definition"
@@ -148,8 +149,14 @@ def map_instruction(
         return tree.nodes[node.id]
     # if this is a reference, walk the referenced symbol directly (can only be definition for now)
     if node.reference is not None and node.reference != node:
-        map_instruction(node.reference, tree)
-        return tree.nodes[node.reference.id]
+        pseudo_link = Instruction(
+            op=InstructionOp.Pseudo,
+            node=node,
+            id=node.id,
+        )
+        reference = map_instruction(node.reference, tree)
+        pseudo_link.children.append(reference)
+        return pseudo_link
 
     if op is None:
         # if not explicitly given, figure out instruction type from symbol
@@ -183,6 +190,14 @@ def map_instruction(
 
     instruction = Instruction(op=op, node=node, id=node.id)
     tree.nodes[node.id] = instruction
+
+    if isinstance(node, Build):
+        for task in node.tasks:
+            child = map_instruction(task, tree)
+            instruction.children.append(child)
+        for model in node.models:
+            child = map_instruction(model, tree)
+            instruction.children.append(child)
 
     if isinstance(node, Dataset):
         for record in node.records:
