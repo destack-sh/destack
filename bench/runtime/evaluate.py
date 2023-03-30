@@ -144,7 +144,7 @@ async def evaluate_task(
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
-    # TODO @Broken: compute proper summary metrics
+    # TODO @Incomplete: compute proper summary metrics
     summary_metrics = {
         EvaluationMetric.Performance: random.random(),
         EvaluationMetric.Difficulty: 0.14,
@@ -165,7 +165,7 @@ async def lint_instruction(node: Instruction) -> dict[str, float]:
     # TODO @Incomplete: compute proper lint metrics
     self_metrics = {EvaluationMetric.NodesCount: 1}
 
-    # TODO @Broken: compute proper summary metrics
+    # TODO @Incomplete: compute proper summary metrics
     self_metrics[EvaluationMetric.Clarity] = random.random()
     self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.NodesCount] / 2
     return self_metrics
@@ -177,21 +177,27 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
     evaluations: dict[uuid.UUID, EvaluationResult] = {}
 
     # evaluate nodes individually
-    all_self_metrics = await asyncio.gather(*[lint_instruction(node) for node in tree.walk()])
-    for self_metrics, node in zip(all_self_metrics, tree.walk_postorder()):
+    instructions = list(tree.walk_postorder())
+    instruction_self_metrics = await asyncio.gather(
+        *[lint_instruction(node) for node in instructions]
+    )
+    for self_metrics, instruction in zip(instruction_self_metrics, instructions):
         evaluation = EvaluationResult(
             kind=EvaluationKind.LINT,
             scope=EvaluationScope.INSTRUCTION,
-            system=node,
+            system=instruction,
             build=None,
             self_metrics=self_metrics,
             aggregated_metrics={**self_metrics},
         )
-        evaluations[node.id] = evaluation
+        evaluations[instruction.id] = evaluation
 
-        # aggregate evaluations
-        child_evaluations = [evaluations[child.id] for child in node.children]
-        evaluations[node.id].aggregated_metrics = aggregate_metrics(child_evaluations)
+        # aggregate evaluations (incl. self)
+        # this will break when we get cycles :InstructionCircles
+        child_evaluations = [evaluations[child.id] for child in instruction.children]
+        evaluations[instruction.id].aggregated_metrics = aggregate_metrics(
+            [evaluation, *child_evaluations]
+        )
 
     root_evaluations = [evaluations[root.id] for root in tree.roots]
     root_evaluation = EvaluationResult(
