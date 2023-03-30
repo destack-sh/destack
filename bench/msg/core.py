@@ -204,7 +204,7 @@ async def request(
     *,
     topic: str = None,
     timeout: float = 10,
-) -> PayloadT:
+) -> NMessage[PayloadT]:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     if topic is None:

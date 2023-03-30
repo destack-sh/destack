@@ -1,10 +1,23 @@
 import asyncio
+from datetime import datetime, timedelta
+from uuid import UUID
 
+import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.models import Execution, Job, ProjectVersion, mapper
+from bench.models import (
+    Execution,
+    ExecutionStatus,
+    Job,
+    ProjectVersion,
+    Worker,
+    WorkerStatus,
+    mapper,
+)
+from bench.models.execution import PENDING_EXECUTION_STATUSES
+from bench.models.job import PENDING_JOB_STATUSES, JobStatus
 from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
@@ -17,36 +30,52 @@ from bench.msg.messages import (
     NMessageType,
     ProjectVersionChangedPayload,
     RepReadModulePayload,
+    RepRegisterWorkerPayload,
     RepWriteBuildCandidatePayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
     RepWriteModulePayload,
     ReqReadModulePayload,
+    ReqRegisterWorkerPayload,
     ReqWriteBuildCandidatePayload,
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
     ReqWriteJobPayload,
+    WorkerHeartbeatPayload,
 )
 from bench.msg.sync import is_semantic_mutation
 from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
+from bench.utils.cache import redis
+from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
+
+
+def create_wrapped_task(coro, task_id: str = None):
+    asyncio.create_task(wrap_task(coro, task_id))
+
+
+WORKER_HEARTBEAT_TIMEOUT = 30
 
 
 class InternalServer:
     """
     Server-side Bench language server for reading and writing modules in DB.
     Can be thought of as a sidecar to the main API server for internal operations.
+    Also manages worker lifecycle (for now?).
     """
 
     def __init__(self):
         self.subs = []
+        self.tasks = []
 
     async def run(self):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
+            await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
+            await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(
                 NMessageType.REQUEST_WRITE_BUILD_CANDIDATE, self.write_build_candidate
@@ -59,6 +88,82 @@ class InternalServer:
                 f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
             ),
         ]
+        self.tasks = [create_wrapped_task(self.manage_workers(interval_seconds=10))]
+
+    @message_handler
+    async def register_worker(self, msg: NMessage[ReqRegisterWorkerPayload]) -> None:
+        try:
+            worker = await Worker.objects.acreate(
+                id=msg.payload.worker_id,
+                status=WorkerStatus.ACTIVE,
+                deployment_id=msg.p.deployment_id,
+                project_id=msg.p.project_id,
+                type=msg.p.type,
+                started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            )
+            success = True
+            logger.info("register_worker", worker=worker)
+        except Exception as e:
+            sentry_capture_if_enabled(e)
+            logger.error("register_worker.failed", msg=msg, exc_info=True)
+            success = False
+        await msg.reply(RepRegisterWorkerPayload(success=success))
+
+    @message_handler
+    async def worker_heartbeat(self, msg: NMessage[WorkerHeartbeatPayload]) -> None:
+        last_seen = datetime.utcnow().replace(tzinfo=pytz.utc)
+        await redis.set(
+            f"worker.{msg.payload.worker_id}.heartbeat", str(last_seen), ex=WORKER_HEARTBEAT_TIMEOUT
+        )
+
+    async def manage_workers(self, interval_seconds: int):
+        while True:
+            # get last seen for all workers
+            live_worker_keys = [
+                worker_id async for worker_id in redis.scan_iter("worker.*.heartbeat")
+            ]
+            live_worker_ids = [UUID(key.decode().split(".")[1]) for key in live_worker_keys]
+            last_seen = await redis.mget(keys=live_worker_keys)
+            if len(live_worker_ids) != len(last_seen):
+                continue  # try again?
+            last_seen = [datetime.fromisoformat(ts.decode()) for ts in last_seen]
+
+            # batch update last seen for live workers
+            live_workers = [w async for w in Worker.objects.filter(id__in=live_worker_ids)]
+            for ls, worker in zip(last_seen, live_workers):
+                worker.last_seen_at = ls
+            await Worker.objects.abulk_update(live_workers, ["last_seen_at"])
+
+            # check if there are any dead workers
+            liveness_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
+                seconds=WORKER_HEARTBEAT_TIMEOUT
+            )
+            dead_workers = [
+                worker
+                async for worker in Worker.objects.filter(
+                    status=WorkerStatus.ACTIVE, last_seen_at__lt=liveness_cutoff
+                )
+            ]
+            logger.debug(
+                "manage_workers", live_workers=len(live_worker_ids), dead_workers=len(dead_workers)
+            )
+
+            if dead_workers:
+                # mark all relevant jobs and executions as failed
+                await Execution.objects.filter(
+                    status__in=PENDING_EXECUTION_STATUSES,
+                    worker_id__in=[worker.id for worker in dead_workers],
+                ).aupdate(status=ExecutionStatus.Failed)
+                await Job.objects.filter(
+                    status__in=PENDING_JOB_STATUSES,
+                    worker_id__in=[worker.id for worker in dead_workers],
+                ).aupdate(status=JobStatus.Failed)
+                for worker in dead_workers:
+                    worker.status = WorkerStatus.TERMINATED
+                    worker.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+                await Worker.objects.abulk_update(dead_workers, ["status", "terminated_at"])
+
+            await asyncio.sleep(interval_seconds)
 
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:

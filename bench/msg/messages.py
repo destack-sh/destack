@@ -38,6 +38,9 @@ class NMessageType(StrEnum):
     MODULE_CHANGED = "module.changed"
 
     # Worker <-> Internal
+    REQUEST_REGISTER_WORKER = "worker.register"
+    REPLY_REGISTER_WORKER = "worker.register.rep"
+    WORKER_HEARTBEAT = "worker.heartbeat"
     REQUEST_READ_MODULE = "module.read"
     REPLY_READ_MODULE = "module.read.rep"
     EXECUTION_CHANGED = "execution.changed"
@@ -65,6 +68,7 @@ class NMessageType(StrEnum):
 
 
 REPLY_BY_REQUEST_TYPE = {
+    NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_BUILD: NMessageType.REPLY_WRITE_BUILD,
     NMessageType.REQUEST_WRITE_BUILD_CANDIDATE: NMessageType.REPLY_WRITE_BUILD_CANDIDATE,
@@ -83,6 +87,24 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 # In the future we may want to use a more formal serialization format,
 # but for the time being this is both fast and flexible.
 #
+
+
+@payload(NMessageType.REQUEST_REGISTER_WORKER)
+class ReqRegisterWorkerPayload:
+    worker_id: UUID
+    deployment_id: UUID
+    project_id: Optional[UUID]
+    type: str
+
+
+@payload(NMessageType.REPLY_REGISTER_WORKER)
+class RepRegisterWorkerPayload:
+    success: bool
+
+
+@payload(NMessageType.WORKER_HEARTBEAT)
+class WorkerHeartbeatPayload:
+    worker_id: UUID
 
 
 @payload(NMessageType.PROJECT_VERSION_CHANGED)

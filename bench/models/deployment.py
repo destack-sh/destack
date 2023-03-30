@@ -151,3 +151,33 @@ class DeployedStatement(UUIDModel):
                 name="bench_deployed_statement_ak",
             ),
         ]
+
+
+class WorkerType(models.TextChoices):
+    COMMUNITY = "COMMUNITY"
+    DEDICATED = "DEDICATED"
+
+
+class WorkerStatus(models.TextChoices):
+    STARTING = "STARTING"
+    ACTIVE = "ACTIVE"
+    STOPPING = "STOPPING"
+    TERMINATED = "TERMINATED"
+
+
+class Worker(UUIDModel):
+    """A worker is a worker node in a deployment."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    started_at = models.DateTimeField(null=True)
+    terminated_at = models.DateTimeField(null=True)
+    type = TextChoicesField(choices_enum=WorkerType)
+    status = TextChoicesField(choices_enum=WorkerStatus)
+    project = models.ForeignKey(
+        "Project", on_delete=models.CASCADE, related_name="workers", null=True
+    )
+    deployment = models.ForeignKey(
+        "Deployment", on_delete=models.CASCADE, related_name="workers", null=True
+    )
+    last_seen_at = models.DateTimeField(null=True)

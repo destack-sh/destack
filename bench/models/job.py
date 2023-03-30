@@ -21,14 +21,19 @@ class JobStatus(models.TextChoices):
     Failed = "failed"
 
 
+TERMINAL_JOB_STATUSES = {JobStatus.Completed, JobStatus.Cancelled, JobStatus.Failed}
+PENDING_JOB_STATUSES = set(JobStatus) - TERMINAL_JOB_STATUSES
+
+
 class Job(UUIDModel):
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="jobs+")
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="jobs+"
     )
     deployment = models.ForeignKey(
-        "Deployment", on_delete=models.CASCADE, related_name="jobs+", null=True, blank=True
+        "Deployment", on_delete=models.SET_NULL, related_name="jobs+", null=True, blank=True
     )
+    worker = models.ForeignKey("Worker", on_delete=models.SET_NULL, null=True, blank=True)
     parent = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="children", null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

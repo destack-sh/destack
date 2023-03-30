@@ -1,6 +1,14 @@
 from .build import BuildCandidate, BuildCandidateStatus
 from .data import DatasetRecord
-from .deployment import DeployedStatement, Deployment, DeploymentStatus, DeploymentType
+from .deployment import (
+    DeployedStatement,
+    Deployment,
+    DeploymentStatus,
+    DeploymentType,
+    Worker,
+    WorkerStatus,
+    WorkerType,
+)
 from .evaluation import EvaluationKind, EvaluationResult, EvaluationScope
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
@@ -39,8 +47,8 @@ __all__ = [
     "Deployment",
     "DeploymentStatus",
     "DeploymentType",
-    "EvaluationResult",
     "EvaluationKind",
+    "EvaluationResult",
     "EvaluationScope",
     "Execution",
     "ExecutionStatus",
@@ -72,6 +80,9 @@ __all__ = [
     "StatementType",
     "SymbolType",
     "User",
+    "Worker",
+    "WorkerStatus",
+    "WorkerType",
     "XBlock",
     "XKind",
     "XSource",
