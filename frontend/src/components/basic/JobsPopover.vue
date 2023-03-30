@@ -77,10 +77,10 @@ const JOB_VERBS = {
           <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />
         </svg>
         <!-- Truncated jobs -->
-        <span v-for="job in activeJobs.slice(0, 3)" :key="job.id" class="text-gray-500">
+        <span v-for="job in activeJobs.slice(0, 3)" :key="job.type" class="text-gray-500">
           {{ JOB_VERBS_INF[job.type] }}
         </span>
-        <span v-if="activeJobs.length > 3">{{ activeJobs.length - 2 }} more</span>
+        <span v-if="activeJobs.length > 3" class="whitespace-nowrap text-gray-500">+{{ activeJobs.length - 2 }}</span>
       </div>
       <!-- No active jobs (ellipsis) -->
       <div v-else>

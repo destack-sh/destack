@@ -33,6 +33,10 @@ from bench.utils.record import RecordBatch
 from bench.utils.utils import required_field
 from bench.utils.uuidt import UUIDT
 
+#
+# Instances
+#
+
 AsyncCodeCallable = Callable[..., Coroutine]
 SyncCodeCallable = Callable[..., Any]
 
@@ -356,6 +360,15 @@ class EvaluationResultData:
     project_id: UUID
     project_version_id: UUID
     job_id: Optional[UUID]
+
+    def __str__(self):
+        metrics_str = ", ".join(
+            f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
+        )
+        return f"{self.kind} {self.scope} {metrics_str}"
+
+    def __repr__(self):
+        return f"<Evaluation {self.statement_id or self.record_id or self.type_node_id} {self}>"
 
     @staticmethod
     def from_result(

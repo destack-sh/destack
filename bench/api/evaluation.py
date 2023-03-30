@@ -140,6 +140,7 @@ class EvaluationSubscription:
             payload_t=EvaluationSavedPayload,
         )
 
+        build_id_in = to_uuids(build_id_in)
         system_id_in = to_uuids(system_id_in)
         expanded_symbol_ids, project_version_ids = await _expand_filters(
             project_version_id, include_ancestor_versions, build_id_in, system_id_in

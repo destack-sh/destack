@@ -1620,8 +1620,9 @@ def interp(
         if symbol.source.has_reference:
             symbol.reference = idx.symbols[symbol.source.reference.id]
 
+        # :SymbolDefinitionReference
         # definition site is the first non-abstract reference or definition
-        #  excluding plain references without parameters
+        # excluding plain references without parameters
         definition_stmt = symbol.source.underlying_definition
         symbol.definition = idx.symbols[definition_stmt.id]
         if symbol.definition.abstract:

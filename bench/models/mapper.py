@@ -654,8 +654,11 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
 
 
 def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.EvaluationResult:
+    now = datetime.utcnow().replace(tzinfo=pytz.utc)
     return models.EvaluationResult(
         id=evaluation.id,
+        created_at=now,
+        updated_at=now,
         kind=evaluation.kind,
         scope=evaluation.scope,
         project_id=evaluation.project_id,
@@ -670,8 +673,11 @@ def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.Evaluatio
 
 
 def rmap_build_candidate(candidate: BuildCandidateData) -> models.BuildCandidate:
+    now = datetime.utcnow().replace(tzinfo=pytz.utc)
     return models.BuildCandidate(
         id=candidate.id,
+        created_at=now,
+        updated_at=now,
         build_id=candidate.build_id,
         status=candidate.status,
         name=candidate.name,

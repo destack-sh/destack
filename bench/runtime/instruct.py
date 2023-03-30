@@ -133,106 +133,98 @@ class InstructionTree:
             yield from node.walk_with_parent(path)
 
 
-def map_instruction_node(
-    tree: InstructionTree, symbol: InterpSymbol, op: InstructionOp = None
+def map_instruction(
+    node: InterpSymbol | TypeNode, tree: InstructionTree, op: InstructionOp = None
 ) -> Instruction:
     """
     Maps out the instruction tree starting from the given symbol.
     If nodes are already present, they are skipped (including the given node).
     """
 
-    if symbol.id in tree.nodes and isinstance(tree.nodes[symbol.id].node, InterpSymbol):
+    if node.id in tree.nodes and isinstance(tree.nodes[node.id].node, InterpSymbol):
         # we can overwrite the node if it's not a statement
         # (e.g. type nodes and real Types share the same id)
-        return tree.nodes[symbol.id]
+        return tree.nodes[node.id]
     # if this is a reference, walk the referenced symbol directly (can only be definition for now)
-    if symbol.reference is not None and symbol.reference != symbol:
-        map_instruction_node(tree, symbol.reference)
-        return tree.nodes[symbol.reference.id]
+    if node.reference is not None and node.reference != node:
+        map_instruction(node.reference, tree)
+        return tree.nodes[node.reference.id]
 
     if op is None:
         # if not explicitly given, figure out instruction type from symbol
         # yeah this kind of feels like it should be in the symbol/language, see :InstructionOps
-        if symbol.symbol_type == SymbolType.BUILD:
-            op = InstructionOp.BuildDefinition
-        elif symbol.symbol_type == SymbolType.TYPE:
+        if isinstance(node, TypeNode):
             op = InstructionOp.TypeDefinition
-        elif symbol.symbol_type == SymbolType.TASK:
+        elif node.symbol_type == SymbolType.BUILD:
+            op = InstructionOp.BuildDefinition
+        elif node.symbol_type == SymbolType.TYPE:
+            op = InstructionOp.TypeDefinition
+        elif node.symbol_type == SymbolType.TASK:
             op = InstructionOp.TaskDefinition
-        elif symbol.symbol_type == SymbolType.EXPECTATION:
+        elif node.symbol_type == SymbolType.EXPECTATION:
             op = InstructionOp.ExpectationDefinition
-        elif symbol.symbol_type == SymbolType.DATA:
-            if symbol.modifier in (StatementModifier.LIKE, StatementModifier.UNLIKE):
+        elif node.symbol_type == SymbolType.DATA:
+            if node.modifier in (StatementModifier.LIKE, StatementModifier.UNLIKE):
                 op = InstructionOp.SampleData
             else:
                 op = InstructionOp.DataDefinition
-        elif symbol.symbol_type == SymbolType.CODE:
-            if symbol.modifier in (StatementModifier.LIKE, StatementModifier.UNLIKE):
+        elif node.symbol_type == SymbolType.CODE:
+            if node.modifier in (StatementModifier.LIKE, StatementModifier.UNLIKE):
                 op = InstructionOp.SampleCode
-            elif symbol.modifier == StatementModifier.CHECK:
+            elif node.modifier == StatementModifier.CHECK:
                 op = InstructionOp.CheckCode
             else:
                 op = InstructionOp.CodeDefinition
-        elif symbol.symbol_type in (SymbolType.MODEL, SymbolType.REQUIREMENT, SymbolType.RUNCONFIG):
+        elif node.symbol_type in (SymbolType.MODEL, SymbolType.REQUIREMENT, SymbolType.RUNCONFIG):
             op = InstructionOp.Pseudo
         else:
-            raise ValueError(f"unexpected symbol {symbol}")
+            raise ValueError(f"unexpected symbol {node}")
 
-    node = Instruction(op=op, node=symbol, id=symbol.id)
-    tree.nodes[symbol.id] = node
+    instruction = Instruction(op=op, node=node, id=node.id)
+    tree.nodes[node.id] = instruction
 
-    if isinstance(symbol, Dataset):
-        for record in symbol.records:
+    if isinstance(node, Dataset):
+        for record in node.records:
             # this will have to change later, see :NaiveTreeTracking
             tree.nodes[record.id] = Instruction(
                 op=InstructionOp.DataDefinition, node=record, id=record.id
             )
-            node.children.append(tree.nodes[record.id])
+            instruction.children.append(tree.nodes[record.id])
 
     # track types and their subsymbols
-    if isinstance(symbol, (Task, Code, Type, Dataset)):
-        if isinstance(symbol, Type):
-            type = symbol
+    if isinstance(node, (TypeNode, Task, Code, Type, Dataset)):
+        if isinstance(node, (TypeNode, Type)):
+            type = node
         else:
-            type = symbol.type
-        for type_node in type.walk():
-            if type_node.id == type.id:
-                continue
-            elif isinstance(type_node, InterpSymbol):
-                child = map_instruction_node(tree, type_node)
-                node.children.append(child)
-            elif type_node.id not in tree.nodes:  # id may be re-used for Type, prefer symbol node
-                # this will have to change later, see :NaiveTreeTracking
-                if type_node.source_reference is not None:
-                    if not isinstance(type_node.reference, Type):
-                        raise RuntimeError(f"type node references must be imputed: {type_node}")
-                    child = map_instruction_node(tree, type_node.reference)
-                    node.children.append(child)
-                else:
-                    child = Instruction(
-                        op=InstructionOp.TypeDefinition, node=type_node, id=type_node.id
-                    )
-                    tree.nodes[type_node.id] = child
-                    node.children.append(child)
+            type = node.type
+        for type_node in type.children or []:
+            # this will have to change later, see :NaiveTreeTracking
+            if type_node.source_reference is not None:
+                if not isinstance(type_node.reference, Type):
+                    raise RuntimeError(f"type node references must be imputed: {type_node}")
+                type_node = type_node.reference
+            child = map_instruction(type_node, tree)
+            instruction.children.append(child)
 
     # context symbols
-    for context_symbol in symbol.context.values():
-        child = map_instruction_node(tree, context_symbol)
-        node.children.append(child)
+    if isinstance(node, InterpSymbol):
+        for context_symbol in node.context.values():
+            child = map_instruction(context_symbol, tree)
+            instruction.children.append(child)
 
     # walk expectations
-    if isinstance(symbol, (Task, Expectation, Type)):
-        for expectation in symbol.expectations:
-            child = map_instruction_node(tree, expectation, op=InstructionOp.Expect)
-            node.children.append(child)
+    if isinstance(node, (Task, Expectation, Type)):
+        for expectation in node.expectations:
+            child = map_instruction(expectation, tree, op=InstructionOp.Expect)
+            instruction.children.append(child)
 
     # walk task steps & implementation
-    if isinstance(symbol, Task):
-        for step in symbol.steps:
-            child = map_instruction_node(tree, step, op=InstructionOp.TaskStep)
-            node.children.append(child)
+    if isinstance(node, Task):
+        for step in node.steps:
+            child = map_instruction(step, tree, op=InstructionOp.TaskStep)
+            instruction.children.append(child)
 
-    return node
+    return instruction
 
 
 def instruction_tree_from_symbol(
@@ -240,18 +232,20 @@ def instruction_tree_from_symbol(
 ) -> InstructionTree:
     """Build a tree of instructions from a symbol and its referenced symbols (and sub-symbols)."""
     tree = tree or InstructionTree(nodes={})
-    map_instruction_node(tree, symbol)
+    map_instruction(symbol, tree)
     return tree
 
 
 def instruction_tree_from_module(
-    module: ModuleIndex, tree: InstructionTree = None
+    module: ModuleIndex, *, exclude_generated: bool, tree: InstructionTree = None
 ) -> InstructionTree:
     """Build a tree of instructions from a module and its referenced symbols (and sub-symbols)."""
     tree = tree or InstructionTree(nodes={})
     for symbol in module.symbols.values():
+        if exclude_generated and symbol.is_generated:
+            continue
         # ignore pseudo instructions
-        map_instruction_node(tree, symbol)
+        map_instruction(symbol, tree)
     return tree
 
 

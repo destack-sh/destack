@@ -392,10 +392,11 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
 async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
     """Evaluates the generated task implementations of a build candidate."""
     task_instances = [
-        instantiate(task, build=result.build, buildmap=result.get_target)
+        # :SymbolDefinitionReference
+        instantiate(task.definition, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    eval_model = candidate.models[0]  # not sure which model to use here?
+    eval_model = candidate.models[0]  # TODO @Broken: always use same eval & build model
     evaluation_tasks = (
         evaluate_task(
             task=task,
@@ -413,6 +414,7 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
         self_metrics=None,
         build=result.build,
         aggregated_metrics=aggregate_metrics(tasks_evaluations),
+        children=tasks_evaluations,
     )
 
 
@@ -461,6 +463,7 @@ async def do_build_candidate(candidate: BuildCandidate) -> None:
     # render instructions
     for task_plan in candidate.plan.task_plans:
         implementation = await do_build_task_plan(task_plan)
+        # :SymbolDefinitionReference
         candidate.state.add_target(implementation, source=task_plan.task.definition)
 
     # add weak refs for emits referencing external symbols (temporary until :WeakReferences is addressed)
@@ -686,6 +689,7 @@ def get_builds_for(symbol: Task, idx: ModuleIndex) -> list[Build]:
     for b in idx.symbols_of_type(Build):
         if not b.is_definition:
             continue
+        # :SymbolDefinitionReference
         if any(t.definition.id == symbol.id for t in b.tasks):
             builds.append(b)
     return builds
