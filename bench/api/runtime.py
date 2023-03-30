@@ -287,16 +287,16 @@ class InterpSubscription:
             ReqInterpModulePayload(module_id=project_version_id),
             RepInterpModulePayload,
         )
-        payload = rep.payload
+        new_interp = rep.payload
         module = rmap_module(rep.p.module)
         interp = InterpModule(
             id=module.id,
             name=module.name,
             files=module.files,
-            dependencies=[rmap_module(dep) for dep in payload.dependencies],
-            errors=(rmap_errors(payload.errors, module)),
+            dependencies=[rmap_module(dep) for dep in new_interp.dependencies],
+            errors=rmap_errors(new_interp.errors, module),
             stale_symbols=[
-                _get_symbol_from_module(module, symbol_id) for symbol_id in payload.stale_symbols
+                _get_symbol_from_module(module, symbol_id) for symbol_id in new_interp.stale_symbols
             ],
         )
         yield interp
@@ -305,21 +305,21 @@ class InterpSubscription:
         log.info("interp.listen")
         while True:
             update = await interp_sub.next_msg()
-            payload = update.payload
-            log.debug("interp.update", updated_at=payload.updated_at)
+            new_interp = update.payload
+            log.debug("interp.update", updated_at=new_interp.updated_at)
             # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
             # :PartialModuleUpdates
             # also the mapping duplication is a bit ugly
-            if payload.module is not None:
-                runtime.module = rmap_module(payload.module)
-            if payload.dependencies is not None:
-                runtime.dependencies = [rmap_module(dep) for dep in payload.dependencies]
-            if payload.errors is not None:
-                runtime.errors = rmap_errors(payload.errors, interp)
-            if payload.stale_symbols is not None:
-                runtime.stale_symbols = [
+            if new_interp.module is not None:
+                interp.module = rmap_module(new_interp.module)
+            if new_interp.dependencies is not None:
+                interp.dependencies = [rmap_module(dep) for dep in new_interp.dependencies]
+            if new_interp.errors is not None:
+                interp.errors = rmap_errors(new_interp.errors, interp)
+            if new_interp.stale_symbols is not None:
+                interp.stale_symbols = [
                     _get_symbol_from_module(interp, symbol_id)
-                    for symbol_id in payload.stale_symbols
+                    for symbol_id in new_interp.stale_symbols
                 ]
-            runtime.updated_at = payload.updated_at
-            yield runtime
+            interp.updated_at = new_interp.updated_at
+            yield interp

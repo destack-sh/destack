@@ -57,7 +57,7 @@ def aggregate_metrics(
     summed_counts = {}
     for metric in COUNT_METRICS & summed_counts.keys():
         summed_counts[metric] = sum(
-            evaluation.self_metrics[metric] * weights.get(evaluation.id, weights[metric])
+            evaluation.aggregated_metrics[metric] * weights.get(evaluation.id, weights[metric])
             for evaluation in evaluations
         )
     # average the percentages (?)
@@ -112,7 +112,7 @@ async def evaluate_task(
         [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
     )
     count_metrics = {
-        EvaluationMetric.NodesCount: 1,
+        EvaluationMetric.InstructionCount: 1,
         # only 1 always for now :TaskGrouping
         EvaluationMetric.StepsCount: 1,
         EvaluationMetric.InferencesCount: 1,
@@ -144,10 +144,10 @@ async def evaluate_task(
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
-    # TODO @Incomplete: compute proper summary metrics
+    # TODO nocheckin: compute proper summary metrics
     summary_metrics = {
-        EvaluationMetric.Performance: random.random(),
-        EvaluationMetric.Difficulty: 0.14,
+        EvaluationMetric.Performance: performance_metrics[EvaluationMetric.TypeValidity],
+        EvaluationMetric.Speed: random.random() * 1000,
     }
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
@@ -160,14 +160,14 @@ async def evaluate_task(
     )
 
 
-async def lint_instruction(node: Instruction) -> dict[str, float]:
+async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
-    # TODO @Incomplete: compute proper lint metrics
-    self_metrics = {EvaluationMetric.NodesCount: 1}
+    # TODO Incomplete: compute proper lint metrics
+    self_metrics = {EvaluationMetric.InstructionCount: 1}
 
-    # TODO @Incomplete: compute proper summary metrics
+    # TODO nocheckin: compute proper summary metrics
     self_metrics[EvaluationMetric.Clarity] = random.random()
-    self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.NodesCount] / 2
+    self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.InstructionCount]
     return self_metrics
 
 
