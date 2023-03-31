@@ -147,6 +147,12 @@ class ExecutionFrame:
     error: Optional[Exception]
     queue_position: Optional[int]
 
+    @property
+    def duration(self) -> float:
+        if self.exited_at is None:
+            return 0
+        return (self.exited_at - self.entered_at).total_seconds()
+
     def __str__(self):
         # get str of all non-null fields
         fields_strs = [

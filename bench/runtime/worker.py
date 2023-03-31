@@ -50,8 +50,8 @@ from bench.runtime.build import (
 )
 from bench.runtime.evaluate import EvaluationResult, lint
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
-from bench.runtime.run import RunError, instantiate, run
-from bench.runtime.tracing import WorkerContext, worker
+from bench.runtime.run import DEFAULT_TRACER, RunError, instantiate, run
+from bench.runtime.tracing import PubTrackerContext, WorkerContext, pub_tracker_context, worker
 from bench.runtime.type import (
     BuildCandidateData,
     CodeInstance,
@@ -65,7 +65,6 @@ from bench.runtime.type import (
 )
 from bench.utils.func import wrap_task
 from bench.utils.utils import required_field, sentry_capture_if_enabled
-from bench.utils.uuidt import UUIDT
 
 WORKER_HEARTBEAT_INTERVAL = 5
 
@@ -123,6 +122,16 @@ class BuildJob(Job):
 
 
 @dataclass(repr=False, slots=True)
+class EvaluateJob(Job):
+    type: ClassVar[JobType] = JobType.EVALUATE
+    evaluation_result: Optional[EvaluationResult] = None
+
+    @property
+    def success(self) -> bool:
+        return self.evaluation_result is not None
+
+
+@dataclass(repr=False, slots=True)
 class RunJob(Job):
     type: ClassVar[JobType] = JobType.RUN
     runnable: TaskInstance | CodeInstance = None
@@ -131,7 +140,7 @@ class RunJob(Job):
     error_details: Optional[Any] = None
     output: Optional[LiteralValue] = None
     tracing_level: ExecutionTracingLevel = required_field()
-    trigger_type: str = required_field()
+    trigger_type: ExecutionTriggerType = required_field()
     trigger_id: Optional[UUID] = None
 
     @property
@@ -459,8 +468,6 @@ class ModuleWorker:
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
         # instantiate
-        # root execution id is pre-set for tracking (run job gets the same id)
-        root_id = UUIDT()
         try:
             # TODO @Performance: share/cache run instances across runs
             runnable_instance = instantiate(
@@ -475,7 +482,6 @@ class ModuleWorker:
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
         job = RunJob(
-            id=root_id,
             runnable=runnable_instance,
             arguments=arguments,
             tracing_level=tracing_level,
@@ -492,11 +498,28 @@ class ModuleWorker:
             code_instance = runnable_instance.implementation
         else:
             code_instance = runnable_instance
-        # nocheckin: notify tracer about queue enter
-        # tracer.queue_enter(code_instance, arguments, qpos)
+        # notify tracer about queue enter
+        # there are nicer ways to do this, but essentially we need access to the
+        # current root tracer, which defaults to DEFAULT_TRACER
+        DEFAULT_TRACER.queue_enter(code_instance, arguments, qpos)
         return job
 
-    async def do_run(self, runnable: CodeInstance, arguments: dict[str, LiteralValue]):
+    async def do_run(
+        self,
+        runnable: CodeInstance,
+        arguments: dict[str, LiteralValue],
+        tracing_level: ExecutionTracingLevel,
+        trigger_type: ExecutionTriggerType,
+        trigger_id: UUID,
+        root_id: UUID,
+    ):
+        run_context = PubTrackerContext(
+            tracing_level=tracing_level,
+            trigger_type=trigger_type,
+            trigger_id=trigger_id,
+            root_id=root_id,
+        )
+        run_context_token = pub_tracker_context.set(run_context)
         try:
             if isinstance(runnable, TaskInstance):
                 code_instance = runnable.implementation
@@ -513,6 +536,8 @@ class ModuleWorker:
             sentry_enabled = sentry_capture_if_enabled(e)
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
+        finally:
+            pub_tracker_context.reset(run_context_token)
 
     async def _process_queue(self, queue: asyncio.Queue[tuple[int, Job]], track: bool) -> None:
         """Process module jobs sequentially"""
@@ -522,6 +547,12 @@ class ModuleWorker:
                 continue
 
             create_task = asyncio.create_task
+            job_context = PubTrackerContext(
+                tracing_level=self.master.default_tracing_level,
+                trigger_type=ExecutionTriggerType.JOB,
+                trigger_id=job.id,
+            )
+            job_context_token = pub_tracker_context.set(job_context)
             try:
                 job.status = JobStatus.Running
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -538,7 +569,16 @@ class ModuleWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, RunJob):
-                    job.task = create_task(self.do_run(job.runnable, job.arguments))
+                    job.task = create_task(
+                        self.do_run(
+                            runnable=job.runnable,
+                            arguments=job.arguments,
+                            tracing_level=job.tracing_level,
+                            trigger_type=job.trigger_type,
+                            trigger_id=job.trigger_id,
+                            root_id=job.id,
+                        )
+                    )
                     error, ret = await job.task
                     if error is None:
                         job.output = ret
@@ -566,6 +606,7 @@ class ModuleWorker:
                     # no need to await this update since we don't need the result
                     create_wrapped_task(self.master.notify_job_status(self, job))
                     del self.running_jobs[job.id]
+                pub_tracker_context.reset(job_context_token)
                 queue.task_done()
 
     async def run(self):
@@ -649,6 +690,10 @@ class Worker:
         self.subs = []
         self.tasks = []
         self.cached_committed_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
+
+    @property
+    def default_tracing_level(self) -> ExecutionTracingLevel:
+        return ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
 
     async def run(self):
         await nc_init.wait()

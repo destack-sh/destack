@@ -1,9 +1,9 @@
+import os
 import typing
-import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Callable, Optional
-from uuid import UUID
 
+import anthropic
 import openai
 import PIL.Image
 import pydub
@@ -24,10 +24,8 @@ logger = structlog.get_logger(__name__)
 @dataclass(repr=False)
 class InferenceContext:
     model: Model
-    n: int
     user_opaque_id: Optional[str] = None
     streaming_callback: Optional[Callable[[XBlock], None]] = None
-    id: UUID = field(default_factory=uuid.uuid4)
 
     @property
     def streaming(self) -> bool:
@@ -40,6 +38,8 @@ endpoints: dict[(str, Modality), InferenceEndpoint] = {}
 
 
 def endpoint(models: list[str], *modalities: Modality):
+    """Register an inference endpoint for a model and set of modalities."""
+
     def decorator(fn: InferenceEndpoint) -> InferenceEndpoint:
         for model in models:
             for modality in modalities:
@@ -107,13 +107,14 @@ class OpenAITextCompletion(ModelInference):
         settings: TextGenerationSettings,
     ) -> str:
         role_map = {
-            XSource.System: "system",
-            XSource.Developer: "developer",
-            XSource.User: "user",
-            XSource.Model: "assistant",
+            XSource.System: "System",
+            XSource.Developer: "Developer",
+            XSource.User: "User",
+            XSource.Model: "Assistant",
         }
         messages = [{"role": role_map[x.source], "content": x.value} for x in input]
-        prompt = "\n".join(f"{x['role']}: {x['content']}" for x in messages)
+        messages.append({"role": role_map[XSource.Model], "content": ""})  # empty assistant prompt
+        prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
         response = await openai.Completion.acreate(
             model=self.ctx.model.external_name,
             prompt=prompt,
@@ -133,7 +134,7 @@ class OpenAITextEmbedding(ModelInference):
     ctx: InferenceContext
 
     async def embed(self, input: list[XBlock[str]], settings: None) -> list[float]:
-        prompt = "\n".join(x.value for x in input)
+        prompt = "\n\n".join(x.value for x in input)
         rep = await openai.Embedding.acreate(prompt, model=self.ctx.model.external_name)
         return rep["data"][0]["embedding"]
 
@@ -154,12 +155,33 @@ class OpenAIAudioTranscription(ModelInference):
 class AnthropicTextCompletion(ModelInference):
     ctx: InferenceContext
 
+    def __init__(self):
+        self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
+
     async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: TextGenerationSettings,
     ) -> str:
-        raise NotImplementedError
+        # see https://console.anthropic.com/docs/api
+        role_map = {
+            XSource.System: "System",
+            XSource.Developer: "Developer",
+            XSource.User: "Human",
+            XSource.Model: "Assistant",
+        }
+        messages = [{"role": role_map[x.source], "content": x.value} for x in input]
+        messages.append({"role": role_map[XSource.Model], "content": ""})  # empty assistant prompt
+        prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
+        rep = await self.client.acompletion(
+            prompt=prompt,
+            model=self.ctx.model.external_name,
+            stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
+            temperature=settings.temperature,
+            max_tokens_to_sample=settings.max_tokens,
+            top_p=settings.top_p,
+        )
+        return rep["completion"]
 
 
 @endpoint(["stabilityai.std.image.stable-diffusion"], Modality.GenerateImage)

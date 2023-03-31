@@ -16,6 +16,7 @@ from bench.runtime.instruct import (
     instruction_tree_from_module,
 )
 from bench.runtime.run import run
+from bench.runtime.tracing import in_memory_traces
 from bench.runtime.type import (
     EvaluationKind,
     EvaluationMetric,
@@ -124,10 +125,12 @@ async def evaluate_task(
     inputs = await SampleSourceGenerator(
         flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
-    runs = (
-        run(task.implementation, dict_minus(sample.data, {"output"})) for sample in inputs.records
-    )
-    results = await asyncio.gather(*runs, return_exceptions=True)
+    with in_memory_traces() as traces:
+        runs = (
+            run(task.implementation, dict_minus(sample.data, {"output"}))
+            for sample in inputs.records
+        )
+        results = await asyncio.gather(*runs, return_exceptions=True)
     outputs = anonymous_dataset(task.type.output, n_samples)
     n_successful_runs = 0
     for i, result in enumerate(results):
