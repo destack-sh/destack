@@ -6,7 +6,7 @@
 #  `python -m piptools sync ...`
 
 aiohttp==3.8.3
-anthropic==0.2.2
+anthropic==0.2.5
 asgiref==3.5.2
 cachetools==5.2.0
 channels==4.0.0

@@ -3,9 +3,9 @@ from __future__ import annotations
 import contextvars
 import copy
 import typing
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
-from itertools import chain
 from typing import Any
 from uuid import UUID
 
@@ -31,6 +31,9 @@ class Tracer:
     Tracer will be called in an async context on a worker pod.
     """
 
+    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+        pass
+
     def code_enter(self, code: CodeInstance, args, kwargs):
         pass
 
@@ -54,14 +57,28 @@ class Tracer:
         pass
 
 
+_context_tracers: contextvars.ContextVar[list[Tracer]] = contextvars.ContextVar(
+    "tracers", default=[]
+)
+
+
 class MultiTracer(Tracer):
     """
     A worker-side tracer that delegates to multiple tracers.
     On exit, tracers are called in reverse order.
+    Dynamic context tracers may be added with contextvars.
     """
 
     def __init__(self, tracers: list[Tracer]):
-        self.tracers = tracers
+        self._static_tracers = tracers
+
+    @property
+    def tracers(self):
+        return self._static_tracers + _context_tracers.get()
+
+    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+        for tracer in self.tracers:
+            tracer.queue_enter(code, inputs, queue_position)
 
     def code_enter(self, code: CodeInstance, args, kwargs):
         for tracer in self.tracers:
@@ -92,31 +109,25 @@ class MultiTracer(Tracer):
             tracer.inference_exception(ctx, blocks, settings, exception)
 
 
-_context_tracers: contextvars.ContextVar[list[Tracer]] = contextvars.ContextVar(
-    "tracers", default=[]
-)
-
-
 def push_context_tracers(*tracers: Tracer):
     _context_tracers.set(_context_tracers.get() + list(tracers))
+    return tracers
 
 
-def pop_context_tracers(*tracers: Tracer):
+def pop_context_tracers(*tracers: Tracer, n: int | None = None):
+    tracers = _context_tracers.get()[-n:] if n is not None else _context_tracers.get()
     _context_tracers.set([t for t in tracers if t not in _context_tracers.get()])
 
 
-class ContextTracer(MultiTracer):
-    """A tracer that uses dynamic tracers from context variables (and the predefined tracers)."""
+class TracerContext:
+    def __init__(self, *tracers: Tracer):
+        self.tracers = tracers
 
-    @property
-    def tracers(self):
-        return chain(_context_tracers.get(), super().tracers)
+    def __enter__(self):
+        push_context_tracers(*self.tracers)
 
-
-class Trace:
-    """A trace collected by a worker-side tracer."""
-
-    pass
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pop_context_tracers(*self.tracers)
 
 
 @dataclass(slots=True)
@@ -131,14 +142,10 @@ worker: contextvars.ContextVar[WorkerContext] = contextvars.ContextVar("worker_c
 
 ExecutionCapture = typing.Callable[[ExecutionFrame], None]
 
-
-@dataclass
-class ExecutionTrace(Trace):
-    frames: list[ExecutionFrame]
-
-    @property
-    def root(self) -> typing.Optional[ExecutionFrame]:
-        return self.frames[0] if self.frames else None
+# global execution traces per execution tracer instance
+_execution_stacktraces: contextvars.ContextVar[
+    dict[int, list[ExecutionFrame]]
+] = contextvars.ContextVar("execution_trace", default=defaultdict(list))
 
 
 class ExecutionTracer(Tracer):
@@ -146,19 +153,19 @@ class ExecutionTracer(Tracer):
     A worker-side tracer that records code and model executions.
     """
 
+    _seq_id: typing.ClassVar[int] = 0
+
     def __init__(self, tracker: ExecutionCapture | None = None):
         self.tracker = tracker or (lambda frame: None)
-        self.stacktraces: contextvars.ContextVar[list[ExecutionFrame]] = contextvars.ContextVar(
-            "stacktraces", default=[]
-        )
+        self._id = ExecutionTracer._seq_id
+        ExecutionTracer._seq_id += 1
+
+    def __del__(self):
+        del _execution_stacktraces.get()[self._id]
 
     @property
     def stacktrace(self) -> list[ExecutionFrame]:
-        return self.stacktraces.get()
-
-    @property
-    def trace(self) -> ExecutionTrace:
-        return self.traces.get()[-1]
+        return _execution_stacktraces.get()[self._id]
 
     def _create_frame(
         self,
@@ -166,7 +173,6 @@ class ExecutionTracer(Tracer):
         model: typing.Optional[ModelInstance] = None,
         inference_context: typing.Optional[InferenceContext] = None,
         inputs: dict[str, Any] | None = None,
-        trace: bool = True,
         queue_position: int | None = None,
     ):
         root = self.stacktrace[0] if self.stacktrace else None
@@ -188,15 +194,11 @@ class ExecutionTracer(Tracer):
             error=None,
             queue_position=queue_position,
         )
-        if trace:
-            self.trace.frames.append(frame)
         return frame
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
-        frame = self._create_frame(
-            code=code, inputs=inputs, trace=False, queue_position=queue_position
-        )
+        frame = self._create_frame(code=code, inputs=inputs, queue_position=queue_position)
         self.tracker(frame)
         logger.debug("trace.queue", frame=frame)
 
@@ -252,7 +254,7 @@ class ExecutionTracer(Tracer):
 class PubTrackerContext:
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
-    trigger_id: UUID
+    trigger_id: typing.Optional[UUID]
     root_id: typing.Optional[UUID] = None
 
 
@@ -280,13 +282,18 @@ class PubExecutionTracker:
         w = worker.get()
         frame_data = ExecutionFrameData.from_frame(
             frame,
-            project_id=w.module_id,
+            project_id=w.project_id,
             tracing_level=ctx.tracing_level,
             deployment_id=w.deployment_id,
             worker_id=w.worker_id,
             trigger_type=ctx.trigger_type,
             trigger_id=ctx.trigger_id,
         )
+
+        # wipe code if it doesn't have a source
+        # that happens if newly generated symbols are tracked
+        if frame.code is not None and frame.code.source is None:
+            frame_data.code_id = None
 
         # wipe data if not tracing it
         # TODO @Cleanup: consider not tracking untracked data at all when creating execution frame
@@ -299,6 +306,23 @@ class PubExecutionTracker:
             NMessageType.EXECUTION_CHANGED,
             ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
         )
+
+
+class InMemoryExecutionTracker(TracerContext):
+    def __init__(self):
+        super().__init__(ExecutionTracer(self))
+        self.frames: list[ExecutionFrame] = []
+
+    def __call__(self, frame: ExecutionFrame):
+        self.frames.append(frame)
+
+    @property
+    def roots(self) -> list[ExecutionFrame]:
+        return [f for f in self.frames if f.root is None]
+
+
+def in_memory_traces() -> InMemoryExecutionTracker:
+    return InMemoryExecutionTracker()
 
 
 class ValidationError(Exception):

@@ -57,6 +57,7 @@ NOISY_LOG_SOURCES = {
     "bench.api.execution",
     "bench.runtime.worker",
     "bench.runtime.run",
+    "bench.runtime.tracing",
 }
 NOISY_LOGGERS = {
     source: {

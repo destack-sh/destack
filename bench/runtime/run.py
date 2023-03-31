@@ -39,8 +39,8 @@ from bench.language.type import (
 )
 from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoints
 from bench.runtime.tracing import (
-    ContextTracer,
     ExecutionTracer,
+    MultiTracer,
     PubExecutionTracker,
     Tracer,
     ValidationTracer,
@@ -405,9 +405,7 @@ class ModelInferenceImpl(ModelInference):
 
 
 def _instantiate_model_inference(model: Model) -> ModelInference:
-    # Model inference assumes its context is unique per instance :ReusableInstances
-    #  (could also just use context vars for this)
-    ctx = InferenceContext(model=model, n=1, user_opaque_id=model.id.hex, streaming_callback=None)
+    ctx = InferenceContext(model=model, user_opaque_id=model.id.hex, streaming_callback=None)
     impl = ModelInferenceImpl(ctx)
     endpoints = get_endpoints(model)
     if not endpoints:
@@ -419,8 +417,9 @@ def _instantiate_model_inference(model: Model) -> ModelInference:
     return impl
 
 
+DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
 DEFAULT_PROXY = Proxy(
-    tracer=ContextTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()]),
+    tracer=DEFAULT_TRACER,
     cache_inferences=True,
     inference_timeout=15,
     inference_retries=2,
