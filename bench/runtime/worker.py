@@ -2,7 +2,7 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-from typing import Any, Callable, ClassVar, NamedTuple, Optional, cast
+from typing import Any, Callable, ClassVar, Optional, cast
 from uuid import UUID
 
 import pytz
@@ -10,7 +10,7 @@ import structlog
 
 from bench import language
 from bench.language import wire
-from bench.language.parse import ErrorCollector, interp, resolve, sort
+from bench.language.parse import REFERENCE_REGEX, ErrorCollector, interp, resolve, sort
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
@@ -70,12 +70,24 @@ from bench.utils.uuidt import UUIDT
 WORKER_HEARTBEAT_INTERVAL = 5
 
 logger = structlog.get_logger(__name__)
-InterpModule = NamedTuple(
-    "InterpModule",
-    module_idx=Optional[language.ModuleIndex],
-    errors=list[language.Error],
-    dependencies=list[language.ModuleIndex],
-)
+
+
+@dataclass(repr=False, slots=True)
+class InterpModule:
+    module_idx: Optional[language.ModuleIndex]
+    errors: list[language.Error]
+    dependencies: list[language.ModuleIndex]
+
+    def symbol(self, path: str):
+        if path.startswith("."):
+            return self.module_idx.symbol(path)
+        else:
+            match = REFERENCE_REGEX.match(path)
+            module_name = match.group("module_owner") + "." + match.group("module_name")
+            dependency = next((d for d in self.dependencies if d.module.name == module_name), None)
+            if dependency is None:
+                raise LookupError(f"could not find dependency {module_name}")
+            return dependency.symbol("." + match.group("path") + ":" + match.group("name"))
 
 
 def create_wrapped_task(coro, task_id: str = None):
@@ -425,8 +437,13 @@ class ModuleWorker:
         return job
 
     async def do_build(self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID):
+        # instruct model should be configurable maybe? but we'll likely use our own
+        instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
         build_processes = [
-            wrap_task(build(b, tracker=ModuleBuildTracker(self, b, job_id)), f"build_{b.id}")
+            wrap_task(
+                build(b, instruct_model, tracker=ModuleBuildTracker(self, b, job_id)),
+                f"build_{b.id}",
+            )
             for b in builds
         ]
         # TODO @Incomplete: track builds and write candidates & evaluations
@@ -853,6 +870,9 @@ class Worker:
                 status=build_candidate.status,
                 name=build_candidate.name,
                 evaluation_id=build_candidate.evaluation.id if build_candidate.evaluation else None,
+                instruct_model_id=build_candidate.instruct_model.id
+                if build_candidate.instruct_model
+                else None,
                 order_key=build_candidate.order_key,
                 job_id=job_id,
                 file_id=None,  # intermediate results are not written (yet)
