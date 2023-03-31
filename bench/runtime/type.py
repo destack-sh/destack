@@ -134,9 +134,9 @@ class ExecutionFrame:
     id: UUID
     module_id: UUID
     build: Optional[Build]
-    task: Optional[TaskInstance]
-    code: Optional[CodeInstance]
-    model: Optional[ModelInstance]
+    task: Optional[Task]
+    code: Optional[Code]
+    model: Optional[Model]
     root: Optional[ExecutionFrame]
     parent: Optional[ExecutionFrame]
     entered_at: datetime
