@@ -181,3 +181,9 @@ class Worker(UUIDModel):
         "Deployment", on_delete=models.CASCADE, related_name="workers", null=True
     )
     last_seen_at = models.DateTimeField(null=True)
+
+    def __str__(self):
+        return f"{self.id} {self.status} ({self.type}, {self.deployment})"
+
+    def __repr__(self):
+        return f"<Worker {self}>"

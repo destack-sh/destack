@@ -201,7 +201,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(member.id, column)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="isEditing || deleteMember(member.id)"
-          class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+          class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
           :class="{
             'text-gray-400': column == 'type',
           }"

@@ -203,7 +203,7 @@ defineExpose({
         :model-value="field.name"
         :readonly="context.readonly.value"
         @update:model-value="(val: any) => updateFieldName(field, val)"
-        class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+        class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
         @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
         @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
@@ -214,7 +214,7 @@ defineExpose({
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
         :type="field"
         :readonly="context.readonly.value"
-        class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+        class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         :model-value="field"
         @update:model-value="(node: any) => updateFieldType(field, node)"
         @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
@@ -241,7 +241,7 @@ defineExpose({
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
           @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
       </template>

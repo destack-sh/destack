@@ -49,7 +49,6 @@ class InstructionOp(enum.StrEnum):
     DataDefinition = "data_definition"
     CodeDefinition = "code_definition"
     ModelDefinition = "model_definition"
-    Expect = "expect"
     SampleData = "sample_data"
     SampleCode = "sample_code"
     EvaluateCode = "evaluate_code"
@@ -231,7 +230,7 @@ def map_instruction(
     # walk expectations
     if isinstance(node, (Task, Expectation, Type)):
         for expectation in node.expectations:
-            child = map_instruction(expectation, tree, op=InstructionOp.Expect)
+            child = map_instruction(expectation, tree)
             instruction.children.append(child)
 
     # walk task steps & implementation
@@ -245,11 +244,11 @@ def map_instruction(
 
 def instruction_tree_from_symbol(
     symbol: InterpSymbol, tree: InstructionTree = None
-) -> InstructionTree:
+) -> tuple[Instruction, InstructionTree]:
     """Build a tree of instructions from a symbol and its referenced symbols (and sub-symbols)."""
     tree = tree or InstructionTree(nodes={})
-    map_instruction(symbol, tree)
-    return tree
+    root = map_instruction(symbol, tree)
+    return root, tree
 
 
 def instruction_tree_from_module(

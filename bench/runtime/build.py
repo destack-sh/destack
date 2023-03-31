@@ -16,6 +16,7 @@ from bench.language.type import (
     Build,
     Code,
     Dataset,
+    Expectation,
     File,
     InterpSymbol,
     Model,
@@ -35,7 +36,7 @@ from bench.runtime.evaluate import (
     compare_evaluations,
     evaluate_task,
 )
-from bench.runtime.instruct import SampleSource
+from bench.runtime.instruct import InstructionOp, SampleSource, instruction_tree_from_symbol
 from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
@@ -421,15 +422,20 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
 async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
     plans = []
     if ctx.candidates:
-        return []  # TODO @Feature: multi-step build plans
+        return []  # TODO @Feature: multi-step build plans (if budget allows)
 
     # we treat all explicitly given tasks as root tasks, this seems obvious, but unclear if right
     root_tasks = ctx.build.tasks
-    # TODO @Broken: don't assume all models are equally capable
+    # TODO @Incomplete: don't assume all models are equally capable
+    # TODO @Incomplete: set modality based on task type & model capabilities :TextGenerationOnly
     for model in ctx.build.models:
         instruction_plans = []
+        # TODO @Broken: consider context length in X prompt planning/building
         for task in root_tasks:
-            # TODO @Incomplete: set modality based on task type & model capabilities :TextGenerationOnly
+            instruction, tree = instruction_tree_from_symbol(task)
+            expectations = [
+                i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
+            ]
             settings = TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)
             plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
             plan.emit(
@@ -442,6 +448,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     include_descriptions=True,
                     recursive=True,
                 ),
+                XEmitExpectations(expectations=expectations),
                 XEmitTypeSample(type=task.type.output, type_label="Output"),
                 XEmitInput(input_type=task.type.input),
                 XEmitOutput(output_type=task.type.output),
@@ -516,18 +523,35 @@ class XEmitTask(XEmit):
 
 
 @xemit
-class XEmitFewshot(XEmit):
+class XEmitExpectations(XEmit):
+    """Emits the expectation exactly as written"""
+
+    expectations: list[Expectation]
+
+    async def __call__(self) -> XBlock:
+        expectation_strs = [
+            f"Expectation {expectation.name}: {expectation.description}"
+            for expectation in self.expectations
+        ]
+        return xstatic("\n".join(expectation_strs), XSource.Developer)
+
+
+@xemit
+class XEmitSamples(XEmit):
     """Emits fewshot examples in a specific format"""
 
     task: Task
     source: Dataset
     task_label: Optional[str] = None
+    positive: bool = True
 
     async def __call__(self) -> XBlock:
-        return xstatic(
-            f"Some examples of {self.task_label or self.task.name}:\n"
-            "\n".join(json.dumps(record.data) for record in self.source.records)
-        )
+        if self.positive:
+            preamble = f"Good examples of {self.task_label or self.task.name}"
+        else:
+            preamble = f"Bad examples of {self.task_label or self.task.name} (don't do this!)"
+        data_str = "\n".join(json.dumps(record.data) for record in self.source.records)
+        return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
     @property
     def sources(self) -> list[InterpSymbol]:

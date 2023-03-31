@@ -49,7 +49,7 @@ const globalEvaluation = computed(() =>
   (globalEvaluations.evaluations.value?.length ?? 0) > 0 ? globalEvaluations.evaluations.value[0] : undefined
 );
 const globalMetricSet: Ref<MetricSet | null> = computed(() => {
-  if (globalEvaluation.value == null) {
+  if (globalEvaluation.value == null || globalEvaluation.value.aggregatedMetrics?.clarity == null) {
     return null;
   }
   const metrics = globalEvaluation.value.aggregatedMetrics;
