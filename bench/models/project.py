@@ -478,7 +478,7 @@ class ProjectVersion(UUIDModel):
         parent = None
         for directory in file_parts[:-1]:
             parent, _ = File.objects.get_or_create(
-                project_version=self, parent=parent, name=directory
+                project_version=self, parent=parent, name=directory, directory=True
             )
         # create file
         file, created = File.objects.get_or_create(

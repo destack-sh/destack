@@ -121,13 +121,6 @@ class Execution(UUIDTModel):
     model = models.ForeignKey(
         "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
-    model_inference = models.ForeignKey(
-        "ModelInference",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions+",
-    )
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)

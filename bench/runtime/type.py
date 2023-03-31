@@ -139,7 +139,6 @@ class ExecutionFrame:
     model: Optional[ModelInstance]
     root: Optional[ExecutionFrame]
     parent: Optional[ExecutionFrame]
-    inference_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
     inputs: Optional[dict[str, LiteralValue]]
@@ -163,7 +162,6 @@ class ExecutionFrame:
             f"model={self.model}" if self.model else None,
             f"root={self.root.id}" if self.root else None,
             f"parent={self.parent.id}" if self.parent else None,
-            f"inference_context={self.inference_id}" if self.inference_id else None,
             f"entered={self.entered_at}",
             f"exited={self.exited_at}" if self.exited_at else None,
             f"inputs={summarize_args(self.inputs)}",
@@ -199,7 +197,6 @@ class ExecutionFrameData:
     model_id: Optional[UUID]
     root_id: Optional[UUID]
     parent_id: Optional[UUID]
-    inference_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
     inputs: dict[str, Any]
@@ -248,7 +245,6 @@ class ExecutionFrameData:
             exited_at=frame.exited_at,
             inputs=frame.inputs,
             outputs=frame.outputs,
-            inference_id=frame.inference_id,
             error=error_data,
             queue_position=frame.queue_position,
             project_id=project_id,

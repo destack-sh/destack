@@ -16,7 +16,8 @@ const emit = defineEmits<{
 const editor = useEditorState();
 
 const filesSorted = computed(() => {
-  const files = props.files?.filter((f) => f.deletedAt == null && (editor.showGenerated || !f.generated)) ?? [];
+  const files =
+    props.files?.filter((f) => f.deletedAt == null && !f.directory && (editor.showGenerated || !f.generated)) ?? [];
   return files.sort((a, b) => {
     return a.path.localeCompare(b.path);
   });

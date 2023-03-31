@@ -145,7 +145,21 @@ ExecutionCapture = typing.Callable[[ExecutionFrame], None]
 # global execution traces per execution tracer instance
 _execution_stacktraces: contextvars.ContextVar[
     dict[int, list[ExecutionFrame]]
-] = contextvars.ContextVar("execution_trace", default=defaultdict(list))
+] = contextvars.ContextVar("execution_stacktraces")
+
+# context manager for trace boundary
+
+
+class TracerBoundary:
+    def __enter__(self):
+        self.token = _execution_stacktraces.set(defaultdict(list))
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        _execution_stacktraces.reset(self.token)
+
+
+def tracer_boundary():
+    return TracerBoundary()
 
 
 class ExecutionTracer(Tracer):
@@ -161,7 +175,8 @@ class ExecutionTracer(Tracer):
         ExecutionTracer._seq_id += 1
 
     def __del__(self):
-        del _execution_stacktraces.get()[self._id]
+        if _execution_stacktraces.get(None) is not None:
+            del _execution_stacktraces.get()[self._id]
 
     @property
     def stacktrace(self) -> list[ExecutionFrame]:
@@ -174,9 +189,14 @@ class ExecutionTracer(Tracer):
         inference_context: typing.Optional[InferenceContext] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
+        trace: bool = True,
     ):
-        root = self.stacktrace[0] if self.stacktrace else None
-        parent = self.stacktrace[-1] if self.stacktrace else None
+        if trace:
+            root = self.stacktrace[0] if self.stacktrace else None
+            parent = self.stacktrace[-1] if self.stacktrace else None
+        else:
+            root = None
+            parent = None
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=worker.get().module_id,
@@ -190,7 +210,6 @@ class ExecutionTracer(Tracer):
             exited_at=None,
             inputs=inputs,
             outputs=None,
-            inference_id=inference_context.id if inference_context else None,
             error=None,
             queue_position=queue_position,
         )
@@ -198,7 +217,9 @@ class ExecutionTracer(Tracer):
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
-        frame = self._create_frame(code=code, inputs=inputs, queue_position=queue_position)
+        frame = self._create_frame(
+            code=code, inputs=inputs, trace=False, queue_position=queue_position
+        )
         self.tracker(frame)
         logger.debug("trace.queue", frame=frame)
 
