@@ -48,7 +48,7 @@ const canRun = computed(
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Runconfig, SymbolType.Build, SymbolType.Task, SymbolType.Code],
+  symbolTypes: [SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 // :ProperSymbolSearch
@@ -180,10 +180,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
               ]"
             >
               <div class="flex items-baseline justify-between">
-                <span class="truncate">{{ runtime.name.value }}</span>
-                <span class="text-xs" :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']">
-                  [Bench]
-                </span>
+                <span class="truncate text-gray-500">[{{ runtime.name.value }}]</span>
               </div>
             </li>
           </ListboxOption>
