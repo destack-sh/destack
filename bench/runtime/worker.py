@@ -560,7 +560,7 @@ class ModuleWorker:
             try:
                 job.status = JobStatus.Running
                 job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.log.info("module.job.start", job=job)
+                self.log.debug("module.job.start", job=job)
                 if track:
                     self.running_jobs[job.id] = job
                     # must wait for job to be saved since we reference job ids

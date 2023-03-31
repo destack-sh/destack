@@ -374,15 +374,22 @@ class SampleSourceGenerator(SampleSource):
             XEmitTypeExplanation(
                 type=self.type, type_label="Output", include_descriptions=True, recursive=True
             ),
-            XEmitTypeSample(type=generation_task_type.output, type_label="Output"),
-            XEmitOutput(output_type=generation_task_type.output, output_label="Output"),
+            XEmitTypeSample(type=generation_task_type.output, type_label="Output (1x)"),
+            XEmitOutput(
+                output_type=generation_task_type.output,
+                output_label=f"Output samples ({self.count}x)",
+            ),
         )
         implementation = await do_build_task_plan(plan)
         implementation.context[self.model.name] = self.model
         implementation_instance = instantiate(implementation)
 
         generated_samples = await run(implementation_instance, {"count": self.count})
-        target_dataset = anonymous_dataset(self.type, self.count)
+        target_dataset = anonymous_dataset(self.type, len(generated_samples))
+        if len(generated_samples) != self.count:
+            raise RuntimeError(
+                f"expected {self.count} samples, got {len(generated_samples)} samples"
+            )
         for i, sample in enumerate(generated_samples):
             target_dataset.records[i].data = sample
         return target_dataset

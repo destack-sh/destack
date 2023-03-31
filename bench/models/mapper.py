@@ -126,7 +126,10 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
         statements=[],
         revision=1,
     )
-    for (module, version, ok) in (("symbolx.std", "latest", "a0"), ("openai.std", "latest", "a1")):
+    for (module, version, ok) in (
+        ("symbolx.std", "latest", "a0"),
+        ("openai.std", "latest", "a1"),
+    ):
         reference_module = wire.ModuleReference(
             name=module,
             version=version,

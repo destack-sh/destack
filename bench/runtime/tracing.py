@@ -119,17 +119,6 @@ def pop_context_tracers(*tracers: Tracer, n: int | None = None):
     _context_tracers.set([t for t in tracers if t not in _context_tracers.get()])
 
 
-class TracerContext:
-    def __init__(self, *tracers: Tracer):
-        self.tracers = tracers
-
-    def __enter__(self):
-        push_context_tracers(*self.tracers)
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        pop_context_tracers(*self.tracers)
-
-
 @dataclass(slots=True)
 class WorkerContext:
     deployment_id: UUID
@@ -186,7 +175,6 @@ class ExecutionTracer(Tracer):
         self,
         code: typing.Optional[CodeInstance] = None,
         model: typing.Optional[ModelInstance] = None,
-        inference_context: typing.Optional[InferenceContext] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -248,7 +236,7 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
-        frame = self._create_frame(model=ctx.model, inference_context=ctx)
+        frame = self._create_frame(model=ctx.model)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
@@ -329,13 +317,20 @@ class PubExecutionTracker:
         )
 
 
-class InMemoryExecutionTracker(TracerContext):
+class InMemoryExecutionTracker:
     def __init__(self):
-        super().__init__(ExecutionTracer(self))
+        self.tracer = ExecutionTracer(self)
         self.frames: list[ExecutionFrame] = []
 
     def __call__(self, frame: ExecutionFrame):
         self.frames.append(frame)
+
+    def __enter__(self):
+        push_context_tracers(self.tracer)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pop_context_tracers(self.tracer)
 
     @property
     def roots(self) -> list[ExecutionFrame]:

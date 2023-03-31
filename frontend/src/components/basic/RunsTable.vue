@@ -9,7 +9,8 @@ import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { symbolOf } from "@/state/runtime";
 import {
-  CpuChipIcon,
+  ArrowPathRoundedSquareIcon,
+  LinkIcon,
   PlayIcon,
   QuestionMarkCircleIcon,
   UserIcon,
@@ -105,7 +106,9 @@ const { getTimeFromNowString, now } = useTimeFromNow(33);
 function getTriggerIcon(type: ExecutionTriggerType) {
   const icons: Record<ExecutionTriggerType, any> = {
     [ExecutionTriggerType.UiInteractive]: UserIcon,
-    [ExecutionTriggerType.RestApi]: CpuChipIcon,
+    [ExecutionTriggerType.RestApi]: LinkIcon,
+    [ExecutionTriggerType.Job]: ArrowPathRoundedSquareIcon,
+    [ExecutionTriggerType.Manual]: QuestionMarkCircleIcon,
   };
   return icons[type] ?? QuestionMarkCircleIcon;
 }

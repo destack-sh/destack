@@ -1,6 +1,5 @@
 import asyncio
 import enum
-import random
 import uuid
 from collections import defaultdict
 from typing import Any
@@ -140,8 +139,10 @@ async def evaluate_task(
         outputs.records[i].data = result
         n_successful_runs += 1
 
+    average_run_duration = sum([r.duration for r in traces.roots]) / len(traces.roots)
     performance_metrics = {
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
+        EvaluationMetric.AverageRunDuration: average_run_duration,
         # TODO @Incomplete: compute instruction satisfaction
         EvaluationMetric.InstructionSatisfaction: 1.0,
         EvaluationMetric.FeedbackCorrelation: 1.0,
@@ -150,7 +151,7 @@ async def evaluate_task(
     # TODO @Incomplete: compute proper summary metrics
     summary_metrics = {
         EvaluationMetric.Performance: performance_metrics[EvaluationMetric.TypeValidity],
-        EvaluationMetric.Speed: random.random() * 1000,
+        EvaluationMetric.Speed: 60 / performance_metrics[EvaluationMetric.AverageRunDuration],
     }
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
