@@ -321,6 +321,7 @@ class SampleSourceFabricator(SampleSource):
 class SampleSourceGenerator(SampleSource):
     """Generates a dataset of the given type using a model"""
 
+    task: Task
     type: Type
     model: Model
     count: int
@@ -329,7 +330,6 @@ class SampleSourceGenerator(SampleSource):
     async def __call__(self) -> Dataset:
         from bench.runtime.build import (  # prevent circular import
             TaskPlan,
-            XEmitInput,
             XEmitOutput,
             XEmitSettings,
             XEmitSystem,
@@ -358,17 +358,18 @@ class SampleSourceGenerator(SampleSource):
             name="generate examples",
             type=generation_task_type,
             type_node=generation_task_type,
-            description="Generate diverse, useful and instructive examples of the given type",
+            description=f"Generate diverse, useful and instructive examples "
+            f' for the task "{self.task.name}: {self.task.description}".\n'
+            "The examples should illustrate realistic use cases and edge cases.",
         )
         plan = TaskPlan(task=generation_task, model=self.model, modality=Modality.GenerateText)
         plan.emit(
             XEmitSystem(),
             XEmitTask(task=generation_task),
-            XEmitInput(input_type=generation_task.type.input),
             XEmitSettings(
                 # TODO @Build: tune model sample generation settings (and adapt to model context size)
                 base_settings=TextGenerationSettings(
-                    temperature=0.8, max_tokens=2048, top_p=1.0
+                    temperature=0.9, max_tokens=2048, top_p=1.0
                 ).__dict__
             ),
             XEmitTypeExplanation(

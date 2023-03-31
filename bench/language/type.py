@@ -718,6 +718,14 @@ class XBlock(SymbolContent, typing.Generic[ValueT]):
         else:
             raise TypeError(f"cannot get length of {self}")
 
+    def copy(self):
+        return XBlock(
+            kind=self.kind,
+            source=self.source,
+            value=copy.deepcopy(self.value),
+            path=self.path,
+        )
+
     def __str__(self):
         return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
 

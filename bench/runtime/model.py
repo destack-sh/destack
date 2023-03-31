@@ -68,19 +68,19 @@ def get_endpoints(model: Model) -> list[tuple[Modality, InferenceEndpoint]]:
 @endpoint(["openai.std.text.gpt4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
 class OpenAIChatCompletion(ModelInference):
     ctx: InferenceContext
+    role_map = {
+        XSource.System: "system",
+        XSource.Developer: "system",
+        XSource.User: "user",
+        XSource.Model: "assistant",
+    }
 
     async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: TextGenerationSettings,
     ) -> str:
-        role_map = {
-            XSource.System: "system",
-            XSource.Developer: "system",
-            XSource.User: "user",
-            XSource.Model: "assistant",
-        }
-        messages = [{"role": role_map[x.source], "content": x.value} for x in input]
+        messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
         response = await openai.ChatCompletion.acreate(
             model=self.ctx.model.external_name,
             messages=messages,
@@ -100,20 +100,22 @@ class OpenAIChatCompletion(ModelInference):
 )
 class OpenAITextCompletion(ModelInference):
     ctx: InferenceContext
+    role_map = {
+        XSource.System: "System",
+        XSource.Developer: "Developer",
+        XSource.User: "User",
+        XSource.Model: "Assistant",
+    }
 
     async def generate_text(
         self,
         input: list[XBlock[str]],
         settings: TextGenerationSettings,
     ) -> str:
-        role_map = {
-            XSource.System: "System",
-            XSource.Developer: "Developer",
-            XSource.User: "User",
-            XSource.Model: "Assistant",
-        }
-        messages = [{"role": role_map[x.source], "content": x.value} for x in input]
-        messages.append({"role": role_map[XSource.Model], "content": ""})  # empty assistant prompt
+        messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
+        messages.append(
+            {"role": self.role_map[XSource.Model], "content": ""}
+        )  # empty assistant prompt
         prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
         response = await openai.Completion.acreate(
             model=self.ctx.model.external_name,
@@ -154,6 +156,12 @@ class OpenAIAudioTranscription(ModelInference):
 @endpoint(["anthropic.std.text.claude", "anthropic.std.text.claude-instant"], Modality.GenerateText)
 class AnthropicTextCompletion(ModelInference):
     ctx: InferenceContext
+    role_map = {
+        XSource.System: "System",
+        XSource.Developer: "Developer",
+        XSource.User: "Human",
+        XSource.Model: "Assistant",
+    }
 
     def __init__(self):
         self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
@@ -164,14 +172,10 @@ class AnthropicTextCompletion(ModelInference):
         settings: TextGenerationSettings,
     ) -> str:
         # see https://console.anthropic.com/docs/api
-        role_map = {
-            XSource.System: "System",
-            XSource.Developer: "Developer",
-            XSource.User: "Human",
-            XSource.Model: "Assistant",
-        }
-        messages = [{"role": role_map[x.source], "content": x.value} for x in input]
-        messages.append({"role": role_map[XSource.Model], "content": ""})  # empty assistant prompt
+        messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
+        messages.append(
+            {"role": self.role_map[XSource.Model], "content": ""}
+        )  # empty assistant prompt
         prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
         rep = await self.client.acompletion(
             prompt=prompt,
