@@ -44,6 +44,7 @@ from bench.runtime.tracing import (
     PubExecutionTracker,
     Tracer,
     ValidationTracer,
+    tracer_boundary,
 )
 from bench.runtime.type import (
     AsyncCodeCallable,
@@ -504,7 +505,8 @@ def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = Non
     try:
         if code.is_async:
             raise RuntimeError(f"cannot run async code synchronously: {code}")
-        return code.py_handle(**arguments)
+        with tracer_boundary():
+            return code.py_handle(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
@@ -512,10 +514,11 @@ def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = Non
 async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
     arguments = arguments or {}
     try:
-        if code.is_async:
-            return await code.py_handle(**arguments)
-        else:
-            return await asyncio.to_thread(code.py_handle, **arguments)
+        with tracer_boundary():
+            if code.is_async:
+                return await code.py_handle(**arguments)
+            else:
+                return await asyncio.to_thread(code.py_handle, **arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 

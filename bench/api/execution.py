@@ -57,17 +57,6 @@ class Execution(gql.Node):
     access_token: Optional[Annotated["AccessToken", lazy(".token")]]
 
 
-@gql.django.type(models.ModelInference)
-class ModelInference(gql.Node):
-    model: Statement
-    operation: auto
-    settings_hash: auto
-    input_hash: auto
-    input: auto
-    output: auto
-    duration_ms: auto
-
-
 async def _expand_filter(
     project_version_id: UUID,
     include_ancestor_versions: bool,

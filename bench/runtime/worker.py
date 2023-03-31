@@ -65,6 +65,7 @@ from bench.runtime.type import (
 )
 from bench.utils.func import wrap_task
 from bench.utils.utils import required_field, sentry_capture_if_enabled
+from bench.utils.uuidt import UUIDT
 
 WORKER_HEARTBEAT_INTERVAL = 5
 
@@ -142,6 +143,7 @@ class RunJob(Job):
     tracing_level: ExecutionTracingLevel = required_field()
     trigger_type: ExecutionTriggerType = required_field()
     trigger_id: Optional[UUID] = None
+    ctx: Optional[PubTrackerContext] = None
 
     @property
     def success(self) -> bool:
@@ -255,6 +257,7 @@ class ModuleWorker:
         self.project_id: Optional[UUID] = None  # set in init (requires intserver fetch)
         # TODO @Broken: track module worker deployment id, make Execution.deployment non-nullable
         self.deployment_id: UUID = deployment_id
+        self.ctx: Optional[WorkerContext] = None
         self.ready = asyncio.Event()
         self.interp_dependencies_cached: dict[UUID, InterpModule] = {}
 
@@ -481,7 +484,9 @@ class ModuleWorker:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG
 
+        root_id = UUIDT()
         job = RunJob(
+            id=root_id,
             runnable=runnable_instance,
             arguments=arguments,
             tracing_level=tracing_level,
@@ -491,6 +496,12 @@ class ModuleWorker:
             project_version_id=self.module_id,
             deployment_id=self.deployment_id,
             worker_id=self.master.worker_id,
+            ctx=PubTrackerContext(
+                tracing_level=tracing_level,
+                trigger_type=trigger_type,
+                trigger_id=trigger_id,
+                root_id=root_id,
+            ),
         )
         qpos = self._queue_job(job)
         # emit queued status immediately
@@ -501,25 +512,18 @@ class ModuleWorker:
         # notify tracer about queue enter
         # there are nicer ways to do this, but essentially we need access to the
         # current root tracer, which defaults to DEFAULT_TRACER
+        run_ctx_token = pub_tracker_context.set(job.ctx)
         DEFAULT_TRACER.queue_enter(code_instance, arguments, qpos)
+        pub_tracker_context.reset(run_ctx_token)
         return job
 
     async def do_run(
         self,
         runnable: CodeInstance,
         arguments: dict[str, LiteralValue],
-        tracing_level: ExecutionTracingLevel,
-        trigger_type: ExecutionTriggerType,
-        trigger_id: UUID,
-        root_id: UUID,
+        ctx: PubTrackerContext,
     ):
-        run_context = PubTrackerContext(
-            tracing_level=tracing_level,
-            trigger_type=trigger_type,
-            trigger_id=trigger_id,
-            root_id=root_id,
-        )
-        run_context_token = pub_tracker_context.set(run_context)
+        run_ctx_token = pub_tracker_context.set(ctx)
         try:
             if isinstance(runnable, TaskInstance):
                 code_instance = runnable.implementation
@@ -537,7 +541,7 @@ class ModuleWorker:
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
         finally:
-            pub_tracker_context.reset(run_context_token)
+            pub_tracker_context.reset(run_ctx_token)
 
     async def _process_queue(self, queue: asyncio.Queue[tuple[int, Job]], track: bool) -> None:
         """Process module jobs sequentially"""
@@ -569,16 +573,7 @@ class ModuleWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, RunJob):
-                    job.task = create_task(
-                        self.do_run(
-                            runnable=job.runnable,
-                            arguments=job.arguments,
-                            tracing_level=job.tracing_level,
-                            trigger_type=job.trigger_type,
-                            trigger_id=job.trigger_id,
-                            root_id=job.id,
-                        )
-                    )
+                    job.task = create_task(self.do_run(job.runnable, job.arguments, job.ctx))
                     error, ret = await job.task
                     if error is None:
                         job.output = ret
@@ -609,6 +604,12 @@ class ModuleWorker:
                 pub_tracker_context.reset(job_context_token)
                 queue.task_done()
 
+    def provide_context(self):
+        """Sets the worker context var."""
+        if self.ctx is None:
+            raise RuntimeError(f"worker context not set: {self}")
+        worker.set(self.ctx)
+
     async def run(self):
         """Runs the module worker main processing loop"""
 
@@ -618,13 +619,13 @@ class ModuleWorker:
         interp_job = self.on_module_changed(source)
 
         # provide general worker context
-        ctx = WorkerContext(
+        self.ctx = WorkerContext(
             deployment_id=self.deployment_id,
             worker_id=self.master.worker_id,
             module_id=self.module_id,
             project_id=self.project_id,
         )
-        worker.set(ctx)
+        self.provide_context()
 
         # start running both queues (for stateful and run)
         main = asyncio.gather(
@@ -759,18 +760,21 @@ class Worker:
             # ignore if we don't have a worker for this module
             return
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        module_worker.provide_context()
         module_worker.on_module_changed(msg.p.module)
         # module worker will trigger any follow-ups
 
     @message_handler
     async def request_module_runtime(self, msg: NMessage[ReqInterpModulePayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        module_worker.provide_context()
         payload = make_full_change_payload(module_worker, RepInterpModulePayload)
         await msg.reply(payload)
 
     @message_handler
     async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        module_worker.provide_context()
         build_job = module_worker.queue_build(msg.p.buildable_id, cancel_running=True)
         error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
         await msg.reply(RepModuleBuildPayload(error=error))
@@ -778,6 +782,7 @@ class Worker:
     @message_handler
     async def request_module_run(self, msg: NMessage[ReqModuleRunPayload]):
         module_worker = await self._get_ready_module_worker(msg.p.module_id)
+        module_worker.provide_context()
         run_job = module_worker.queue_run(
             runnable=msg.p.runnable,
             runnable_type=msg.p.runnable_type,

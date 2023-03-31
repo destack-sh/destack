@@ -13,7 +13,6 @@ from .evaluation import EvaluationKind, EvaluationResult, EvaluationScope
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
-from .model import ModelInference
 from .notification import Notification, NotificationStatus, NotificationType
 from .organization import (
     Organization,
@@ -59,7 +58,6 @@ __all__ = [
     "Job",
     "JobStatus",
     "JobType",
-    "ModelInference",
     "Notification",
     "NotificationStatus",
     "NotificationType",
