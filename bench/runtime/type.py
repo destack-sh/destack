@@ -276,6 +276,7 @@ class BuildCandidateData:
     build_id: UUID
     status: BuildCandidateStatus
     name: str
+    instruct_model_id: Optional[UUID]
     evaluation_id: Optional[UUID]
     job_id: Optional[UUID]
     file_id: Optional[UUID]

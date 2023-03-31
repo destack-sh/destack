@@ -689,6 +689,7 @@ def rmap_build_candidate(candidate: BuildCandidateData) -> models.BuildCandidate
         build_id=candidate.build_id,
         status=candidate.status,
         name=candidate.name,
+        instruct_model_id=candidate.instruct_model_id,
         evaluation_id=candidate.evaluation_id,
         order_key=candidate.order_key,
         job_id=candidate.job_id,

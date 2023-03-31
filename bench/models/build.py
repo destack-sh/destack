@@ -29,6 +29,9 @@ class BuildCandidate(UUIDModel):
     file = models.ForeignKey("File", on_delete=models.SET_NULL, related_name="+", null=True)
     status = TextChoicesField(BuildCandidateStatus, default=BuildCandidateStatus.Planned)
     name = models.CharField(max_length=MAX_NAME_LENGTH)
+    instruct_model = models.ForeignKey(
+        "Statement", on_delete=models.SET_NULL, related_name="+", null=True
+    )
     build = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="build_candidates+"
     )

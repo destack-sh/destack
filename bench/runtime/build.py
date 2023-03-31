@@ -250,6 +250,7 @@ class BuildCandidate:
     ctx: BuildContext
     status: BuildCandidateStatus
     root_tasks: list[Task]
+    instruct_model: Model
     plan: BuildPlan
     state: BuildState
     order_key: str
@@ -322,7 +323,7 @@ class BuildTracker:
         pass
 
 
-async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
+async def build(build: Build, instruct_model: Model, tracker: BuildTracker = None) -> BuildResult:
     tracker = tracker or BuildTracker()
     log = logger.bind(build=build)
     log.info("build.start")
@@ -355,6 +356,7 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
                 plan=plan,
                 state=BuildState(build=build),
                 order_key=ok,
+                instruct_model=instruct_model,
             )
             for ok, plan in zip(order_keys, plans)
         ]
@@ -370,9 +372,11 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
 
         # evaluate, rank and update best
         build_results = [candidate.state.to_result() for candidate in candidates]
-        evaluations = await asyncio.gather(
-            *[evaluate_candidate(c, r) for c, r in zip(candidates, build_results)]
-        )
+        evals = [
+            evaluate_candidate(candidate=c, result=r, eval_model=instruct_model)
+            for c, r in zip(candidates, build_results)
+        ]
+        evaluations = await asyncio.gather(*evals)
         for evaluation, candidate in zip(evaluations, candidates):
             candidate.evaluation = evaluation
             ctx.insert_ranked_candidate(candidate, weights=metric_weights)
@@ -390,14 +394,15 @@ async def build(build: Build, tracker: BuildTracker = None) -> BuildResult:
     return best_result
 
 
-async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
+async def evaluate_candidate(
+    candidate: BuildCandidate, result: BuildResult, eval_model: Model
+) -> EvaluationResult:
     """Evaluates the generated task implementations of a build candidate."""
     task_instances = [
         # :SymbolDefinitionReference
         instantiate(task.definition, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    eval_model = candidate.models[0]  # TODO @Broken: always use same eval & build model
     evaluation_tasks = (
         evaluate_task(
             task=task,

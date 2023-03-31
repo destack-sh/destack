@@ -99,7 +99,7 @@ const { executions, totalCount } = useExecutions(
     taskIds,
     codeIds,
   },
-  { root: true, live: true }
+  { root: true, live: true, first: 10 }
 );
 const { getTimeFromNowString, now } = useTimeFromNow(33);
 
