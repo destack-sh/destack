@@ -435,7 +435,6 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             plan.emit(
                 XEmitSystem(),
                 XEmitTask(task=task),
-                XEmitInput(input_type=task.type.input),
                 XEmitSettings(base_settings=settings.__dict__),
                 XEmitTypeExplanation(
                     type=task.type.output,
@@ -444,6 +443,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     recursive=True,
                 ),
                 XEmitTypeSample(type=task.type.output, type_label="Output"),
+                XEmitInput(input_type=task.type.input),
                 XEmitOutput(output_type=task.type.output),
             )
             instruction_plans.append(plan)
@@ -570,7 +570,7 @@ class XEmitTypeExplanation(XEmit):
             el_strs.append(el_str)
 
             if self.recursive:
-                for f in type.children:
+                for f in type.children or []:
                     if isinstance(f.reference, TypeNode):
                         unexplained_types.append((f.reference.name, f.reference))
 

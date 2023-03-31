@@ -246,7 +246,7 @@ defineExpose({
               :immediate="false"
             />
             <div v-else class="truncate text-red-600">
-              {{ execution.error["type"] }}
+              {{ execution.error?.type }}
             </div>
           </td>
           <!-- Actions? -->

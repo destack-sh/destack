@@ -144,9 +144,7 @@ class InternalServer:
                     status=WorkerStatus.ACTIVE, last_seen_at__lt=liveness_cutoff
                 )
             ]
-            logger.debug(
-                "manage_workers", live_workers=len(live_worker_ids), dead_workers=len(dead_workers)
-            )
+            logger.debug("manage_workers", live_workers=live_workers, dead_workers=dead_workers)
 
             if dead_workers:
                 # mark all relevant jobs and executions as failed

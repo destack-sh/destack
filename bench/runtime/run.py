@@ -187,7 +187,7 @@ class InferenceProxy:
         settings_hash = hashlib.sha256(
             json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
         ).hexdigest()
-        cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{blocks_hash}:{settings_hash}"
+        cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{settings_hash}:{blocks_hash}"
 
         log = logger.bind(
             modality=self.modality,
@@ -198,7 +198,7 @@ class InferenceProxy:
         )
 
         if self.cache_inferences:
-            # TODO @Performance: use leases for caching inference endpoints
+            # TODO @Performance: use leases to cooperatively inference endpoints coo
             cached_ret = await redis.get(cache_key)
             if cached_ret is not None:
                 try:
@@ -367,7 +367,7 @@ def _instantiate_code_callable(
     dynamic_context = {
         "source_context": context,
         "context": unwrapped_context,
-        "xblocks": code.xblocks,
+        "_xblocks": code.xblocks,
         **inlined_context,
         "random": Random(code.id.hex.encode()),
         **source_context,
@@ -383,6 +383,10 @@ def _instantiate_code_callable(
         is_async = True
     else:
         raise ValueError(f"unknown code language: {code}")
+
+    # if we have xblocks, add line to copy them to top of method
+    if code.xblocks:
+        python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
 
     # create python function from python code
     input_keys = code.type_node.input.keys

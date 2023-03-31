@@ -122,7 +122,7 @@ async def evaluate_task(
 
     # generates samples to test
     inputs = await SampleSourceGenerator(
-        flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
+        task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
     with in_memory_traces() as traces:
         runs = (
