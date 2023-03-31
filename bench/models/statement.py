@@ -114,6 +114,9 @@ class XBlock(UUIDModel):
     value = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
 
+    class Meta:
+        ordering = ["order_key"]
+
 
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:

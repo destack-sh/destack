@@ -190,7 +190,8 @@ def write_module(
 
     # wipe existing statements if overwrite and not empty
     if overwrite:
-        models.Statement.objects.filter(file_id__in=model_files.keys()).delete()
+        for file in models.Statement.objects.filter(file_id__in=model_files.keys()):
+            file.delete()
 
     # map statements
     # assign temporary global order keys to prevent conflicts (parents aren't assigned yet)
@@ -404,7 +405,7 @@ def rmap_source_mapping(source_mapping: models.GeneratedMapping) -> language.Gen
 
 def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
     """Reads a list of database xblocks into a list of wire xblocks."""
-    return [
+    xblocks = [
         wire.XBlockData(
             id=x.id,
             order_key=x.order_key,
@@ -415,6 +416,8 @@ def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
         )
         for x in xblocks
     ]
+    xblocks.sort(key=lambda x: x.order_key)
+    return xblocks
 
 
 def wmap_xblocks(
