@@ -687,12 +687,12 @@ class XEmitOutput(XEmit):
             )
         elif self.type.tag == TypeTag.ARRAY:
             output_request = xstatic(
-                f"{self.type_label} (JSON array only, start with [, nothing else):",
+                f"{self.type_label} (JSON array, start with [, include ',', nothing else):",
                 XSource.System,
             )
         else:
             output_request = xstatic(
-                f"{self.type_label} (JSON object only, start with {{, nothing else):",
+                f"{self.type_label} (JSON object, start with {{, nothing else):",
                 XSource.System,
             )
 

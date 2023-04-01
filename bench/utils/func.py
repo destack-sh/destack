@@ -1,5 +1,7 @@
+import asyncio
 from asyncio import CancelledError
 from collections import OrderedDict
+from functools import wraps
 from typing import Coroutine, Iterable, Type, TypeVar, cast
 
 import structlog
@@ -61,3 +63,24 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         sentry_enabled = sentry_capture_if_enabled(e)
         logger.exception("errored_task", task_id=task_id, exc_info=e, sentry_enabled=sentry_enabled)
         raise
+
+
+def debounce(delay: int):
+    """Debounces the async function by the given delay (in seconds)"""
+
+    def decorator(func):
+        @wraps(func)
+        async def debounced(*args, **kwargs):
+            if debounced._task:
+                debounced._task.cancel()
+
+            async def call_it():
+                await asyncio.sleep(delay)
+                await func(*args, **kwargs)
+
+            debounced._task = asyncio.ensure_future(call_it())
+
+        debounced._task = None
+        return debounced
+
+    return decorator

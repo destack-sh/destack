@@ -141,6 +141,7 @@ async def evaluate_task(
 
     average_run_duration = sum([r.duration for r in traces.roots]) / len(traces.roots)
     performance_metrics = {
+        # for type validity we assume that unsuccessful run == type error
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
         EvaluationMetric.AverageRunDuration: average_run_duration,
         # TODO @Incomplete: compute instruction satisfaction
