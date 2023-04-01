@@ -116,7 +116,8 @@ def read_module(
 
 def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     """Stupid way of implicitly requiring some core libraries :ManageRequirements"""
-    if wire_module.name in ("symbolx.std", "openai.std"):
+    default_libs = ("symbolx.std", "openai.std", "anthropic.std")
+    if wire_module.name in default_libs:
         return  # only add to user modules
     implicit_file = wire.FileData(
         id=uuid4(),
@@ -126,10 +127,9 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
         statements=[],
         revision=1,
     )
-    for (module, version, ok) in (
-        ("symbolx.std", "latest", "a0"),
-        ("openai.std", "latest", "a1"),
-    ):
+    order_keys = generate_n_keys_between(None, None, len(default_libs))
+    for module, ok in zip(default_libs, order_keys):
+        version = "latest"
         reference_module = wire.ModuleReference(
             name=module,
             version=version,

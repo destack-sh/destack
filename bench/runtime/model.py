@@ -113,10 +113,7 @@ class OpenAITextCompletion(ModelInference):
         settings: TextGenerationSettings,
     ) -> str:
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
-        messages.append(
-            {"role": self.role_map[XSource.Model], "content": ""}
-        )  # empty assistant prompt
-        prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
+        prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages) + "\n\nAssistant:"
         response = await openai.Completion.acreate(
             model=self.ctx.model.external_name,
             prompt=prompt,
@@ -157,13 +154,13 @@ class OpenAIAudioTranscription(ModelInference):
 class AnthropicTextCompletion(ModelInference):
     ctx: InferenceContext
     role_map = {
-        XSource.System: "System",
-        XSource.Developer: "Developer",
+        XSource.System: "Human",
+        XSource.Developer: "Human",
         XSource.User: "Human",
         XSource.Model: "Assistant",
     }
 
-    def __init__(self):
+    def __post_init__(self):
         self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
 
     async def generate_text(
@@ -173,10 +170,11 @@ class AnthropicTextCompletion(ModelInference):
     ) -> str:
         # see https://console.anthropic.com/docs/api
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
-        messages.append(
-            {"role": self.role_map[XSource.Model], "content": ""}
-        )  # empty assistant prompt
-        prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
+        prompt = (
+            "\n\n"
+            + "\n\n".join(f"{x['role']}: {x['content']}" for x in messages)
+            + "\n\nAssistant:"
+        )
         rep = await self.client.acompletion(
             prompt=prompt,
             model=self.ctx.model.external_name,
