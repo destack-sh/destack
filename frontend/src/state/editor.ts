@@ -178,6 +178,7 @@ export const useEditorState = defineStore("editor", {
       focusedElementType: null as string | null,
       selectedElementIds: [] as string[],
       mainSymbolId: null as string | null,
+      mainSymbolUnset: false,
       editingElement: false,
       readonly: false,
       debug: false,
@@ -435,6 +436,7 @@ export const useEditorState = defineStore("editor", {
     setMainSymbol(symbol?: { id: string }): void {
       console.log("set main symbol", symbol?.id);
       this.mainSymbolId = symbol?.id ?? null;
+      this.mainSymbolUnset = this.mainSymbolId == null;
     },
 
     setZenMode(zenMode: boolean) {

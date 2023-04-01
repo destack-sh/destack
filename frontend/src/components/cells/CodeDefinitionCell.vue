@@ -44,6 +44,7 @@ defineExpose({
     @navigate-left="declarationRef?.focus"
   />
   <!-- Code -->
+  <!-- TODO @UX: figure out nicer styling for code -->
   <MonacoEditor
     ref="monacoRef"
     hide-line-numbers
@@ -58,7 +59,7 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="mt-1"
+    class="-m-1 mt-1 rounded-sm bg-gray-50 p-1"
   />
   <button
     v-if="code.trim().length == 0"

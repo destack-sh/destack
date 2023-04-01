@@ -8,7 +8,7 @@ import { useOperations } from "@/state/operations";
 import { fileOf, isSymbolStale, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, toRef } from "vue";
+import { computed, ref, toRef, watchEffect } from "vue";
 
 const props = defineProps<{
   projectId: string;
@@ -60,6 +60,13 @@ const filteredSymbols = computed(() =>
       })
 );
 
+// auto-select first available symbol
+watchEffect(() => {
+  if (mainSymbol.value == null && availableSymbols.value.length > 0 && !editor.mainSymbolUnset) {
+    editor.setMainSymbol(availableSymbols.value[0]);
+  }
+});
+
 const symbolOps = useSymbolOps();
 const buildMain = provideGlobalAction({
   id: "symbol.buildMain",
@@ -78,6 +85,7 @@ const runMain = provideGlobalAction({
   shortcuts: ["f9"],
   enabled: canRun,
   apply: async () => {
+    if (mainSymbol.value == null) return;
     await symbolOps.openRun(mainSymbol.value);
   },
 });
@@ -88,7 +96,7 @@ const evaluateMain = provideGlobalAction({
   shortcuts: ["f10"],
   enabled: computed(() => true),
   apply: async () => {
-    console.log("test");
+    console.log("evaluate");
   },
 });
 
@@ -134,6 +142,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
   <!-- Wrapper -->
   <div
     class="flex flex-row items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 pr-2"
+    v-if="availableSymbols.length > 0"
   >
     <!-- Select main statement -->
     <Listbox
@@ -213,33 +222,35 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
         </ListboxOptions>
       </FadeTransition>
     </Listbox>
-    <button
-      v-for="action in mainActions"
-      :key="action.label"
-      class="relative rounded-sm p-1.5 text-sm"
-      :class="{
-        'text-gray-700 hover:bg-orange-200': action.enabled.value,
-        'text-gray-500': !action.enabled.value,
-        '': action.active.value,
-      }"
-      :disabled="!action.enabled.value || action.active.value"
-      @click="action.action"
-    >
-      <component :is="action.icon" class="h-5 w-5" />
-      <!-- little svg rectangle for stale/active status -->
-      <svg
-        v-if="mainSymbol != null && (action.active.value || action.stale != null)"
-        class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"
+    <template v-if="!editor.readonly">
+      <button
+        v-for="action in mainActions"
+        :key="action.label"
+        class="relative rounded-sm p-1.5 text-sm"
         :class="{
-          'animate-spin text-gray-400': action.active.value,
-          'text-yellow-600': !action.active.value && action.stale?.value,
-          'text-transparent': !action.active.value && !action.stale?.value,
+          'text-gray-700 hover:bg-orange-200': action.enabled.value,
+          'text-gray-500': !action.enabled.value,
+          '': action.active.value,
         }"
-        viewBox="0 0 10 10"
-        fill="none"
+        :disabled="!action.enabled.value || action.active.value"
+        @click="action.action"
       >
-        <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
-      </svg>
-    </button>
+        <component :is="action.icon" class="h-5 w-5" />
+        <!-- little svg rectangle for stale/active status -->
+        <svg
+          v-if="mainSymbol != null && (action.active.value || action.stale != null)"
+          class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"
+          :class="{
+            'animate-spin text-gray-400': action.active.value,
+            'text-yellow-600': !action.active.value && action.stale?.value,
+            'text-transparent': !action.active.value && !action.stale?.value,
+          }"
+          viewBox="0 0 10 10"
+          fill="none"
+        >
+          <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
+        </svg>
+      </button>
+    </template>
   </div>
 </template>
