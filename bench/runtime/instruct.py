@@ -283,7 +283,7 @@ class SampleSource:
 
 
 @source
-class SampleSourceDataset(SampleSource):
+class SampleDatasetRandom(SampleSource):
     """Samples the given dataset"""
 
     source_dataset: Dataset
@@ -291,15 +291,16 @@ class SampleSourceDataset(SampleSource):
     seed: int
 
     async def __call__(self) -> Dataset:
+        rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
-        sample_indices = random.sample(range(len(self.source_dataset.records)), self.count)
+        sample_indices = rng.sample(range(len(self.source_dataset.records)), self.count)
         for i in sample_indices:
             target_dataset.records[i].data = self.source_dataset.records[i].data
         return target_dataset
 
 
 @source
-class SampleSourceFabricator(SampleSource):
+class SampleFabricateRandom(SampleSource):
     """
     Generates a dataset of the given type by fabricating values
     TODO @Feature: fabricated values are static, use directed probing strategy!
@@ -307,7 +308,6 @@ class SampleSourceFabricator(SampleSource):
 
     type: Type
     count: int
-    seed: int
 
     async def __call__(self) -> Dataset:
         target_dataset = anonymous_dataset(self.type, self.count)
@@ -317,7 +317,7 @@ class SampleSourceFabricator(SampleSource):
 
 
 @source
-class SampleSourceGenerator(SampleSource):
+class SampleGenerateWithModel(SampleSource):
     """Generates a dataset of the given type using a model"""
 
     task: Task
@@ -365,19 +365,15 @@ class SampleSourceGenerator(SampleSource):
         plan.emit(
             XEmitSystem(),
             XEmitTask(task=generation_task),
-            XEmitSettings(
-                # TODO @Build: tune model sample generation settings (and adapt to model context size)
-                base_settings=TextGenerationSettings(
-                    temperature=0.9, max_tokens=2048, top_p=1.0
-                ).__dict__
-            ),
+            # TODO @Build: tune model sample generation settings (and adapt to model context size)
+            XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
             XEmitTypeExplanation(
                 type=self.type, type_label="Output", include_descriptions=True, recursive=True
             ),
             XEmitTypeSample(type=generation_task_type.output, type_label="Output (1x)"),
             XEmitOutput(
-                output_type=generation_task_type.output,
-                output_label=f"Output samples ({self.count}x)",
+                type=generation_task_type.output,
+                type_label=f"Output samples ({self.count}x)",
             ),
         )
         implementation = await do_build_task_plan(plan)

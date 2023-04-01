@@ -21,6 +21,7 @@ from bench.language.type import (
     InterpSymbol,
     Model,
     Module,
+    StatementModifier,
     Task,
     Type,
     TypeNode,
@@ -36,7 +37,12 @@ from bench.runtime.evaluate import (
     compare_evaluations,
     evaluate_task,
 )
-from bench.runtime.instruct import InstructionOp, SampleSource, instruction_tree_from_symbol
+from bench.runtime.instruct import (
+    InstructionOp,
+    SampleDatasetRandom,
+    SampleSource,
+    instruction_tree_from_symbol,
+)
 from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
@@ -199,10 +205,6 @@ class XEmit:
 
     async def __call__(self) -> XBlock | DynamicXBlock | list[XBlock | DynamicXBlock]:
         raise NotImplementedError
-
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return []
 
 
 def xemit(func):
@@ -438,25 +440,39 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
         # TODO @Broken: consider context length in X prompt planning/building
         for task in root_tasks:
             instruction, tree = instruction_tree_from_symbol(task)
-            expectations = [
+            expectations: list[Expectation] = [
                 i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
             ]
-            settings = TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)
+            data_samples: list[Dataset] = [
+                i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
+            ]
             plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
             plan.emit(
                 XEmitSystem(),
-                XEmitTask(task=task),
-                XEmitSettings(base_settings=settings.__dict__),
                 XEmitTypeExplanation(
                     type=task.type.output,
                     type_label="Output",
                     include_descriptions=True,
                     recursive=True,
                 ),
-                XEmitExpectations(expectations=expectations),
+                XEmitTask(task=task),
+                XEmitExpectations(task_label=task.name, expectations=expectations),
                 XEmitTypeSample(type=task.type.output, type_label="Output"),
-                XEmitInput(input_type=task.type.input),
-                XEmitOutput(output_type=task.type.output),
+            )
+            for dataset in data_samples:
+                if len(dataset) > 0:
+                    plan.emit(
+                        XEmitSamples(
+                            source=SampleDatasetRandom(dataset, count=3, seed=0),
+                            task_label=task.name,
+                            positive=dataset.modifier == StatementModifier.LIKE,
+                        )
+                    )
+
+            plan.emit(
+                XEmitInput(type=task.type.input),
+                XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
+                XEmitOutput(type=task.type.output, type_label="Output"),
             )
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
@@ -518,49 +534,49 @@ class XEmitTask(XEmit):
     """Emits the task exactly as written"""
 
     task: Task
+    task_label: str = None
 
     async def __call__(self) -> XBlock:
-        return xstatic(f"Task {self.task.name}: {self.task.description}", XSource.Developer)
-
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.task]
+        return xstatic(
+            f"Task {self.task_label or self.task.name}: {self.task.description}", XSource.Developer
+        )
 
 
 @xemit
 class XEmitExpectations(XEmit):
     """Emits the expectation exactly as written"""
 
+    task_label: str
     expectations: list[Expectation]
 
     async def __call__(self) -> XBlock:
         expectation_strs = [
-            f"Expectation {expectation.name}: {expectation.description}"
-            for expectation in self.expectations
+            f" - {expectation.name}: {expectation.description}" for expectation in self.expectations
         ]
-        return xstatic("\n".join(expectation_strs), XSource.Developer)
+        return xstatic(
+            f"For task {self.task_label}, consider:\n" + "\n".join(expectation_strs),
+            XSource.Developer,
+        )
 
 
 @xemit
 class XEmitSamples(XEmit):
     """Emits fewshot examples in a specific format"""
 
-    task: Task
-    source: Dataset
-    task_label: Optional[str] = None
-    positive: bool = True
+    source: SampleSource
+    task_label: str
+    positive: bool
 
     async def __call__(self) -> XBlock:
+        dataset = await self.source()
+        if len(dataset) == 0:
+            raise RuntimeError(f"expected at least one sample for {self.task.name}")
         if self.positive:
-            preamble = f"Good examples of {self.task_label or self.task.name}"
+            preamble = f"Good examples of {self.task_label}"
         else:
-            preamble = f"Bad examples of {self.task_label or self.task.name} (don't do this!)"
-        data_str = "\n".join(json.dumps(record.data) for record in self.source.records)
+            preamble = f"Bad examples of {self.task_label} (don't do this!)"
+        data_str = "\n".join(json.dumps(record.data) for record in dataset.records)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
-
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.task, self.source]
 
 
 @xemit
@@ -608,10 +624,6 @@ class XEmitTypeExplanation(XEmit):
         el_str = f"Type schemas:\n{''.join(el_strs)}"
         return xstatic(el_str, XSource.Developer)
 
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.type]
-
 
 @xemit
 class XEmitTypeSample(XEmit):
@@ -629,16 +641,12 @@ class XEmitTypeSample(XEmit):
         sample = xstatic(json.dumps(fabricated_sample), XSource.Developer)
         return [sample_declaration, sample]
 
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.type]
-
 
 @xemit
 class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
-    input_type: Type
+    type: Type
     path: str = ""
 
     @staticmethod
@@ -652,17 +660,13 @@ class XEmitInput(XEmit):
         input = xinput(None, path=self.path)
         return [input_declaration, DynamicXBlock(input, self.impute_input)]
 
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.input_type]
-
 
 @xemit
 class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
-    output_type: Type
-    output_label: str = "Output"
+    type: Type
+    type_label: str = "Output"
     path: str = ""
 
     @staticmethod
@@ -677,18 +681,18 @@ class XEmitOutput(XEmit):
         return json.loads(value)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        if self.output_type.is_flat:
+        if self.type.is_flat:
             output_request = xstatic(
-                f"{self.output_label} (just the value, not an object):", XSource.System
+                f"{self.type_label} (just the value, not an object):", XSource.System
             )
-        elif self.output_type.tag == TypeTag.ARRAY:
+        elif self.type.tag == TypeTag.ARRAY:
             output_request = xstatic(
-                f"{self.output_label} (JSON array only, start with [, nothing else):",
+                f"{self.type_label} (JSON array only, start with [, nothing else):",
                 XSource.System,
             )
         else:
             output_request = xstatic(
-                f"{self.output_label} (JSON object only, start with {{, nothing else):",
+                f"{self.type_label} (JSON object only, start with {{, nothing else):",
                 XSource.System,
             )
 
@@ -697,17 +701,15 @@ class XEmitOutput(XEmit):
 
     @property
     def sources(self) -> list[InterpSymbol]:
-        return [self.output_type]
+        return [self.type]
 
 
 @xemit
 class XEmitSettings(XEmit):
-    base_settings: Optional[dict[str, Any]] = None
+    settings: Any
 
     async def __call__(self) -> XBlock:
-        # this should be flexible to modalities :TextGenerationOnly
-        settings = TextGenerationSettings(**(self.base_settings or {}))
-        return xsettings(settings)
+        return xsettings(self.settings)
 
     @property
     def sources(self) -> list[InterpSymbol]:
