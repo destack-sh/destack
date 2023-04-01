@@ -3,7 +3,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import StatementAddArea from "@/components/StatementAddArea.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { graphql, useFragment } from "@/gql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { provideStatementActions, type FileState } from "@/state/actions/statement";
@@ -59,10 +59,13 @@ const statements = computed(() => {
 
 const rootStatements = computed(() => statements.value.filter((statement) => statement.parent == null));
 
-const operations = useOperations();
-function restore() {
-  operations.file.restore(fileHeader.value?.id);
-}
+const statementsById = computed(() => {
+  const statementsById = {};
+  statements.value.forEach((statement) => {
+    statementsById[statement.id] = statement;
+  });
+  return statementsById;
+});
 
 /* Statements are hierarchical but laid out linearly (in one column) */
 type PositionedStatement = {
@@ -148,11 +151,20 @@ const fileState: Ref<FileState | null> = computed(() => {
 });
 provideStatementActions(fileState);
 
+const operations = useOperations();
+function restore() {
+  operations.file.restore(fileHeader.value?.id);
+}
+
 async function insertStatementStart() {
+  if (fileHeader.value == null) return;
+  editor.focusFile(fileHeader.value);
   actions.apply("statement.insertStart");
 }
 
 async function insertOrFocusStatementEnd() {
+  if (fileHeader.value == null) return;
+  editor.focusFile(fileHeader.value);
   // focus last statement if it's a blank
   const lastStatement = positionedStatements.value[positionedStatements.value.length - 1];
   if (lastStatement?.statement.type == StatementType.Blank) {
@@ -322,7 +334,7 @@ const metaActions = computed(() => [
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
-          :ancestors="positioned.ancestors"
+          :ancestors="positioned.ancestors.map((ancestorId) => statementsById[ancestorId])"
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"
           :lineNumberBase="positioned.lineNumberBase"

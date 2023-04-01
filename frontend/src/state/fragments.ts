@@ -77,6 +77,7 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     createdAt
     updatedAt
     deletedAt
+    directory
     generated
     projectVersion {
       id

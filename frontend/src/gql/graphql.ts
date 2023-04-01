@@ -2993,6 +2993,7 @@ export type FileHeaderFragment = {
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
+  directory: boolean;
   generated: boolean;
   parent?: { __typename?: "File"; id: any } | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any };
@@ -4420,6 +4421,7 @@ export const FileHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "directory" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
           {
             kind: "Field",

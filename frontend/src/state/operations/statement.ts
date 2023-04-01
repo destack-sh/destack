@@ -22,6 +22,7 @@ import {
   type UpdateStatementModifierMutation,
   type UpdateTypeNodeMutation,
   type SetReferenceMutation,
+  type CommentStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -643,6 +644,7 @@ export function useStatementOps() {
   }
 
   const { mutate: commentStatementMut } = useMutation(
+    // TODO @UX: uncommenting nested statements feels janky
     graphql(/* GraphQL */ `
       mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
         commentStatement(input: { id: $id, commented: $commented }) {
@@ -658,7 +660,19 @@ export function useStatementOps() {
           ...OperationInfoContent
         }
       }
-    `)
+    `),
+    {
+      optimisticResponse: (vars: { id: string; commented: boolean }) =>
+        ({
+          commentStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            commented: vars.commented,
+            revision: 0,
+            descendants: [], // unknown
+          },
+        } as CommentStatementMutation),
+    }
   );
 
   async function comment(id: string, commented: boolean) {
