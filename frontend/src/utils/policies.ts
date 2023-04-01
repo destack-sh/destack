@@ -35,6 +35,7 @@ export const TYPE_POLICIES = {
   InterpModule: {
     fields: {
       files: useIncoming,
+      staleSymbols: useIncoming,
     },
   },
   Project: {

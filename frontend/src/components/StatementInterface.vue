@@ -21,7 +21,7 @@ const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
   statement: FragmentType<typeof StatementContentType>;
   depth: number;
-  ancestors: string[];
+  ancestors: FragmentType<typeof StatementContentType>[];
   readonly: boolean;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
@@ -29,6 +29,7 @@ const props = defineProps<{
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
+const ancestors = computed(() => props.ancestors.map((s) => useFragment(StatementContentType, s)));
 
 const editor = useEditorState();
 
@@ -36,14 +37,14 @@ const isFocused = computed(() => editor.focusedElementId == statement.value?.id)
 const isEditing = computed(() => isFocused.value && editor.editingElement);
 const isSelected = computed(() => editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
-const isCommented = computed(() => statement.value?.commented);
+const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
-  props.ancestors.findIndex((s) => editor.focusedElementId == s || editor.selectedElementIds.includes(s))
+  ancestors.value.findIndex((s) => editor.focusedElementId == s.id || editor.selectedElementIds.includes(s.id))
 );
 const isAncestorHighlight = computed(() => !editor.editingElement && ancestorHighlightDepth.value > -1);
 const contentOffsetX = computed(() => props.depth * 20);

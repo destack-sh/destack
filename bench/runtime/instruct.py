@@ -215,7 +215,9 @@ def map_instruction(
         for type_node in type.children or []:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
-                if not isinstance(type_node.reference, Type):
+                if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
+                    continue  # ignore unresolved references
+                elif not isinstance(type_node.reference, Type):
                     raise RuntimeError(f"type node references must be imputed: {type_node}")
                 type_node = type_node.reference
             child = map_instruction(type_node, tree)

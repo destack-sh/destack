@@ -92,7 +92,7 @@ def read_module(
 
     # map statements
     statements = (
-        project_v.statements.filter(deleted_at=None)
+        project_v.statements.filter(deleted_at=None, commented=False)
         .select_related("reference")
         .prefetch_related("records", "type_nodes")
     )
