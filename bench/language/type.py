@@ -652,6 +652,9 @@ class DatasetContent(SymbolContent):
     def __str__(self):
         return f"({len(self.records)})"
 
+    def __len__(self) -> int:
+        return len(self.records)
+
 
 @dataclass(repr=False)
 class Dataset(InterpSymbol, DatasetContent):

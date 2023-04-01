@@ -10,7 +10,7 @@ from bench.language import ModuleIndex
 from bench.language.type import Build, Model, XKind, flatten_func_type
 from bench.runtime.instruct import (
     Instruction,
-    SampleSourceGenerator,
+    SampleGenerateWithModel,
     anonymous_dataset,
     instruction_tree_from_module,
 )
@@ -121,7 +121,7 @@ async def evaluate_task(
     }
 
     # generates samples to test
-    inputs = await SampleSourceGenerator(
+    inputs = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
     with in_memory_traces() as traces:

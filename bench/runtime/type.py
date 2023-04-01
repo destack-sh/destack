@@ -430,6 +430,14 @@ class IncapableError(NotImplementedError):
     pass
 
 
+class Modality(enum.StrEnum):
+    """Core modality capabilities of a model."""
+
+    GenerateText = "generate_text"  # any -> text
+    GenerateImage = "generate_image"  # any -> image
+    Embed = "embed"  # any -> embedding
+
+
 @dataclass
 class TextGenerationSettings:
     temperature: float
@@ -453,12 +461,11 @@ class ImageGenerationSettings:
     cfg_scale: float
 
 
-class Modality(enum.StrEnum):
-    """Core modality capabilities of a model."""
-
-    GenerateText = "generate_text"  # any -> text
-    GenerateImage = "generate_image"  # any -> image
-    Embed = "embed"  # any -> embedding
+SETTINGS_CLS_BY_MODALITY = {
+    Modality.GenerateText: TextGenerationSettings,
+    Modality.GenerateImage: ImageGenerationSettings,
+    Modality.Embed: EmbeddingSettings,
+}
 
 
 class ModelInference:
