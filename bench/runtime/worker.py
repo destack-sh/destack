@@ -63,7 +63,7 @@ from bench.runtime.type import (
     TaskInstance,
     WorkerType,
 )
-from bench.utils.func import wrap_task
+from bench.utils.func import debounce, wrap_task
 from bench.utils.utils import required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
@@ -369,19 +369,28 @@ class ModuleWorker:
         self.wire_dependencies = {
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
-
         # reactively trigger reactors for new stale symbols
-        self._fire_reactive_jobs(self.stale_symbols)
-        # fire lint job
-        self.queue_lint(cancel_running=True)
+        self._fire_reactive_jobs()
         # notify master
         await self.master.notify_module_changed(self)
 
-    def _fire_reactive_jobs(self, stale_symbols: list[language.Statement]) -> None:
+    # we need to debounce because lots of expensive jobs can be triggered
+    # and we keep running into rate limits
+    # TODO @UX: reduce/avoid debounce for reactive module jobs
+    def _fire_reactive_jobs(self):
+        """Schedules a debounced job to fire all reactive jobs (returns immediately)"""
+        asyncio.create_task(self._do_fire_reactive_jobs())
+
+    @debounce(5)
+    async def _do_fire_reactive_jobs(self) -> None:
+        """Triggers all reactive jobs for this module (as needed)"""
+        self.log.debug("module.react", stale_symbols=self.stale_symbols)
+        # fire lint job
+        self.queue_lint(cancel_running=True)
         # if no errors, queue new builds for any stale builds
         if not self.interp.errors:
             stale_builds = [
-                symbol for symbol in stale_symbols if symbol.symbol_type == SymbolType.BUILD
+                symbol for symbol in self.stale_symbols if symbol.symbol_type == SymbolType.BUILD
             ]
             for b in stale_builds:
                 self.queue_build(b.id, cancel_running=True)
