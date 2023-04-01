@@ -148,13 +148,12 @@ class InternalServer:
 
             if dead_workers:
                 # mark all relevant jobs and executions as failed
+                dead_ids = [worker.id for worker in dead_workers]
                 await Execution.objects.filter(
-                    status__in=PENDING_EXECUTION_STATUSES,
-                    worker_id__in=[worker.id for worker in dead_workers],
+                    status__in=PENDING_EXECUTION_STATUSES, worker_id__in=dead_ids
                 ).aupdate(status=ExecutionStatus.Failed)
                 await Job.objects.filter(
-                    status__in=PENDING_JOB_STATUSES,
-                    worker_id__in=[worker.id for worker in dead_workers],
+                    status__in=PENDING_JOB_STATUSES, worker_id__in=dead_ids
                 ).aupdate(status=JobStatus.Failed)
                 for worker in dead_workers:
                     worker.status = WorkerStatus.TERMINATED

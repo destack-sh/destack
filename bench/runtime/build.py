@@ -594,6 +594,8 @@ class XEmitTypeExplanation(XEmit):
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
                 for f in type.children:
                     el_str += f"- {f.name}: {_render_simple_type(f)}{_render_description(f.description)}\n"
+            elif type.tag == TypeTag.ARRAY:
+                el_str = f"\n{label} array of {_render_simple_type(type.children[0])}{_render_description(type.description)}\n"
             else:
                 el_str = f"{label}: {_render_simple_type(type)} {_render_description(type.description)}\n"
             el_strs.append(el_str)
