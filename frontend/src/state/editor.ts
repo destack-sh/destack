@@ -80,7 +80,7 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 
-export type ViewId = "explorer" | "history" | "issues";
+export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment";
 
 export type Editor = {
   type: "file" | "run" | "runs";

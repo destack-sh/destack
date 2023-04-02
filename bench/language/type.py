@@ -408,7 +408,7 @@ class InterpSymbol:
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     id: UUID = field(default_factory=uuid.uuid4)
-    name: str = required_field()
+    name: str = field(default="")
     abstract: bool = field(default=False)
     modifier: Optional[StatementModifier] = None
     reference: Optional[InterpSymbol] = None
@@ -868,6 +868,25 @@ EMPTY_FUNC_TYPE = TypeNode(
     ],
 )
 EMPTY_STRUCT_TYPE = TypeNode(name=None, tag=TypeTag.STRUCT, children=[])
+
+
+def make_func_type(*input_types: TypeNode, output_type: TypeNode, name: str = None) -> TypeNode:
+    """Create a function type from input and output types."""
+    output_type = output_type.deepcopy()
+    output_type.name = "output"
+    return TypeNode(
+        name=name,
+        tag=TypeTag.FUNCTION,
+        children=[
+            TypeNode(name="input", tag=TypeTag.STRUCT, children=list(input_types)),
+            output_type,
+        ],
+    )
+
+
+def make_struct_type(*children: TypeNode, name: str = None) -> TypeNode:
+    """Create a struct type from children types."""
+    return TypeNode(name=name, tag=TypeTag.STRUCT, children=list(children))
 
 
 def flatten_func_type(func_type: TypeNode) -> TypeNode:
