@@ -367,12 +367,12 @@ class SampleGenerateWithModel(SampleSource):
         plan.emit(
             XEmitSystem(),
             XEmitTask(task=generation_task),
-            # TODO @Build: tune model sample generation settings (and adapt to model context size)
-            XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
             XEmitTypeExplanation(
                 type=self.type, type_label="Output", include_descriptions=True, recursive=True
             ),
             XEmitTypeSample(type=generation_task_type.output, type_label="Output (1x)"),
+            # TODO @Build: tune model sample generation settings (and adapt to model context size)
+            XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
             XEmitOutput(
                 type=generation_task_type.output,
                 type_label=f"Output samples ({self.count}x)",

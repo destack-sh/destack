@@ -38,20 +38,24 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
+  ChatBubbleLeftEllipsisIcon,
+  ChatBubbleLeftIcon,
   ClockIcon,
   Cog8ToothIcon,
+  CubeIcon,
   DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   EyeIcon,
   GlobeAltIcon,
   LockClosedIcon,
+  MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle, whenever } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type Component, type ComputedRef } from "vue";
+import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -62,21 +66,26 @@ const props = defineProps<{
 
 // views for the sidebar
 type View = {
-  id: "explorer" | "history" | "issues";
+  id: ViewId;
   name: string;
   icon: Component;
+  enabled: boolean;
 };
-const views: View[] = [
-  { id: "explorer", name: "Explorer", icon: DocumentDuplicateIcon },
-  { id: "history", name: "History", icon: ClockIcon },
-  { id: "issues", name: "Issues", icon: ExclamationTriangleIcon },
-];
+const allViews: Ref<View[]> = computed(() => [
+  { id: "explorer", name: "Explorer", icon: DocumentDuplicateIcon, enabled: true },
+  { id: "search", name: "Search", icon: MagnifyingGlassIcon, enabled: false },
+  { id: "history", name: "History", icon: ClockIcon, enabled: true },
+  { id: "issues", name: "Issues", icon: ExclamationTriangleIcon, enabled: true },
+  { id: "comments", name: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
+  { id: "environment", name: "Environment", icon: CubeIcon, enabled: false },
+]);
+const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
-  const view = views.find((v) => v.id == editor.activeViewId);
+  const view = availableViews.value.find((v) => v.id == editor.activeViewId);
   if (!view) {
     console.error("invalid view id: " + editor.activeViewId);
-    editor.setActiveView(views[0].id);
-    return views[0];
+    editor.setActiveView(availableViews.value[0].id);
+    return availableViews.value[0];
   }
   return view;
 });
@@ -532,7 +541,11 @@ onBeforeUnmount(() => {
         <!-- Jobs -->
         <div class="ml-2">
           <FadeTransition>
-            <JobsPopover v-if="versionLoaded" :project-id="project.id" :project-version-id="versionToViewId" />
+            <JobsPopover
+              v-if="versionLoaded && runtimeConnected"
+              :project-id="project.id"
+              :project-version-id="versionToViewId"
+            />
           </FadeTransition>
         </div>
       </template>
@@ -592,7 +605,7 @@ onBeforeUnmount(() => {
             <button
               class="rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-100"
               :class="view.name == activeView.name && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
-              v-for="view in views"
+              v-for="view in availableViews"
               :key="view.name"
               @click="toggleActiveView(view.id, true)"
             >
