@@ -457,8 +457,9 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 ),
                 XEmitTask(task=task),
                 XEmitExpectations(task_label=task.name, expectations=expectations),
-                XEmitTypeSample(type=task.type.output, type_label="Output"),
             )
+            if not task.type.output.is_flat:
+                plan.emit(XEmitTypeSample(type=task.type.output, type_label="Output"))
             for dataset in data_samples:
                 if len(dataset) > 0:
                     plan.emit(
@@ -468,9 +469,9 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                             positive=dataset.modifier == StatementModifier.LIKE,
                         )
                     )
-
             plan.emit(
                 XEmitInput(type=task.type.input),
+                XEmitTask(task=task, include_description=False),
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
                 XEmitOutput(type=task.type.output, type_label="Output"),
             )
@@ -535,11 +536,13 @@ class XEmitTask(XEmit):
 
     task: Task
     task_label: str = None
+    include_description: bool = True
 
     async def __call__(self) -> XBlock:
-        return xstatic(
-            f"Task {self.task_label or self.task.name}: {self.task.description}", XSource.Developer
-        )
+        text = f"Task {self.task_label or self.task.name}:"
+        if self.include_description:
+            text += f" {self.task.description}"
+        return xstatic(text, XSource.Developer)
 
 
 @xemit

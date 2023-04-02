@@ -350,7 +350,7 @@ class ValidationTracer(Tracer):
     A worker-side tracer that validates inputs and outputs.
     """
 
-    def __init__(self, eager_validation: bool = False):
+    def __init__(self, eager_validation: bool = True):
         """
         @param eager_validation: whether to bail on the first error or collect all errors
         """
