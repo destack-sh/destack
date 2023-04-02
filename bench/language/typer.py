@@ -32,14 +32,15 @@ def check_type(
     Raises TypeError if not at the first issue.
     """
 
-    suberrors = []
+    _suberrors = []
 
     def _on_invalid_collect(
         value: Any,
         expected: TypeNode,
         message: str = None,
+        suberrors: list[TypeError] = None,
     ):
-        suberrors.append(TypeError(value, expected, message))
+        _suberrors.append(TypeError(value, expected, message, suberrors))
 
     def _check(valid: bool, message: str):
         if not valid:
@@ -56,22 +57,27 @@ def check_type(
         _check(isinstance(value, bool), "expected boolean")
     elif expected.tag == TypeTag.ARRAY:
         _check(isinstance(value, list), "expected array")
-        for item in value:
-            check_type(
-                item, expected.children[0], eager_error=eager_error, on_invalid=_on_invalid_collect
-            )
+        if isinstance(value, list):  # _check may not be eager
+            for item in value:
+                check_type(
+                    item,
+                    expected.children[0],
+                    eager_error=eager_error,
+                    on_invalid=_on_invalid_collect,
+                )
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
         _check(any(member.value == value for member in expected.members), "expected enum member")
     elif expected.tag == TypeTag.STRUCT:
         _check(isinstance(value, dict), "expected struct")
-        for subtype in expected.children:
-            check_type(
-                value.get(subtype.name),
-                subtype,
-                eager_error=eager_error,
-                on_invalid=_on_invalid_collect,
-            )
+        if isinstance(value, dict):  # _check may not be eager
+            for subtype in expected.children:
+                check_type(
+                    value.get(subtype.name),
+                    subtype,
+                    eager_error=eager_error,
+                    on_invalid=_on_invalid_collect,
+                )
     elif expected.tag == TypeTag.UNION:
         for subtype in expected.children:
             try:
@@ -89,8 +95,8 @@ def check_type(
     else:
         raise RuntimeError(f"unexpected type {expected.tag}")
 
-    if not eager_error and suberrors:
-        on_invalid(value, expected, suberrors=suberrors)
+    if not eager_error and _suberrors:
+        on_invalid(value, expected, suberrors=_suberrors)
 
 
 def fabricate_value(type: TypeNode) -> Any:

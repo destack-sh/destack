@@ -730,7 +730,7 @@ class XBlock(SymbolContent, typing.Generic[ValueT]):
         )
 
     def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
 
     def __repr__(self):
         return f"<XBlock {str(self)}>"

@@ -22,6 +22,7 @@ from bench.language.type import (
 )
 from bench.runtime.instruct import (
     Instruction,
+    InstructionOp,
     SampleGenerateWithModel,
     anonymous_dataset,
     instruction_tree_from_module,
@@ -86,7 +87,7 @@ def aggregate_metrics(
         averaged_percentages[metric] /= len(evaluations)
     aggregated_metrics = {**summed_counts, **averaged_percentages}
 
-    # TODO @Broken: recompute summary metrics when aggregating metrics
+    # TODO @Broken: recompute summary metrics when aggregating metrics  :SummaryMetrics
     #  (and probably also just compute summary metrics in a single place)
 
     return aggregated_metrics
@@ -160,18 +161,24 @@ async def evaluate_task(
         n_successful_runs += 1
 
     # evaluate samples against the instructions
+    evalable_instructions = [
+        instruction
+        for instruction in task_instruction.walk()
+        if instruction.op in (InstructionOp.ExpectationDefinition, InstructionOp.TaskDefinition)
+    ]
     evals = (
         evaluate_output(
             input_type=task.type,
             input=input.data,
             output_type=task.type.output,
             output=output.data,
-            instructions=list(task_instruction.walk()),
+            instructions=evalable_instructions,
             eval_model=eval_model,
         )
         for input, output in zip(inputs.records, outputs.records)
     )
     instruction_evaluations = await asyncio.gather(*evals)
+    instruction_metrics = aggregate_metrics(instruction_evaluations)
 
     average_run_duration = sum([r.duration for r in traces.roots]) / len(traces.roots)
     performance_metrics = {
@@ -179,11 +186,13 @@ async def evaluate_task(
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
         EvaluationMetric.AverageRunDuration: average_run_duration,
         # TODO @Incomplete: compute instruction satisfaction
-        EvaluationMetric.InstructionSatisfaction: 1.0,
+        EvaluationMetric.InstructionSatisfaction: instruction_metrics[
+            EvaluationMetric.InstructionSatisfaction
+        ],
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
-    # TODO @Incomplete: compute proper summary metrics
+    # TODO @Incomplete: compute proper summary metrics :SummaryMetrics
     summary_metrics = {
         EvaluationMetric.Performance: performance_metrics[EvaluationMetric.TypeValidity],
         EvaluationMetric.Speed: 60 / performance_metrics[EvaluationMetric.AverageRunDuration],
@@ -227,7 +236,7 @@ async def evaluate_output(
     )
     eval_type = make_struct_type(
         TypeNode(name="id", tag=TypeTag.NUMBER),
-        TypeNode(name="aligned", tag=TypeTag.BOOLEAN),
+        TypeNode(name="satisfied", tag=TypeTag.BOOLEAN),
     )
     eval_task_type = make_func_type(
         sample_type,
@@ -235,7 +244,7 @@ async def evaluate_output(
         output_type=TypeNode(name="output", tag=TypeTag.ARRAY, children=[eval_type]),
     )
     eval_task = Task(
-        name="evaluate outputs",
+        name="evaluate output",
         description="Check whether the generated output followed the instructions correctly.",
         type=eval_task_type,
         type_node=eval_task_type,
@@ -244,9 +253,9 @@ async def evaluate_output(
     plan.emit(
         XEmitTask(task=eval_task),
         # TODO @Build: tune model eval generation settings (and adapt to model context size)
-        XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
-        XEmitTypeSample(type=eval_task_type.output, type_label="Output"),
         XEmitInput(type=eval_task_type.input),
+        XEmitTypeSample(type=eval_task_type.output, type_label="Output"),
+        XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
         XEmitOutput(type=eval_task_type.output, type_label="Evaluation output"),
     )
     implementation = await do_build_task_plan(plan)
@@ -263,14 +272,27 @@ async def evaluate_output(
         if not name and not description:
             raise RuntimeError(f"instruction has no name or description: {instruction}")
         description = f"{name}: {description}"
+        if isinstance(instruction.node, TypeNode):
+            description = description + f" (on {instruction.node.name})"
         simplified_instructions.append({"description": description, "id": i})
 
     evals = await run(
         implementation_instance,
         {"sample": sample, "instructions": simplified_instructions},
     )
-    # nocheckin: map evals to evaluation results
-    return []
+
+    results = []
+    for instruction, eval in zip(instructions, evals):
+        metrics = {EvaluationMetric.InstructionSatisfaction: 1.0 if eval["satisfied"] else 0.0}
+        result = EvaluationResult(
+            kind=EvaluationKind.EVALUATION,
+            scope=EvaluationScope.INSTRUCTION,
+            system=instruction.node,
+            self_metrics=metrics,
+            aggregated_metrics=metrics,
+        )
+        results.append(result)
+    return results
 
 
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
