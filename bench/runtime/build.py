@@ -578,7 +578,7 @@ class XEmitSamples(XEmit):
             preamble = f"Good examples of {self.task_label}"
         else:
             preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record.data) for record in dataset.records)
+        data_str = "\n".join(json.dumps(record.data, sort_keys=True) for record in dataset.records)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
 
@@ -641,7 +641,7 @@ class XEmitTypeSample(XEmit):
             f"Example {self.type_label or self.type.name}:",
             XSource.System,
         )
-        sample = xstatic(json.dumps(fabricated_sample), XSource.Developer)
+        sample = xstatic(json.dumps(fabricated_sample, sort_keys=True), XSource.Developer)
         return [sample_declaration, sample]
 
 
@@ -656,7 +656,7 @@ class XEmitInput(XEmit):
     def impute_input(input: XBlock, value: Any):
         import json
 
-        input.value = json.dumps(value)
+        input.value = json.dumps(value, sort_keys=True)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         input_declaration = xstatic("Input:", XSource.System)

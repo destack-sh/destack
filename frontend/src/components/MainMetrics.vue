@@ -20,6 +20,7 @@ type Metric = {
   description: string;
   value: number | string;
   unit?: string;
+  stale: boolean;
 };
 
 type MetricSet = {
@@ -62,12 +63,14 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
         description: "How comprehensible the instructions is.",
         value: toPercent(metrics["clarity"]),
         unit: "%",
+        stale: false, // TODO @UX: track global interp/lint staleness
       },
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
         value: toFixed(metrics["difficulty"]),
         unit: "x",
+        stale: false,
       },
     ],
   };
@@ -104,12 +107,14 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
       continue;
     }
     const metrics = buildEvaluation.aggregatedMetrics;
+    const stale = runtime.staleSymbols.value?.find((s) => s.id == build.id) != null;
     const buildMetrics: Metric[] = [
       {
         label: "Performance",
         description: "How well the AI does.",
         value: toPercent(metrics["performance"]),
         unit: "%",
+        stale,
       },
     ];
     if (nonBuildSymbolId != null) {
@@ -118,6 +123,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
         description: "How fast the AI is.",
         value: toFixed(metrics["speed"]),
         unit: "/min",
+        stale,
       });
     }
 
@@ -165,6 +171,8 @@ const metricSets = computed(() => {
           <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
           <!-- Label -->
           <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
+          <!-- Staleness indicator -->
+          <span v-if="metric.stale" class="absolute right-1.5 top-4 font-bold text-yellow-600">*</span>
         </div>
       </button>
       <!-- Metric set hover popover -->
