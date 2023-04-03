@@ -29,7 +29,6 @@ from bench.language.type import (
     XBlock,
     XSource,
 )
-from bench.language.typer import fabricate_value
 from bench.runtime.evaluate import (
     EvaluationMetric,
     EvaluationResult,
@@ -41,6 +40,7 @@ from bench.runtime.instruct import (
     InstructionOp,
     SampleDatasetRandom,
     SampleSource,
+    fabricate_value,
     instruction_tree_from_symbol,
 )
 from bench.runtime.map import map_to_file

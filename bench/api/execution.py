@@ -39,7 +39,9 @@ class Execution(gql.Node):
     updated_at: auto
     started_at: auto
     terminated_at: auto
-    duration_millis: auto
+    cached_generated_at: auto
+    cached_duration: auto
+    duration: auto
     status: ExecutionStatus
     inputs: auto
     outputs: auto

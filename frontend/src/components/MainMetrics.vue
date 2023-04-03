@@ -68,7 +68,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
-        value: toFixed(metrics["difficulty"]),
+        value: toFixed(metrics["difficulty"], 0),
         unit: "x",
         stale: false,
       },

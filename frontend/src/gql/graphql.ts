@@ -354,11 +354,13 @@ export type Execution = Node & {
   __typename?: "Execution";
   accessToken?: Maybe<AccessToken>;
   build?: Maybe<Statement>;
+  cachedDuration?: Maybe<Scalars["Float"]>;
+  cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
   code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
   deployment?: Maybe<Deployment>;
   descendants: Array<Execution>;
-  durationMillis?: Maybe<Scalars["Float"]>;
+  duration?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;

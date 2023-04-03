@@ -97,31 +97,3 @@ def check_type(
 
     if not eager_error and _suberrors:
         on_invalid(value, expected, suberrors=_suberrors)
-
-
-def fabricate_value(type: TypeNode) -> Any:
-    """Synthesizes a value of the given type with fake fields."""
-    if type.tag == TypeTag.STRING:
-        return "lorem ipsum"
-    elif type.tag == TypeTag.NUMBER:
-        return 42
-    elif type.tag == TypeTag.BOOLEAN:
-        return False
-    elif type.tag == TypeTag.ARRAY:
-        return [fabricate_value(type.children[0])]
-    elif type.tag == TypeTag.ENUM:
-        return type.members[0].value
-    elif type.tag == TypeTag.STRUCT:
-        return {subtype.name: fabricate_value(subtype) for subtype in type.children}
-    elif type.tag == TypeTag.UNION:
-        return fabricate_value(type.children[0])
-    elif type.tag == TypeTag.NULL:
-        return None
-    elif type.tag == TypeTag.LITERAL:
-        return type.value
-    elif type.tag == TypeTag.ANY:
-        return 42  # not sure what to do here
-    elif type.tag == TypeTag.FUNCTION:
-        return {**fabricate_value(type.input), "output": fabricate_value(type.output)}
-    else:
-        raise RuntimeError(f"unexpected type {type.tag}")

@@ -308,7 +308,14 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
             model_executions,
             update_conflicts=True,
             unique_fields=["id"],
-            update_fields=["status", "terminated_at", "outputs", "error"],
+            update_fields=[
+                "status",
+                "terminated_at",
+                "cached_generated_at",
+                "cached_duration",
+                "outputs",
+                "error",
+            ],
         )
         return True
     except Exception as e:

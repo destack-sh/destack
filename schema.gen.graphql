@@ -353,7 +353,9 @@ type Execution implements Node {
 
   """Time of transition to a terminal status."""
   terminatedAt: DateTime
-  durationMillis: Float
+  cachedGeneratedAt: DateTime
+  cachedDuration: Float
+  duration: Float
   status: ExecutionStatus!
   inputs: JSON
   outputs: JSON

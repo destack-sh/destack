@@ -11,6 +11,7 @@ import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from itertools import chain
 from json import JSONDecodeError
 from random import Random
@@ -19,6 +20,7 @@ from uuid import UUID, uuid4
 
 import PIL.Image
 import pydub
+import pytz
 import structlog
 from more_itertools import first, last
 
@@ -51,6 +53,7 @@ from bench.runtime.type import (
     BuildMap,
     CodeInstance,
     DatasetInstance,
+    Inference,
     Modality,
     ModelInference,
     ModelInstance,
@@ -155,6 +158,9 @@ class AsyncCodeProxy:
             raise
 
 
+INFERENCE_CACHE_EXPIRY = 60 * 60 * 24 * 30  # 1 month
+
+
 class InferenceProxy:
     """A worker-side proxy for tracing (and caching) a specific inference endpoint."""
 
@@ -198,31 +204,39 @@ class InferenceProxy:
         )
 
         if self.cache_inferences:
-            # TODO @Performance: use leases to cooperatively inference endpoints coo
-            cached_ret = await redis.get(cache_key)
-            if cached_ret is not None:
+            # TODO @Performance: use leases to cooperatively inference endpoints
+            cached_inference = await redis.get(cache_key)
+            if cached_inference is not None:
                 try:
-                    ret = json.loads(cached_ret)
-                    log.debug("inference.cache.hit", ret=summarize_args(ret))
-                    return ret
-                except JSONDecodeError:
-                    log.error("inference.cache.error", excinfo=True)
+                    inference = Inference(**json.loads(cached_inference))
+                    log.debug("inference.cache.hit", ret=summarize_args(inference.result))
+                    self.tracer.inference_cached(self.ctx, blocks, settings, inference)
+                    return inference.result
+                except (ValueError, TypeError, JSONDecodeError):
+                    log.warning("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
 
         remaining_attempts = self.retries + 1
         while remaining_attempts > 0:
             remaining_attempts -= 1
             try:
+                generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.tracer.inference_enter(self.ctx, blocks, settings)
                 log.debug("inference.call.enter")
-                ret = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
-                self.tracer.inference_exit(self.ctx, blocks, settings, ret)
-                log.debug("inference.call.exit", ret=summarize_args(ret))
+                result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
+                self.tracer.inference_exit(self.ctx, blocks, settings, result)
+                log.debug("inference.call.exit", ret=summarize_args(result))
                 if self.cache_inferences:
-                    # ret is assumed to be JSON-serializable
-                    # (may not be true when we get to images, but this will error obviously enough)
-                    await redis.set(cache_key, json.dumps(ret))
-                return ret
+                    inference = Inference(
+                        generated_at=generated_at,
+                        duration=(datetime.utcnow() - generated_at).total_seconds(),
+                        # ret is assumed to be JSON-serializable
+                        # (may not be true when we get to images, but this will error obviously enough)
+                        result=result,
+                    )
+                    inference_json = json.dumps(asdict(inference))
+                    await redis.set(cache_key, inference_json, ex=INFERENCE_CACHE_EXPIRY)
+                return result
             except TimeoutError as exception:
                 self.tracer.inference_exception(self.ctx, blocks, settings, exception)
                 log.debug("inference.call.exception", excinfo=True)
