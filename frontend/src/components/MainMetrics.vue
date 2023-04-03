@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { EvaluationScope, SymbolType } from "@/gql/graphql";
+import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
@@ -37,23 +37,35 @@ function toFixed(value?: number, alt = "??"): string {
   return value != null ? value.toFixed(1) : alt;
 }
 
-// global to scope
+// global to scope (via linting)
 const globalEvaluations = useEvaluations(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
-    scopeIn: ref([EvaluationScope.Module]),
+    scopeIn: computed(() => (mainSymbol.value == null ? [EvaluationScope.Module] : [EvaluationScope.Instruction])),
+    kindIn: ref([EvaluationKind.Lint]),
+    systemIdIn: computed(() => (mainSymbol.value == null ? null : [mainSymbol.value.id])),
+    buildIdIn: ref([]), // no specific build
   },
-  { live: true }
+  { live: true, enabled: runtime.connected }
 );
-const globalEvaluation = computed(() =>
-  (globalEvaluations.evaluations.value?.length ?? 0) > 0 ? globalEvaluations.evaluations.value[0] : undefined
-);
+
+function getGlobalEvaluation(symbolId?: string) {
+  if (globalEvaluations.evaluations.value == null || (globalEvaluations.evaluations.value?.length ?? 0) == 0) {
+    return null;
+  } else if (symbolId == null) {
+    return globalEvaluations.evaluations.value[0];
+  } else {
+    return globalEvaluations.evaluations.value.find((e) => e.statement?.id == symbolId);
+  }
+}
+
 const globalMetricSet: Ref<MetricSet | null> = computed(() => {
-  if (globalEvaluation.value == null || globalEvaluation.value.aggregatedMetrics?.clarity == null) {
+  const globalEvaluation = getGlobalEvaluation(mainSymbol.value?.id);
+  if (globalEvaluation == null || globalEvaluation.aggregatedMetrics?.clarity == null) {
     return null;
   }
-  const metrics = globalEvaluation.value.aggregatedMetrics;
+  const metrics = globalEvaluation.aggregatedMetrics;
   return {
     label: "Bench",
     description: `Bench-wide analysis of '${mainSymbol.value?.name ?? runtime.name.value}'.`,
@@ -68,7 +80,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
-        value: toFixed(metrics["difficulty"], 0),
+        value: toFixed(metrics["difficulty"]),
         unit: "x",
         stale: false,
       },
@@ -89,7 +101,7 @@ const buildEvaluations = useEvaluations(
     buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
     systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
   },
-  { live: true }
+  { live: true, enabled: runtime.connected }
 );
 
 function getBuildEvaluation(buildId: string, symbolId?: string) {

@@ -99,7 +99,12 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
     summary_metrics = {}
 
     # clarity
-    summary_metrics[EvaluationMetric.Clarity] = 1.0
+    if (
+        EvaluationMetric.InstructionPerplexity in metrics
+        and EvaluationMetric.InstructionAgreement in metrics
+        and EvaluationMetric.InstructionOverlap in metrics
+    ):
+        summary_metrics[EvaluationMetric.Clarity] = 1.0
 
     # difficulty
     if EvaluationMetric.InstructionCount in metrics:
@@ -324,7 +329,12 @@ async def evaluate_output(
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
     # TODO @Incomplete: compute proper lint metrics
-    self_metrics = {EvaluationMetric.InstructionCount: 1}
+    self_metrics = {
+        EvaluationMetric.InstructionCount: 1,
+        EvaluationMetric.InstructionAgreement: 1.0,
+        EvaluationMetric.InstructionOverlap: 0.0,
+        EvaluationMetric.InstructionPerplexity: 0.0,
+    }
     self_metrics.update(get_summary_metrics(self_metrics))
     return self_metrics
 
@@ -343,7 +353,7 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         evaluation = EvaluationResult(
             kind=EvaluationKind.LINT,
             scope=EvaluationScope.INSTRUCTION,
-            system=instruction,
+            system=instruction.node,
             build=None,
             self_metrics=self_metrics,
             aggregated_metrics={**self_metrics},
@@ -364,5 +374,6 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         system=None,
         build=None,
         aggregated_metrics=aggregate_metrics(root_evaluations),
+        children=root_evaluations,
     )
     return root_evaluation

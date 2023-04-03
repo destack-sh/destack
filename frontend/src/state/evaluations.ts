@@ -43,7 +43,7 @@ export function useEvaluations(
     buildIdIn?: Ref<string[] | null>;
     systemIdIn?: Ref<string[] | null>;
   },
-  options?: { first?: number; live?: boolean }
+  options?: { first?: number; live?: boolean; enabled?: Ref<boolean> }
 ) {
   const { result: evaluationsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
@@ -77,11 +77,14 @@ export function useEvaluations(
     {
       projectId: filter.projectId,
       projectVersionId: filter.projectVersionId,
-      scopeIn: filter.scopeIn ?? ref<EvaluationScope[]>([]),
-      kindIn: filter.kindIn ?? ref<EvaluationKind[]>([]),
-      buildIdIn: filter.buildIdIn ?? ref<string[]>([]),
-      systemIdIn: filter.systemIdIn ?? ref<string[]>([]),
+      scopeIn: filter.scopeIn ?? ref<EvaluationScope[]>(null),
+      kindIn: filter.kindIn ?? ref<EvaluationKind[]>(null),
+      buildIdIn: filter.buildIdIn ?? ref<string[]>(null),
+      systemIdIn: filter.systemIdIn ?? ref<string[]>(null),
       first: options?.first ?? 25,
+    },
+    {
+      enabled: options?.enabled ?? ref(true),
     }
   );
 
