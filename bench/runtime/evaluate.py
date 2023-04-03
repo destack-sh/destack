@@ -104,7 +104,7 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
         and EvaluationMetric.InstructionAgreement in metrics
         and EvaluationMetric.InstructionOverlap in metrics
     ):
-        summary_metrics[EvaluationMetric.Clarity] = 1.0
+        summary_metrics[EvaluationMetric.Clarity] = 0.99
 
     # difficulty
     if EvaluationMetric.InstructionCount in metrics:

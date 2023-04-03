@@ -449,7 +449,7 @@ class EvaluationResultData:
             job_id=job_id,
             parent_id=parent_id,
         )
-        if result.scope not in (EvaluationScope.MODULE,) and result_data.system_id is None:
+        if result.scope == EvaluationScope.INSTRUCTION and result_data.system_id is None:
             raise ValueError(f"missing system_id for {result_data}")
 
         results_data = [result_data]

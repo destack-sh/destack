@@ -13,9 +13,9 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
-import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon } from "@heroicons/vue/24/outline";
+import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, provide, ref, watch, type Component, type Ref } from "vue";
+import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -227,6 +227,64 @@ const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
 
+// metrics
+type Metric = {
+  label: string;
+  value: number;
+  bars: number;
+};
+type MetricSet = {
+  label: string;
+  metrics: Metric[];
+};
+
+// TODO @Broken: replace metrics with real metrics
+const METRIC_METER_SIZE = 4;
+const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
+  if (statement.value.type != StatementType.Definition || statement.value.symbolType == SymbolType.Build) {
+    return null;
+  }
+  const globalMetrics = [
+    {
+      label: "Clarity",
+      value: 79,
+      bars: 3,
+    },
+    {
+      label: "Difficulty",
+      value: 50,
+      bars: 2,
+    },
+  ];
+
+  const metricSets = [
+    {
+      label: "Global",
+      metrics: globalMetrics,
+    },
+  ];
+
+  for (const build of ["claude"]) {
+    metricSets.push({
+      label: "claude",
+      metrics: [
+        {
+          label: "Performance",
+          value: 75,
+          bars: 3,
+        },
+        {
+          label: "Speed",
+          value: 0.5,
+          bars: 4,
+        },
+      ],
+    });
+  }
+
+  return metricSets;
+});
+
 // symbol ops (inline)
 type InlineAction = {
   label: string;
@@ -297,15 +355,6 @@ const inlineActions = computed(() => {
       }"
     >
       {{ lineNumberBase + 1 }}
-    </span>
-    <!-- Gutter indicators on the right margin -->
-    <span
-      class="absolute right-0 top-[6px] select-none text-left text-sm font-bold not-italic"
-      :style="{ right: -12 + 'px' }"
-    >
-      <span class="text-red-700" v-if="hasLocalErrors">
-        {{ localErrors?.length }}
-      </span>
     </span>
     <!-- Statement main -->
     <div
@@ -390,6 +439,49 @@ const inlineActions = computed(() => {
           </button>
         </span>
       </div>
+    </div>
+    <!-- Gutter indicators on the right margin -->
+    <div
+      v-if="statement.type == StatementType.Definition || statement.type == StatementType.Reference"
+      class="absolute right-0 top-[6px] flex select-none flex-row gap-2 not-italic"
+      :class="{
+        'text-md': !editor.textSmall,
+        'text-sm': editor.textSmall,
+      }"
+    >
+      <!-- Metrics -->
+      <div v-if="editor.inlineMetrics && metricSets != null" class="flex flex-row gap-1.5">
+        <div v-for="metricSet of metricSets" :key="metricSet.label" class="flex flex-row gap-0.5">
+          <span v-for="metric in metricSet.metrics" :key="metric.label">
+            <svg viewBox="0 0 6 42" class="h-8">
+              <g>
+                <rect
+                  v-for="i in METRIC_METER_SIZE"
+                  :key="i"
+                  x="0"
+                  :y="(i - 1) * 9"
+                  width="6"
+                  height="5"
+                  :fill="i > METRIC_METER_SIZE - metric.bars ? 'skyblue' : 'lightgrey'"
+                />
+              </g>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <!-- Errors/warnings -->
+      <div>
+        <!-- Errors -->
+        <button
+          v-if="hasLocalErrors"
+          class="flex rounded-sm p-0.5 font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
+          @click="actions.apply('editor.view.openIssues')"
+        >
+          <XCircleIcon class="h-5 w-5" />
+        </button>
+        <!-- Warnings -->
+      </div>
+      <!-- don't exist yet -->
     </div>
     <!-- Debug info -->
     <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">

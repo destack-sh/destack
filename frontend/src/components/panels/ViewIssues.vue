@@ -37,9 +37,7 @@ function focusError(error: InterpError) {
       >
         <div v-if="error.symbol != null" class="px-3">
           <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.symbol.symbolType] }}</span>
-          <span class="pl-1 text-gray-900 group-hover:text-orange-600"
-            >{{ fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span
-          >
+          <span class="pl-1 text-gray-900">{{ fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
           <XCircleIcon class="mt-0.5 h-4 w-4" />
