@@ -2,6 +2,7 @@ import asyncio
 import enum
 import uuid
 from collections import defaultdict
+from itertools import chain
 from typing import Any
 
 import structlog
@@ -178,7 +179,7 @@ async def evaluate_task(
         for input, output in zip(inputs.records, outputs.records)
     )
     instruction_evaluations = await asyncio.gather(*evals)
-    instruction_metrics = aggregate_metrics(instruction_evaluations)
+    instruction_metrics = aggregate_metrics(list(chain(*instruction_evaluations)))
 
     average_run_duration = sum([r.duration for r in traces.roots]) / len(traces.roots)
     performance_metrics = {
