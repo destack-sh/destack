@@ -419,6 +419,10 @@ class EvaluationResultData:
     def __repr__(self):
         return f"<Evaluation {self.statement_id or self.record_id or self.type_node_id} {self}>"
 
+    @property
+    def system_id(self) -> Optional[UUID]:
+        return self.statement_id or self.record_id or self.type_node_id
+
     @staticmethod
     def from_result(
         result: EvaluationResult,
@@ -445,6 +449,9 @@ class EvaluationResultData:
             job_id=job_id,
             parent_id=parent_id,
         )
+        if result.scope not in (EvaluationScope.MODULE,) and result_data.system_id is None:
+            raise ValueError(f"missing system_id for {result_data}")
+
         results_data = [result_data]
         for child in result.children:
             results_data += EvaluationResultData.from_result(

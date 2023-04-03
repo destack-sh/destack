@@ -115,11 +115,11 @@ class ExecutionQuery:
         qs = qs.filter(project_id=project_id.node_id)
         if project_version_ids:
             qs = qs.filter(project_version_id__in=project_version_ids)
-        if build_ids:
+        if build_ids is not None:
             qs = qs.filter(build_id__in=expanded_symbol_ids)
-        if task_ids:
+        if task_ids is not None:
             qs = qs.filter(task_id__in=expanded_symbol_ids)
-        if code_ids:
+        if code_ids is not None:
             qs = qs.filter(code_id__in=expanded_symbol_ids)
         if root_id is not None:
             qs = qs.filter(root_id=root_id.node_id)
@@ -186,9 +186,11 @@ class ExecutionSubscription:
             msg: NMessage[ExecutionSavedPayload] = await executions_sub.next_msg()
             for frame_data in msg.payload.frames:
                 # :ExecutionsFilter
-                other_build = build_ids and frame_data.build_id not in expanded_symbol_ids
-                other_task = task_ids and frame_data.task_id not in expanded_symbol_ids
-                other_code = code_ids and frame_data.code_id not in expanded_symbol_ids
+                other_build = (
+                    build_ids is not None and frame_data.build_id not in expanded_symbol_ids
+                )
+                other_task = task_ids is not None and frame_data.task_id not in expanded_symbol_ids
+                other_code = code_ids is not None and frame_data.code_id not in expanded_symbol_ids
                 other_root = (
                     root_id is not None
                     and root_id.node_id != frame_data.root_id

@@ -89,13 +89,13 @@ class EvaluationQuery:
         )
         # :EvaluationsFilter
         qs = qs.filter(project_id=project_id, project_version_id__in=project_version_ids)
-        if kind_in:
+        if kind_in is not None:
             qs = qs.filter(kind__in=kind_in)
-        if scope_in:
+        if scope_in is not None:
             qs = qs.filter(scope__in=scope_in)
-        if build_id_in:
+        if build_id_in is not None:
             qs = qs.filter(build_id__in=expanded_symbol_ids)
-        if system_id_in:
+        if system_id_in is not None:
             qs = qs.filter(
                 Q(statement_id__in=expanded_symbol_ids)
                 | Q(record_id__in=expanded_symbol_ids)
@@ -150,11 +150,13 @@ class EvaluationSubscription:
             msg: NMessage[EvaluationSavedPayload] = await evaluations_sub.next_msg()
             for evaluation in msg.p.evaluations:
                 # :EvaluationsFilter
-                other_kind = kind_in and evaluation.kind not in kind_in
-                other_scope = scope_in and evaluation.scope not in scope_in
-                other_build_id = build_id_in and evaluation.build_id not in expanded_symbol_ids
+                other_kind = kind_in is not None and evaluation.kind not in kind_in
+                other_scope = scope_in is not None and evaluation.scope not in scope_in
+                other_build_id = (
+                    build_id_in is not None and evaluation.build_id not in expanded_symbol_ids
+                )
                 other_system_id = (
-                    system_id_in
+                    system_id_in is not None
                     and evaluation.statement_id not in expanded_symbol_ids
                     and evaluation.type_node_id not in expanded_symbol_ids
                     and evaluation.record_id not in expanded_symbol_ids
