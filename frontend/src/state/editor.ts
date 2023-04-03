@@ -246,6 +246,10 @@ export const useEditorState = defineStore("editor", {
       const appearance = useAppearanceState();
       return appearance.fontMono;
     },
+    inlineMetrics(): boolean {
+      const appearance = useAppearanceState();
+      return appearance.inlineMetrics;
+    },
   },
   actions: {
     setProject(projectId: string, versionId: string): void {

@@ -33,8 +33,8 @@ function toPercent(value?: number, alt = "??"): string {
   return value != null ? (value * 100).toFixed(0) : alt;
 }
 
-function toFixed(value?: number, alt = "??"): string {
-  return value != null ? value.toFixed(1) : alt;
+function toFixed(value?: number, digits = 1, alt = "??"): string {
+  return value != null ? value.toFixed(digits) : alt;
 }
 
 // global to scope (via linting)
@@ -72,7 +72,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
     metrics: [
       {
         label: "Clarity",
-        description: "How comprehensible the instructions is.",
+        description: "How comprehensible the instruction is.",
         value: toPercent(metrics["clarity"]),
         unit: "%",
         stale: false, // TODO @UX: track global interp/lint staleness
@@ -80,7 +80,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
-        value: toFixed(metrics["difficulty"]),
+        value: toFixed(metrics["difficulty"], 0),
         unit: "x",
         stale: false,
       },

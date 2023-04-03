@@ -10,6 +10,7 @@ export const useAppearanceState = defineStore("appearance", {
     theme: "light" as Theme,
     textSmall: true,
     fontMono: false,
+    inlineMetrics: true,
   }),
 });
 
