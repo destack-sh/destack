@@ -38,7 +38,6 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
-  ChatBubbleLeftEllipsisIcon,
   ChatBubbleLeftIcon,
   ClockIcon,
   Cog8ToothIcon,
@@ -55,7 +54,17 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle, whenever } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, onBeforeUnmount, ref, toRef, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  ref,
+  toRef,
+  watch,
+  watchEffect,
+  type Component,
+  type ComputedRef,
+  type Ref,
+} from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{

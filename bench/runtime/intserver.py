@@ -152,9 +152,21 @@ class InternalServer:
                 await Execution.objects.filter(
                     status__in=PENDING_EXECUTION_STATUSES, worker_id__in=dead_ids
                 ).aupdate(status=ExecutionStatus.Failed)
-                await Job.objects.filter(
-                    status__in=PENDING_JOB_STATUSES, worker_id__in=dead_ids
-                ).aupdate(status=JobStatus.Failed)
+                dead_jobs = [
+                    job
+                    async for job in Job.objects.filter(
+                        status__in=PENDING_JOB_STATUSES, worker_id__in=dead_ids
+                    )
+                ]
+                # publish job updates, then update
+                for job in dead_jobs:
+                    job_data = mapper.wmap_job(job)
+                    job.status = JobStatus.Failed
+                    await publish(
+                        NMessageType.JOB_SAVED,
+                        JobSavedPayload(job=job_data, module_id=job.project_version_id),
+                    )
+                await Job.objects.abulk_update(dead_jobs, ["status"])
                 for worker in dead_workers:
                     worker.status = WorkerStatus.TERMINATED
                     worker.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)

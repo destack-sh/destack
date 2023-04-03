@@ -615,6 +615,20 @@ def rmap_job(job: JobData) -> models.Job:
     )
 
 
+def wmap_job(job: models.Job) -> JobData:
+    return JobData(
+        id=job.id,
+        type=job.type,
+        status=job.status,
+        project_id=job.project_id,
+        project_version_id=job.project_version_id,
+        deployment_id=job.deployment_id,
+        worker_id=job.worker_id,
+        started_at=job.started_at,
+        terminated_at=job.terminated_at,
+    )
+
+
 def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     if frame.error:
         status = models.ExecutionStatus.Failed

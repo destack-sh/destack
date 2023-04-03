@@ -6,7 +6,7 @@ import { useJobs } from "@/state/jobs";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { DateTime } from "luxon";
-import { computed, toRef, ref } from "vue";
+import { computed, toRef, ref, type Ref } from "vue";
 
 const props = defineProps<{
   projectId: string;
@@ -43,6 +43,16 @@ const activeJobs = computed(() =>
     )
     .sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1))
 );
+const activeJobsCounts: Ref<Record<JobType, number>> = computed(() =>
+  activeJobs.value?.reduce((acc, job) => {
+    acc[job.type] = (acc[job.type] ?? 0) + 1;
+    return acc;
+  }, {} as Record<JobType, number>)
+);
+const JOB_TYPES = [JobType.Interp, JobType.Lint, JobType.Build, JobType.Generate, JobType.Evaluate];
+const activeJobTypes = computed(() =>
+  JOB_TYPES.filter((jobType) => activeJobs.value?.some((job) => job.type == jobType))
+);
 
 const JOB_VERBS_INF = {
   [JobType.Interp]: "interpreting",
@@ -71,14 +81,16 @@ const JOB_VERBS = {
       }"
     >
       <!-- Active jobs (truncated) -->
-      <div class="flex items-baseline gap-2" v-if="activeJobs.length > 0">
+      <div class="flex items-center gap-2 p-0.5" v-if="activeJobTypes.length > 0">
         <!-- Spinner -->
         <svg viewBox="0 0 10 10" class="h-1 w-1 animate-spin text-gray-400">
           <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />
         </svg>
         <!-- Truncated jobs -->
-        <span v-for="job in activeJobs.slice(0, 3)" :key="job.id" class="text-gray-500">
-          {{ JOB_VERBS_INF[job.type] }}
+        <span v-for="jobType in activeJobTypes" :key="jobType" class="text-gray-500">
+          {{ JOB_VERBS_INF[jobType] }}
+          <!-- Count if > 1 -->
+          <template v-if="activeJobsCounts[jobType] > 1">({{ activeJobsCounts[jobType] }})</template>
         </span>
         <span v-if="activeJobs.length > 3" class="whitespace-nowrap text-gray-500">+{{ activeJobs.length - 2 }}</span>
       </div>
