@@ -33,7 +33,10 @@ const { jobs: initialActiveJobs } = useJobs(
   },
   { live: false, first: 10 }
 );
-const allJobs = computed(() => [...(initialActiveJobs.value ?? []), ...(liveJobs.value ?? [])]);
+const allJobs = computed(() => [
+  ...(initialActiveJobs.value.filter((job) => !liveJobs.value.find((j) => j.id == job.id)) ?? []),
+  ...(liveJobs.value ?? []),
+]);
 const activeJobs = computed(() =>
   allJobs.value
     ?.filter(
