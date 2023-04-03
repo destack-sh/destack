@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import enum
 import random
 import uuid
 from dataclasses import dataclass, field
-from typing import Union
+from typing import Any, Union
 
 import structlog
 
@@ -22,7 +24,6 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.typer import fabricate_value
 from bench.runtime.run import instantiate, run
 from bench.runtime.type import Modality, TextGenerationSettings
 from bench.utils.fractional import generate_n_keys_between
@@ -391,3 +392,31 @@ class SampleGenerateWithModel(SampleSource):
         for i, sample in enumerate(generated_samples):
             target_dataset.records[i].data = sample
         return target_dataset
+
+
+def fabricate_value(type: TypeNode) -> Any:
+    """Synthesizes a value of the given type with fake fields."""
+    if type.tag == TypeTag.STRING:
+        return "lorem ipsum"
+    elif type.tag == TypeTag.NUMBER:
+        return 42
+    elif type.tag == TypeTag.BOOLEAN:
+        return False
+    elif type.tag == TypeTag.ARRAY:
+        return [fabricate_value(type.children[0])]
+    elif type.tag == TypeTag.ENUM:
+        return type.members[0].value
+    elif type.tag == TypeTag.STRUCT:
+        return {subtype.name: fabricate_value(subtype) for subtype in type.children}
+    elif type.tag == TypeTag.UNION:
+        return fabricate_value(type.children[0])
+    elif type.tag == TypeTag.NULL:
+        return None
+    elif type.tag == TypeTag.LITERAL:
+        return type.value
+    elif type.tag == TypeTag.ANY:
+        return 42  # not sure what to do here
+    elif type.tag == TypeTag.FUNCTION:
+        return {**fabricate_value(type.input), "output": fabricate_value(type.output)}
+    else:
+        raise RuntimeError(f"unexpected type {type.tag}")

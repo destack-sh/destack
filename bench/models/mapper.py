@@ -662,6 +662,8 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
         started_at=frame.entered_at,
         terminated_at=frame.exited_at,
+        cached_generated_at=frame.cached_generated_at,
+        cached_duration=frame.cached_duration,
         inputs=frame.inputs,
         outputs=frame.outputs,
         error=asdict(frame.error) if frame.error else None,

@@ -57,6 +57,7 @@ PERCENTAGE_METRICS = ALL_METRICS - COUNT_METRICS
 HIGHER_IS_BETTER = {
     EvaluationMetric.Performance,
     EvaluationMetric.Clarity,
+    # Speed is measured in duration, so lower is better
     EvaluationMetric.TypeValidity,
     EvaluationMetric.InstructionSatisfaction,
     EvaluationMetric.FeedbackCorrelation,
@@ -88,10 +89,39 @@ def aggregate_metrics(
         averaged_percentages[metric] /= len(evaluations)
     aggregated_metrics = {**summed_counts, **averaged_percentages}
 
-    # TODO @Broken: recompute summary metrics when aggregating metrics  :SummaryMetrics
-    #  (and probably also just compute summary metrics in a single place)
+    # recompute summary metrics
+    aggregated_metrics.update(get_summary_metrics(aggregated_metrics))
 
     return aggregated_metrics
+
+
+def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, float]:
+    summary_metrics = {}
+
+    # clarity
+    summary_metrics[EvaluationMetric.Clarity] = 1.0
+
+    # difficulty
+    if EvaluationMetric.InstructionCount in metrics:
+        difficulty = metrics[EvaluationMetric.InstructionCount]
+        summary_metrics[EvaluationMetric.Difficulty] = difficulty
+
+    # performance
+    if (
+        EvaluationMetric.TypeValidity in metrics
+        and EvaluationMetric.InstructionSatisfaction in metrics
+    ):
+        performance = (
+            metrics[EvaluationMetric.TypeValidity]
+            * metrics[EvaluationMetric.InstructionSatisfaction]
+        )
+        summary_metrics[EvaluationMetric.Performance] = performance
+
+    # speed
+    if EvaluationMetric.AverageRunDuration in metrics:
+        speed = metrics[EvaluationMetric.AverageRunDuration]
+        summary_metrics[EvaluationMetric.Speed] = speed
+    return summary_metrics
 
 
 def compare_evaluations(
@@ -130,26 +160,14 @@ async def evaluate_task(
     log = logger.bind(task=task, build=build)
     task_instruction, _ = instruction_tree_from_symbol(task)
 
-    # technically this is characters count, not tokens count
-    # we'll want proper token counts soon to properly optimize for the available context
-    tokens_count = sum(
-        [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
-    )
-    count_metrics = {
-        # only 1 always for now :TaskGrouping
-        EvaluationMetric.InferencesCount: 1,
-        # this only works for strings
-        EvaluationMetric.TokensCount: tokens_count,
-    }
-
     # generate samples to test
-    inputs = await SampleGenerateWithModel(
+    samples = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
     with in_memory_traces() as traces:
         runs = (
             run(task.implementation, dict_minus(sample.data, {"output"}))
-            for sample in inputs.records
+            for sample in samples.records
         )
         results = await asyncio.gather(*runs, return_exceptions=True)
     outputs = anonymous_dataset(task.type.output, n_samples)
@@ -176,12 +194,16 @@ async def evaluate_task(
             instructions=evalable_instructions,
             eval_model=eval_model,
         )
-        for input, output in zip(inputs.records, outputs.records)
+        for input, output in zip(samples.records, outputs.records)
     )
     instruction_evaluations = await asyncio.gather(*evals)
     instruction_metrics = aggregate_metrics(list(chain(*instruction_evaluations)))
 
-    average_run_duration = sum([r.duration for r in traces.roots]) / len(traces.roots)
+    # technically tokens_count is #characters
+    tokens_count = sum(
+        [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
+    )
+    average_run_duration = sum([r.duration_with_cache for r in traces.roots]) / len(traces.roots)
     performance_metrics = {
         # for type validity we assume that unsuccessful run == type error
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
@@ -193,11 +215,14 @@ async def evaluate_task(
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
-    # TODO @Incomplete: compute proper summary metrics :SummaryMetrics
-    summary_metrics = {
-        EvaluationMetric.Performance: performance_metrics[EvaluationMetric.TypeValidity],
-        EvaluationMetric.Speed: 60 / performance_metrics[EvaluationMetric.AverageRunDuration],
+    metrics = {
+        # only 1 always for now :TaskGrouping
+        EvaluationMetric.InferencesCount: 1,
+        EvaluationMetric.TokensCount: tokens_count,
+        **performance_metrics,
+        **instruction_metrics,
     }
+    metrics.update(get_summary_metrics(metrics))
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.INSTRUCTION,
@@ -205,7 +230,7 @@ async def evaluate_task(
         build=build,
         build_candidate=build_candidate,
         self_metrics=None,
-        aggregated_metrics={**count_metrics, **performance_metrics, **summary_metrics},
+        aggregated_metrics=metrics,
     )
 
 
@@ -299,8 +324,8 @@ async def evaluate_output(
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
     # TODO @Incomplete: compute proper lint metrics
-    self_metrics = {EvaluationMetric.InstructionCount: 1, EvaluationMetric.Clarity: 1.0}
-    self_metrics[EvaluationMetric.Difficulty] = self_metrics[EvaluationMetric.InstructionCount]
+    self_metrics = {EvaluationMetric.InstructionCount: 1}
+    self_metrics.update(get_summary_metrics(self_metrics))
     return self_metrics
 
 

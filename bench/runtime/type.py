@@ -141,16 +141,30 @@ class ExecutionFrame:
     parent: Optional[ExecutionFrame]
     entered_at: datetime
     exited_at: Optional[datetime]
+    cached_generated_at: Optional[datetime]
+    cached_duration: Optional[float]
     inputs: Optional[dict[str, LiteralValue]]
     outputs: Optional[LiteralValue]
     error: Optional[Exception]
     queue_position: Optional[int]
+    children: list[ExecutionFrame] = field(default_factory=list)
 
     @property
     def duration(self) -> float:
         if self.exited_at is None:
             return 0
         return (self.exited_at - self.entered_at).total_seconds()
+
+    @property
+    def duration_with_cache(self) -> float:
+        if self.exited_at is None:
+            return 0
+        return self.duration + (self.cached_duration or 0)
+
+    def walk_descendants(self):
+        yield self
+        for child in self.children:
+            yield from child.walk_descendants()
 
     def __str__(self):
         # get str of all non-null fields
@@ -162,18 +176,21 @@ class ExecutionFrame:
             f"model={self.model}" if self.model else None,
             f"root={self.root.id}" if self.root else None,
             f"parent={self.parent.id}" if self.parent else None,
-            f"entered={self.entered_at}",
-            f"exited={self.exited_at}" if self.exited_at else None,
-            f"inputs={summarize_args(self.inputs)}",
-            f"outputs={summarize_args(self.outputs)}" if self.outputs else None,
-            f"error={self.error}" if self.error else None,
-            f"queue_position={self.queue_position}" if self.queue_position else None,
         ]
         fields_str = [s for s in fields_strs if s]
         return f"id={self.id} ({', '.join(fields_str)})"
 
     def __repr__(self):
         return f"<ExecutionFrame {self}>"
+
+
+@dataclass(slots=True)
+class Inference:
+    """The cached inference struct"""
+
+    generated_at: datetime
+    duration: float
+    result: Any
 
 
 @dataclass(slots=True)
@@ -199,6 +216,8 @@ class ExecutionFrameData:
     parent_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
+    cached_generated_at: Optional[datetime]
+    cached_duration: Optional[float]
     inputs: dict[str, Any]
     outputs: Optional[Any]
     error: Optional[ErrorData]
@@ -243,6 +262,8 @@ class ExecutionFrameData:
             parent_id=frame.parent.id if frame.parent else None,
             entered_at=frame.entered_at,
             exited_at=frame.exited_at,
+            cached_generated_at=frame.cached_generated_at,
+            cached_duration=frame.cached_duration,
             inputs=frame.inputs,
             outputs=frame.outputs,
             error=error_data,
@@ -300,7 +321,7 @@ class EvaluationMetric(enum.StrEnum):
     Clarity = "clarity"  # [0, 1]
     Difficulty = "difficulty"  # [0, inf)
     Performance = "performance"  # [0, 1]
-    Speed = "speed"  # [0, inf) (inverse of estimated run duration)
+    Speed = "speed"  # [0, inf) (estimated run duration)
     # Clarity (global)
     InstructionPerplexity = "instruction_perplexity"  # [0, 1]
     InstructionAgreement = "instruction_agreement"  # [0, 1]

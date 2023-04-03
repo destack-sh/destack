@@ -12,14 +12,14 @@ from uuid import UUID
 import pytz
 import structlog
 
-from bench.language.type import XBlock
+from bench.language.type import Model, XBlock
 from bench.language.typer import check_type
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload
 from bench.runtime.model import InferenceContext
-from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, ModelInstance
+from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, Inference
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -53,6 +53,11 @@ class Tracer:
 
     def inference_exception(
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
+    ):
+        pass
+
+    def inference_cached(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         pass
 
@@ -107,6 +112,12 @@ class MultiTracer(Tracer):
     ):
         for tracer in reversed(self.tracers):
             tracer.inference_exception(ctx, blocks, settings, exception)
+
+    def inference_cached(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
+    ):
+        for tracer in self.tracers:
+            tracer.inference_cached(ctx, blocks, settings, inference)
 
 
 def push_context_tracers(*tracers: Tracer):
@@ -171,10 +182,20 @@ class ExecutionTracer(Tracer):
     def stacktrace(self) -> list[ExecutionFrame]:
         return _execution_stacktraces.get()[self._id]
 
+    def pop_stacktrace(self) -> ExecutionFrame:
+        frame = self.stacktrace.pop()
+        # update cached info in parent(s)
+        if frame.cached_generated_at is not None:
+            for frame in self.stacktrace:
+                frame.cached_duration = sum(
+                    f.cached_duration for f in frame.walk_descendants() if f.cached_duration
+                )
+        return frame
+
     def _create_frame(
         self,
         code: typing.Optional[CodeInstance] = None,
-        model: typing.Optional[ModelInstance] = None,
+        model: typing.Optional[Model] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -196,11 +217,15 @@ class ExecutionTracer(Tracer):
             parent=parent,
             entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             exited_at=None,
+            cached_generated_at=None,
+            cached_duration=None,
             inputs=inputs,
             outputs=None,
             error=None,
             queue_position=queue_position,
         )
+        if parent is not None:
+            parent.children.append(frame)
         return frame
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
@@ -222,14 +247,14 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
-        frame = self.stacktrace.pop()
+        frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = copy.deepcopy(result)
         self.tracker(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
-        frame = self.stacktrace.pop()
+        frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
         self.tracker(frame)
@@ -244,15 +269,26 @@ class ExecutionTracer(Tracer):
     def inference_exit(
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
     ):
-        frame = self.stacktrace.pop()
+        frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
 
+    def inference_cached(
+        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
+    ):
+        # track a complete frame, don't add to stacktrace
+        frame = self._create_frame(model=ctx.model, trace=False)
+        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.cached_generated_at = inference.generated_at
+        frame.cached_duration = inference.duration
+        self.tracker(frame)
+        logger.debug("trace.inference.cached", frame=frame, stackdepth=len(self.stacktrace))
+
     def inference_exception(
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
     ):
-        frame = self.stacktrace.pop()
+        frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
         self.tracker(frame)

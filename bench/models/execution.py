@@ -84,6 +84,8 @@ class Execution(UUIDTModel):
     )
 
     # execution
+    cached_generated_at = models.DateTimeField(null=True, blank=True)
+    cached_duration = models.FloatField(null=True, blank=True)
     root = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
     )
@@ -126,9 +128,9 @@ class Execution(UUIDTModel):
     error = models.JSONField(null=True, blank=True)
 
     @gql.model_property(only=["started_at", "terminated_at"])
-    def duration_millis(self) -> Optional[float]:
+    def duration(self) -> Optional[float]:
         if self.started_at and self.terminated_at:
-            return (self.terminated_at - self.started_at).total_seconds() * 1000
+            return (self.terminated_at - self.started_at).total_seconds()
         return None
 
     def __str__(self):
