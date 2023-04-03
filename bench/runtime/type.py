@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+import json
 import traceback
 import uuid
 from dataclasses import dataclass, field
@@ -191,6 +192,23 @@ class Inference:
     generated_at: datetime
     duration: float
     result: Any
+
+    def to_json_str(self) -> str:
+        inference_json = {
+            "generated_at": self.generated_at.isoformat(),
+            "duration": self.duration,
+            "result": self.result,
+        }
+        return json.dumps(inference_json)
+
+    @classmethod
+    def from_json_str(cls, json_str: str):
+        data = json.loads(json_str)
+        return cls(
+            generated_at=datetime.fromisoformat(data["generated_at"]),
+            duration=data["duration"],
+            result=data["result"],
+        )
 
 
 @dataclass(slots=True)

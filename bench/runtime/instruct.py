@@ -297,8 +297,8 @@ class SampleDatasetRandom(SampleSource):
         rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
         sample_indices = rng.sample(range(len(self.source_dataset.records)), self.count)
-        for i in sample_indices:
-            target_dataset.records[i].data = self.source_dataset.records[i].data
+        for target_i, source_i in enumerate(sample_indices):
+            target_dataset.records[target_i].data = self.source_dataset.records[source_i].data
         return target_dataset
 
 

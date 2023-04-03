@@ -64,10 +64,12 @@ from bench.runtime.type import (
     WorkerType,
 )
 from bench.utils.func import debounce, wrap_task
-from bench.utils.utils import required_field, sentry_capture_if_enabled
+from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
-WORKER_HEARTBEAT_INTERVAL = 5
+WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_cast=int)
+RUNTIME_REACTIVE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_DEBOUNCE", 5, type_cast=float)
+
 
 logger = structlog.get_logger(__name__)
 
@@ -381,7 +383,7 @@ class ModuleWorker:
         """Schedules a debounced job to fire all reactive jobs (returns immediately)"""
         asyncio.create_task(self._do_fire_reactive_jobs())
 
-    @debounce(5)
+    @debounce(RUNTIME_REACTIVE_DEBOUNCE)
     async def _do_fire_reactive_jobs(self) -> None:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react", stale_symbols=self.stale_symbols)
