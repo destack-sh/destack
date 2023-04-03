@@ -122,7 +122,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
         label: "Speed",
         description: "How fast the AI is.",
         value: toFixed(metrics["speed"]),
-        unit: "/min",
+        unit: "sec",
         stale,
       });
     }

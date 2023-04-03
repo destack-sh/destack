@@ -242,8 +242,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"
           :class="{
             'animate-spin text-gray-400': action.active.value,
-            'text-yellow-600': !action.active.value && action.stale?.value,
-            'text-transparent': !action.active.value && !action.stale?.value,
+            'text-transparent': !action.active.value,
           }"
           viewBox="0 0 10 10"
           fill="none"

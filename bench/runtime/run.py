@@ -67,6 +67,7 @@ from bench.runtime.type import (
 from bench.runtime.x import X_BUILTINS
 from bench.utils.cache import redis
 from bench.utils.record import RecordList
+from bench.utils.utils import get_from_env
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -158,7 +159,9 @@ class AsyncCodeProxy:
             raise
 
 
-INFERENCE_CACHE_EXPIRY = 60 * 60 * 24 * 30  # 1 month
+INFERENCE_CACHE_EXPIRY = get_from_env(
+    "INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int
+)  # 1 month
 
 
 class InferenceProxy:
@@ -208,7 +211,7 @@ class InferenceProxy:
             cached_inference = await redis.get(cache_key)
             if cached_inference is not None:
                 try:
-                    inference = Inference(**json.loads(cached_inference))
+                    inference = Inference.from_json_str(cached_inference)
                     log.debug("inference.cache.hit", ret=summarize_args(inference.result))
                     self.tracer.inference_cached(self.ctx, blocks, settings, inference)
                     return inference.result
@@ -227,15 +230,15 @@ class InferenceProxy:
                 self.tracer.inference_exit(self.ctx, blocks, settings, result)
                 log.debug("inference.call.exit", ret=summarize_args(result))
                 if self.cache_inferences:
+                    now = datetime.utcnow().replace(tzinfo=pytz.utc)
                     inference = Inference(
                         generated_at=generated_at,
-                        duration=(datetime.utcnow() - generated_at).total_seconds(),
+                        duration=(now - generated_at).total_seconds(),
                         # ret is assumed to be JSON-serializable
                         # (may not be true when we get to images, but this will error obviously enough)
                         result=result,
                     )
-                    inference_json = json.dumps(asdict(inference))
-                    await redis.set(cache_key, inference_json, ex=INFERENCE_CACHE_EXPIRY)
+                    await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
                 return result
             except TimeoutError as exception:
                 self.tracer.inference_exception(self.ctx, blocks, settings, exception)

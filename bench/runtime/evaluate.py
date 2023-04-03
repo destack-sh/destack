@@ -115,7 +115,8 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
             metrics[EvaluationMetric.TypeValidity]
             * metrics[EvaluationMetric.InstructionSatisfaction]
         )
-        summary_metrics[EvaluationMetric.Performance] = performance
+        # perfection is unattainable (... and 100 is suspicious)
+        summary_metrics[EvaluationMetric.Performance] = min(performance, 0.99)
 
     # speed
     if EvaluationMetric.AverageRunDuration in metrics:
@@ -208,7 +209,6 @@ async def evaluate_task(
         # for type validity we assume that unsuccessful run == type error
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
         EvaluationMetric.AverageRunDuration: average_run_duration,
-        # TODO @Incomplete: compute instruction satisfaction
         EvaluationMetric.InstructionSatisfaction: instruction_metrics[
             EvaluationMetric.InstructionSatisfaction
         ],

@@ -186,11 +186,14 @@ class ExecutionTracer(Tracer):
         frame = self.stacktrace.pop()
         # update cached info in parent(s)
         if frame.cached_generated_at is not None:
-            for frame in self.stacktrace:
-                frame.cached_duration = sum(
-                    f.cached_duration for f in frame.walk_descendants() if f.cached_duration
-                )
+            self._update_cached_info()
         return frame
+
+    def _update_cached_info(self):
+        for frame in self.stacktrace:
+            frame.cached_duration = sum(
+                f.cached_duration for f in frame.walk_descendants() if f.cached_duration
+            )
 
     def _create_frame(
         self,
@@ -209,7 +212,7 @@ class ExecutionTracer(Tracer):
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=worker.get().module_id,
-            build=code.build if code else parent.build,  # keep build if root had it?
+            build=code.build if code else parent.build if parent else None,
             task=code.task if code else None,
             code=code,
             model=model,
@@ -278,10 +281,12 @@ class ExecutionTracer(Tracer):
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         # track a complete frame, don't add to stacktrace
-        frame = self._create_frame(model=ctx.model, trace=False)
+        frame = self._create_frame(model=ctx.model, trace=True)
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = inference.generated_at
         frame.cached_duration = inference.duration
+        frame.outputs = inference.result
+        self._update_cached_info()
         self.tracker(frame)
         logger.debug("trace.inference.cached", frame=frame, stackdepth=len(self.stacktrace))
 
@@ -359,7 +364,8 @@ class InMemoryExecutionTracker:
         self.frames: list[ExecutionFrame] = []
 
     def __call__(self, frame: ExecutionFrame):
-        self.frames.append(frame)
+        if not any(f.id == frame.id for f in self.frames):
+            self.frames.append(frame)
 
     def __enter__(self):
         push_context_tracers(self.tracer)
