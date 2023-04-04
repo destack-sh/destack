@@ -14,6 +14,7 @@
       <slot name="left" />
     </div>
     <!-- Center -->
+    <!-- TODO @UX: prevent center from overlapping with left & right -->
     <div class="self-middle flex h-full items-center justify-self-center">
       <slot name="center" />
     </div>

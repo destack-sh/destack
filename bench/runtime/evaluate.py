@@ -3,7 +3,7 @@ import enum
 import uuid
 from collections import defaultdict
 from itertools import chain
-from typing import Any
+from typing import Any, Optional
 
 import structlog
 
@@ -155,6 +155,28 @@ def score_evaluation(a: EvaluationResult, weights: dict[str, float]) -> float:
     return score
 
 
+def group_aggregate_by_system(evaluations: list[EvaluationResult]) -> list[EvaluationResult]:
+    evaluations_by_node = defaultdict(list)
+    for evaluation in evaluations:
+        evaluations_by_node[evaluation.system.id].append(evaluation)
+
+    aggregated: list[EvaluationResult] = []
+    for node_id, evaluations in evaluations_by_node.items():
+        all_children = {
+            child.id: child for evaluation in evaluations for child in evaluation.children
+        }
+        evaluation = EvaluationResult(
+            kind=evaluations[0].kind,
+            scope=evaluations[0].scope,
+            system=evaluations[0].system,
+            build=evaluations[0].build,
+            aggregated_metrics=aggregate_metrics(evaluations),
+            children=list(all_children.values()),
+        )
+        aggregated.append(evaluation)
+    return aggregated
+
+
 async def evaluate_task(
     task: TaskInstance,
     eval_model: Model,
@@ -190,6 +212,10 @@ async def evaluate_task(
         instruction
         for instruction in task_instruction.walk()
         if instruction.op in (InstructionOp.ExpectationDefinition, InstructionOp.TaskDefinition)
+        or (
+            instruction.op == InstructionOp.TypeDefinition
+            and instruction.node.description is not None
+        )
     ]
     evals = (
         evaluate_output(
@@ -199,11 +225,15 @@ async def evaluate_task(
             output=output.data,
             instructions=evalable_instructions,
             eval_model=eval_model,
+            build=build,
         )
         for input, output in zip(samples.records, outputs.records)
     )
-    instruction_evaluations = await asyncio.gather(*evals)
-    instruction_metrics = aggregate_metrics(list(chain(*instruction_evaluations)))
+    evals = await asyncio.gather(*evals)
+    instruction_evaluations = list(chain(*evals))
+    # group instruction evaluations by evaluated node
+    instruction_evaluations = group_aggregate_by_system(instruction_evaluations)
+    instruction_metrics = aggregate_metrics(instruction_evaluations)
 
     # technically tokens_count is #characters
     tokens_count = sum(
@@ -225,7 +255,6 @@ async def evaluate_task(
         EvaluationMetric.InferencesCount: 1,
         EvaluationMetric.TokensCount: tokens_count,
         **performance_metrics,
-        **instruction_metrics,
     }
     metrics.update(get_summary_metrics(metrics))
     return EvaluationResult(
@@ -236,6 +265,7 @@ async def evaluate_task(
         build_candidate=build_candidate,
         self_metrics=None,
         aggregated_metrics=metrics,
+        children=instruction_evaluations,
     )
 
 
@@ -246,6 +276,7 @@ async def evaluate_output(
     output: Any,
     instructions: list[Instruction],
     eval_model: Model,
+    build: Optional[Build],
 ) -> list[EvaluationResult]:
     from bench.runtime.build import (
         TaskPlan,
@@ -319,6 +350,7 @@ async def evaluate_output(
             kind=EvaluationKind.EVALUATION,
             scope=EvaluationScope.INSTRUCTION,
             system=instruction.node,
+            build=build,
             self_metrics=metrics,
             aggregated_metrics=metrics,
         )
@@ -363,9 +395,8 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         # aggregate evaluations (incl. self)
         # this will break when we get cycles :InstructionCircles
         child_evaluations = [evaluations[child.id] for child in instruction.children]
-        evaluations[instruction.id].aggregated_metrics = aggregate_metrics(
-            [evaluation, *child_evaluations]
-        )
+        evaluation.aggregated_metrics = aggregate_metrics([evaluation, *child_evaluations])
+        evaluation.children = child_evaluations
 
     root_evaluations = [evaluations[root.id] for root in tree.roots]
     root_evaluation = EvaluationResult(

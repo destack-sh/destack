@@ -214,7 +214,7 @@ class InternalServer:
             "module.write_build_candidate",
             module_id=msg.p.module_id,
             build_id=msg.p.build_id,
-            candidates=msg.payload.build_candidates,
+            candidates=[c.id for c in msg.payload.build_candidates],
         )
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
         try:
@@ -235,7 +235,7 @@ class InternalServer:
         logger.info(
             "module.write_evaluation",
             module_id=msg.p.module_id,
-            evaluations=msg.payload.evaluations,
+            evaluations=[e.id for e in msg.payload.evaluations],
         )
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         try:

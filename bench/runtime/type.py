@@ -404,7 +404,7 @@ class EvaluationResultData:
     record_id: Optional[UUID]
     build_id: Optional[UUID]
     build_candidate_id: Optional[UUID]
-    parent_id: Optional[UUID]
+    children_ids: list[UUID]
     # additional context
     project_id: UUID
     project_version_id: UUID
@@ -430,8 +430,7 @@ class EvaluationResultData:
         project_id: UUID,
         project_version_id: UUID,
         job_id: Optional[UUID],
-        parent_id: Optional[UUID] = None,
-    ) -> list[EvaluationResultData]:
+    ) -> dict[UUID, EvaluationResultData]:
         """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
         result_data = EvaluationResultData(
             id=result.id,
@@ -447,20 +446,22 @@ class EvaluationResultData:
             project_id=project_id,
             project_version_id=project_version_id,
             job_id=job_id,
-            parent_id=parent_id,
+            children_ids=[child.id for child in result.children],
         )
         if result.scope == EvaluationScope.INSTRUCTION and result_data.system_id is None:
             raise ValueError(f"missing system_id for {result_data}")
 
-        results_data = [result_data]
+        results_data = {result_data.id: result_data}
         for child in result.children:
-            results_data += EvaluationResultData.from_result(
+            if child.id in results_data:
+                continue
+            descendants = EvaluationResultData.from_result(
                 child,
                 project_id=project_id,
                 project_version_id=project_version_id,
                 job_id=job_id,
-                parent_id=result.id,
             )
+            results_data.update(descendants)
         return results_data
 
 

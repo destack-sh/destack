@@ -181,6 +181,7 @@ function _useCurrentEvaluations() {
           ? []
           : [EvaluationScope.Instruction]
       ),
+      kindIn: ref([EvaluationKind.Evaluation]),
       buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
       // no specific system id
     },
