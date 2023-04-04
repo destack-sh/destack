@@ -892,11 +892,11 @@ def make_struct_type(*children: TypeNode, name: str = None) -> TypeNode:
 def flatten_func_type(func_type: TypeNode) -> TypeNode:
     """Inline the input and output types into one struct."""
     # check that no input children are called output (hacky deluxe)
-    for child in func_type.input.children:
+    for child in func_type.input.children or []:
         if child.name == "output":
             raise ValueError("input child cannot be named output")
     return TypeNode(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        children=[*func_type.input.children, func_type.output],
+        children=[*(func_type.input.children or []), func_type.output],
     )

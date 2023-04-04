@@ -68,7 +68,17 @@ from bench.utils.utils import get_from_env, required_field, sentry_capture_if_en
 from bench.utils.uuidt import UUIDT
 
 WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_cast=int)
-RUNTIME_REACTIVE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_DEBOUNCE", 5, type_cast=float)
+
+# TODO @UX: reduce/avoid debounce for reactive module jobs
+#  If too frequent, reactors lead to lots of unnecessary work and can run into rate limits.
+LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
+LINT_DEBOUNCE_MAX_WAIT = get_from_env(
+    "RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 10, type_cast=float
+)
+BUILD_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_BUILD_DEBOUNCE", 5, type_cast=float)
+BUILD_DEBOUNCE_MAX_WAIT = get_from_env(
+    "RUNTIME_REACTIVE_BUILD_DEBOUNCE_MAX_WAIT", 30, type_cast=float
+)
 
 
 logger = structlog.get_logger(__name__)
@@ -371,25 +381,22 @@ class ModuleWorker:
         self.wire_dependencies = {
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
-        # reactively trigger reactors for new stale symbols
-        self._fire_reactive_jobs()
+        # reactively trigger (debounced) reactors for new stale symbols
+        create_wrapped_task(self._fire_reactive_lint())
+        create_wrapped_task(self._fire_reactive_build())
         # notify master
         await self.master.notify_module_changed(self)
 
-    # we need to debounce because lots of expensive jobs can be triggered
-    # and we keep running into rate limits
-    # TODO @UX: reduce/avoid debounce for reactive module jobs
-    def _fire_reactive_jobs(self):
-        """Schedules a debounced job to fire all reactive jobs (returns immediately)"""
-        asyncio.create_task(self._do_fire_reactive_jobs())
-
-    @debounce(RUNTIME_REACTIVE_DEBOUNCE)
-    async def _do_fire_reactive_jobs(self) -> None:
+    @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
+    async def _fire_reactive_lint(self) -> None:
         """Triggers all reactive jobs for this module (as needed)"""
-        self.log.debug("module.react", stale_symbols=self.stale_symbols)
-        # fire lint job
+        self.log.debug("module.react.lint")
         self.queue_lint(cancel_running=True)
-        # if no errors, queue new builds for any stale builds
+
+    @debounce(BUILD_DEBOUNCE, max_wait=BUILD_DEBOUNCE_MAX_WAIT)
+    async def _fire_reactive_build(self) -> None:
+        """Triggers all reactive jobs for this module (as needed)"""
+        self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.errors:
             stale_builds = [
                 symbol for symbol in self.stale_symbols if symbol.symbol_type == SymbolType.BUILD

@@ -3,7 +3,7 @@ import enum
 import uuid
 from collections import defaultdict
 from itertools import chain
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import structlog
 from more_itertools import first
@@ -11,6 +11,8 @@ from more_itertools import first
 from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
+    Code,
+    Dataset,
     InterpSymbol,
     Model,
     Task,
@@ -105,11 +107,20 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
         and EvaluationMetric.InstructionAgreement in metrics
         and EvaluationMetric.InstructionOverlap in metrics
     ):
-        summary_metrics[EvaluationMetric.Clarity] = 0.99
+        perplexity = metrics[EvaluationMetric.InstructionPerplexity]
+        agreement = metrics[EvaluationMetric.InstructionAgreement]
+        overlap = metrics[EvaluationMetric.InstructionOverlap]
+        clarity = (1 - min(perplexity, 1.0)) * agreement * (1 - overlap)
+        summary_metrics[EvaluationMetric.Clarity] = min(clarity, 0.99)
 
     # difficulty
-    if EvaluationMetric.InstructionCount in metrics:
-        difficulty = metrics[EvaluationMetric.InstructionCount]
+    if (
+        EvaluationMetric.InstructionCount in metrics
+        and EvaluationMetric.InstructionComplexity in metrics
+    ):
+        count = metrics[EvaluationMetric.InstructionCount]
+        complexity = metrics[EvaluationMetric.InstructionComplexity]
+        difficulty = count * complexity
         summary_metrics[EvaluationMetric.Difficulty] = difficulty
 
     # performance
@@ -364,12 +375,66 @@ async def evaluate_output(
 
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     """Lints a single instruction."""
-    # TODO @Incomplete: compute proper lint metrics
+
+    # TODO @Incomplete: compute model clarity metrics
+    # TODO @Incomplete: compute model difficulty metrics?
+
+    instruction_agreement = 1.0
+    instruction_perplexity = 0.0
+    instruction_overlap = 0.0
+
+    # below are some heuristics for measuring 'clarity' (i.e. non-perplexity/confusion)
+    # TODO @Incomplete: some clarity heuristics should just/also be warnings/errors
+
+    HALF_CONFUSION = 0.25
+    FULL_CONFUSION = 0.5
+
+    if instruction.op in (
+        InstructionOp.TaskDefinition,
+        InstructionOp.ExpectationDefinition,
+        InstructionOp.TypeDefinition,
+        InstructionOp.DataDefinition,
+    ):
+        # natural definitions should have names and ideally descriptions
+        no_name = (instruction.node.name or "").strip() == ""
+        no_description = (instruction.node.description or "").strip() == ""
+        if no_name:
+            instruction_perplexity += FULL_CONFUSION
+        # TODO @Broken: 'inline' function type nodes (which cannot have descriptions) are docked for clarity
+        if no_description:
+            instruction_perplexity += HALF_CONFUSION
+
+    if instruction.op == InstructionOp.TaskDefinition:
+        # task definitions (not steps) should have types
+        task = cast(Task, instruction.node)
+        if task.type.output.tag == TypeTag.NULL:  # output type at least?
+            instruction_perplexity += FULL_CONFUSION
+
+    if instruction.op in (InstructionOp.SampleData, InstructionOp.DataDefinition):
+        # sample data / data defs should have at least 2 samples
+        data = cast(Dataset, instruction.node)
+        if len(data.records) < 1:
+            instruction_perplexity += HALF_CONFUSION
+        elif len(data.records) < 2:
+            instruction_perplexity += FULL_CONFUSION
+        # sample data / data defs should have types
+        if len(data.type.children) == 0:
+            instruction_perplexity += FULL_CONFUSION
+
+    if instruction.op in (InstructionOp.SampleCode, InstructionOp.CheckCode):
+        # sample / check code should have input & output type
+        code = cast(Code, instruction.node)
+        if len(code.type.input.children or []) == 0:
+            instruction_perplexity += FULL_CONFUSION
+        if code.type.output.tag == TypeTag.NULL:
+            instruction_perplexity += FULL_CONFUSION
+
     self_metrics = {
         EvaluationMetric.InstructionCount: 1,
-        EvaluationMetric.InstructionAgreement: 1.0,
-        EvaluationMetric.InstructionOverlap: 0.0,
-        EvaluationMetric.InstructionPerplexity: 0.0,
+        EvaluationMetric.InstructionComplexity: 1,
+        EvaluationMetric.InstructionAgreement: instruction_agreement,
+        EvaluationMetric.InstructionOverlap: instruction_overlap,
+        EvaluationMetric.InstructionPerplexity: instruction_perplexity,
     }
     self_metrics.update(get_summary_metrics(self_metrics))
     return self_metrics
