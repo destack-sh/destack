@@ -65,22 +65,33 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         raise
 
 
-def debounce(delay: int):
-    """Debounces the async function by the given delay (in seconds)"""
+def debounce(delay: int, max_wait: int = None):
+    """Debounces the async function by the given delay (in seconds) and
+    ensures that the function is called at least once every max_wait seconds
+    if provided"""
 
     def decorator(func):
         @wraps(func)
         async def debounced(*args, **kwargs):
             if debounced._task:
                 debounced._task.cancel()
+            if max_wait and (
+                debounced._last_call_time is None
+                or asyncio.get_event_loop().time() - debounced._last_call_time >= max_wait
+            ):
+                debounced._last_call_time = asyncio.get_event_loop().time()
+                await func(*args, **kwargs)
+                return
 
             async def call_it():
                 await asyncio.sleep(delay)
+                debounced._last_call_time = asyncio.get_event_loop().time()
                 await func(*args, **kwargs)
 
             debounced._task = asyncio.ensure_future(call_it())
 
         debounced._task = None
+        debounced._last_call_time = None
         return debounced
 
     return decorator

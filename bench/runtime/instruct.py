@@ -213,7 +213,16 @@ def map_instruction(
             type = node
         else:
             type = node.type
-        for type_node in type.children or []:
+        # skip type wrapper nodes
+        if type.tag == TypeTag.FUNCTION:
+            children = [*(type.input.children or [])]
+            if type.output.tag != TypeTag.NULL:
+                children.append(type.output)
+        elif type.tag == TypeTag.ENUM:
+            children = type.members
+        else:
+            children = type.children or []
+        for type_node in children:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
                 if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
