@@ -310,7 +310,8 @@ async def evaluate_output(
     )
     eval_task = Task(
         name="evaluate output",
-        description="Check whether the generated output followed the instructions correctly.",
+        description="Check whether the generated output followed the instructions correctly."
+        " Set satisfied if the corresponding instruction was followed as intended",
         type=eval_task_type,
         type_node=eval_task_type,
     )

@@ -618,6 +618,7 @@ type Mutation {
   updateUser(input: UserUpdateInput!): UserOperationInfo!
   acceptOrganizationInvite(id: GlobalID!): UserOperationInfo!
   logout: OperationInfo
+  secretRootLogin(username: String!): UserOperationInfo!
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
   createOrganizationInvites(input: OrganizationInviteInput!): OrganizationOperationInfo!

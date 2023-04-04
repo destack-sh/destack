@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Annotated, Optional, cast
 
 from asgiref.sync import async_to_sync
+from channels.auth import login as channels_login
 from channels.auth import logout as channels_logout
 from django.core.exceptions import PermissionDenied
 from strawberry import lazy
@@ -15,6 +16,7 @@ from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_c
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import safe_mutation
+from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
@@ -135,3 +137,14 @@ class UserMutation:
             raise PermissionDenied("can only logout when logged in")
         async_to_sync(channels_logout)(info.context.request.scope)
         return None
+
+    # TODO @Security: check that secret root login is never exposed in prod
+    @safe_mutation
+    def secret_root_login(self, info: Info, username: str) -> User | OperationInfo:
+        if not (TEST or DEBUG):
+            raise PermissionDenied("can only use this in test mode")
+        user = models.User.objects.get(username=username)
+        async_to_sync(channels_login)(
+            info.context.request.scope, user, backend="django.contrib.auth.backends.ModelBackend"
+        )
+        return user
