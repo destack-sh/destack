@@ -3,7 +3,7 @@ import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
-import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type Metric, type MetricSet } from "@/utils/metrics";
+import { METRIC_METER_UNITS, toBars, toFixed, toPercent, toTime, type Metric, type MetricSet } from "@/utils/metrics";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{
@@ -115,7 +115,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
       buildMetrics.push({
         label: "Speed",
         description: "How fast the AI is.",
-        value: toFixed(metrics["speed"]),
+        value: toTime(metrics["speed"]),
         bars: toBars(metrics["speed"], "speed"),
         unit: "sec",
         stale,

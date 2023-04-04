@@ -324,9 +324,17 @@ class CanViewProject(HasCustomPermDirective):
                 Q(organization__members=user),
             )
         # normalize filters to project instance (prefix with paths)
-        if issubclass(qs.model, (models.File, models.Statement, models.Execution)):
+        if issubclass(qs.model, (models.File, models.Statement)):
             prefix = "project_version__project__"
-        elif issubclass(qs.model, models.ProjectVersion):
+        elif issubclass(
+            qs.model,
+            (
+                models.ProjectVersion,
+                models.Execution,
+                models.EvaluationResult,
+                models.BuildCandidate,
+            ),
+        ):
             prefix = "project__"
         else:
             prefix = ""

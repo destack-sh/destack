@@ -13,7 +13,7 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
-import { METRIC_METER_UNITS, toBars } from "@/utils/metrics";
+import { METRIC_METER_UNITS, toBars, type MetricSet } from "@/utils/metrics";
 import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
@@ -235,8 +235,8 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
   const globalMetrics = [
     {
       label: "Clarity",
-      value: 79,
-      bars: toBars(79, "clarity"),
+      value: 74,
+      bars: toBars(0.74, "clarity"),
     },
     {
       label: "Difficulty",
@@ -252,21 +252,24 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
     },
   ];
 
-  for (const build of ["claude"]) {
+  for (const build of ["claude", "gpt-3-5"]) {
+    const buildMetrics = [
+      {
+        label: "Performance",
+        value: 75,
+        bars: toBars(75, "performance"),
+      },
+    ];
+    if (statement.value.symbolType == SymbolType.Task) {
+      buildMetrics.push({
+        label: "Speed",
+        value: 5.5,
+        bars: toBars(5.5, "speed"),
+      });
+    }
     metricSets.push({
       label: "claude",
-      metrics: [
-        {
-          label: "Performance",
-          value: 75,
-          bars: toBars(75, "performance"),
-        },
-        {
-          label: "Speed",
-          value: 0.5,
-          bars: toBars(0.5, "speed"),
-        },
-      ],
+      metrics: buildMetrics,
     });
   }
 
@@ -460,7 +463,7 @@ const inlineActions = computed(() => {
         <!-- Errors -->
         <button
           v-if="hasLocalErrors"
-          class="flex rounded-sm p-0.5 font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
+          class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
           @click="actions.apply('editor.view.openIssues')"
         >
           <XCircleIcon class="h-5 w-5" />

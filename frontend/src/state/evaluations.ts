@@ -77,12 +77,12 @@ export function useEvaluations(
     {
       projectId: filter.projectId,
       projectVersionId: filter.projectVersionId,
-      scopeIn: filter.scopeIn ?? ref<EvaluationScope[]>(null),
-      kindIn: filter.kindIn ?? ref<EvaluationKind[]>(null),
-      buildIdIn: filter.buildIdIn ?? ref<string[]>(null),
-      systemIdIn: filter.systemIdIn ?? ref<string[]>(null),
+      scopeIn: filter.scopeIn ?? ref(null),
+      kindIn: filter.kindIn ?? ref(null),
+      buildIdIn: filter.buildIdIn ?? ref(null),
+      systemIdIn: filter.systemIdIn ?? ref(null),
       first: options?.first ?? 25,
-    },
+    } as any,
     {
       enabled: options?.enabled ?? ref(true),
     }
@@ -114,8 +114,8 @@ export function useEvaluations(
       variables: {
         projectId: filter.projectId,
         projectVersionId: filter.projectVersionId,
-        scopeIn: filter.scopeIn ?? ref<EvaluationScope[]>([]),
-        kindIn: filter.kindIn ?? ref<EvaluationKind[]>([]),
+        scopeIn: filter.scopeIn ?? ref(null),
+        kindIn: filter.kindIn ?? ref(null),
         buildIdIn: filter.buildIdIn ?? ref<string[]>([]),
         systemIdIn: filter.systemIdIn ?? ref<string[]>([]),
       },
