@@ -43,7 +43,8 @@ export type Metric = {
   value: number | string;
   bars: number;
   unit?: string;
-  stale: boolean;
+  stale?: boolean;
+  unavailable?: boolean;
 };
 
 export type MetricSet = {
