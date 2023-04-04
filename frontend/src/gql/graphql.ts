@@ -2162,7 +2162,10 @@ export type EmptyEditorSuggestedFilesQuery = {
     files: {
       __typename?: "FileConnection";
       totalCount?: number | null;
-      edges: Array<{ __typename?: "FileEdge"; node: { __typename?: "File"; id: any; name: string; path: string } }>;
+      edges: Array<{
+        __typename?: "FileEdge";
+        node: { __typename?: "File"; id: any; name: string; path: string; deletedAt?: any | null; directory: boolean };
+      }>;
     };
   } | null;
 };
@@ -5034,6 +5037,8 @@ export const EmptyEditorSuggestedFilesDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
                                   { kind: "Field", name: { kind: "Name", value: "name" } },
                                   { kind: "Field", name: { kind: "Name", value: "path" } },
+                                  { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "directory" } },
                                 ],
                               },
                             },

@@ -20,6 +20,8 @@ const { result: suggestedFiles } = useQuery(
               id
               name
               path
+              deletedAt
+              directory
             }
           }
         }
@@ -34,7 +36,11 @@ const { result: suggestedFiles } = useQuery(
     enabled: computed(() => !!editor.currentProjectVersionId),
   }
 );
-const files = computed(() => suggestedFiles.value?.projectVersion?.files.edges.map((edge) => edge.node));
+const files = computed(() =>
+  suggestedFiles.value?.projectVersion?.files.edges
+    .map((edge) => edge.node)
+    .filter((file) => file.deletedAt == null && !file.directory)
+);
 const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.totalCount);
 
 const createActions = computed(() => [
