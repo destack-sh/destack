@@ -3,7 +3,16 @@ import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
-import { METRIC_METER_UNITS, toBars, toFixed, toPercent, toTime, type Metric, type MetricSet } from "@/utils/metrics";
+import {
+  METRIC_METER_UNITS,
+  toBars,
+  toFixed,
+  toPercent,
+  toTime,
+  useTween,
+  type Metric,
+  type MetricSet,
+} from "@/utils/metrics";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{
@@ -15,6 +24,7 @@ const editor = useEditorState();
 const runtime = useCurrentInterpModule();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } | undefined>);
+const { tween } = useTween(0.5);
 
 // global to scope (via linting)
 const globalEvaluations = useEvaluations(
@@ -54,7 +64,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       {
         label: "Clarity",
         description: "How comprehensible the instruction is.",
-        value: toPercent(metrics["clarity"]),
+        value: toPercent(tween(metrics["clarity"], "global.clarity")),
         bars: toBars(metrics["clarity"], "clarity"),
         unit: "%",
         stale: false, // TODO @UX: track global interp/lint staleness
@@ -62,7 +72,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       {
         label: "Difficulty",
         description: "How complex the instruction is.",
-        value: toFixed(metrics["difficulty"], 0),
+        value: toFixed(tween(metrics["difficulty"], "global.difficulty"), 0),
         bars: toBars(metrics["difficulty"], "difficulty"),
         unit: "x",
         stale: false,
@@ -108,7 +118,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
       {
         label: "Performance",
         description: "How well the AI does.",
-        value: toPercent(metrics["performance"]),
+        value: toPercent(tween(metrics["performance"], `build.${build.id}.performance`)),
         bars: toBars(metrics["performance"], "performance"),
         unit: "%",
         stale,
@@ -118,7 +128,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
       buildMetrics.push({
         label: "Speed",
         description: "How fast the AI is.",
-        value: toTime(metrics["speed"]),
+        value: toTime(tween(metrics["speed"], `build.${build.id}.speed`)),
         bars: toBars(metrics["speed"], "speed"),
         unit: "sec",
         stale,
