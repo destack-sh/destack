@@ -379,7 +379,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         new_files: dict[UUID, File] = {}
         file_mappings: list[RefMapping] = []
         target_files_ids = target_files_ids or {file.id: uuid4() for file in files}
-        for files in walk_children_bfs_batched(files.filter(parent=None), "parent_id"):
+        for files in walk_children_bfs_batched(files, "parent_id"):
             for file in files:
                 old_id = file.id
                 old_revision = file.revision
