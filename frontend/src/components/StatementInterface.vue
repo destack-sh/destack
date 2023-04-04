@@ -13,6 +13,7 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
+import { METRIC_METER_UNITS, toBars } from "@/utils/metrics";
 import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
@@ -227,19 +228,6 @@ const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
 
-// metrics
-type Metric = {
-  label: string;
-  value: number;
-  bars: number;
-};
-type MetricSet = {
-  label: string;
-  metrics: Metric[];
-};
-
-// TODO @Broken: replace metrics with real metrics
-const METRIC_METER_SIZE = 4;
 const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
   if (statement.value.type != StatementType.Definition || statement.value.symbolType == SymbolType.Build) {
     return null;
@@ -248,12 +236,12 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
     {
       label: "Clarity",
       value: 79,
-      bars: 3,
+      bars: toBars(79, "clarity"),
     },
     {
       label: "Difficulty",
       value: 50,
-      bars: 2,
+      bars: toBars(50, "difficulty"),
     },
   ];
 
@@ -271,12 +259,12 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
         {
           label: "Performance",
           value: 75,
-          bars: 3,
+          bars: toBars(75, "performance"),
         },
         {
           label: "Speed",
           value: 0.5,
-          bars: 4,
+          bars: toBars(0.5, "speed"),
         },
       ],
     });
@@ -453,18 +441,16 @@ const inlineActions = computed(() => {
       <div v-if="editor.inlineMetrics && metricSets != null" class="flex flex-row gap-1.5">
         <div v-for="metricSet of metricSets" :key="metricSet.label" class="flex flex-row gap-0.5">
           <span v-for="metric in metricSet.metrics" :key="metric.label">
-            <svg viewBox="0 0 6 42" class="h-8">
-              <g>
-                <rect
-                  v-for="i in METRIC_METER_SIZE"
-                  :key="i"
-                  x="0"
-                  :y="(i - 1) * 9"
-                  width="6"
-                  height="5"
-                  :fill="i > METRIC_METER_SIZE - metric.bars ? 'skyblue' : 'lightgrey'"
-                />
-              </g>
+            <svg viewBox="0 0 6 24" class="h-5">
+              <rect
+                v-for="i in METRIC_METER_UNITS"
+                :key="i"
+                x="0"
+                :y="(i - 1) * 6"
+                width="6"
+                height="4"
+                :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+              />
             </svg>
           </span>
         </div>
