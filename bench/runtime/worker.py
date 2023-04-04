@@ -72,12 +72,10 @@ WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_ca
 # TODO @UX: reduce/avoid debounce for reactive module jobs
 #  If too frequent, reactors lead to lots of unnecessary work and can run into rate limits.
 LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
-LINT_DEBOUNCE_MAX_WAIT = get_from_env(
-    "RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 10, type_cast=float
-)
+LINT_DEBOUNCE_MAX_WAIT = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 5, type_cast=float)
 BUILD_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_BUILD_DEBOUNCE", 5, type_cast=float)
 BUILD_DEBOUNCE_MAX_WAIT = get_from_env(
-    "RUNTIME_REACTIVE_BUILD_DEBOUNCE_MAX_WAIT", 30, type_cast=float
+    "RUNTIME_REACTIVE_BUILD_DEBOUNCE_MAX_WAIT", 20, type_cast=float
 )
 
 
