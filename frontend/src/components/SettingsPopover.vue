@@ -65,7 +65,7 @@ const actions = useActions();
           <Switch v-model="appearance.inlineMetrics" />
         </div>
         <!-- Dark mode -->
-        <div class="py--1 flex flex-row items-center justify-between px-2">
+        <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
             <MoonIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Dark mode (soon)</span>

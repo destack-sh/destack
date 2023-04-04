@@ -8,6 +8,7 @@ import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
+import FeedbackPopover from "@/components/FeedbackPopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
 import MainMetrics from "@/components/MainMetrics.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
@@ -46,6 +47,7 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   GlobeAltIcon,
+  HandRaisedIcon,
   LockClosedIcon,
   MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
@@ -76,17 +78,17 @@ const props = defineProps<{
 // views for the sidebar
 type View = {
   id: ViewId;
-  name: string;
+  label: string;
   icon: Component;
   enabled: boolean;
 };
 const allViews: Ref<View[]> = computed(() => [
-  { id: "explorer", name: "Explorer", icon: DocumentDuplicateIcon, enabled: true },
-  { id: "search", name: "Search", icon: MagnifyingGlassIcon, enabled: false },
-  { id: "history", name: "History", icon: ClockIcon, enabled: true },
-  { id: "issues", name: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "comments", name: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
-  { id: "environment", name: "Environment", icon: CubeIcon, enabled: false },
+  { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, enabled: true },
+  { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
+  { id: "history", label: "History", icon: ClockIcon, enabled: true },
+  { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
+  { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
+  { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
@@ -125,6 +127,30 @@ const openIssues = provideAction({
   shortcuts: ["alt+3"],
   apply: () => toggleActiveView("issues", false),
 });
+
+// other buttons for sidebar
+type SidebarPopover = {
+  component: Component;
+  icon: Component;
+  label: string;
+};
+const sidebarPopovers: SidebarPopover[] = [
+  {
+    component: FeedbackPopover,
+    icon: HandRaisedIcon,
+    label: "Give Feedback",
+  },
+  {
+    component: HelpPopover,
+    icon: QuestionMarkCircleIcon,
+    label: "Help",
+  },
+  {
+    component: SettingsPopover,
+    icon: Cog8ToothIcon,
+    label: "Settings",
+  },
+];
 
 // get project header
 const {
@@ -609,42 +635,45 @@ onBeforeUnmount(() => {
           class="flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%]"
           v-show="editor.showViewSelection"
         >
-          <!-- View selection -->
+          <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-100"
-              :class="view.name == activeView.name && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
+              class="group relative rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-100"
+              :class="view.id == activeView.id && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in availableViews"
-              :key="view.name"
+              :key="view.id"
               @click="toggleActiveView(view.id, true)"
             >
-              <span class="sr-only">{{ view.name }}</span>
+              <span class="sr-only">{{ view.label }}</span>
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
+              <!-- Tooltip -->
+              <span
+                v-if="view.id != activeView.id || !editor.showViewContent"
+                class="absolute left-full top-3 z-10 rounded-sm bg-white px-1 text-sm opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition-opacity duration-75 group-hover:opacity-100"
+              >
+                {{ view.label }}
+              </span>
             </button>
           </div>
-          <!-- Help & settings -->
-          <HelpPopover>
+          <!-- Bottom of sidebar: feedback, help, settings popovers -->
+          <component v-for="popover in sidebarPopovers" :key="popover.label" :is="popover.component">
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
+                class="group relative rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
                 :class="open ? 'border-orange-600 text-orange-600' : ''"
               >
-                <span class="sr-only">Help</span>
-                <QuestionMarkCircleIcon class="h-6 w-6" aria-hidden="true" />
+                <span class="sr-only">{{ popover.label }}</span>
+                <component :is="popover.icon" class="h-6 w-6" aria-hidden="true" />
+                <!-- Tooltip -->
+                <span
+                  v-if="!open"
+                  class="absolute left-full top-3 z-10 whitespace-nowrap rounded-sm bg-white px-1 text-sm opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition-opacity duration-75 group-hover:opacity-100"
+                >
+                  {{ popover.label }}
+                </span>
               </PopoverButton>
             </template>
-          </HelpPopover>
-          <SettingsPopover>
-            <template v-slot:button="{ open }">
-              <PopoverButton
-                class="rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
-                :class="open ? 'border-orange-600 text-orange-600' : ''"
-              >
-                <span class="sr-only">Settings</span>
-                <Cog8ToothIcon class="h-6 w-6" aria-hidden="true" />
-              </PopoverButton>
-            </template>
-          </SettingsPopover>
+          </component>
         </div>
         <!-- View content -->
         <div
