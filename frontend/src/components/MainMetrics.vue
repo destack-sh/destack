@@ -3,6 +3,7 @@ import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
+import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type Metric, type MetricSet } from "@/utils/metrics";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{
@@ -14,28 +15,6 @@ const editor = useEditorState();
 const runtime = useCurrentInterpModule();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } | undefined>);
-
-type Metric = {
-  label: string;
-  description: string;
-  value: number | string;
-  unit?: string;
-  stale: boolean;
-};
-
-type MetricSet = {
-  label: string;
-  description: string;
-  metrics: Metric[];
-};
-
-function toPercent(value?: number, alt = "??"): string {
-  return value != null ? (value * 100).toFixed(0) : alt;
-}
-
-function toFixed(value?: number, digits = 1, alt = "??"): string {
-  return value != null ? value.toFixed(digits) : alt;
-}
 
 // global to scope (via linting)
 const globalEvaluations = useEvaluations(
@@ -74,6 +53,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
         label: "Clarity",
         description: "How comprehensible the instruction is.",
         value: toPercent(metrics["clarity"]),
+        bars: toBars(metrics["clarity"], "clarity"),
         unit: "%",
         stale: false, // TODO @UX: track global interp/lint staleness
       },
@@ -81,6 +61,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
         label: "Difficulty",
         description: "How complex the instruction is.",
         value: toFixed(metrics["difficulty"], 0),
+        bars: toBars(metrics["difficulty"], "difficulty"),
         unit: "x",
         stale: false,
       },
@@ -125,6 +106,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
         label: "Performance",
         description: "How well the AI does.",
         value: toPercent(metrics["performance"]),
+        bars: toBars(metrics["performance"], "performance"),
         unit: "%",
         stale,
       },
@@ -134,6 +116,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
         label: "Speed",
         description: "How fast the AI is.",
         value: toFixed(metrics["speed"]),
+        bars: toBars(metrics["speed"], "speed"),
         unit: "sec",
         stale,
       });
@@ -168,7 +151,7 @@ const metricSets = computed(() => {
         <!-- Metric set label for builds (if more than one) -->
         <span
           v-if="metricSets.length > 2 && metricSet.label != 'Bench'"
-          class="absolute left-0 -top-1.5 z-[5] mx-auto w-full text-center text-xs text-sky-900"
+          class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
           <span class="rounded-sm border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs">{{ metricSet.label }} </span>
@@ -177,8 +160,23 @@ const metricSets = computed(() => {
         <div
           v-for="metric in metricSet.metrics"
           :key="metric.label"
-          class="relative flex flex-row items-start gap-1 p-1.5 text-center"
+          class="relative flex flex-row items-start gap-0.5 p-1.5 text-center"
         >
+          <!-- Metric -->
+          <span class="relative inline-flex flex-col px-0.5">
+            <!-- Metric bars -->
+            <svg viewBox="0 0 6 24" class="h-5">
+              <rect
+                v-for="i in METRIC_METER_UNITS"
+                :key="i"
+                x="0"
+                :y="(i - 1) * 6"
+                width="6"
+                height="4"
+                :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+              />
+            </svg>
+          </span>
           <!-- Metric -->
           <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
           <!-- Label -->
@@ -204,9 +202,23 @@ const metricSets = computed(() => {
               </span>
             </span>
             <!-- Value -->
-            <span class="flex flex-col text-right text-sm">
-              <span class="font-bold text-gray-900">{{ metric.value }}</span>
-              <span class="text-sm text-gray-500" v-if="metric.unit">{{ metric.unit }}</span>
+            <span class="flex flex-row items-end gap-1.5">
+              <span class="flex flex-col text-right text-sm">
+                <span class="font-bold text-gray-900">{{ metric.value }}</span>
+                <span class="text-sm text-gray-500" v-if="metric.unit">{{ metric.unit }}</span>
+              </span>
+              <!-- Metric bars -->
+              <svg viewBox="0 0 6 24" class="h-9">
+                <rect
+                  v-for="i in METRIC_METER_UNITS"
+                  :key="i"
+                  x="0"
+                  :y="(i - 1) * 6"
+                  width="6"
+                  height="4"
+                  :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+                />
+              </svg>
             </span>
           </li>
         </ul>
