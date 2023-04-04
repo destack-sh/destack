@@ -436,48 +436,49 @@ const inlineActions = computed(() => {
           </button>
         </span>
       </div>
-    </div>
-    <!-- Gutter indicators on the right margin -->
-    <div
-      v-if="statement.type == StatementType.Definition || statement.type == StatementType.Reference"
-      class="absolute right-0 top-[6px] flex select-none flex-row gap-2 not-italic"
-      :class="{
-        'text-md': !editor.textSmall,
-        'text-sm': editor.textSmall,
-      }"
-    >
-      <!-- Metrics -->
-      <div v-if="editor.inlineMetrics && metricSets != null" class="flex flex-row gap-1.5">
-        <div v-for="metricSet of metricSets" :key="metricSet.label" class="flex flex-row gap-0.5">
-          <span v-for="metric in metricSet.metrics" :key="metric.label">
-            <svg viewBox="0 0 6 24" class="h-5">
-              <rect
-                v-for="i in METRIC_METER_UNITS"
-                :key="i"
-                x="0"
-                :y="(i - 1) * 6"
-                width="6"
-                height="4"
-                :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
-              />
-            </svg>
-          </span>
+      <!-- Gutter indicators on the right margin -->
+      <div
+        v-if="statement.type == StatementType.Definition || statement.type == StatementType.Reference"
+        class="absolute left-full top-[6px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
+        :class="{
+          'text-md': !editor.textSmall,
+          'text-sm': editor.textSmall,
+        }"
+      >
+        <!-- Metrics -->
+        <div v-if="editor.inlineMetrics && metricSets != null" class="flex flex-row gap-1.5">
+          <div v-for="metricSet of metricSets" :key="metricSet.label" class="flex flex-row gap-0.5">
+            <span v-for="metric in metricSet.metrics" :key="metric.label">
+              <svg viewBox="0 0 6 24" class="h-5">
+                <rect
+                  v-for="i in METRIC_METER_UNITS"
+                  :key="i"
+                  x="0"
+                  :y="(i - 1) * 6"
+                  width="6"
+                  height="4"
+                  :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+                />
+              </svg>
+            </span>
+          </div>
         </div>
+        <!-- Errors/warnings -->
+        <div>
+          <!-- Errors -->
+          <button
+            v-if="hasLocalErrors"
+            class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
+            @click="actions.apply('editor.view.openIssues')"
+          >
+            <XCircleIcon class="h-5 w-5" />
+          </button>
+          <!-- Warnings -->
+        </div>
+        <!-- don't exist yet -->
       </div>
-      <!-- Errors/warnings -->
-      <div>
-        <!-- Errors -->
-        <button
-          v-if="hasLocalErrors"
-          class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
-          @click="actions.apply('editor.view.openIssues')"
-        >
-          <XCircleIcon class="h-5 w-5" />
-        </button>
-        <!-- Warnings -->
-      </div>
-      <!-- don't exist yet -->
     </div>
+
     <!-- Debug info -->
     <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
