@@ -59,11 +59,11 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-m-1 mt-1 rounded-sm bg-gray-50 p-1"
+    class="-mx-1 my-1 rounded-sm bg-gray-50 p-1"
   />
   <button
     v-if="code.trim().length == 0"
-    class="absolute bottom-1 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+    class="absolute bottom-3 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
     @click="monacoRef?.focus()"
   >
     +code

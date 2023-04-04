@@ -2,12 +2,21 @@ export const METRIC_METER_UNITS = 4;
 
 export type MetricFamily = "clarity" | "difficulty" | "performance" | "speed";
 
-export function toPercent(value?: number, alt = "??"): string {
-  return value != null ? (value * 100).toFixed(0) : alt;
+export function toPercent(fraction?: number, alt = "??"): string {
+  return fraction != null ? (fraction * 100).toFixed(0).padStart(2, "0") : alt;
 }
 
 export function toFixed(value?: number, digits = 1, alt = "??"): string {
-  return value != null ? value.toFixed(digits) : alt;
+  return value != null ? value.toFixed(digits).padStart(2, "0") : alt;
+}
+
+export function toTime(seconds?: number, alt = "??"): string {
+  if (seconds == null) return alt;
+  if (seconds < 10) {
+    return seconds.toFixed(1).padStart(2, "0");
+  } else {
+    return seconds.toFixed(0);
+  }
 }
 
 export function toBars(value?: number, kind: MetricFamily): number {
