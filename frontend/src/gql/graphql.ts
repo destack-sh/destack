@@ -663,6 +663,7 @@ export type Mutation = {
   restoreStatementTypeNode: SimpleTypeNodeOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
+  secretRootLogin: UserOperationInfo;
   setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteStatement: StatementOperationInfo;
@@ -837,6 +838,10 @@ export type MutationRevokeAccessTokenArgs = {
 
 export type MutationRunArgs = {
   input: RunInput;
+};
+
+export type MutationSecretRootLoginArgs = {
+  username: Scalars["String"];
 };
 
 export type MutationSetDeployAllStatementsArgs = {

@@ -265,14 +265,13 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
         value: buildMetrics?.performance,
         bars: toBars(buildMetrics?.performance, "performance"),
       },
-    ];
-    if (statement.value.symbolType == SymbolType.Task) {
-      localMetrics.push({
+      {
         label: "Speed",
         value: buildMetrics?.speed,
         bars: toBars(buildMetrics?.speed, "speed"),
-      });
-    }
+        unavailable: statement.value.symbolType != SymbolType.Task,
+      },
+    ];
     metricSets.push({
       label: "claude",
       metrics: localMetrics,
@@ -457,7 +456,13 @@ const inlineActions = computed(() => {
                   :y="(i - 1) * 6"
                   width="6"
                   height="4"
-                  :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+                  :fill="
+                    metric.unavailable ?? false
+                      ? 'transparent'
+                      : i > METRIC_METER_UNITS - metric.bars
+                      ? 'skyblue'
+                      : 'lightgrey'
+                  "
                 />
               </svg>
             </span>
@@ -478,7 +483,6 @@ const inlineActions = computed(() => {
         <!-- don't exist yet -->
       </div>
     </div>
-
     <!-- Debug info -->
     <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
