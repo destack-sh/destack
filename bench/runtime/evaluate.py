@@ -6,6 +6,7 @@ from itertools import chain
 from typing import Any, Optional
 
 import structlog
+from more_itertools import first
 
 from bench.language import ModuleIndex
 from bench.language.type import (
@@ -114,11 +115,10 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
     # performance
     if (
         EvaluationMetric.TypeValidity in metrics
-        and EvaluationMetric.InstructionSatisfaction in metrics
+        or EvaluationMetric.InstructionSatisfaction in metrics
     ):
-        performance = (
-            metrics[EvaluationMetric.TypeValidity]
-            * metrics[EvaluationMetric.InstructionSatisfaction]
+        performance = (metrics.get(EvaluationMetric.TypeValidity, 1)) * (
+            metrics.get(EvaluationMetric.InstructionSatisfaction, 1)
         )
         # perfection is unattainable (... and 100 is suspicious)
         summary_metrics[EvaluationMetric.Performance] = min(performance, 0.99)
@@ -127,6 +127,7 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
     if EvaluationMetric.AverageRunDuration in metrics:
         speed = metrics[EvaluationMetric.AverageRunDuration]
         summary_metrics[EvaluationMetric.Speed] = speed
+
     return summary_metrics
 
 
@@ -257,15 +258,17 @@ async def evaluate_task(
         **performance_metrics,
     }
     metrics.update(get_summary_metrics(metrics))
+    # filter out the task self evaluation
+    self_evaluation = first(e for e in instruction_evaluations if e.system.id == task.id)
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.INSTRUCTION,
         system=task,
         build=build,
         build_candidate=build_candidate,
-        self_metrics=None,
+        self_metrics=self_evaluation.aggregated_metrics,
         aggregated_metrics=metrics,
-        children=instruction_evaluations,
+        children=[e for e in instruction_evaluations if e.system.id != task.id],
     )
 
 
