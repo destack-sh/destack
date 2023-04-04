@@ -47,8 +47,8 @@ const canRun = computed(
 );
 
 const availableSymbols = symbolsLike({
-  types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Task, SymbolType.Code],
+  types: [StatementType.Definition, StatementType.Redefinition],
+  symbolTypes: [SymbolType.Task],
 });
 const query = ref("");
 // :ProperSymbolSearch
@@ -159,15 +159,16 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           'font-mono tracking-tighter': editor.fontMono,
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
-          'text-gray-900': mainSymbol != null,
+          'text-gray-800': mainSymbol != null,
           'text-gray-700': mainSymbol == null,
           'bg-orange-200': open,
+          'font-semibold': !mainSymbolMissing,
         }"
         @change="query = $event.target.value"
         @contextmenu.prevent="$event.target.click()"
         :disabled="!runtime.connected.value"
       >
-        {{ mainSymbolMissing ? "???" : symbolDeclr(mainSymbol) ?? runtime.name.value ?? "???" }}
+        {{ mainSymbolMissing ? "???" : mainSymbol?.name ?? runtime.name.value ?? "???" }}
         <ChevronDownIcon class="h-3 w-3 text-gray-400" aria-hidden="true" />
       </ListboxButton>
 

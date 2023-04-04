@@ -26,8 +26,10 @@ const globalEvaluations = useEvaluations(
     systemIdIn: computed(() => (mainSymbol.value == null ? null : [mainSymbol.value.id])),
     buildIdIn: ref([]), // no specific build
   },
-  { live: true, enabled: runtime.connected }
+  { live: true, enabled: runtime.connected, first: 5 }
 );
+
+// TODO @Cleanup: main metrics and useCurrentEvaluations seem eerily similar
 
 function getGlobalEvaluation(symbolId?: string) {
   if (globalEvaluations.evaluations.value == null || (globalEvaluations.evaluations.value?.length ?? 0) == 0) {
@@ -82,7 +84,7 @@ const buildEvaluations = useEvaluations(
     buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
     systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
   },
-  { live: true, enabled: runtime.connected }
+  { live: true, enabled: runtime.connected, first: 5 }
 );
 
 function getBuildEvaluation(buildId: string, symbolId?: string) {
@@ -178,11 +180,9 @@ const metricSets = computed(() => {
             </svg>
           </span>
           <!-- Metric -->
-          <span class="text-sm font-bold text-gray-900">{{ metric.value }} </span>
+          <span class="text-sm text-gray-900" :class="metric.stale ? '' : 'font-bold'">{{ metric.value }} </span>
           <!-- Label -->
           <span class="text-xs font-bold text-gray-500">{{ metric.label.slice(0, 1) }}</span>
-          <!-- Staleness indicator -->
-          <span v-if="metric.stale" class="absolute right-1.5 top-4 font-bold text-yellow-600">*</span>
         </div>
       </button>
       <!-- Metric set hover popover -->

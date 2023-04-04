@@ -148,7 +148,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'name')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'name')"
-        class="border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+        class="border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
       />
       <!-- Note :EditableCellStyle (should be symmetric) -->
       <InlineTypeCell
@@ -161,7 +161,7 @@ defineExpose({
         @navigate-down="emit('navigateDown')"
         @navigate-right="inputGrid.navigateRight(inputNode.id, 'type')"
         @navigate-left="inputGrid.navigateLeft(inputNode.id, 'type')"
-        class="border border-transparent text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+        class="border border-transparent text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
       />
     </span>
     <!-- Add input button -->
@@ -209,7 +209,7 @@ defineExpose({
         @navigate-up="emit('navigateUp')"
         @navigate-down="emit('navigateDown')"
         @navigate-right="emit('navigateRight')"
-        class="border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100"
+        class="border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
       />
     </span>
   </div>

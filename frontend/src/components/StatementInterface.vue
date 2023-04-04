@@ -11,9 +11,10 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
-import { METRIC_METER_UNITS, toBars, type MetricSet } from "@/utils/metrics";
+import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
@@ -227,49 +228,54 @@ function insertStatementBelow(e: MouseEvent) {
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
+const evaluations = useCurrentEvaluations();
 
 const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
   if (statement.value.type != StatementType.Definition || statement.value.symbolType == SymbolType.Build) {
     return null;
   }
-  const globalMetrics = [
-    {
-      label: "Clarity",
-      value: 74,
-      bars: toBars(0.74, "clarity"),
-    },
-    {
-      label: "Difficulty",
-      value: 50,
-      bars: toBars(50, "difficulty"),
-    },
-  ];
+  const globalMetrics = evaluations.getGlobalEvaluation(statement.value.id)?.aggregatedMetrics;
+  const metricSets = [];
+  if (globalMetrics == null) {
+    return null;
+  }
 
-  const metricSets = [
-    {
-      label: "Global",
-      metrics: globalMetrics,
-    },
-  ];
+  // global
+  metricSets.push({
+    label: "Global",
+    metrics: [
+      {
+        label: "Clarity",
+        value: toPercent(globalMetrics?.clarity),
+        bars: toBars(globalMetrics?.clarity, "clarity"),
+      },
+      {
+        label: "Difficulty",
+        value: toFixed(globalMetrics?.difficulty),
+        bars: toBars(globalMetrics?.difficulty, "difficulty"),
+      },
+    ],
+  });
 
-  for (const build of ["claude", "gpt-3-5"]) {
-    const buildMetrics = [
+  for (const buildEval of evaluations.getBuildEvaluations(statement.value.id)) {
+    const buildMetrics = buildEval.aggregatedMetrics;
+    const localMetrics = [
       {
         label: "Performance",
-        value: 75,
-        bars: toBars(75, "performance"),
+        value: buildMetrics?.performance,
+        bars: toBars(buildMetrics?.performance, "performance"),
       },
     ];
     if (statement.value.symbolType == SymbolType.Task) {
-      buildMetrics.push({
+      localMetrics.push({
         label: "Speed",
-        value: 5.5,
-        bars: toBars(5.5, "speed"),
+        value: buildMetrics?.speed,
+        bars: toBars(buildMetrics?.speed, "speed"),
       });
     }
     metricSets.push({
       label: "claude",
-      metrics: buildMetrics,
+      metrics: localMetrics,
     });
   }
 
