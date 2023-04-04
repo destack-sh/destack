@@ -81,6 +81,7 @@ const buildEvaluations = useEvaluations(
         ? [EvaluationScope.Build]
         : [EvaluationScope.Instruction]
     ),
+    kindIn: ref([EvaluationKind.Evaluation]),
     buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
     systemIdIn: computed(() => (mainSymbol.value?.symbolType == SymbolType.Task ? [mainSymbol.value?.id] : null)),
   },

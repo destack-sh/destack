@@ -155,9 +155,9 @@ function _useCurrentEvaluations() {
       scopeIn: ref([EvaluationScope.Instruction]),
       kindIn: ref([EvaluationKind.Lint]),
       // no specific system id
-      buildIdIn: ref([]), // no specific build
+      buildIdIn: ref(null), // no specific build
     },
-    { live: false, enabled: runtime.connected }
+    { live: true, enabled: runtime.connected }
   );
 
   function getGlobalEvaluation(symbolId?: string) {
@@ -185,7 +185,7 @@ function _useCurrentEvaluations() {
       buildIdIn: computed(() => mainBuilds.value.map((b) => b.id)),
       // no specific system id
     },
-    { live: false, enabled: runtime.connected }
+    { live: true, enabled: runtime.connected }
   );
 
   function getBuildEvaluation(buildId: string, symbolId?: string) {
