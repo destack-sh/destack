@@ -97,7 +97,7 @@ defineExpose({
       @keydown.down.exact.prevent="symbolsGrid.navigateDown(symbol.id, 'name')"
     >
       <span class="">{{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}</span>
-      <span class="">{{ symbol.name }}</span>
+      <span class="" :class="editor.mainSymbolId == symbol.id ? 'font-bold' : ''">{{ symbol.name }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">
