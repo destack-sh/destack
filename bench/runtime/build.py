@@ -58,6 +58,7 @@ logger = structlog.get_logger(__name__)
 class BuildErrorType(enum.Enum):
     INTERNAL = 0, "Internal error"
     RUN = 1, "Error running user code"
+    CONFIG = 2, "Invalid configuration"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -439,6 +440,10 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
         instruction_plans = []
         # TODO @Broken: consider context length in X prompt planning/building
         for task in root_tasks:
+            if task.type.output.tag == TypeTag.NULL:
+                # cannot build task without output, should be caught before this
+                raise BuildError(BuildErrorType.CONFIG, ctx.build)
+
             instruction, tree = instruction_tree_from_symbol(task)
             expectations: list[Expectation] = [
                 i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
@@ -469,8 +474,9 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                             positive=dataset.modifier == StatementModifier.LIKE,
                         )
                     )
+            if task.type.input.children:
+                plan.emit(XEmitInput(type=task.type.input))
             plan.emit(
-                XEmitInput(type=task.type.input),
                 XEmitTask(task=task, include_description=False),
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
                 XEmitOutput(type=task.type.output, type_label="Output"),

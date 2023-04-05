@@ -11,7 +11,14 @@ import structlog
 from bench import language
 from bench.language import wire
 from bench.language.parse import REFERENCE_REGEX, ErrorCollector, interp, resolve, sort
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, StatementPath, SymbolType
+from bench.language.type import (
+    SYMBOL_CLASS_BY_TYPE,
+    Build,
+    LiteralValue,
+    StatementPath,
+    SymbolType,
+    TypeTag,
+)
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
@@ -430,6 +437,8 @@ class ModuleWorker:
             # collect any builds that reference this task
             builds = get_builds_for(buildable, self.interp.module_idx)
             if not builds:
+                return ModuleBuildErrorType.INVALID_BUILDABLE
+            if buildable.type.output.tag == TypeTag.NULL:
                 return ModuleBuildErrorType.INVALID_BUILDABLE
         elif isinstance(buildable, language.Build):
             builds = [buildable]
