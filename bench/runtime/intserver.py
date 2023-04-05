@@ -32,6 +32,7 @@ from bench.msg.messages import (
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     RepWriteBuildCandidatePayload,
+    RepWriteBuildPayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
     RepWriteModulePayload,
@@ -41,6 +42,7 @@ from bench.msg.messages import (
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
     ReqWriteJobPayload,
+    ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
 from bench.msg.sync import is_semantic_mutation
@@ -77,6 +79,7 @@ class InternalServer:
             await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
+            await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(
                 NMessageType.REQUEST_WRITE_BUILD_CANDIDATE, self.write_build_candidate
             ),
@@ -181,6 +184,27 @@ class InternalServer:
         await msg.reply(RepReadModulePayload(module=module, project_id=project_v.project_id))
 
     @message_handler
+    async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
+        # TODO @Architecture @Cleanup: intserver.write_module == write_build?
+        logger.info("module.write", files=msg.payload.files, module_id=msg.payload.module_id)
+        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
+        try:
+            if project_v.committed:
+                raise ValueError(f"cannot write to committed {project_v}")
+            await sync_to_async(write_module)(
+                files=msg.payload.files,
+                generated_mappings=msg.payload.generated_mappings,
+                project_v=project_v,
+                overwrite=True,
+            )
+            success = True
+        except Exception as e:
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.error("module.write.failed", exc_info=e, sentry_enabled=sentry_enabled)
+            success = False
+        await msg.reply(RepWriteModulePayload(success=success))
+
+    @message_handler
     async def write_build(self, msg: NMessage[ReqWriteBuildPayload]) -> None:
         logger.info("module.write_build", files=msg.payload.files, module_id=msg.payload.module_id)
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
@@ -199,7 +223,7 @@ class InternalServer:
             sentry_enabled = sentry_capture_if_enabled(e)
             logger.error("module.write.failed", exc_info=e, sentry_enabled=sentry_enabled)
             success = False
-        await msg.reply(RepWriteModulePayload(success=success))
+        await msg.reply(RepWriteBuildPayload(success=success))
 
         # republish entire module  :PartialModuleUpdates
         # the worker should probably just do this directly

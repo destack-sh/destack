@@ -433,6 +433,12 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
         if no_description:
             instruction_perplexity += HALF_CONFUSION
 
+    if instruction.op == InstructionOp.TypeDefinition:
+        # types should not be 'anything'
+        type = cast(Type, instruction.node)
+        if type.tag == TypeTag.ANY:
+            instruction_perplexity += FULL_CONFUSION
+
     if instruction.op == InstructionOp.TaskDefinition:
         # task definitions (not steps) should have types
         task = cast(Task, instruction.node)
