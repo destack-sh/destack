@@ -43,6 +43,8 @@ class NMessageType(StrEnum):
     WORKER_HEARTBEAT = "worker.heartbeat"
     REQUEST_READ_MODULE = "module.read"
     REPLY_READ_MODULE = "module.read.rep"
+    REQUEST_WRITE_MODULE = "module.write"
+    REPLY_WRITE_MODULE = "module.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
     REQUEST_WRITE_JOB = "job.write"
@@ -223,7 +225,7 @@ class ReqWriteBuildPayload:
 
 
 @payload(NMessageType.REPLY_WRITE_BUILD)
-class RepWriteModulePayload:
+class RepWriteBuildPayload:
     success: bool
 
 
@@ -253,6 +255,17 @@ class ReqReadModulePayload:
 class RepReadModulePayload:
     module: wire.ModuleData
     project_id: UUID
+
+
+@payload(NMessageType.REQUEST_WRITE_MODULE)
+class ReqWriteModulePayload:
+    module_id: UUID
+    files: list[wire.FileData]
+
+
+@payload(NMessageType.REPLY_WRITE_MODULE)
+class RepWriteModulePayload:
+    success: bool
 
 
 @payload(NMessageType.REQUEST_INTERP_MODULE)

@@ -3,10 +3,11 @@ from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
 from typing import Any, Callable, ClassVar, Optional, cast
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import pytz
 import structlog
+from more_itertools import first
 
 from bench import language
 from bench.language import wire
@@ -14,9 +15,11 @@ from bench.language.parse import REFERENCE_REGEX, ErrorCollector, interp, resolv
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
     Build,
+    InterpSymbol,
     LiteralValue,
     StatementPath,
     SymbolType,
+    Task,
     TypeTag,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, ModuleReference
@@ -33,6 +36,7 @@ from bench.msg.messages import (
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     RepWriteBuildCandidatePayload,
+    RepWriteBuildPayload,
     RepWriteEvaluationPayload,
     RepWriteJobPayload,
     RepWriteModulePayload,
@@ -45,6 +49,7 @@ from bench.msg.messages import (
     ReqWriteBuildPayload,
     ReqWriteEvaluationPayload,
     ReqWriteJobPayload,
+    ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
 from bench.runtime.build import (
@@ -56,6 +61,7 @@ from bench.runtime.build import (
     get_builds_for,
 )
 from bench.runtime.evaluate import EvaluationResult, lint
+from bench.runtime.map import map_to_file
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
 from bench.runtime.run import DEFAULT_TRACER, RunError, instantiate, run
 from bench.runtime.tracing import PubTrackerContext, WorkerContext, pub_tracker_context, worker
@@ -78,6 +84,11 @@ WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_ca
 
 # TODO @UX: reduce/avoid debounce for reactive module jobs
 #  If too frequent, reactors lead to lots of unnecessary work and can run into rate limits.
+
+GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 2, type_cast=float)
+GENERATE_DEBOUNCE_MAX_WAIT = get_from_env(
+    "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 5, type_cast=float
+)
 LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
 LINT_DEBOUNCE_MAX_WAIT = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 5, type_cast=float)
 BUILD_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_BUILD_DEBOUNCE", 5, type_cast=float)
@@ -136,6 +147,13 @@ class LintJob(Job):
     @property
     def success(self) -> bool:
         return self.evaluation is not None
+
+
+@dataclass(repr=False, slots=True)
+class GenerateJob(Job):
+    type: ClassVar[JobType] = JobType.GENERATE
+    generator: Optional[InterpSymbol] = None
+    success: bool = False
 
 
 @dataclass(repr=False, slots=True)
@@ -237,6 +255,32 @@ def interp_module(
     errors = [e.to_error() for e in collector.errors]
 
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
+
+
+def get_missing_implicit_builds(interp: InterpModule) -> list[Build]:
+    """Adds missing implicit builds to the given interp module"""
+
+    builds = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Build)]
+    tasks = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Task)]
+    tasks_with_builds = set(chain((task.id for task in build.tasks) for build in builds))
+    tasks_without_builds = [task for task in tasks if task.id not in tasks_with_builds]
+
+    if not tasks_without_builds:
+        return []
+
+    # add implicit builds
+    default_model = interp.symbol("openai.std.text.gpt-3-5-turbo")
+    implicit_builds = []
+    for task in tasks_without_builds:
+        build = Build(
+            id=uuid5(task.id, "implicit_build"),  # reproducible
+            name="auto_" + task.id.hex[:6],
+            tasks=[task],
+            models=[default_model],
+            source_mappings=[],
+        )
+        implicit_builds.append(build)
+    return implicit_builds
 
 
 class ModuleBuildTracker(BuildTracker):
@@ -386,11 +430,17 @@ class ModuleWorker:
         self.wire_dependencies = {
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
-        # reactively trigger (debounced) reactors for new stale symbols
+        # reactively trigger (debounced) reactors
+        create_wrapped_task(self._fire_reactive_generate())
         create_wrapped_task(self._fire_reactive_lint())
         create_wrapped_task(self._fire_reactive_build())
         # notify master
         await self.master.notify_module_changed(self)
+
+    @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
+    async def _fire_reactive_generate(self) -> None:
+        self.log.debug("module.react.generate")
+        self.queue_generate(cancel_running=True)
 
     @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_lint(self) -> None:
@@ -425,6 +475,39 @@ class ModuleWorker:
         evaluation = await lint(self.idx)
         await self.master.write_evaluations(self, [evaluation], job_id)
         return evaluation
+
+    def queue_generate(self, cancel_running: bool) -> GenerateJob:
+        job = GenerateJob(
+            project_id=self.project_id,
+            project_version_id=self.module_id,
+            deployment_id=self.deployment_id,
+            worker_id=self.master.worker_id,
+        )
+        if cancel_running:
+            self._cancel_jobs_like(lambda j: isinstance(j, GenerateJob))
+        self._queue_job(job)
+        return job
+
+    async def do_generate(self, generator: Optional[InterpSymbol], job_id: UUID) -> bool:
+        # generate (missing) implicit builds
+        missing_builds = get_missing_implicit_builds(self.interp)
+        if missing_builds:
+            # TODO @Cleanup @Robustness: implicit build generation seems fragile (all in one file, overwrites)
+            _path = "__implicit_builds__"
+            implicit_build_file = first(
+                (f for f in self.interp.module_idx.module.files if f.path == _path), None
+            )
+            if implicit_build_file is None:
+                implicit_build_file = language.File(
+                    path=_path, generated=True, module=self.interp.module_idx.module
+                )
+            # append missing builds
+            implicit_build_file = map_to_file(
+                missing_builds, weak_references=[], file=implicit_build_file
+            )
+            await self.master.write_module(self, files=[wire.rmap_file(implicit_build_file)])
+
+        return True
 
     def queue_build(
         self, buildable_id: UUID, cancel_running: bool
@@ -614,6 +697,9 @@ class ModuleWorker:
                 elif isinstance(job, LintJob):
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
+                elif isinstance(job, GenerateJob):
+                    job.task = create_task(self.do_generate(job.generator, job.id))
+                    job.success = await job.task
                 elif isinstance(job, RunJob):
                     job.task = create_task(self.do_run(job.runnable, job.arguments, job.ctx))
                     error, ret = await job.task
@@ -919,6 +1005,13 @@ class Worker:
                 "build_candidate.write.failed", build_candidates_data=build_candidates_data
             )
 
+    async def write_module(self, module_worker: ModuleWorker, files: list[wire.FileData]):
+        """Writes module files back to the internal server"""
+        write = ReqWriteModulePayload(module_id=module_worker.module_id, files=files)
+        rep = await request(NMessageType.REQUEST_WRITE_MODULE, write, RepWriteModulePayload)
+        if not rep.p.success:
+            logger.error("module.write.failed", files=files)
+
     async def write_build_results(
         self,
         module_worker: ModuleWorker,
@@ -946,7 +1039,7 @@ class Worker:
             generated_mappings=generated_mappings,
             delete_files=previous_build_files,
         )
-        rep = await request(NMessageType.REQUEST_WRITE_BUILD, write, RepWriteModulePayload)
+        rep = await request(NMessageType.REQUEST_WRITE_BUILD, write, RepWriteBuildPayload)
         if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?
             logger.error("module.write.failed", write=write, write_result=rep)
