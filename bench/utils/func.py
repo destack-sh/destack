@@ -69,6 +69,7 @@ def debounce(delay: int, max_wait: int = None):
     """Debounces the async function by the given delay (in seconds) and
     ensures that the function is called at least once every max_wait seconds
     if provided"""
+    # TODO @Broken: implement debounce max_wait
 
     def decorator(func):
         @wraps(func)
