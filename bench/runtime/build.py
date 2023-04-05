@@ -482,7 +482,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 ),
             )
             if expectations:
-                plan.emit(XEmitExpectations(expectations=expectations))
+                plan.emit(XEmitExpectations(task_label=task.name, expectations=expectations))
             for dataset in data_samples:
                 if len(dataset) > 0:
                     plan.emit(

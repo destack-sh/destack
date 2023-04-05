@@ -235,7 +235,7 @@ class InternalServer:
         logger.info(
             "module.write_evaluation",
             module_id=msg.p.module_id,
-            evaluations=[e.id for e in msg.payload.evaluations],
+            evaluations=len(msg.p.evaluations),
         )
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         try:
