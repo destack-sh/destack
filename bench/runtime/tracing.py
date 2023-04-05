@@ -65,6 +65,9 @@ class Tracer:
 _context_tracers: contextvars.ContextVar[list[Tracer]] = contextvars.ContextVar(
     "tracers", default=[]
 )
+_all_tracers_blocked: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "tracers_blocked", default=False
+)
 
 
 class MultiTracer(Tracer):
@@ -79,6 +82,8 @@ class MultiTracer(Tracer):
 
     @property
     def tracers(self):
+        if _all_tracers_blocked.get():
+            return []
         return self._static_tracers + _context_tracers.get()
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
@@ -128,6 +133,23 @@ def push_context_tracers(*tracers: Tracer):
 def pop_context_tracers(*tracers: Tracer, n: int | None = None):
     tracers = _context_tracers.get()[-n:] if n is not None else _context_tracers.get()
     _context_tracers.set([t for t in tracers if t not in _context_tracers.get()])
+
+
+class BlockingTracerBoundary:
+    """
+    A context manager for blocking all tracers.
+    """
+
+    def __enter__(self):
+        self.token = _all_tracers_blocked.set(True)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        _all_tracers_blocked.reset(self.token)
+
+
+def tracer_blocker() -> BlockingTracerBoundary:
+    """Block all tracers in the current context."""
+    return BlockingTracerBoundary()
 
 
 @dataclass(slots=True)

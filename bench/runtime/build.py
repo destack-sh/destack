@@ -617,8 +617,8 @@ class XEmitTypeExplanation(XEmit):
                     el_str += f"- {choice.name}{_render_description(choice.description)}\n"
             elif type.tag == TypeTag.STRUCT:
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
-                for f in type.children:
-                    el_str += f"- {f.name}: {_render_simple_type(f)}{_render_description(f.description)}\n"
+                for child in type.children:
+                    el_str += f"- {child.name}: {_render_simple_type(child)}{_render_description(child.description)}\n"
             elif type.tag == TypeTag.ARRAY:
                 el_str = f"\n{label} array of {_render_simple_type(type.children[0])}{_render_description(type.description)}\n"
             else:
@@ -626,9 +626,11 @@ class XEmitTypeExplanation(XEmit):
             el_strs.append(el_str)
 
             if self.recursive:
-                for f in type.children or []:
-                    if isinstance(f.reference, TypeNode):
-                        unexplained_types.append((f.reference.name, f.reference))
+                for child in type.children or []:
+                    if isinstance(child.reference, TypeNode):
+                        unexplained_types.append((child.reference.name, child.reference))
+                    elif child.tag in (TypeTag.ARRAY, TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):
+                        unexplained_types.append((child.name, child))
 
         el_str = f"Type schemas:\n{''.join(el_strs)}"
         return xstatic(el_str, XSource.Developer)
@@ -636,13 +638,14 @@ class XEmitTypeExplanation(XEmit):
 
 @xemit
 class XEmitTypeSample(XEmit):
-    """Emits a fabricated sample of the given type"""
+    """Emits a single sample of the given type (default to fabricated)"""
 
     type: Type
     type_label: Optional[str]
+    value: Any = None
 
     async def __call__(self) -> list[XBlock]:
-        fabricated_sample = fabricate_value(self.type)
+        fabricated_sample = self.value or fabricate_value(self.type)
         sample_declaration = xstatic(
             f"Example {self.type_label or self.type.name}:",
             XSource.System,
@@ -656,6 +659,7 @@ class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
     type: Type
+    type_label: str = "Input"
     path: str = ""
 
     @staticmethod
@@ -665,7 +669,7 @@ class XEmitInput(XEmit):
         input.value = json.dumps(value, sort_keys=True)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        input_declaration = xstatic("Input:", XSource.System)
+        input_declaration = xstatic(f"{self.type_label}:", XSource.System)
         input = xinput(None, path=self.path)
         return [input_declaration, DynamicXBlock(input, self.impute_input)]
 
@@ -685,9 +689,13 @@ class XEmitOutput(XEmit):
         # escape the output if needed (handles trivial model confusions)
         value = output.value.strip()
         if not value.startswith("{") and not value.startswith("[") and not value.startswith('"'):
+            value = value.replace("\n", "\\n")
             value = f'"{value}"'
 
-        return json.loads(value)
+        try:
+            return json.loads(value)
+        except Exception as e:
+            raise TypeError(f"invalid X output: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         if self.type.is_flat:
