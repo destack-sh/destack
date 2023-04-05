@@ -462,10 +462,12 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             if output_type.is_flat:
                 # lift flat output into object (easier to get model to generate)
                 lifted = task.type.output.deepcopy(keep_id=False)
+                if lifted.description is None:
+                    lifted.description = f"Output for task {task.name}"
                 lifted.name = (
                     output_type.reference.name.lower()
                     if output_type.reference
-                    else output_type.tag.name
+                    else "output_" + output_type.tag.name.lower()
                 )
                 output_type = make_struct_type(lifted, name=output_label)
                 output_path = lifted.name
@@ -478,9 +480,9 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     include_descriptions=True,
                     recursive=True,
                 ),
-                XEmitTask(task=task),
-                XEmitExpectations(task_label=task.name, expectations=expectations),
             )
+            if expectations:
+                plan.emit(XEmitExpectations(expectations=expectations))
             for dataset in data_samples:
                 if len(dataset) > 0:
                     plan.emit(
@@ -490,16 +492,17 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                             positive=dataset.modifier == StatementModifier.LIKE,
                         )
                     )
+            plan.emit(
+                XEmitTask(task=task),
+                XEmitTypeSample(type=output_type, type_label=output_label),
+            )
             if task.type.input.children:
                 plan.emit(XEmitInput(type=task.type.input, type_label="Input"))
             plan.emit(
-                XEmitTypeSample(type=output_type, type_label=output_label),
                 # TODO @Broken: adjust & tune generation settings
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
                 XEmitOutput(
-                    type=output_type,
-                    type_label=f"Output for {output_label} given input",
-                    path=output_path,
+                    type=output_type, type_label=f"Output for task {task.name}", path=output_path
                 ),
             )
             instruction_plans.append(plan)
@@ -549,8 +552,9 @@ class XEmitSystem(XEmit):
     """Emits the system message about general expectations for JSON."""
 
     message: str = (
-        "You are a precise and helpful agent that follows instructions as intended.\n"
-        "You must only output valid JSON (literal, array or object). Nothing else.\n"
+        "You are a precise and helpful assistant."
+        " Perform the given tasks following the instructions to produce outputs."
+        " Only output valid JSON (literal, array or object) as per the type schemas."
     )
 
     async def __call__(self) -> XBlock:
@@ -653,7 +657,7 @@ class XEmitTypeExplanation(XEmit):
                     elif child.tag in (TypeTag.ARRAY, TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):
                         unexplained_types.append((child.name, child))
 
-        el_str = f"Type schemas:\n{''.join(el_strs)}"
+        el_str = f"Schemas:\n{''.join(el_strs)}".strip()
         return xstatic(el_str, XSource.Developer)
 
 
@@ -703,9 +707,11 @@ class XEmitOutput(XEmit):
     type_label: str = "Output"
     path: str = ""
 
+    # TODO @Incomplete: support proper jsonpath for xblocks
     @staticmethod
     def parse_output(output: XBlock):
         import json
+        import re
 
         # escape the output if needed (handles trivial model confusions)
         value = output.value.strip()
@@ -713,9 +719,18 @@ class XEmitOutput(XEmit):
             value = value.replace("\n", "\\n")
             value = f'"{value}"'
 
+        # escape strings with multiline content
+        # these aren't technically valid JSON, but they're very useful for models
+        def sub_multiline_str(match):
+            # replace line breaks with \n escape sequence
+            modified_string = match.group(1).replace("\n", "\\n").replace("\r", "")
+            return f'"{modified_string}"'
+
+        value = re.compile(r'"(.*?)(?<!\\)"', re.DOTALL).sub(sub_multiline_str, value)
+
         try:
             ret = json.loads(value)
-            if output.path:  # TODO @Incomplete: support proper jsonpath for xblocks
+            if output.path:
                 ret = ret[output.path]
             return ret
         except Exception as e:
@@ -724,17 +739,17 @@ class XEmitOutput(XEmit):
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         if self.type.is_flat:
             output_request = xstatic(
-                f'{self.type_label}\nJSON literal like above, number or start with ", not an object, nothing else!:',
+                f'{self.type_label}\n(JSON literal, nothing else, not an object, start with " or number)',
                 XSource.System,
             )
         elif self.type.tag == TypeTag.ARRAY:
             output_request = xstatic(
-                f"{self.type_label}\nJSON array only like above, start with [, include ',', nothing else!:",
+                f"{self.type_label}\n(JSON array, nothing else, include ',', start with [)",
                 XSource.System,
             )
         else:
             output_request = xstatic(
-                f"{self.type_label}\nJSON object only like above, start with {{, nothing else!:",
+                f"{self.type_label}\n(JSON object, nothing else, start with {{)",
                 XSource.System,
             )
 

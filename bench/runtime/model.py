@@ -163,6 +163,11 @@ class AnthropicTextCompletion(ModelInference):
     def __post_init__(self):
         self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
 
+        # monkey patch Anthropic's validation (which is broken)
+        from anthropic import api
+
+        api._validate_prompt_length = lambda *args, **kwargs: None
+
     async def generate_text(
         self,
         input: list[XBlock[str]],

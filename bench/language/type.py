@@ -884,9 +884,9 @@ def make_func_type(*input_types: TypeNode, output_type: TypeNode, name: str = No
     )
 
 
-def make_struct_type(*children: TypeNode, name: str = None) -> TypeNode:
+def make_struct_type(*children: TypeNode, name: str = None, description: str = None) -> TypeNode:
     """Create a struct type from children types."""
-    return TypeNode(name=name, tag=TypeTag.STRUCT, children=list(children))
+    return TypeNode(name=name, description=description, tag=TypeTag.STRUCT, children=list(children))
 
 
 def flatten_func_type(func_type: TypeNode) -> TypeNode:
