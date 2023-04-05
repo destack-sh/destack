@@ -257,33 +257,51 @@ def interp_module(
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
 
 
-def get_missing_implicit_builds(interp: InterpModule) -> list[Build]:
-    """Adds missing implicit builds to the given interp module"""
+def diff_implicit_builds(interp: InterpModule) -> tuple[list[Build], list[Build]]:
+    """
+    Gets missing and extraneous implicit builds
+    """
 
     builds = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Build)]
+    implicit_builds = [build for build in builds if build.is_generated]
+    explicit_builds = [build for build in builds if not build.is_generated]
     tasks = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Task)]
-    tasks_with_builds_ids = set(
-        chain.from_iterable([(task.definition.id for task in build.tasks) for build in builds])
+
+    tasks_with_implicit_builds_ids = set(
+        chain.from_iterable(
+            [(task.definition.id for task in build.tasks) for build in implicit_builds]
+        )
     )
-    tasks_without_builds = [
-        task for task in tasks if task.id not in tasks_with_builds_ids and task.is_definition
-    ]
+    tasks_with_explicit_builds_ids = set(
+        chain.from_iterable(
+            [(task.definition.id for task in build.tasks) for build in explicit_builds]
+        )
+    )
 
-    if not tasks_without_builds:
-        return []
-
-    # add implicit builds
+    # add missing implicit builds
     default_model = interp.symbol("openai.std.text.gpt-3-5-turbo")
-    implicit_builds = []
-    for task in tasks_without_builds:
+    missing_implicit_builds = []
+    for task in tasks:
+        if (
+            task.definition.id in tasks_with_explicit_builds_ids
+            or task.definition.id in tasks_with_implicit_builds_ids
+        ):
+            continue
         build = Build(
             name="auto_" + task.id.hex[:6],
             tasks=[task.to_ref()],
             models=[default_model.to_ref()],
             source_mappings=[],
         )
-        implicit_builds.append(build)
-    return implicit_builds
+        missing_implicit_builds.append(build)
+
+    # get extraneous implicit builds
+    extraneous_implicit_builds = []
+    for build in implicit_builds:
+        if any(task.definition.id in tasks_with_explicit_builds_ids for task in build.tasks):
+            extraneous_implicit_builds.append(build)
+
+    return missing_implicit_builds, extraneous_implicit_builds
 
 
 class ModuleBuildTracker(BuildTracker):
@@ -491,10 +509,10 @@ class ModuleWorker:
         self._queue_job(job)
         return job
 
-    async def do_generate(self, generator: Optional[InterpSymbol], job_id: UUID) -> bool:
+    async def do_generate(self, generator: Optional[InterpSymbol]) -> bool:
         # generate (missing) implicit builds
-        missing_builds = get_missing_implicit_builds(self.interp)
-        if missing_builds:
+        missing_builds, extraneous_builds = diff_implicit_builds(self.interp)
+        if missing_builds or extraneous_builds:
             # TODO @Cleanup @Robustness: implicit build generation seems fragile (all in one file, overwrites)
             _path = "__implicit_builds__"
             implicit_build_file = first(
@@ -506,6 +524,17 @@ class ModuleWorker:
                     generated=True,
                     module=self.interp.module_idx.module,
                 )
+            else:
+                # filter out extraneous builds (and their children)
+                # extraneous builds must already exist (have a source), so filtering by source is okay
+                extraneous_symbols_ids = set()
+                for b in extraneous_builds:
+                    extraneous_symbols_ids.add(b.id)
+                    extraneous_symbols_ids.update(t.id for t in b.tasks)
+                    extraneous_symbols_ids.update(m.id for m in b.models)
+                implicit_build_file.statements = [
+                    s for s in implicit_build_file.statements if s.id not in extraneous_symbols_ids
+                ]
             # append missing builds
             implicit_build_file = map_to_file(
                 missing_builds, weak_references=[], file=implicit_build_file
@@ -703,7 +732,7 @@ class ModuleWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, GenerateJob):
-                    job.task = create_task(self.do_generate(job.generator, job.id))
+                    job.task = create_task(self.do_generate(job.generator))
                     job.success = await job.task
                 elif isinstance(job, RunJob):
                     job.task = create_task(self.do_run(job.runnable, job.arguments, job.ctx))
@@ -1012,6 +1041,8 @@ class Worker:
 
     async def write_module(self, module_worker: ModuleWorker, files: list[wire.FileData]):
         """Writes module files back to the internal server"""
+        # TODO @Performance @UX: module writes should immediately apply locally :ImmediateModuleWrites
+
         write = ReqWriteModulePayload(
             module_id=module_worker.module_id, generated_mappings=[], files=files
         )
@@ -1046,6 +1077,7 @@ class Worker:
             generated_mappings=generated_mappings,
             delete_files=previous_build_files,
         )
+        #  :ImmediateModuleWrites
         rep = await request(NMessageType.REQUEST_WRITE_BUILD, write, RepWriteBuildPayload)
         if not rep.p.success:
             # TODO @Robustness: panic if we can't write back builds?

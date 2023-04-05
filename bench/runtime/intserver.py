@@ -204,6 +204,13 @@ class InternalServer:
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
 
+        # republish entire module  :PartialModuleUpdates  :ImmediateModuleWrites
+        # the worker should probably just do this directly
+        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
+        await publish(
+            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
+        )
+
     @message_handler
     async def write_build(self, msg: NMessage[ReqWriteBuildPayload]) -> None:
         logger.info("module.write_build", files=msg.payload.files, module_id=msg.payload.module_id)
@@ -225,7 +232,7 @@ class InternalServer:
             success = False
         await msg.reply(RepWriteBuildPayload(success=success))
 
-        # republish entire module  :PartialModuleUpdates
+        # republish entire module  :PartialModuleUpdates  :ImmediateModuleWrites
         # the worker should probably just do this directly
         module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
         await publish(
