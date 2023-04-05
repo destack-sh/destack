@@ -108,11 +108,12 @@ class XBlock(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     # not actually revisioned yet (only accessed programmatically)
     revision = models.IntegerField(default=1)
-    order_key = models.CharField(max_length=MAX_NAME_LENGTH)
+    order_key = models.CharField(max_length=32)
     kind = TextChoicesField(choices_enum=XKind)
     source = TextChoicesField(choices_enum=XSource)
     value = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
+    path = models.CharField(max_length=128, null=True, blank=True)
 
     class Meta:
         ordering = ["order_key"]
