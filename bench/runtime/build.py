@@ -28,6 +28,7 @@ from bench.language.type import (
     TypeTag,
     XBlock,
     XSource,
+    make_struct_type,
 )
 from bench.runtime.evaluate import (
     EvaluationMetric,
@@ -452,12 +453,27 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
             ]
             # clarity output label as task completion if we don't have a structured output
-            output_label = "Output"
             plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
+
+            # map output type
+            output_label = "Output"
+            output_type = task.type.output
+            output_path = ""
+            if output_type.is_flat:
+                # lift flat output into object (easier to get model to generate)
+                lifted = task.type.output.deepcopy(keep_id=False)
+                lifted.name = (
+                    output_type.reference.name.lower()
+                    if output_type.reference
+                    else output_type.tag.name
+                )
+                output_type = make_struct_type(lifted, name=output_label)
+                output_path = lifted.name
+
             plan.emit(
                 XEmitSystem(),
                 XEmitTypeExplanation(
-                    type=task.type.output,
+                    type=output_type,
                     type_label=output_label,
                     include_descriptions=True,
                     recursive=True,
@@ -476,13 +492,14 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     )
             if task.type.input.children:
                 plan.emit(XEmitInput(type=task.type.input, type_label="Input"))
-            if not task.type.output.is_flat:
-                plan.emit(XEmitTypeSample(type=task.type.output, type_label=output_label))
             plan.emit(
+                XEmitTypeSample(type=output_type, type_label=output_label),
                 # TODO @Broken: adjust & tune generation settings
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
                 XEmitOutput(
-                    type=task.type.output, type_label=f"Output for {output_label} given input"
+                    type=output_type,
+                    type_label=f"Output for {output_label} given input",
+                    path=output_path,
                 ),
             )
             instruction_plans.append(plan)
@@ -697,9 +714,12 @@ class XEmitOutput(XEmit):
             value = f'"{value}"'
 
         try:
-            return json.loads(value)
+            ret = json.loads(value)
+            if output.path:  # TODO @Incomplete: support proper jsonpath for xblocks
+                ret = ret[output.path]
+            return ret
         except Exception as e:
-            raise TypeError(f"invalid X output: {e}") from e
+            raise ValueError(f"invalid X output: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         if self.type.is_flat:
