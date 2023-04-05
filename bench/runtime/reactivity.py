@@ -3,7 +3,7 @@ from __future__ import annotations
 import enum
 from dataclasses import dataclass, field
 from itertools import chain
-from typing import Iterator, Optional
+from typing import Callable, Iterator, Optional
 from uuid import UUID
 
 from bench import language
@@ -129,10 +129,12 @@ def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
     return tree
 
 
-def tree_from_module(revmap: RevisionMap, idx: ModuleIndex, exclude_generated: bool) -> TrackedTree:
+def tree_from_module(
+    revmap: RevisionMap, idx: ModuleIndex, filter: Callable[[InterpSymbol], bool]
+) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for symbol in idx.symbols.values():
-        if exclude_generated and symbol.is_generated:
+        if filter and not filter(symbol):
             continue
         track_interp_symbol(tree, symbol)
     # assign revisions from revmap
@@ -209,7 +211,10 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
     #  To solve this, we'll probably invert nodes to track children (instead of parents),
     #  enabling multiple dependencies per trigger.
     #  :NaiveTreeTracking
-    new_tree = tree_from_module(revmap, idx, exclude_generated=True)
+    new_tree = tree_from_module(
+        revmap, idx, filter=lambda s: not s.is_generated or isinstance(s, Build)
+    )
+    # (include builds since we need generated implicit builds to diff as well)
 
     stale_symbols = []
     for symbol in idx.symbols.values():

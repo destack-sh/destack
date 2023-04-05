@@ -95,7 +95,7 @@ defineExpose({
       <span
         class="decoration-none inline select-none truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
       >
-        {{ file.name.length > 0 ? file.name : "(Untitled)" }}
+        {{ file.path.length > 0 ? file.path : "(Untitled)" }}
       </span>
     </li>
   </ul>
