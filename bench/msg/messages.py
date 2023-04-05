@@ -72,6 +72,7 @@ class NMessageType(StrEnum):
 REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
+    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_WRITE_BUILD: NMessageType.REPLY_WRITE_BUILD,
     NMessageType.REQUEST_WRITE_BUILD_CANDIDATE: NMessageType.REPLY_WRITE_BUILD_CANDIDATE,
     NMessageType.REQUEST_WRITE_EVALUATION: NMessageType.REPLY_WRITE_EVALUATION,
@@ -260,6 +261,7 @@ class RepReadModulePayload:
 @payload(NMessageType.REQUEST_WRITE_MODULE)
 class ReqWriteModulePayload:
     module_id: UUID
+    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
     files: list[wire.FileData]
 
 

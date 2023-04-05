@@ -302,7 +302,10 @@ export function buildsOf(
 ) {
   // Gets the builds explicitly referencing this symbol as a child
   const { moduleIndex } = useCurrentInterpModule(projectVersionId);
-  const builds = symbolsLike({ types: [StatementType.Definition], symbolTypes: [SymbolType.Build] }, projectVersionId);
+  const builds = symbolsLike(
+    { types: [StatementType.Definition], symbolTypes: [SymbolType.Build], includeGenerated: true },
+    projectVersionId
+  );
   return builds; // TODO @Broken @Architecture: get builds for symbol from interpreter
 }
 

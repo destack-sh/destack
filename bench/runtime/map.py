@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from itertools import chain
+
 import structlog
 
 from bench.language import (
@@ -52,29 +54,67 @@ def map_to_file(
 
     # render symbols themselves
     for order_key, symbol in zip(order_keys, symbols):
-        if isinstance(symbol, Dataset):
-            content = map_dataset_content(symbol)
-        elif isinstance(symbol, Code):
-            content = map_code_content(symbol)
-        elif isinstance(symbol, Build):
-            content = map_build_content(symbol)
-        else:
-            raise RuntimeError(f"unexpected symbol {symbol}")
-        statement = Statement(
-            id=symbol.id,
-            type=StatementType.DEFINITION,
-            symbol_type=symbol.symbol_type,
-            modifier=symbol.modifier,
-            name=symbol.name,
-            content=content,
-            file=file,
-            parent=None,
-            order_key=order_key,
-            generated=True,
-        )
+        statement = _map_statement(file, symbol, order_key)
+        children = _map_statement_children(symbol, statement)
         file.statements.append(statement)
+        file.statements.extend(children)
 
     return file
+
+
+def _map_statement(file: File, symbol: InterpSymbol, order_key: str) -> Statement:
+    """Map a single symbol to a statement."""
+    if isinstance(symbol, Dataset):
+        content = map_dataset_content(symbol)
+    elif isinstance(symbol, Code):
+        content = map_code_content(symbol)
+    elif isinstance(symbol, Build):
+        content = map_build_content(symbol)
+    else:
+        raise RuntimeError(f"unexpected symbol {symbol}")
+    statement = Statement(
+        id=symbol.id,
+        type=StatementType.DEFINITION,
+        symbol_type=symbol.symbol_type,
+        modifier=symbol.modifier,
+        name=symbol.name,
+        content=content,
+        file=file,
+        parent=None,
+        order_key=order_key,
+        generated=True,
+    )
+    return statement
+
+
+def _map_statement_children(symbol: InterpSymbol, statement: Statement) -> list[Statement]:
+    """Maps the nested symbols of a symbol to statements."""
+    if isinstance(symbol, Build):
+        children = []
+        order_keys = generate_n_keys_between(None, None, len(symbol.tasks) + len(symbol.models))
+        for ok, child_symbol in zip(order_keys, chain(symbol.tasks, symbol.models)):
+            # assumes all children are references
+            if child_symbol.definition.source is None:
+                raise RuntimeError(f"child symbol has no source: {symbol}->{child_symbol}")
+            child = Statement(
+                id=child_symbol.id,
+                type=StatementType.REFERENCE,
+                symbol_type=child_symbol.symbol_type,
+                modifier=child_symbol.modifier,
+                name=child_symbol.name,
+                content=None,
+                file=statement.file,
+                parent=statement,
+                reference=child_symbol.definition.source,
+                order_key=ok,
+                generated=True,
+            )
+            children.append(child)
+        return children
+    elif isinstance(symbol, (Code, Dataset)):
+        return []
+    else:
+        raise RuntimeError(f"unexpected symbol {symbol}")
 
 
 def map_dataset_content(dataset: Dataset) -> DatasetContent:
