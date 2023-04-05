@@ -75,13 +75,6 @@ def debounce(delay: int, max_wait: int = None):
         async def debounced(*args, **kwargs):
             if debounced._task:
                 debounced._task.cancel()
-            if max_wait and (
-                debounced._last_call_time is None
-                or asyncio.get_event_loop().time() - debounced._last_call_time >= max_wait
-            ):
-                debounced._last_call_time = asyncio.get_event_loop().time()
-                await func(*args, **kwargs)
-                return
 
             async def call_it():
                 await asyncio.sleep(delay)

@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
 from typing import Any, Callable, ClassVar, Optional, cast
-from uuid import UUID, uuid5
+from uuid import UUID
 
 import pytz
 import structlog
@@ -262,8 +262,12 @@ def get_missing_implicit_builds(interp: InterpModule) -> list[Build]:
 
     builds = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Build)]
     tasks = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Task)]
-    tasks_with_builds = set(chain((task.id for task in build.tasks) for build in builds))
-    tasks_without_builds = [task for task in tasks if task.id not in tasks_with_builds]
+    tasks_with_builds_ids = set(
+        chain.from_iterable([(task.definition.id for task in build.tasks) for build in builds])
+    )
+    tasks_without_builds = [
+        task for task in tasks if task.id not in tasks_with_builds_ids and task.is_definition
+    ]
 
     if not tasks_without_builds:
         return []
@@ -273,10 +277,9 @@ def get_missing_implicit_builds(interp: InterpModule) -> list[Build]:
     implicit_builds = []
     for task in tasks_without_builds:
         build = Build(
-            id=uuid5(task.id, "implicit_build"),  # reproducible
             name="auto_" + task.id.hex[:6],
-            tasks=[task],
-            models=[default_model],
+            tasks=[task.to_ref()],
+            models=[default_model.to_ref()],
             source_mappings=[],
         )
         implicit_builds.append(build)
@@ -499,7 +502,9 @@ class ModuleWorker:
             )
             if implicit_build_file is None:
                 implicit_build_file = language.File(
-                    path=_path, generated=True, module=self.interp.module_idx.module
+                    path=_path,
+                    generated=True,
+                    module=self.interp.module_idx.module,
                 )
             # append missing builds
             implicit_build_file = map_to_file(
@@ -1007,7 +1012,9 @@ class Worker:
 
     async def write_module(self, module_worker: ModuleWorker, files: list[wire.FileData]):
         """Writes module files back to the internal server"""
-        write = ReqWriteModulePayload(module_id=module_worker.module_id, files=files)
+        write = ReqWriteModulePayload(
+            module_id=module_worker.module_id, generated_mappings=[], files=files
+        )
         rep = await request(NMessageType.REQUEST_WRITE_MODULE, write, RepWriteModulePayload)
         if not rep.p.success:
             logger.error("module.write.failed", files=files)

@@ -236,11 +236,10 @@ def write_module(
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     # update source mappings per generative statement
-    if generated_mappings is not None:
-        for (generator_id, source_mappings) in generated_mappings:
-            models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
-            model_mappings = wmap_source_mappings(generator_id, source_mappings)
-            models.GeneratedMapping.objects.bulk_create(model_mappings)
+    for (generator_id, source_mappings) in generated_mappings or []:
+        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
+        model_mappings = wmap_source_mappings(generator_id, source_mappings)
+        models.GeneratedMapping.objects.bulk_create(model_mappings)
 
 
 def rmap_reference(

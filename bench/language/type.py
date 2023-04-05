@@ -24,6 +24,7 @@ import pydub
 from django.db import models
 
 from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.func import dict_minus
 from bench.utils.utils import required_field
 
 
@@ -415,6 +416,13 @@ class InterpSymbol:
     definition: Optional[InterpSymbol] = None
     context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
     source: Optional[Statement] = None
+
+    def to_ref(self) -> InterpSymbol:
+        return self.__class__(
+            **dict_minus(self.__dict__, ("definition", "source", "id", "reference")),
+            reference=self,
+            definition=self.definition,
+        )
 
     @property
     def is_definition(self) -> bool:

@@ -299,6 +299,7 @@ class BuildResult:
         return BuildResult(build=build, target_symbols=[], source_mappings=[], weak_references=[])
 
     def get_target(self, symbol: InterpSymbol) -> Optional[InterpSymbol]:
+        # :SymbolDefinitionReference
         target_id = self.build.get_target(symbol.definition.id)
         # doesn't seem worth making a dict for this yet
         return next((s for s in self.target_symbols if s.id == target_id), None)
@@ -774,15 +775,24 @@ class XEmitSettings(XEmit):
 
 
 def get_builds_for(symbol: Task, idx: ModuleIndex) -> list[Build]:
-    """Get all builds for a given task."""
-    builds = []
+    """
+    Get all applicable builds for a given task.
+    Since generated builds are implicit, we only return them if no explicit builds are found.
+    """
+    explicit_builds = []
+    generated_builds = []
     for b in idx.symbols_of_type(Build):
         if not b.is_definition:
             continue
         # :SymbolDefinitionReference
         if any(t.definition.id == symbol.id for t in b.tasks):
-            builds.append(b)
-    return builds
+            if b.is_generated:
+                generated_builds.append(b)
+            else:
+                explicit_builds.append(b)
+    if explicit_builds:
+        return explicit_builds
+    return generated_builds
 
 
 def get_build_files_for(build: Build, idx: ModuleIndex) -> list[File]:
