@@ -84,7 +84,13 @@ class MultiTracer(Tracer):
     def tracers(self):
         if _all_tracers_blocked.get():
             return []
-        return self._static_tracers + _context_tracers.get()
+        tracers = self._static_tracers + _context_tracers.get()
+        # ensure validation tracer is last
+        # This is important because the ValidationTracer can throw in code_enter/code_exit,
+        # so if it's not last, another tracer will exit first, then the validation tracer will error,
+        # causing all tracers to be called _again_ for code_exception.
+        tracers.sort(key=lambda t: isinstance(t, ValidationTracer))
+        return tracers
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
         for tracer in self.tracers:
@@ -100,7 +106,12 @@ class MultiTracer(Tracer):
 
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         for tracer in reversed(self.tracers):
-            tracer.code_exception(code, args, kwargs, exception)
+            try:
+                tracer.code_exception(code, args, kwargs, exception)
+            except Exception as e:
+                # internal error in tracer, very bad
+                logger.exception("trace.code.exception", exc_info=True, tracer=tracer)
+                raise e
 
     def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
         for tracer in self.tracers:
@@ -116,7 +127,12 @@ class MultiTracer(Tracer):
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         for tracer in reversed(self.tracers):
-            tracer.inference_exception(ctx, blocks, settings, exception)
+            try:
+                tracer.inference_exception(ctx, blocks, settings, exception)
+            except Exception as e:
+                # internal error in tracer, very bad
+                logger.exception("trace.inference.exception", exc_info=True, tracer=tracer)
+                raise e
 
     def inference_cached(
         self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
@@ -199,6 +215,12 @@ class ExecutionTracer(Tracer):
     def __del__(self):
         if _execution_stacktraces.get(None) is not None:
             del _execution_stacktraces.get()[self._id]
+
+    def __str__(self):
+        return str(self._id)
+
+    def __repr__(self):
+        return f"<ExecutionTracer {self._id}>"
 
     @property
     def stacktrace(self) -> list[ExecutionFrame]:

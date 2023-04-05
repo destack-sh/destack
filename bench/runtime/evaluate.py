@@ -377,6 +377,10 @@ async def evaluate_output(
             description = description + f" (on {instruction.node.name})"
         simplified_instructions.append({"description": description, "id": i})
 
+    # TODO @Robustness @UX: should we really block tracers for internal inferences?
+    #  The original reason for putting this here was a JS/Apollo-side issue with the
+    #  'sample' value (no idea why, but it errored). Then I realized we probably
+    #  shouldn't expose this anyway, so that patched the issue.
     with tracer_blocker():
         evals = await run(
             implementation_instance,

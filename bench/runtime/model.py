@@ -65,7 +65,7 @@ def get_endpoints(model: Model) -> list[tuple[Modality, InferenceEndpoint]]:
             yield modality, endpoint
 
 
-@endpoint(["openai.std.text.gpt4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
+@endpoint(["openai.std.text.gpt-4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
 class OpenAIChatCompletion(ModelInference):
     ctx: InferenceContext
     role_map = {

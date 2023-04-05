@@ -49,6 +49,7 @@ class InstructionOp(enum.StrEnum):
     TaskStep = "task_step"
     ExpectationDefinition = "expectation_definition"
     DataDefinition = "data_definition"
+    RecordDefinition = "data_definition"
     CodeDefinition = "code_definition"
     ModelDefinition = "model_definition"
     SampleData = "sample_data"
@@ -204,7 +205,7 @@ def map_instruction(
         for record in node.records:
             # this will have to change later, see :NaiveTreeTracking
             tree.nodes[record.id] = Instruction(
-                op=InstructionOp.DataDefinition, node=record, id=record.id
+                op=InstructionOp.RecordDefinition, node=record, id=record.id
             )
             instruction.children.append(tree.nodes[record.id])
 

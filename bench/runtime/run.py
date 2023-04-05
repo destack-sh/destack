@@ -125,14 +125,14 @@ class SyncCodeProxy:
         log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
         try:
             self.tracer.code_enter(self.code, args, kwargs)
-            log.debug("code.call.enter")
+            log.debug("code.enter")
             result = self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.call.exit", result=summarize_args(result))
+            log.debug("code.exit", result=summarize_args(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.call.exception", excinfo=True)
+            log.debug("code.exception", excinfo=True)
             raise
 
 
@@ -148,14 +148,14 @@ class AsyncCodeProxy:
         log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
         try:
             self.tracer.code_enter(self.code, args, kwargs)
-            log.debug("code.call.enter")
+            log.debug("code.enter")
             result = await self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.call.exit", result=summarize_args(result))
+            log.debug("code.exit", result=summarize_args(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.call.exception", excinfo=True)
+            log.debug("code.exception", excinfo=True)
             raise
 
 
@@ -225,10 +225,10 @@ class InferenceProxy:
             try:
                 generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.tracer.inference_enter(self.ctx, blocks, settings)
-                log.debug("inference.call.enter")
+                log.debug("inference.enter")
                 result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
                 self.tracer.inference_exit(self.ctx, blocks, settings, result)
-                log.debug("inference.call.exit", ret=summarize_args(result))
+                log.debug("inference.exit", ret=summarize_args(result))
                 if self.cache_inferences:
                     now = datetime.utcnow().replace(tzinfo=pytz.utc)
                     inference = Inference(
@@ -242,10 +242,12 @@ class InferenceProxy:
                 return result
             except TimeoutError as exception:
                 self.tracer.inference_exception(self.ctx, blocks, settings, exception)
-                log.debug("inference.call.exception", excinfo=True)
+                log.debug("inference.exception", excinfo=True)
+                if remaining_attempts <= 0:
+                    raise
             except Exception as exception:
                 self.tracer.inference_exception(self.ctx, blocks, settings, exception)
-                log.debug("inference.call.exception", excinfo=True)
+                log.debug("inference.exception", excinfo=True)
                 raise
 
 
@@ -256,7 +258,7 @@ class Proxy:
         self,
         tracer: Tracer,
         cache_inferences: bool,
-        inference_timeout: int = 10,
+        inference_timeout: int = 20,
         inference_retries: int = 3,
     ):
         self.tracer = tracer

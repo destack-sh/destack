@@ -451,20 +451,20 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             data_samples: list[Dataset] = [
                 i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
             ]
+            # clarity output label as task completion if we don't have a structured output
+            output_label = "Output"
             plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
             plan.emit(
                 XEmitSystem(),
                 XEmitTypeExplanation(
                     type=task.type.output,
-                    type_label="Output",
+                    type_label=output_label,
                     include_descriptions=True,
                     recursive=True,
                 ),
                 XEmitTask(task=task),
                 XEmitExpectations(task_label=task.name, expectations=expectations),
             )
-            if not task.type.output.is_flat:
-                plan.emit(XEmitTypeSample(type=task.type.output, type_label="Output"))
             for dataset in data_samples:
                 if len(dataset) > 0:
                     plan.emit(
@@ -475,11 +475,15 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                         )
                     )
             if task.type.input.children:
-                plan.emit(XEmitInput(type=task.type.input))
+                plan.emit(XEmitInput(type=task.type.input, type_label="Input"))
+            if not task.type.output.is_flat:
+                plan.emit(XEmitTypeSample(type=task.type.output, type_label=output_label))
             plan.emit(
-                XEmitTask(task=task, include_description=False),
+                # TODO @Broken: adjust & tune generation settings
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-                XEmitOutput(type=task.type.output, type_label="Output"),
+                XEmitOutput(
+                    type=task.type.output, type_label=f"Output for {output_label} given input"
+                ),
             )
             instruction_plans.append(plan)
         plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
@@ -525,11 +529,11 @@ async def do_build_task_plan(task_plan: TaskPlan) -> Code:
 
 @dataclass(repr=False)
 class XEmitSystem(XEmit):
-    """Emits the system message about general expectations."""
+    """Emits the system message about general expectations for JSON."""
 
     message: str = (
-        "You are a helpful, attentive and precise agent that follows instructions as intended.\n"
-        "The data types and schemas must be followed exactly (e.g. output only JSON when asked).\n"
+        "You are a precise and helpful agent that follows instructions as intended.\n"
+        "You must only output valid JSON (literal, array or object). Nothing else.\n"
     )
 
     async def __call__(self) -> XBlock:
@@ -700,16 +704,17 @@ class XEmitOutput(XEmit):
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         if self.type.is_flat:
             output_request = xstatic(
-                f"{self.type_label} (just the value, not an object):", XSource.System
+                f'{self.type_label}\nJSON literal like above, number or start with ", not an object, nothing else!:',
+                XSource.System,
             )
         elif self.type.tag == TypeTag.ARRAY:
             output_request = xstatic(
-                f"{self.type_label} (JSON array, start with [, include ',', nothing else):",
+                f"{self.type_label}\nJSON array only like above, start with [, include ',', nothing else!:",
                 XSource.System,
             )
         else:
             output_request = xstatic(
-                f"{self.type_label} (JSON object, start with {{, nothing else):",
+                f"{self.type_label}\nJSON object only like above, start with {{, nothing else!:",
                 XSource.System,
             )
 
