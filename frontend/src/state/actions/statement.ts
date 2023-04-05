@@ -801,7 +801,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const run = provideGlobalAction({
     id: "statement.run",
     label: "Run current statement",
-    shortcuts: ["ctrl+r", "meta+r"],
+    shortcuts: ["r r"],
     enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
       await symbolOps.openRun(statement.value);
@@ -810,7 +810,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const build = provideGlobalAction({
     id: "statement.build",
     label: "Build current statement",
-    shortcuts: ["ctrl+b", "meta+b"],
+    shortcuts: ["b b"],
     enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
       await symbolOps.build(statement.value);
@@ -819,7 +819,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   const evaluate = provideGlobalAction({
     id: "statement.evaluate",
     label: "Evaluate current statement",
-    shortcuts: ["ctrl+e", "meta+e"],
+    shortcuts: ["e e"],
     enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
       await symbolOps.evaluate(statement.value);

@@ -33,7 +33,7 @@ from bench.runtime.instruct import (
     instruction_tree_from_symbol,
 )
 from bench.runtime.run import instantiate, run
-from bench.runtime.tracing import in_memory_traces
+from bench.runtime.tracing import in_memory_traces, tracer_blocker
 from bench.runtime.type import (
     EvaluationKind,
     EvaluationMetric,
@@ -232,7 +232,7 @@ async def evaluate_task(
     evals = (
         evaluate_output(
             input_type=task.type,
-            input=input.data,
+            input=dict_minus(input.data, "output"),
             output_type=task.type.output,
             output=output.data,
             instructions=evalable_instructions,
@@ -298,48 +298,72 @@ async def evaluate_output(
         XEmitOutput,
         XEmitSettings,
         XEmitTask,
+        XEmitTypeExplanation,
         XEmitTypeSample,
         do_build_task_plan,
     )
 
-    sample_type = Type(
-        name="sample", tag=TypeTag.STRUCT, children=[*input_type.children, output_type]
-    )
     instruction_type = make_struct_type(
-        TypeNode(name="description", tag=TypeTag.STRING),
-        TypeNode(name="id", tag=TypeTag.NUMBER),
-        name="instruction",
+        Type(name="description", tag=TypeTag.STRING),
+        Type(name="id", tag=TypeTag.NUMBER),
+        name="Instruction",
     )
     eval_type = make_struct_type(
-        TypeNode(name="id", tag=TypeTag.NUMBER),
-        TypeNode(name="satisfied", tag=TypeTag.BOOLEAN),
+        Type(name="id", tag=TypeTag.NUMBER),
+        Type(
+            name="reasoning",
+            tag=TypeTag.STRING,
+            description="Assess if the corresponding instruction was satisfied exactly as specified.",
+        ),
+        Type(
+            name="satisfied",
+            tag=TypeTag.BOOLEAN,
+            description="Whether the instruction was followed exactly. If unclear, set to false.",
+        ),
+        name="Evaluation",
     )
     eval_task_type = make_func_type(
-        sample_type,
-        TypeNode(name="instructions", tag=TypeTag.ARRAY, children=[instruction_type]),
-        output_type=TypeNode(name="output", tag=TypeTag.ARRAY, children=[eval_type]),
+        Type(name="instructions", tag=TypeTag.ARRAY, children=[instruction_type]),
+        Type(name="sample", tag=TypeTag.STRUCT, children=[*input_type.children, output_type]),
+        output_type=Type(name="_output", tag=TypeTag.ARRAY, children=[eval_type]),
     )
     eval_task = Task(
         name="evaluate output",
-        description="Check whether the generated output followed the instructions correctly."
-        " Set satisfied if the corresponding instruction was followed as intended",
+        description="Assess whether the generated output followed the instructions."
+        " Set satisfied if the corresponding instruction was followed (in format, style, content, etc.)."
+        " If the instruction doesn't ask for follow-ups, the output must not contain one.",
         type=eval_task_type,
         type_node=eval_task_type,
     )
     plan = TaskPlan(task=eval_task, model=eval_model, modality=Modality.GenerateText)
+    sample_evaluation = {
+        "id": 0,
+        "reasoning": "output contained unexpected response",
+        "satisfied": False,
+    }
     plan.emit(
         XEmitTask(task=eval_task),
         # TODO @Build: tune model eval generation settings (and adapt to model context size)
+        XEmitTypeExplanation(
+            type=eval_task_type.output,
+            type_label="Evaluation",
+            include_descriptions=True,
+            recursive=True,
+        ),
         XEmitInput(type=eval_task_type.input),
-        XEmitTypeSample(type=eval_task_type.output, type_label="Output"),
+        XEmitTypeSample(
+            type=eval_task_type.output, type_label="Evaluations", value=[sample_evaluation]
+        ),
         XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
-        XEmitOutput(type=eval_task_type.output, type_label="Evaluation output"),
+        XEmitOutput(
+            type=eval_task_type.output, type_label="Evaluations (one for each instruction)"
+        ),
     )
     implementation = await do_build_task_plan(plan)
     implementation.context[eval_model.name] = eval_model
     implementation_instance = instantiate(implementation)
 
-    sample = {**input, "output": output}
+    sample = {**input, "_output": output}
     simplified_instructions = []
     for i, instruction in enumerate(instructions):
         if not isinstance(instruction.node, (InterpSymbol, TypeNode)):
@@ -353,10 +377,11 @@ async def evaluate_output(
             description = description + f" (on {instruction.node.name})"
         simplified_instructions.append({"description": description, "id": i})
 
-    evals = await run(
-        implementation_instance,
-        {"sample": sample, "instructions": simplified_instructions},
-    )
+    with tracer_blocker():
+        evals = await run(
+            implementation_instance,
+            {"instructions": simplified_instructions, "sample": sample},
+        )
 
     results = []
     for instruction, eval in zip(instructions, evals):

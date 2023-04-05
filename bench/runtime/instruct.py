@@ -25,6 +25,7 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.runtime.run import instantiate, run
+from bench.runtime.tracing import tracer_blocker
 from bench.runtime.type import Modality, TextGenerationSettings
 from bench.utils.fractional import generate_n_keys_between
 
@@ -392,7 +393,8 @@ class SampleGenerateWithModel(SampleSource):
         implementation.context[self.model.name] = self.model
         implementation_instance = instantiate(implementation)
 
-        generated_samples = await run(implementation_instance, {"count": self.count})
+        with tracer_blocker():
+            generated_samples = await run(implementation_instance, {"count": self.count})
         target_dataset = anonymous_dataset(self.type, len(generated_samples))
         if len(generated_samples) != self.count:
             raise RuntimeError(

@@ -98,8 +98,6 @@ export function useTween(duration = 0.5) {
     const lastChanged = memoryChanged.value[id] ?? now;
     const elapsed = now.value.diff(lastChanged, "seconds").seconds;
     const progress = Math.min(elapsed / duration, 1);
-
-    console.log("tween", id, elapsed, now.value, lastChanged);
     if (progress < 1) {
       return _doTween(startValue, target, progress);
     } else {
