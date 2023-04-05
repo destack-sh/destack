@@ -49,7 +49,7 @@ class InstructionOp(enum.StrEnum):
     TaskStep = "task_step"
     ExpectationDefinition = "expectation_definition"
     DataDefinition = "data_definition"
-    RecordDefinition = "data_definition"
+    RecordDefinition = "record_definition"
     CodeDefinition = "code_definition"
     ModelDefinition = "model_definition"
     SampleData = "sample_data"
@@ -382,12 +382,14 @@ class SampleGenerateWithModel(SampleSource):
             XEmitTypeExplanation(
                 type=self.type, type_label="Output", include_descriptions=True, recursive=True
             ),
-            XEmitTypeSample(type=generation_task_type.output, type_label="Output (1x)"),
+            XEmitTypeSample(
+                type=generation_task_type.output, type_label="Output (1 array element)"
+            ),
             # TODO @Build: tune model sample generation settings (and adapt to model context size)
             XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
             XEmitOutput(
                 type=generation_task_type.output,
-                type_label=f"Output samples ({self.count}x)",
+                type_label=f"Output samples ({self.count} array elements)",
             ),
         )
         implementation = await do_build_task_plan(plan)

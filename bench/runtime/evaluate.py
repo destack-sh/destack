@@ -447,7 +447,7 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
         elif len(data.records) < 2:
             instruction_perplexity += FULL_CONFUSION
         # sample data / data defs should have types
-        if len(data.type.children) == 0:
+        if len(data.type.children or []) == 0:
             instruction_perplexity += FULL_CONFUSION
 
     if instruction.op in (InstructionOp.SampleCode, InstructionOp.CheckCode):
