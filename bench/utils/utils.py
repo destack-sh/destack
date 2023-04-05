@@ -55,10 +55,12 @@ def required_field(**kwargs):
 
 def get_method_source(method) -> str:
     cleaned_lines = []
+    found_def = False
     for line in inspect.getsourcelines(method)[0]:
         if line.strip().startswith("@"):
             continue
-        if "def " in line:
+        if "def " in line and not found_def:  # only omit first def
+            found_def = True
             continue
         cleaned_lines.append(line)
 
