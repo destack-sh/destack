@@ -1,5 +1,6 @@
 import inspect
 import os
+import re
 import textwrap
 from dataclasses import field
 from typing import Any, Callable, Optional
@@ -65,6 +66,10 @@ def get_method_source(method) -> str:
         cleaned_lines.append(line)
 
     return textwrap.dedent("".join(cleaned_lines))
+
+
+def to_pyidentifier(name: str) -> str:
+    return re.sub(r"\W|^(?=\d)", "_", name)
 
 
 def sentry_capture_if_enabled(e: Exception) -> bool:

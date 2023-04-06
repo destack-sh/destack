@@ -25,7 +25,7 @@ from django.db import models
 
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
-from bench.utils.utils import required_field
+from bench.utils.utils import required_field, to_pyidentifier
 
 
 @dataclass(repr=False)
@@ -566,7 +566,7 @@ class TypeNode(SymbolContent):
         if self.children is None:
             raise ValueError(f"find cannot be used on {self}")
         for node in self.children:
-            if node.name == key:
+            if node.name == key or to_pyidentifier(node.name) == to_pyidentifier(key):
                 return node
         raise KeyError(f"key {key} not found in {self}")
 

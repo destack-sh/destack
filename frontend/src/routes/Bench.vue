@@ -90,7 +90,7 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
   { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
 ]);
-const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
+const availableViews = computed(() => allViews.value.filter((v) => v.enabled || true));
 const activeView: ComputedRef<View> = computed(() => {
   const view = availableViews.value.find((v) => v.id == editor.activeViewId);
   if (!view) {

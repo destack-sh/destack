@@ -74,6 +74,7 @@ export function useFileOps() {
             updatedAt: new Date().toISOString(),
             deletedAt: null,
             generated: false,
+            directory: vars.directory,
             statements: [],
           },
         } as CreateFileMutation),
