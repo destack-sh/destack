@@ -26,7 +26,7 @@ from bench.runtime.type import (
     TextGenerationSettings,
 )
 from bench.utils.fractional import generate_n_keys_between
-from bench.utils.utils import get_method_source
+from bench.utils.utils import get_method_source, to_pyidentifier
 
 
 class GenerationErrorType(enum.Enum):
@@ -154,7 +154,8 @@ class XBuilder:
 
         input_dict_def = "from collections import OrderedDict\n" "_input_dict = OrderedDict()"
         for input in self.type.input.children or []:
-            input_dict_def += f"\n_input_dict['{input.name}'] = {input.name}"
+            input_ident = to_pyidentifier(input.name)
+            input_dict_def += f"\n_input_dict['{input_ident}'] = {input_ident}"
 
         # inline handler methods
         input_handler_defs: list[str] = []

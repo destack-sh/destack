@@ -136,7 +136,7 @@ const selfSymbol = computed(() => symbolOf(props.self?.id));
 function importSourceTo(symbol: InterpSymbol): string | undefined {
   const localFile = fileOf(symbol);
   if (localFile != null) {
-    return "." + localFile.path;
+    return localFile.path;
   } else if (selfSymbol.value != null) {
     return relativePath(selfSymbol.value, symbol);
   }

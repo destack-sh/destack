@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any, Union
 
 from bench.language.type import TypeNode, TypeTag
+from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
 
@@ -72,11 +73,10 @@ def check_type(
         _check(isinstance(value, dict), "expected struct")
         if isinstance(value, dict):  # _check may not be eager
             for subtype in expected.children:
+                alt_name = to_pyidentifier(subtype.name)
+                subvalue = value.get(subtype.name, value.get(alt_name))
                 check_type(
-                    value.get(subtype.name),
-                    subtype,
-                    eager_error=eager_error,
-                    on_invalid=_on_invalid_collect,
+                    subvalue, subtype, eager_error=eager_error, on_invalid=_on_invalid_collect
                 )
     elif expected.tag == TypeTag.UNION:
         for subtype in expected.children:

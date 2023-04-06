@@ -5,7 +5,6 @@ import enum
 import hashlib
 import inspect
 import json
-import re
 import textwrap
 import typing
 from asyncio import iscoroutinefunction
@@ -67,7 +66,7 @@ from bench.runtime.type import (
 from bench.runtime.x import X_BUILTINS
 from bench.utils.cache import redis
 from bench.utils.record import RecordList
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, to_pyidentifier
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -347,10 +346,6 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         raise ValueError(f"unexpected type node: {node}")
 
 
-def _to_pyidentifier(name: str) -> str:
-    return re.sub(r"\W|^(?=\d)", "_", name)
-
-
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
@@ -364,7 +359,7 @@ def _instantiate_code_callable(
     # inline all possible context variables
     # collect transformed invalid identifiers
     inlined_context = {
-        _to_pyidentifier(name): value
+        to_pyidentifier(name): value
         for name, value in unwrapped_context.items()
         if not name.isidentifier()
     }
@@ -409,9 +404,9 @@ def _instantiate_code_callable(
 
     # create python function from python code
     input_keys = code.type_node.input.keys
-    func_name = f"_{_to_pyidentifier(code.name)}_{code.id.hex[:6]}"
+    func_name = f"_{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
     async_str = "async " if is_async else ""
-    func_params = ", ".join(input_keys)
+    func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
     code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
     try:
@@ -535,7 +530,8 @@ def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = Non
 
 
 async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
-    arguments = arguments or {}
+    # transform keys to valid python identifiers
+    arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
         with tracer_boundary():
             if code.is_async:
