@@ -153,9 +153,9 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     )
     rep = await request(NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload, timeout=60)
     output = dict(
-        execution_id=rep.execution_id,
-        output=rep.output,
-        success=not rep.error,
-        error=dict(type=rep.error.value, details=rep.error_details) if rep.error else None,
+        execution_id=rep.p.execution_id,
+        output=rep.p.output,
+        success=not rep.p.error,
+        error=dict(type=rep.p.error.value, details=rep.p.error_details) if rep.p.error else None,
     )
     return JsonResponse(output, status=200)
