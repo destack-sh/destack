@@ -307,7 +307,8 @@ class SampleDatasetRandom(SampleSource):
     async def __call__(self) -> Dataset:
         rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
-        sample_indices = rng.sample(range(len(self.source_dataset.records)), self.count)
+        n_records = len(self.source_dataset.records)
+        sample_indices = rng.sample(range(n_records), min(n_records, self.count))
         for target_i, source_i in enumerate(sample_indices):
             target_dataset.records[target_i].data = self.source_dataset.records[source_i].data
         return target_dataset
