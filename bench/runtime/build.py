@@ -408,13 +408,14 @@ async def evaluate_candidate(
         instantiate(task.definition, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
+    # TODO @UX: dynamically adjust eval n_samples
     evaluation_tasks = (
         evaluate_task(
             task=task,
             eval_model=eval_model,
             build=result.build,
             build_candidate=candidate,
-            n_samples=5,
+            n_samples=4,
         )
         for task in task_instances
     )
