@@ -692,6 +692,10 @@ def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.Evaluatio
         build_id=evaluation.build_id,
         build_candidate_id=evaluation.build_candidate_id,
         statement_id=evaluation.statement_id,
+        record_id=evaluation.record_id,
+        type_node_id=evaluation.type_node_id,
+        system_id=evaluation.system_id,
+        environment_id=evaluation.environment_id,
         aggregated_metrics=evaluation.aggregated_metrics,
         self_metrics=evaluation.self_metrics,
     )

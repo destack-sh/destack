@@ -1434,6 +1434,7 @@ export type QueryEvaluationsArgs = {
   includeAncestorVersions?: Scalars["Boolean"];
   kindIn?: InputMaybe<Array<EvaluationKind>>;
   last?: InputMaybe<Scalars["Int"]>;
+  latestCandidateOnly?: Scalars["Boolean"];
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   scopeIn?: InputMaybe<Array<EvaluationScope>>;
@@ -1904,6 +1905,7 @@ export type SubscriptionEvaluationsChangedArgs = {
   buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
   includeAncestorVersions?: Scalars["Boolean"];
   kindIn?: InputMaybe<Array<EvaluationKind>>;
+  latestCandidateOnly?: Scalars["Boolean"];
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   scopeIn?: InputMaybe<Array<EvaluationScope>>;
@@ -2832,6 +2834,7 @@ export type EvaluationResultContentFragment = {
 export type EvaluationsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
   scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
   kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
   buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
@@ -2856,6 +2859,7 @@ export type EvaluationsQuery = {
 export type EvaluationsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
   scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
   kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
   buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
@@ -7170,6 +7174,11 @@ export const EvaluationsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
           type: {
             kind: "ListType",
@@ -7225,6 +7234,11 @@ export const EvaluationsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "includeAncestorVersions" },
+                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
               },
               {
                 kind: "Argument",
@@ -7304,6 +7318,11 @@ export const EvaluationsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
           type: {
             kind: "ListType",
@@ -7354,6 +7373,11 @@ export const EvaluationsChangedDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "includeAncestorVersions" },
+                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
               },
               {
                 kind: "Argument",

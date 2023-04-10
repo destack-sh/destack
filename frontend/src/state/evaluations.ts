@@ -41,6 +41,8 @@ export function useEvaluations(
   filter: {
     projectId: Ref<string>;
     projectVersionId: Ref<string>;
+    includeAncestorVersions: Ref<boolean>;
+    latestCandidateOnly: Ref<boolean>;
     scopeIn?: Ref<EvaluationScope[] | null>;
     kindIn?: Ref<EvaluationKind[] | null>;
     buildIdIn?: Ref<string[] | null>;
@@ -54,6 +56,7 @@ export function useEvaluations(
       query evaluations(
         $projectId: GlobalID!
         $projectVersionId: GlobalID!
+        $includeAncestorVersions: Boolean
         $scopeIn: [EvaluationScope!]
         $kindIn: [EvaluationKind!]
         $buildIdIn: [GlobalID!]
@@ -63,6 +66,7 @@ export function useEvaluations(
         evaluations(
           projectId: $projectId
           projectVersionId: $projectVersionId
+          includeAncestorVersions: $includeAncestorVersions
           scopeIn: $scopeIn
           kindIn: $kindIn
           buildIdIn: $buildIdIn
@@ -81,6 +85,8 @@ export function useEvaluations(
     {
       projectId: filter.projectId,
       projectVersionId: filter.projectVersionId,
+      includeAncestorVersions: filter.includeAncestorVersions,
+      latestCandidateOnly: filter.latestCandidateOnly,
       scopeIn: filter.scopeIn ?? ref(null),
       kindIn: filter.kindIn ?? ref(null),
       buildIdIn: filter.buildIdIn ?? ref(null),
@@ -98,6 +104,7 @@ export function useEvaluations(
         subscription evaluationsChanged(
           $projectId: GlobalID!
           $projectVersionId: GlobalID!
+          $includeAncestorVersions: Boolean
           $scopeIn: [EvaluationScope!]
           $kindIn: [EvaluationKind!]
           $buildIdIn: [GlobalID!]
@@ -106,6 +113,7 @@ export function useEvaluations(
           evaluationsChanged(
             projectId: $projectId
             projectVersionId: $projectVersionId
+            includeAncestorVersions: $includeAncestorVersions
             scopeIn: $scopeIn
             kindIn: $kindIn
             buildIdIn: $buildIdIn
@@ -118,6 +126,8 @@ export function useEvaluations(
       variables: {
         projectId: filter.projectId,
         projectVersionId: filter.projectVersionId,
+        includeAncestorVersions: filter.includeAncestorVersions,
+        latestCandidateOnly: filter.latestCandidateOnly,
         scopeIn: filter.scopeIn ?? ref(null),
         kindIn: filter.kindIn ?? ref(null),
         buildIdIn: filter.buildIdIn ?? ref<string[]>([]),
@@ -177,6 +187,8 @@ function _useCurrentEvaluations() {
     {
       projectId,
       projectVersionId,
+      includeAncestorVersions: ref(false),
+      latestCandidateOnly: ref(true),
       scopeIn: computed(() =>
         mainSymbol.value == null || mainSymbol.value?.symbolType == SymbolType.Build
           ? []
