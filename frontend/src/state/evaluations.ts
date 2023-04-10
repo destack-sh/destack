@@ -48,6 +48,7 @@ export function useEvaluations(
   },
   options?: { first?: number; live?: boolean; enabled?: Ref<boolean> }
 ) {
+  const first = options?.first ?? 25;
   const { result: evaluationsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query evaluations(
@@ -84,7 +85,7 @@ export function useEvaluations(
       kindIn: filter.kindIn ?? ref(null),
       buildIdIn: filter.buildIdIn ?? ref(null),
       systemIdIn: filter.systemIdIn ?? ref(null),
-      first: options?.first ?? 25,
+      first,
     } as any,
     {
       enabled: options?.enabled ?? ref(true),
@@ -126,7 +127,7 @@ export function useEvaluations(
         if (!subscriptionData.data) return prev;
         const evaluation = useFragment(EvaluationResultContentType, subscriptionData.data.evaluationsChanged);
         return {
-          evaluations: getUpdatedConnectionQuery(evaluation, prev.evaluations, options.first),
+          evaluations: getUpdatedConnectionQuery(evaluation, prev.evaluations, first),
         };
       },
     });

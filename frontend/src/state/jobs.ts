@@ -28,6 +28,7 @@ export function useJobs(
   },
   options?: { first?: number; live?: boolean }
 ) {
+  const first = options?.first || 25;
   const { result: jobsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query jobs(
@@ -58,7 +59,7 @@ export function useJobs(
       projectVersionId: filter.projectVersionId,
       statusIn: filter.statusIn ?? ref<JobStatus[]>([JobStatus.Running]),
       typeIn: filter.typeIn ?? ref<JobType[]>([]),
-      first: options?.first ?? 25,
+      first,
     }
   );
 
@@ -80,7 +81,7 @@ export function useJobs(
         if (!subscriptionData.data) return prev;
         const job = useFragment(JobContentType, subscriptionData.data.jobsChanged);
         return {
-          jobs: getUpdatedConnectionQuery(job, prev.jobs, options.first),
+          jobs: getUpdatedConnectionQuery(job, prev.jobs, first),
         };
       },
     });
