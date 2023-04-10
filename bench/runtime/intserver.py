@@ -268,10 +268,7 @@ class InternalServer:
             module_id=msg.p.module_id,
             evaluations=len(msg.p.evaluations),
         )
-        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         try:
-            if project_v.committed:
-                raise ValueError(f"cannot write to committed {project_v}")
             await sync_to_async(write_evaluation_results)(evaluations=msg.p.evaluations)
             success = True
         except Exception as e:
@@ -375,22 +372,26 @@ def save_jobs(jobs: list[JobData]) -> bool:
 
 
 def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
-    model_evaluations: list[models.EvaluationResult] = []
-    for evaluation in evaluations:
-        model_evaluations.append(mapper.rmap_evaluation_result(evaluation))
-    # insert (not upsert, should only be written once?)
-    models.EvaluationResult.objects.bulk_create(model_evaluations)
+    model_evaluations: list[models.EvaluationResult] = [
+        mapper.rmap_evaluation_result(evaluation) for evaluation in evaluations
+    ]
+    # upsert evaluations (by environment & system)
+    models.EvaluationResult.objects.bulk_create(
+        model_evaluations,
+        update_conflicts=True,
+        unique_fields=("kind", "scope", "environment_id", "system_id"),
+        update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
+    )
 
 
 def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
-    model_candidates: list[models.BuildCandidate] = []
-    for candidate in candidates:
-        model_candidates.append(mapper.rmap_build_candidate(candidate))
-
-    # upsert candidates
+    model_candidates: list[models.BuildCandidate] = [
+        mapper.rmap_build_candidate(candidate) for candidate in candidates
+    ]
+    # upsert candidates (by id)
     models.BuildCandidate.objects.bulk_create(
         model_candidates,
         update_conflicts=True,
         unique_fields=["id"],
-        update_fields=["status", "job_id", "evaluation_id", "file_id", "order_key"],
+        update_fields=["updated_at", "status", "job_id", "evaluation_id", "file_id", "order_key"],
     )

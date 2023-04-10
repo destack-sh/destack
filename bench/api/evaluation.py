@@ -66,6 +66,13 @@ async def _expand_filters(
     return expanded_symbol_ids, project_version_ids
 
 
+async def _get_latest_build_candidates(
+    project_id: GlobalID, build_id_in: Optional[list[GlobalID]]
+) -> list[UUID]:
+    """Gets the latest won build candidates (limited to specific builds if set)"""
+    raise NotImplementedError
+
+
 @gql.type
 class EvaluationQuery:
     @gql.connection(directives=[CanViewProject()])
@@ -74,6 +81,7 @@ class EvaluationQuery:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
+        latest_candidate_only: bool = False,
         kind_in: Optional[list[EvaluationKind]] = None,
         scope_in: Optional[list[EvaluationScope]] = None,
         build_id_in: Optional[list[GlobalID]] = None,
@@ -113,6 +121,7 @@ class EvaluationSubscription:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
+        latest_candidate_only: bool = False,
         kind_in: Optional[list[EvaluationKind]] = None,
         scope_in: Optional[list[EvaluationScope]] = None,
         build_id_in: Optional[list[GlobalID]] = None,

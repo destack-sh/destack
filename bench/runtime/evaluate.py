@@ -500,7 +500,7 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         # this will break when we get cycles :InstructionCircles
         child_evaluations = [evaluations[child.id] for child in instruction.children]
         evaluation.aggregated_metrics = aggregate_metrics([evaluation, *child_evaluations])
-        evaluation.children = child_evaluations
+        evaluation.children = [c for c in child_evaluations if c.system.id != instruction.node.id]
 
     root_evaluations = [evaluations[root.id] for root in tree.roots]
     root_evaluation = EvaluationResult(

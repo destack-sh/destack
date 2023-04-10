@@ -424,6 +424,13 @@ class EvaluationResultData:
     def system_id(self) -> Optional[UUID]:
         return self.statement_id or self.record_id or self.type_node_id
 
+    @property
+    def environment_id(self) -> UUID:
+        if self.build_candidate_id:
+            return self.build_candidate_id
+        else:
+            return self.project_version_id
+
     @staticmethod
     def from_result(
         result: EvaluationResult,

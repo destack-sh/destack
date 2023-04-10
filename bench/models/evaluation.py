@@ -1,6 +1,5 @@
-from uuid import UUID
-
 from django.db import models
+from django.db.models import UniqueConstraint
 from django_choices_field import TextChoicesField
 
 from bench.models.utils import UUIDModel
@@ -19,7 +18,7 @@ class EvaluationScope(models.TextChoices):
 
 class EvaluationResult(UUIDModel):
     """
-    A retained result from a Bench build/evaluation.
+    The latest result from a Bench build/evaluation.
     """
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -37,9 +36,13 @@ class EvaluationResult(UUIDModel):
         "BuildCandidate",
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         related_name="executions+",
     )
+    # environment and system id are fields both for simplicity and lookup performance
+    # since we want unique constraints on them and Django makes up-serts on partial uniques hard
+    environment_id = models.UUIDField(null=True, blank=True)
+    system_id = models.UUIDField(null=True, blank=True)
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="+", null=True
     )
@@ -56,10 +59,6 @@ class EvaluationResult(UUIDModel):
     def system(self):
         return self.statement or self.build or self.type_node
 
-    @property
-    def system_id(self) -> UUID:
-        return self.system.id if self.system else None
-
     def __str__(self):
         metrics_str = ", ".join(
             f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
@@ -71,3 +70,10 @@ class EvaluationResult(UUIDModel):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            # there can only be one evaluation result per build/system/environment
+            UniqueConstraint(
+                fields=("kind", "scope", "environment_id", "system_id"),
+                name="evaluation_result_build_system_ak",
+            ),
+        ]
