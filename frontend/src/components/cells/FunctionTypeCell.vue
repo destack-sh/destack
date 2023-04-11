@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
-import { useNavigationGrid } from "@/components/cells/grid";
 import { generateKeyBetween } from "@/utils/fractional";
+import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 
@@ -71,17 +71,17 @@ function writeColumn(kind: "input" | "output", memberId: string, column: ColumnT
 }
 
 function insertBelow(kind: "input" | "output", memberId?: string) {
-  const members = kind == "input" ? inputNodes.value : outputNodes.value;
   let orderKey;
   if (memberId == null) {
-    const lastMember = members[members.length - 1];
+    const lastMember = nodes.value[nodes.value.length - 1];
     orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   } else {
-    const member = members.find((m) => m.id === memberId);
+    const member = nodes.value.find((m) => m.id === memberId);
     orderKey = generateKeyBetween(member?.orderKey ?? null, null);
   }
+  const membersOfKind = kind == "input" ? inputNodes.value : outputNodes.value;
   const newMemberNode = makeTypeNode({
-    name: members.length == 0 ? kind : kind + " " + (members.length + 1),
+    name: membersOfKind.length == 0 ? kind : kind + " " + (membersOfKind.length + 1),
     tag: TypeTag.String,
     orderKey,
     isOutput: kind == "output",
