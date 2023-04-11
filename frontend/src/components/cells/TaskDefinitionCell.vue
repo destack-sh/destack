@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
+import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
@@ -40,16 +41,6 @@ defineExpose({
     @navigate-down="descriptionRef?.focus"
     @navigate-right="typeRef?.focus"
   />
-  <!-- Inline type -->
-  <InlineFunctionTypeCell
-    v-if="isTyped"
-    ref="typeRef"
-    class="ml-3 inline-flex"
-    @navigate-up="context.navigateUp"
-    @navigate-down="descriptionRef?.focus"
-    @navigate-right="descriptionRef?.focus"
-    @navigate-left="declarationRef?.focus"
-  />
   <!-- Description -->
   <div>
     <EditableSpan
@@ -70,5 +61,15 @@ defineExpose({
     >
       +description
     </button>
+    <!-- Inline type -->
+    <FunctionTypeCell
+      v-if="isTyped"
+      ref="typeRef"
+      class="py-1"
+      @navigate-up="context.navigateUp"
+      @navigate-down="descriptionRef?.focus"
+      @navigate-right="descriptionRef?.focus"
+      @navigate-left="declarationRef?.focus"
+    />
   </div>
 </template>
