@@ -5,6 +5,7 @@ import enum
 import json
 import traceback
 import uuid
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, ClassVar, Coroutine, Optional
@@ -387,10 +388,19 @@ class EvaluationResult:
         metrics_str = ", ".join(
             f"{k}: {self.aggregated_metrics[k]:0.02f}" for k, v in self.aggregated_metrics.items()
         )
-        return f"{self.kind} {self.scope} {metrics_str}"
+        return f"{self.kind} {self.scope} {self.system_id} {metrics_str}"
 
     def __repr__(self):
         return f"<Evaluation {self.system} {self}>"
+
+    @property
+    def system_id(self) -> Optional[UUID]:
+        return self.system.id if self.system else None
+
+    def walk(self):
+        yield self
+        for child in self.children:
+            yield from child.walk()
 
 
 @dataclass(slots=True)
@@ -405,7 +415,7 @@ class EvaluationResultData:
     record_id: Optional[UUID]
     build_id: Optional[UUID]
     build_candidate_id: Optional[UUID]
-    children_ids: list[UUID]
+    parent_id: Optional[UUID]
     # additional context
     project_id: UUID
     project_version_id: UUID
@@ -438,39 +448,39 @@ class EvaluationResultData:
         project_id: UUID,
         project_version_id: UUID,
         job_id: Optional[UUID],
-    ) -> dict[UUID, EvaluationResultData]:
+    ) -> list[EvaluationResultData]:
         """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
-        result_data = EvaluationResultData(
-            id=result.id,
-            kind=result.kind,
-            scope=result.scope,
-            aggregated_metrics=result.aggregated_metrics,
-            self_metrics=result.self_metrics,
-            statement_id=result.system.id if isinstance(result.system, InterpSymbol) else None,
-            type_node_id=result.system.id if isinstance(result.system, TypeNode) else None,
-            record_id=result.system.id if isinstance(result.system, Record) else None,
-            build_id=result.build.id if result.build else None,
-            build_candidate_id=result.build_candidate.id if result.build_candidate else None,
-            project_id=project_id,
-            project_version_id=project_version_id,
-            job_id=job_id,
-            children_ids=[child.id for child in result.children],
-        )
-        if result.scope == EvaluationScope.INSTRUCTION and result_data.system_id is None:
-            raise ValueError(f"missing system_id for {result_data}")
-
-        results_data = {result_data.id: result_data}
-        for child in result.children:
-            if child.id in results_data:
-                continue
-            descendants = EvaluationResultData.from_result(
-                child,
+        results_data: dict[UUID, EvaluationResultData] = OrderedDict()
+        for result in result.walk():
+            result_data = EvaluationResultData(
+                id=result.id,
+                kind=result.kind,
+                scope=result.scope,
+                aggregated_metrics=result.aggregated_metrics,
+                self_metrics=result.self_metrics,
+                statement_id=result.system.id if isinstance(result.system, InterpSymbol) else None,
+                type_node_id=result.system.id
+                if isinstance(result.system, TypeNode)
+                and not isinstance(result.system, InterpSymbol)
+                else None,
+                record_id=result.system.id if isinstance(result.system, Record) else None,
+                build_id=result.build.id if result.build else None,
+                build_candidate_id=result.build_candidate.id if result.build_candidate else None,
                 project_id=project_id,
                 project_version_id=project_version_id,
                 job_id=job_id,
+                parent_id=None,  # set in second pass
             )
-            results_data.update(descendants)
-        return results_data
+            if result.scope == EvaluationScope.INSTRUCTION and result_data.system_id is None:
+                raise ValueError(f"missing system_id for {result_data}")
+            results_data[result_data.id] = result_data
+
+        # assign parent ids
+        for result in result.walk():
+            for child in result.children:
+                results_data[child.id].parent_id = result.id
+
+        return list(results_data.values())
 
 
 #

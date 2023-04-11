@@ -481,11 +481,15 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
     evaluations: dict[uuid.UUID, EvaluationResult] = {}
 
     # evaluate nodes individually
-    instructions = list(tree.walk_postorder())
+    lintable_instructions = [
+        node
+        for node in tree.walk()
+        if node.op not in (InstructionOp.Pseudo, InstructionOp.BuildDefinition)
+    ]
     instruction_self_metrics = await asyncio.gather(
-        *[lint_instruction(node) for node in instructions]
+        *[lint_instruction(node) for node in lintable_instructions]
     )
-    for self_metrics, instruction in zip(instruction_self_metrics, instructions):
+    for self_metrics, instruction in zip(instruction_self_metrics, lintable_instructions):
         evaluation = EvaluationResult(
             kind=EvaluationKind.LINT,
             scope=EvaluationScope.INSTRUCTION,
@@ -502,7 +506,7 @@ async def lint(idx: ModuleIndex) -> EvaluationResult:
         evaluation.aggregated_metrics = aggregate_metrics([evaluation, *child_evaluations])
         evaluation.children = [c for c in child_evaluations if c.system.id != instruction.node.id]
 
-    root_evaluations = [evaluations[root.id] for root in tree.roots]
+    root_evaluations = [evaluations[root.id] for root in tree.roots if root.id in evaluations]
     root_evaluation = EvaluationResult(
         kind=EvaluationKind.LINT,
         scope=EvaluationScope.MODULE,
