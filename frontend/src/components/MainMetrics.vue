@@ -31,6 +31,8 @@ const globalEvaluations = useEvaluations(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
+    includeAncestorVersions: ref(false),
+    latestCandidateOnly: ref(false),
     scopeIn: computed(() => (mainSymbol.value == null ? [EvaluationScope.Module] : [EvaluationScope.Instruction])),
     kindIn: ref([EvaluationKind.Lint]),
     systemIdIn: computed(() => (mainSymbol.value == null ? null : [mainSymbol.value.id])),
@@ -86,6 +88,8 @@ const buildEvaluations = useEvaluations(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
+    includeAncestorVersions: ref(false),
+    latestCandidateOnly: ref(true),
     scopeIn: computed(() =>
       mainSymbol.value == null || mainSymbol.value?.symbolType == SymbolType.Build
         ? [EvaluationScope.Build]

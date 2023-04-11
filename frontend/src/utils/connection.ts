@@ -9,12 +9,8 @@ type Connection<T> = {
 export function getUpdatedConnectionQuery<T>(
   node: T & { id: string },
   prev: Connection<T> | undefined,
-  maxLength: number
+  maxLength?: number
 ): Connection<T> {
-  if (!maxLength) {
-    throw new Error("maxLength must be set (else thy memory shall be eaten)");
-  }
-
   // cursor is base64-encoded Connection:{nodeId}
   const newEdge = {
     __typename: "NodeEdge",

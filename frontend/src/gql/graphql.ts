@@ -2860,6 +2860,7 @@ export type EvaluationsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
+  latestCandidateOnly?: InputMaybe<Scalars["Boolean"]>;
   scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
   kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
   buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
@@ -7323,6 +7324,11 @@ export const EvaluationsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "latestCandidateOnly" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
           type: {
             kind: "ListType",
@@ -7378,6 +7384,11 @@ export const EvaluationsChangedDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "includeAncestorVersions" },
                 value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "latestCandidateOnly" },
+                value: { kind: "Variable", name: { kind: "Name", value: "latestCandidateOnly" } },
               },
               {
                 kind: "Argument",
