@@ -173,12 +173,6 @@ defineExpose({
       'grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]': isStruct,
     }"
   >
-    <!-- Not sure whether to include column headers... -->
-    <template v-if="false">
-      <span v-for="column in columnsInOrder" :key="column" class="text-xs text-gray-400">
-        {{ column }}
-      </span>
-    </template>
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Columns -->
