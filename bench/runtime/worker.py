@@ -106,6 +106,13 @@ class InterpModule:
     errors: list[language.Error]
     dependencies: list[language.ModuleIndex]
 
+    @property
+    def has_user_errors(self):
+        """Whether any non-generated errors are present."""
+        return any(
+            error.statement is None or not error.statement.generated for error in self.errors
+        )
+
     def symbol(self, path: str):
         if path.startswith("."):
             return self.module_idx.symbol(path)
@@ -475,7 +482,7 @@ class ModuleWorker:
     async def _fire_reactive_build(self) -> None:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
-        if not self.interp.errors:
+        if not self.interp.has_user_errors:
             stale_builds = [
                 symbol for symbol in self.stale_symbols if symbol.symbol_type == SymbolType.BUILD
             ]
@@ -549,7 +556,7 @@ class ModuleWorker:
         self, buildable_id: UUID, cancel_running: bool
     ) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
-        if not self.interpreted or self.interp.errors:
+        if not self.interpreted or self.interp.has_user_errors:
             return ModuleBuildErrorType.NOT_READY
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
