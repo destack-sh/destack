@@ -476,7 +476,7 @@ class TypeNode(SymbolContent):
     tag: TypeTag = required_field()
     description: Optional[str] = None
     value: Optional[LiteralValue] = None  # for literal types
-    reference: Union[None, StatementPath, "TypeNode", "Type"] = None
+    reference: Union[None, StatementPath, Statement, "TypeNode", "Type"] = None
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[StatementPath] = None
     children: Optional[list["TypeNode"]] = None
