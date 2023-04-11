@@ -133,6 +133,7 @@ def test_output_struct():
     module, idx = parse_string(
         """
 --- test.x ---
+
 task test :: (a: string "input 1", b: string "input 1") -> (x: string "output 1", y: string "output 2"):
 "Just a test"
         """
