@@ -49,7 +49,7 @@ defineExpose({
       :readonly="context.readonly.value"
       @navigate-left="typeRef?.focus"
       @navigate-up="declarationRef?.focus"
-      @navigate-down="context.navigateDown"
+      @navigate-down="typeRef?.focus"
       @delete-left="declarationRef?.focus"
       @enter="context.insertBelow"
     />
@@ -67,9 +67,8 @@ defineExpose({
       ref="typeRef"
       class="py-1"
       @navigate-up="context.navigateUp"
-      @navigate-down="descriptionRef?.focus"
-      @navigate-right="descriptionRef?.focus"
-      @navigate-left="declarationRef?.focus"
+      @navigate-down="context.navigateDown"
+      @navigate-left="descriptionRef?.focus"
     />
   </div>
 </template>

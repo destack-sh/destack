@@ -29,13 +29,17 @@ type ColumnType = "name" | "type" | "description";
 const columnsInOrder: Ref<ColumnType[]> = ref(["name", "type", "description"] as ColumnType[]);
 const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(columnsInOrder, inputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
-  gridNavigateDown: () => emit("navigateDown"),
-  gridNavigateLeft: () => emit("navigateLeft"),
+  gridNavigateDown: () => addInputRef.value?.focus(),
+  gridNavigateRight: (rowIdx) => focusColumn("output", rowIdx, 0),
+  nowrapLeft: true,
+  nowrapRight: true,
 });
 const outputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(columnsInOrder, outputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
-  gridNavigateDown: () => emit("navigateDown"),
-  gridNavigateRight: () => emit("navigateRight"),
+  gridNavigateDown: () => addOutputRef.value?.focus(),
+  gridNavigateLeft: (rowIdx) => focusColumn("input", rowIdx, -1),
+  nowrapLeft: true,
+  nowrapRight: true,
 });
 const isEditing = computed(
   () => inputGrid.refs.value.find((r) => r.editing) || outputGrid.refs.value.find((r) => r.editing)
@@ -51,21 +55,23 @@ function readColumn(member: SimpleTypeNode, column: ColumnType) {
     return member[column];
   }
 }
-function writeColumn(memberId: string, column: ColumnType, value: any) {
+function writeColumn(kind: "input" | "output", memberId: string, column: ColumnType, value: any) {
   const member = nodes.value?.find((m) => m.id === memberId);
   if (!member) {
     return;
   }
   if (column == "type") {
-    context.updateTypeNode(member as SimpleType, value as SimpleType);
+    context.updateTypeNode(member as SimpleType, { ...value, isOutput: kind == "output" } as SimpleType);
   } else {
-    context.updateTypeNode(member as SimpleType, { ...member, [column]: value } as SimpleType);
+    context.updateTypeNode(
+      member as SimpleType,
+      { ...member, [column]: value, isOutput: kind == "output" } as SimpleType
+    );
   }
 }
 
 function insertBelow(kind: "input" | "output", memberId?: string) {
   const members = kind == "input" ? inputNodes.value : outputNodes.value;
-
   let orderKey;
   if (memberId == null) {
     const lastMember = members[members.length - 1];
@@ -74,15 +80,14 @@ function insertBelow(kind: "input" | "output", memberId?: string) {
     const member = members.find((m) => m.id === memberId);
     orderKey = generateKeyBetween(member?.orderKey ?? null, null);
   }
-
   const newMemberNode = makeTypeNode({
-    name: "field " + (members.length + 1),
+    name: members.length == 0 ? kind : kind + " " + (members.length + 1),
     tag: TypeTag.String,
     orderKey,
+    isOutput: kind == "output",
   });
-
   context.createTypeNode(newMemberNode);
-  nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(members.length - 1, "name"));
+  nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "name"));
 }
 
 function deleteMember(kind: "input" | "output", memberId: string) {
@@ -96,14 +101,35 @@ function deleteMember(kind: "input" | "output", memberId: string) {
   (kind == "input" ? inputGrid : outputGrid).focus(memberIdx - 1, "name"); // move focus above
 }
 
-function focusLast(kind: "input" | "output") {
-  if (kind == "input") {
-    inputGrid.focus(inputNodes.value.length - 1, "name");
+function focus(what: "first" | "last", kind: "input" | "output") {
+  const nodes = kind == "input" ? inputNodes.value : outputNodes.value;
+  if (nodes.length == 0) {
+    // focus add button
+    (kind == "input" ? addInputRef : addOutputRef).value?.focus();
+  } else {
+    // focus first/last
+    (kind == "input" ? inputGrid : outputGrid).focus(what == "first" ? 0 : -1, "name");
+  }
+}
+
+function focusColumn(kind: "input" | "output", rowIdx: number, columnIdx: number) {
+  if (columnIdx < 0) {
+    // wrap
+    columnIdx = columnIdx + columnsInOrder.value.length;
+  }
+  const nodes = kind == "input" ? inputNodes.value : outputNodes.value;
+  if (rowIdx < nodes.length) {
+    (kind == "input" ? inputGrid : outputGrid).focus(rowIdx, columnsInOrder.value[columnIdx]);
+  } else if (rowIdx == nodes.length) {
+    // focus add button
+    (kind == "input" ? addInputRef : addOutputRef).value?.focus();
+  } else {
+    // ignore?
   }
 }
 
 defineExpose({
-  focus: () => focusLast("input"),
+  focus: () => focus("first", "input"),
   blur: () => {
     inputGrid.blur();
     outputGrid.blur();
@@ -113,10 +139,10 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row justify-between">
+  <div class="grid w-full grid-cols-[1fr_20px_1fr] gap-4">
     <!-- Inputs -->
     <!-- TODO @Cleanup: FunctionTypeCell (input & output) + TypeDefinitionCell are suspiciously similar -->
-    <div class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
+    <div class="my-1 grid h-fit w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
       <!-- Rows -->
       <template v-for="member of inputNodes" :key="member.id">
         <!-- Columns -->
@@ -125,7 +151,7 @@ defineExpose({
           <component
             :is="column == 'type' ? InlineTypeCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
-            @update:model-value="(val: any) => writeColumn(member.id, column, val)"
+            @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
             :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
             immediate
@@ -155,15 +181,16 @@ defineExpose({
         class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('input')"
         @enter="insertBelow('input')"
-        @keydown.up.exact="focusLast('input')"
-        @keydown.down.exact="context.navigateDown"
+        @keydown.up.exact.prevent="focus('last', 'input')"
+        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.right.exact.prevent="addOutputRef?.focus"
       >
         +input
       </button>
     </div>
-    <ArrowLongRightIcon class="h-4 w-4 text-gray-700" />
+    <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
+    <div class="my-1 grid h-fit w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
       <!-- Rows -->
       <template v-for="member of outputNodes" :key="member.id">
         <!-- Columns -->
@@ -172,7 +199,7 @@ defineExpose({
           <component
             :is="column == 'type' ? InlineTypeCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
-            @update:model-value="(val: any) => writeColumn(member.id, column, val)"
+            @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
             :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
             immediate
@@ -202,8 +229,9 @@ defineExpose({
         class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('output')"
         @enter="insertBelow('output')"
-        @keydown.up.exact="focusLast('output')"
-        @keydown.down.exact="context.navigateDown"
+        @keydown.up.exact.prevent="focus('last', 'output')"
+        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.left.exact.prevent="addInputRef?.focus"
       >
         +output
       </button>

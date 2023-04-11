@@ -4,10 +4,12 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   columnsInOrder: Ref<ColumnType[]>,
   rows: Ref<{ id: string }[]>,
   options: {
-    gridNavigateUp?: (column: ColumnType, columnIndex: number) => void;
-    gridNavigateDown?: (column: ColumnType, columnIndex: number) => void;
-    gridNavigateLeft?: () => void;
-    gridNavigateRight?: () => void;
+    gridNavigateUp?: (index: number, column: ColumnType, columnIndex: number) => void;
+    gridNavigateDown?: (index: number, column: ColumnType, columnIndex: number) => void;
+    gridNavigateLeft?: (index: number, column: ColumnType, columnIndex: number) => void;
+    gridNavigateRight?: (index: number, column: ColumnType, columnIndex: number) => void;
+    nowrapLeft?: boolean;
+    nowrapRight?: boolean;
     onFocus?: (rowId: string, column: ColumnType) => void;
   } = {}
 ) {
@@ -56,7 +58,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   function navigateUp(rowId: string, column: ColumnType) {
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId);
     if (!rowIdx) {
-      options?.gridNavigateUp?.(column, columnsInOrder.value.indexOf(column));
+      options?.gridNavigateUp?.(rowIdx, column, columnsInOrder.value.indexOf(column));
     } else {
       focus(rowIdx - 1, column);
     }
@@ -65,7 +67,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   function navigateDown(rowId: string, column: ColumnType) {
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId) ?? 0;
     if (rowIdx == rowsLength.value - 1) {
-      options?.gridNavigateDown?.(column, columnsInOrder.value.indexOf(column));
+      options?.gridNavigateDown?.(rowIdx, column, columnsInOrder.value.indexOf(column));
     } else {
       focus(rowIdx + 1, column);
     }
@@ -75,10 +77,10 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId) ?? -1;
     const columnIdx = columnsInOrder.value.findIndex((f) => f === column);
     if (columnIdx == columnsInOrder.value.length - 1) {
-      if (rowIdx != rowsLength.value - 1) {
+      if (rowIdx != rowsLength.value - 1 && !options?.nowrapRight) {
         focus(rowIdx + 1, columnsInOrder.value[0]);
       } else {
-        options?.gridNavigateRight?.();
+        options?.gridNavigateRight?.(rowIdx, column, columnsInOrder.value.indexOf(column));
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx + 1]);
@@ -89,10 +91,10 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     const rowIdx = rows.value?.findIndex((m) => m.id === rowId) ?? -1;
     const columnIdx = columnsInOrder.value.findIndex((f) => f === column);
     if (columnIdx == 0) {
-      if (rowIdx != 0) {
+      if (rowIdx != 0 && !options?.nowrapLeft) {
         focus(rowIdx - 1, columnsInOrder.value[columnsInOrder.value.length - 1]);
       } else {
-        options?.gridNavigateLeft?.();
+        options?.gridNavigateLeft?.(rowIdx, column, columnsInOrder.value.indexOf(column));
       }
     } else {
       focus(rowIdx, columnsInOrder.value[columnIdx - 1]);
