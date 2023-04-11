@@ -4,7 +4,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied
-from django.db.models import Q
+from django.db.models import Q, QuerySet
 from strawberry import auto, lazy
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -66,11 +66,19 @@ async def _expand_filters(
     return expanded_symbol_ids, project_version_ids
 
 
-async def _get_latest_build_candidates(
-    project_id: GlobalID, build_id_in: Optional[list[GlobalID]]
-) -> list[UUID]:
+def _get_latest_build_candidates(
+    project_id: UUID, build_id_in: list[UUID]
+) -> QuerySet[models.BuildCandidate]:
     """Gets the latest won build candidates (limited to specific builds if set)"""
-    raise NotImplementedError
+    return (
+        models.BuildCandidate.objects.filter(
+            project_id=project_id,
+            build_id__in=build_id_in,
+            status=models.BuildCandidateStatus.CompletedWon,
+        )
+        .order_by("-created_at")
+        .distinct("build_id")
+    )
 
 
 @gql.type
@@ -103,6 +111,12 @@ class EvaluationQuery:
             qs = qs.filter(scope__in=scope_in)
         if build_id_in is not None:
             qs = qs.filter(build_id__in=expanded_symbol_ids)
+            if latest_candidate_only:
+                latest_build_candidates = _get_latest_build_candidates(
+                    project_id, build_id_in
+                ).values_list("id", flat=True)
+                qs = qs.filter(build_candidate_id__in=latest_build_candidates)
+
         if system_id_in is not None:
             qs = qs.filter(
                 Q(statement_id__in=expanded_symbol_ids)
@@ -122,6 +136,7 @@ class EvaluationSubscription:
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
         latest_candidate_only: bool = False,
+        # TODO @Incomplete: check latest_candidate_only in evaluation_changed
         kind_in: Optional[list[EvaluationKind]] = None,
         scope_in: Optional[list[EvaluationScope]] = None,
         build_id_in: Optional[list[GlobalID]] = None,
