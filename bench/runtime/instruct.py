@@ -75,21 +75,13 @@ class Instruction:
     def is_reference(self) -> bool:
         return isinstance(self.node, InterpSymbol) and self.node.reference is not None
 
-    def walk(self, path: list["Instruction"] = None):
-        """Walks the instruction tree (depth-first), ignoring cycles."""
-        path = (path or []) + [self]
-        yield self
-        for child in self.children:
-            if child not in path:  # break cycles (allowed)
-                yield from child.walk(path)
-
-    def walk_postorder(self, seen: list["Instruction"] = None):
+    def walk(self, seen: list["Instruction"] = None):
         """Walks the instruction tree in post order ("bottom up"), ignoring cycles."""
-        seen = seen or []
+        seen = seen if seen is not None else []
         seen.append(self)
         for child in self.children:
             if child not in seen:  # break cycles (allowed)
-                yield from child.walk_postorder(seen)
+                yield from child.walk(seen)
         yield self
 
     def walk_with_parent(self, path: list["Instruction"] = None):
@@ -118,23 +110,20 @@ class InstructionTree:
         root_ids = self.nodes.keys() - children_ids
         return [self.nodes[id] for id in root_ids]
 
-    def walk(self, path: list[Instruction] = None):
+    def walk(self, seen: list[Instruction] = None):
         """Walks the instruction tree (depth-first), ignoring cycles."""
-        path = path or []
+        seen = seen if seen is not None else []
         for node in self.roots:
-            yield from node.walk(path)
+            yield from node.walk(seen)
 
-    def walk_postorder(self, path: list[Instruction] = None):
-        """Walks the instruction tree (depth-first), ignoring cycles."""
-        path = path or []
-        for node in self.roots:
-            yield from node.walk_postorder(path)
-
-    def walk_with_parent(self, path: list[Instruction] = None):
-        """Like walk, but includes the parent node."""
-        path = path or []
-        for node in self.roots:
-            yield from node.walk_with_parent(path)
+    def walk_with_parent(self):
+        """Like walk but also get the parent node."""
+        parent_by_node = {}
+        for node in self.nodes.values():
+            for child in node.children:
+                parent_by_node[child.id] = node
+        for node in self.walk():
+            yield node, parent_by_node.get(node.id)
 
 
 def map_instruction(

@@ -984,17 +984,18 @@ class Worker:
         self, module_worker: ModuleWorker, evaluations: list[EvaluationResult], job_id: UUID
     ):
         """Writes evaluation results back to the internal server"""
-        evaluations_data = {}
+        evaluations_data = []
         for evaluation in evaluations:
-            descendants = EvaluationResultData.from_result(
-                evaluation,
-                project_id=module_worker.project_id,
-                project_version_id=module_worker.module_id,
-                job_id=job_id,
+            evaluations_data.extend(
+                EvaluationResultData.from_result(
+                    evaluation,
+                    project_id=module_worker.project_id,
+                    project_version_id=module_worker.module_id,
+                    job_id=job_id,
+                )
             )
-            evaluations_data.update(descendants)
         write = ReqWriteEvaluationPayload(
-            module_id=module_worker.module_id, evaluations=list(evaluations_data.values())
+            module_id=module_worker.module_id, evaluations=evaluations_data
         )
         rep = await request(NMessageType.REQUEST_WRITE_EVALUATION, write, RepWriteEvaluationPayload)
         if not rep.p.success:
