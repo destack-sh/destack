@@ -11,7 +11,7 @@ from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string
 from bench.language.reconstruct import render
-from bench.language.type import Code, Type
+from bench.language.type import Code, Task, Type
 
 # all .x files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -127,3 +127,27 @@ entities: [Entity]
 
     type_entity = idx.symbol(".test:Entity", Type)
     assert type_entity.child("first_event").children[0].tag == type_event.tag
+
+
+def test_output_struct():
+    module, idx = parse_string(
+        """
+--- test.x ---
+task test :: (a: string "input 1", b: string "input 1") -> (x: string "output 1", y: string "output 2"):
+"Just a test"
+        """
+    )
+    task_type = idx.symbol(".test:test", Task).type
+    # check that the inputs and outputs are there
+    for (tag, name, descr) in [
+        (TypeTag.STRING, "a", "input 1"),
+        (TypeTag.STRING, "b", "input 1"),
+    ]:
+        assert task_type.input.child(name).tag == tag
+        assert task_type.input.child(name).description == descr
+    for (tag, name, descr) in [
+        (TypeTag.STRING, "x", "output 1"),
+        (TypeTag.STRING, "y", "output 2"),
+    ]:
+        assert task_type.output.child(name).tag == tag
+        assert task_type.output.child(name).description == descr

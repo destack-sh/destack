@@ -84,7 +84,7 @@ const JOB_VERBS = {
       }"
     >
       <!-- Active jobs (truncated) -->
-      <div class="flex items-center gap-2 p-0.5" v-if="activeJobTypes.length > 0">
+      <div class="flex flex-nowrap items-center gap-2 whitespace-nowrap p-0.5" v-if="activeJobTypes.length > 0">
         <!-- Spinner -->
         <svg viewBox="0 0 10 10" class="h-1 w-1 animate-spin text-gray-400">
           <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />

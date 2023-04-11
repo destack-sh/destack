@@ -934,7 +934,7 @@ def parse_type_node_struct_inline(tokens: TokenParser, name: str | None) -> Type
 
 
 def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
-    # parse signature like (<tuple1>, <tuple2>, ...) -> <return_tuple>
+    # parse signature like (<tuple1>, <tuple2>, ...) -> (<tuple1>, <tuple2>, ...)
     tokens.eat_bracket("(")
     input = parse_type_node_struct_inline(tokens, "input")
     tokens.eat_bracket(")")
@@ -942,7 +942,14 @@ def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeNode:
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        output = parse_type_node_inline(tokens, "output")
+        if tokens.peek_bracket("("):
+            tokens.eat_bracket("(")
+            output = parse_type_node_struct_inline(tokens, "output")
+            tokens.eat_bracket(")")
+        else:
+            output = parse_type_node_inline(tokens, "output")
+            # lift into struct for legacy (..) -> tuple support
+            output = TypeNode(name="output", tag=TypeTag.STRUCT, children=[output])
     else:
         output = TypeNode(name="output", tag=TypeTag.NULL)
     return TypeNode(name=name, tag=TypeTag.FUNCTION, children=[input, output])
@@ -1335,7 +1342,7 @@ def resolve_type_references_rec(
             continue  # error already reported
         if not isinstance(resolved_stmt.content, TypeNode):
             raise RuntimeError(f"resolved statement is not a type: {resolved_stmt})")
-        node.reference = resolved_stmt.content
+        node.reference = resolved_stmt
 
 
 def resolve_statement_reference(
@@ -1513,7 +1520,7 @@ def index_module(
 def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
     """Replaces type node references with Types and imputes."""
     for node in type.walk():
-        if not isinstance(node.reference, TypeNode):
+        if node.reference is None:
             continue
         if node.reference.id in idx.symbols:
             # direct Type reference
@@ -1521,7 +1528,8 @@ def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
         else:
             # this works because references can only be to other Type statements
             # whose id must be derived with this method :TypeNodeRootId
-            node.reference = idx.symbols[get_type_root_id(node.reference.id)]
+            root_id = get_type_root_id(node.reference.id)
+            node.reference = idx.symbols[root_id]
         # impute type reference
         impute_type_reference(node, keep_references=True)
 
@@ -1635,7 +1643,6 @@ def interp(
             interp_type_node_rec(symbol, idx)
         elif isinstance(symbol, (Dataset, Task, Code)):
             interp_type_node_rec(symbol.type, idx)
-
         # also replace in source type nodes
         if isinstance(scope.statement.content, TypeNode):
             interp_type_node_rec(scope.statement.content, idx)
