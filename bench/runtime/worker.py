@@ -85,9 +85,9 @@ WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_ca
 # TODO @UX: reduce/avoid debounce for reactive module jobs
 #  If too frequent, reactors lead to lots of unnecessary work and can run into rate limits.
 
-GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 2, type_cast=float)
+GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 1, type_cast=float)
 GENERATE_DEBOUNCE_MAX_WAIT = get_from_env(
-    "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 5, type_cast=float
+    "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 3, type_cast=float
 )
 LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
 LINT_DEBOUNCE_MAX_WAIT = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 5, type_cast=float)
@@ -278,7 +278,7 @@ def diff_implicit_builds(interp: InterpModule) -> tuple[list[Build], list[Build]
         )
     )
 
-    # add missing implicit builds
+    # missing implicit builds for tasks without any builds
     default_model = interp.symbol("openai.std.text.gpt-3-5-turbo")
     missing_implicit_builds = []
     for task in tasks:
@@ -295,10 +295,12 @@ def diff_implicit_builds(interp: InterpModule) -> tuple[list[Build], list[Build]
         )
         missing_implicit_builds.append(build)
 
-    # get extraneous implicit builds
+    # extraneous implicit builds if an explicit build exists or the task no longer exists
     extraneous_implicit_builds = []
     for build in implicit_builds:
-        if any(task.definition.id in tasks_with_explicit_builds_ids for task in build.tasks):
+        if not build.tasks or any(
+            task.definition.id in tasks_with_explicit_builds_ids for task in build.tasks
+        ):
             extraneous_implicit_builds.append(build)
 
     return missing_implicit_builds, extraneous_implicit_builds
@@ -530,8 +532,8 @@ class ModuleWorker:
                 extraneous_symbols_ids = set()
                 for b in extraneous_builds:
                     extraneous_symbols_ids.add(b.id)
-                    extraneous_symbols_ids.update(t.id for t in b.tasks)
-                    extraneous_symbols_ids.update(m.id for m in b.models)
+                    for statement in self.idx.scopes[b.id].statements.values():
+                        extraneous_symbols_ids.add(statement.id)
                 implicit_build_file.statements = [
                     s for s in implicit_build_file.statements if s.id not in extraneous_symbols_ids
                 ]
