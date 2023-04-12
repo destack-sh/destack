@@ -1520,7 +1520,7 @@ def index_module(
 def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
     """Replaces type node references with Types and imputes."""
     for node in type.walk():
-        if node.reference is None or isinstance(node.reference, UUID):
+        if not isinstance(node.reference, (TypeNode, Type, Statement)):
             # not a reference or unresolved
             continue
         if node.reference.id in idx.symbols:
