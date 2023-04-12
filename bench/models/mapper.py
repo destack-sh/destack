@@ -14,7 +14,6 @@ from uuid import UUID, uuid4, uuid5
 
 import pytz
 from django.db import transaction
-from more_itertools import first
 
 from bench import language, models
 from bench.language import wire
@@ -500,13 +499,15 @@ def wmap_type_nodes(
         for member, order_key in zip(root.members, child_order_keys):
             child_nodes.append(_wmap_child_node(member, order_key=order_key))
     elif root.tag == TypeTag.FUNCTION:
-        # assume there is exactly one output type
-        child_order_keys = generate_n_keys_between(None, None, len(root.input.children or []) + 1)
+        child_order_keys = generate_n_keys_between(
+            None, None, len(root.input.children or []) + len(root.output.children or [])
+        )
         for child, order_key in zip(root.input.children or [], child_order_keys):
             child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
-        output_node = _wmap_child_node(root.output, order_key=child_order_keys[-1], is_output=True)
-        output_node.name = None  # simple output is unnamed
-        child_nodes.append(output_node)
+        for child, order_key in zip(
+            root.output.children or [], child_order_keys[len(root.input.children or []) :]
+        ):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=True))
     else:
         raise ValueError(f"root type node cannot be represented simply: {type_nodes}")
 
@@ -548,14 +549,22 @@ def rmap_type_nodes(
             lang_node.name = None
             lang_node.id = new_id("array" + str(lang_node.id))
             lang_node = language.TypeNode(
-                id=node.id, tag=TypeTag.ARRAY, name=node.name, children=[lang_node]
+                id=node.id,
+                tag=TypeTag.ARRAY,
+                name=node.name,
+                description=lang_node.description,
+                children=[lang_node],
             )
         if node.is_nullable:  # hoist into union
             lang_node.name = None
             lang_node.id = new_id("union" + str(lang_node.id))
             null = TypeNode(id=new_id("null" + str(lang_node.id)), tag=TypeTag.NULL, name=None)
             lang_node = TypeNode(
-                id=node.id, tag=TypeTag.UNION, name=node.name, children=[lang_node, null]
+                id=node.id,
+                tag=TypeTag.UNION,
+                name=node.name,
+                description=lang_node.description,
+                children=[lang_node, null],
             )
         return lang_node
 
@@ -567,14 +576,12 @@ def rmap_type_nodes(
         children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
     elif root_type_tag == TypeTag.FUNCTION:
         input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
-        output = first((node for node in type_nodes if node.is_output), None)
-        if output is not None:
-            output = _rmap_child_node(output)
-            output.name = "output"  # restore name
-        else:  # default optional output to null (no output)
-            output = TypeNode(id=new_id("output"), tag=TypeTag.NULL, name="output")
+        output_children = [_rmap_child_node(node) for node in type_nodes if node.is_output]
         input = TypeNode(
             id=new_id("input"), tag=TypeTag.STRUCT, name="input", children=input_children
+        )
+        output = TypeNode(
+            id=new_id("output"), tag=TypeTag.STRUCT, name="output", children=output_children
         )
         children = [input, output]
     else:

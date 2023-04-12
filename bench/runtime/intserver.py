@@ -190,7 +190,7 @@ class InternalServer:
         project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
         try:
             if project_v.committed:
-                raise ValueError(f"cannot write to committed {project_v}")
+                raise ValueError(f"cannot write to committed {project_v.id}")
             await sync_to_async(write_module)(
                 files=msg.payload.files,
                 generated_mappings=msg.payload.generated_mappings,

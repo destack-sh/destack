@@ -126,6 +126,19 @@ class InstructionTree:
             yield node, parent_by_node.get(node.id)
 
 
+def _unwrap_type_node(type: TypeNode) -> list[TypeNode]:
+    if type.tag == TypeTag.FUNCTION:
+        return [*(type.input.children or []), *(type.output.children or [])]
+    elif type.tag == TypeTag.ENUM:
+        return type.members
+    elif type.tag == TypeTag.ARRAY:
+        return _unwrap_type_node(type.head_type)
+    elif type.is_union_with_null:
+        return _unwrap_type_node(type.non_null_children[0])
+    else:
+        return type.children or []
+
+
 def map_instruction(
     node: InterpSymbol | TypeNode, tree: InstructionTree, op: InstructionOp = None
 ) -> Instruction:
@@ -204,15 +217,11 @@ def map_instruction(
             type = node
         else:
             type = node.type
-        # skip type wrapper nodes
-        if type.tag == TypeTag.FUNCTION:
-            children = [*(type.input.children or [])]
-            if type.output.tag != TypeTag.NULL:
-                children.append(type.output)
-        elif type.tag == TypeTag.ENUM:
-            children = type.members
-        else:
-            children = type.children or []
+        # skip type wrapper nodes because they are semantically irrelevant
+        # _and_ tracking them causes downstream errors because these nodes don't exist in the DB
+        # (they're created virtually when mapping from SimpleTypeNode in DB to TypeNode in language)
+        # TODO @Cleanup @Architecture: revisit TypeNode/SimpleTypeNode distinction & boundary
+        children = _unwrap_type_node(type)
         for type_node in children:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
