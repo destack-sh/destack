@@ -20,7 +20,7 @@ const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
-const outputField = computed(() => symbol.value?.typeNodes?.find((n) => n.isOutput));
+const outputFields = computed(() => symbol.value?.typeNodes?.filter((n) => n.isOutput) ?? []);
 const availableBuilds = buildsOf(symbol);
 const includeAncestorVersions = ref(true);
 
@@ -101,7 +101,7 @@ const inputColumns = computed(() =>
   inputFields.value == null ? undefined : inputFields.value.map((f) => ({ name: f.name, type: f }))
 );
 const outputColumns = computed(() =>
-  outputField.value == null ? undefined : [{ name: "Output", type: outputField.value }]
+  outputFields.value == null ? undefined : outputFields.value.map((f) => ({ name: f.name, type: f }))
 );
 </script>
 <template>
@@ -187,16 +187,23 @@ const outputColumns = computed(() =>
       </button>
     </div>
     <!-- Current/last output  -->
-    <div class="relative mx-auto min-h-[100px] w-full max-w-[800px] border border-orange-900 border-opacity-[12%]">
-      <div class="p-2" v-if="lastOutput != null">
-        <InlineValueCell
-          v-if="outputField"
-          :type="outputField"
-          :model-value="lastOutput"
-          :readonly="true"
-          :immediate="false"
-        />
-      </div>
+    <div
+      class="grid-w-fit relative mx-auto mt-1 grid min-h-[100px] w-full max-w-[800px] grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+    >
+      <template v-if="lastOutput">
+        <template v-for="field in outputFields" :key="field.id">
+          <div class="flex flex-row gap-1 py-1">
+            <span>{{ field.name }}</span>
+            <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
+          </div>
+          <InlineValueCell
+            :type="field"
+            :model-value="lastOutput[field.name as string]"
+            :readonly="true"
+            :immediate="false"
+          />
+        </template>
+      </template>
       <div v-else class="flex h-full w-full flex-col items-center justify-center">
         <div class="p-2 text-gray-500">
           No output yet (<button

@@ -373,7 +373,7 @@ const inlineActions = computed(() => {
     >
       <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
-      <div v-if="isCommented" class="absolute inset-0 z-20 bg-gray-100 opacity-25" />
+      <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
       <!-- Statement focus indicator (left side if not editing) -->
       <!-- (the z-[5] puts it in front of the statement focus border) -->
       <div
