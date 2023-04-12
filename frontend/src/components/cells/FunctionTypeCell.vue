@@ -139,10 +139,10 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="grid w-full grid-cols-[1fr_20px_1fr] gap-4">
+  <div class="flex w-full flex-row flex-wrap items-start justify-evenly gap-4">
     <!-- Inputs -->
-    <!-- TODO @Cleanup: FunctionTypeCell (input & output) + TypeDefinitionCell are suspiciously similar -->
-    <div class="my-1 grid h-fit w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
+    <!-- TODO @Cleanup: FunctionTypeCell (input & output) + TypeDefinitionCell + are suspiciously similar -->
+    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of inputNodes" :key="member.id">
         <!-- Columns -->
@@ -188,9 +188,10 @@ defineExpose({
         +input
       </button>
     </div>
+    <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="my-1 grid h-fit w-fit grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]">
+    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of outputNodes" :key="member.id">
         <!-- Columns -->
