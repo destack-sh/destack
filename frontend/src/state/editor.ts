@@ -52,10 +52,19 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Task]: "task",
   [SymbolType.Value]: "value",
   [SymbolType.Capability]: "capability",
+  [SymbolType.Program]: "program",
   [SymbolType.Requirement]: "require",
   [SymbolType.Runconfig]: "run",
   [SymbolType.Build]: "build",
 };
+export const SUPPORTED_SYMBOL_TYPES = [
+  SymbolType.Type,
+  SymbolType.Code,
+  SymbolType.Data,
+  SymbolType.Model,
+  SymbolType.Expectation,
+  SymbolType.Task,
+];
 export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
 export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
@@ -66,6 +75,7 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Include]: "include",
   [StatementModifier.Magic]: "magic",
 };
+export const SUPPORTED_MODIFIERS = [StatementModifier.Like, StatementModifier.Unlike, StatementModifier.Check];
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Any]: "anything",

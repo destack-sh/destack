@@ -1941,6 +1941,7 @@ export enum SymbolType {
   Data = "DATA",
   Expectation = "EXPECTATION",
   Model = "MODEL",
+  Program = "PROGRAM",
   Requirement = "REQUIREMENT",
   Runconfig = "RUNCONFIG",
   Task = "TASK",
