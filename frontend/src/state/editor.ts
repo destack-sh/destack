@@ -64,6 +64,7 @@ export const SUPPORTED_SYMBOL_TYPES = [
   SymbolType.Model,
   SymbolType.Expectation,
   SymbolType.Task,
+  SymbolType.Build,
 ];
 export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
 export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
