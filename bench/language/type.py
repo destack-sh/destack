@@ -552,6 +552,10 @@ class TypeNode(SymbolContent):
         )
 
     @property
+    def non_null_children(self) -> list[TypeNode]:
+        return [child for child in self.children if child.tag != TypeTag.NULL]
+
+    @property
     def is_flat(self) -> bool:
         """Whether this type can be represented as a single un-nested primitive value."""
         if self.tag in PRIMITIVE_TYPES:
