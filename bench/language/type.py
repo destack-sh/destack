@@ -170,6 +170,7 @@ class SymbolType(models.TextChoices):
     EXPECTATION = "expect"
     CODE = "code"
     MODEL = "model"
+    PROGRAM = "program"
     # TODO @Language: merge value into data
     #  Simply typed version could be root is_array flag in addition to root_type_tag
     DATA = "data"
@@ -772,6 +773,16 @@ class CodeContent(SymbolContent):
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
     type: Type = required_field()
+
+
+@dataclass(repr=False)
+class ProgramContent(SymbolContent):
+    pass
+
+
+@dataclass(repr=False)
+class Program(InterpSymbol, ProgramContent):
+    pass
 
 
 @dataclass(repr=False)

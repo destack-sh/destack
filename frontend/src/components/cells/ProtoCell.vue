@@ -6,7 +6,7 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
+import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
 import { symbolsLike } from "@/state/runtime";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -43,7 +43,7 @@ watch(
     const endsInSep =
       newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
     newContent = newContent.slice(0, -1);
-    if (endsInSep && SYMBOL_TYPE_BY_KEYWORD[newContent]) {
+    if (endsInSep && SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContent])) {
       context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
       nameRef.value?.clearQuery();
     }
