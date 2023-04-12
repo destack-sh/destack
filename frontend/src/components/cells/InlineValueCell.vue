@@ -4,7 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { onClickOutside, useFocus } from "@vueuse/core";
+import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
@@ -41,6 +41,7 @@ function emitPrevent(event: any, e: string, ...args: any[]) {
 const value: Ref<any> = ref(props.modelValue);
 const editing: Ref<boolean> = ref(false);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
+const buttonRefFocused = useFocus(buttonRef as any);
 const valueRef: Ref<HTMLInputElement | null> = ref(null);
 const valueRefFocused = useFocus(valueRef as any);
 const editableContainerRef: Ref<HTMLDivElement | null> = ref(null);
@@ -85,6 +86,14 @@ function confirm() {
 onClickOutside(editableContainerRef, () => {
   if (editing.value) {
     confirm();
+  }
+});
+
+// auto-start editing on typing if not editing and focused
+onStartTyping(() => {
+  if (!editing.value && buttonRefFocused.focused.value) {
+    editing.value = true;
+    nextTick(focus);
   }
 });
 
@@ -159,12 +168,14 @@ defineExpose({
       @keydown.enter.exact="edit"
       @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
+      @keydown.tab.exact.prevent="editing || emitPrevent($event, 'navigateRight')"
+      @keydown.shift.tab.exact.prevent="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
       @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
       @keydown.backspace.exact="editing || emitPrevent($event, 'deleteLeft')"
       @keydown.delete.exact="editing || emitPrevent($event, 'deleteSelf')"
       @focus.stop.prevent="emit('focus', $event)"
-      class="relative h-full w-full text-left outline-none"
+      class="mousetrap-no-tab relative h-full w-full text-left outline-none"
       :class="{
         'font-mono': editor.fontMono,
         'text-sm': editor.textSmall,
@@ -242,6 +253,10 @@ defineExpose({
         :class="[editor.textSmall ? 'text-sm' : '', slim ? 'min-w-[200px]' : ' min-w-[300px]']"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="confirm"
+        @keydown.tab.exact.prevent="
+          confirm();
+          emit('navigateRight');
+        "
         :placeholder="placeholderValue ?? ''"
         :rows="slim ? 1 : 3"
       />
@@ -256,6 +271,10 @@ defineExpose({
         :class="[editor.textSmall ? 'text-sm' : '']"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="confirm"
+        @keydown.tab.exact.prevent="
+          confirm();
+          emit('navigateRight');
+        "
         :placeholder="placeholderValue ?? ''"
       />
       <!-- Enum options -->
