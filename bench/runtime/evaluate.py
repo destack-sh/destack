@@ -71,7 +71,7 @@ LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
 
 
 def aggregate_metrics(
-    evaluations: list[EvaluationResult], weights: dict[uuid.UUID | str, float] = None
+    evaluations: list[EvaluationResult], weights: dict[str, float] = None
 ) -> dict[str, float]:
     weights = weights or defaultdict(lambda: 1.0)
 
@@ -79,15 +79,14 @@ def aggregate_metrics(
     summed_counts = {}
     for metric in COUNT_METRICS & summed_counts.keys():
         summed_counts[metric] = sum(
-            evaluation.aggregated_metrics[metric] * weights.get(evaluation.id, weights[metric])
-            for evaluation in evaluations
+            evaluation.aggregated_metrics[metric] * weights[metric] for evaluation in evaluations
         )
 
     # average the percentages (?)
     averaged_percentages = defaultdict(float)
     for evaluation in evaluations:
         for metric, value in evaluation.aggregated_metrics.items():
-            averaged_percentages[metric] += value * weights.get(evaluation.id, weights[metric])
+            averaged_percentages[metric] += value * weights[metric]
     for metric in PERCENTAGE_METRICS & averaged_percentages.keys():
         averaged_percentages[metric] /= len(evaluations)
     aggregated_metrics = {**summed_counts, **averaged_percentages}

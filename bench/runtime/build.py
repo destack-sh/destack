@@ -238,12 +238,13 @@ class TaskPlan:
 
 @dataclass(repr=False)
 class BuildPlan:
+    id: int
     models: list[Model]
-    finetunes: list[Any] = field(default_factory=list)  # not used yet
+    # finetunes: list[Finetune] (soon)
     task_plans: list[TaskPlan] = field(default_factory=list)
 
     def __str__(self):
-        return f"models={self.models}, finetunes={self.finetunes}, task_plans={self.task_plans}"
+        return f"models={self.models}, task_plans={self.task_plans}"
 
     def __repr__(self):
         return f"<BuildPlan {self}>"
@@ -258,9 +259,9 @@ class BuildCandidate:
     plan: BuildPlan
     state: BuildState
     order_key: str
+    id: UUID
     name: str = field(default_factory=get_random_veggie_name)
     evaluation: Optional[EvaluationResult] = None
-    id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
         self.state.track_dependency(self.ctx.build)
@@ -278,6 +279,10 @@ class BuildCandidate:
     @property
     def models(self) -> list[Model]:
         return self.plan.models
+
+    @staticmethod
+    def make_id(build: Build, plan: BuildPlan) -> UUID:
+        return uuid.uuid5(build.id, f"build_candidate:{plan.id}")
 
 
 @dataclass(repr=False)
@@ -355,6 +360,7 @@ async def build(build: Build, instruct_model: Model, tracker: BuildTracker = Non
         order_keys = generate_n_keys_between(ctx.worst_candidate_ok, None, len(plans))
         candidates = [
             BuildCandidate(
+                id=BuildCandidate.make_id(build, plan),
                 status=BuildCandidateStatus.Building,
                 ctx=ctx,
                 root_tasks=build.tasks,
@@ -508,7 +514,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 ),
             )
             instruction_plans.append(plan)
-        plans.append(BuildPlan(models=[model], task_plans=instruction_plans))
+        plans.append(BuildPlan(id=len(plans), models=[model], task_plans=instruction_plans))
     return plans
 
 

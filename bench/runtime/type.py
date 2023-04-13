@@ -4,12 +4,11 @@ import asyncio
 import enum
 import json
 import traceback
-import uuid
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Callable, ClassVar, Coroutine, Optional
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import PIL.Image
 
@@ -381,7 +380,6 @@ class EvaluationResult:
     system: Optional[InterpSymbol | TypeNode | Record] = None
     build: Optional[Build] = None
     build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
-    id: UUID = field(default_factory=uuid.uuid4)
     children: list["EvaluationResult"] = field(default_factory=list)
 
     def __str__(self):
@@ -396,6 +394,17 @@ class EvaluationResult:
     @property
     def system_id(self) -> Optional[UUID]:
         return self.system.id if self.system else None
+
+    def make_id(self, module_id: UUID) -> UUID:
+        """
+        Make a deterministic ID for a specific evaluation
+        Useful to associate other data (e.g. build candidates) with evaluations
+        Don't change this
+        """
+        environment_id = self.build_candidate.id if self.build_candidate else module_id
+        return uuid5(
+            environment_id, f"evaluation:{self.kind}:{self.scope}:{environment_id}:{self.system_id}"
+        )
 
     def walk(self):
         yield self
@@ -452,18 +461,23 @@ class EvaluationResultData:
         """Flattens an EvaluationResult tree into a list of EvaluationResultData (recursively)."""
         results_data: dict[UUID, EvaluationResultData] = OrderedDict()
         for result in result.walk():
+            statement_id = result.system.id if isinstance(result.system, InterpSymbol) else None
+            type_node_id = (
+                result.system.id
+                if isinstance(result.system, TypeNode)
+                and not isinstance(result.system, InterpSymbol)
+                else None
+            )
+            record_id = result.system.id if isinstance(result.system, Record) else None
             result_data = EvaluationResultData(
-                id=result.id,
+                id=result.make_id(project_version_id),
                 kind=result.kind,
                 scope=result.scope,
                 aggregated_metrics=result.aggregated_metrics,
                 self_metrics=result.self_metrics,
-                statement_id=result.system.id if isinstance(result.system, InterpSymbol) else None,
-                type_node_id=result.system.id
-                if isinstance(result.system, TypeNode)
-                and not isinstance(result.system, InterpSymbol)
-                else None,
-                record_id=result.system.id if isinstance(result.system, Record) else None,
+                statement_id=statement_id,
+                type_node_id=type_node_id,
+                record_id=record_id,
                 build_id=result.build.id if result.build else None,
                 build_candidate_id=result.build_candidate.id if result.build_candidate else None,
                 project_id=project_id,
@@ -478,7 +492,8 @@ class EvaluationResultData:
         # assign parent ids
         for result in result.walk():
             for child in result.children:
-                results_data[child.id].parent_id = result.id
+                child_id = child.make_id(project_version_id)
+                results_data[child_id].parent_id = result.id
 
         return list(results_data.values())
 
