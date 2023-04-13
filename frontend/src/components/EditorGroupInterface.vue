@@ -5,7 +5,7 @@ import { useActions } from "@/state/actions";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, toRef, watch } from "vue";
+import { computed, nextTick, ref, toRef, watch } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
@@ -19,7 +19,10 @@ watch(
       if (activeEditorIndex < 0) {
         console.error(`active editor ${props.group.activeEditorId} not found in group ${props.group.id}`);
       }
-      selectedTab.value = activeEditorIndex;
+      // this used to work in the same tick, but headlessui now freaks
+      // and lets its internal selectedIndex come out of sync with our controlled selectedTab
+      // if we set it immediately. so we wait. 1 extra frame of latency..
+      nextTick(() => (selectedTab.value = activeEditorIndex));
     }
   },
   { immediate: true, deep: true }
@@ -69,7 +72,7 @@ async function createFileInEditorGroup() {
         <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
           <button
             :class="{
-              'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-r border-b-2 border-r-gray-200 py-1 px-3 text-sm outline-none': true,
+              'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 px-3 py-1 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
@@ -83,7 +86,7 @@ async function createFileInEditorGroup() {
         <!-- Little button tab to create new file -->
         <button
           v-if="actions.file.create.value.enabled"
-          class="group mx-0.5 py-1 px-2 outline-none ring-0"
+          class="group mx-0.5 px-2 py-1 outline-none ring-0"
           @click="createFileInEditorGroup"
         >
           <PlusIcon
