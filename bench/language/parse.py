@@ -762,7 +762,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
 
     # parse members (assumes literal members only)
     members: list[TypeNode] = []
-    while True:
+    while tokens.peek_type(TokenType.IDENTIFIER):
         member_name = tokens.eat_identifier().value
         tokens.eat_space()
         tokens.eat_separator("=")
@@ -789,9 +789,6 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         if not tokens.peek_type(TokenType.NEWLINE):
             break
         tokens.eat_newline_or_eos()
-        if not tokens.peek_type(TokenType.IDENTIFIER):
-            tokens.advance(-1)  # go back one token to leave newline separator
-            break
 
     tokens.eat_newline_or_eos()
     enum_type_node = TypeNode(
