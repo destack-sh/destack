@@ -27,6 +27,7 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     symbolType
     rootTypeTag
     generated
+    availableBuilds
     typeNodes {
       # not using SimpleTypeNodeContent fragment because it's for the editable node
       # and using a shared fragment seems overkill
@@ -306,7 +307,14 @@ export function buildsOf(
     { types: [StatementType.Definition], symbolTypes: [SymbolType.Build], includeGenerated: true },
     projectVersionId
   );
-  return builds; // TODO @Broken @Architecture: get builds for symbol from interpreter
+  return computed(() => {
+    if (symbol.value == null) {
+      return builds.value;
+    } else {
+      const availableBuilds = moduleIndex.value?.symbolsById[symbol.value.id].availableBuilds;
+      return builds.value.filter((b) => availableBuilds?.includes(b.id));
+    }
+  });
 }
 
 export function useVisibleErrors() {

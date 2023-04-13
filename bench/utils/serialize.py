@@ -45,7 +45,7 @@ def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
         return [to_dict(item, omit_empty) for item in obj]
     elif isinstance(obj, dict):
         return {
-            key: to_dict(value, omit_empty)
+            to_dict(key): to_dict(value, omit_empty)
             for key, value in obj.items()
             if not omit_empty or value is not None
         }

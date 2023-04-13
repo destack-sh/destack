@@ -20,7 +20,7 @@ from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
 from bench.msg import NMessageType, messages
-from bench.msg.core import request, subscribe
+from bench.msg.core import NMessage, request, subscribe
 from bench.msg.messages import (
     InterpModuleChangedPayload,
     RepInterpModulePayload,
@@ -83,6 +83,7 @@ class InterpSymbol(SimplyTyped):
     symbol_type: Optional[SymbolType]
     root_type_tag: Optional[TypeTag]
     type_nodes: Optional[list[InterpSimpleType]]
+    available_builds: Optional[list[GlobalID]]
 
 
 InterpErrorType = gql.enum(language.ErrorType)
@@ -95,7 +96,9 @@ class InterpError:
     symbol: Optional[InterpSymbol]
 
 
-def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
+def rmap_module(
+    wire_module: wire.ModuleData, builds_by_symbol: dict[UUID, list[UUID]]
+) -> InterpModule:
     interp_module = InterpModule(
         id=GlobalID("ProjectVersion", str(wire_module.id)),
         name=wire_module.name,
@@ -105,11 +108,15 @@ def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
         errors=[],
         stale_symbols=[],
     )
-    interp_module.files = rmap_files(wire_module.files, interp_module)
+    interp_module.files = rmap_files(wire_module.files, interp_module, builds_by_symbol)
     return interp_module
 
 
-def rmap_files(wire_files: list[wire.FileData], interp_module: InterpModule) -> list[InterpFile]:
+def rmap_files(
+    wire_files: list[wire.FileData],
+    interp_module: InterpModule,
+    builds_by_symbol: dict[UUID, list[UUID]],
+) -> list[InterpFile]:
     """Maps a wire module into a GQL interpreted module"""
     interp_files = []
     for file in wire_files:
@@ -126,6 +133,11 @@ def rmap_files(wire_files: list[wire.FileData], interp_module: InterpModule) -> 
             root_type_tag, type_nodes = mapper.wmap_type_nodes(
                 None, statement.type_nodes, impute_type_reference=True
             )
+            available_builds = builds_by_symbol.get(statement.id)
+            if available_builds:  # to GlobalID
+                available_builds = [
+                    GlobalID("Statement", str(build_id)) for build_id in available_builds
+                ]
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
@@ -139,6 +151,7 @@ def rmap_files(wire_files: list[wire.FileData], interp_module: InterpModule) -> 
                 symbol_type=statement.symbol_type,
                 root_type_tag=root_type_tag,
                 type_nodes=type_nodes,
+                available_builds=available_builds,
             )
             interp_file.symbols.append(interp_symbol)
     return interp_files
@@ -289,18 +302,20 @@ class InterpSubscription:
         )
 
         # get initial runtime
-        rep = await request(
+        rep: NMessage[RepInterpModulePayload] = await request(
             NMessageType.REQUEST_INTERP_MODULE,
             ReqInterpModulePayload(module_id=project_version_id),
             RepInterpModulePayload,
         )
         new_interp = rep.payload
-        module = rmap_module(rep.p.module)
+        module = rmap_module(rep.p.module, rep.p.builds_by_symbol)
         interp = InterpModule(
             id=module.id,
             name=module.name,
             files=module.files,
-            dependencies=[rmap_module(dep) for dep in new_interp.dependencies],
+            dependencies=[
+                rmap_module(dep, rep.p.builds_by_symbol) for dep in new_interp.dependencies
+            ],
             errors=rmap_errors(new_interp.errors, module),
             stale_symbols=[
                 _get_symbol_from_module(module, symbol_id) for symbol_id in new_interp.stale_symbols
@@ -311,16 +326,20 @@ class InterpSubscription:
         # get runtime changes
         log.info("interp.listen")
         while True:
-            update = await interp_sub.next_msg()
+            update: NMessage[InterpModuleChangedPayload] = await interp_sub.next_msg()
             new_interp = update.payload
             log.debug("interp.update", updated_at=new_interp.updated_at)
             # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)
             # :PartialModuleUpdates
             # also the mapping duplication is a bit ugly
             if new_interp.module is not None:
-                interp.files = rmap_files(new_interp.module.files, interp)
+                interp.files = rmap_files(
+                    new_interp.module.files, interp, new_interp.builds_by_symbol
+                )
             if new_interp.dependencies is not None:
-                interp.dependencies = [rmap_module(dep) for dep in new_interp.dependencies]
+                interp.dependencies = [
+                    rmap_module(dep, new_interp.builds_by_symbol) for dep in new_interp.dependencies
+                ]
             if new_interp.errors is not None:
                 interp.errors = rmap_errors(new_interp.errors, interp)
             if new_interp.stale_symbols is not None:
