@@ -203,6 +203,7 @@ class ReqWriteBuildCandidatePayload:
     module_id: UUID
     build_id: UUID
     build_candidates: list[BuildCandidateData]
+    delete_others: bool
 
 
 @payload(NMessageType.REPLY_WRITE_BUILD_CANDIDATE)

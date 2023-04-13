@@ -318,33 +318,35 @@ class ModuleBuildTracker(BuildTracker):
         self.worker = worker
         self.build = build
         self.job_id = job_id
-        self.seen_evaluation_ids: set[UUID] = set()
+        self.seen_evaluation_ids: set[int] = set()
 
     def candidates_planned(self, candidates: list[BuildCandidate]):
         write = self.worker.master.write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id
+            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
         )
         create_wrapped_task(write)
 
     def candidates_built(self, candidates: list[BuildCandidate]):
         write = self.worker.master.write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id
+            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
         )
         create_wrapped_task(write)
 
     async def _write_evaluated(self, candidates: list[BuildCandidate]):
         # candidates are only evaluated once, but other candidates may be updated depending
         # on another candidates' evaluation (e.g. to update it from won to abandoned)
-        evaluations = [
+        new_evaluations = [
             candidate.evaluation
             for candidate in candidates
-            if candidate.evaluation.id not in self.seen_evaluation_ids
+            if id(candidate.evaluation) not in self.seen_evaluation_ids
         ]
-        self.seen_evaluation_ids.update(evaluation.id for evaluation in evaluations)
-        if evaluations:
-            await self.worker.master.write_evaluations(self.worker, evaluations, job_id=self.job_id)
+        self.seen_evaluation_ids.update(id(evaluation) for evaluation in new_evaluations)
+        if new_evaluations:
+            await self.worker.master.write_evaluations(
+                self.worker, new_evaluations, job_id=self.job_id
+            )
         await self.worker.master.write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id
+            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
         )
 
     def candidates_evaluated(self, candidates: list[BuildCandidate]):
@@ -1015,20 +1017,27 @@ class Worker:
         module_worker: ModuleWorker,
         build_id: UUID,
         build_candidates: list[BuildCandidate],
+        delete_others: bool,
         job_id: UUID,
     ):
         """Writes build candidates back to the internal server"""
         build_candidates_data = []
         for build_candidate in build_candidates:
+            evaluation_id = (
+                build_candidate.evaluation.make_id(module_worker.module_id)
+                if build_candidate.evaluation
+                else None
+            )
+            instruct_model_id = (
+                build_candidate.instruct_model.id if build_candidate.instruct_model else None
+            )
             build_candidate_data = BuildCandidateData(
                 id=build_candidate.id,
                 build_id=build_id,
                 status=build_candidate.status,
                 name=build_candidate.name,
-                evaluation_id=build_candidate.evaluation.id if build_candidate.evaluation else None,
-                instruct_model_id=build_candidate.instruct_model.id
-                if build_candidate.instruct_model
-                else None,
+                evaluation_id=evaluation_id,
+                instruct_model_id=instruct_model_id,
                 order_key=build_candidate.order_key,
                 job_id=job_id,
                 file_id=None,  # intermediate results are not written (yet)
@@ -1040,6 +1049,7 @@ class Worker:
             module_id=module_worker.module_id,
             build_id=build_id,
             build_candidates=build_candidates_data,
+            delete_others=delete_others,
         )
         rep = await request(
             NMessageType.REQUEST_WRITE_BUILD_CANDIDATE, write, RepWriteBuildCandidatePayload

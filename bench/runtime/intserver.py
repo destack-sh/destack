@@ -251,7 +251,9 @@ class InternalServer:
         try:
             if project_v.committed:
                 raise ValueError(f"cannot write to committed {project_v}")
-            await sync_to_async(write_build_candidates)(candidates=msg.payload.build_candidates)
+            await sync_to_async(write_build_candidates)(
+                candidates=msg.payload.build_candidates, delete_others=msg.payload.delete_others
+            )
             success = True
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
@@ -379,12 +381,21 @@ def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
     models.EvaluationResult.objects.bulk_create(
         model_evaluations,
         update_conflicts=True,
-        unique_fields=("kind", "scope", "environment_id", "system_id"),
+        unique_fields=["id"],
         update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
     )
 
 
-def write_build_candidates(candidates: list[BuildCandidateData]) -> None:
+def write_build_candidates(candidates: list[BuildCandidateData], delete_others: bool) -> None:
+    if delete_others:
+        # delete candidates associated with builds not in the list
+        build_ids = {c.build_id for c in candidates}
+        candidates_ids = {c.id for c in candidates}
+        for build_candidate in models.BuildCandidate.objects.filter(build_id__in=build_ids).exclude(
+            id__in=candidates_ids
+        ):
+            build_candidate.delete()
+
     model_candidates: list[models.BuildCandidate] = [
         mapper.rmap_build_candidate(candidate) for candidate in candidates
     ]
