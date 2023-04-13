@@ -284,6 +284,7 @@ class RepInterpModulePayload:
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
     stale_symbols: list[UUID]
+    builds_by_symbol: Optional[dict[UUID, list[UUID]]]
 
 
 @payload(NMessageType.INTERP_MODULE_CHANGED)
@@ -295,6 +296,7 @@ class InterpModuleChangedPayload:
     dependencies: Optional[list[wire.ModuleData]]
     errors: Optional[list[wire.ErrorData]]
     stale_symbols: Optional[list[UUID]]
+    builds_by_symbol: Optional[dict[UUID, list[UUID]]]
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

@@ -546,6 +546,7 @@ type InterpSymbol implements SimplyTyped {
   generated: Boolean!
   modifier: StatementModifier
   symbolType: SymbolType
+  availableBuilds: [GlobalID!]
 }
 
 """

@@ -547,6 +547,7 @@ export type InterpSimpleType = Node &
 
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
+  availableBuilds?: Maybe<Array<Scalars["GlobalID"]>>;
   file: InterpFile;
   fqn: Scalars["String"];
   generated: Scalars["Boolean"];
@@ -3987,6 +3988,7 @@ export type InterpSymbolContentFragment = {
   symbolType?: SymbolType | null;
   rootTypeTag?: TypeTag | null;
   generated: boolean;
+  availableBuilds?: Array<any> | null;
   typeNodes?: Array<{
     __typename?: "InterpSimpleType";
     id: any;
@@ -4725,6 +4727,7 @@ export const InterpSymbolContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
+          { kind: "Field", name: { kind: "Name", value: "availableBuilds" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "typeNodes" },

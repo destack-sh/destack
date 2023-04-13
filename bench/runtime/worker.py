@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
@@ -838,6 +839,10 @@ def make_change_payload(
         if module_worker.stale_symbols is not None
         else None
     )
+    builds_by_symbol = defaultdict(list)
+    for b in module_worker.idx.symbols_of_type(Build):
+        for task in b.tasks:
+            builds_by_symbol[task.definition.id].append(b.id)
     return cls(
         module_id=module_worker.module_id,
         updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
@@ -845,6 +850,7 @@ def make_change_payload(
         dependencies=dependencies if include_dependencies else None,
         errors=module_worker.wire_errors if include_module else None,
         stale_symbols=stale_symbols if include_module else None,
+        builds_by_symbol=builds_by_symbol if include_module else None,
     )
 
 
