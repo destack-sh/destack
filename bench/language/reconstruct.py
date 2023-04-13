@@ -204,6 +204,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
 
 def escape_identifier(identifier: str) -> str:
     """Wraps an identifier in single quotes if it contains special characters or is a keyword."""
+    identifier = identifier.replace("\n", " ")  # strip newlines
     if IDENTIFIER_REGEX.fullmatch(identifier) and identifier not in KEYWORDS:
         return identifier
     else:
