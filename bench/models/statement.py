@@ -15,7 +15,7 @@ from strawberry_django_plus import gql
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
 from bench.models.data import DatasetContentMixin, DatasetRecord
 from bench.models.generated import GeneratedContentMixin, GeneratedMapping
-from bench.models.utils import UUIDModel, walk_children_bfs_batched
+from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -40,7 +40,9 @@ class SimpleTypeNode(UUIDModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
-    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    name = models.CharField(
+        max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
+    )
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
     is_output = models.BooleanField(default=False)
@@ -327,7 +329,9 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     revision = models.IntegerField(default=1)
     type = TextChoicesField(choices_enum=StatementType)
     modifier = TextChoicesField(choices_enum=StatementModifier, null=True, blank=True)
-    name = models.CharField(max_length=MAX_NAME_LENGTH, null=True, blank=True)
+    name = models.CharField(
+        max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
