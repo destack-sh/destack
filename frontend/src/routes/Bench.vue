@@ -46,6 +46,8 @@ import {
   DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   EyeIcon,
+  FaceSmileIcon,
+  FireIcon,
   GlobeAltIcon,
   HandRaisedIcon,
   LockClosedIcon,
@@ -638,7 +640,7 @@ onBeforeUnmount(() => {
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="group relative rounded-sm border-l-2 border-gray-50 py-2.5 px-3 text-gray-600 hover:bg-orange-100"
+              class="group relative rounded-sm border-l-2 border-gray-50 px-3 py-2.5 text-gray-600 hover:bg-orange-100"
               :class="view.id == activeView.id && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in availableViews"
               :key="view.id"
@@ -704,6 +706,14 @@ onBeforeUnmount(() => {
             @blur="editor.blurView('issues')"
             :focused="editor.focusedViewId == 'issues'"
           />
+          <!-- Unknown view -->
+          <div
+            v-if="activeView.id != 'explorer' && activeView.id != 'history' && activeView.id != 'issues'"
+            class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center"
+          >
+            <FaceSmileIcon class="h-7 w-7 rotate-180 text-gray-500" />
+            <span class="text-sm text-gray-700">Let's pretend you didn't see this.</span>
+          </div>
         </div>
       </aside>
       <!-- Main editor area -->
@@ -713,13 +723,13 @@ onBeforeUnmount(() => {
       >
         <!-- Left editor group -->
         <div class="relative flex-1">
-          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
+          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
             <EditorGroupInterface :group="editor.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
         <div class="relative flex-1" v-if="editor.right.editors.length > 0">
-          <div class="absolute top-0 left-0 h-full w-full overflow-hidden">
+          <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
             <EditorGroupInterface :group="editor.right" class="h-full w-full" />
           </div>
         </div>

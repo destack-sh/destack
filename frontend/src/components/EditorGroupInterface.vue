@@ -10,7 +10,8 @@ import { computed, nextTick, ref, toRef, watch } from "vue";
 const props = defineProps<{ group: EditorGroup }>();
 
 const editor = useEditorState();
-const selectedTab = ref(0);
+const selectedTab = ref(-1);
+const tabGroupRef = ref(null);
 watch(
   () => [props.group.activeEditorId, props.group.editors],
   () => {
@@ -59,7 +60,7 @@ async function createFileInEditorGroup() {
 <template>
   <!-- Tabbed editors for this group -->
   <div class="relative flex flex-col">
-    <TabGroup :selected-index="selectedTab">
+    <TabGroup :selected-index="selectedTab" :default-index="selectedTab" ref="tabGroupRef">
       <!-- Tabs -->
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
