@@ -92,16 +92,16 @@ class ErrorType(enum.Enum):
 
 
 class SyntaxError(ValueError):
-    def __int__(
+    def __init__(
         self,
-        type: ErrorType,
+        _t: ErrorType,
         source_file: SourceFile,
         line_number: int,
         column: int,
     ):
-        self.message = self._format_message(type, source_file, line_number, column)
+        self.message = self._format_message(_t, source_file, line_number, column)
         super().__init__(self.message)
-        self.type = type
+        self.type = _t
         self.source_file = source_file
         self.line_number = line_number
         self.column = column

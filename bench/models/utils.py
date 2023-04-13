@@ -4,10 +4,11 @@ from collections import defaultdict, deque
 from itertools import chain
 from typing import Any, Deque, Iterator, Type, TypeVar
 
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models import QuerySet
 
-from bench.utils.uuidt import UUIDT
+from bench.utils.uuidt import NAME_REGEX, UUIDT
 
 
 class UUIDModel(models.Model):
@@ -23,6 +24,8 @@ class UUIDTModel(UUIDModel):
     class Meta:
         abstract = True
 
+
+NAME_VALIDATOR = RegexValidator(NAME_REGEX)
 
 ModelT = TypeVar("ModelT", bound=models.Model)
 

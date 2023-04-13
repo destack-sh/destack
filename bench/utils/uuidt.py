@@ -1,3 +1,4 @@
+import re
 import secrets
 import uuid
 from collections import defaultdict
@@ -6,6 +7,8 @@ from typing import Any, Dict, Optional
 
 MAX_NAME_LENGTH = 256
 MAX_DESCRIPTION_LENGTH = 512
+# names can be alphanumeric, hyphen, underscore, dot, spaces (but no tabs or newlines, no leading/trailing spaces)
+NAME_REGEX = re.compile(r"^[a-zA-Z0-9_.\- ]*$")
 
 
 class UUIDT(uuid.UUID):

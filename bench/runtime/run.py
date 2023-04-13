@@ -335,7 +335,7 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
             enum_cls = enum.IntEnum
         else:
             raise ValueError(f"unexpected enum head type: {node.head_type}")
-        members = {child.name: child.value for child in node.members}
+        members = {to_pyidentifier(child.name): child.value for child in node.members}
         enum_name = node.name or "_anon_" + uuid4().hex
         return enum_cls(enum_name, members)
     elif node.tag == TypeTag.LITERAL:
