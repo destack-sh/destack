@@ -43,6 +43,11 @@ export const TYPE_POLICIES = {
       versions: useIncoming,
     },
   },
+  ProjectVersion: {
+    fields: {
+      files: useIncoming,
+    },
+  },
   ExecutionConnection: {
     fields: {
       edges: useIncoming,
