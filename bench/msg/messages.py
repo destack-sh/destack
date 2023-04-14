@@ -158,6 +158,7 @@ class ModuleRunErrorType(enum.Enum):
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_RUNCONFIG = "invalid_runconfig"
+    TIMEOUT = "timeout"
     RUNTIME_ERROR = "runtime_error"
 
 

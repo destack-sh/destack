@@ -128,7 +128,7 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
         or EvaluationMetric.InstructionSatisfaction in metrics
     ):
         performance = (metrics.get(EvaluationMetric.TypeValidity, 1)) * (
-            metrics.get(EvaluationMetric.InstructionSatisfaction, 1)
+            (1.0 - 0.6 * metrics.get(EvaluationMetric.InstructionSatisfaction, 1))
         )
         # perfection is unattainable (... and 100 is suspicious)
         summary_metrics[EvaluationMetric.Performance] = min(performance, 0.99)

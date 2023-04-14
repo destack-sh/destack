@@ -637,7 +637,7 @@ class SymbolMutation:
         statement.language = input.language
         return statement
 
-    @project_mutation(PMT.CREATE_STATEMENT_RECORD)
+    @project_mutation(PMT.CREATE_RECORD)
     def create_statement_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(
@@ -648,32 +648,32 @@ class SymbolMutation:
         )
         return record
 
-    @project_mutation(PMT.UPDATE_STATEMENT_RECORD)
+    @project_mutation(PMT.UPDATE_RECORD)
     def update_statement_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.data = input.data
         return record
 
-    @project_mutation(PMT.MOVE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.MOVE_TYPE_NODE)
     def move_statement_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
         return record
 
-    @project_mutation(PMT.DELETE_STATEMENT_RECORD)
+    @project_mutation(PMT.DELETE_RECORD)
     def delete_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.soft_delete()
         return record
 
-    @project_mutation(PMT.CREATE_STATEMENT_RECORD)
+    @project_mutation(PMT.RESTORE_RECORD)
     def restore_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         # use _base_manager since soft deleted records are not visible
         record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
 
-    @project_mutation(PMT.CREATE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.CREATE_TYPE_NODE)
     def create_statement_type_node(
         self, input: TypeNodeCreateInput
     ) -> SimpleTypeNode | OperationInfo:
@@ -683,7 +683,7 @@ class SymbolMutation:
         type_node.full_clean(validate_unique=False, validate_constraints=False)
         return type_node
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.UPDATE_TYPE_NODE)
     def update_statement_type_node(
         self, input: TypeNodeUpdateInput
     ) -> SimpleTypeNode | OperationInfo:
@@ -699,13 +699,13 @@ class SymbolMutation:
         type_node.full_clean(validate_unique=False, validate_constraints=False)
         return type_node
 
-    @project_mutation(PMT.MOVE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.MOVE_TYPE_NODE)
     def move_statement_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.order_key = input.order_key
         return type_node
 
-    @project_mutation(PMT.UPDATE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.DELETE_TYPE_NODE)
     def delete_statement_type_node(
         self, input: TypeNodeDeleteInput
     ) -> SimpleTypeNode | OperationInfo:
@@ -714,7 +714,7 @@ class SymbolMutation:
         type_node.soft_delete()
         return type_node
 
-    @project_mutation(PMT.CREATE_STATEMENT_TYPE_NODE)
+    @project_mutation(PMT.RESTORE_TYPE_NODE)
     def restore_statement_type_node(
         self, input: TypeNodeDeleteInput
     ) -> SimpleTypeNode | OperationInfo:

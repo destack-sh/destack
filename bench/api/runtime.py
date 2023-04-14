@@ -2,6 +2,7 @@ from itertools import chain
 from typing import AsyncGenerator, Optional, cast
 from uuid import UUID
 
+import posthog
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied
@@ -222,6 +223,8 @@ class ModuleRuntimeMutation:
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         await sync_to_async(check_can_write_project)(info, project_version_id)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        posthog.capture(str(user.id), "build", {"project_version_id": str(project_version_id)})
 
         req = ReqModuleBuildPayload(
             module_id=project_version_id, buildable_id=input.buildable_id.node_id
@@ -261,17 +264,33 @@ class ModuleRuntimeMutation:
             trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
             trigger_id=user.id,
         )
-        rep = await request(
-            NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload, timeout=input.timeout_seconds
+        try:
+            rep = await request(
+                NMessageType.REQUEST_MODULE_RUN,
+                run,
+                RepModuleRunPayload,
+                timeout=input.timeout_seconds,
+            )
+            success = rep.p.error is None
+            output = rep.p.output
+            error = rep.p.error
+            error_details = rep.p.error_details
+        except TimeoutError:
+            success = False
+            output = None
+            error = ModuleRunErrorType.TIMEOUT
+            error_details = None
+        posthog.capture(
+            str(user.id), "run", {"project_version_id": str(project_version_id), "error": error}
         )
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             build_id=input.build_id,
-            success=rep.p.error is None,
-            output=rep.p.output,
-            error=rep.p.error,
-            error_details=rep.p.error_details,
+            output=output,
+            success=success,
+            error=error,
+            error_details=error_details,
         )
 
 

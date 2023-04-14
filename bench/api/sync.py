@@ -1,17 +1,20 @@
 import functools
-from typing import Optional, Sequence, Union
+from typing import Optional, Sequence, Union, cast
 
+import posthog
 import structlog
 from asgiref.sync import async_to_sync
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
+from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish
 from bench.msg.messages import ProjectVersionChangedPayload
@@ -96,6 +99,8 @@ def project_mutation(
             #  This also creates a race condition where the mutation may be published before it's written.
             # publish change
             pub_project_mutation(type, things)
+            # analytics
+            track_project_mutation(type, project_version, things, batch, kwargs.get("info"))
 
             return ret
 
@@ -154,4 +159,47 @@ def pub_project_mutation(
     async_to_sync(publish)(
         NMessageType.PROJECT_VERSION_CHANGED,
         ProjectVersionChangedPayload(project_version_id, mutations=mutations),
+    )
+
+
+def track_project_mutation(
+    type: PMT, project_version: ProjectVersion, things, batch: bool, info: Optional[Info]
+):
+    if not info:
+        return
+    user = cast(models.User, info.context.request.scope["user"]._wrapped)
+    if user.is_anonymous:
+        return
+
+    if "FILE" in type.value:
+        properties = {"file_id": things[0].id, "name": things[0].name, "path": things[0].path}
+    elif "STATEMENT" in type.value:
+        properties = {
+            "statement_id": things[0].id,
+            "name": things[0].name,
+            "order_key": things[0].order_key,
+            "file_id": things[0].file_id,
+        }
+    elif "TYPE_NODE" in type.value:
+        properties = {
+            "simple_type_node_id": things[0].id,
+            "name": things[0].name,
+            "order_key": things[0].order_key,
+        }
+    elif "RECORD" in type.value:
+        properties = {"dataset_record_id": things[0].id, "order_key": things[0].order_key}
+    elif type == PMT.COMMIT:
+        properties = {}
+    else:
+        properties = {}
+        logger.warning("unknown_project_mutation", type=type)
+
+    project_properties = {
+        "project_id": project_version.project_id,
+        "project_version_id": project_version.id,
+        "project_path": project_version.project.path,
+    }
+    normalized_type = type.name.lower().replace("_", " ")
+    posthog.capture(
+        str(user.id), normalized_type, properties={batch: batch, **properties, **project_properties}
     )
