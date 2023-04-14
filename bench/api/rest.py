@@ -22,7 +22,7 @@ logger = structlog.get_logger(__name__)
 
 
 class RunInputSerializer(serializers.Serializer):
-    version = serializers.CharField()  # project version tag
+    version = serializers.CharField(default="x")  # project version tag
     task = serializers.CharField(default=None, allow_null=True)
     code = serializers.CharField(default=None, allow_null=True)
     build = serializers.CharField(default=None, allow_null=True)
