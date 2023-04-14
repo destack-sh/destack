@@ -631,12 +631,17 @@ class ModuleWorker:
 
         # get the runconfig
         try:
-            build = self.idx.symbol(build, Build) if build else None
             if runnable_type:
                 runnable_type = SYMBOL_CLASS_BY_TYPE[SymbolType(runnable_type)]
             else:
                 runnable_type = None
             runnable = self.idx.symbol(runnable, symbol_t=runnable_type)
+            if build:
+                build = self.idx.symbol(
+                    build,
+                    Build,
+                    filter=lambda b: any(t.definition.id == runnable.id for t in b.tasks),
+                )
         except (TypeError, KeyError) as e:
             self.log.exception("module.run.failed", exc_info=e)
             return ModuleRunErrorType.INVALID_RUNCONFIG

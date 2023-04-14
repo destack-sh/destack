@@ -1186,7 +1186,12 @@ class ModuleIndex:
     def symbols_of_type(self, symbol_t: typing.Type[SymbolT]) -> list[SymbolT]:
         return [s for s in self.symbols.values() if isinstance(s, symbol_t)]
 
-    def symbol_by_name(self, name: str, symbol_t: typing.Type[SymbolT] | None = None) -> SymbolT:
+    def symbol_by_name(
+        self,
+        name: str,
+        symbol_t: typing.Type[SymbolT] | None = None,
+        filter: Callable[[SymbolT], bool] = None,
+    ) -> SymbolT:
         matching_symbols = [
             s
             for s in self.symbols.values()
@@ -1194,6 +1199,7 @@ class ModuleIndex:
             and s.is_definition
             and s.is_root
             and (symbol_t is None or isinstance(s, symbol_t))
+            and (filter is None or filter(s))
         ]
         if len(matching_symbols) == 1:
             return matching_symbols[0]
@@ -1203,16 +1209,19 @@ class ModuleIndex:
             raise KeyError(f"no symbol {name} found")
 
     def symbol(
-        self, path: StatementPath | UUID | str, symbol_t: typing.Type[SymbolT] | None = None
+        self,
+        path: StatementPath | UUID | str,
+        symbol_t: typing.Type[SymbolT] | None = None,
+        filter: Callable[[SymbolT], bool] | None = None,  # ignored if path is UUID
     ) -> SymbolT:
         if not self.interpreted:
             raise RuntimeError(f"module index is not interpreted: {self}")
         if isinstance(path, UUID):
             return self.symbol_by_id(path, symbol_t=symbol_t)
-        if isinstance(path, str):
+        elif isinstance(path, str):
             # usually str is a statement path, but we also allow plain names for convenience
             if ":" not in path:  # try to lookup definition at root by name
-                return self.symbol_by_name(path, symbol_t=symbol_t)
+                return self.symbol_by_name(path, symbol_t=symbol_t, filter=filter)
             path = parse_statement_path(path)
         scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
         if scope is None:
@@ -1222,6 +1231,8 @@ class ModuleIndex:
             raise KeyError(f"no symbol {path.name} found in {scope}")
         if symbol_t is not None and not isinstance(symbol, symbol_t):
             raise TypeError(f"symbol {symbol} is not of type {symbol_t}")
+        if filter is not None and not filter(symbol):
+            raise KeyError(f"symbol {symbol} does not match filter")
         return symbol
 
     def get_symbol(

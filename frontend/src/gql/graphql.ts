@@ -620,6 +620,7 @@ export enum ModuleRunErrorType {
   InvalidRunconfig = "INVALID_RUNCONFIG",
   NotReady = "NOT_READY",
   RuntimeError = "RUNTIME_ERROR",
+  Timeout = "TIMEOUT",
 }
 
 export type Mutation = {
