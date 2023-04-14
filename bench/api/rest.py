@@ -1,9 +1,11 @@
 import json
+import threading
 from datetime import datetime
 from functools import wraps
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 from uuid import UUID
 
+import posthog
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
@@ -35,16 +37,32 @@ class RunInputSerializer(serializers.Serializer):
 
 class RunOutputSerializer(serializers.Serializer):
     execution_id = serializers.UUIDField()
-    output = serializers.JSONField(allow_null=True)
+    outputs = serializers.JSONField(allow_null=True)
     success = serializers.BooleanField()
     error = serializers.JSONField(allow_null=True)
 
 
-def csrf_exempt_async(view_func):
+def async_csrf_exempt(view_func):
     async def wrapped_view(request, *args, **kwargs):
         return await view_func(request, *args, **kwargs)
 
     wrapped_view.csrf_exempt = True
+    return wraps(view_func)(wrapped_view)
+
+
+def async_check_is_main_thread(view_func):
+    async def wrapped_view(request, *args, **kwargs):
+        if threading.current_thread().name != "django-main-thread":
+            # someone fucked up
+            logger.error(
+                "calling_from_non_main",
+                view_func=view_func,
+                current_thread=threading.current_thread(),
+                main_thread=threading.main_thread(),
+            )
+            return HttpResponse(status=500)
+        return await view_func(request, *args, **kwargs)
+
     return wraps(view_func)(wrapped_view)
 
 
@@ -71,7 +89,14 @@ def async_api_view(methods: list[str] = None):
 
 
 AccessInfo = NamedTuple(
-    "AccessInfo", [("project_version_id", UUID), ("deployment_id", UUID), ("access_token_id", UUID)]
+    "AccessInfo",
+    [
+        ("project_version_id", UUID),
+        ("deployment_id", UUID),
+        ("access_token_id", UUID),
+        ("organization_id", Optional[UUID]),
+        ("user_id", Optional[UUID]),
+    ],
 )
 
 
@@ -93,17 +118,24 @@ def get_deployment_access(
         )
         .filter(Q(revoked_at__isnull=True))
         .filter(Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True))
-        .only("id")
+        .only("id", "user_id", "organization_id")
         .first()
     )
     if access_token is None:
         raise PermissionDenied("cannot access this deployment")
     # should only be one deployment :SingleOwnedDeployment
     deployment = project_version.deployments.get(owned=True)
-    return AccessInfo(project_version.id, deployment.id, access_token.id)
+    return AccessInfo(
+        project_version.id,
+        deployment.id,
+        access_token.id,
+        access_token.organization_id,
+        access_token.user_id,
+    )
 
 
-@csrf_exempt_async
+@async_csrf_exempt
+@async_check_is_main_thread
 @async_api_view(methods=["POST"])
 async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     try:
@@ -152,10 +184,20 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         trigger_id=access.access_token_id,
     )
     rep = await request(NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload, timeout=60)
-    output = dict(
+    outputs = dict(
         execution_id=rep.p.execution_id,
         output=rep.p.output,
         success=not rep.p.error,
         error=dict(type=rep.p.error.value, details=rep.p.error_details) if rep.p.error else None,
     )
-    return JsonResponse(output, status=200)
+
+    # track
+    if access.organization_id:
+        distinct_id = f"org-{access.organization_id}"
+    elif access.user_id:
+        distinct_id = str(access.user_id)
+    else:
+        raise ValueError("access token must have either user or organization")
+    posthog.capture(distinct_id, "run api", properties={"runnable": runnable})
+
+    return JsonResponse(outputs, status=200)

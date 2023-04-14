@@ -106,7 +106,9 @@ class NMessage(Generic[PayloadT]):
             raise TypeError(
                 f"expected reply payload to {self} to be {reply_payload_cls}, got {type(payload)}: {payload}"
             )
-        serialized = _serialize_message(NMessage(reply_type, payload, sent_at=datetime.utcnow()))
+        reply_msg = NMessage(reply_type, payload, sent_at=datetime.utcnow())
+        log.debug("reply", msg=self, reply=reply_msg)
+        serialized = _serialize_message(reply_msg)
         await self.msg.respond(serialized.encode("utf-8"))
 
 
@@ -217,6 +219,7 @@ async def request(
     if not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
+    log.debug("request.reply", topic=topic, message=message, reply=reply_msg)
     return reply_msg
 
 
