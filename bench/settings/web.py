@@ -25,18 +25,16 @@ INSTALLED_APPS = [
 ]
 
 # TODO @Cleanup: Daphne doesn't use MIDDLEWARE, so keeping this just for REST is confusing/inconsistent
+# Do not touch these middlewares unless you're really sure you're not adding any sync middleware.
+# This must run async end to end to ensure our REST endpoints run in the main thread (not in an executor),
+# which is essential because event loops don't like threads and NATS particularly gets very confused..
 MIDDLEWARE = [
-    "django_prometheus.middleware.PrometheusBeforeMiddleware",
-    "django_structlog.middlewares.RequestMiddleware",
-    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = "bench.urls"
