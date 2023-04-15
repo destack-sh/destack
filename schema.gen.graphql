@@ -1631,6 +1631,7 @@ enum StatementModifier {
   UNLIKE
   CHECK
   MAGIC
+  LOCAL
 }
 
 input StatementMorphInput {
@@ -1722,7 +1723,9 @@ enum SymbolType {
   VALUE
   REQUIREMENT
   BUILD
+  EVALUATE
   RUNCONFIG
+  BLOCK
 }
 
 type SystemInfo {
