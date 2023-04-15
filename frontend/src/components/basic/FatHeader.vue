@@ -7,7 +7,7 @@
     (all across the codebase, with slightly different % opacity) 
   -->
   <header
-    class="static mx-auto grid w-full grid-cols-3 gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[16%] bg-white"
+    class="static mx-auto flex w-full grid-cols-3 flex-row gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[16%] bg-white 2xl:grid"
   >
     <!-- Left side -->
     <div class="static flex items-center">
