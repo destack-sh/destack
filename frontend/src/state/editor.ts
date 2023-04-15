@@ -42,7 +42,7 @@ export type StatementHeader = Pick<
   | "reference"
 >;
 
-// sync with language in backend
+// sync with language in backend (?)
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",
@@ -160,7 +160,7 @@ export function makeRunEditor(symbol: { id: string; name: string; symbolType: Sy
     type: "run",
     symbolId: symbol.id,
     symbolType: symbol.symbolType,
-    path: "Run " + symbol.name,
+    path: "run: " + symbol.name,
     localState: {},
     groupId: null,
   } as RunEditor;

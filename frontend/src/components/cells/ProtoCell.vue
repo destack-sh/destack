@@ -5,7 +5,7 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
 import { symbolsLike } from "@/state/runtime";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -145,7 +145,9 @@ defineExpose({
       @delete-left="deleteSymbolTypeOrModifier"
       @navigate-left="gapRef?.focus"
       @insert-below="context.insertBelow"
-      :can-define-in-place="context.statement.value.symbolType != null"
+      :can-define-in-place="
+        context.statement.value.symbolType != null && context.statement.value.symbolType != SymbolType.Model
+      "
       can-define-anonymous
       @define-in-place="morphToDefinition"
       @set-reference="(ref) => ref == null || morphToReference(ref)"
