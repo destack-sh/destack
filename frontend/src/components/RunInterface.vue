@@ -5,15 +5,15 @@ import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import { renderSimpleType } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
-import { SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, useEditorState, type EditorInterfaceState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { buildsOf, symbolOf } from "@/state/runtime";
-import { QuestionMarkCircleIcon } from "@heroicons/vue/20/solid";
-import { ArrowDownIcon } from "@heroicons/vue/24/outline";
+import { buildsOf, symbolOf, symbolsLike } from "@/state/runtime";
+import { QuestionMarkCircleIcon, XMarkIcon } from "@heroicons/vue/20/solid";
+import { ArrowDownIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
@@ -21,7 +21,6 @@ const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((n) => !n.isOutput) ?? []);
 const outputFields = computed(() => symbol.value?.typeNodes?.filter((n) => n.isOutput) ?? []);
-const availableBuilds = buildsOf(symbol);
 const includeAncestorVersions = ref(true);
 
 // local run interface state
@@ -29,27 +28,72 @@ const state = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
 if (state == null) {
   throw new Error("need interface state context");
 }
-
-const build: Ref<InterpSymbol | undefined> = computed(() => symbolOf(state.get("buildId", "")));
-function setBuild(build?: InterpSymbol) {
-  state?.set("buildId", build?.id);
-}
-// auto-set build if available and not set
-watchEffect(() => {
-  if (build.value == null && availableBuilds.value.length > 0) {
-    setBuild(availableBuilds.value[0]);
-  }
+// input source
+// batch mode (with computed setter on state)
+const batchMode = computed({
+  get() {
+    return state.get("batchMode", false);
+  },
+  set(value) {
+    state?.set("batchMode", value);
+  },
+});
+// batch source dataset (also with setter, lookup as symbol in getter)
+// TODO @UX: filter available datasets to correct types
+const availableDatasets = symbolsLike({ symbolTypes: [SymbolType.Data], types: [StatementType.Definition] });
+const batchSourceDataset = computed({
+  get() {
+    return symbolOf(state.get("batchSourceDatasetId", ""));
+  },
+  set(value) {
+    state?.set("batchSourceDatasetId", value?.id);
+  },
 });
 
+// arguments
 const arguments_: Ref<Record<string, any>> = computed(() => state.get("arguments", {}) as Record<string, any>);
 function setArgument(key: string, value: string) {
   const args = { ...arguments_.value };
   args[key] = value;
   state?.set("arguments", args);
 }
+
+// builds
+const builds: Ref<InterpSymbol[]> = computed(() =>
+  state
+    .get("buildIds", [])
+    .map((id) => symbolOf(id))
+    .filter((b) => b != null)
+);
+const availableBuilds = buildsOf(symbol);
+const remainingAvailableBuilds = computed(() =>
+  availableBuilds.value.filter((b) => !builds.value.some((b2) => b2.id == b.id))
+);
+function addBuild(build: InterpSymbol) {
+  // add build if it doesn't exist yet
+  if (builds.value.find((b) => b.id == build.id) == null) {
+    state?.set("buildIds", [...state.get("buildIds", []), build.id]);
+  }
+}
+function removeBuild(build: InterpSymbol) {
+  state?.set(
+    "buildIds",
+    state.get("buildIds", []).filter((id) => id != build.id)
+  );
+}
+const addingBuild = ref(false);
+
+// auto-set build if available and not set
+watchEffect(() => {
+  if (builds.value.length == 0 && availableBuilds.value.length > 0) {
+    addBuild(availableBuilds.value[0]);
+  }
+});
+
 const runsTableRef = ref<InstanceType<typeof RunsTable> | null>(null);
 const runButtonRef = ref<HTMLButtonElement | null>(null);
 const selectBuildRef = ref<InstanceType<typeof ReferenceComboCell> | null>(null);
+const addBuildRef = ref<InstanceType<typeof ReferenceComboCell> | null>(null);
 const argumentsGrid = useNavigationGrid<"value", InstanceType<typeof InlineValueCell>>(
   computed(() => ["value"]),
   inputFields,
@@ -77,7 +121,7 @@ async function run() {
   console.log("run " + symbol.value?.name, args);
   lastOutputDirty.value = true;
   const runOptions = { block: true, timeoutSeconds: 120 };
-  const ret = await ops.runtime.run(symbol.value.id, build.value?.id, args, runOptions);
+  const ret = await ops.runtime.run(symbol.value.id, builds.value?.[0].id, args, runOptions);
   if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
     notifications.show({
       type: "run.fail",
@@ -112,23 +156,70 @@ const outputColumns = computed(() =>
     <!-- Runconfig -->
     <div class="mx-auto w-full max-w-[800px]">
       <h2 class="flex flex-row items-baseline gap-1">
+        <!-- the runnable should maybe be configurable, but that would require mutating the editor instance -->
         <span class="text-3xl font-bold text-gray-900">Run {{ symbol?.name }}</span>
       </h2>
-      <!-- Runnable (supposed to imitate corresponding statement look) -->
+      <h3 class="mt-4 text-2xl font-bold text-gray-900">Quick run</h3>
+      <!-- Input source & builds -->
       <div class="mt-2 flex flex-row justify-between">
-        <!-- Build select -->
-        <span class="flex flex-row gap-1">
-          <span class="text-gray-500">Build:</span>
-          <template v-if="symbol?.symbolType == SymbolType.Task">
-            <ReferenceComboCell
-              ref="selectBuildRef"
-              :reference="build"
-              @set-reference="setBuild($event ?? undefined)"
-              :available-symbols="availableBuilds"
-              @navigate-down="argumentsGrid.focus(0, 'value')"
-            />
-          </template>
-        </span>
+        <div class="flex flex-row items-baseline">
+          <!-- Input source (single vs batch) -->
+          <button
+            class="rounded-sm rounded-r-none border border-orange-900 border-opacity-[15%] px-2 py-1 hover:cursor-pointer"
+            :class="{ 'bg-orange-100': !batchMode }"
+            @click="batchMode = false"
+          >
+            Single
+          </button>
+          <button
+            class="rounded-sm rounded-l-none border border-orange-900 border-opacity-[15%] px-2 py-1 hover:cursor-pointer"
+            :class="{ 'rounded-r-none border-r-0 bg-orange-100': batchMode }"
+            @click="batchMode = true"
+          >
+            Batch
+          </button>
+          <!-- Batch source select (if batch mode) -->
+          <ReferenceComboCell
+            v-if="batchMode"
+            class="rounded-sm rounded-l-none border border-orange-900 border-opacity-[15%] bg-orange-100 py-1 pr-2 hover:cursor-pointer"
+            :class="{ 'rounded-l-none border-l-0': batchMode }"
+            ref="selectDatasetRef"
+            :reference="batchSourceDataset"
+            @set-reference="batchSourceDataset = $event ?? undefined"
+            :available-symbols="availableDatasets"
+            @navigate-down="argumentsGrid.focus(0, 'value')"
+          />
+          <!-- Builds -->
+          <span
+            class="ml-3 flex items-center gap-0.5 border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1"
+            v-for="build in builds"
+            :key="build.id"
+          >
+            {{ build.name }}
+            <button v-if="builds.length > 1" class="text-gray-400 hover:text-gray-800" @click="removeBuild(build)">
+              <XMarkIcon class="h-4 w-4" />
+            </button>
+          </span>
+          <button
+            v-if="remainingAvailableBuilds.length > 0 && !addingBuild"
+            class="ml-2 p-1 text-gray-900 hover:bg-orange-100"
+            @click="
+              addingBuild = true;
+              addBuildRef?.focus();
+            "
+          >
+            <PlusIcon class="h-4 w-4" />
+          </button>
+          <ReferenceComboCell
+            v-if="addingBuild"
+            ref="addBuildRef"
+            class="ml-2"
+            @set-reference="$event != null && addBuild($event)"
+            :available-symbols="remainingAvailableBuilds"
+            @navigate-down="argumentsGrid.focus(0, 'value')"
+          />
+        </div>
+
         <!-- Deploy link/help -->
         <span class="flex flex-row items-center gap-0.5">
           <button
@@ -205,14 +296,7 @@ const outputColumns = computed(() =>
         </template>
       </template>
       <div v-else class="flex h-full w-full flex-col items-center justify-center">
-        <div class="p-2 text-gray-500">
-          No output yet (<button
-            class="text-gray-700 underline decoration-dashed underline-offset-2 hover:bg-orange-100 hover:text-gray-900 hover:decoration-solid focus:bg-orange-100"
-            @click="run"
-          >
-            run</button
-          >)
-        </div>
+        <div class="text-gray-500">No output yet</div>
       </div>
     </div>
     <!-- Runs -->
@@ -224,7 +308,7 @@ const outputColumns = computed(() =>
         >
           Runs
         </button>
-        <span class="rounded-3xl bg-gray-100 py-0.5 px-1 text-sm text-gray-900" v-if="runsTableRef">
+        <span class="rounded-3xl bg-gray-100 px-1 py-0.5 text-sm text-gray-900" v-if="runsTableRef">
           {{ humanizeNumber(runsTableRef?.totalCount) }}
         </span>
       </h2>
@@ -234,7 +318,7 @@ const outputColumns = computed(() =>
         :project-id="editor.currentProjectId"
         :project-version-id="editor.currentProjectVersionId"
         :include-ancestor-versions="includeAncestorVersions"
-        :build-ids="build ? [build.id] : undefined"
+        :build-ids="state?.get('buildIds', [])"
         :task-ids="runnableType == SymbolType.Task ? [runnableId] : undefined"
         :code-ids="runnableType == SymbolType.Code ? [runnableId] : undefined"
         :input-columns="inputColumns"
