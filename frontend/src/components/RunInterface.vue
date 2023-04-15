@@ -13,8 +13,8 @@ import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { buildsOf, symbolOf, symbolsLike } from "@/state/runtime";
 import { QuestionMarkCircleIcon, XMarkIcon } from "@heroicons/vue/20/solid";
-import { ArrowDownIcon, PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, ref, watchEffect, type Ref } from "vue";
+import { ArrowDownIcon, ArrowRightIcon, PlayIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { computed, inject, nextTick, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
 
@@ -69,11 +69,16 @@ const availableBuilds = buildsOf(symbol);
 const remainingAvailableBuilds = computed(() =>
   availableBuilds.value.filter((b) => !builds.value.some((b2) => b2.id == b.id))
 );
+function startAddBuild() {
+  addingBuild.value = true;
+  nextTick(() => addBuildRef.value?.focus);
+}
 function addBuild(build: InterpSymbol) {
   // add build if it doesn't exist yet
   if (builds.value.find((b) => b.id == build.id) == null) {
     state?.set("buildIds", [...state.get("buildIds", []), build.id]);
   }
+  addingBuild.value = true;
 }
 function removeBuild(build: InterpSymbol) {
   state?.set(
@@ -102,7 +107,7 @@ const argumentsGrid = useNavigationGrid<"value", InstanceType<typeof InlineValue
     gridNavigateDown: () => runButtonRef.value?.focus(),
   }
 );
-const lastOutput: Ref<any | null> = ref(null);
+const lastOutputByBuild: Ref<Record<string, any>> = ref({});
 const lastOutputDirty = ref(false);
 const ops = useOperations();
 const notifications = useNotifications();
@@ -121,18 +126,28 @@ async function run() {
   console.log("run " + symbol.value?.name, args);
   lastOutputDirty.value = true;
   const runOptions = { block: true, timeoutSeconds: 120 };
-  const ret = await ops.runtime.run(symbol.value.id, builds.value?.[0].id, args, runOptions);
-  if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
-    notifications.show({
-      type: "run.fail",
-      kind: "error",
-      message: "Run failed",
-      description: `Failed to run ${symbol.value?.name}: ${ret?.data?.run?.error ?? "rejected"}`,
-    });
-    lastOutput.value = null;
+
+  // single executions
+  if (!batchMode.value) {
+    // TODO @Performance: parallelize execution across builds
+    for (const build of builds.value) {
+      const ret = await ops.runtime.run(symbol.value.id, builds.value?.[0].id, args, runOptions);
+      if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
+        notifications.show({
+          type: "run.fail",
+          kind: "error",
+          message: "Run failed",
+          description: `Failed to run ${symbol.value?.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+        });
+        lastOutputByBuild.value[build.id] = null;
+      } else {
+        lastOutputByBuild.value[build.id] = ret.data.run.output;
+      }
+    }
   } else {
-    lastOutput.value = ret.data.run.output;
+    // TODO @Incomplete: batch mode
   }
+
   lastOutputDirty.value = false;
 }
 
@@ -159,7 +174,7 @@ const outputColumns = computed(() =>
         <!-- the runnable should maybe be configurable, but that would require mutating the editor instance -->
         <span class="text-3xl font-bold text-gray-900">Run {{ symbol?.name }}</span>
       </h2>
-      <h3 class="mt-4 text-2xl font-bold text-gray-900">Quick run</h3>
+      <h3 class="mt-8 text-2xl font-bold text-gray-900">Quick run</h3>
       <!-- Input source & builds -->
       <div class="mt-2 flex flex-row justify-between">
         <div class="flex flex-row items-baseline">
@@ -203,12 +218,9 @@ const outputColumns = computed(() =>
           <button
             v-if="remainingAvailableBuilds.length > 0 && !addingBuild"
             class="ml-2 p-1 text-gray-900 hover:bg-orange-100"
-            @click="
-              addingBuild = true;
-              addBuildRef?.focus();
-            "
+            @click="startAddBuild"
           >
-            <PlusIcon class="h-4 w-4" />
+            <PlusIcon class="-mb-0.5 h-4 w-4" />
           </button>
           <ReferenceComboCell
             v-if="addingBuild"
@@ -220,26 +232,43 @@ const outputColumns = computed(() =>
           />
         </div>
 
-        <!-- Deploy link/help -->
-        <span class="flex flex-row items-center gap-0.5">
+        <!-- Run / deploy hint -->
+        <div class="flex flex-row gap-3">
+          <!-- Deploy hint -->
+          <span class="flex flex-row items-center gap-0.5">
+            <button
+              class="rounded-sm px-1 text-gray-700 hover:bg-orange-100 hover:text-gray-900"
+              @click="actions.apply('version.deploy')"
+            >
+              Deploy
+            </button>
+            <router-link
+              to="/symbolx/docs#Deploying"
+              class="text-gray-300 hover:bg-orange-100 hover:text-gray-700"
+              target="_blank"
+            >
+              <QuestionMarkCircleIcon class="h-4 w-4" />
+            </router-link>
+          </span>
+          <!-- Run button -->
           <button
-            class="rounded-sm px-1 text-gray-700 hover:bg-orange-100 hover:text-gray-900"
-            @click="actions.apply('version.deploy')"
+            ref="runButtonRef"
+            class="flex flex-row items-center justify-center gap-1 p-1 text-orange-600 outline-none hover:bg-orange-100 focus:bg-orange-100"
+            @click="run"
+            @keydown.enter.prevent="run"
+            @keydown.space.prevent="run"
+            @keydown.up.prevent="argumentsGrid.focus(-1, 'value')"
           >
-            Deploy
+            Run
+            <PlayIcon class="h-4 w-4" />
           </button>
-          <router-link
-            to="/symbolx/docs#Deploying"
-            class="text-gray-400 hover:bg-orange-100 hover:text-gray-900"
-            target="_blank"
-          >
-            <QuestionMarkCircleIcon class="h-4 w-4" />
-          </router-link>
-        </span>
+        </div>
       </div>
-      <!-- Arguments -->
+    </div>
+    <!-- Single -->
+    <div v-if="!batchMode" class="mx-auto mt-2 w-full max-w-[800px]">
       <div
-        class="grid-w-fit mt-1 grid grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+        class="grid-w-fit mt-1 grid w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
       >
         <template v-for="field in inputFields" :key="field.id">
           <div class="flex flex-row gap-1 py-1">
@@ -263,45 +292,38 @@ const outputColumns = computed(() =>
           <!-- :EditableCellStyle -->
         </template>
       </div>
-    </div>
-    <!-- Down arrow in the middle -->
-    <div class="my-2 flex w-full flex-row justify-center">
-      <button
-        ref="runButtonRef"
-        class="p-1 text-orange-600 outline-none hover:bg-orange-100 focus:bg-orange-100"
-        @click="run"
-        @keydown.enter.prevent="run"
-        @keydown.space.prevent="run"
-        @keydown.up.prevent="argumentsGrid.focus(-1, 'value')"
+      <!-- Current/last output  -->
+      <!-- TODO @UX: rework multi-build output -->
+      <div
+        class="grid-w-fit relative mt-1 grid min-h-[100px] w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+        v-for="build in builds"
+        :key="build.id"
       >
-        <ArrowDownIcon class="h-6 w-6" />
-      </button>
-    </div>
-    <!-- Current/last output  -->
-    <div
-      class="grid-w-fit relative mx-auto mt-1 grid min-h-[100px] w-full max-w-[800px] grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
-    >
-      <template v-if="lastOutput">
-        <template v-for="field in outputFields" :key="field.id">
-          <div class="flex flex-row gap-1 py-1">
-            <span>{{ field.name }}</span>
-            <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
-          </div>
-          <InlineValueCell
-            :type="field"
-            :model-value="lastOutput[field.name as string]"
-            :readonly="true"
-            :immediate="false"
-          />
+        <template v-if="lastOutputByBuild[build.id] != null">
+          <template v-for="field in outputFields" :key="field.id">
+            <div class="flex flex-row gap-1 py-1">
+              <span>{{ field.name }}</span>
+              <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
+            </div>
+            <InlineValueCell
+              :type="field"
+              :model-value="lastOutputByBuild[build.id][field.name as string]"
+              :readonly="true"
+              :immediate="false"
+            />
+          </template>
         </template>
-      </template>
-      <div v-else class="flex h-full w-full flex-col items-center justify-center">
-        <div class="text-gray-500">No output yet</div>
+        <div v-else class="flex h-full w-full flex-col items-center justify-center">
+          <div class="text-gray-500">No output yet</div>
+        </div>
       </div>
     </div>
-    <!-- Runs -->
-    <div class="mx-auto w-full max-w-[800px]">
-      <h2 class="mt-6 flex flex-row items-baseline gap-1">
+    <!-- Batch -->
+    <div v-else class="mx-auto mt-2 w-full max-w-[800px]"></div>
+    <!-- TODO -->
+    <!-- Past runs -->
+    <div class="mx-auto mt-8 w-full max-w-[800px]">
+      <h2 class="flex flex-row items-baseline gap-1">
         <button
           class="text-2xl font-bold text-gray-900 decoration-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
           @click="openRunsEditor"
