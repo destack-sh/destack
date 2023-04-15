@@ -159,10 +159,14 @@ class StatementModifier(models.TextChoices):
     UNLIKE = "unlike"
     CHECK = "check"
     MAGIC = "magic"
+    LOCAL = "local"
 
 
 class SymbolType(models.TextChoices):
     """The type of symbol content."""
+
+    # TODO @Language: merge value into data
+    #  Simply typed version could be root is_array flag in addition to root_type_tag
 
     TYPE = "type"
     CAPABILITY = "capability"
@@ -171,13 +175,13 @@ class SymbolType(models.TextChoices):
     CODE = "code"
     MODEL = "model"
     PROGRAM = "program"
-    # TODO @Language: merge value into data
-    #  Simply typed version could be root is_array flag in addition to root_type_tag
     DATA = "data"
     VALUE = "value"
     REQUIREMENT = "require"
     BUILD = "build"
+    EVALUATE = "evaluate"
     RUNCONFIG = "run"
+    BLOCK = "block"
 
 
 class TypeTag(models.TextChoices):
@@ -818,6 +822,9 @@ class Runconfig(InterpSymbol, RunconfigContent):
 
 @dataclass(repr=False)
 class BuildContent(SymbolContent):
+    # Note @Architecture: BuildContent includes source_mappings, which are outputs of the build,
+    #  because we consider generation part of the language. Specifically, build mappings are
+    #  required to instantiate/run symbols in the build (e.g. task -> code).
     source_mappings: list["GeneratedMapping"]
 
     @property
@@ -838,6 +845,28 @@ class BuildContent(SymbolContent):
 class Build(InterpSymbol, BuildContent):
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
+
+
+@dataclass(repr=False)
+class EvaluateContent(SymbolContent):
+    weights: dict[str, float] = field(default_factory=dict)
+    # As noted above, evaluation results are stored elsewhere with other runtime data.
+
+
+@dataclass(repr=False)
+class Evaluate(InterpSymbol, EvaluateContent):
+    tasks: list[Task] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+
+
+@dataclass(repr=False)
+class BlockContent(SymbolContent):
+    pass
+
+
+@dataclass(repr=False)
+class Block(InterpSymbol, BlockContent):
+    contents: list[InterpSymbol] = field(default_factory=list)
 
 
 class GeneratedMappingType(enum.StrEnum):
@@ -869,6 +898,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.CAPABILITY: Capability,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
+    SymbolType.PROGRAM: Program,
     SymbolType.DATA: Dataset,
     SymbolType.VALUE: Value,
     SymbolType.MODEL: Model,
@@ -876,6 +906,8 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.REQUIREMENT: Requirement,
     SymbolType.RUNCONFIG: Runconfig,
     SymbolType.BUILD: Build,
+    SymbolType.EVALUATE: Evaluate,
+    SymbolType.BLOCK: Block,
 }
 SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()

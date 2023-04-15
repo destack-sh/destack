@@ -56,6 +56,8 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Requirement]: "require",
   [SymbolType.Runconfig]: "run",
   [SymbolType.Build]: "build",
+  [SymbolType.Evaluate]: "evaluate",
+  [SymbolType.Block]: "block",
 };
 export const SUPPORTED_SYMBOL_TYPES = [
   SymbolType.Type,

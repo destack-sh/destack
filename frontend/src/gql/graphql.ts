@@ -1814,6 +1814,7 @@ export enum StatementModifier {
   Check = "CHECK",
   Include = "INCLUDE",
   Like = "LIKE",
+  Local = "LOCAL",
   Magic = "MAGIC",
   Unlike = "UNLIKE",
   Var = "VAR",
@@ -1937,10 +1938,12 @@ export type SubscriptionJobsChangedArgs = {
 
 /** The type of symbol content. */
 export enum SymbolType {
+  Block = "BLOCK",
   Build = "BUILD",
   Capability = "CAPABILITY",
   Code = "CODE",
   Data = "DATA",
+  Evaluate = "EVALUATE",
   Expectation = "EXPECTATION",
   Model = "MODEL",
   Program = "PROGRAM",
