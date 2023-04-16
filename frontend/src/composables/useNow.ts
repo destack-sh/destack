@@ -75,6 +75,10 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, opt
   const from = DateTime.fromISO(fromStr);
   const to = typeof toStr == "string" ? DateTime.fromISO(toStr) : toStr;
   const diffMs = to.diff(from).as("milliseconds");
+  return formatDurationSeconds(diffMs, options);
+}
+
+export function formatDurationSeconds(diffMs: number, options?: { millis?: boolean }): string {
   if (diffMs < 1) {
     return "<1ms";
   } else if (diffMs < 100 && !options?.millis) {

@@ -13,7 +13,7 @@ import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { buildsOf, symbolOf, symbolsLike } from "@/state/runtime";
 import { QuestionMarkCircleIcon, XMarkIcon } from "@heroicons/vue/20/solid";
-import { ArrowDownIcon, ArrowRightIcon, PlayIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, nextTick, ref, watchEffect, type Ref } from "vue";
 
 const props = defineProps<{ runnableId: string; runnableType: SymbolType }>();
@@ -272,7 +272,7 @@ const outputColumns = computed(() =>
       >
         <template v-for="field in inputFields" :key="field.id">
           <div class="flex flex-row gap-1 py-1">
-            <span>{{ field.name }}</span>
+            <span class="font-bold">{{ field.name }}</span>
             <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
           </div>
           <InlineValueCell
@@ -295,15 +295,14 @@ const outputColumns = computed(() =>
       <!-- Current/last output  -->
       <!-- TODO @UX: rework multi-build output -->
       <div
-        class="grid-w-fit relative mt-1 grid min-h-[100px] w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+        class="grid-w-fit relative mt-1 grid w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
         v-for="build in builds"
         :key="build.id"
       >
         <template v-if="lastOutputByBuild[build.id] != null">
           <template v-for="field in outputFields" :key="field.id">
             <div class="flex flex-row gap-1 py-1">
-              <span>{{ field.name }}</span>
-              <span class="text-gray-400">{{ renderSimpleType(field) }}</span>
+              <span class="font-bold">{{ field.name }}</span>
             </div>
             <InlineValueCell
               :type="field"

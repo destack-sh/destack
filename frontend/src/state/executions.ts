@@ -10,6 +10,8 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     updatedAt
     startedAt
     terminatedAt
+    duration
+    cachedDuration
     status
     triggerType
     projectVersion {
