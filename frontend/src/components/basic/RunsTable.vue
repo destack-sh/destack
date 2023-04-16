@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { ANY_TYPE_NODE } from "@/components/statement";
-import { formatDiffSeconds, useTimeFromNow } from "@/composables/useNow";
+import { formatDiffSeconds, formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { ExecutionStatus, ExecutionTriggerType, type SimpleType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
@@ -193,8 +193,8 @@ defineExpose({
                   <rect width="10" height="10" rx="2" ry="2" fill="currentColor" />
                 </svg>
                 <span class="text-gray-700" v-if="execution.status == ExecutionStatus.Queued">queue</span>
-                <span class="text-gray-900" v-else-if="execution.terminatedAt != null">
-                  {{ formatDiffSeconds(execution.startedAt, execution.terminatedAt) }}
+                <span class="text-gray-900" v-else-if="execution.duration != null">
+                  {{ formatDurationSeconds((execution.cachedDuration ?? execution.duration) * 1000) }}
                 </span>
                 <span class="text-gray-900" v-else-if="execution.startedAt != null">
                   {{ formatDiffSeconds(execution.startedAt, now) }}
