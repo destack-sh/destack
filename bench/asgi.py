@@ -66,21 +66,21 @@ task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
 reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 
 if RUN_INTSERVER:
-    from bench.runtime.intserver import InternalServer
+    from bench.runtime.langserver import LanguageServer
 
-    server = InternalServer()
+    server = LanguageServer()
     coro = server.run()
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "intserver"))
+    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "langserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
 # for local development only
 if RUN_WORKER:
     if not DEBUG or TEST:
         raise RuntimeError("worker should be run via isolated runworker in prod")
-    from bench.runtime.worker import Worker
+    from bench.runtime.worker import SandboxedWorker
 
     local_id = random.randint(0, 2 ** 32)  # just some random number
-    worker = Worker(worker_id=uuid4(), deployment_id=None, project_id=None)
+    worker = SandboxedWorker(worker_id=uuid4(), deployment_id=None, project_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

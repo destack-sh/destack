@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData
 
 PROTOCOL_VERSION = 1
 
@@ -43,21 +43,12 @@ class NMessageType(StrEnum):
     WORKER_HEARTBEAT = "worker.heartbeat"
     REQUEST_READ_MODULE = "module.read"
     REPLY_READ_MODULE = "module.read.rep"
-    REQUEST_WRITE_MODULE = "module.write"
     REPLY_WRITE_MODULE = "module.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
-    REQUEST_WRITE_JOB = "job.write"
-    REPLY_WRITE_JOB = "job.write.rep"
     JOB_SAVED = "job.saved"
-    REQUEST_WRITE_EVALUATION = "evaluation.write"
-    REPLY_WRITE_EVALUATION = "evaluation.write.rep"
     EVALUATION_SAVED = "evaluation.saved"
-    REQUEST_WRITE_BUILD_CANDIDATE = "build.candidate.write"
-    REPLY_WRITE_BUILD_CANDIDATE = "build.candidate.write.rep"
     BUILD_CANDIDATE_SAVED = "build.candidate.saved"
-    REQUEST_WRITE_BUILD = "build.result.write"
-    REPLY_WRITE_BUILD = "build.result.write.rep"
 
     # API <-> Worker
     REQUEST_MODULE_BUILD = "runtime.build"
@@ -72,11 +63,6 @@ class NMessageType(StrEnum):
 REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
-    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
-    NMessageType.REQUEST_WRITE_BUILD: NMessageType.REPLY_WRITE_BUILD,
-    NMessageType.REQUEST_WRITE_BUILD_CANDIDATE: NMessageType.REPLY_WRITE_BUILD_CANDIDATE,
-    NMessageType.REQUEST_WRITE_EVALUATION: NMessageType.REPLY_WRITE_EVALUATION,
-    NMessageType.REQUEST_WRITE_JOB: NMessageType.REPLY_WRITE_JOB,
     NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
     NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
     NMessageType.REQUEST_INTERP_MODULE: NMessageType.REPLY_INTERP_MODULE,
@@ -182,65 +168,16 @@ class ExecutionSavedPayload:
     frames: list[ExecutionFrameData]
 
 
-@payload(NMessageType.REQUEST_WRITE_EVALUATION)
-class ReqWriteEvaluationPayload:
-    module_id: UUID
-    evaluations: list[EvaluationResultData]
-
-
-@payload(NMessageType.REPLY_WRITE_EVALUATION)
-class RepWriteEvaluationPayload:
-    success: bool
-
-
 @payload(NMessageType.EVALUATION_SAVED)
 class EvaluationSavedPayload:
     module_id: UUID
     evaluations: list[EvaluationResultData]
 
 
-@payload(NMessageType.REQUEST_WRITE_BUILD_CANDIDATE)
-class ReqWriteBuildCandidatePayload:
-    module_id: UUID
-    build_id: UUID
-    build_candidates: list[BuildCandidateData]
-    delete_others: bool
-
-
-@payload(NMessageType.REPLY_WRITE_BUILD_CANDIDATE)
-class RepWriteBuildCandidatePayload:
-    success: bool
-
-
 @payload(NMessageType.BUILD_CANDIDATE_SAVED)
 class BuildCandidateSavedPayload:
     module_id: UUID
     build_candidates: list[BuildCandidateData]
-
-
-@payload(NMessageType.REQUEST_WRITE_BUILD)
-class ReqWriteBuildPayload:
-    module_id: UUID
-    build_ids: list[UUID]
-    delete_files: list[UUID]
-    files: list[wire.FileData]
-    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
-
-
-@payload(NMessageType.REPLY_WRITE_BUILD)
-class RepWriteBuildPayload:
-    success: bool
-
-
-@payload(NMessageType.REQUEST_WRITE_JOB)
-class ReqWriteJobPayload:
-    module_id: UUID
-    job: JobData
-
-
-@payload(NMessageType.REPLY_WRITE_JOB)
-class RepWriteJobPayload:
-    success: bool
 
 
 @payload(NMessageType.JOB_SAVED)
@@ -258,18 +195,6 @@ class ReqReadModulePayload:
 class RepReadModulePayload:
     module: wire.ModuleData
     project_id: UUID
-
-
-@payload(NMessageType.REQUEST_WRITE_MODULE)
-class ReqWriteModulePayload:
-    module_id: UUID
-    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]
-    files: list[wire.FileData]
-
-
-@payload(NMessageType.REPLY_WRITE_MODULE)
-class RepWriteModulePayload:
-    success: bool
 
 
 @payload(NMessageType.REQUEST_INTERP_MODULE)
