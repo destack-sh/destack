@@ -339,7 +339,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
-              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS],
+              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS, { name: "ALLOW_UNTRUSTED_CODE", value: "true" }],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

@@ -39,6 +39,7 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
+  AdjustmentsHorizontalIcon,
   ChatBubbleLeftIcon,
   ClockIcon,
   Cog8ToothIcon,
@@ -89,8 +90,9 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
   { id: "history", label: "History", icon: ClockIcon, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
+  { id: "tuning", label: "Tuning", icon: AdjustmentsHorizontalIcon, enabled: false },
   { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
+  { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled || true));
 const activeView: ComputedRef<View> = computed(() => {

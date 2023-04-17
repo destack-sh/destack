@@ -14,6 +14,7 @@ from more_itertools import first
 from bench import language, models
 from bench.language import ModuleIndex, wire
 from bench.language.type import Build, InterpSymbol, SymbolType, Task, TypeTag
+from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.job import PENDING_JOB_STATUSES, JobStatus, JobType
@@ -58,6 +59,12 @@ from bench.runtime.interp import (
 )
 from bench.runtime.map import map_to_file
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
+from bench.runtime.tracing import (
+    ExecutionTrackerContext,
+    WorkerContext,
+    pub_tracker_ctx,
+    worker_ctx,
+)
 from bench.runtime.type import EvaluationResult, EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.cache import redis
 from bench.utils.func import debounce, wrap_task
@@ -86,7 +93,7 @@ class ModuleDB:
         module = await sync_to_async(read_module)(project_version, exclude_non_semantic=True)
         if self.cache_committed and project_version.committed:
             self._cached_modules[module_id] = module, project_version.id
-        return module, project_version.id
+        return module, project_version.project_id
 
     async def fetch(self, module_id: UUID) -> wire.ModuleData:
         return (await self.get_module(module_id))[0]
@@ -413,6 +420,8 @@ class BuildJob(Job):
 @dataclass(repr=False, slots=True)
 class EvaluateJob(Job):
     type: ClassVar[JobType] = JobType.EVALUATE
+    evalable_id: UUID = None
+    builds: list[Build] = None
     evaluation_result: Optional[EvaluationResult] = None
 
     @property
@@ -434,6 +443,12 @@ class LanguageWorker:
         )
         self.fetcher = fetcher
         self.interpreter = LanguageInterpreter(fetcher)
+        self.worker_ctx = WorkerContext(
+            worker_id=self.worker_id,
+            module_id=self.module_id,
+            project_id=self.project_id,
+            deployment_id=None,
+        )
         # module data
         self.source: wire.ModuleData | None = None
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
@@ -459,6 +474,15 @@ class LanguageWorker:
     @property
     def interpreted(self) -> bool:
         return self.interp.module_idx is not None
+
+    def _provide_context(self, job: Job):
+        worker_ctx.set(self.worker_ctx)
+        pub_ctx = ExecutionTrackerContext(
+            tracing_level=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+            trigger_type=ExecutionTriggerType.JOB,
+            trigger_id=job.id,
+        )
+        pub_tracker_ctx.set(pub_ctx)
 
     def _queue_job(self, job: Job, priority: int = None) -> int:
         priority = priority or job.default_priority
@@ -637,7 +661,9 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
-    async def do_build(self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID):
+    async def do_build(
+        self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID
+    ) -> list[BuildResult]:
         # instruct model should be configurable maybe? but we'll likely use our own
         instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
         build_processes = [
@@ -673,6 +699,12 @@ class LanguageWorker:
         )
         return build_results
 
+    def queue_evaluate(self, evalable_id: UUID):
+        raise NotImplementedError
+
+    def do_evaluate(self, evalable_id: UUID):
+        raise NotImplementedError
+
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)
         await self.do_interp(source)
@@ -684,6 +716,7 @@ class LanguageWorker:
             if job.status == JobStatus.Cancelled:
                 continue
 
+            self._provide_context(job)
             create_task = asyncio.create_task
             try:
                 job.status = JobStatus.Running
@@ -703,6 +736,9 @@ class LanguageWorker:
                 elif isinstance(job, BuildJob):
                     job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
                     job.build_results = await job.task
+                elif isinstance(job, EvaluateJob):
+                    job.task = create_task(self.do_evaluate(job.evalable_id))
+                    job.evaluation = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
                 self.log.info("module.job.completed", job=job)
