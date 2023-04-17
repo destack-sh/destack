@@ -1532,7 +1532,6 @@ type Statement implements Node & SimplyTyped {
   code: String
   description: String
   referenceProjectVersion: ProjectVersion
-  value: JSON
   records(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null

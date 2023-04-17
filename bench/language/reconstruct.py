@@ -27,7 +27,6 @@ from bench.language.type import (
     TaskContent,
     TypeNode,
     TypeTag,
-    ValueContent,
 )
 
 StmT = StatementType
@@ -190,12 +189,6 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return f"{render_description(content.description)}\n{rendered_data}"
         else:
             return rendered_data
-    elif isinstance(content, ValueContent):
-        rendered_value = render_literal(json.dumps(content.value))
-        if content.description is not None:
-            return f"{render_description(content.description)}\n{rendered_value}"
-        else:
-            return rendered_value
     elif isinstance(content, (BuildContent, RunconfigContent, RequirementContent)):
         return None
     else:

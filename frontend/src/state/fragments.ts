@@ -162,7 +162,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     referenceProjectVersion {
       id
     }
-    value
     rootTypeTag
     typeNodes(filters: { isVisible: true }) {
       ...SimpleTypeNodeContent

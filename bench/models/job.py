@@ -49,6 +49,7 @@ class Job(UUIDModel):
         on_delete=models.SET_NULL,
         related_name="executions+",
     )
+    symbol = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return f"{self.type} {self.id} ({self.status})"

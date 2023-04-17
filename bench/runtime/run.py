@@ -35,7 +35,6 @@ from bench.language.type import (
     Type,
     TypeNode,
     TypeTag,
-    Value,
     XBlock,
 )
 from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoints
@@ -60,7 +59,6 @@ from bench.runtime.type import (
     SyncCodeCallable,
     TaskInstance,
     TypeInstance,
-    ValueInstance,
     summarize_args,
 )
 from bench.runtime.x import X_BUILTINS
@@ -499,8 +497,6 @@ def instantiate(
         # TODO @Broken: set task on code instance if instantiated directly
         #  Likely will require breaking circles with a refmap.
         return proxy.proxy_code(code_instance)
-    elif isinstance(symbol, Value):
-        return ValueInstance(**symbol.__dict__, build=build)
     elif isinstance(symbol, Model):
         inference = _instantiate_model_inference(symbol)
         model_instance = ModelInstance(**symbol.__dict__, inference=inference, build=build)

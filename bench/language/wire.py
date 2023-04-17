@@ -130,7 +130,6 @@ class StatementData:
     records: Optional[list[RecordData]] = None
     generated_mappings: Optional[list[GeneratedMapping]] = None
     value: LiteralValue = None
-    on: Optional[str] = None
     reference_module: Optional[ModuleReference] = None
 
     @property
@@ -282,7 +281,6 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.ExpectationContent):
         data.description = content.description
-        data.on = content.on
     elif isinstance(content, language.CodeContent):
         data.description = content.description
         data.lang = content.language
@@ -292,9 +290,6 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
         data.external_name = content.external_name
-    elif isinstance(content, language.ValueContent):
-        data.description = content.description
-        data.value = content.value
     elif isinstance(content, language.CapabilityContent):
         data.description = content.description
     elif isinstance(content, language.DatasetContent):
@@ -324,7 +319,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             type_node=wmap_type_node(data.type_nodes), description=data.description
         )
     elif data.symbol_type == SymbolType.EXPECTATION:
-        return language.ExpectationContent(description=data.description, on=data.on)
+        return language.ExpectationContent(description=data.description)
     elif data.symbol_type == SymbolType.CODE:
         return language.CodeContent(
             description=data.description,
