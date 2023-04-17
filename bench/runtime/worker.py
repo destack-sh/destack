@@ -1,10 +1,8 @@
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-import pytz
 import structlog
 
 from bench import language
@@ -27,7 +25,12 @@ from bench.msg.messages import (
 from bench.runtime.build import BuildCandidate
 from bench.runtime.interp import InterpModule, LanguageInterpreter
 from bench.runtime.run import DEFAULT_TRACER, RunError, instantiate, run
-from bench.runtime.tracing import PubTrackerContext, WorkerContext, pub_tracker_context, worker_ctx
+from bench.runtime.tracing import (
+    ExecutionTrackerContext,
+    WorkerContext,
+    pub_tracker_ctx,
+    worker_ctx,
+)
 from bench.runtime.type import CodeInstance, TaskInstance, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -51,7 +54,7 @@ class RunJob:
     error: RunError | None = None
     error_details: dict[str, Any] = None
     output: LiteralValue | None = None
-    ctx: Optional[PubTrackerContext] = None
+    ctx: Optional[ExecutionTrackerContext] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
 
@@ -68,7 +71,7 @@ class ModuleWorker:
         self.ctx: Optional[WorkerContext] = None
         self.ready = asyncio.Event()
 
-        self.interpreter = LanguageInterpreter()
+        self.interpreter = LanguageInterpreter(master.fetch)
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
         self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
@@ -134,7 +137,7 @@ class ModuleWorker:
         job = RunJob(
             runnable=runnable_instance,
             arguments=arguments,
-            ctx=PubTrackerContext(
+            ctx=ExecutionTrackerContext(
                 tracing_level=tracing_level,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
@@ -151,18 +154,18 @@ class ModuleWorker:
         # notify tracer about queue enter
         # there are nicer ways to do this, but essentially we need access to the
         # current root tracer, which defaults to DEFAULT_TRACER
-        run_ctx_token = pub_tracker_context.set(job.ctx)
+        run_ctx_token = pub_tracker_ctx.set(job.ctx)
         DEFAULT_TRACER.queue_enter(code_instance, arguments, qpos)
-        pub_tracker_context.reset(run_ctx_token)
+        pub_tracker_ctx.reset(run_ctx_token)
         return job
 
     async def do_run(
         self,
         runnable: CodeInstance,
         arguments: dict[str, LiteralValue],
-        ctx: PubTrackerContext,
+        ctx: ExecutionTrackerContext,
     ):
-        run_ctx_token = pub_tracker_context.set(ctx)
+        run_ctx_token = pub_tracker_ctx.set(ctx)
         try:
             if isinstance(runnable, TaskInstance):
                 code_instance = runnable.implementation
@@ -180,7 +183,7 @@ class ModuleWorker:
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
             return ModuleRunErrorType.INTERNAL_ERROR, None
         finally:
-            pub_tracker_context.reset(run_ctx_token)
+            pub_tracker_ctx.reset(run_ctx_token)
 
     def provide_context(self):
         """Sets the worker context var."""
@@ -217,18 +220,15 @@ class ModuleWorker:
             if job.cancelled:
                 continue
 
-            create_task = asyncio.create_task
-            job_context = PubTrackerContext(
+            job_context = ExecutionTrackerContext(
                 tracing_level=self.master.default_tracing_level,
                 trigger_type=ExecutionTriggerType.JOB,
                 trigger_id=job.id,
             )
-            job_context_token = pub_tracker_context.set(job_context)
+            job_context_token = pub_tracker_ctx.set(job_context)
             try:
-                job.started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 self.log.debug("run", job=job)
-                job.task = create_task(self.do_run(job.runnable, job.arguments, job.ctx))
-                error, ret = await job.task
+                error, ret = await self.do_run(job.runnable, job.arguments, job.ctx)
                 if error is None:
                     job.output = ret
                 else:
@@ -243,9 +243,8 @@ class ModuleWorker:
                 job.error = str(e)
                 self.log.exception("run.failed", job=job, sentry_enabled=sentry_enabled)
             finally:
-                job.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 job.terminated.set()
-                pub_tracker_context.reset(job_context_token)
+                pub_tracker_ctx.reset(job_context_token)
                 self.run_jobs.task_done()
 
 
@@ -329,7 +328,7 @@ class SandboxedWorker:
             return
         worker = await self._get_ready_worker(msg.p.module_id)
         worker.provide_context()
-        worker.interp(msg.p.module)
+        await worker.do_interp(msg.p.module)
         # module worker will trigger any follow-ups
 
     @message_handler
@@ -372,6 +371,9 @@ class SandboxedWorker:
             self.cached_committed_modules[module_id] = module_rep.p.module, module_rep.p.project_id
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, module_rep.p.project_id
+
+    async def fetch(self, module_id: UUID) -> wire.ModuleData:
+        return (await self.get_module(module_id))[0]
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)

@@ -67,7 +67,7 @@ from bench.utils.record import RecordList
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 logger = structlog.stdlib.get_logger(__name__)
-ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False)
+ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 STATIC_BUILTINS = {
     # primitive type builtins

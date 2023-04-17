@@ -170,7 +170,7 @@ def tracer_blocker() -> BlockingTracerBoundary:
 
 @dataclass(slots=True)
 class WorkerContext:
-    deployment_id: UUID
+    deployment_id: typing.Optional[UUID]
     module_id: UUID
     project_id: UUID
     worker_id: UUID
@@ -345,19 +345,19 @@ class ExecutionTracer(Tracer):
 
 
 @dataclass(slots=True)
-class PubTrackerContext:
+class ExecutionTrackerContext:
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
     trigger_id: typing.Optional[UUID]
     root_id: typing.Optional[UUID] = None
 
 
-pub_tracker_context = contextvars.ContextVar("pub_tracker_context")
+pub_tracker_ctx = contextvars.ContextVar("pub_tracker_context")
 
 
 class PubExecutionTracker:
     def __call__(self, frame: ExecutionFrame):
-        ctx = pub_tracker_context.get()
+        ctx = pub_tracker_ctx.get()
         trace_all_frames = ctx.tracing_level in (
             ExecutionTracingLevel.ALL_FRAMES,
             ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
