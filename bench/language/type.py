@@ -623,11 +623,9 @@ class Task(InterpSymbol, TaskContent):
 @dataclass(repr=False)
 class ExpectationContent(SymbolContent):
     description: str
-    on: Optional[str]
 
     def __str__(self):
-        on_str = f" on {self.on}" if self.on else ""
-        return f"({self.description}{on_str})"
+        return f"({self.description})"
 
 
 @dataclass(repr=False)
@@ -676,20 +674,6 @@ class DatasetContent(SymbolContent):
 @dataclass(repr=False)
 class Dataset(InterpSymbol, DatasetContent):
     type: Type = required_field()
-
-
-@dataclass(repr=False)
-class ValueContent(SymbolContent):
-    value: LiteralValue
-    description: Optional[str]
-
-    def __content_str__(self):
-        return f"{self.value}"
-
-
-@dataclass(repr=False)
-class Value(InterpSymbol, ValueContent):
-    pass
 
 
 @dataclass(repr=False)
@@ -900,7 +884,6 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.EXPECTATION: Expectation,
     SymbolType.PROGRAM: Program,
     SymbolType.DATA: Dataset,
-    SymbolType.VALUE: Value,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,

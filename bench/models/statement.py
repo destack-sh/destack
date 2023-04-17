@@ -364,8 +364,6 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
-    value = models.JSONField(null=True, blank=True)  # for value
-    on = models.TextField(null=True, blank=True)  # for expect-likes
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
 

@@ -304,7 +304,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         statement.type_nodes.filter(deleted_at=None).all(),
         statement,
     )
-    data.on = statement.on
     if statement.symbol_type == SymbolType.DATA:
         data.records = [
             RecordData(

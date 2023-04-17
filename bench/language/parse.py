@@ -49,7 +49,6 @@ from bench.language.type import (
     Type,
     TypeNode,
     TypeTag,
-    ValueContent,
     parse_statement_path,
 )
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between, increment_integer
@@ -597,17 +596,10 @@ def _parse_definition_content(
         description = tokens.eat_description()
         return TaskContent(description=description.value, type_node=type)
     elif symbol_type.value == SymbolType.EXPECTATION:
-        on_location = None
-        if tokens.peek_separator(" "):
-            tokens.eat_space()
-            tokens.eat_keyword("on")
-            tokens.eat_space()
-            # very simple location parser (single identifier)
-            on_location = tokens.eat_identifier().value
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
-        return ExpectationContent(description=description.value, on=on_location)
+        return ExpectationContent(description=description.value)
     elif symbol_type.value == SymbolType.CODE:
         tokens.eat_space()
         tokens.eat_separator("::")
@@ -649,16 +641,6 @@ def _parse_definition_content(
             records=records,
             type_node=type,
         )
-    elif symbol_type.value == SymbolType.VALUE:
-        tokens.eat_separator(":")
-        tokens.eat_newline()
-        description = _parse_description_line_optional(tokens)
-        literal = tokens.eat_literal()
-        try:  # parse as json?
-            value = json.loads(literal.value)
-            return ValueContent(description=description, value=value)
-        except json.JSONDecodeError as e:
-            raise ParseError(ET.INVALID_TOKEN_VALUE, literal, error=e)
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
         return BuildContent(source_mappings=[])

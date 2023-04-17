@@ -31,8 +31,6 @@ from bench.language.type import (
     Type,
     TypeNode,
     TypeTag,
-    Value,
-    ValueContent,
     XBlock,
     XBlockContent,
 )
@@ -75,8 +73,6 @@ __all__ = [
     "Type",
     "TypeNode",
     "TypeTag",
-    "Value",
-    "ValueContent",
     "XBlock",
     "XBlockContent",
 ]

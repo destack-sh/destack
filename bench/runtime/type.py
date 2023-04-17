@@ -26,7 +26,6 @@ from bench.language.type import (
     Task,
     Type,
     TypeNode,
-    Value,
     XBlock,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
@@ -89,13 +88,6 @@ class DatasetInstance(SymbolInstance, Dataset):
 
 
 @dataclass(repr=False)
-class ValueInstance(SymbolInstance, Value):
-    @property
-    def py_handle(self):
-        return self.value
-
-
-@dataclass(repr=False)
 class ModelInstance(SymbolInstance, Model):
     inference: ModelInference = required_field()
 
@@ -120,7 +112,6 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
     DatasetInstance: SymbolType.DATA,
-    ValueInstance: SymbolType.VALUE,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
 }
@@ -659,6 +650,7 @@ class JobData:
     status: JobStatus
     started_at: Optional[datetime]
     terminated_at: Optional[datetime]
+    symbol_id: Optional[UUID]
     # additional context
     project_id: UUID
     project_version_id: UUID
@@ -680,6 +672,7 @@ class JobData:
             started_at=job.started_at,
             terminated_at=job.terminated_at,
             project_id=project_id,
+            symbol_id=None,  # TODO @Incomplete: set job data symbol id
             project_version_id=project_version_id,
             deployment_id=deployment_id,
             worker_id=worker_id,

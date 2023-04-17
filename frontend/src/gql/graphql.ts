@@ -1714,7 +1714,6 @@ export type Statement = Node &
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
   };
 
 export type StatementRecordsArgs = {
@@ -3079,7 +3078,6 @@ export type StatementContentFragment = {
   lang?: string | null;
   code?: string | null;
   description?: string | null;
-  value?: any | null;
   rootTypeTag?: TypeTag | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
@@ -4604,7 +4602,6 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           {
             kind: "Field",

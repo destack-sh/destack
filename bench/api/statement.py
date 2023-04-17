@@ -153,7 +153,6 @@ class Statement(gql.Node, SimplyTyped):
     code: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
-    value: auto
     records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
         filters=DatasetRecordFilter
     )
