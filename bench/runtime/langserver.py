@@ -57,7 +57,7 @@ from bench.runtime.interp import (
 )
 from bench.runtime.map import map_to_file
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
-from bench.runtime.type import EvaluationResult, EvaluationResultData, ExecutionFrameData
+from bench.runtime.type import EvaluationResult, EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.cache import redis
 from bench.utils.func import debounce, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -81,11 +81,11 @@ class ModuleDB:
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         if module_id in self._cached_modules:
             return self._cached_modules[module_id]
-        project_version = await ProjectVersion.objects.aget(module_id=module_id)
+        project_version = await ProjectVersion.objects.aget(id=module_id)
         module = await sync_to_async(read_module)(project_version, exclude_non_semantic=True)
         if self.cache_committed and project_version.committed:
             self._cached_modules[module_id] = module, project_version.id
-        return module
+        return module, project_version.id
 
     async def fetch(self, module_id: UUID) -> wire.ModuleData:
         return (await self.get_module(module_id))[0]
@@ -106,19 +106,12 @@ class LanguageServer:
 
     async def run(self):
         await nc_init.wait()
-        # register self as worker
-        await models.Worker.objects.acreate(
-            id=self.id,
-            status=models.WorkerStatus.ACTIVE,
-            type=models.WorkerType.LANGUAGE,
-            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-        )
         logger.info("start")
         self.subs = [
             await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.REQUEST_INTERP_MODULE, self.request_module_runtime),
+            await handle_reply(NMessageType.REQUEST_INTERP_MODULE, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(
@@ -126,6 +119,13 @@ class LanguageServer:
             ),
         ]
         self.tasks = [create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10))]
+        # register self as worker
+        await models.Worker.objects.acreate(
+            id=self.id,
+            status=models.WorkerStatus.ACTIVE,
+            type=models.WorkerType.LANGUAGE,
+            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+        )
 
     async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
         worker = self.lang_workers.get(module_id)
@@ -166,6 +166,51 @@ class LanguageServer:
             f"worker.{msg.payload.worker_id}.heartbeat", str(last_seen), ex=WORKER_HEARTBEAT_TIMEOUT
         )
 
+    @message_handler
+    async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
+        logger.debug("module.read", msg=msg)
+        module, project_id = await self.module_db.get_module(msg.p.module_id)
+        await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
+
+    @message_handler
+    async def request_module_interp(self, msg: NMessage[ReqInterpModulePayload]):
+        logger.debug("module.interp", msg=msg)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        payload = make_full_change_payload(worker, RepInterpModulePayload)
+        await msg.reply(payload)
+
+    @message_handler
+    async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
+        logger.debug("module.build", msg=msg)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        build_job = worker.queue_build(msg.p.buildable_id, cancel_running=True)
+        error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
+        await msg.reply(RepModuleBuildPayload(error=error))
+
+    @message_handler
+    async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
+        save_success = await sync_to_async(save_execution_frames)(msg.payload.frames)
+        if save_success:
+            # forward to API clients now that DB frames are saved
+            await publish(
+                NMessageType.EXECUTION_SAVED,
+                ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
+            )
+
+    @message_handler
+    async def project_version_changed(self, msg: NMessage[ProjectVersionChangedPayload]) -> None:
+        # reload project version as module
+        # TODO @Performance: send partial module updates :PartialModuleUpdates
+        if not any(is_semantic_mutation(mutation) for mutation in msg.p.mutations):
+            return  # ignore non-semantic changes to modules
+        project_v = await ProjectVersion.objects.filter(id=msg.p.project_version_id).afirst()
+        if project_v is None:
+            return  # just ignore, was probably deleted
+        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
+        await publish(
+            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
+        )
+
     async def manage_sandboxed_workers(self, interval_seconds: int):
         while True:
             # get last seen for all workers
@@ -181,7 +226,7 @@ class LanguageServer:
 
             # batch update last seen for live workers
             live_workers = [w async for w in models.Worker.objects.filter(id__in=live_worker_ids)]
-            for ls, worker in zip(last_seen, live_workers):
+            for ls, worker in zip(last_seen + [datetime.utcnow()], live_workers):
                 worker.last_seen_at = ls
             await models.Worker.objects.abulk_update(live_workers, ["last_seen_at"])
 
@@ -224,48 +269,6 @@ class LanguageServer:
                 await models.Worker.objects.abulk_update(dead_workers, ["status", "terminated_at"])
 
             await asyncio.sleep(interval_seconds)
-
-    @message_handler
-    async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
-        module, project_id = await self.module_db.get_module(msg.p.module_id)
-        await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
-
-    @message_handler
-    async def request_module_runtime(self, msg: NMessage[ReqInterpModulePayload]):
-        worker = await self._get_ready_worker(msg.p.module_id)
-        payload = make_full_change_payload(worker, RepInterpModulePayload)
-        await msg.reply(payload)
-
-    @message_handler
-    async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
-        worker = await self._get_ready_worker(msg.p.module_id)
-        build_job = worker.queue_build(msg.p.buildable_id, cancel_running=True)
-        error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
-        await msg.reply(RepModuleBuildPayload(error=error))
-
-    @message_handler
-    async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
-        save_success = await sync_to_async(save_execution_frames)(msg.payload.frames)
-        if save_success:
-            # forward to API clients now that DB frames are saved
-            await publish(
-                NMessageType.EXECUTION_SAVED,
-                ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
-            )
-
-    @message_handler
-    async def project_version_changed(self, msg: NMessage[ProjectVersionChangedPayload]) -> None:
-        # reload project version as module
-        # TODO @Performance: send partial module updates :PartialModuleUpdates
-        if not any(is_semantic_mutation(mutation) for mutation in msg.p.mutations):
-            return  # ignore non-semantic changes to modules
-        project_v = await ProjectVersion.objects.filter(id=msg.p.project_version_id).afirst()
-        if project_v is None:
-            return  # just ignore, was probably deleted
-        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
-        await publish(
-            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
-        )
 
     async def stop(self):
         logger.info("stop")
@@ -322,8 +325,8 @@ class Job:
     def __lt__(self, other):
         return self.default_priority < other.default_priority
 
-    async def save(self):
-        model_job = models.Job(
+    def to_data(self) -> JobData:
+        return JobData(
             id=self.id,
             type=self.type,
             project_id=self.project_id,
@@ -334,16 +337,30 @@ class Job:
             started_at=self.started_at,
             terminated_at=self.terminated_at,
         )
+
+    async def save(self):
         await models.Job.objects.abulk_create(
-            [model_job],
+            [mapper.rmap_job(self.to_data())],
             update_conflicts=True,
-            conflict_fields=["id"],
+            unique_fields=["id"],
             update_fields=["status", "started_at", "terminated_at"],
         )
 
     async def save_and_notify(self):
         await self.save()
-        await publish(NMessageType.JOB_SAVED, JobSavedPayload(job=self))
+        await publish(
+            NMessageType.JOB_SAVED, JobSavedPayload(module_id=self.project_id, job=self.to_data())
+        )
+
+    async def cancel(self):
+        self.status = JobStatus.Cancelling
+        asyncio.create_task(self.save_and_notify())
+        self.task.cancel()
+        try:
+            await self.task
+        finally:
+            self.status = JobStatus.Cancelled
+            asyncio.create_task(self.save_and_notify())
 
     @property
     def success(self) -> bool:
@@ -402,15 +419,6 @@ class EvaluateJob(Job):
         return self.evaluation_result is not None
 
 
-async def cancel_job(job: Job):
-    job.status = JobStatus.Cancelling
-    job.task.cancel()
-    try:
-        await job.task
-    finally:
-        job.status = JobStatus.Cancelled
-
-
 class LanguageWorker:
     """Language server worker for a single module"""
 
@@ -423,6 +431,7 @@ class LanguageWorker:
         self.log = logger.bind(
             module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
         )
+        self.fetcher = fetcher
         self.interpreter = LanguageInterpreter(fetcher)
         # module data
         self.source: wire.ModuleData | None = None
@@ -457,9 +466,9 @@ class LanguageWorker:
         return qpos
 
     def _cancel_jobs_like(self, predicate: Callable[[Job], bool]):
-        for job in self.jobs_queue.values():
-            if predicate(job):
-                asyncio.create_task(cancel_job(job))
+        for job in self.jobs_queue._queue:
+            if predicate(job) and job.status == JobStatus.Queued:
+                asyncio.create_task(job.cancel())
         # mark pending jobs cancelled in queue
         for (prio, job) in self.jobs_queue._queue:
             if predicate(job):
@@ -664,7 +673,11 @@ class LanguageWorker:
         return build_results
 
     async def run(self) -> None:
-        """Process module jobs sequentially"""
+        source = await self.fetcher(self.module_id)
+        await self.do_interp(source)
+        self.ready.set()
+
+        # process run jobs
         while True:
             _, job = await self.jobs_queue.get()
             if job.status == JobStatus.Cancelled:

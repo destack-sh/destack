@@ -95,7 +95,8 @@ class LanguageInterpreter:
         return cast(list[InterpModule], dependencies)
 
     async def interp(self, source: wire.ModuleData) -> InterpModule:
-        raise NotImplementedError
+        dependencies = await self.interp_requirements(get_requirements(source))
+        return interp_module(source, [m.module_idx for m in dependencies])
 
 
 def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
