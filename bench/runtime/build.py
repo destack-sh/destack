@@ -48,7 +48,7 @@ from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.runtime.run import instantiate
-from bench.runtime.type import EvaluationKind, EvaluationScope, Modality
+from bench.runtime.type import BuildCandidateStatus, EvaluationKind, EvaluationScope, Modality
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 from bench.utils.fractional import generate_key_between, generate_n_keys_between
 from bench.utils.random import get_random_veggie_name

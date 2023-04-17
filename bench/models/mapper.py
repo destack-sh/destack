@@ -29,7 +29,7 @@ from bench.language.type import (
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
 from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
-from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -334,7 +334,6 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.code = data.code
     statement.provider = data.provider
     statement.external_name = data.external_name
-    statement.on = data.on
     if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text
     statement.root_type_tag, type_nodes = wmap_type_nodes(statement, data.type_nodes)

@@ -308,11 +308,20 @@ class JobData:
 #
 
 
+class BuildCandidateStatus(enum.StrEnum):
+    Planned = "planned"
+    Building = "building"
+    Evaluating = "evaluating"
+    CompletedWon = "completed_won"
+    CompletedAbandoned = "completed_abandoned"
+    Cancelled = "cancelled"
+
+
 @dataclass(slots=True)
 class BuildCandidateData:
     id: UUID
     build_id: UUID
-    status: str
+    status: BuildCandidateStatus
     name: str
     instruct_model_id: Optional[UUID]
     evaluation_id: Optional[UUID]
@@ -514,7 +523,9 @@ class Modality(enum.StrEnum):
 
     GenerateText = "generate_text"  # any -> text
     GenerateImage = "generate_image"  # any -> image
+    GenerateAudio = "generate_audio"  # any -> audio
     Embed = "embed"  # any -> embedding
+    Struct = "struct"  # any -> struct(ture prediction)
 
 
 @dataclass
@@ -527,11 +538,6 @@ class TextGenerationSettings:
 
 
 @dataclass
-class EmbeddingSettings:
-    pass
-
-
-@dataclass
 class ImageGenerationSettings:
     seed: int
     steps: int
@@ -540,9 +546,25 @@ class ImageGenerationSettings:
     cfg_scale: float
 
 
+@dataclass
+class AudioGenerationSettings:
+    pass
+
+
+@dataclass
+class EmbeddingSettings:
+    pass
+
+
+@dataclass
+class StructSettings:
+    pass
+
+
 SETTINGS_CLS_BY_MODALITY = {
     Modality.GenerateText: TextGenerationSettings,
     Modality.GenerateImage: ImageGenerationSettings,
+    Modality.GenerateAudio: AudioGenerationSettings,
     Modality.Embed: EmbeddingSettings,
 }
 
@@ -550,24 +572,30 @@ SETTINGS_CLS_BY_MODALITY = {
 class ModelInference:
     """Generic model with an endpoint for each core modality."""
 
-    async def generate_text(
-        self, input: list[XBlock], settings: TextGenerationSettings
-    ) -> str | list[str]:
+    async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
         raise IncapableError()
 
     async def generate_image(
         self, input: list[XBlock], settings: ImageGenerationSettings
-    ) -> PIL.Image | list[PIL.Image]:
+    ) -> PIL.Image:
+        raise IncapableError()
+
+    async def generate_audio(self, input: list[XBlock], settings: AudioGenerationSettings) -> bytes:
         raise IncapableError()
 
     async def embed(self, input: list[XBlock], settings: EmbeddingSettings) -> list[float]:
+        raise IncapableError()
+
+    async def struct(self, input: list[XBlock], settings: StructSettings) -> Any:
         raise IncapableError()
 
 
 BASE_SETTINGS_BY_MODALITY = {
     Modality.GenerateText: TextGenerationSettings,
     Modality.GenerateImage: ImageGenerationSettings,
+    Modality.GenerateAudio: AudioGenerationSettings,
     Modality.Embed: EmbeddingSettings,
+    Modality.Struct: StructSettings,
 }
 
 

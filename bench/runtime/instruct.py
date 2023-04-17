@@ -393,10 +393,11 @@ class SampleGenerateWithModel(SampleSource):
         )
         implementation = await do_build_task_plan(plan)
         implementation.context[self.model.name] = self.model
-        implementation_instance = instantiate(implementation)
 
         with tracer_blocker():
-            generated_samples = await run(implementation_instance, {"count": self.count})
+            generated_samples = await run(
+                instantiate(implementation), {"count": self.count}, is_trusted=True
+            )
         target_dataset = anonymous_dataset(self.type, len(generated_samples))
         if len(generated_samples) != self.count:
             raise RuntimeError(

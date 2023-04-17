@@ -67,7 +67,7 @@ from bench.utils.record import RecordList
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 logger = structlog.stdlib.get_logger(__name__)
-
+ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False)
 
 STATIC_BUILTINS = {
     # primitive type builtins
@@ -89,6 +89,7 @@ class RunErrorType(enum.Enum):
     PARSE = 1, "Parse error"
     VALIDATION = 2, "Validation error"
     RUNTIME = 3, "Runtime code error"
+    UNTRUSTED = 4, "Untrusted code error"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)
@@ -525,7 +526,11 @@ def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = Non
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
-async def run(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
+async def run(
+    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None, is_trusted: bool = False
+) -> LiteralValue:
+    if not is_trusted and not ALLOW_UNTRUSTED_CODE:
+        raise RunError(RunErrorType.UNTRUSTED, code)
     # transform keys to valid python identifiers
     arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:

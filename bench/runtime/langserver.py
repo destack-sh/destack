@@ -21,6 +21,7 @@ from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
+    EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     JobSavedPayload,
@@ -627,6 +628,7 @@ class LanguageWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             worker_id=self.worker_id,
+            deployment_id=None,
         )
         if cancel_running:
             self._cancel_jobs_like(
@@ -645,7 +647,6 @@ class LanguageWorker:
             )
             for b in builds
         ]
-        # TODO @Incomplete: track builds and write candidates & evaluations
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         previous_builds_files: set[UUID] = set()
         for b in builds:
@@ -745,7 +746,7 @@ class LanguageWorker:
             for candidate in candidates
         ]
         # upsert candidates (by id)
-        models.BuildCandidate.objects.bulk_create(
+        await models.BuildCandidate.objects.abulk_create(
             model_candidates,
             update_conflicts=True,
             unique_fields=["id"],
@@ -774,11 +775,18 @@ class LanguageWorker:
             mapper.rmap_evaluation_result(evaluation_data) for evaluation_data in evaluations_data
         ]
         # upsert evaluations (by environment & system)
-        models.EvaluationResult.objects.bulk_create(
+        await models.EvaluationResult.objects.abulk_create(
             model_evaluations,
             update_conflicts=True,
             unique_fields=["id"],
             update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
+        )
+        await publish(
+            NMessageType.EVALUATION_SAVED,
+            EvaluationSavedPayload(
+                module_id=self.module_id,
+                evaluations=evaluations_data,
+            ),
         )
 
 
