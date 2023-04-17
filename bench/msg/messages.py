@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData
+from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
 
 PROTOCOL_VERSION = 1
 
@@ -48,7 +48,6 @@ class NMessageType(StrEnum):
     EXECUTION_SAVED = "execution.saved"
     JOB_SAVED = "job.saved"
     EVALUATION_SAVED = "evaluation.saved"
-    BUILD_CANDIDATE_SAVED = "build.candidate.saved"
 
     # API <-> Worker
     REQUEST_MODULE_BUILD = "runtime.build"
@@ -174,12 +173,6 @@ class EvaluationSavedPayload:
     evaluations: list[EvaluationResultData]
 
 
-@payload(NMessageType.BUILD_CANDIDATE_SAVED)
-class BuildCandidateSavedPayload:
-    module_id: UUID
-    build_candidates: list[BuildCandidateData]
-
-
 @payload(NMessageType.JOB_SAVED)
 class JobSavedPayload:
     module_id: UUID
@@ -261,9 +254,6 @@ def to_topic(
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EVALUATION_SAVED:
         payload = cast(EvaluationSavedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.BUILD_CANDIDATE_SAVED:
-        payload = cast(BuildCandidateSavedPayload, payload)
         return f"{message_type}.{payload.module_id}"
 
     return message_type

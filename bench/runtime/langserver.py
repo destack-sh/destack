@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -19,7 +17,7 @@ from bench.language.type import Build, InterpSymbol, SymbolType, Task, TypeTag
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.job import PENDING_JOB_STATUSES, JobStatus, JobType
-from bench.models.mapper import read_module
+from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -50,15 +48,16 @@ from bench.runtime.build import (
     get_builds_for,
 )
 from bench.runtime.evaluate import lint
-from bench.runtime.interp import InterpModule, get_requirements, interp_module
+from bench.runtime.interp import (
+    InterpModule,
+    LanguageInterpreter,
+    ModuleFetcher,
+    get_requirements,
+    interp_module,
+)
 from bench.runtime.map import map_to_file
 from bench.runtime.reactivity import RevisionMap, get_stale_symbols
-from bench.runtime.type import (
-    BuildCandidateData,
-    EvaluationResult,
-    EvaluationResultData,
-    ExecutionFrameData,
-)
+from bench.runtime.type import EvaluationResult, EvaluationResultData, ExecutionFrameData
 from bench.utils.cache import redis
 from bench.utils.func import debounce, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -74,6 +73,24 @@ def create_wrapped_task(coro, task_id: str = None):
 WORKER_HEARTBEAT_TIMEOUT = 30
 
 
+class ModuleDB:
+    def __init__(self, cache_committed: bool = True):
+        self.cache_committed = cache_committed
+        self._cached_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
+
+    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
+        if module_id in self._cached_modules:
+            return self._cached_modules[module_id]
+        project_version = await ProjectVersion.objects.aget(module_id=module_id)
+        module = await sync_to_async(read_module)(project_version, exclude_non_semantic=True)
+        if self.cache_committed and project_version.committed:
+            self._cached_modules[module_id] = module, project_version.id
+        return module
+
+    async def fetch(self, module_id: UUID) -> wire.ModuleData:
+        return (await self.get_module(module_id))[0]
+
+
 class LanguageServer:
     """
     Bench language & runtime server for interpretation and managing runtime state.
@@ -85,9 +102,17 @@ class LanguageServer:
         self.lang_workers: dict[UUID, LanguageWorker] = {}
         self.subs = []
         self.tasks = []
+        self.module_db = ModuleDB()
 
     async def run(self):
         await nc_init.wait()
+        # register self as worker
+        await models.Worker.objects.acreate(
+            id=self.id,
+            status=models.WorkerStatus.ACTIVE,
+            type=models.WorkerType.LANGUAGE,
+            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+        )
         logger.info("start")
         self.subs = [
             await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
@@ -102,13 +127,13 @@ class LanguageServer:
         ]
         self.tasks = [create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10))]
 
-    async def _get_ready_worker(self, module_id: UUID) -> LanguageWorker:
+    async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
         worker = self.lang_workers.get(module_id)
         if worker is None:
             # start language worker if not already started
             # TODO @Broken: assign workers to deployments
-            project_version = await ProjectVersion.objects.aget(module_id=module_id)
-            worker = LanguageWorker(self.id, project_version)
+            project_version = await ProjectVersion.objects.aget(id=module_id)
+            worker = LanguageWorker(self.id, project_version, self.module_db.fetch)
             self.lang_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         if not worker.ready.is_set():
@@ -148,6 +173,7 @@ class LanguageServer:
                 worker_id async for worker_id in redis.scan_iter("worker.*.heartbeat")
             ]
             live_worker_ids = [UUID(key.decode().split(".")[1]) for key in live_worker_keys]
+            live_worker_ids.append(self.id)  # we're a worker too
             last_seen = await redis.mget(keys=live_worker_keys)
             if len(live_worker_ids) != len(last_seen):
                 continue  # try again?
@@ -201,9 +227,8 @@ class LanguageServer:
 
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
-        project_v = await ProjectVersion.objects.aget(id=msg.payload.module_id)
-        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
-        await msg.reply(RepReadModulePayload(module=module, project_id=project_v.project_id))
+        module, project_id = await self.module_db.get_module(msg.p.module_id)
+        await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
 
     @message_handler
     async def request_module_runtime(self, msg: NMessage[ReqInterpModulePayload]):
@@ -245,6 +270,10 @@ class LanguageServer:
     async def stop(self):
         logger.info("stop")
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        # update self as worker
+        await models.Worker.objects.filter(id=self.id).aupdate(
+            status=models.WorkerStatus.TERMINATED
+        )
 
 
 # TODO @UX: reduce/avoid debounce for reactive module jobs
@@ -292,6 +321,29 @@ class Job:
 
     def __lt__(self, other):
         return self.default_priority < other.default_priority
+
+    async def save(self):
+        model_job = models.Job(
+            id=self.id,
+            type=self.type,
+            project_id=self.project_id,
+            project_version_id=self.project_version_id,
+            deployment_id=self.deployment_id,
+            worker_id=self.worker_id,
+            status=self.status,
+            started_at=self.started_at,
+            terminated_at=self.terminated_at,
+        )
+        await models.Job.objects.abulk_create(
+            [model_job],
+            update_conflicts=True,
+            conflict_fields=["id"],
+            update_fields=["status", "started_at", "terminated_at"],
+        )
+
+    async def save_and_notify(self):
+        await self.save()
+        await publish(NMessageType.JOB_SAVED, JobSavedPayload(job=self))
 
     @property
     def success(self) -> bool:
@@ -362,9 +414,17 @@ async def cancel_job(job: Job):
 class LanguageWorker:
     """Language server worker for a single module"""
 
-    def __init__(self, worker_id: UUID, project_version: models.ProjectVersion):
+    def __init__(
+        self, worker_id: UUID, project_version: models.ProjectVersion, fetcher: ModuleFetcher
+    ):
         self.worker_id = worker_id
         self.project_version = project_version
+        self.ready = asyncio.Event()
+        self.log = logger.bind(
+            module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
+        )
+        self.interpreter = LanguageInterpreter(fetcher)
+        # module data
         self.source: wire.ModuleData | None = None
         self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
         self.revmap: RevisionMap | None = None
@@ -373,10 +433,6 @@ class LanguageWorker:
         self.wire_errors: list[wire.ErrorData] | None = None
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
         self.jobs_queue: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
-        self.ready = asyncio.Event()
-        self.log = logger.bind(
-            module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
-        )
 
     @property
     def module_id(self) -> UUID:
@@ -420,10 +476,14 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
+    async def notify_module_changed(self) -> None:
+        payload = make_full_change_payload(self, RepInterpModulePayload)
+        await publish(NMessageType.MODULE_CHANGED, payload)
+
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
-        dependencies = await self._interp_requirements(requirements)
+        dependencies = await self.interpreter.interp_requirements(requirements)
 
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
@@ -441,8 +501,8 @@ class LanguageWorker:
         create_wrapped_task(self._fire_reactive_generate())
         create_wrapped_task(self._fire_reactive_lint())
         create_wrapped_task(self._fire_reactive_build())
-        # notify master
-        await self.notify_module_changed(self)
+        # notify
+        await self.notify_module_changed()
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_generate(self) -> None:
@@ -479,7 +539,7 @@ class LanguageWorker:
 
     async def do_lint(self, job_id: UUID) -> EvaluationResult:
         evaluation = await lint(self.idx)
-        await self.master.write_evaluations(self, [evaluation], job_id)
+        await self.write_evaluations([evaluation], job_id)
         return evaluation
 
     def queue_generate(self, cancel_running: bool) -> GenerateJob:
@@ -524,7 +584,11 @@ class LanguageWorker:
             implicit_build_file = map_to_file(
                 missing_builds, weak_references=[], file=implicit_build_file
             )
-            await self.master.write_module(self, files=[wire.rmap_file(implicit_build_file)])
+            await sync_to_async(write_module)(
+                project_v=self.project_version,
+                files=[wire.rmap_file(implicit_build_file)],
+                overwrite=True,
+            )
 
         return True
 
@@ -567,7 +631,7 @@ class LanguageWorker:
         instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
         build_processes = [
             wrap_task(
-                build(b, instruct_model, tracker=DbBuildTracker(self, b, job_id)),
+                build(b, instruct_model, tracker=DbBuildTracker(self, job_id)),
                 f"build_{b.id}",
             )
             for b in builds
@@ -578,12 +642,24 @@ class LanguageWorker:
         for b in builds:
             build_files = get_build_files_for(b, self.idx)
             previous_builds_files.update({file.id for file in build_files})
-        await self.master.write_build_results(
-            self,
-            build_ids=[b.id for b in builds],
-            build_results=build_results,
-            revmap=revmap,
-            previous_build_files=list(previous_builds_files),
+
+        # convert build results into writes with the revisions that were used
+        generated_files = []
+        generated_mappings = []
+        for build_result in build_results:
+            generated_file = build_result.to_file(self.idx.module)
+            generated_files.append(wire.rmap_file(generated_file))
+            mappings = [revmap.map_mapping(m) for m in build_result.source_mappings]
+            generated_mappings.append((build_result.build.id, mappings))
+
+        # actually write to the internal server
+        #  :ImmediateModuleWrites
+        await sync_to_async(write_module)(
+            project_v=self.project_version,
+            files=generated_files,
+            generated_mappings=generated_mappings,
+            delete_files=previous_builds_files,
+            overwrite=True,
         )
         return build_results
 
@@ -629,6 +705,68 @@ class LanguageWorker:
                 job.terminated.set()
                 await job.save_and_notify()
                 self.jobs_queue.task_done()
+
+    async def write_build_candidates(
+        self, candidates: list[BuildCandidate], delete_others: bool, job_id: UUID
+    ) -> None:
+        if delete_others:
+            # delete candidates associated with builds not in the list
+            build_ids = {c.ctx.build.id for c in candidates}
+            candidates_ids = {c.id for c in candidates}
+            for build_candidate in models.BuildCandidate.objects.filter(
+                build_id__in=build_ids
+            ).exclude(id__in=candidates_ids):
+                build_candidate.delete()
+
+        model_candidates: list[models.BuildCandidate] = [
+            models.BuildCandidate(
+                id=candidate.id,
+                project_id=self.project_id,
+                project_version_id=self.module_id,
+                job_id=job_id,
+                status=candidate.status,
+                name=candidate.name,
+                build_id=candidate.ctx.build.id,
+                order_key=candidate.order_key,
+            )
+            for candidate in candidates
+        ]
+        # upsert candidates (by id)
+        models.BuildCandidate.objects.bulk_create(
+            model_candidates,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=[
+                "updated_at",
+                "status",
+                "job_id",
+                "evaluation_id",
+                "file_id",
+                "order_key",
+            ],
+        )
+
+    async def write_evaluations(self, evaluations: list[EvaluationResult], job_id: UUID) -> None:
+        evaluations_data = []
+        for evaluation in evaluations:
+            evaluations_data.extend(
+                EvaluationResultData.from_result(
+                    evaluation,
+                    project_id=self.project_id,
+                    project_version_id=self.module_id,
+                    job_id=job_id,
+                )
+            )
+        model_evaluations: list[models.EvaluationResult] = [
+            mapper.rmap_evaluation_result(evaluation_data) for evaluation_data in evaluations_data
+        ]
+        # upsert evaluations (by environment & system)
+        models.EvaluationResult.objects.bulk_create(
+            model_evaluations,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
+        )
 
 
 def diff_implicit_builds(interp: InterpModule) -> tuple[list[Build], list[Build]]:
@@ -713,27 +851,28 @@ def make_full_change_payload(worker: LanguageWorker, cls):
 
 
 class DbBuildTracker(BuildTracker):
-    def __init__(self, worker: "LanguageWorker", build: Build, job_id: UUID):
+    def __init__(self, worker: "LanguageWorker", job_id: UUID):
         self.worker = worker
-        self.build = build
         self.job_id = job_id
         self.seen_evaluation_ids: set[int] = set()
 
     def candidates_planned(self, candidates: list[BuildCandidate]):
-        write = write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
+        write = self.worker.write_build_candidates(
+            candidates, job_id=self.job_id, delete_others=False
         )
         create_wrapped_task(write)
+        # TODO @Robustness: async candidates_planned creates race condition with evaluation save
 
     def candidates_built(self, candidates: list[BuildCandidate]):
-        write = write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
+        write = self.worker.write_build_candidates(
+            candidates, job_id=self.job_id, delete_others=False
         )
         create_wrapped_task(write)
 
     async def _write_evaluated(self, candidates: list[BuildCandidate]):
         # candidates are only evaluated once, but other candidates may be updated depending
         # on another candidates' evaluation (e.g. to update it from won to abandoned)
+        # this is a bit hacky but the flow will change soon enough
         new_evaluations = [
             candidate.evaluation
             for candidate in candidates
@@ -741,9 +880,9 @@ class DbBuildTracker(BuildTracker):
         ]
         self.seen_evaluation_ids.update(id(evaluation) for evaluation in new_evaluations)
         if new_evaluations:
-            await write_evaluations(self.worker, new_evaluations, job_id=self.job_id)
-        await write_build_candidates(
-            self.worker, self.build.id, candidates, job_id=self.job_id, delete_others=False
+            await self.worker.write_evaluations(new_evaluations, job_id=self.job_id)
+        await self.worker.write_build_candidates(
+            candidates, job_id=self.job_id, delete_others=False
         )
 
     def candidates_evaluated(self, candidates: list[BuildCandidate]):
@@ -775,38 +914,3 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
     except Exception as e:
         logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
         return False
-
-
-async def write_evaluation_results(evaluations: list[EvaluationResultData]) -> None:
-    model_evaluations: list[models.EvaluationResult] = [
-        mapper.rmap_evaluation_result(evaluation) for evaluation in evaluations
-    ]
-    # upsert evaluations (by environment & system)
-    models.EvaluationResult.objects.bulk_create(
-        model_evaluations,
-        update_conflicts=True,
-        unique_fields=["id"],
-        update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
-    )
-
-
-async def write_build_candidates(candidates: list[BuildCandidateData], delete_others: bool) -> None:
-    if delete_others:
-        # delete candidates associated with builds not in the list
-        build_ids = {c.build_id for c in candidates}
-        candidates_ids = {c.id for c in candidates}
-        for build_candidate in models.BuildCandidate.objects.filter(build_id__in=build_ids).exclude(
-            id__in=candidates_ids
-        ):
-            build_candidate.delete()
-
-    model_candidates: list[models.BuildCandidate] = [
-        mapper.rmap_build_candidate(candidate) for candidate in candidates
-    ]
-    # upsert candidates (by id)
-    models.BuildCandidate.objects.bulk_create(
-        model_candidates,
-        update_conflicts=True,
-        unique_fields=["id"],
-        update_fields=["updated_at", "status", "job_id", "evaluation_id", "file_id", "order_key"],
-    )

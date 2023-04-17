@@ -80,7 +80,7 @@ class ModuleWorker:
     def idx(self) -> language.ModuleIndex:
         return self.interp.module_idx
 
-    def on_module_changed(self, source: wire.ModuleData):
+    async def do_interp(self, source: wire.ModuleData):
         self.log.debug("module.changed")
         self.interp = await self.interpreter.interp(source)
 
@@ -194,7 +194,7 @@ class ModuleWorker:
         self.log.info("module.start")
         source, self.project_id = await self.master.get_module(self.module_id)
         try:
-            self.on_module_changed(source)
+            await self.do_interp(source)
         except Exception as e:
             self.log.error("worker_init_failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
@@ -328,7 +328,7 @@ class SandboxedWorker:
             return
         worker = await self._get_ready_worker(msg.p.module_id)
         worker.provide_context()
-        worker.on_module_changed(msg.p.module)
+        worker.interp(msg.p.module)
         # module worker will trigger any follow-ups
 
     @message_handler
