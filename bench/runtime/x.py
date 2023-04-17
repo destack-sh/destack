@@ -2,7 +2,7 @@ import enum
 import inspect
 import textwrap
 import typing
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 
 from bench.language import XBlock
 from bench.language.type import (
@@ -58,6 +58,8 @@ ValueT = typing.TypeVar("ValueT", bound=typing.Any)
 def xsettings(
     value: ValueT, source: XSource = XSource.System, path: str = None
 ) -> XBlockContent[ValueT]:
+    if is_dataclass(value):
+        value = asdict(value)
     return XBlockContent(kind=XKind.Settings, source=source, value=value, path=path)
 
 

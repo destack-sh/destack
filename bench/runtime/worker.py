@@ -24,9 +24,10 @@ from bench.msg.messages import (
     ReqRegisterWorkerPayload,
     WorkerHeartbeatPayload,
 )
+from bench.runtime.build import BuildCandidate
 from bench.runtime.interp import InterpModule, LanguageInterpreter
 from bench.runtime.run import DEFAULT_TRACER, RunError, instantiate, run
-from bench.runtime.tracing import PubTrackerContext, WorkerContext, pub_tracker_context, worker
+from bench.runtime.tracing import PubTrackerContext, WorkerContext, pub_tracker_context, worker_ctx
 from bench.runtime.type import CodeInstance, TaskInstance, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -185,7 +186,7 @@ class ModuleWorker:
         """Sets the worker context var."""
         if self.ctx is None:
             raise RuntimeError(f"worker context not set: {self}")
-        worker.set(self.ctx)
+        worker_ctx.set(self.ctx)
 
     async def run(self):
         """Runs the module worker main processing loop"""
@@ -376,3 +377,32 @@ class SandboxedWorker:
         logger.info("stop", worker_id=self.worker_id)
         await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+
+
+class Sandbox:
+    # TODO @Broken: ship build_candidate data to sandbox
+    def __init__(self, build_candidate: BuildCandidate, module_id: UUID, job_id: UUID):
+        self.module_id = module_id
+        self.job_id = job_id
+        self.build_candidate = build_candidate
+
+    async def run(
+        self, code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
+    ) -> dict[str, LiteralValue]:
+        req = ReqModuleRunPayload(
+            module_id=self.module_id,
+            runnable=code.fqn,
+            runnable_type="code",
+            build=self.build_candidate.build,
+            arguments=arguments,
+            block=True,
+            tracing_level=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
+            trigger_type=ExecutionTriggerType.JOB,
+            trigger_id=self.job_id,
+        )
+        rep: NMessage[RepModuleRunPayload] = await request(
+            NMessageType.REQUEST_MODULE_RUN, req, RepModuleRunPayload
+        )
+        if rep.p.error is not None:
+            raise RunError(rep.p.error, code)
+        return rep.p.output

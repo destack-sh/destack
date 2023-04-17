@@ -176,7 +176,7 @@ class WorkerContext:
     worker_id: UUID
 
 
-worker: contextvars.ContextVar[WorkerContext] = contextvars.ContextVar("worker_context")
+worker_ctx: contextvars.ContextVar[WorkerContext] = contextvars.ContextVar("worker_context")
 
 ExecutionCapture = typing.Callable[[ExecutionFrame], None]
 
@@ -255,7 +255,7 @@ class ExecutionTracer(Tracer):
             parent = None
         frame = ExecutionFrame(
             id=UUIDT(),
-            module_id=worker.get().module_id,
+            module_id=worker_ctx.get().module_id,
             build=code.build if code else parent.build if parent else None,
             task=code.task if code else None,
             code=code,
@@ -373,7 +373,7 @@ class PubExecutionTracker:
         if is_root and ctx.root_id is not None:
             frame.id = ctx.root_id
 
-        w = worker.get()
+        w = worker_ctx.get()
         frame_data = ExecutionFrameData.from_frame(
             frame,
             project_id=w.project_id,

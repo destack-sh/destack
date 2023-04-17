@@ -205,7 +205,10 @@ async def evaluate_task(
     )()
     with in_memory_traces() as traces:
         runs = (
-            run(task.implementation, dict_minus(sample.data, {"output"}))
+            # TODO @Security: don't trust task implementation (ship to sandbox)
+            #  For now this is fine because we generate the implementation, but when
+            #  we get to :TaskSteps we'll need to ship the build (candidate) data to the sandbox.
+            run(task.implementation, dict_minus(sample.data, {"output"}), is_trusted=True)
             for sample in samples.records
         )
         results = await asyncio.gather(*runs, return_exceptions=True)
@@ -250,7 +253,9 @@ async def evaluate_task(
     tokens_count = sum(
         [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
     )
-    average_run_duration = sum([r.duration_with_cache for r in traces.roots]) / len(traces.roots)
+    average_run_duration = sum([r.duration_with_cache for r in traces.roots]) / (
+        len(traces.roots) or 1
+    )
     performance_metrics = {
         # for type validity we assume that unsuccessful run == type error
         EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
@@ -360,7 +365,6 @@ async def evaluate_output(
     )
     implementation = await do_build_task_plan(plan)
     implementation.context[eval_model.name] = eval_model
-    implementation_instance = instantiate(implementation)
 
     sample = {**input, "_output": output}
     simplified_instructions = []
@@ -382,8 +386,9 @@ async def evaluate_output(
     #  shouldn't expose this anyway, so that patched the issue.
     with tracer_blocker():
         evals = await run(
-            implementation_instance,
+            instantiate(implementation),
             {"instructions": simplified_instructions, "sample": sample},
+            is_trusted=True,
         )
 
     results = []
