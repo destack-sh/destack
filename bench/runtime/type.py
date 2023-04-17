@@ -286,24 +286,33 @@ class ExecutionFrameData:
 
 
 #
-# Building
+# Jobs
 #
 
 
-class BuildCandidateStatus(enum.StrEnum):
-    Planned = "planned"
-    Building = "building"
-    Evaluating = "evaluating"
-    CompletedWon = "completed_won"
-    CompletedAbandoned = "completed_abandoned"
-    Cancelled = "cancelled"
+@dataclass(slots=True)
+class JobData:
+    id: UUID
+    type: str
+    status: str
+    project_id: UUID
+    project_version_id: UUID
+    deployment_id: Optional[UUID]
+    worker_id: UUID
+    started_at: Optional[datetime]
+    terminated_at: Optional[datetime]
+
+
+#
+# Building
+#
 
 
 @dataclass(slots=True)
 class BuildCandidateData:
     id: UUID
     build_id: UUID
-    status: BuildCandidateStatus
+    status: str
     name: str
     instruct_model_id: Optional[UUID]
     evaluation_id: Optional[UUID]

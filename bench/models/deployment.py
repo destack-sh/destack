@@ -166,7 +166,7 @@ class WorkerStatus(models.TextChoices):
     TERMINATED = "TERMINATED"
 
 
-class SandboxedWorker(UUIDModel):
+class Worker(UUIDModel):
     """A worker is a worker node in a deployment."""
 
     created_at = models.DateTimeField(auto_now_add=True)

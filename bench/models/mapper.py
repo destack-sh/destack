@@ -705,22 +705,3 @@ def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.Evaluatio
         aggregated_metrics=evaluation.aggregated_metrics,
         self_metrics=evaluation.self_metrics,
     )
-
-
-def rmap_build_candidate(candidate: BuildCandidateData) -> models.BuildCandidate:
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return models.BuildCandidate(
-        id=candidate.id,
-        created_at=now,
-        updated_at=now,
-        build_id=candidate.build_id,
-        status=candidate.status,
-        name=candidate.name,
-        instruct_model_id=candidate.instruct_model_id,
-        evaluation_id=candidate.evaluation_id,
-        order_key=candidate.order_key,
-        job_id=candidate.job_id,
-        file_id=candidate.file_id,
-        project_id=candidate.project_id,
-        project_version_id=candidate.project_version_id,
-    )

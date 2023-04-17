@@ -43,8 +43,8 @@ class InterpFile:
     symbols: list["InterpSymbol"]
 
 
-JobType = gql.enum(runtime.type.JobType)
-JobStatus = gql.enum(runtime.type.JobStatus)
+JobType = gql.enum(models.JobType)
+JobStatus = gql.enum(models.JobStatus)
 
 
 @gql.type
