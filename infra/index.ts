@@ -223,14 +223,14 @@ const BACKEND_ENV_VARS = [
   },
 ];
 
-// Worker env vars
+// SandboxedWorker env vars
 const WORKER_ENV_VARS = [
   // provider secrets
   "OPENAI_API_KEY",
   "GOOSEAI_API_KEY",
   "FOREFRONT_API_KEY",
   "COHERE_API_KEY",
-  "ANTHROPIC_API_KEY"
+  "ANTHROPIC_API_KEY",
 ].map((name) => ({
   name,
   value: config.requireSecret(name),

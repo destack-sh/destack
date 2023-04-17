@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import enum
 import json
 import traceback
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, ClassVar, Coroutine, Optional
+from typing import Any, Callable, Coroutine, Optional
 from uuid import UUID, uuid5
 
 import PIL.Image
@@ -31,7 +30,6 @@ from bench.language.type import (
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.record import RecordBatch
 from bench.utils.utils import required_field
-from bench.utils.uuidt import UUIDT
 
 #
 # Instances
@@ -115,6 +113,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
 }
+
 
 #
 # Executions
@@ -577,107 +576,6 @@ def summarize_args(arguments: Any) -> str:
 
 BuildMap = Callable[[InterpSymbol], Optional[InterpSymbol]]
 
-#
-# Jobs
-#
-
-
-class JobType(enum.StrEnum):
-    INTERP = "interp"
-    GENERATE = "generate"
-    BUILD = "build"
-    EVALUATE = "evaluate"
-    LINT = "lint"
-    RUN = "run"
-
-
-class JobStatus(enum.StrEnum):
-    Queued = "queued"
-    Running = "running"
-    Completed = "completed"
-    Cancelling = "cancelling"
-    Cancelled = "cancelled"
-    Failed = "failed"
-
-
-# lower is higher
-JOB_DEFAULT_PRIORITY = {
-    JobType.INTERP: 0,
-    JobType.RUN: 0,
-    JobType.GENERATE: 1,
-    JobType.BUILD: 2,
-    JobType.EVALUATE: 3,
-    JobType.LINT: 4,
-}
-
-
-@dataclass(repr=False)
-class Job:
-    type: ClassVar[JobType]
-    project_id: UUID
-    project_version_id: UUID
-    deployment_id: Optional[UUID]
-    worker_id: UUID
-    id: UUID = field(default_factory=UUIDT)
-    status: JobStatus = JobStatus.Queued
-    started_at: Optional[datetime] = None
-    terminated_at: Optional[datetime] = None
-    task: Optional[asyncio.Task] = None
-    terminated: asyncio.Event = field(default_factory=asyncio.Event)
-
-    def __str__(self):
-        return f"{self.type} {self.id} ({self.status})"
-
-    def __repr__(self):
-        return f"<Job {self}>"
-
-    def __lt__(self, other):
-        return self.default_priority < other.default_priority
-
-    @property
-    def success(self) -> bool:
-        raise NotImplementedError
-
-    @property
-    def default_priority(self) -> int:
-        return JOB_DEFAULT_PRIORITY[self.type]
-
-
-@dataclass(repr=False)
-class JobData:
-    id: UUID
-    type: JobType
-    status: JobStatus
-    started_at: Optional[datetime]
-    terminated_at: Optional[datetime]
-    symbol_id: Optional[UUID]
-    # additional context
-    project_id: UUID
-    project_version_id: UUID
-    deployment_id: Optional[UUID]
-    worker_id: UUID
-
-    @staticmethod
-    def from_job(
-        job: Job,
-        project_id: UUID,
-        project_version_id: UUID,
-        deployment_id: Optional[UUID],
-        worker_id: UUID,
-    ) -> JobData:
-        return JobData(
-            type=job.type,
-            id=job.id,
-            status=job.status,
-            started_at=job.started_at,
-            terminated_at=job.terminated_at,
-            project_id=project_id,
-            symbol_id=None,  # TODO @Incomplete: set job data symbol id
-            project_version_id=project_version_id,
-            deployment_id=deployment_id,
-            worker_id=worker_id,
-        )
-
 
 #
 # Workers
@@ -685,5 +583,6 @@ class JobData:
 
 
 class WorkerType(enum.StrEnum):
+    LANGUAGE = "LANGUAGE"
     COMMUNITY = "COMMUNITY"
     DEDICATED = "DEDICATED"

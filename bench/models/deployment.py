@@ -154,6 +154,7 @@ class DeployedStatement(UUIDModel):
 
 
 class WorkerType(models.TextChoices):
+    LANGUAGE = "LANGUAGE"
     COMMUNITY = "COMMUNITY"
     DEDICATED = "DEDICATED"
 
@@ -165,7 +166,7 @@ class WorkerStatus(models.TextChoices):
     TERMINATED = "TERMINATED"
 
 
-class Worker(UUIDModel):
+class SandboxedWorker(UUIDModel):
     """A worker is a worker node in a deployment."""
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -186,4 +187,4 @@ class Worker(UUIDModel):
         return f"{self.id} {self.status} ({self.type}, {self.deployment})"
 
     def __repr__(self):
-        return f"<Worker {self}>"
+        return f"<SandboxedWorker {self}>"

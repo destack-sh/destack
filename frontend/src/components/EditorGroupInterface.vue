@@ -4,7 +4,7 @@ import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
 import { useActions } from "@/state/actions";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, toRef, watch } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
@@ -72,8 +72,8 @@ async function createFileInEditorGroup() {
       >
         <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
           <button
+            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 text-sm outline-none"
             :class="{
-              'max-w-[20rem] truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 px-3 py-1 text-sm outline-none': true,
               'border-gray-50 bg-gray-50 text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
@@ -82,6 +82,13 @@ async function createFileInEditorGroup() {
             @click.prevent="focus(e)"
           >
             {{ e.path.length > 0 ? e.path : "(Untitled)" }}
+            <!-- Close button -->
+            <button
+              class="h-fit max-h-fit rounded-sm px-1 text-transparent hover:bg-gray-200 group-hover:text-gray-700"
+              @click="editor.closeEditor(e)"
+            >
+              x
+            </button>
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
