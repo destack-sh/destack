@@ -65,7 +65,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
     metrics: [
       {
         label: "Clarity",
-        description: "How comprehensible the instruction is.",
+        description: "How comprehensible the instruction is. Higher clarity can improve performance.",
         value: toPercent(tween(metrics["clarity"], "global.clarity")),
         bars: toBars(metrics["clarity"], "clarity"),
         unit: "%",
@@ -73,7 +73,7 @@ const globalMetricSet: Ref<MetricSet | null> = computed(() => {
       },
       {
         label: "Difficulty",
-        description: "How complex the instruction is.",
+        description: "How complex the instruction is. Higher difficulty can lower performance.",
         value: toFixed(tween(metrics["difficulty"], "global.difficulty"), 0),
         bars: toBars(metrics["difficulty"], "difficulty"),
         unit: "x",
@@ -121,7 +121,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
     const buildMetrics: Metric[] = [
       {
         label: "Performance",
-        description: "How well the AI does.",
+        description: "How well the AI does on the task. Evaluated against the given instructions.",
         value: toPercent(tween(metrics["performance"], `build.${build.id}.performance`)),
         bars: toBars(metrics["performance"], "performance"),
         unit: "%",
@@ -131,7 +131,7 @@ const buildMetricSets: Ref<MetricSet[]> = computed(() => {
     if (nonBuildSymbolId != null) {
       buildMetrics.push({
         label: "Speed",
-        description: "How fast the AI is.",
+        description: "How fast the AI is per task. Estimated on given and generated samples.",
         value: toTime(tween(metrics["speed"], `build.${build.id}.speed`)),
         bars: toBars(metrics["speed"], "speed"),
         unit: "sec",
@@ -168,7 +168,7 @@ const metricSets = computed(() => {
         <!-- Metric set label for builds (if more than one) -->
         <span
           v-if="metricSets.length > 2 && metricSet.label != 'Bench'"
-          class="absolute left-0 -top-2 z-[5] mx-auto w-full text-center text-xs text-sky-900"
+          class="absolute -top-2 left-0 z-[5] mx-auto w-full text-center text-xs text-sky-900"
         >
           <!-- TODO @UX: clean up multi-build metrics -->
           <span class="rounded-sm border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs">{{ metricSet.label }} </span>
