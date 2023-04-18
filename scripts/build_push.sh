@@ -13,6 +13,7 @@ VERSION=$(cat version)
 
 # Build the Docker API image and tag properly (with commit hash)
 docker build . \
+  --platform linux/amd64 \
   -f Dockerfile \
   -t symbolx/bench-api:latest \
   -t symbolx/bench-api:$GIT_COMMIT \
