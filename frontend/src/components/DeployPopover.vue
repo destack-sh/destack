@@ -132,13 +132,13 @@ function copyApiUrlToClipboard() {
       <template v-else>
         <!-- Already deployed (yes this is ugly :c) -->
         <CloudIcon class="h-5 w-5" />
-        <CheckIcon class="absolute top-[9px] left-2 h-3 w-3" />
+        <CheckIcon class="absolute left-2 top-[9px] h-3 w-3" />
       </template>
     </PopoverButton>
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute top-10 right-0 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute right-0 top-10 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Header -->
         <div class="">
@@ -226,7 +226,7 @@ function copyApiUrlToClipboard() {
                 Archive deployment
               </PopoverButton>
             </ConfirmPopover>
-            <span v-else class="py-1 px-3 font-bold hover:cursor-not-allowed">{{ tag }} is not live</span>
+            <span v-else class="px-3 py-1 font-bold hover:cursor-not-allowed">{{ tag }} is not live</span>
             <!-- Deploy if not live -->
             <button
               v-if="!isDeployed"
@@ -239,7 +239,7 @@ function copyApiUrlToClipboard() {
             >
               Deploy
             </button>
-            <span v-else class="py-1 px-3 font-bold hover:cursor-not-allowed">{{ tag }} is live</span>
+            <span v-else class="px-3 py-1 font-bold hover:cursor-not-allowed">{{ tag }} is live</span>
           </div>
           <!-- Notices -->
           <p v-if="!project.canWrite" class="pt-1 text-xs text-yellow-600">You cannot deploy other's Benches yet.</p>
