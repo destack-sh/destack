@@ -772,7 +772,6 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             break
         tokens.eat_newline_or_eos()
 
-    tokens.eat_newline_or_eos()
     enum_type_node = TypeNode(
         name=name.value,
         description=description,

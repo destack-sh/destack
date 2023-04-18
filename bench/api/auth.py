@@ -209,7 +209,7 @@ def can_view_project(user: User, obj: Any) -> bool:
     # normalize to project instance
     if isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
-    elif isinstance(obj, (models.ProjectVersion, models.Deployment)):
+    elif isinstance(obj, (models.ProjectVersion, models.Deployment, models.EvaluationResult)):
         obj = obj.project
     elif isinstance(obj, Connection):
         return all(can_view_project(user, edge.node) for edge in obj.edges)
@@ -233,12 +233,13 @@ def can_write_project(user: User, obj: Any) -> bool:
     if user.is_anonymous:
         return False
     # TODO @Performance: prefetch project or check condition entirely in SQL
+    #  (and @Cleanup: deduplicate across read/write and other access points)
     # normalize to project instance
     if isinstance(obj, (models.SimpleTypeNode, models.DatasetRecord)):
         obj = obj.statement.project_version.project
     elif isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project
-    elif isinstance(obj, (models.ProjectVersion, models.Deployment)):
+    elif isinstance(obj, (models.ProjectVersion, models.Deployment, models.EvaluationResult)):
         obj = obj.project
     if not isinstance(obj, models.Project):
         raise ValueError(f"can_write_project cannot be used on {obj}")
@@ -333,6 +334,7 @@ class CanViewProject(HasCustomPermDirective):
                 models.Execution,
                 models.EvaluationResult,
                 models.BuildCandidate,
+                models.Job,
             ),
         ):
             prefix = "project__"
