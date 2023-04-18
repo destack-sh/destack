@@ -1,18 +1,18 @@
 repos:
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.8.4
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
     hooks:
       - id: flake8
         name: flake8 (py)
         args: ["--max-line-length=100", "--select=C,E,F,W,B,B950", "--extend-ignore=E203,E501,W503,F722"]
         exclude: ^bench/migrations|^bench/demo
   - repo: https://github.com/psf/black
-    rev: 20.8b1
+    rev: 23.3.0
     hooks:
       - id: black
         name: black (py)
   - repo: https://github.com/pycqa/isort
-    rev: 5.10.1
+    rev: 5.12.0
     hooks:
       - id: isort
         name: isort (py)

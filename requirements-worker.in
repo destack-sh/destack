@@ -4,5 +4,3 @@
 #  `python -m piptools compile requirements.in requirements-worker.in --output-file requirements-worker.txt`
 # Then - optionally - update your installed packages:
 #  `python -m piptools sync requirements-worker.txt`
-
-transformers[torch]==4.26.0
