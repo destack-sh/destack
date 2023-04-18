@@ -55,7 +55,7 @@ providers: list[Provider] = [
     Provider(
         name="Anthropic",
         slug="anthropic",
-        text_models=[("claude-instant", "claude-instant-v1.0"), ("claude", "claude-v1.2")],
+        text_models=[("claude-instant", "claude-instant-v1.0"), ("claude", "claude-v1.3")],
     ),
     Provider(name="Stability AI", slug="stabilityai", text_models=[]),
 ]
