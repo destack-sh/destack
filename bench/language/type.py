@@ -176,7 +176,6 @@ class SymbolType(models.TextChoices):
     MODEL = "model"
     PROGRAM = "program"
     DATA = "data"
-    VALUE = "value"
     REQUIREMENT = "require"
     BUILD = "build"
     EVALUATE = "evaluate"
@@ -805,11 +804,18 @@ class Runconfig(InterpSymbol, RunconfigContent):
 
 
 @dataclass(repr=False)
+class BuildSettings:
+    reactive: bool = False
+
+
+@dataclass(repr=False)
 class BuildContent(SymbolContent):
+    settings: BuildSettings
+    comment: Optional[str] = None  # like description but non-semantic
     # Note @Architecture: BuildContent includes source_mappings, which are outputs of the build,
     #  because we consider generation part of the language. Specifically, build mappings are
     #  required to instantiate/run symbols in the build (e.g. task -> code).
-    source_mappings: list["GeneratedMapping"]
+    source_mappings: list["GeneratedMapping"] = field(default_factory=list)
 
     @property
     def targets(self) -> set[UUID]:

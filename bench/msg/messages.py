@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import BuildCandidateData, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 
 PROTOCOL_VERSION = 1
 
@@ -132,7 +132,7 @@ class ReqModuleRunPayload:
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
     build: Optional[UUID | str]
-    arguments: dict[str, wire.LiteralValue]
+    arguments: dict[str, typing.Any]
     block: bool
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
@@ -152,7 +152,7 @@ class RepModuleRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[ModuleRunErrorType] = None
     error_details: Optional[typing.Any] = None
-    output: Optional[wire.LiteralValue] = None
+    output: Optional[typing.Any] = None
 
 
 @payload(NMessageType.EXECUTION_CHANGED)
