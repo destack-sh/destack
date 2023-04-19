@@ -25,6 +25,7 @@ from bench.msg.messages import (
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
+    InterpModuleChangedPayload,
     JobSavedPayload,
     ModuleBuildErrorType,
     ModuleChangedPayload,
@@ -218,6 +219,11 @@ class LanguageServer:
         await publish(
             NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
         )
+
+        # update language workers
+        if module.id in self.lang_workers:
+            worker = self.lang_workers[module.id]
+            worker.on_module_changed(module)
 
     async def manage_sandboxed_workers(self, interval_seconds: int):
         while True:
@@ -495,7 +501,7 @@ class LanguageWorker:
             if predicate(job) and job.status == JobStatus.Queued:
                 asyncio.create_task(job.cancel())
         # mark pending jobs cancelled in queue
-        for (prio, job) in self.jobs_queue._queue:
+        for prio, job in self.jobs_queue._queue:
             if predicate(job):
                 job.status = JobStatus.Cancelled
 
@@ -509,10 +515,6 @@ class LanguageWorker:
         )
         self._queue_job(job)
         return job
-
-    async def notify_module_changed(self) -> None:
-        payload = make_full_change_payload(self, RepInterpModulePayload)
-        await publish(NMessageType.MODULE_CHANGED, payload)
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
@@ -536,7 +538,8 @@ class LanguageWorker:
         create_wrapped_task(self._fire_reactive_lint())
         create_wrapped_task(self._fire_reactive_build())
         # notify
-        await self.notify_module_changed()
+        payload = make_full_change_payload(self, InterpModuleChangedPayload)
+        await publish(NMessageType.INTERP_MODULE_CHANGED, payload)
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_generate(self) -> None:

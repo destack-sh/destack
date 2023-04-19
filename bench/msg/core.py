@@ -211,6 +211,8 @@ async def request(
         raise RuntimeError("nats not initialized")
     if topic is None:
         topic = to_topic(type, payload)
+    if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
+        raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
     log.debug("request", topic=topic, message=message)
@@ -236,6 +238,8 @@ async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> Non
         raise RuntimeError("nats not initialized")
     if topic is None:
         topic = to_topic(type, payload)
+    if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
+        raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type, payload, sent_at=datetime.utcnow())
     log.debug("publish", topic=topic, message=message)
     serialized = _serialize_message(message)
@@ -277,7 +281,6 @@ async def subscribe(
 
     log.debug("subscribe", topic=topic, cb=cb)
     if cb is not None:
-
         if hasattr(cb, "__wrapped_msg__"):
             # already wrapped by message_handler
             wrapped_cb = cb
