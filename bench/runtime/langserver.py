@@ -127,7 +127,10 @@ class LanguageServer:
                 f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
             ),
         ]
-        self.tasks = [create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10))]
+        self.tasks = [
+            create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10)),
+            create_wrapped_task(self.manage_timeouts(interval_seconds=10, timeout_seconds=60)),
+        ]
         # register self as worker
         await models.Worker.objects.acreate(
             id=self.id,
@@ -226,6 +229,7 @@ class LanguageServer:
             worker.on_module_changed(module)
 
     async def manage_sandboxed_workers(self, interval_seconds: int):
+        """Update last seens and mark any unresponsive workers as inactive."""
         while True:
             # get last seen for all workers
             live_worker_keys = [
@@ -269,20 +273,42 @@ class LanguageServer:
                     )
                 ]
                 # publish job updates, then update
-                for job in dead_jobs:
-                    job_data = mapper.wmap_job(job)
-                    job.status = models.JobStatus.Failed
-                    await publish(
-                        NMessageType.JOB_SAVED,
-                        JobSavedPayload(job=job_data, module_id=job.project_version_id),
-                    )
-                await models.Job.objects.abulk_update(dead_jobs, ["status"])
+                await self.kill_jobs(dead_jobs)
                 for worker in dead_workers:
                     worker.status = models.WorkerStatus.TERMINATED
                     worker.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
                 await models.Worker.objects.abulk_update(dead_workers, ["status", "terminated_at"])
 
             await asyncio.sleep(interval_seconds)
+
+    async def manage_timeouts(self, interval_seconds: int, timeout_seconds: int):
+        """Mark any timed out jobs or executions as failed."""
+        while True:
+            start_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
+                seconds=timeout_seconds
+            )
+            dead_jobs = [
+                job
+                async for job in models.Job.objects.filter(
+                    status__in=PENDING_JOB_STATUSES, started_at__lt=start_cutoff
+                )
+            ]
+            await self.kill_jobs(dead_jobs)
+            await Execution.objects.filter(
+                status__in=PENDING_EXECUTION_STATUSES,
+                started_at__lt=start_cutoff,
+            ).aupdate(status=ExecutionStatus.Failed)
+            await asyncio.sleep(interval_seconds)
+
+    async def kill_jobs(self, dead_jobs: list[models.Job]):
+        for job in dead_jobs:
+            job_data = mapper.wmap_job(job)
+            job.status = models.JobStatus.Failed
+            await publish(
+                NMessageType.JOB_SAVED,
+                JobSavedPayload(job=job_data, module_id=job.project_version_id),
+            )
+        await models.Job.objects.abulk_update(dead_jobs, ["status"])
 
     async def stop(self):
         logger.info("stop")
