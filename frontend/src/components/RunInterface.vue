@@ -294,31 +294,32 @@ const outputColumns = computed(() =>
       </div>
       <!-- Current/last output  -->
       <!-- TODO @UX: rework multi-build output -->
-      <div
-        class="grid-w-fit relative mt-1 grid w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
-        v-for="build in builds"
-        :key="build.id"
-      >
-        <template v-if="lastOutputByBuild[build.id] != null">
-          <template v-for="field in outputFields" :key="field.id">
-            <div class="flex flex-row gap-1 py-1">
-              <span class="font-bold">{{ field.name }}</span>
-            </div>
-            <InlineValueCell
-              :type="field"
-              :model-value="lastOutputByBuild[build.id][field.name as string]"
-              :readonly="true"
-              :immediate="false"
-            />
+      <div class="mt-4" v-for="build in builds" :key="build.id">
+        <span class="border border-orange-900 border-opacity-[12%] bg-orange-100 px-3 py-1">{{ build.name }}</span>
+        <div
+          class="grid-w-fit relative mt-2 grid w-full grid-cols-[minmax(40px,auto)_1fr] gap-x-4 border border-orange-900 border-opacity-[12%] p-3"
+        >
+          <template v-if="lastOutputByBuild[build.id] != null">
+            <template v-for="field in outputFields" :key="field.id">
+              <div class="flex flex-row gap-1 py-1">
+                <span class="font-bold">{{ field.name }}</span>
+              </div>
+              <InlineValueCell
+                :type="field"
+                :model-value="lastOutputByBuild[build.id][field.name as string]"
+                :readonly="true"
+                :immediate="false"
+              />
+            </template>
           </template>
-        </template>
-        <div v-else class="flex h-full w-full flex-col items-center justify-center">
-          <div class="text-gray-500">No output yet</div>
+          <div v-else class="flex h-full w-full flex-col items-center justify-center">
+            <div class="text-gray-500">No output yet</div>
+          </div>
         </div>
       </div>
     </div>
     <!-- Batch -->
-    <div v-else class="mx-auto mt-2 w-full max-w-[800px]"></div>
+    <div v-else class="mx-auto mt-2 w-full max-w-[800px]">TODO</div>
     <!-- TODO -->
     <!-- Past runs -->
     <div class="mx-auto mt-8 w-full max-w-[800px]">

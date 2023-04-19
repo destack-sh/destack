@@ -12,7 +12,7 @@ from bench import language
 from bench.language import SymbolType, lex, parse, wire
 from bench.language.lex import SourceFile
 from bench.language.reconstruct import render
-from bench.models import OwnerSlug, Project
+from bench.models import Organization, OwnerSlug, Project
 from bench.models.mapper import lookup_in_db_module, read_module, write_module
 from bench.models.project import ProjectVisibility
 
@@ -34,6 +34,10 @@ class Command(BaseCommand):
         try:
             project = Project.objects.get_by_slug(owner_slug, project_slug)
         except Project.DoesNotExist:
+            # create owner if they don't exist
+            if not OwnerSlug.objects.filter(slug=owner_slug).exists():
+                # create as organization?
+                Organization.objects.create_organization(name=owner_slug, slug=owner_slug)
             owner = OwnerSlug.objects.get(slug=owner_slug).owner
             project = Project.objects.create_project(
                 owner=owner,
