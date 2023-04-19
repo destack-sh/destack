@@ -363,7 +363,8 @@ class Job:
     async def save_and_notify(self):
         await self.save()
         await publish(
-            NMessageType.JOB_SAVED, JobSavedPayload(module_id=self.project_id, job=self.to_data())
+            NMessageType.JOB_SAVED,
+            JobSavedPayload(module_id=self.project_version_id, job=self.to_data()),
         )
 
     async def cancel(self):
@@ -568,6 +569,7 @@ class LanguageWorker:
             project_id=self.project_id,
             project_version_id=self.module_id,
             worker_id=self.worker_id,
+            deployment_id=None,
         )
         if cancel_running:
             self._cancel_jobs_like(lambda j: isinstance(j, LintJob))
