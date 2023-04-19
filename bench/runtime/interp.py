@@ -5,6 +5,7 @@ from typing import Awaitable, Callable, Optional, cast
 from uuid import UUID
 
 import structlog
+from more_itertools import first
 
 from bench import language
 from bench.language import wire
@@ -141,3 +142,15 @@ def interp_module(
     errors = [e.to_error() for e in collector.errors]
 
     return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
+
+
+def get_or_create_file(
+    idx: language.ModuleIndex, path: str, generated: bool = True
+) -> tuple[language.File, bool]:
+    file = first((f for f in idx.module.files if f.path == path), None)
+    if file is None:
+        file = language.File(path=path, statements=[], module=idx.module, generated=generated)
+        idx.module.files.append(file)
+        return file, True
+    else:
+        return file, False

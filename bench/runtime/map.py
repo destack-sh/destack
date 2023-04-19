@@ -139,4 +139,5 @@ def map_code_content(code: Code) -> CodeContent:
 def map_build_content(build: Build) -> BuildContent:
     return BuildContent(
         source_mappings=build.source_mappings,
+        settings=build.settings,
     )

@@ -29,7 +29,6 @@ KEYWORDS = {
     "code": SymbolType.CODE,
     "model": SymbolType.MODEL,
     "data": SymbolType.DATA,
-    "value": SymbolType.VALUE,
     "import": StatementType.IMPORT,
     "require": SymbolType.REQUIREMENT,
     "run": SymbolType.RUNCONFIG,

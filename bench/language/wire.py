@@ -11,8 +11,8 @@ from bench import language
 from bench.language import ErrorType
 from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
+    BuildSettings,
     GeneratedMapping,
-    LiteralValue,
     StatementModifier,
     StatementPath,
     StatementType,
@@ -129,7 +129,7 @@ class StatementData:
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
     generated_mappings: Optional[list[GeneratedMapping]] = None
-    value: LiteralValue = None
+    settings: Optional[BuildSettings] = None
     reference_module: Optional[ModuleReference] = None
 
     @property
@@ -299,6 +299,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.BuildContent):
         data.generated_mappings = content.source_mappings
+        data.settings = content.settings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
             data.reference_module = ModuleReference(content.module_name, content.version, id=None)
@@ -333,8 +334,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             provider=data.provider,
             external_name=data.external_name,
         )
-    elif data.symbol_type == SymbolType.VALUE:
-        return language.ValueContent(description=data.description, value=data.value)
     elif data.symbol_type == SymbolType.CAPABILITY:
         return language.CapabilityContent(description=data.description)
     elif data.symbol_type == SymbolType.DATA:
@@ -345,7 +344,9 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             records=[wmap_record(r) for r in data.records],
         )
     elif data.symbol_type == SymbolType.BUILD:
-        return language.BuildContent(source_mappings=data.generated_mappings)
+        return language.BuildContent(
+            source_mappings=data.generated_mappings, settings=data.settings
+        )
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
             module_name=data.reference_module.name if data.reference_module else None,

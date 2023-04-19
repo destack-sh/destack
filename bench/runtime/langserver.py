@@ -2,18 +2,16 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from itertools import chain
 from typing import Callable, ClassVar, Optional
 from uuid import UUID
 
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
-from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.type import Build, InterpSymbol, SymbolType, Task, TypeTag
+from bench.language.type import Build, BuildSettings, SymbolType, TypeTag
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
@@ -55,6 +53,7 @@ from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
     ModuleFetcher,
+    get_or_create_file,
     get_requirements,
     interp_module,
 )
@@ -433,7 +432,6 @@ class LintJob(Job):
 @dataclass(repr=False, slots=True)
 class GenerateJob(Job):
     type: ClassVar[JobType] = JobType.GENERATE
-    generator: Optional[InterpSymbol] = None
     success: bool = False
 
 
@@ -619,40 +617,39 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
-    async def do_generate(self, generator: Optional[InterpSymbol]) -> bool:
-        # generate (missing) implicit builds
-        missing_builds, extraneous_builds = diff_implicit_builds(self.interp)
-        if missing_builds or extraneous_builds:
-            # TODO @Cleanup @Robustness: implicit build generation seems fragile (all in one file, overwrites)
-            _path = "__implicit_builds__"
-            implicit_build_file = first(
-                (f for f in self.interp.module_idx.module.files if f.path == _path), None
-            )
-            if implicit_build_file is None:
-                implicit_build_file = language.File(
-                    path=_path,
-                    generated=True,
-                    module=self.interp.module_idx.module,
-                )
-            else:
-                # filter out extraneous builds (and their children)
-                # extraneous builds must already exist (have a source), so filtering by source is okay
-                extraneous_symbols_ids = set()
-                for b in extraneous_builds:
-                    extraneous_symbols_ids.add(b.id)
-                    for statement in self.idx.scopes[b.id].statements.values():
-                        extraneous_symbols_ids.add(statement.id)
-                implicit_build_file.statements = [
-                    s for s in implicit_build_file.statements if s.id not in extraneous_symbols_ids
-                ]
-            # append missing builds
-            implicit_build_file = map_to_file(
-                missing_builds, weak_references=[], file=implicit_build_file
-            )
+    async def do_generate(self) -> bool:
+        # create default builds if they don't exist yet
+        autobuild_file, created = get_or_create_file(self.interp.module_idx, "__autobuild__")
+        if created:
+            # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
+            gpt35 = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
+            davinci3 = self.interp.symbol("openai.std.text.text-davinci-003")
+            claude_instant = self.interp.symbol("anthropic.std.text.claude-instant")
+            claude = self.interp.symbol("anthropic.std.text.claude")
+
+            default_builds = [
+                Build(
+                    name="balanced",
+                    comment="Perfectly balanced, as all things should be.",
+                    settings=BuildSettings(reactive=True),
+                    models=[gpt35.to_ref(), claude_instant.to_ref()],
+                ),
+                Build(
+                    name="fast",
+                    comment="Fast and economic AI.",
+                    settings=BuildSettings(),
+                    models=[gpt35.to_ref(), claude_instant.to_ref()],
+                ),
+                Build(
+                    name="accurate",
+                    comment="The best AI can do at any cost.",
+                    settings=BuildSettings(),
+                    models=[claude.to_ref(), davinci3.to_ref()],
+                ),
+            ]
+            autobuild_file = map_to_file(default_builds, [], autobuild_file)
             await sync_to_async(write_module)(
-                project_v=self.project_version,
-                files=[wire.rmap_file(implicit_build_file)],
-                overwrite=True,
+                files=[wire.rmap_file(autobuild_file)], project_v=self.project_version
             )
 
         return True
@@ -762,7 +759,7 @@ class LanguageWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, GenerateJob):
-                    job.task = create_task(self.do_generate(job.generator))
+                    job.task = create_task(self.do_generate())
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
                     job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
@@ -855,55 +852,6 @@ class LanguageWorker:
                 evaluations=evaluations_data,
             ),
         )
-
-
-def diff_implicit_builds(interp: InterpModule) -> tuple[list[Build], list[Build]]:
-    """
-    Gets missing and extraneous implicit builds
-    """
-
-    builds = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Build)]
-    implicit_builds = [build for build in builds if build.is_generated]
-    explicit_builds = [build for build in builds if not build.is_generated]
-    tasks = [symbol for symbol in interp.module_idx.symbols.values() if isinstance(symbol, Task)]
-
-    tasks_with_implicit_builds_ids = set(
-        chain.from_iterable(
-            [(task.definition.id for task in build.tasks) for build in implicit_builds]
-        )
-    )
-    tasks_with_explicit_builds_ids = set(
-        chain.from_iterable(
-            [(task.definition.id for task in build.tasks) for build in explicit_builds]
-        )
-    )
-
-    # missing implicit builds for tasks without any builds
-    default_model = interp.symbol("openai.std.text.gpt-3-5-turbo")
-    missing_implicit_builds = []
-    for task in tasks:
-        if (
-            task.definition.id in tasks_with_explicit_builds_ids
-            or task.definition.id in tasks_with_implicit_builds_ids
-        ):
-            continue
-        build = Build(
-            name="auto_" + task.id.hex[:6],
-            tasks=[task.to_ref()],
-            models=[default_model.to_ref()],
-            source_mappings=[],
-        )
-        missing_implicit_builds.append(build)
-
-    # extraneous implicit builds if an explicit build exists or the task no longer exists
-    extraneous_implicit_builds = []
-    for build in implicit_builds:
-        if not build.tasks or any(
-            task.definition.id in tasks_with_explicit_builds_ids for task in build.tasks
-        ):
-            extraneous_implicit_builds.append(build)
-
-    return missing_implicit_builds, extraneous_implicit_builds
 
 
 def make_change_payload(
