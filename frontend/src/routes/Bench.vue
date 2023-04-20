@@ -713,7 +713,7 @@ onBeforeUnmount(() => {
             @show="editor.focusView('tuning')"
             @blur="editor.blurView('tuning')"
             :focused="editor.focusedViewId == 'tuning'"
-            :current-version="version"
+            :version="version"
           />
           <!-- Unknown view -->
           <div
