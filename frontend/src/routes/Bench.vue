@@ -131,6 +131,12 @@ const openIssues = provideAction({
   shortcuts: ["alt+3"],
   apply: () => toggleActiveView("issues", false),
 });
+provideAction({
+  id: "editor.view.openTuning",
+  label: "View Tuning",
+  shortcuts: ["alt+4"],
+  apply: () => toggleActiveView("tuning", false),
+});
 
 // other buttons for sidebar
 type SidebarPopover = {

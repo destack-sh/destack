@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
-import { SymbolType, type ProjectVersion, BuildScope } from "@/gql/graphql";
+import { BuildScope, SymbolType, type ProjectVersion } from "@/gql/graphql";
 import { useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { WrenchIcon } from "@heroicons/vue/24/outline";
@@ -57,6 +57,18 @@ const builds = computed(
 );
 const symbolOps = useSymbolOps();
 
+function getModelsFor(build: { id: string }) {
+  return (
+    autobuildFileResult.value?.file?.statements
+      ?.filter((s) => s.parent?.id == build.id && s.symbolType == SymbolType.Model)
+      .sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1)) ?? []
+  );
+}
+
+function toggleReactive(build: { id: string; buildSettings: { reactive: boolean } }) {
+  throw new Error("TODO @Incomplete: not implemented");
+}
+
 const HIGHLIGHTED_METRICS = ["performance", "speed"];
 </script>
 <template>
@@ -72,26 +84,36 @@ const HIGHLIGHTED_METRICS = ["performance", "speed"];
         </span>
       </span>
     </div>
-    <ul class="flex flex-col gap-5 py-2">
-      <li v-for="build in builds" :key="build.id" class="px-3 text-sm">
+    <ul class="flex flex-col gap-4 py-2">
+      <!-- Each build -->
+      <li v-for="build in builds" :key="build.id" class="group px-3 py-1 text-sm hover:bg-orange-100">
         <!-- Basic info -->
-        <span class="flex flex-row items-center justify-between">
-          <h4 class="font-bold text-gray-900">{{ build.name }}</h4>
+        <span class="flex flex-row items-baseline justify-between">
+          <h4 class="flex flex-row items-baseline text-black">
+            {{ build.name }}
+            <!-- Reactivity toggle -->
+            <button
+              class="ml-2 rounded-sm border px-1.5"
+              @click="toggleReactive(build)"
+              :class="{
+                'border-orange-900 border-opacity-[15%] bg-orange-100 text-gray-700': build.buildSettings?.reactive,
+                ' border-gray-300  text-gray-400': !build.buildSettings?.reactive,
+              }"
+            >
+              {{ build.buildSettings?.reactive ? "live" : "manual" }}
+            </button>
+          </h4>
           <!-- Basic controls -->
-          <span>
-            <button class="text-gray-400" @click="symbolOps.build(build, BuildScope.Selected)">
-              <WrenchIcon class="h-4 w-4" />
+          <span class="flex flex-row items-center">
+            <button class="text-gray-400 hover:text-gray-800" @click="symbolOps.build(build, BuildScope.Selected)">
+              <WrenchIcon class="-mb-0.5 h-4 w-4" />
             </button>
           </span>
         </span>
-        <p class="text-gray-700">{{ build.description }}</p>
+        <p class="text-gray-500">{{ build.description }}</p>
         <!-- Metrics -->
         <div class="mt-1 flex flex-col">
-          <span
-            v-for="metric of HIGHLIGHTED_METRICS"
-            :key="metric"
-            class="font-bol2 flex flex-row items-center gap-2 text-xs"
-          >
+          <span v-for="metric of HIGHLIGHTED_METRICS" :key="metric" class="flex flex-row items-center gap-2 text-sm">
             {{ metric.slice(0, 1).toUpperCase() }}
             <!-- blue on gray line with value of metric in build settings as percentage -->
             <div class="relative h-1 w-full rounded-sm bg-gray-300">
@@ -103,7 +125,15 @@ const HIGHLIGHTED_METRICS = ["performance", "speed"];
           </span>
         </div>
         <!-- Available models -->
-        <!-- TODO @Incomplete -->
+        <div class="mt-1 flex flex-row flex-wrap gap-2">
+          <span
+            v-for="model of getModelsFor(build)"
+            :key="model.id"
+            class="mt-1 rounded-sm border border-orange-900 border-opacity-[15%] bg-gray-100 px-1.5 py-0.5 text-sm"
+          >
+            {{ model.name }}
+          </span>
+        </div>
       </li>
     </ul>
   </div>
