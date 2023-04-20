@@ -104,12 +104,15 @@ class BuildContext:
         self, candidate: BuildCandidate, weights: dict[str, float]
     ) -> tuple[Optional[str], Optional[str]]:
         for i, c in enumerate(self.candidates_ranked):
-            if compare_evaluations(c.evaluation, candidate.evaluation, weights) < 0:
+            if compare_evaluations(c.evaluation, candidate.evaluation, weights) <= 0:
                 if i > 0:
                     return self.candidates_ranked[i - 1].order_key, c.order_key
                 else:
                     return None, c.order_key
-        return None, None
+        if self.candidates_ranked:
+            return self.candidates_ranked[-1].order_key, None
+        else:
+            return None, None
 
     def insert_ranked_candidate(self, candidate: BuildCandidate, weights: dict[str, float]):
         # not super efficient, but #candidates is small
@@ -429,6 +432,7 @@ async def evaluate_candidate(
         scope=EvaluationScope.BUILD,
         self_metrics=None,
         build=result.build,
+        build_candidate=candidate,
         aggregated_metrics=aggregate_metrics(tasks_evaluations),
         children=tasks_evaluations,
     )

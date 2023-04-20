@@ -113,7 +113,6 @@ def _make_reference(symbol: InterpSymbol, order_key: str, parent: Statement):
     if symbol.definition.source is None:
         raise RuntimeError(f"symbol has no source {parent}->{symbol}")
     child = Statement(
-        id=symbol.id,
         type=StatementType.REFERENCE,
         symbol_type=symbol.symbol_type,
         modifier=symbol.modifier,

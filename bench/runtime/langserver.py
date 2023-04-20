@@ -483,7 +483,7 @@ def get_default_builds(interp):
                 reactive=True,
                 weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
             ),
-            models=[gpt35.to_ref(), claude_instant.to_ref()],
+            models=[gpt35, claude_instant],
         ),
         Build(
             name="fast",
@@ -493,7 +493,7 @@ def get_default_builds(interp):
                 reactive=False,
                 weights={EvaluationMetric.Performance: 0.2, EvaluationMetric.Speed: 0.8},
             ),
-            models=[gpt35.to_ref(), claude_instant.to_ref()],
+            models=[gpt35, claude_instant],
         ),
         Build(
             name="accurate",
@@ -503,7 +503,7 @@ def get_default_builds(interp):
                 reactive=False,
                 weights={EvaluationMetric.Performance: 0.8, EvaluationMetric.Speed: 0.2},
             ),
-            models=[davinci3.to_ref(), claude.to_ref()],
+            models=[davinci3, claude],
         ),
     ]
     return default_builds

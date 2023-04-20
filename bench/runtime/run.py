@@ -425,13 +425,12 @@ class ModelInferenceImpl(ModelInference):
 def _instantiate_model_inference(model: Model) -> ModelInference:
     ctx = InferenceContext(model=model, user_opaque_id=model.id.hex, streaming_callback=None)
     impl = ModelInferenceImpl(ctx)
-    endpoints = get_endpoints(model)
+    endpoints = list(get_endpoints(model))
     if not endpoints:
         raise RuntimeError(f"no endpoints found for model: {model}")
     for modality, endpoint_cls in endpoints:
         endpoint = getattr(endpoint_cls(ctx), modality)
         setattr(impl, modality, endpoint)
-
     return impl
 
 
