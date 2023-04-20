@@ -23,6 +23,14 @@ from bench.msg.messages import EvaluationSavedPayload
 
 logger = structlog.get_logger(__name__)
 
+
+@gql.django.type(models.EvaluateSettings)
+class EvaluateSettings(gql.Node):
+    statement: Optional[Annotated["Statement", lazy(".statement")]]
+    weights: JSON
+    reactive: bool
+
+
 EvaluationKind = gql.enum(models.EvaluationKind)
 EvaluationScope = gql.enum(models.EvaluationScope)
 

@@ -6,16 +6,6 @@ from django_choices_field import TextChoicesField
 from bench.models.utils import UUIDModel
 
 
-class BuildSettings(UUIDModel):
-    """Typed settings for a build."""
-
-    statement = models.OneToOneField(
-        "Statement", on_delete=models.CASCADE, related_name="build_settings"
-    )
-    weights = models.JSONField()
-    reactive = models.BooleanField(default=False)
-
-
 class GeneratedContentMixin:
     """Build content of mappings."""
 

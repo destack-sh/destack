@@ -121,6 +121,13 @@ input BuildInput {
   buildableId: GlobalID = null
 }
 
+type BuildSettings implements Node {
+  id: GlobalID!
+  statement: Statement
+  weights: JSON!
+  reactive: Boolean!
+}
+
 type BuildState {
   projectVersionId: GlobalID!
   success: Boolean!
@@ -289,6 +296,13 @@ enum ErrorType {
   BUILD_MISSING_MODEL
   BUILD_MISSING_TASK
   CIRCULAR_ANCESTRY
+}
+
+type EvaluateSettings implements Node {
+  id: GlobalID!
+  statement: Statement
+  weights: JSON!
+  reactive: Boolean!
 }
 
 enum EvaluationKind {
@@ -1546,6 +1560,10 @@ type Statement implements Node & SimplyTyped {
     last: Int = null
     filters: DatasetRecordFilter
   ): DatasetRecordConnection!
+  buildSettings: BuildSettings
+  buildCandidates: [BuildCandidate!]!
+  evaluateSettings: EvaluateSettings
+  evaluationResults: [EvaluationResult!]!
 }
 
 type StatementBatch {

@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.type import Build, BuildSettings, SymbolType, TypeTag
+from bench.language.type import Build, BuildSettings, EvaluateSettings, TypeTag
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
@@ -65,7 +65,13 @@ from bench.runtime.tracing import (
     pub_tracker_ctx,
     worker_ctx,
 )
-from bench.runtime.type import EvaluationResult, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import (
+    EvaluationMetric,
+    EvaluationResult,
+    EvaluationResultData,
+    ExecutionFrameData,
+    JobData,
+)
 from bench.utils.cache import redis
 from bench.utils.func import debounce, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -460,6 +466,47 @@ class EvaluateJob(Job):
         return self.evaluation_result is not None
 
 
+def get_default_builds(interp):
+    """Creates the default starter builds for a project."""
+    gpt35 = interp.symbol("openai.std.text.gpt-3-5-turbo")
+    davinci3 = interp.symbol("openai.std.text.text-davinci-003")
+    claude_instant = interp.symbol("anthropic.std.text.claude-instant")
+    claude = interp.symbol("anthropic.std.text.claude")
+    default_builds = [
+        Build(
+            name="balanced",
+            comment="Perfectly balanced, as all things should be.",
+            settings=BuildSettings(reactive=True),
+            evaluate_settings=EvaluateSettings(
+                reactive=True,
+                weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
+            ),
+            models=[gpt35.to_ref(), claude_instant.to_ref()],
+        ),
+        Build(
+            name="fast",
+            comment="Fast and economic AI.",
+            settings=BuildSettings(reactive=False),
+            evaluate_settings=EvaluateSettings(
+                reactive=False,
+                weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
+            ),
+            models=[gpt35.to_ref(), claude_instant.to_ref()],
+        ),
+        Build(
+            name="accurate",
+            comment="The best AI can do at any cost.",
+            settings=BuildSettings(reactive=False),
+            evaluate_settings=EvaluateSettings(
+                reactive=False,
+                weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
+            ),
+            models=[claude.to_ref(), davinci3.to_ref()],
+        ),
+    ]
+    return default_builds
+
+
 class LanguageWorker:
     """Language server worker for a single module"""
 
@@ -583,7 +630,9 @@ class LanguageWorker:
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.has_user_errors:
             stale_builds = [
-                symbol for symbol in self.stale_symbols if symbol.symbol_type == SymbolType.BUILD
+                symbol
+                for symbol in self.stale_symbols
+                if isinstance(symbol, language.Build) and symbol.settings.reactive
             ]
             for b in stale_builds:
                 self.queue_build(b.id, cancel_running=True)
@@ -619,38 +668,16 @@ class LanguageWorker:
 
     async def do_generate(self) -> bool:
         # create default builds if they don't exist yet
-        autobuild_file, created = get_or_create_file(self.interp.module_idx, "__autobuild__")
+        interp = self.interp
+        autobuild_file, created = get_or_create_file(interp.module_idx, "__autobuild__")
         if created:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
-            gpt35 = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
-            davinci3 = self.interp.symbol("openai.std.text.text-davinci-003")
-            claude_instant = self.interp.symbol("anthropic.std.text.claude-instant")
-            claude = self.interp.symbol("anthropic.std.text.claude")
-
-            default_builds = [
-                Build(
-                    name="balanced",
-                    comment="Perfectly balanced, as all things should be.",
-                    settings=BuildSettings(reactive=True),
-                    models=[gpt35.to_ref(), claude_instant.to_ref()],
-                ),
-                Build(
-                    name="fast",
-                    comment="Fast and economic AI.",
-                    settings=BuildSettings(),
-                    models=[gpt35.to_ref(), claude_instant.to_ref()],
-                ),
-                Build(
-                    name="accurate",
-                    comment="The best AI can do at any cost.",
-                    settings=BuildSettings(),
-                    models=[claude.to_ref(), davinci3.to_ref()],
-                ),
-            ]
+            default_builds = get_default_builds(interp)
             autobuild_file = map_to_file(default_builds, [], autobuild_file)
             await sync_to_async(write_module)(
                 files=[wire.rmap_file(autobuild_file)], project_v=self.project_version
             )
+        # could also diff and update here later on
 
         return True
 

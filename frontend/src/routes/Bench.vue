@@ -17,6 +17,7 @@ import NotificationPopover from "@/components/notifications/NotificationPopover.
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
+import ViewTuning from "@/components/panels/ViewTuning.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
 import SharePopover from "@/components/SharePopover.vue";
@@ -48,7 +49,6 @@ import {
   ExclamationTriangleIcon,
   EyeIcon,
   FaceSmileIcon,
-  FireIcon,
   GlobeAltIcon,
   HandRaisedIcon,
   LockClosedIcon,
@@ -90,11 +90,11 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
   { id: "history", label: "History", icon: ClockIcon, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "tuning", label: "Tuning", icon: AdjustmentsHorizontalIcon, enabled: false },
+  { id: "tuning", label: "Tuning", icon: AdjustmentsHorizontalIcon, enabled: true },
   { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
   { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
 ]);
-const availableViews = computed(() => allViews.value.filter((v) => v.enabled || true));
+const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
   const view = availableViews.value.find((v) => v.id == editor.activeViewId);
   if (!view) {
@@ -708,9 +708,21 @@ onBeforeUnmount(() => {
             @blur="editor.blurView('issues')"
             :focused="editor.focusedViewId == 'issues'"
           />
+          <ViewTuning
+            v-show="activeView.id == 'tuning'"
+            @show="editor.focusView('tuning')"
+            @blur="editor.blurView('tuning')"
+            :focused="editor.focusedViewId == 'tuning'"
+            :current-version="version"
+          />
           <!-- Unknown view -->
           <div
-            v-if="activeView.id != 'explorer' && activeView.id != 'history' && activeView.id != 'issues'"
+            v-if="
+              activeView.id != 'explorer' &&
+              activeView.id != 'history' &&
+              activeView.id != 'issues' &&
+              activeView.id != 'tuning'
+            "
             class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center"
           >
             <FaceSmileIcon class="h-7 w-7 rotate-180 text-gray-500" />

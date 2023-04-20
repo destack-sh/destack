@@ -5,6 +5,27 @@ from django_choices_field import TextChoicesField
 from bench.models.utils import UUIDModel
 
 
+class EvaluateSettings(UUIDModel):
+    """Typed settings for an evaluate statement."""
+
+    statement = models.OneToOneField(
+        "Statement", on_delete=models.CASCADE, related_name="evaluate_settings"
+    )
+    weights = models.JSONField()
+    reactive = models.BooleanField()
+
+
+class EvaluationPlan(UUIDModel):
+    """"""
+
+    statement = models.OneToOneField(
+        "Statement", on_delete=models.CASCADE, related_name="evaluation_plan"
+    )
+    generated_dataset = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="+", null=True
+    )
+
+
 class EvaluationKind(models.TextChoices):
     EVALUATION = "evaluation"
     LINT = "lint"
@@ -44,13 +65,13 @@ class EvaluationResult(UUIDModel):
     environment_id = models.UUIDField(null=True, blank=True)
     system_id = models.UUIDField(null=True, blank=True)
     statement = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="+", null=True
+        "Statement", on_delete=models.CASCADE, related_name="evaluation_results", null=True
     )
     record = models.ForeignKey(
-        "DatasetRecord", on_delete=models.CASCADE, related_name="+", null=True
+        "DatasetRecord", on_delete=models.CASCADE, related_name="evaluation_results", null=True
     )
     type_node = models.ForeignKey(
-        "SimpleTypeNode", on_delete=models.CASCADE, related_name="+", null=True
+        "SimpleTypeNode", on_delete=models.CASCADE, related_name="evaluation_results", null=True
     )
     self_metrics = models.JSONField(null=True, blank=True)
     aggregated_metrics = models.JSONField()
