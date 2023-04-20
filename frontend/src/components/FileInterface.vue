@@ -3,7 +3,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import StatementAddArea from "@/components/StatementAddArea.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { graphql, useFragment, type FragmentType } from "@/gql";
+import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { provideStatementActions, type FileState } from "@/state/actions/statement";

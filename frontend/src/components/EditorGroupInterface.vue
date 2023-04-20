@@ -85,7 +85,7 @@ async function createFileInEditorGroup() {
             <!-- Close button -->
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-transparent hover:bg-gray-200 group-hover:text-gray-700"
-              @click="editor.closeEditor(e)"
+              @click.prevent="editor.closeEditor(e)"
             >
               x
             </button>

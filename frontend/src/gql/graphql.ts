@@ -132,6 +132,13 @@ export type BuildInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
+export type BuildSettings = Node & {
+  __typename?: "BuildSettings";
+  id: Scalars["GlobalID"];
+  reactive: Scalars["Boolean"];
+  statement?: Maybe<Statement>;
+};
+
 export type BuildState = {
   __typename?: "BuildState";
   projectVersionId: Scalars["GlobalID"];
@@ -300,6 +307,14 @@ export enum ErrorType {
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
   UnknownToken = "UNKNOWN_TOKEN",
 }
+
+export type EvaluateSettings = Node & {
+  __typename?: "EvaluateSettings";
+  id: Scalars["GlobalID"];
+  reactive: Scalars["Boolean"];
+  statement?: Maybe<Statement>;
+  weights: Scalars["JSON"];
+};
 
 export enum EvaluationKind {
   Evaluation = "EVALUATION",
@@ -1688,6 +1703,8 @@ export type SimplyTyped = {
 export type Statement = Node &
   SimplyTyped & {
     __typename?: "Statement";
+    buildCandidates: Array<BuildCandidate>;
+    buildSettings?: Maybe<BuildSettings>;
     children: Array<Statement>;
     code?: Maybe<Scalars["String"]>;
     commented: Scalars["Boolean"];
@@ -1695,6 +1712,8 @@ export type Statement = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     descendants: Array<Statement>;
     description?: Maybe<Scalars["String"]>;
+    evaluateSettings?: Maybe<EvaluateSettings>;
+    evaluationResults: Array<EvaluationResult>;
     file: File;
     generated: Scalars["Boolean"];
     id: Scalars["GlobalID"];
@@ -1950,7 +1969,6 @@ export enum SymbolType {
   Runconfig = "RUNCONFIG",
   Task = "TASK",
   Type = "TYPE",
-  Value = "VALUE",
 }
 
 export type SystemInfo = {
@@ -2305,6 +2323,32 @@ export type ProjectVersionsQuery = {
         };
       }>;
     };
+  } | null;
+};
+
+export type AutobuildFileContentByIdQueryVariables = Exact<{
+  fileId: Scalars["GlobalID"];
+}>;
+
+export type AutobuildFileContentByIdQuery = {
+  __typename?: "Query";
+  file?: {
+    __typename?: "File";
+    id: any;
+    projectVersion: { __typename?: "ProjectVersion"; id: any };
+    statements: Array<{
+      __typename?: "Statement";
+      id: any;
+      name?: string | null;
+      type: StatementType;
+      symbolType?: SymbolType | null;
+      orderKey: string;
+      description?: string | null;
+      commented: boolean;
+      parent?: { __typename?: "Statement"; id: any } | null;
+      buildSettings?: { __typename?: "BuildSettings"; id: any; reactive: boolean } | null;
+      evaluateSettings?: { __typename?: "EvaluateSettings"; id: any; weights: any } | null;
+    }>;
   } | null;
 };
 
@@ -5553,6 +5597,115 @@ export const ProjectVersionsDocument = {
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
+export const AutobuildFileContentByIdDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "autobuildFileContentById" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "projectVersion" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statements" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "commented" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "buildSettings" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "reactive" } },
+                          ],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "evaluateSettings" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "weights" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<AutobuildFileContentByIdQuery, AutobuildFileContentByIdQueryVariables>;
 export const ProfileAccessTokensDocument = {
   kind: "Document",
   definitions: [

@@ -300,6 +300,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.records = [rmap_record(r) for r in content.records]
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.BuildContent):
+        data.description = content.comment
         data.generated_mappings = content.source_mappings
         data.build_settings = content.settings
         data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
@@ -348,6 +349,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(
+            comment=data.description,
             source_mappings=data.generated_mappings,
             settings=data.build_settings,
             evaluate_settings=data.evaluate_settings,  # :BuildEvaluationSettings

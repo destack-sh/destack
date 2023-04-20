@@ -2,7 +2,6 @@ from typing import Annotated, AsyncGenerator, Iterable, Optional
 
 import structlog
 from strawberry import auto, lazy
-from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
@@ -21,7 +20,6 @@ BuildCandidateStatus = gql.enum(models.BuildCandidateStatus)
 @gql.django.type(models.BuildSettings)
 class BuildSettings(gql.Node):
     statement: Optional[Annotated["Statement", lazy(".statement")]]
-    weights: JSON
     reactive: bool
 
 

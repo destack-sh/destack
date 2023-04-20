@@ -124,7 +124,6 @@ input BuildInput {
 type BuildSettings implements Node {
   id: GlobalID!
   statement: Statement
-  weights: JSON!
   reactive: Boolean!
 }
 

@@ -475,7 +475,7 @@ def get_default_builds(interp):
     default_builds = [
         Build(
             name="balanced",
-            comment="Perfectly balanced, as all things should be.",
+            comment="As all things should be.",
             settings=BuildSettings(reactive=True),
             evaluate_settings=EvaluateSettings(
                 reactive=True,
@@ -501,7 +501,7 @@ def get_default_builds(interp):
                 reactive=False,
                 weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
             ),
-            models=[claude.to_ref(), davinci3.to_ref()],
+            models=[davinci3.to_ref(), gpt35.to_ref(), claude.to_ref(), claude_instant.to_ref()],
         ),
     ]
     return default_builds
@@ -587,6 +587,24 @@ class LanguageWorker:
         )
         self._queue_job(job)
         return job
+
+    async def write_immediate(
+        self,
+        files: list[wire.FileData],
+        overwrite: bool,
+        delete_files: set[UUID] = None,
+        generated_mappings: list[tuple[UUID, wire.StatementData]] = None,
+    ) -> None:
+        await sync_to_async(write_module)(
+            project_v=self.project_version,
+            files=files,
+            overwrite=overwrite,
+            delete_files=delete_files,
+            generated_mappings=generated_mappings,
+        )
+        # TODO @Performance: apply module writes locally immediately :ImmediateModuleWrites
+        module = await sync_to_async(read_module)(self.project_version, exclude_non_semantic=True)
+        self.on_module_changed(module)
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
@@ -674,9 +692,7 @@ class LanguageWorker:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
             default_builds = get_default_builds(interp)
             autobuild_file = map_to_file(default_builds, [], autobuild_file)
-            await sync_to_async(write_module)(
-                files=[wire.rmap_file(autobuild_file)], project_v=self.project_version
-            )
+            await self.write_immediate(files=[wire.rmap_file(autobuild_file)], overwrite=False)
         # could also diff and update here later on
 
         return True
@@ -743,10 +759,8 @@ class LanguageWorker:
             mappings = [revmap.map_mapping(m) for m in build_result.source_mappings]
             generated_mappings.append((build_result.build.id, mappings))
 
-        # actually write to the internal server
         #  :ImmediateModuleWrites
-        await sync_to_async(write_module)(
-            project_v=self.project_version,
+        await self.write_immediate(
             files=generated_files,
             generated_mappings=generated_mappings,
             delete_files=previous_builds_files,

@@ -168,6 +168,7 @@ def map_code_content(code: Code) -> CodeContent:
 
 def map_build_content(build: Build) -> BuildContent:
     return BuildContent(
+        comment=build.comment,
         source_mappings=build.source_mappings,
         settings=build.settings,
         evaluate_settings=build.evaluate_settings,  # :BuildEvaluationSettings
