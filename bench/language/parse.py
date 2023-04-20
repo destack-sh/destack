@@ -1678,6 +1678,16 @@ def interp(
                     _error(ET.UNEXPECTED_STATEMENT, child.source)
             if not symbol.models:
                 _error(ET.BUILD_MISSING_MODEL, statement)
+
+            # add all tasks in module for autobuilds :AutobuildTasks
+            if symbol.source is not None and symbol.source.file.path == "__autobuild__":
+                for task in idx.symbols.values():
+                    if (
+                        isinstance(task, Task)
+                        and task.source is not None
+                        and task.source.file.module.id == symbol.source.file.module.id
+                    ):
+                        symbol.tasks.append(task)
         elif isinstance(symbol, Runconfig):
             for child in scope.proper_symbols:
                 if isinstance(child, Code):

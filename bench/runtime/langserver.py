@@ -66,6 +66,7 @@ from bench.runtime.tracing import (
     worker_ctx,
 )
 from bench.runtime.type import (
+    BuildScope,
     EvaluationMetric,
     EvaluationResult,
     EvaluationResultData,
@@ -200,7 +201,7 @@ class LanguageServer:
     async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
         logger.debug("module.build", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
-        build_job = worker.queue_build(msg.p.buildable_id, cancel_running=True)
+        build_job = worker.queue_build(msg.p.scope, msg.p.buildable_id, cancel_running=True)
         error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
         await msg.reply(RepModuleBuildPayload(error=error))
 
@@ -444,6 +445,7 @@ class GenerateJob(Job):
 @dataclass(repr=False, slots=True)
 class BuildJob(Job):
     type: ClassVar[JobType] = JobType.BUILD
+    scope: BuildScope = None
     buildable_id: UUID = None
     builds: list[Build] = None
     revmap: RevisionMap = None
@@ -489,7 +491,7 @@ def get_default_builds(interp):
             settings=BuildSettings(reactive=False),
             evaluate_settings=EvaluateSettings(
                 reactive=False,
-                weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
+                weights={EvaluationMetric.Performance: 0.2, EvaluationMetric.Speed: 0.8},
             ),
             models=[gpt35.to_ref(), claude_instant.to_ref()],
         ),
@@ -499,9 +501,9 @@ def get_default_builds(interp):
             settings=BuildSettings(reactive=False),
             evaluate_settings=EvaluateSettings(
                 reactive=False,
-                weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
+                weights={EvaluationMetric.Performance: 0.8, EvaluationMetric.Speed: 0.2},
             ),
-            models=[davinci3.to_ref(), gpt35.to_ref(), claude.to_ref(), claude_instant.to_ref()],
+            models=[davinci3.to_ref(), claude.to_ref()],
         ),
     ]
     return default_builds
@@ -687,6 +689,7 @@ class LanguageWorker:
     async def do_generate(self) -> bool:
         # create default builds if they don't exist yet
         interp = self.interp
+        #  :AutobuildTasks
         autobuild_file, created = get_or_create_file(interp.module_idx, "__autobuild__")
         if created:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
@@ -698,7 +701,7 @@ class LanguageWorker:
         return True
 
     def queue_build(
-        self, buildable_id: UUID, cancel_running: bool
+        self, scope: BuildScope, buildable_id: UUID, cancel_running: bool
     ) -> BuildJob | ModuleBuildErrorType:
         # get the builds to run
         if not self.interpreted or self.interp.has_user_errors:
@@ -707,6 +710,8 @@ class LanguageWorker:
         if isinstance(buildable, language.Task):
             # collect any builds that reference this task
             builds = get_builds_for(buildable, self.interp.module_idx)
+            if scope == BuildScope.REACTIVE:
+                builds = [b for b in builds if b.settings.reactive]
             if not builds:
                 return ModuleBuildErrorType.INVALID_BUILDABLE
             if buildable.type.output.tag == TypeTag.NULL:
@@ -718,6 +723,7 @@ class LanguageWorker:
 
         job = BuildJob(
             revmap=self.revmap,
+            scope=scope,
             buildable_id=buildable_id,
             builds=builds,
             project_id=self.project_id,

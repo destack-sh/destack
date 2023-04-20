@@ -10,7 +10,7 @@ from uuid import UUID
 from bench.language import wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
-from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
 
 PROTOCOL_VERSION = 1
 
@@ -112,6 +112,7 @@ class ModuleChangedPayload:
 @payload(NMessageType.REQUEST_MODULE_BUILD)
 class ReqModuleBuildPayload:
     module_id: UUID
+    scope: BuildScope
     buildable_id: Optional[UUID]
 
 

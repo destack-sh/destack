@@ -126,7 +126,7 @@ const documents = {
     types.UpdateProjectVisibilityDocument,
   "\n      mutation updateProjectName($id: GlobalID!, $name: String!) {\n        updateProjectName(input: { id: $id, name: $name }) {\n          ... on Project {\n            id\n            name\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateProjectNameDocument,
-  "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    ":
+  "\n      mutation build($projectVersionId: GlobalID!, $scope: BuildScope!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, scope: $scope, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    ":
     types.BuildDocument,
   "\n      mutation run(\n        $projectVersionId: GlobalID!\n        $runnableId: GlobalID\n        $buildId: GlobalID\n        $arguments: JSON!\n        $block: Boolean\n        $timeoutSeconds: Int\n      ) {\n        run(\n          input: {\n            projectVersionId: $projectVersionId\n            runnableId: $runnableId\n            buildId: $buildId\n            arguments: $arguments\n            block: $block\n            timeoutSeconds: $timeoutSeconds\n          }\n        ) {\n          ... on RunState {\n            projectVersionId\n            runnableId\n            buildId\n            output\n            success\n            error\n            errorDetails\n          }\n        }\n      }\n    ":
     types.RunDocument,
@@ -562,8 +562,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "
-): typeof documents["\n      mutation build($projectVersionId: GlobalID!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "];
+  source: "\n      mutation build($projectVersionId: GlobalID!, $scope: BuildScope!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, scope: $scope, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "
+): typeof documents["\n      mutation build($projectVersionId: GlobalID!, $scope: BuildScope!, $buildableId: GlobalID) {\n        build(input: { projectVersionId: $projectVersionId, scope: $scope, buildableId: $buildableId }) {\n          ... on BuildState {\n            projectVersionId\n            success\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
