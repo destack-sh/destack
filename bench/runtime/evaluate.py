@@ -240,6 +240,7 @@ async def evaluate_task(
             instructions=evalable_instructions,
             eval_model=eval_model,
             build=build,
+            build_candidate=build_candidate,
         )
         for input, output in zip(samples.records, outputs.records)
         if input.data.get("output") is not None
@@ -296,6 +297,7 @@ async def evaluate_output(
     instructions: list[Instruction],
     eval_model: Model,
     build: Optional[Build],
+    build_candidate: Optional[Any],
 ) -> list[EvaluationResult]:
     from bench.runtime.build import (
         TaskPlan,
@@ -400,6 +402,7 @@ async def evaluate_output(
             scope=EvaluationScope.INSTRUCTION,
             system=instruction.node,
             build=build,
+            build_candidate=build_candidate,
             self_metrics=metrics,
             aggregated_metrics=metrics,
         )
