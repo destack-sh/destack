@@ -12,6 +12,7 @@ from bench.language import ErrorType
 from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
     BuildSettings,
+    EvaluateSettings,
     GeneratedMapping,
     StatementModifier,
     StatementPath,
@@ -129,7 +130,8 @@ class StatementData:
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
     generated_mappings: Optional[list[GeneratedMapping]] = None
-    settings: Optional[BuildSettings] = None
+    build_settings: Optional[BuildSettings] = None
+    evaluate_settings: Optional[EvaluateSettings] = None
     reference_module: Optional[ModuleReference] = None
 
     @property
@@ -299,7 +301,8 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.BuildContent):
         data.generated_mappings = content.source_mappings
-        data.settings = content.settings
+        data.build_settings = content.settings
+        data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
             data.reference_module = ModuleReference(content.module_name, content.version, id=None)
@@ -345,7 +348,9 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(
-            source_mappings=data.generated_mappings, settings=data.settings
+            source_mappings=data.generated_mappings,
+            settings=data.build_settings,
+            evaluate_settings=data.evaluate_settings,  # :BuildEvaluationSettings
         )
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(

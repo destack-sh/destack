@@ -90,31 +90,61 @@ def _map_statement(file: File, symbol: InterpSymbol, order_key: str) -> Statemen
 def _map_statement_children(symbol: InterpSymbol, statement: Statement) -> list[Statement]:
     """Maps the nested symbols of a symbol to statements."""
     if isinstance(symbol, Build):
-        children = []
         order_keys = generate_n_keys_between(None, None, len(symbol.tasks) + len(symbol.models))
+        children = []
         for ok, child_symbol in zip(order_keys, chain(symbol.tasks, symbol.models)):
-            # assumes all children are references
-            if child_symbol.definition.source is None:
-                raise RuntimeError(f"child symbol has no source: {symbol}->{child_symbol}")
-            child = Statement(
-                id=child_symbol.id,
-                type=StatementType.REFERENCE,
-                symbol_type=child_symbol.symbol_type,
-                modifier=child_symbol.modifier,
-                name=child_symbol.name,
-                content=None,
-                file=statement.file,
-                parent=statement,
-                reference=child_symbol.definition.source,
-                order_key=ok,
-                generated=True,
-            )
+            child = _make_ref_or_def(child_symbol, ok, statement)
             children.append(child)
         return children
     elif isinstance(symbol, (Code, Dataset)):
         return []
     else:
         raise RuntimeError(f"unexpected symbol {symbol}")
+
+
+def _make_ref_or_def(symbol: InterpSymbol, order_key: str, parent: Statement):
+    if symbol.source is not None:
+        return _make_reference(symbol, order_key, parent)
+    else:
+        return _make_definition(symbol, order_key, parent)
+
+
+def _make_reference(symbol: InterpSymbol, order_key: str, parent: Statement):
+    if symbol.definition.source is None:
+        raise RuntimeError(f"symbol has no source {parent}->{symbol}")
+    child = Statement(
+        id=symbol.id,
+        type=StatementType.REFERENCE,
+        symbol_type=symbol.symbol_type,
+        modifier=symbol.modifier,
+        name=symbol.name,
+        content=None,
+        file=parent.file,
+        parent=parent,
+        reference=symbol.definition.source,
+        order_key=order_key,
+        generated=True,
+    )
+    return child
+
+
+def _make_definition(symbol: InterpSymbol, order_key: str, parent: Statement):
+    if symbol.source is not None:
+        raise RuntimeError(f"symbol has a source {parent}->{symbol}")
+    child = Statement(
+        id=symbol.id,
+        type=StatementType.DEFINITION,
+        symbol_type=symbol.symbol_type,
+        modifier=symbol.modifier,
+        name=symbol.name,
+        content=symbol,
+        file=parent.file,
+        parent=parent,
+        reference=None,
+        order_key=order_key,
+        generated=True,
+    )
+    return child
 
 
 def map_dataset_content(dataset: Dataset) -> DatasetContent:
@@ -140,4 +170,5 @@ def map_build_content(build: Build) -> BuildContent:
     return BuildContent(
         source_mappings=build.source_mappings,
         settings=build.settings,
+        evaluate_settings=build.evaluate_settings,  # :BuildEvaluationSettings
     )

@@ -805,12 +805,16 @@ class Runconfig(InterpSymbol, RunconfigContent):
 
 @dataclass(repr=False)
 class BuildSettings:
+    weights: dict[str, int] = field(default_factory=dict)
     reactive: bool = False
 
 
 @dataclass(repr=False)
 class BuildContent(SymbolContent):
     settings: BuildSettings
+    # TODO @Cleanup: build evaluate settings should be Build.evaluation :BuildEvaluationSettings
+    #  But we don't have evaluate as a separate statement in the editor right now.
+    evaluate_settings: EvaluateSettings
     comment: Optional[str] = None  # like description but non-semantic
     # Note @Architecture: BuildContent includes source_mappings, which are outputs of the build,
     #  because we consider generation part of the language. Specifically, build mappings are
@@ -838,8 +842,15 @@ class Build(InterpSymbol, BuildContent):
 
 
 @dataclass(repr=False)
-class EvaluateContent(SymbolContent):
+class EvaluateSettings:
     weights: dict[str, float] = field(default_factory=dict)
+    reactive: bool = False
+
+
+@dataclass(repr=False)
+class EvaluateContent(SymbolContent):
+    settings: EvaluateSettings
+    comment: Optional[str] = None  # like description but non-semantic
     # As noted above, evaluation results are stored elsewhere with other runtime data.
 
 

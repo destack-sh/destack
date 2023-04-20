@@ -5,6 +5,15 @@ from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 
+class BuildSettings(UUIDModel):
+    """Typed settings for a build statement."""
+
+    statement = models.OneToOneField(
+        "Statement", on_delete=models.CASCADE, related_name="build_settings"
+    )
+    reactive = models.BooleanField(default=False)
+
+
 class BuildCandidateStatus(models.TextChoices):
     Planned = "planned"
     Building = "building"
@@ -33,7 +42,7 @@ class BuildCandidate(UUIDModel):
         "Statement", on_delete=models.SET_NULL, related_name="+", null=True
     )
     build = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="build_candidates+"
+        "Statement", on_delete=models.CASCADE, related_name="build_candidates"
     )
     evaluation = models.ForeignKey(
         "EvaluationResult", on_delete=models.CASCADE, related_name="+", null=True

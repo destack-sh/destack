@@ -317,6 +317,13 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         data.generated_mappings = [
             rmap_source_mapping(m) for m in statement.generated_mappings.all()
         ]
+        data.build_settings = wire.BuildSettings(
+            reactive=statement.build_settings.reactive,
+        )
+        data.evaluate_settings = wire.EvaluateSettings(  # :BuildEvaluationSettings
+            reactive=statement.evaluate_settings.reactive,
+            weights=statement.evaluate_settings.weights,
+        )
     elif statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
             name=statement.reference_project_version.project.path,
@@ -341,6 +348,19 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         relations.extend(type_nodes)
 
     # copy relational data
+    if data.evaluate_settings:
+        evaluate_settings = models.EvaluateSettings(
+            weights=data.evaluate_settings.weights,
+            reactive=data.evaluate_settings.reactive,
+        )
+        statement.evaluate_settings = evaluate_settings
+        relations.append(evaluate_settings)
+    if data.build_settings:
+        build_settings = models.BuildSettings(
+            reactive=data.build_settings.reactive,
+        )
+        statement.build_settings = build_settings
+        relations.append(build_settings)
     if data.records:
         model_records = [
             models.DatasetRecord(
