@@ -487,7 +487,7 @@ def get_default_builds(interp):
         ),
         Build(
             name="fast",
-            comment="Fast and economic AI.",
+            comment="Speedy and economic AI.",
             settings=BuildSettings(reactive=False),
             evaluate_settings=EvaluateSettings(
                 reactive=False,
