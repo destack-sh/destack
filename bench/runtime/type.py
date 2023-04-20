@@ -308,6 +308,12 @@ class JobData:
 #
 
 
+class BuildScope(enum.Enum):
+    SELECTED = "selected"
+    REACTIVE = "reactive"
+    ALL = "all"
+
+
 class BuildCandidateStatus(enum.StrEnum):
     Planned = "planned"
     Building = "building"

@@ -177,9 +177,13 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     return errors
 
 
+BuildScope = gql.enum(runtime.type.BuildScope)
+
+
 @gql.input
 class BuildInput:
     project_version_id: GlobalID
+    scope: BuildScope
     buildable_id: Optional[GlobalID] = None
 
 
@@ -227,7 +231,7 @@ class ModuleRuntimeMutation:
         posthog.capture(str(user.id), "build", {"project_version_id": str(project_version_id)})
 
         req = ReqModuleBuildPayload(
-            module_id=project_version_id, buildable_id=input.buildable_id.node_id
+            module_id=project_version_id, scope=input.scope, buildable_id=input.buildable_id.node_id
         )
         rep = await request(NMessageType.REQUEST_MODULE_BUILD, req, RepModuleBuildPayload)
         return BuildState(

@@ -130,7 +130,14 @@ export enum BuildCandidateStatus {
 export type BuildInput = {
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
+  scope: BuildScope;
 };
+
+export enum BuildScope {
+  All = "ALL",
+  Reactive = "REACTIVE",
+  Selected = "SELECTED",
+}
 
 export type BuildSettings = Node & {
   __typename?: "BuildSettings";
@@ -3425,6 +3432,7 @@ export type UpdateProjectNameMutation = {
 
 export type BuildMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
+  scope: BuildScope;
   buildableId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
@@ -9120,6 +9128,11 @@ export const BuildDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scope" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "BuildScope" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -9141,6 +9154,11 @@ export const BuildDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "projectVersionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "scope" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scope" } },
                     },
                     {
                       kind: "ObjectField",

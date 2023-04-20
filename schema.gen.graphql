@@ -118,7 +118,14 @@ enum BuildCandidateStatus {
 
 input BuildInput {
   projectVersionId: GlobalID!
+  scope: BuildScope!
   buildableId: GlobalID = null
+}
+
+enum BuildScope {
+  SELECTED
+  REACTIVE
+  ALL
 }
 
 type BuildSettings implements Node {

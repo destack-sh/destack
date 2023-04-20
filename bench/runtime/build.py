@@ -337,8 +337,6 @@ async def build(build: Build, instruct_model: Model, tracker: BuildTracker = Non
     tracker = tracker or BuildTracker()
     log = logger.bind(build=build)
     log.info("build.start")
-    if len(build.models) != 1:
-        raise BuildError(BuildErrorType.INTERNAL, build)
 
     ctx = BuildContext(build=build)
     if not build.tasks:
@@ -791,9 +789,6 @@ def get_builds_for(symbol: Task, idx: ModuleIndex) -> list[Build]:
             continue
         # :SymbolDefinitionReference
         if any(t.definition.id == symbol.id for t in b.tasks):
-            builds.append(b)
-        # auto builds apply to all tasks :AutobuildTasks
-        if b.source.file.path == "__autobuild__":
             builds.append(b)
     return builds
 

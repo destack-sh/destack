@@ -433,7 +433,7 @@ class InterpSymbol:
         return self.definition is not None and self.definition.id == self.id
 
     @property
-    def fqn(self) -> str:
+    def fqn(self) -> str | None:
         return self.definition.source.fqn if self.definition.source else None
 
     @property

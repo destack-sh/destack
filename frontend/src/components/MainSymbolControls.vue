@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol, BuildScope } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useJobs } from "@/state/jobs";
@@ -75,7 +75,7 @@ const buildMain = provideGlobalAction({
   enabled: canBuild,
   apply: async () => {
     if (mainSymbol.value == null) return;
-    await symbolOps.build(mainSymbol.value);
+    await symbolOps.build(mainSymbol.value, BuildScope.Reactive);
   },
 });
 
@@ -184,7 +184,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           <ListboxOption :key="null" :value="null" as="template" v-slot="{ active, selected }">
             <li
               :class="[
-                'relative cursor-default select-none py-0.5 px-2',
+                'relative cursor-default select-none px-2 py-0.5',
                 active ? 'bg-orange-600 text-white' : 'text-gray-900',
                 selected && !active ? 'text-orange-600' : '',
               ]"
@@ -204,7 +204,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
           >
             <li
               :class="[
-                'relative cursor-default select-none py-0.5 px-2',
+                'relative cursor-default select-none px-2 py-0.5',
                 active ? 'bg-orange-600 text-white' : 'text-gray-900',
                 selected && !active ? 'text-orange-600' : '',
               ]"
@@ -240,7 +240,7 @@ function symbolDeclr(symbol: InterpSymbol | undefined) {
         <!-- little svg rectangle for stale/active status -->
         <svg
           v-if="mainSymbol != null && (action.active.value || action.stale != null)"
-          class="absolute right-1.5 bottom-1.5 h-1 w-1 transition-all duration-100"
+          class="absolute bottom-1.5 right-1.5 h-1 w-1 transition-all duration-100"
           :class="{
             'animate-spin text-gray-400': action.active.value,
             'text-transparent': !action.active.value,
