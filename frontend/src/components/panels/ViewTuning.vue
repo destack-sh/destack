@@ -46,7 +46,7 @@ const { result: autobuildFileResult } = useQuery(
     fileId: autobuildFile.value?.id,
   })) as any,
   {
-    enabled: computed(() => !!autobuildFile.value),
+    enabled: computed(() => !!autobuildFile.value && props.focused),
   }
 );
 const builds = computed(
@@ -106,21 +106,25 @@ const HIGHLIGHTED_METRICS = ["performance", "speed"];
           <!-- Basic controls -->
           <span class="flex flex-row items-center">
             <button class="text-gray-400 hover:text-gray-800" @click="symbolOps.build(build, BuildScope.Selected)">
-              <WrenchIcon class="-mb-0.5 h-4 w-4" />
+              <WrenchIcon class="-mb-1 h-4 w-4" />
             </button>
           </span>
         </span>
         <p class="text-gray-500">{{ build.description }}</p>
         <!-- Metrics -->
         <div class="mt-1 flex flex-col">
-          <span v-for="metric of HIGHLIGHTED_METRICS" :key="metric" class="flex flex-row items-center gap-2 text-sm">
-            {{ metric.slice(0, 1).toUpperCase() }}
+          <span
+            v-for="metric of HIGHLIGHTED_METRICS"
+            :key="metric"
+            class="flex flex-row items-center gap-2 px-0.5 text-xs"
+          >
+            <span class="text-gray-900">{{ metric.slice(0, 1).toUpperCase() }}</span>
             <!-- blue on gray line with value of metric in build settings as percentage -->
-            <div class="relative h-1 w-full rounded-sm bg-gray-300">
+            <div class="relative h-0.5 w-full rounded-sm bg-gray-300">
               <div
                 :style="{ width: `${build.evaluateSettings?.weights[metric] * 100}%` }"
-                class="absolute h-1 rounded-sm bg-sky-400"
-              ></div>
+                class="absolute h-0.5 rounded-sm bg-orange-600"
+              />
             </div>
           </span>
         </div>

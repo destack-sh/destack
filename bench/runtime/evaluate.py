@@ -242,6 +242,7 @@ async def evaluate_task(
             build=build,
         )
         for input, output in zip(samples.records, outputs.records)
+        if input.data.get("output") is not None
     )
     evals = await asyncio.gather(*evals)
     instruction_evaluations = list(chain(*evals))
@@ -382,7 +383,7 @@ async def evaluate_output(
 
     # TODO @Robustness @UX: should we really block tracers for internal inferences?
     #  The original reason for putting this here was a JS/Apollo-side issue with the
-    #  'sample' value (no idea why, but it errored). Then I realized we probably
+    #  'sample' value (not the key, no idea why, but it errored). Then I realized we probably
     #  shouldn't expose this anyway, so that patched the issue.
     with tracer_blocker():
         evals = await run(

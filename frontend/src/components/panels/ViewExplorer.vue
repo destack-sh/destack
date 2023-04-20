@@ -114,12 +114,14 @@ watch(
             :ref="(ref) => (fileExplorer = ref as any)"
             v-if="panel.title == 'Files'"
             :files="props.files"
+            :focused="props.focused"
             @navigate-down="symbolExplorer?.focus('first')"
             @navigate-up="symbolExplorer?.focus('last')"
           />
           <SymbolExplorer
             :ref="(ref) => (symbolExplorer = ref as any)"
             v-else-if="panel.title == 'Symbols'"
+            :focused="props.focused"
             @navigate-up="fileExplorer?.focus('last')"
             @navigate-down="fileExplorer?.focus('first')"
           />
