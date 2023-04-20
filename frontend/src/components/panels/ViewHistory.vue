@@ -230,7 +230,7 @@ defineExpose({
     <!-- View versions -->
     <div class="relative flex-1" v-if="!loading">
       <!-- Versions -->
-      <ul role="list" class="-mb-8 h-full w-full pt-2 pb-10">
+      <ul role="list" class="-mb-8 h-full w-full pb-10 pt-2">
         <li
           v-for="(version, versionIdx) in versions"
           :key="version.id"
@@ -247,7 +247,7 @@ defineExpose({
             <div class="mx-3">
               <span
                 v-if="versionIdx !== versions.length - 1"
-                class="absolute top-4 left-3 ml-[11px] h-full w-0.5 bg-gray-200"
+                class="absolute left-3 top-4 ml-[11px] h-full w-0.5 bg-gray-200"
                 aria-hidden="true"
               />
             </div>

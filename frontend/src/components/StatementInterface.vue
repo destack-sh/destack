@@ -8,7 +8,7 @@ import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { BuildScope, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
@@ -297,7 +297,7 @@ const inlineActions = computed(() => {
     actions.push({
       label: "Build",
       icon: WrenchIcon,
-      action: () => symbolOps.build(statement.value),
+      action: () => symbolOps.build(statement.value, BuildScope.Reactive),
     });
   }
   if (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) {
@@ -386,7 +386,7 @@ const inlineActions = computed(() => {
       <!-- Statement focus indicator (all around if editing) -->
       <template v-if="isEditing">
         <div
-          class="duration-50 absolute top-0 left-0 h-0.5 w-full transition-colors"
+          class="duration-50 absolute left-0 top-0 h-0.5 w-full transition-colors"
           :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
         />
         <div
@@ -394,7 +394,7 @@ const inlineActions = computed(() => {
           :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
         />
         <div
-          class="duration-50 absolute top-0 left-0 h-full w-0.5 transition-colors"
+          class="duration-50 absolute left-0 top-0 h-full w-0.5 transition-colors"
           :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
         />
         <div
@@ -404,7 +404,7 @@ const inlineActions = computed(() => {
       </template>
       <!-- Main cell -->
       <div
-        class="relative py-1 px-2"
+        class="relative px-2 py-1"
         :class="{
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
@@ -423,7 +423,7 @@ const inlineActions = computed(() => {
         <span
           v-if="inlineActions.length > 0"
           :class="[isFocused ? '' : 'invisible']"
-          class="absolute top-0 right-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
+          class="absolute right-0 top-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
         >
           <button
             v-for="action in inlineActions"
@@ -484,7 +484,7 @@ const inlineActions = computed(() => {
       </div>
     </div>
     <!-- Debug info -->
-    <div v-if="editor.debug" class="absolute top-2 -right-1 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
+    <div v-if="editor.debug" class="absolute -right-1 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isFocused">F</template>
       <template v-if="isSelected">S</template>

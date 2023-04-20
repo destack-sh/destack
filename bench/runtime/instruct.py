@@ -383,13 +383,13 @@ class SampleGenerateWithModel(SampleSource):
                 type=self.type, type_label="Output", include_descriptions=True, recursive=True
             ),
             XEmitTypeSample(
-                type=generation_task_type.output, type_label="Output (1 array element)"
+                type=generation_task_type.output, type_label="Output (1 JSON array element)"
             ),
             # TODO @Build: tune model sample generation settings (and adapt to model context size)
             XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
             XEmitOutput(
                 type=generation_task_type.output,
-                type_label=f"Output samples ({self.count} array elements)",
+                type_label=f"Output samples ({self.count} JSON array elements)",
             ),
         )
         implementation = await do_build_task_plan(plan)
