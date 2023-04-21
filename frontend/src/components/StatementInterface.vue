@@ -10,12 +10,20 @@ import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement
 import { useFragment, type FragmentType } from "@/gql";
 import { BuildScope, StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
+import { useStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
-import { CheckCircleIcon, PlayIcon, PlusIcon, WrenchIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import {
+  CheckCircleIcon,
+  DocumentDuplicateIcon,
+  PlayIcon,
+  PlusIcon,
+  WrenchIcon,
+  XCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
 
@@ -68,6 +76,7 @@ const context: Ref<StatementContext> = computed(() => ({
 }));
 provide(STATEMENT_CONTEXT, context);
 const actions = useActions();
+const statementActions = useStatementActions();
 
 type Cell = {
   component: Component;
@@ -292,16 +301,24 @@ const inlineActions = computed(() => {
   if (statement.value.type != StatementType.Definition) {
     return [];
   }
-  const actions: InlineAction[] = [];
+  const inlineActions: InlineAction[] = [
+    {
+      // TODO @UX: statement actions should have functions for specific statement, not just the selected statement
+      //  (This leads to a bug if you press duplicate on another statement, as it will fail or duplicate the current)
+      label: "Duplicate",
+      icon: DocumentDuplicateIcon,
+      action: () => statementActions.duplicate.value.apply(),
+    },
+  ];
   if (statement.value.symbolType == SymbolType.Build || statement.value.symbolType == SymbolType.Task) {
-    actions.push({
+    inlineActions.push({
       label: "Build",
       icon: WrenchIcon,
       action: () => symbolOps.build(statement.value, BuildScope.Reactive),
     });
   }
   if (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) {
-    actions.push({
+    inlineActions.push({
       label: "Run",
       icon: PlayIcon,
       action: () => symbolOps.openRun(statement.value),
@@ -312,13 +329,13 @@ const inlineActions = computed(() => {
     statement.value.symbolType == SymbolType.Expectation ||
     statement.value.symbolType == SymbolType.Build
   ) {
-    actions.push({
+    inlineActions.push({
       label: "Evaluate",
       icon: CheckCircleIcon,
       action: () => symbolOps.evaluate(statement.value),
     });
   }
-  return actions;
+  return inlineActions;
 });
 </script>
 <template>

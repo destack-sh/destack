@@ -172,6 +172,7 @@ const metricSets = computed(() => {
         >
           <!-- TODO @UX: clean up multi-build metrics -->
           <span class="rounded-sm border-sky-900 border-opacity-[12%] p-0.5 py-0 text-xs">{{ metricSet.label }} </span>
+          <span v-if="metricSet.metrics[0].stale" class="text-gray-400">*</span>
         </span>
         <!-- Metric set -->
         <div
@@ -190,7 +191,7 @@ const metricSets = computed(() => {
                 :y="(i - 1) * 6"
                 width="6"
                 height="4"
-                :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+                :fill="i > METRIC_METER_UNITS - metric.bars ? (metric.stale ? 'darkgray' : 'skyblue') : 'lightgrey'"
               />
             </svg>
           </span>
@@ -231,7 +232,7 @@ const metricSets = computed(() => {
                   :y="(i - 1) * 6"
                   width="6"
                   height="4"
-                  :fill="i > METRIC_METER_UNITS - metric.bars ? 'skyblue' : 'lightgrey'"
+                  :fill="i > METRIC_METER_UNITS - metric.bars ? (metric.stale ? 'darkgray' : 'skyblue') : 'lightgrey'"
                 />
               </svg>
             </span>
