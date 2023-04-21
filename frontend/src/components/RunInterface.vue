@@ -127,23 +127,24 @@ async function run() {
   lastOutputDirty.value = true;
   const runOptions = { block: true, timeoutSeconds: 120 };
 
+  async function _doRun(build: { id: string }) {
+    const ret = await ops.runtime.run(symbol.value?.id, build.id, args, runOptions);
+    if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
+      notifications.show({
+        type: "run.fail",
+        kind: "error",
+        message: "Run failed",
+        description: `Failed to run ${symbol.value?.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+      });
+      lastOutputByBuild.value[build.id] = null;
+    } else {
+      lastOutputByBuild.value[build.id] = ret.data.run.output;
+    }
+  }
+
   // single executions
   if (!batchMode.value) {
-    // TODO @Performance: parallelize execution across builds
-    for (const build of builds.value) {
-      const ret = await ops.runtime.run(symbol.value.id, builds.value?.[0].id, args, runOptions);
-      if (ret?.errors || ret?.data?.run.__typename != "RunState" || !ret?.data?.run.success) {
-        notifications.show({
-          type: "run.fail",
-          kind: "error",
-          message: "Run failed",
-          description: `Failed to run ${symbol.value?.name}: ${ret?.data?.run?.error ?? "rejected"}`,
-        });
-        lastOutputByBuild.value[build.id] = null;
-      } else {
-        lastOutputByBuild.value[build.id] = ret.data.run.output;
-      }
-    }
+    await Promise.all(builds.value.map((b) => _doRun(b)));
   } else {
     // TODO @Incomplete: batch mode
   }
