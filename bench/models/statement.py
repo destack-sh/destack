@@ -13,7 +13,9 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
+from bench.models.build import BuildSettings
 from bench.models.data import DatasetContentMixin, DatasetRecord
+from bench.models.evaluation import EvaluateSettings
 from bench.models.generated import GeneratedContentMixin, GeneratedMapping
 from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
@@ -191,6 +193,8 @@ class StatementManager(models.Manager["Statement"]):
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
         new_xblocks: dict[UUID, XBlock] = {}
+        new_build_settings: list[BuildSettings] = []
+        new_evaluate_settings: list[EvaluateSettings] = []
         new_gen_mappings: list[GeneratedMapping] = []
 
         def _copy_statement(statement: Statement) -> Statement:
@@ -226,7 +230,7 @@ class StatementManager(models.Manager["Statement"]):
                         _refmap(RefType.RECORD, old_id, old_revision, record)
 
                 # copy xblocks
-                elif statement.symbol_type == SymbolType.CODE:
+                if statement.symbol_type == SymbolType.CODE:
                     for xblock in statement.xblocks.all():
                         old_id = xblock.id
                         old_revision = xblock.revision
@@ -236,20 +240,34 @@ class StatementManager(models.Manager["Statement"]):
                         new_xblocks[old_id] = xblock
                         _refmap(RefType.XBLOCK, old_id, old_revision, xblock)
 
-                # copy generated mappings (only Builds can have them right now)
-                elif statement.symbol_type == SymbolType.BUILD and copy_generated_mappings:
-                    for mapping in statement.generated_mappings.all():
-                        mapping.pk = None
-                        mapping.statement_id = target_statement_ids[mapping.statement_id]
-                        mapping.source_id = ref_mappings_ids.get(
-                            mapping.source_id, mapping.source_id
-                        )
-                        mapping.target_id = ref_mappings_ids.get(
-                            mapping.target_id, mapping.target_id
-                        )
-                        mapping.source_revision = 0
-                        mapping.target_revision = 0
-                        new_gen_mappings.append(mapping)
+                if statement.symbol_type == SymbolType.BUILD:
+                    # copy generated mappings (only Builds can have them right now)
+                    if copy_generated_mappings:
+                        for mapping in statement.generated_mappings.all():
+                            mapping.pk = None
+                            mapping.statement_id = target_statement_ids[mapping.statement_id]
+                            mapping.source_id = ref_mappings_ids.get(
+                                mapping.source_id, mapping.source_id
+                            )
+                            mapping.target_id = ref_mappings_ids.get(
+                                mapping.target_id, mapping.target_id
+                            )
+                            mapping.source_revision = 0
+                            mapping.target_revision = 0
+                            new_gen_mappings.append(mapping)
+                    build_settings = statement.build_settings
+                    build_settings.pk = None
+                    build_settings.statement_id = target_statement_ids[statement.id]
+                    new_build_settings.append(build_settings)
+
+                if (
+                    statement.symbol_type == SymbolType.EVALUATE
+                    or statement.symbol_type == SymbolType.BUILD  # :BuildEvaluationSettings
+                ):
+                    evaluate_settings = statement.evaluate_settings
+                    evaluate_settings.pk = None
+                    evaluate_settings.statement_id = target_statement_ids[statement.id]
+                    new_evaluate_settings.append(evaluate_settings)
 
             # copy statement
             # automatically copies all non-relational columns
@@ -294,6 +312,8 @@ class StatementManager(models.Manager["Statement"]):
         DatasetRecord.objects.bulk_create(new_records.values())
         XBlock.objects.bulk_create(new_xblocks.values())
         GeneratedMapping.objects.bulk_create(new_gen_mappings)
+        BuildSettings.objects.bulk_create(new_build_settings)
+        EvaluateSettings.objects.bulk_create(new_evaluate_settings)
 
         return ref_mappings
 

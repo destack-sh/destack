@@ -72,13 +72,13 @@ class ModuleWorker:
         self.ready = asyncio.Event()
 
         self.interpreter = LanguageInterpreter(master.fetch)
-        self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
+        self.interp: InterpModule | None = None
         self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
     @property
     def interpreted(self) -> bool:
-        return self.interp.module_idx is not None
+        return self.interp is not None
 
     @property
     def idx(self) -> language.ModuleIndex:

@@ -36,6 +36,7 @@ class InterpModule:
     module_idx: Optional[language.ModuleIndex]
     errors: list[language.Error]
     dependencies: list[language.ModuleIndex]
+    committed: bool
 
     @property
     def has_user_errors(self):
@@ -141,7 +142,9 @@ def interp_module(
     interp(module_idx, on_error=collector)
     errors = [e.to_error() for e in collector.errors]
 
-    return InterpModule(module_idx=module_idx, errors=errors, dependencies=dependencies)
+    return InterpModule(
+        module_idx=module_idx, errors=errors, dependencies=dependencies, committed=source.committed
+    )
 
 
 def get_or_create_file(
