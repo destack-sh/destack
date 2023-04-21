@@ -531,7 +531,7 @@ class LanguageWorker:
         )
         # module data
         self.source: wire.ModuleData | None = None
-        self.interp = InterpModule(module_idx=None, errors=[], dependencies=[])
+        self.interp: Optional[InterpModule] = None
         self.revmap: RevisionMap | None = None
         self.stale_symbols: list[language.Statement] | None = None
         self.wire_module: wire.ModuleData | None = None
@@ -549,6 +549,8 @@ class LanguageWorker:
 
     @property
     def idx(self) -> ModuleIndex:
+        if self.interp is None:
+            raise RuntimeError("not interpreted yet")
         return self.interp.module_idx
 
     @property
@@ -626,9 +628,10 @@ class LanguageWorker:
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
         # reactively trigger (debounced) reactors
-        create_wrapped_task(self._fire_reactive_generate())
-        create_wrapped_task(self._fire_reactive_lint())
-        create_wrapped_task(self._fire_reactive_build())
+        if not self.interp.committed:
+            create_wrapped_task(self._fire_reactive_generate())
+            create_wrapped_task(self._fire_reactive_lint())
+            create_wrapped_task(self._fire_reactive_build())
         # notify
         payload = make_full_change_payload(self, InterpModuleChangedPayload)
         await publish(NMessageType.INTERP_MODULE_CHANGED, payload)
@@ -706,9 +709,10 @@ class LanguageWorker:
         # get the builds to run
         if not self.interpreted or self.interp.has_user_errors:
             return ModuleBuildErrorType.NOT_READY
+        if self.interp.committed:
+            return ModuleBuildErrorType.COMMITTED
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
-            # collect any builds that reference this task
             builds = get_builds_for(buildable, self.interp.module_idx)
             if scope == BuildScope.REACTIVE:
                 builds = [b for b in builds if b.settings.reactive]

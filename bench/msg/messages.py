@@ -119,6 +119,7 @@ class ReqModuleBuildPayload:
 class ModuleBuildErrorType(enum.Enum):
     NOT_READY = "not_ready"
     INVALID_BUILDABLE = "invalid_buildable"
+    COMMITTED = "committed"
 
 
 @payload(NMessageType.REPLY_MODULE_BUILD)
