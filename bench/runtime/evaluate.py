@@ -37,6 +37,7 @@ from bench.runtime.tracing import in_memory_traces, tracer_blocker
 from bench.runtime.type import (
     EvaluationKind,
     EvaluationMetric,
+    EvaluationPlan,
     EvaluationResult,
     EvaluationScope,
     Modality,
@@ -166,7 +167,7 @@ def score_evaluation(a: EvaluationResult, weights: dict[str, float]) -> float:
     return score
 
 
-def group_aggregate_by_system(evaluations: list[EvaluationResult]) -> list[EvaluationResult]:
+def aggregate_metrics_by_system(evaluations: list[EvaluationResult]) -> list[EvaluationResult]:
     evaluations_by_node = defaultdict(list)
     for evaluation in evaluations:
         evaluations_by_node[evaluation.system.id].append(evaluation)
@@ -188,31 +189,47 @@ def group_aggregate_by_system(evaluations: list[EvaluationResult]) -> list[Evalu
     return aggregated
 
 
-async def evaluate_task(
+async def plan_evaluate_task(
     task: TaskInstance,
+    n_samples: int,
     eval_model: Model,
     build: Build,
-    n_samples: int,
-    build_candidate: Any = None,
-) -> EvaluationResult:
-    """Evaluates a task implementation against the instructions."""
-    log = logger.bind(task=task, build=build)
-    task_instruction, _ = instruction_tree_from_symbol(task)
-
-    # generate samples to test
+    build_candidate: Any,
+) -> EvaluationPlan:
     samples = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
+    plan = EvaluationPlan(
+        system=task,
+        eval_model=eval_model,
+        build=build,
+        build_candidate=build_candidate,
+        datasets=[samples],
+    )
+    return plan
+
+
+async def evaluate_task(
+    task: TaskInstance,
+    plan: EvaluationPlan,
+) -> EvaluationResult:
+    """Evaluates a task implementation against the instructions."""
+    log = logger.bind(task=task, build=plan.build)
+    task_instruction, _ = instruction_tree_from_symbol(task)
+
+    # generate samples to test
+    all_samples = list(chain.from_iterable(dataset.records for dataset in plan.datasets))
+
     with in_memory_traces() as traces:
         runs = (
             # TODO @Security: don't trust task implementation (ship to sandbox)
             #  For now this is fine because we generate the implementation, but when
             #  we get to :TaskSteps we'll need to ship the build (candidate) data to the sandbox.
             run(task.implementation, dict_minus(sample.data, {"output"}), is_trusted=True)
-            for sample in samples.records
+            for sample in all_samples
         )
         results = await asyncio.gather(*runs, return_exceptions=True)
-    outputs = anonymous_dataset(task.type.output, n_samples)
+    outputs = anonymous_dataset(task.type.output, len(results))
     n_successful_runs = 0
     for i, result in enumerate(results):
         if isinstance(result, Exception):
@@ -238,29 +255,27 @@ async def evaluate_task(
             output_type=task.type.output,
             output=output.data,
             instructions=evalable_instructions,
-            eval_model=eval_model,
-            build=build,
-            build_candidate=build_candidate,
+            eval_model=plan.eval_model,
+            build=plan.build,
+            build_candidate=plan.build_candidate,
         )
-        for input, output in zip(samples.records, outputs.records)
+        for input, output in zip(all_samples, outputs.records)
         if input.data.get("output") is not None
     )
     evals = await asyncio.gather(*evals)
     instruction_evaluations = list(chain(*evals))
     # group instruction evaluations by evaluated node
-    instruction_evaluations = group_aggregate_by_system(instruction_evaluations)
+    instruction_evaluations = aggregate_metrics_by_system(instruction_evaluations)
     instruction_metrics = aggregate_metrics(instruction_evaluations)
 
     # technically tokens_count is #characters
-    tokens_count = sum(
-        [len(xblock) for xblock in task.implementation.xblocks if xblock.kind != XKind.Settings]
-    )
-    average_run_duration = sum([r.duration_with_cache for r in traces.roots]) / (
+    tokens_count = sum(len(x) for x in task.implementation.xblocks if x.kind != XKind.Settings)
+    average_run_duration = sum(r.duration_with_cache for r in traces.roots) / (
         len(traces.roots) or 1
     )
     performance_metrics = {
         # for type validity we assume that unsuccessful run == type error
-        EvaluationMetric.TypeValidity: n_successful_runs / n_samples,
+        EvaluationMetric.TypeValidity: n_successful_runs / len(all_samples),
         EvaluationMetric.AverageRunDuration: average_run_duration,
         EvaluationMetric.InstructionSatisfaction: instruction_metrics[
             EvaluationMetric.InstructionSatisfaction
@@ -281,8 +296,9 @@ async def evaluate_task(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.INSTRUCTION,
         system=task,
-        build=build,
-        build_candidate=build_candidate,
+        build=plan.build,
+        build_candidate=plan.build_candidate,
+        plan=plan,
         self_metrics=self_evaluation.aggregated_metrics,
         aggregated_metrics=metrics,
         children=[e for e in instruction_evaluations if e.system.id != task.id],

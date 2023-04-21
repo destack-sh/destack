@@ -50,7 +50,6 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
-  [SymbolType.Value]: "value",
   [SymbolType.Capability]: "capability",
   [SymbolType.Program]: "program",
   [SymbolType.Requirement]: "require",
@@ -95,7 +94,7 @@ export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "tuning";
 
 export type Editor = {
-  type: "file" | "run" | "runs";
+  type: "file" | "run" | "runs" | "evaluate";
   id: string;
   path: string;
   scroll?: { x: number; y: number };
@@ -122,6 +121,12 @@ export type RunEditor = Editor & {
 
 export type RunsEditor = Editor & {
   type: "runs";
+};
+
+export type EvaluateEditor = Editor & {
+  type: "evaluate";
+  symbolId: string;
+  symbolType: SymbolType;
 };
 
 export type EditorGroup = {
@@ -173,6 +178,19 @@ export function makeRunsEditor(): RunsEditor {
     groupId: null,
     path: "runs",
   };
+}
+
+export function makeEvaluateEditor(symbol: { id: string; name: string; symbolType: SymbolType }): EvaluateEditor {
+  return {
+    // append random string to enable multiple editors for the same symbol
+    id: symbol.id + "-" + Math.random().toString(16).substring(2, 8),
+    type: "evaluate",
+    symbolId: symbol.id,
+    symbolType: symbol.symbolType,
+    path: "evaluate: " + symbol.name,
+    localState: {},
+    groupId: null,
+  } as EvaluateEditor;
 }
 
 export const useEditorState = defineStore("editor", {
@@ -365,6 +383,18 @@ export const useEditorState = defineStore("editor", {
       if (!editor || options?.create) {
         console.log(`create new runs editor`);
         editor = makeRunsEditor();
+      }
+      return this.openEditor(editor, options?.group);
+    },
+
+    openEvaluate(
+      symbol: { id: string; name: string; symbolType: SymbolType },
+      options?: { group?: EditorGroup; create?: boolean }
+    ): Editor {
+      let editor = this.editors.find((e) => e.type == "evaluate" && (e as EvaluateEditor).symbolId == symbol.id);
+      if (!editor || options?.create) {
+        console.log(`create new evaluate editor for ${symbol.id} ${symbol.name}`);
+        editor = makeEvaluateEditor(symbol);
       }
       return this.openEditor(editor, options?.group);
     },

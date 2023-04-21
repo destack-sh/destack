@@ -9,7 +9,13 @@ from .deployment import (
     WorkerStatus,
     WorkerType,
 )
-from .evaluation import EvaluateSettings, EvaluationKind, EvaluationResult, EvaluationScope
+from .evaluation import (
+    EvaluateSettings,
+    EvaluationKind,
+    EvaluationPlan,
+    EvaluationResult,
+    EvaluationScope,
+)
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
@@ -51,6 +57,7 @@ __all__ = [
     "EvaluationKind",
     "EvaluationResult",
     "EvaluationScope",
+    "EvaluationPlan",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",

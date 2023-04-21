@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from itertools import chain
 from typing import Callable, ClassVar, Optional
 from uuid import UUID
 
@@ -876,6 +877,23 @@ class LanguageWorker:
         )
 
     async def write_evaluations(self, evaluations: list[EvaluationResult], job_id: UUID) -> None:
+        """Writes the given evaluations, their plans and underlying datasets"""
+        evaluations_plans = [
+            evaluation.plan
+            for evaluation in chain.from_iterable(eval.walk() for eval in evaluations)
+            if evaluation.plan is not None  # not all evaluations have plans
+        ]
+        model_evaluations_plans: list[models.EvaluationPlan] = [
+            mapper.rmap_evaluation_plan(plan) for plan in evaluations_plans
+        ]
+        # upsert evaluation plans (by id)
+        await models.EvaluationPlan.objects.abulk_create(
+            model_evaluations_plans,
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["updated_at", "system", "build", "build_candidate", "eval_model"],
+        )
+
         evaluations_data = []
         for evaluation in evaluations:
             evaluations_data.extend(

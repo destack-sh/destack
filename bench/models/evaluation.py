@@ -16,14 +16,25 @@ class EvaluateSettings(UUIDModel):
 
 
 class EvaluationPlan(UUIDModel):
-    """"""
+    """The plan for executing an evaluation."""
 
-    statement = models.OneToOneField(
-        "Statement", on_delete=models.CASCADE, related_name="evaluation_plan"
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    system = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="evaluation_plans"
     )
-    generated_dataset = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="+", null=True
+    eval_model = models.ForeignKey(
+        "Statement", on_delete=models.SET_NULL, related_name="+", null=True
     )
+    build = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+", null=True)
+    build_candidate = models.ForeignKey(
+        "BuildCandidate",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="executions+",
+    )
+    datasets = models.ManyToManyField("Statement", related_name="+")
 
 
 class EvaluationKind(models.TextChoices):
@@ -51,7 +62,6 @@ class EvaluationResult(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
     )
     job = models.ForeignKey("Job", on_delete=models.CASCADE, related_name="+", null=True)
-    file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="+", null=True)
     build = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+", null=True)
     build_candidate = models.ForeignKey(
         "BuildCandidate",

@@ -36,6 +36,7 @@ from bench.runtime.evaluate import (
     aggregate_metrics,
     compare_evaluations,
     evaluate_task,
+    plan_evaluate_task,
 )
 from bench.runtime.instruct import (
     InstructionOp,
@@ -415,18 +416,25 @@ async def evaluate_candidate(
         instantiate(task.definition, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    # TODO @UX: dynamically adjust eval n_samples
-    evaluation_tasks = (
-        evaluate_task(
-            task=task,
-            eval_model=eval_model,
-            build=result.build,
-            build_candidate=candidate,
-            n_samples=4,
+    # TODO @UX: dynamically adjust/configure eval n_samples
+    evaluation_plans = await asyncio.gather(
+        *(
+            plan_evaluate_task(
+                task=task,
+                eval_model=eval_model,
+                build=result.build,
+                build_candidate=candidate,
+                n_samples=4,
+            )
+            for task in task_instances
         )
-        for task in task_instances
     )
-    tasks_evaluations = await asyncio.gather(*evaluation_tasks)
+    tasks_evaluations = await asyncio.gather(
+        *(
+            evaluate_task(task=task, plan=plan)
+            for task, plan in zip(task_instances, evaluation_plans)
+        )
+    )
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.BUILD,
