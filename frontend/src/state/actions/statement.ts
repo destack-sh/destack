@@ -37,10 +37,14 @@ export function provideStatementActions(file: Ref<FileState | null>) {
   });
 }
 
+export function useStatementActions() {
+  return hostStatementActions();
+}
+
 export const hostStatementActions = createSharedComposable(_provideStatementActions);
 
 function _provideStatementActions() {
-  _doProvideStatementActions(activeFileState);
+  return _doProvideStatementActions(activeFileState);
 }
 
 function _doProvideStatementActions(file: Ref<FileState | null>) {
