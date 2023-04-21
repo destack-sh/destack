@@ -70,7 +70,7 @@ async function createFileInEditorGroup() {
         class="sticky top-0 z-[5] flex flex-shrink-0 border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="editor.showEditorGroupHeader"
       >
-        <Tab as="template" v-for="e in group.editors" :key="e.id" v-slot="{ selected }">
+        <Tab as="template" v-for="(e, i) in group.editors" :key="e.id" v-slot="{ selected }">
           <button
             class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 text-sm outline-none"
             :class="{
@@ -84,7 +84,8 @@ async function createFileInEditorGroup() {
             {{ e.path.length > 0 ? e.path : "(Untitled)" }}
             <!-- Close button -->
             <button
-              class="h-fit max-h-fit rounded-sm px-1 text-transparent hover:bg-gray-200 group-hover:text-gray-700"
+              class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"
+              :class="i == selectedTab ? 'text-gray-400' : 'text-transparent'"
               @click.prevent="editor.closeEditor(e)"
             >
               x

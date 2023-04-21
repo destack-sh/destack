@@ -362,21 +362,15 @@ export function useSymbolOps() {
   }
 
   async function openRun(symbol: { id: string; name?: string | null; symbolType: SymbolType }) {
+    // TODO @Feature: support immediate run (for programs? all tasks?, i.e. don't just open run editor)
     const runEditor = editor.openRun(symbol as any);
     editor.focusEditor(runEditor);
   }
 
   async function evaluate(symbol: { id: string; name?: string | null }) {
-    // TODO @Feature: support manual evaluation
-    const ret = await operations.runtime.evaluate(symbol.id);
-    if (ret?.data?.evaluate.__typename != "EvaluateState" || !ret.data.evaluate.success) {
-      notifications.show({
-        type: "evaluate.fail",
-        kind: "error",
-        message: "Evaluation failed",
-        description: `Evaluation failed for ${symbol.name}`,
-      });
-    }
+    // TODO @Feature: support manual & spot evaluation (i.e. don't just open evaluate editor)
+    const evaluateEditor = editor.openEvaluate(symbol as any);
+    editor.focusEditor(evaluateEditor);
   }
 
   return { build, openRun, evaluate };

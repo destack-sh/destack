@@ -166,14 +166,14 @@ const outputColumns = computed(() =>
 </script>
 <template>
   <div
-    class="flex flex-col items-baseline bg-white px-12 py-6"
+    class="flex flex-col bg-white px-12 py-6"
     :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
   >
     <!-- Runconfig -->
     <div class="mx-auto w-full max-w-[800px]">
       <h2 class="flex flex-row items-baseline gap-1">
         <!-- the runnable should maybe be configurable, but that would require mutating the editor instance -->
-        <span class="text-3xl font-bold text-gray-900">Run {{ symbol?.name }}</span>
+        <span class="text-3xl font-bold text-gray-900">run: {{ symbol?.name }}</span>
       </h2>
       <h3 class="mt-8 text-2xl font-bold text-gray-900">Quick run</h3>
       <!-- Input source & builds -->

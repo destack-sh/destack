@@ -373,7 +373,7 @@ class SampleGenerateWithModel(SampleSource):
             type_node=generation_task_type,
             description=f"Generate diverse, useful and instructive examples "
             f' for the task "{self.task.name}: {self.task.description}".\n'
-            "The examples should illustrate realistic use cases and edge cases.",
+            "The examples should illustrate realistic and likely use cases of the task.",
         )
         plan = TaskPlan(task=generation_task, model=self.model, modality=Modality.GenerateText)
         plan.emit(

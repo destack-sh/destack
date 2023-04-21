@@ -96,7 +96,8 @@ const evaluateMain = provideGlobalAction({
   shortcuts: ["f10"],
   enabled: computed(() => true),
   apply: async () => {
-    console.log("evaluate");
+    if (mainSymbol.value == null) return;
+    await symbolOps.evaluate(mainSymbol.value);
   },
 });
 
@@ -127,16 +128,6 @@ const mainActions = [
     action: () => evaluateMain.value.apply(),
   },
 ];
-
-function symbolDeclr(symbol: InterpSymbol | undefined) {
-  if (symbol == null) {
-    return null;
-  } else if (symbol.symbolType != null) {
-    return SYMBOL_TYPE_KEYWORD[symbol.symbolType] + " " + symbol.name;
-  } else {
-    return symbol.name;
-  }
-}
 </script>
 <template>
   <!-- Wrapper -->

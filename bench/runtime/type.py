@@ -386,6 +386,29 @@ class EvaluationScope(enum.StrEnum):
 
 
 @dataclass(repr=False, slots=True)
+class EvaluationPlan:
+    system: Task
+    eval_model: Model
+    build: Build
+    build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
+    datasets: list[Dataset] = field(default_factory=list)
+
+    def __str__(self):
+        return f"{self.build} on {self.system}"
+
+    def __repr__(self):
+        return f"<EvaluationPlan {str(self)}>"
+
+    @property
+    def system_id(self) -> UUID:
+        return self.system.id
+
+    def make_id(self):
+        environment_id = self.build_candidate.id if self.build_candidate else self.build.id
+        return uuid5(environment_id, f"evaluation_plan:{self.system_id}")
+
+
+@dataclass(repr=False, slots=True)
 class EvaluationResult:
     kind: EvaluationKind
     scope: EvaluationScope
@@ -394,6 +417,7 @@ class EvaluationResult:
     system: Optional[InterpSymbol | TypeNode | Record] = None
     build: Optional[Build] = None
     build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
+    plan: Optional[EvaluationPlan] = None
     children: list["EvaluationResult"] = field(default_factory=list)
 
     def __str__(self):
