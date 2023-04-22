@@ -90,7 +90,7 @@ async def _expand_filter(
 
 @gql.type
 class ExecutionQuery:
-    @gql.connection(directives=[CanViewProject()])
+    @gql.django.connection(directives=[CanViewProject()])
     async def executions(
         self,
         project_id: GlobalID,

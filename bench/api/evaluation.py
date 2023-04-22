@@ -91,7 +91,7 @@ def _get_latest_build_candidates(
 
 @gql.type
 class EvaluationQuery:
-    @gql.connection(directives=[CanViewProject()])
+    @gql.django.connection(directives=[CanViewProject()])
     async def evaluations(
         self,
         project_id: GlobalID,
