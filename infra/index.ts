@@ -224,7 +224,7 @@ const BACKEND_ENV_VARS = [
 ];
 
 // SandboxedWorker env vars
-const WORKER_ENV_VARS = [
+const SECRET_API_ENV_VARS = [
   // provider secrets
   "OPENAI_API_KEY",
   "GOOSEAI_API_KEY",
@@ -305,6 +305,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...BACKEND_ENV_VARS,
                 ...DB_ENV_VARS,
+                ...SECRET_API_ENV_VARS, // needed for running langserver
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
                 { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
                 { name: "WEBAPP_URL", value: config.require("webappUrl") },
@@ -339,7 +340,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
-              env: [...BACKEND_ENV_VARS, ...WORKER_ENV_VARS, { name: "ALLOW_UNTRUSTED_CODE", value: "true" }],
+              env: [...BACKEND_ENV_VARS, ...SECRET_API_ENV_VARS, { name: "ALLOW_UNTRUSTED_CODE", value: "true" }],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },
