@@ -706,7 +706,7 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
 def rmap_evaluation_plan(plan: EvaluationPlan) -> models.EvaluationPlan:
     now = datetime.utcnow().replace(tzinfo=pytz.utc)
     return models.EvaluationPlan(
-        id=plan.make_id(),
+        id=plan.id,
         created_at=now,
         updated_at=now,
         system_id=plan.system.id,

@@ -392,6 +392,11 @@ class EvaluationPlan:
     build: Build
     build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
     datasets: list[Dataset] = field(default_factory=list)
+    id: UUID = field(init=False)
+
+    def __post_init__(self):
+        environment_id = self.build_candidate.id if self.build_candidate else self.build.id
+        self.id = uuid5(environment_id, f"evaluation_plan:{self.system_id}")
 
     def __str__(self):
         return f"{self.build} on {self.system}"
@@ -402,10 +407,6 @@ class EvaluationPlan:
     @property
     def system_id(self) -> UUID:
         return self.system.id
-
-    def make_id(self):
-        environment_id = self.build_candidate.id if self.build_candidate else self.build.id
-        return uuid5(environment_id, f"evaluation_plan:{self.system_id}")
 
 
 @dataclass(repr=False, slots=True)

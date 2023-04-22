@@ -69,6 +69,7 @@ from bench.runtime.tracing import (
 from bench.runtime.type import (
     BuildScope,
     EvaluationMetric,
+    EvaluationPlan,
     EvaluationResult,
     EvaluationResultData,
     ExecutionFrameData,
@@ -876,26 +877,46 @@ class LanguageWorker:
             ],
         )
 
-    async def write_evaluations(self, evaluations: list[EvaluationResult], job_id: UUID) -> None:
+    async def write_evaluations(self, results: list[EvaluationResult], job_id: UUID) -> None:
         """Writes the given evaluations, their plans and underlying datasets"""
-        evaluations_plans = [
+        plans: list[EvaluationPlan] = [
             evaluation.plan
-            for evaluation in chain.from_iterable(eval.walk() for eval in evaluations)
+            for evaluation in chain.from_iterable(eval.walk() for eval in results)
             if evaluation.plan is not None  # not all evaluations have plans
         ]
-        model_evaluations_plans: list[models.EvaluationPlan] = [
-            mapper.rmap_evaluation_plan(plan) for plan in evaluations_plans
+
+        # write the plans datasets (replace existing ones)
+        existing_datasets_ids = [
+            id
+            async for id in models.EvaluationPlan.objects.filter(
+                id__in=[p.id for p in plans]
+            ).values_list("datasets__id", flat=True)
         ]
+        evals_file, _ = get_or_create_file(self.idx, "__evals__")
+        evals_file.statements = [
+            s for s in evals_file.statements if s.id not in existing_datasets_ids
+        ]
+        evals_datasets = list(chain.from_iterable(p.datasets for p in plans))
+        map_to_file(evals_datasets, file=evals_file)
+        if evals_datasets:
+            await self.write_immediate([wire.rmap_file(evals_file)], overwrite=True)
+
         # upsert evaluation plans (by id)
+        model_evaluations_plans: list[models.EvaluationPlan] = [
+            mapper.rmap_evaluation_plan(plan) for plan in plans
+        ]
         await models.EvaluationPlan.objects.abulk_create(
             model_evaluations_plans,
             update_conflicts=True,
             unique_fields=["id"],
             update_fields=["updated_at", "system", "build", "build_candidate", "eval_model"],
         )
+        for model_plan, plan in zip(model_evaluations_plans, plans):
+            await model_plan.datasets.aset(d.id for d in plan.datasets)
 
+        # upsert evaluations (by environment & system)
         evaluations_data = []
-        for evaluation in evaluations:
+        for evaluation in results:
             evaluations_data.extend(
                 EvaluationResultData.from_result(
                     evaluation,
@@ -907,13 +928,13 @@ class LanguageWorker:
         model_evaluations: list[models.EvaluationResult] = [
             mapper.rmap_evaluation_result(evaluation_data) for evaluation_data in evaluations_data
         ]
-        # upsert evaluations (by environment & system)
         await models.EvaluationResult.objects.abulk_create(
             model_evaluations,
             update_conflicts=True,
             unique_fields=["id"],
             update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
         )
+
         await publish(
             NMessageType.EVALUATION_SAVED,
             EvaluationSavedPayload(
