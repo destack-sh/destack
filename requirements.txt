@@ -17,23 +17,22 @@ anyio==3.6.2
     # via
     #   httpcore
     #   starlette
-asgiref==3.5.2
+asgiref==3.6.0
     # via
-    #   -r requirements.in
     #   channels
     #   daphne
     #   django
     #   strawberry-graphql
 async-timeout==4.0.2
     # via aiohttp
-attrs==21.4.0
+attrs==23.1.0
     # via
     #   aiohttp
     #   automat
     #   jsonschema
     #   service-identity
     #   twisted
-autobahn==23.1.1
+autobahn==23.1.2
     # via daphne
 automat==22.10.0
     # via twisted
@@ -41,7 +40,7 @@ backoff==2.2.1
     # via posthog
 cachetools==5.2.0
     # via -r requirements.in
-certifi==2021.10.8
+certifi==2022.12.7
     # via
     #   httpcore
     #   httpx
@@ -53,17 +52,17 @@ channels==4.0.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
-charset-normalizer==2.0.12
+charset-normalizer==2.1.1
     # via
     #   aiohttp
     #   requests
-click==8.0.4
+click==8.1.3
     # via
     #   strawberry-graphql
     #   uvicorn
 constantly==15.1.0
     # via twisted
-cryptography==38.0.1
+cryptography==40.0.2
     # via
     #   autobahn
     #   pyopenssl
@@ -83,7 +82,7 @@ deprecated==1.2.13
     # via opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
-django==4.1.5
+django==4.2
     # via
     #   -r requirements.in
     #   channels
@@ -108,7 +107,7 @@ django-cors-headers==3.13.0
     # via -r requirements.in
 django-filter==22.1
     # via -r requirements.in
-django-ipware==4.0.2
+django-ipware==5.0.0
     # via
     #   django-axes
     #   django-structlog
@@ -154,22 +153,24 @@ h11==0.14.0
     #   uvicorn
 hiredis==2.2.2
     # via redis
-httpcore==0.16.3
+httpcore==0.17.0
     # via httpx
-httpx==0.23.3
+httpx==0.24.0
     # via anthropic
 hyperlink==21.0.0
     # via
     #   autobahn
     #   twisted
-idna==3.3
+idna==3.4
     # via
     #   anyio
+    #   httpx
     #   hyperlink
     #   requests
-    #   rfc3986
     #   twisted
     #   yarl
+importlib-metadata==6.0.1
+    # via opentelemetry-api
 incremental==22.10.0
     # via twisted
 inflection==0.5.1
@@ -178,69 +179,75 @@ json-stream==2.2.1
     # via -r requirements.in
 json-stream-rs-tokenizer==0.4.16
     # via json-stream
-jsonschema==4.4.0
+jsonschema==4.17.3
     # via drf-spectacular
-marshmallow==3.15.0
+libcst==0.4.9
+    # via strawberry-graphql
+markdown-it-py==2.2.0
+    # via rich
+marshmallow==3.19.0
     # via
     #   dataclasses-json
     #   marshmallow-enum
 marshmallow-enum==1.5.1
     # via dataclasses-json
+mdurl==0.1.2
+    # via markdown-it-py
 monotonic==1.6
     # via posthog
 more-itertools==9.0.0
     # via -r requirements.in
-multidict==6.0.2
+multidict==6.0.4
     # via
     #   aiohttp
     #   yarl
-mypy-extensions==0.4.3
+mypy-extensions==1.0.0
     # via typing-inspect
 nats-py==2.2.0
     # via -r requirements.in
-oauthlib==3.2.1
+oauthlib==3.2.2
     # via
     #   requests-oauthlib
     #   social-auth-core
 openai==0.27.2
     # via -r requirements.in
-opentelemetry-api==1.14.0
+opentelemetry-api==1.17.0
     # via
     #   opentelemetry-sdk
     #   strawberry-graphql
-opentelemetry-sdk==1.14.0
+opentelemetry-sdk==1.17.0
     # via strawberry-graphql
-opentelemetry-semantic-conventions==0.35b0
+opentelemetry-semantic-conventions==0.38b0
     # via opentelemetry-sdk
-packaging==21.3
+packaging==23.1
     # via marshmallow
 pillow==9.4.0
     # via -r requirements.in
 posthog==2.3.1
     # via -r requirements.in
-prometheus-client==0.14.1
+prometheus-client==0.16.0
     # via django-prometheus
 psycopg2==2.9.5
     # via -r requirements.in
-pyasn1==0.4.8
+pyasn1==0.5.0
     # via
     #   pyasn1-modules
     #   service-identity
-pyasn1-modules==0.2.8
+pyasn1-modules==0.3.0
     # via service-identity
 pycparser==2.21
     # via cffi
 pydub==0.25.1
     # via -r requirements.in
-pygments==2.14.0
-    # via strawberry-graphql
-pyjwt==2.4.0
+pygments==2.15.1
+    # via
+    #   rich
+    #   strawberry-graphql
+pyjwt==2.6.0
     # via social-auth-core
-pyopenssl==23.0.0
+pyopenssl==23.1.1
     # via twisted
-pyparsing==3.0.8
-    # via packaging
-pyrsistent==0.18.1
+pyrsistent==0.19.3
     # via jsonschema
 python-dateutil==2.8.2
     # via
@@ -248,7 +255,7 @@ python-dateutil==2.8.2
     #   strawberry-graphql
 python-dotenv==0.21.0
     # via -r requirements.in
-python-multipart==0.0.5
+python-multipart==0.0.6
     # via strawberry-graphql
 python3-openid==3.2.0
     # via social-auth-core
@@ -257,10 +264,12 @@ pytz==2022.1
     #   -r requirements.in
     #   djangorestframework
 pyyaml==6.0
-    # via drf-spectacular
+    # via
+    #   drf-spectacular
+    #   libcst
 redis[hiredis]==4.5.3
     # via -r requirements.in
-requests==2.27.1
+requests==2.28.2
     # via
     #   anthropic
     #   openai
@@ -269,8 +278,8 @@ requests==2.27.1
     #   social-auth-core
 requests-oauthlib==1.3.1
     # via social-auth-core
-rfc3986[idna2008]==1.5.0
-    # via httpx
+rich==13.3.4
+    # via strawberry-graphql
 sentry-sdk[django]==1.16.0
     # via -r requirements.in
 service-identity==21.1.0
@@ -280,7 +289,6 @@ six==1.16.0
     #   automat
     #   posthog
     #   python-dateutil
-    #   python-multipart
     #   service-identity
 sniffio==1.3.0
     # via
@@ -289,24 +297,24 @@ sniffio==1.3.0
     #   httpx
 social-auth-app-django==5.0.0
     # via -r requirements.in
-social-auth-core==4.3.0
+social-auth-core==4.4.2
     # via social-auth-app-django
-sqlparse==0.4.2
+sqlparse==0.4.4
     # via django
-starlette==0.21.0
+starlette==0.26.1
     # via strawberry-graphql
-strawberry-django-plus==1.29
+strawberry-django-plus==2.3.0
     # via -r requirements.in
-strawberry-graphql[channels,debug-server,opentelemetry]==0.142.1
+strawberry-graphql[channels,debug-server,opentelemetry]==0.171.3
     # via
     #   -r requirements.in
     #   strawberry-django-plus
     #   strawberry-graphql-django
-strawberry-graphql-django==0.8.1
+strawberry-graphql-django==0.9.4
     # via strawberry-django-plus
-structlog==21.5.0
+structlog==23.1.0
     # via django-structlog
-tokenizers==0.13.2
+tokenizers==0.13.3
     # via anthropic
 tqdm==4.65.0
     # via openai
@@ -314,19 +322,22 @@ twisted[tls]==22.10.0
     # via daphne
 txaio==23.1.1
     # via autobahn
-typing-extensions==4.4.0
+typing-extensions==4.5.0
     # via
     #   django-stubs-ext
+    #   libcst
     #   opentelemetry-sdk
     #   strawberry-django-plus
     #   strawberry-graphql
     #   twisted
     #   typing-inspect
-typing-inspect==0.7.1
-    # via dataclasses-json
+typing-inspect==0.8.0
+    # via
+    #   dataclasses-json
+    #   libcst
 uritemplate==4.1.1
     # via drf-spectacular
-urllib3==1.26.12
+urllib3==1.26.15
     # via
     #   requests
     #   sentry-sdk
@@ -334,11 +345,13 @@ uvicorn==0.19.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
-wrapt==1.14.1
+wrapt==1.15.0
     # via deprecated
-yarl==1.8.1
+yarl==1.9.1
     # via aiohttp
-zope-interface==5.5.2
+zipp==3.15.0
+    # via importlib-metadata
+zope-interface==6.0
     # via twisted
 
 # The following packages are considered to be unsafe in a requirements file:

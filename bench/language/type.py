@@ -944,6 +944,11 @@ def make_struct_type(*children: TypeNode, name: str = None, description: str = N
     return TypeNode(name=name, description=description, tag=TypeTag.STRUCT, children=list(children))
 
 
+def deepcopy_types(nodes: list[TypeNode] | None, keep_id: bool) -> list[TypeNode]:
+    nodes = nodes or []
+    return [node.deepcopy(keep_id=keep_id) for node in nodes]
+
+
 def flatten_func_type(func_type: TypeNode) -> TypeNode:
     """Inline the input and output types into one struct."""
     # check that no input children are called output (hacky deluxe)
@@ -953,5 +958,8 @@ def flatten_func_type(func_type: TypeNode) -> TypeNode:
     return TypeNode(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        children=[*(func_type.input.children or []), func_type.output],
+        children=[
+            *deepcopy_types(func_type.input.children, keep_id=False),
+            *deepcopy_types(func_type.output.children, keep_id=False),
+        ],
     )

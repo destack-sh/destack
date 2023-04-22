@@ -21,10 +21,12 @@ logger = structlog.get_logger(__name__)
 
 
 def map_to_file(
-    symbols: list[InterpSymbol], weak_references: list[InterpSymbol], file: File | None = None
+    symbols: list[InterpSymbol],
+    weak_references: list[InterpSymbol] | None = None,
+    file: File | None = None,
 ) -> File:
     """Map high-level interpreted symbols back to lower level statements."""
-
+    weak_references = weak_references or []
     if file is None:
         file = File(module=Module(name="<generated>"), path="<generated>")
         start_ok = None

@@ -15,6 +15,7 @@ from bench.language.type import (
     Dataset,
     InterpSymbol,
     Model,
+    Record,
     Task,
     Type,
     TypeNode,
@@ -199,6 +200,7 @@ async def plan_evaluate_task(
     samples = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
+    samples.name = task.name + " samples"
     plan = EvaluationPlan(
         system=task,
         eval_model=eval_model,
@@ -218,14 +220,17 @@ async def evaluate_task(
     task_instruction, _ = instruction_tree_from_symbol(task)
 
     # generate samples to test
-    all_samples = list(chain.from_iterable(dataset.records for dataset in plan.datasets))
+    all_samples: list[Record] = list(
+        chain.from_iterable(dataset.records for dataset in plan.datasets)
+    )
+    output_keys = task.type.output.keys
 
     with in_memory_traces() as traces:
         runs = (
             # TODO @Security: don't trust task implementation (ship to sandbox) :SandboxBuilds
             #  For now this is fine because we generate the implementation, but when
             #  we get to :TaskSteps we'll need to ship the build (candidate) data to the sandbox.
-            run(task.implementation, dict_minus(sample.data, {"output"}), is_trusted=True)
+            run(task.implementation, dict_minus(sample.data, output_keys), is_trusted=True)
             for sample in all_samples
         )
         results = await asyncio.gather(*runs, return_exceptions=True)
@@ -260,7 +265,7 @@ async def evaluate_task(
             build_candidate=plan.build_candidate,
         )
         for input, output in zip(all_samples, outputs.records)
-        if input.data.get("output") is not None
+        if len(output.data) > 0
     )
     evals = await asyncio.gather(*evals)
     instruction_evaluations = list(chain(*evals))
