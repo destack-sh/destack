@@ -222,7 +222,7 @@ async def evaluate_task(
 
     with in_memory_traces() as traces:
         runs = (
-            # TODO @Security: don't trust task implementation (ship to sandbox)
+            # TODO @Security: don't trust task implementation (ship to sandbox) :SandboxBuilds
             #  For now this is fine because we generate the implementation, but when
             #  we get to :TaskSteps we'll need to ship the build (candidate) data to the sandbox.
             run(task.implementation, dict_minus(sample.data, {"output"}), is_trusted=True)

@@ -382,7 +382,7 @@ class SandboxedWorker:
 
 
 class Sandbox:
-    # TODO @Broken: ship build_candidate data to sandbox
+    # TODO @Broken @Security: ship build_candidate data to sandbox :SandboxBuilds
     def __init__(self, build_candidate: BuildCandidate, module_id: UUID, job_id: UUID):
         self.module_id = module_id
         self.job_id = job_id
