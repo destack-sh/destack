@@ -36,7 +36,7 @@ class BuildCandidate(gql.Node):
 
 @gql.type
 class BuildQuery:
-    @gql.connection(directives=[CanViewProject()])
+    @gql.django.connection(directives=[CanViewProject()])
     def build_candidates(
         self,
         project_id: GlobalID,

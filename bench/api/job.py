@@ -47,7 +47,7 @@ class Job(gql.Node):
 
 @gql.type
 class JobQuery:
-    @gql.connection(directives=[CanViewProject()])
+    @gql.django.connection(directives=[CanViewProject()])
     def jobs(
         self,
         project_id: GlobalID,

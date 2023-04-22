@@ -934,7 +934,6 @@ class LanguageWorker:
             unique_fields=["id"],
             update_fields=["updated_at", "job_id", "self_metrics", "aggregated_metrics"],
         )
-
         await publish(
             NMessageType.EVALUATION_SAVED,
             EvaluationSavedPayload(

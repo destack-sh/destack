@@ -316,7 +316,7 @@ class BuildResult:
     def to_file(self, module: Module | None = None) -> File:
         if module:
             module = Module(name="<build>")
-        file = File(path=f"build/{self.build.name}", generated=True, module=module)
+        file = File(path=f"__build__/{self.build.name}", generated=True, module=module)
         return map_to_file(self.target_symbols, self.weak_references, file)
 
 
