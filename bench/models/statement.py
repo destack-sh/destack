@@ -386,6 +386,12 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     )
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
+    build_settings = models.OneToOneField(
+        "BuildSettings", on_delete=models.RESTRICT, null=True, blank=True
+    )
+    evaluate_settings = models.OneToOneField(
+        "EvaluateSettings", on_delete=models.RESTRICT, null=True, blank=True
+    )
 
     def __str__(self):
         if self.type == StatementType.DEFINITION:
