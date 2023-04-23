@@ -8,9 +8,6 @@ from bench.models.utils import UUIDModel
 class EvaluateSettings(UUIDModel):
     """Typed settings for an evaluate statement."""
 
-    statement = models.OneToOneField(
-        "Statement", on_delete=models.CASCADE, related_name="evaluate_settings"
-    )
     weights = models.JSONField()
     reactive = models.BooleanField()
 

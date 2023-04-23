@@ -8,9 +8,6 @@ from bench.utils.uuidt import MAX_NAME_LENGTH
 class BuildSettings(UUIDModel):
     """Typed settings for a build statement."""
 
-    statement = models.OneToOneField(
-        "Statement", on_delete=models.CASCADE, related_name="build_settings"
-    )
     reactive = models.BooleanField(default=False)
 
 
