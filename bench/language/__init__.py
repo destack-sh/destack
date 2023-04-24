@@ -34,6 +34,7 @@ from bench.language.type import (
     TypeTag,
     XBlock,
     XBlockContent,
+    Model,
 )
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "ExpectationContent",
     "File",
     "lex",
+    "Model",
     "ModelContent",
     "Module",
     "ModuleIndex",

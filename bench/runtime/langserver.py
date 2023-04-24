@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from itertools import chain
 from typing import Callable, ClassVar, Optional
 from uuid import UUID
 
@@ -80,7 +81,7 @@ from bench.runtime.type import (
     EvaluationResult,
     EvaluationResultData,
     ExecutionFrameData,
-    JobData,
+    JobData, EvaluationPlan,
 )
 from bench.utils.cache import redis
 from bench.utils.fractional import INTEGER_MINUS_ONE
@@ -460,6 +461,7 @@ class BuildJob(Job):
     scope: BuildScope = None
     buildable_id: UUID = None
     builds: list[Build] = None
+    evals: dict[UUID, EvaluationPlan]= None
     revmap: RevisionMap = None
     build_results: list[BuildResult] = None
 
@@ -564,6 +566,10 @@ class LanguageWorker:
         if self.interp is None:
             raise RuntimeError("not interpreted yet")
         return self.interp.module_idx
+
+    @property
+    def instruct_model(self) -> language.Model:
+        return self.interp.symbol("openai.std.text.gpt-3-5-turbo")
 
     @property
     def interpreted(self) -> bool:
@@ -759,9 +765,8 @@ class LanguageWorker:
 
     async def _do_generate_task_evaluation(self, task: language.Task, revmap: RevisionMap):
         # run evaluation plan generator
-        instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
         # TODO @UX: configure n_samples properly
-        plan = await plan_evaluate_task(task=task, n_samples=2, eval_model=instruct_model)
+        plan = await plan_evaluate_task(task=task, n_samples=2, eval_model=self.instruct_model)
 
         # upsert generated dataset, generated mappings and evaluation plan
         gen_dataset = plan.datasets[0]
@@ -794,7 +799,11 @@ class LanguageWorker:
             generated_mappings=[(task.id, task_dependencies)],
         )
 
-        raise NotImplementedError  # nocheckin: also write evaluation plan
+        # upsert evaluation plan (this is all rather inefficient)
+        model_task = await models.Statement.objects.aget(id=task.id)
+        model_task.evaluation_plan = models.EvaluationPlan.objects.aget_or_create(id=plan.id)
+        await model_task.evaluation_plan.datasets.aset([d.id for d in plan.datasets])
+        await model_task.asave()
 
     def queue_build(
         self, scope: BuildScope, buildable_id: UUID, cancel_running: bool
@@ -817,12 +826,18 @@ class LanguageWorker:
             builds = [buildable]
         else:
             return BuildErrorType.INVALID_BUILDABLE
+        
+        tasks = list(chain.from_iterable(b.tasks for b in builds))
+        # assemble evaluation plans by task
+        for task in tasks:
+            pass
 
         job = BuildJob(
             revmap=self.revmap,
             scope=scope,
             buildable_id=buildable_id,
             builds=builds,
+            evals=evals,
             project_id=self.project_id,
             project_version_id=self.module_id,
             worker_id=self.worker_id,
@@ -836,16 +851,15 @@ class LanguageWorker:
         return job
 
     async def do_build(
-        self, revmap: RevisionMap, builds: list[language.Build], job_id: UUID
+        self, revmap: RevisionMap, builds: list[language.Build], evals: list[EvaluationPlan], job_id: UUID
     ) -> list[BuildResult]:
         # instruct model should be configurable maybe? but we'll likely use our own
-        instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
         build_processes = [
             wrap_task(
-                build(b, instruct_model, tracker=DbBuildTracker(self, job_id)),
+                build(b, self.instruct_model, eval, DbBuildTracker(self, job_id)),
                 f"build_{b.id}",
             )
-            for b in builds
+            for b, eval in zip(builds, evals)
         ]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         previous_builds_files: set[UUID] = set()
@@ -901,7 +915,7 @@ class LanguageWorker:
                     job.task = create_task(self.do_generate(job.generator, job.revmap))
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
-                    job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
+                    job.task = create_task(self.do_build(job.revmap, job.builds∂, job.id))
                     job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")

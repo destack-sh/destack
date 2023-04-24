@@ -388,7 +388,7 @@ class EvaluationScope(enum.StrEnum):
 @dataclass(repr=False, slots=True)
 class EvaluationPlan:
     system: Task
-    eval_model: Model
+    eval_model: Optional[Model] = None
     datasets: list[Dataset] = field(default_factory=list)
     id: UUID = field(init=False)
 
