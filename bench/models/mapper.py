@@ -235,9 +235,9 @@ def write_module(
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     # update source mappings per generative statement
-    for generator_id, source_mappings in generated_mappings or []:
+    for generator_id, generated_mappings in generated_mappings or []:
         models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
-        model_mappings = wmap_source_mappings(generator_id, source_mappings)
+        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
         models.GeneratedMapping.objects.bulk_create(model_mappings)
 
 
@@ -304,6 +304,15 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         statement.type_nodes.filter(deleted_at=None).all(),
         statement,
     )
+    if statement.symbol_type in (
+        SymbolType.TASK,
+        SymbolType.CODE,
+        SymbolType.BUILD,
+        SymbolType.EVALUATE,
+    ):
+        data.generated_mappings = [
+            rmap_source_mapping(m) for m in statement.generated_mappings.all()
+        ]
     if statement.symbol_type == SymbolType.DATA:
         data.records = [
             RecordData(
@@ -314,9 +323,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
     elif statement.symbol_type == SymbolType.CODE:
         data.xblocks = rmap_xblocks(statement.xblocks.all())
     elif statement.symbol_type == SymbolType.BUILD:
-        data.generated_mappings = [
-            rmap_source_mapping(m) for m in statement.generated_mappings.all()
-        ]
         data.build_settings = wire.BuildSettings(
             reactive=statement.build_settings.reactive,
         )
@@ -377,7 +383,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         model_xblocks = wmap_xblocks(statement, data.xblocks)
         relations.extend(model_xblocks)
     elif data.generated_mappings:
-        mappings = wmap_source_mappings(statement.id, data.generated_mappings)
+        mappings = wmap_generated_mappings(statement.id, data.generated_mappings)
         relations.extend(mappings)
     elif data.reference_module:
         if isinstance(data.reference_module, UUID):
@@ -390,10 +396,10 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     return relations
 
 
-def wmap_source_mappings(
-    statement_id: UUID | None, source_mappings: list[language.GeneratedMapping]
+def wmap_generated_mappings(
+    statement_id: UUID | None, generated_mappings: list[language.GeneratedMapping]
 ) -> list[models.GeneratedMapping]:
-    return [wmap_source_mapping(statement_id, m) for m in source_mappings]
+    return [wmap_source_mapping(statement_id, m) for m in generated_mappings]
 
 
 def wmap_source_mapping(
@@ -711,9 +717,7 @@ def rmap_evaluation_plan(plan: EvaluationPlan) -> models.EvaluationPlan:
         updated_at=now,
         system_id=plan.system.id,
         eval_model_id=plan.eval_model.id,
-        build_id=plan.build.id,
-        build_candidate_id=plan.build_candidate.id if plan.build_candidate else None,
-        # TODO @Broken: map datasets as well
+        # datasets are not and cannot be mapped here because it's a m2m
     )
 
 

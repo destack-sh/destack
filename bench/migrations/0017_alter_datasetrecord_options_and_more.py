@@ -8,7 +8,6 @@ import bench.models.generated
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0016_remove_datasetrecord_bench_statement_dataset_record_order_key_ak_and_more"),
     ]
@@ -61,7 +60,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name="source_mappings",
+                related_name="generated_mappings",
                 to="bench.datasetrecord",
             ),
         ),
@@ -72,7 +71,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name="source_mappings",
+                related_name="generated_mappings",
                 to="bench.simpletypenode",
             ),
         ),

@@ -5,7 +5,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0009_deployment_owned"),
     ]
@@ -26,7 +25,7 @@ class Migration(migrations.Migration):
                 blank=True,
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name="source_mappings",
+                related_name="generated_mappings",
                 to="bench.statement",
             ),
         ),

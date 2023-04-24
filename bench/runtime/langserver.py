@@ -3,7 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Callable, ClassVar, Optional
+from typing import Callable, ClassVar, Optional, cast
 from uuid import UUID
 
 import pytz
@@ -12,7 +12,7 @@ from asgiref.sync import sync_to_async
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.type import Build, BuildSettings, EvaluateSettings, TypeTag
+from bench.language.type import Build, BuildSettings, EvaluateSettings, InterpSymbol, TypeTag
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
@@ -21,12 +21,12 @@ from bench.models.mapper import read_module, write_module
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
+    BuildErrorType,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     InterpModuleChangedPayload,
     JobSavedPayload,
-    ModuleBuildErrorType,
     ModuleChangedPayload,
     NMessageType,
     ProjectVersionChangedPayload,
@@ -69,7 +69,6 @@ from bench.runtime.tracing import (
 from bench.runtime.type import (
     BuildScope,
     EvaluationMetric,
-    EvaluationPlan,
     EvaluationResult,
     EvaluationResultData,
     ExecutionFrameData,
@@ -204,7 +203,7 @@ class LanguageServer:
         logger.debug("module.build", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
         build_job = worker.queue_build(msg.p.scope, msg.p.buildable_id, cancel_running=True)
-        error = build_job if isinstance(build_job, ModuleBuildErrorType) else None
+        error = build_job if isinstance(build_job, BuildErrorType) else None
         await msg.reply(RepModuleBuildPayload(error=error))
 
     @message_handler
@@ -442,6 +441,7 @@ class LintJob(Job):
 class GenerateJob(Job):
     type: ClassVar[JobType] = JobType.GENERATE
     success: bool = False
+    generator: Optional[InterpSymbol] = None
 
 
 @dataclass(repr=False, slots=True)
@@ -641,7 +641,15 @@ class LanguageWorker:
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_generate(self) -> None:
         self.log.debug("module.react.generate")
-        self.queue_generate(cancel_running=True)
+        # default generate job for unbound/misc generation tasks
+        self.queue_generate(generator=None, cancel_running=True)
+        if not self.interp.has_user_errors:
+            stale_tasks = [
+                symbol for symbol in self.stale_symbols if isinstance(symbol, language.Task)
+            ]
+
+            for task in stale_tasks:
+                self.queue_generate(generator=task, cancel_running=True)
 
     @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_lint(self) -> None:
@@ -654,13 +662,21 @@ class LanguageWorker:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.has_user_errors:
+            # all stale builds
             stale_builds = [
                 symbol
                 for symbol in self.stale_symbols
                 if isinstance(symbol, language.Build) and symbol.settings.reactive
             ]
-            for b in stale_builds:
-                self.queue_build(b.id, cancel_running=True)
+            # first-timers (builds without generator dependencies)
+            first_timers = [
+                build
+                for build in self.interp.module_idx.symbols_of_type(language.Build)
+                if build.settings.reactive
+                and len(cast(language.Build, build).generated_mappings) == 0
+            ]
+            for b in chain(stale_builds, first_timers):
+                self.queue_build(BuildScope.SELECTED, b.id, cancel_running=True)
 
     def queue_lint(self, cancel_running: bool) -> LintJob:
         job = LintJob(
@@ -676,56 +692,65 @@ class LanguageWorker:
 
     async def do_lint(self, job_id: UUID) -> EvaluationResult:
         evaluation = await lint(self.idx)
-        await self.write_evaluations([evaluation], job_id)
+        await self.write_evaluation_results([evaluation], job_id)
         return evaluation
 
-    def queue_generate(self, cancel_running: bool) -> GenerateJob:
+    def queue_generate(
+        self, generator: Optional[InterpSymbol], cancel_running: bool
+    ) -> GenerateJob:
         job = GenerateJob(
             project_id=self.project_id,
             project_version_id=self.module_id,
             worker_id=self.worker_id,
             deployment_id=None,
+            generator=generator,
         )
         if cancel_running:
-            self._cancel_jobs_like(lambda j: isinstance(j, GenerateJob))
+            self._cancel_jobs_like(
+                lambda j: isinstance(j, GenerateJob) and j.generator == generator
+            )
         self._queue_job(job)
         return job
 
-    async def do_generate(self) -> bool:
-        # create default builds if they don't exist yet
-        interp = self.interp
-        #  :AutobuildTasks
-        autobuild_file, created = get_or_create_file(interp.module_idx, "__autobuild__")
-        if created:
-            # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
-            default_builds = get_default_builds(interp)
-            autobuild_file = map_to_file(default_builds, [], autobuild_file)
-            await self.write_immediate(files=[wire.rmap_file(autobuild_file)], overwrite=False)
-        # could also diff and update here later on
-
-        return True
+    async def do_generate(self, generator: Optional[InterpSymbol]) -> bool:
+        if generator is None:
+            # special case: create default builds if they don't exist yet
+            #  :AutobuildTasks
+            autobuild_file, created = get_or_create_file(self.interp.module_idx, ".instructors")
+            if created:
+                # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
+                default_builds = get_default_builds(self.interp)
+                autobuild_file = map_to_file(default_builds, [], autobuild_file)
+                await self.write_immediate(files=[wire.rmap_file(autobuild_file)], overwrite=False)
+            # could also diff and update here later on
+            return True
+        elif isinstance(generator, language.Task):
+            # run evaluation plan generator
+            pass  # nocheckin
+        else:
+            raise NotImplementedError(f"unexpected generator type: {generator}")
 
     def queue_build(
         self, scope: BuildScope, buildable_id: UUID, cancel_running: bool
-    ) -> BuildJob | ModuleBuildErrorType:
+    ) -> BuildJob | BuildErrorType:
         # get the builds to run
         if not self.interpreted or self.interp.has_user_errors:
-            return ModuleBuildErrorType.NOT_READY
+            return BuildErrorType.NOT_READY
         if self.interp.committed:
-            return ModuleBuildErrorType.COMMITTED
+            return BuildErrorType.COMMITTED
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
             builds = get_builds_for(buildable, self.interp.module_idx)
             if scope == BuildScope.REACTIVE:
                 builds = [b for b in builds if b.settings.reactive]
             if not builds:
-                return ModuleBuildErrorType.INVALID_BUILDABLE
+                return BuildErrorType.INVALID_BUILDABLE
             if buildable.type.output.tag == TypeTag.NULL:
-                return ModuleBuildErrorType.INVALID_BUILDABLE
+                return BuildErrorType.INVALID_BUILDABLE
         elif isinstance(buildable, language.Build):
             builds = [buildable]
         else:
-            return ModuleBuildErrorType.INVALID_BUILDABLE
+            return BuildErrorType.INVALID_BUILDABLE
 
         job = BuildJob(
             revmap=self.revmap,
@@ -768,7 +793,7 @@ class LanguageWorker:
         for build_result in build_results:
             generated_file = build_result.to_file(self.idx.module)
             generated_files.append(wire.rmap_file(generated_file))
-            mappings = [revmap.map_mapping(m) for m in build_result.source_mappings]
+            mappings = [revmap.map_mapping(m) for m in build_result.generated_mappings]
             generated_mappings.append((build_result.build.id, mappings))
 
         #  :ImmediateModuleWrites
@@ -780,18 +805,13 @@ class LanguageWorker:
         )
         return build_results
 
-    def queue_evaluate(self, evalable_id: UUID):
-        raise NotImplementedError
-
-    def do_evaluate(self, evalable_id: UUID):
-        raise NotImplementedError
-
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)
         await self.do_interp(source)
         self.ready.set()
 
         # process run jobs
+        # TODO @Performance: run langserver jobs of same type in parallel?
         while True:
             _, job = await self.jobs_queue.get()
             if job.status == JobStatus.Cancelled:
@@ -812,14 +832,11 @@ class LanguageWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, GenerateJob):
-                    job.task = create_task(self.do_generate())
+                    job.task = create_task(self.do_generate(job.generator))
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
                     job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
                     job.build_results = await job.task
-                elif isinstance(job, EvaluateJob):
-                    job.task = create_task(self.do_evaluate(job.evalable_id))
-                    job.evaluation = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
                 self.log.info("module.job.completed", job=job)
@@ -877,44 +894,8 @@ class LanguageWorker:
             ],
         )
 
-    async def write_evaluations(self, results: list[EvaluationResult], job_id: UUID) -> None:
-        """Writes the given evaluations, their plans and underlying datasets"""
-        plans: list[EvaluationPlan] = [
-            evaluation.plan
-            for evaluation in chain.from_iterable(eval.walk() for eval in results)
-            if evaluation.plan is not None  # not all evaluations have plans
-        ]
-
-        # write the plans datasets (replace existing ones)
-        existing_datasets_ids = [
-            id
-            async for id in models.EvaluationPlan.objects.filter(
-                id__in=[p.id for p in plans]
-            ).values_list("datasets__id", flat=True)
-        ]
-        evals_file, _ = get_or_create_file(self.idx, "__evals__")
-        evals_file.statements = [
-            s for s in evals_file.statements if s.id not in existing_datasets_ids
-        ]
-        evals_datasets = list(chain.from_iterable(p.datasets for p in plans))
-        map_to_file(evals_datasets, file=evals_file)
-        if evals_datasets:
-            await self.write_immediate([wire.rmap_file(evals_file)], overwrite=True)
-
-        # upsert evaluation plans (by id)
-        model_evaluations_plans: list[models.EvaluationPlan] = [
-            mapper.rmap_evaluation_plan(plan) for plan in plans
-        ]
-        await models.EvaluationPlan.objects.abulk_create(
-            model_evaluations_plans,
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=["updated_at", "system", "build", "build_candidate", "eval_model"],
-        )
-        for model_plan, plan in zip(model_evaluations_plans, plans):
-            await model_plan.datasets.aset(d.id for d in plan.datasets)
-
-        # upsert evaluations (by environment & system)
+    async def write_evaluation_results(self, results: list[EvaluationResult], job_id: UUID) -> None:
+        """Writes (upserts) the given evaluation results"""
         evaluations_data = []
         for evaluation in results:
             evaluations_data.extend(
@@ -1005,7 +986,7 @@ class DbBuildTracker(BuildTracker):
         ]
         self.seen_evaluation_ids.update(id(evaluation) for evaluation in new_evaluations)
         if new_evaluations:
-            await self.worker.write_evaluations(new_evaluations, job_id=self.job_id)
+            await self.worker.write_evaluation_results(new_evaluations, job_id=self.job_id)
         await self.worker.write_build_candidates(
             candidates, job_id=self.job_id, delete_others=False
         )

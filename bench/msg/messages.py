@@ -116,7 +116,7 @@ class ReqModuleBuildPayload:
     buildable_id: Optional[UUID]
 
 
-class ModuleBuildErrorType(enum.Enum):
+class BuildErrorType(enum.Enum):
     NOT_READY = "not_ready"
     INVALID_BUILDABLE = "invalid_buildable"
     COMMITTED = "committed"
@@ -124,7 +124,7 @@ class ModuleBuildErrorType(enum.Enum):
 
 @payload(NMessageType.REPLY_MODULE_BUILD)
 class RepModuleBuildPayload:
-    error: Optional[ModuleBuildErrorType] = None
+    error: Optional[BuildErrorType] = None
 
 
 @payload(NMessageType.REQUEST_MODULE_RUN)
@@ -141,7 +141,7 @@ class ReqModuleRunPayload:
     trigger_id: Optional[UUID]
 
 
-class ModuleRunErrorType(enum.Enum):
+class RunErrorType(enum.Enum):
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_RUNCONFIG = "invalid_runconfig"
@@ -152,7 +152,7 @@ class ModuleRunErrorType(enum.Enum):
 @payload(NMessageType.REPLY_MODULE_RUN)
 class RepModuleRunPayload:
     execution_id: Optional[UUID] = None
-    error: Optional[ModuleRunErrorType] = None
+    error: Optional[RunErrorType] = None
     error_details: Optional[typing.Any] = None
     output: Optional[typing.Any] = None
 

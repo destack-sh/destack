@@ -91,7 +91,7 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 
-export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "tuning";
+export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
 export type Editor = {
   type: "file" | "run" | "runs" | "evaluate";
@@ -212,7 +212,7 @@ export const useEditorState = defineStore("editor", {
       editingElement: false,
       readonly: false,
       debug: false,
-      showGenerated: false,
+      showGenerated: true,
       showLineNumbers: true,
       showEditorGroupHeader: true,
       showGlobalHeader: true,

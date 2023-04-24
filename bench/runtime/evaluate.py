@@ -194,8 +194,6 @@ async def plan_evaluate_task(
     task: TaskInstance,
     n_samples: int,
     eval_model: Model,
-    build: Build,
-    build_candidate: Any,
 ) -> EvaluationPlan:
     samples = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
@@ -204,8 +202,6 @@ async def plan_evaluate_task(
     plan = EvaluationPlan(
         system=task,
         eval_model=eval_model,
-        build=build,
-        build_candidate=build_candidate,
         datasets=[samples],
     )
     return plan

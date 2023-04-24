@@ -39,7 +39,6 @@ export function useEditorActions() {
     apply: () => {
       console.log("toggle debug mode");
       editor.debug = !editor.debug;
-      editor.showGenerated = editor.debug;
     },
   });
 

@@ -13,13 +13,13 @@ from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
     ModuleChangedPayload,
-    ModuleRunErrorType,
     RepModuleRunPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     ReqModuleRunPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
+    RunErrorType,
     WorkerHeartbeatPayload,
 )
 from bench.runtime.build import BuildCandidate
@@ -98,9 +98,9 @@ class ModuleWorker:
         tracing_level: ExecutionTracingLevel,
         trigger_type: ExecutionTriggerType,
         trigger_id: Optional[UUID],
-    ) -> RunJob | ModuleRunErrorType:
+    ) -> RunJob | RunErrorType:
         if not self.interpreted:
-            return ModuleRunErrorType.NOT_READY
+            return RunErrorType.NOT_READY
 
         # get the runconfig
         try:
@@ -117,7 +117,7 @@ class ModuleWorker:
                 )
         except (TypeError, KeyError) as e:
             self.log.exception("module.run.failed", exc_info=e)
-            return ModuleRunErrorType.INVALID_RUNCONFIG
+            return RunErrorType.INVALID_RUNCONFIG
 
         # instantiate
         try:
@@ -131,7 +131,7 @@ class ModuleWorker:
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
         except Exception as e:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
-            return ModuleRunErrorType.INVALID_RUNCONFIG
+            return RunErrorType.INVALID_RUNCONFIG
 
         root_id = UUIDT()
         job = RunJob(
@@ -177,11 +177,11 @@ class ModuleWorker:
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
             details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
-            return ModuleRunErrorType.RUNTIME_ERROR, details
+            return RunErrorType.RUNTIME_ERROR, details
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
-            return ModuleRunErrorType.INTERNAL_ERROR, None
+            return RunErrorType.INTERNAL_ERROR, None
         finally:
             pub_tracker_ctx.reset(run_ctx_token)
 
@@ -344,7 +344,7 @@ class SandboxedWorker:
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
         )
-        if isinstance(run_job, ModuleRunErrorType):
+        if isinstance(run_job, RunErrorType):
             await msg.reply(RepModuleRunPayload(None, run_job, None, None))
         else:
             if msg.p.block:

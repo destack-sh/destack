@@ -221,12 +221,12 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
         if not symbol.is_generator:
             continue
         if isinstance(symbol, Build):
-            source_mappings = symbol.source_mappings
+            generated_mappings = symbol.generated_mappings
         else:
             raise ValueError(f"unexpected generator symbol: {symbol}")
 
         # rebuild old tree for this generator
-        old_tree = tree_from_mappings(source_mappings)
+        old_tree = tree_from_mappings(generated_mappings)
         diff_nodes = list(diff_trees(old_tree, new_tree))
         if not diff_nodes:
             # nothing relevant changed
@@ -235,11 +235,11 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
         # mark generated statements as stale
         # also mark generator and the directly mapped source of the generated symbol
         # ideally we would also track which generator the symbol is stale in
-        for source_mapping in source_mappings:
-            if source_mapping.target_id is None:
+        for mapping in generated_mappings:
+            if mapping.target_id is None:
                 continue
-            generated_target = idx.get_symbol_by_id(source_mapping.target_id)
-            generated_source = idx.get_symbol_by_id(source_mapping.source_id)
+            generated_target = idx.get_symbol_by_id(mapping.target_id)
+            generated_source = idx.get_symbol_by_id(mapping.source_id)
             if generated_target is not None:
                 # ignore if no target (was deleted or undirected dependency)
                 stale_symbols.append(generated_target.source)

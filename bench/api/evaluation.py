@@ -52,6 +52,14 @@ class EvaluationResult(gql.Node):
     aggregated_metrics: JSON
 
 
+@gql.django.type(models.EvaluationPlan)
+class EvaluationPlan(gql.Node):
+    created_at: auto
+    updated_at: auto
+    system: Annotated["Statement", lazy(".statement")]
+    # datasets: Annotated[list["Statement"], lazy(".statement")]
+
+
 async def _expand_filters(
     project_version_id: UUID,
     include_ancestor_versions: bool,

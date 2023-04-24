@@ -275,6 +275,9 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 
 def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
+    if isinstance(content, language.GeneratorContent):
+        data.generated_mappings = data.generated_mappings
+    # generator content is a component of other content types
     if isinstance(content, language.TypeNode):
         data.description = content.description
         data.type_nodes = rmap_type_node(content)
@@ -301,7 +304,6 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.type_nodes = rmap_type_node(content.type_node)
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
-        data.generated_mappings = content.source_mappings
         data.build_settings = content.settings
         data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
     elif isinstance(content, language.RequirementContent):
@@ -321,12 +323,15 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return type_node
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(
-            type_node=wmap_type_node(data.type_nodes), description=data.description
+            generated_mappings=data.generated_mappings,
+            type_node=wmap_type_node(data.type_nodes),
+            description=data.description,
         )
     elif data.symbol_type == SymbolType.EXPECTATION:
         return language.ExpectationContent(description=data.description)
     elif data.symbol_type == SymbolType.CODE:
         return language.CodeContent(
+            generated_mappings=data.generated_mappings,
             description=data.description,
             language=data.lang,
             code=data.code,
@@ -350,7 +355,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(
             comment=data.description,
-            source_mappings=data.generated_mappings,
+            generated_mappings=data.generated_mappings,
             settings=data.build_settings,
             evaluate_settings=data.evaluate_settings,  # :BuildEvaluationSettings
         )
