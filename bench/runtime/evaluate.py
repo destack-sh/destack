@@ -198,7 +198,7 @@ async def plan_evaluate_task(
     samples = await SampleGenerateWithModel(
         task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
     )()
-    samples.name = task.name + " samples"
+    samples.name = "magic " + task.name + " samples"
     plan = EvaluationPlan(
         system=task,
         eval_model=eval_model,
@@ -210,9 +210,11 @@ async def plan_evaluate_task(
 async def evaluate_task(
     task: TaskInstance,
     plan: EvaluationPlan,
+    build: Build,
+    build_candidate: Optional[Any] = None,
 ) -> EvaluationResult:
     """Evaluates a task implementation against the instructions."""
-    log = logger.bind(task=task, build=plan.build)
+    log = logger.bind(task=task, build=build, build_candidate=build_candidate)
     task_instruction, _ = instruction_tree_from_symbol(task)
 
     # generate samples to test
@@ -257,8 +259,8 @@ async def evaluate_task(
             output=output.data,
             instructions=evalable_instructions,
             eval_model=plan.eval_model,
-            build=plan.build,
-            build_candidate=plan.build_candidate,
+            build=build,
+            build_candidate=build_candidate,
         )
         for input, output in zip(all_samples, outputs.records)
         if len(output.data) > 0

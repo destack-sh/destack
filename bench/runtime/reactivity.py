@@ -48,6 +48,9 @@ class RevisionMap:
     def get(self, id: UUID) -> int:
         return self.revisions.get(id, 0)
 
+    def __getitem__(self, id: UUID) -> int:
+        return self.revisions[id]
+
     def map_node(self, raw_node: RawNode) -> TrackedNode:
         return TrackedNode(
             type=raw_node.type,
@@ -190,6 +193,12 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
                 revision=1,
                 parent_id=parent.id if parent else None,
             )
+
+
+def tracked_tree_from_symbol(symbol: InterpSymbol) -> TrackedTree:
+    tree = TrackedTree()
+    track_interp_symbol(tree, symbol)
+    return tree
 
 
 def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:

@@ -418,7 +418,7 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
     tasks_evaluations = await asyncio.gather(
         *(
             evaluate_task(task=task, plan=plan)
-            for task, plan in zip(task_instances, evaluation_plans)
+            for task, plan in zip(task_instances, evaluation_plans)  # nocheckin
         )
     )
     return EvaluationResult(
@@ -476,6 +476,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 output_type = make_struct_type(lifted, name=output_label)
                 output_path = lifted.name
 
+            # this is obviously hacky and suboptimal and will be replaced
             plan.emit(
                 XEmitSystem(),
                 XEmitTypeExplanation(

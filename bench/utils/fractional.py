@@ -221,3 +221,6 @@ def generate_n_keys_between(
         + [c]
         + generate_n_keys_between(c, b, n - mid - 1, digits)
     )
+
+
+INTEGER_MINUS_ONE = generate_key_between(None, INTEGER_ZERO)

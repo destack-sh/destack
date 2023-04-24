@@ -57,7 +57,7 @@ class EvaluationPlan(gql.Node):
     created_at: auto
     updated_at: auto
     system: Annotated["Statement", lazy(".statement")]
-    # datasets: Annotated[list["Statement"], lazy(".statement")]
+    datasets: list[Annotated["Statement", lazy(".statement")]]
 
 
 async def _expand_filters(

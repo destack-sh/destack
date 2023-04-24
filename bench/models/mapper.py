@@ -164,14 +164,33 @@ def write_module(
     delete_files: set[UUID] = None,
 ) -> None:
     """Write the wire files (and their contents) as models to the database."""
+    write_files(project_v, files, delete_files=delete_files, overwrite=overwrite)
+
+    # map statements
+    statements = list(chain.from_iterable(file_data.statements for file_data in files))
+    write_statements(
+        statements,
+        project_v,
+        overwrite=False,  # already overwriting files
+        generated_mappings=generated_mappings,
+    )
+
+
+def write_files(
+    project_v: models.ProjectVersion,
+    files: list[wire.FileData],
+    delete_files: set[UUID] = None,
+    overwrite: bool = False,
+):
     if delete_files:
-        models.File.objects.filter(id__in=delete_files).delete()
+        for file in models.File.objects.filter(id__in=delete_files):
+            file.delete()
+    if overwrite:
+        file_ids = [file_data.id for file_data in files]
+        for file in project_v.files.filter(id__in=file_ids):
+            file.delete()
 
-    wire_statements: dict[UUID, wire.StatementData] = {}
     model_files: dict[UUID, models.File] = {}
-    model_statements: dict[UUID, models.Statement] = {}
-    model_contents_relations: list[typing.Any] = []
-
     # create files
     for file_data in files:
         # remove extension from file path (assumed to be .x, but not stored)
@@ -186,23 +205,35 @@ def write_module(
         model_files[file_data.id] = file
         file.generated = file_data.generated
         file.save()
+    return model_files
 
-    # wipe existing statements if overwrite and not empty
-    if overwrite:
-        for file in models.Statement.objects.filter(file_id__in=model_files.keys()):
-            file.delete()
 
-    # map statements
+def write_generated_mappings(generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]):
+    # update source mappings per generative statement
+    for generator_id, generated_mappings in generated_mappings or []:
+        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
+        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
+        models.GeneratedMapping.objects.bulk_create(model_mappings)
+
+
+@transaction.atomic
+def write_statements(
+    statements: list[wire.StatementData],
+    project_v: ProjectVersion,
+    overwrite: bool = False,
+    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
+) -> None:
+    wire_statements: dict[UUID, wire.StatementData] = {}
+    model_statements: dict[UUID, models.Statement] = {}
+    model_contents_relations: list[typing.Any] = []
     # assign temporary global order keys to prevent conflicts (parents aren't assigned yet)
-    temp_order_keys = generate_n_keys_between(None, None, sum(len(f.statements) for f in files))
-    for ok, stmt_data in zip(
-        temp_order_keys, chain.from_iterable(file.statements for file in files)
-    ):
+    temp_order_keys = generate_n_keys_between(None, None, len(statements))
+    for ok, stmt_data in zip(temp_order_keys, statements):
         wire_statements[stmt_data.id] = stmt_data
         model_statement = models.Statement(
             id=stmt_data.id,
             project_version=project_v,
-            file=model_files[stmt_data.file_id],
+            file_id=stmt_data.file_id,
             parent=None,
             order_key=ok,
             type=stmt_data.type,
@@ -220,6 +251,12 @@ def write_module(
             new_relations = wmap_symbol(model_statement, stmt_data)
             model_contents_relations.extend(new_relations)
 
+    # wipe existing statements if overwrite and not empty
+    if overwrite:
+        statement_ids = set(model_statements.keys())
+        for statement in models.Statement.objects.filter(id__in=statement_ids):
+            statement.delete()
+
     # create statements
     models.Statement.objects.bulk_create(model_statements.values())
     # and their relations
@@ -235,10 +272,7 @@ def write_module(
     models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
 
     # update source mappings per generative statement
-    for generator_id, generated_mappings in generated_mappings or []:
-        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
-        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
-        models.GeneratedMapping.objects.bulk_create(model_mappings)
+    write_generated_mappings(generated_mappings)
 
 
 def rmap_reference(

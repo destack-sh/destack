@@ -70,7 +70,7 @@ class OpenAIChatCompletion(ModelInference):
     ctx: InferenceContext
     role_map = {
         XSource.System: "system",
-        XSource.Developer: "system",
+        XSource.Developer: "assistant",
         XSource.User: "user",
         XSource.Model: "assistant",
     }
@@ -89,7 +89,6 @@ class OpenAIChatCompletion(ModelInference):
             top_p=settings.top_p,
             stop=settings.stop or None,
             logit_bias=settings.logit_bias,
-            user=self.ctx.user_opaque_id,
         )
         text = response["choices"][0]["message"]["content"]
         return text
@@ -122,7 +121,6 @@ class OpenAITextCompletion(ModelInference):
             top_p=settings.top_p,
             stop=settings.stop or None,
             logit_bias=settings.logit_bias,
-            user=self.ctx.user_opaque_id,
         )
         text = response["choices"][0]["text"]
         return text
