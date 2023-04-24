@@ -643,7 +643,7 @@ def _parse_definition_content(
         )
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
-        return BuildContent(source_mappings=[])
+        return BuildContent(generated_mappings=[])
     # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
     elif symbol_type.value == SymbolType.RUNCONFIG:
         tokens.eat_separator(":")
@@ -1680,7 +1680,7 @@ def interp(
                 _error(ET.BUILD_MISSING_MODEL, statement)
 
             # add all tasks in module for autobuilds :AutobuildTasks
-            if symbol.source is not None and symbol.source.file.path == "__autobuild__":
+            if symbol.source is not None and symbol.source.file.path == ".instructors":
                 for task in idx.symbols.values():
                     if (
                         isinstance(task, Task)

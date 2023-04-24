@@ -384,7 +384,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
-    description = models.TextField(null=True, blank=True)  # for any descriptions
+    description = models.TextField(null=True, blank=True)
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -395,6 +395,9 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     )
     evaluate_settings = models.OneToOneField(
         "EvaluateSettings", on_delete=models.RESTRICT, null=True, blank=True
+    )
+    evaluation_plan = models.OneToOneField(
+        "EvaluationPlan", on_delete=models.RESTRICT, null=True, blank=True
     )
 
     def __str__(self):

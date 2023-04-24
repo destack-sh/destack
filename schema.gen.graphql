@@ -627,14 +627,6 @@ enum JobType {
   LINT
 }
 
-enum ModuleRunErrorType {
-  INTERNAL_ERROR
-  NOT_READY
-  INVALID_RUNCONFIG
-  TIMEOUT
-  RUNTIME_ERROR
-}
-
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   updateUser(input: UserUpdateInput!): UserOperationInfo!
@@ -1449,6 +1441,14 @@ input RestoreInput {
   projectVersionId: GlobalID!
 }
 
+enum RunErrorType {
+  INTERNAL_ERROR
+  NOT_READY
+  INVALID_RUNCONFIG
+  TIMEOUT
+  RUNTIME_ERROR
+}
+
 input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
@@ -1465,7 +1465,7 @@ type RunState {
   buildId: GlobalID
   output: JSON
   success: Boolean!
-  error: ModuleRunErrorType
+  error: RunErrorType
   errorDetails: JSON
 }
 

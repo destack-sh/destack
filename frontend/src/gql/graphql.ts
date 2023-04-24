@@ -637,14 +637,6 @@ export enum JobType {
   Lint = "LINT",
 }
 
-export enum ModuleRunErrorType {
-  InternalError = "INTERNAL_ERROR",
-  InvalidRunconfig = "INVALID_RUNCONFIG",
-  NotReady = "NOT_READY",
-  RuntimeError = "RUNTIME_ERROR",
-  Timeout = "TIMEOUT",
-}
-
 export type Mutation = {
   __typename?: "Mutation";
   acceptOrganizationInvite: UserOperationInfo;
@@ -1639,6 +1631,14 @@ export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
+export enum RunErrorType {
+  InternalError = "INTERNAL_ERROR",
+  InvalidRunconfig = "INVALID_RUNCONFIG",
+  NotReady = "NOT_READY",
+  RuntimeError = "RUNTIME_ERROR",
+  Timeout = "TIMEOUT",
+}
+
 export type RunInput = {
   arguments: Scalars["JSON"];
   block?: Scalars["Boolean"];
@@ -1652,7 +1652,7 @@ export type RunInput = {
 export type RunState = {
   __typename?: "RunState";
   buildId?: Maybe<Scalars["GlobalID"]>;
-  error?: Maybe<ModuleRunErrorType>;
+  error?: Maybe<RunErrorType>;
   errorDetails?: Maybe<Scalars["JSON"]>;
   output?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -3461,7 +3461,7 @@ export type RunMutation = {
         buildId?: any | null;
         output?: any | null;
         success: boolean;
-        error?: ModuleRunErrorType | null;
+        error?: RunErrorType | null;
         errorDetails?: any | null;
       };
 };

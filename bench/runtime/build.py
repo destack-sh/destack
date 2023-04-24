@@ -36,7 +36,6 @@ from bench.runtime.evaluate import (
     aggregate_metrics,
     compare_evaluations,
     evaluate_task,
-    plan_evaluate_task,
 )
 from bench.runtime.instruct import (
     InstructionOp,
@@ -133,7 +132,7 @@ class BuildState:
     build: Build
     target_symbols: list[InterpSymbol] = field(default_factory=list)
     dependencies: TrackedTree = field(default_factory=TrackedTree)
-    source_mappings: list[RawMapping] = field(default_factory=list)
+    generated_mappings: list[RawMapping] = field(default_factory=list)
     # weak references are references to symbols outside the build that are not "strong" references
     # for e.g. string references in code that don't have a foreign key
     # later/soon we'll want this strongly linked inside the symbol content probably
@@ -154,7 +153,7 @@ class BuildState:
     def map_source(self, source: InterpSymbol, target: InterpSymbol):
         """Map the source symbol to the generated target symbol."""
         self.track_dependency(source)
-        self.source_mappings.append(
+        self.generated_mappings.append(
             RawMapping(type=TrackedNodeType.STATEMENT, source_id=source.id, target_id=target.id)
         )
 
@@ -178,14 +177,14 @@ class BuildState:
 
     def to_result(self) -> BuildResult:
         # Convert dependencies into source mappings without a target
-        combined_mappings = [*self.source_mappings]
+        combined_mappings = [*self.generated_mappings]
         for dependency in self.dependencies:
             combined_mappings.append(
                 RawMapping(type=dependency.type, source_id=dependency.id, target_id=None)
             )
         # the mappings here are raw mappings (without revision info), if that errors come back
         # and figure out a way to get revmaps here for the updated build
-        updated_build = replace(self.build, source_mappings=combined_mappings)
+        updated_build = replace(self.build, generated_mappings=combined_mappings)
 
         # TODO @Cleanup: insert weak references into symbol context more orderly :WeakReferences
         # add model weak references as context to all the targets
@@ -200,7 +199,7 @@ class BuildState:
         return BuildResult(
             build=updated_build,
             target_symbols=self.target_symbols,
-            source_mappings=combined_mappings,
+            generated_mappings=combined_mappings,
             weak_references=self.weak_references,
         )
 
@@ -293,7 +292,7 @@ class BuildCandidate:
 class BuildResult:
     build: Build
     target_symbols: list[InterpSymbol]
-    source_mappings: list[RawMapping]
+    generated_mappings: list[RawMapping]
     weak_references: list[InterpSymbol]
     evaluation: EvaluationResult | None = None
 
@@ -305,7 +304,9 @@ class BuildResult:
 
     @staticmethod
     def empty(build: Build) -> BuildResult:
-        return BuildResult(build=build, target_symbols=[], source_mappings=[], weak_references=[])
+        return BuildResult(
+            build=build, target_symbols=[], generated_mappings=[], weak_references=[]
+        )
 
     def get_target(self, symbol: InterpSymbol) -> Optional[InterpSymbol]:
         # :SymbolDefinitionReference
@@ -407,28 +408,13 @@ async def build(build: Build, instruct_model: Model, tracker: BuildTracker = Non
     return best_result
 
 
-async def evaluate_candidate(
-    candidate: BuildCandidate, result: BuildResult, eval_model: Model
-) -> EvaluationResult:
+async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
     """Evaluates the generated task implementations of a build candidate."""
     task_instances = [
         # :SymbolDefinitionReference
         instantiate(task.definition, build=result.build, buildmap=result.get_target)
         for task in candidate.root_tasks
     ]
-    # TODO @UX: dynamically adjust/configure eval n_samples
-    evaluation_plans = await asyncio.gather(
-        *(
-            plan_evaluate_task(
-                task=task,
-                eval_model=eval_model,
-                build=result.build,
-                build_candidate=candidate,
-                n_samples=4,
-            )
-            for task in task_instances
-        )
-    )
     tasks_evaluations = await asyncio.gather(
         *(
             evaluate_task(task=task, plan=plan)

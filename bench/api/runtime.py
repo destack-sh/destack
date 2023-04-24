@@ -207,7 +207,7 @@ class RunInput:
     timeout_seconds: Optional[int] = None
 
 
-ModuleRunErrorType = gql.enum(messages.ModuleRunErrorType)
+ModuleRunErrorType = gql.enum(messages.RunErrorType)
 
 
 @gql.type

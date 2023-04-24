@@ -17,7 +17,7 @@ import NotificationPopover from "@/components/notifications/NotificationPopover.
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
-import ViewTuning from "@/components/panels/ViewTuning.vue";
+import ViewInstruction from "@/components/panels/ViewInstruction.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
 import SharePopover from "@/components/SharePopover.vue";
@@ -90,7 +90,7 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
   { id: "history", label: "History", icon: ClockIcon, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "tuning", label: "Tuning", icon: AdjustmentsHorizontalIcon, enabled: true },
+  { id: "instruction", label: "Instruction", icon: AdjustmentsHorizontalIcon, enabled: true },
   { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
   { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
 ]);
@@ -132,10 +132,10 @@ const openIssues = provideAction({
   apply: () => toggleActiveView("issues", false),
 });
 provideAction({
-  id: "editor.view.openTuning",
-  label: "View Tuning",
+  id: "editor.view.openInstruction",
+  label: "View Instruction",
   shortcuts: ["alt+4"],
-  apply: () => toggleActiveView("tuning", false),
+  apply: () => toggleActiveView("instruction", false),
 });
 
 // other buttons for sidebar
@@ -714,11 +714,11 @@ onBeforeUnmount(() => {
             @blur="editor.blurView('issues')"
             :focused="editor.focusedViewId == 'issues'"
           />
-          <ViewTuning
-            v-show="activeView.id == 'tuning'"
-            @show="editor.focusView('tuning')"
-            @blur="editor.blurView('tuning')"
-            :focused="editor.focusedViewId == 'tuning'"
+          <ViewInstruction
+            v-show="activeView.id == 'instruction'"
+            @show="editor.focusView('instruction')"
+            @blur="editor.blurView('instruction')"
+            :focused="editor.focusedViewId == 'instruction'"
             :version="version"
           />
           <!-- Unknown view -->
@@ -727,7 +727,7 @@ onBeforeUnmount(() => {
               activeView.id != 'explorer' &&
               activeView.id != 'history' &&
               activeView.id != 'issues' &&
-              activeView.id != 'tuning'
+              activeView.id != 'instruction'
             "
             class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center"
           >

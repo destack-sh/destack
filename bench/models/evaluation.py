@@ -17,19 +17,8 @@ class EvaluationPlan(UUIDModel):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    system = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="evaluation_plans"
-    )
     eval_model = models.ForeignKey(
         "Statement", on_delete=models.SET_NULL, related_name="+", null=True
-    )
-    build = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+", null=True)
-    build_candidate = models.ForeignKey(
-        "BuildCandidate",
-        null=True,
-        blank=True,
-        on_delete=models.CASCADE,
-        related_name="executions+",
     )
     datasets = models.ManyToManyField("Statement", related_name="+")
 

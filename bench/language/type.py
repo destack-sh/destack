@@ -473,6 +473,35 @@ LiteralValue = Union[
 PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
 
 
+class GeneratedMappingType(enum.StrEnum):
+    STATEMENT = "statement"
+    RECORD = "record"
+    XBLOCK = "xblock"
+    TYPE_NODE = "type_node"
+
+
+@dataclass(repr=False)
+class GeneratedMapping:
+    """A mapping between a source and a generated target symbol."""
+
+    type: GeneratedMappingType
+    source_id: UUID
+    source_revision: int
+    target_id: Optional[UUID]
+    target_revision: Optional[int]
+
+    def __str__(self):
+        return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
+
+    def __repr__(self):
+        return f"<GeneratedMapping {self}>"
+
+
+@dataclass(repr=False)
+class GeneratorContent:
+    generated_mappings: list[GeneratedMapping] = field(default_factory=list)
+
+
 @dataclass
 class TypeNode(SymbolContent):
     id: UUID = field(default_factory=uuid.uuid4)
@@ -607,8 +636,8 @@ class Capability(InterpSymbol, CapabilityContent):
 
 
 @dataclass(repr=False)
-class TaskContent(SymbolContent):
-    type_node: TypeNode
+class TaskContent(SymbolContent, GeneratorContent):
+    type_node: TypeNode = required_field()
     description: str = ""
 
 
@@ -750,12 +779,12 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
 
 
 @dataclass(repr=False)
-class CodeContent(SymbolContent):
-    description: Optional[str]
-    language: Literal["python"] | Literal["x"]
-    code: Optional[str]
-    xblocks: Optional[list[XBlockContent]]
-    type_node: TypeNode
+class CodeContent(SymbolContent, GeneratorContent):
+    type_node: TypeNode = required_field()
+    description: Optional[str] = None
+    language: Literal["python"] | Literal["x"] = "python"
+    code: Optional[str] = None
+    xblocks: Optional[list[XBlockContent]] = field(default_factory=list)
 
     def __str__(self):
         return f"code={len(self.code)}"
@@ -810,23 +839,19 @@ class BuildSettings:
 
 
 @dataclass(repr=False)
-class BuildContent(SymbolContent):
-    settings: BuildSettings
+class BuildContent(SymbolContent, GeneratorContent):
+    settings: BuildSettings = required_field()
     # TODO @Cleanup: build evaluate settings should be Build.evaluation :BuildEvaluationSettings
     #  But we don't have evaluate as a separate statement in the editor right now.
-    evaluate_settings: EvaluateSettings
+    evaluate_settings: EvaluateSettings = required_field()
     comment: Optional[str] = None  # like description but non-semantic
-    # Note @Architecture: BuildContent includes source_mappings, which are outputs of the build,
-    #  because we consider generation part of the language. Specifically, build mappings are
-    #  required to instantiate/run symbols in the build (e.g. task -> code).
-    source_mappings: list["GeneratedMapping"] = field(default_factory=list)
 
     @property
     def targets(self) -> set[UUID]:
-        return {mapping.target_id for mapping in self.source_mappings if mapping.target_id}
+        return {mapping.target_id for mapping in self.generated_mappings if mapping.target_id}
 
     def get_target(self, source_id: UUID) -> Optional[UUID]:
-        for mapping in self.source_mappings:
+        for mapping in self.generated_mappings:
             if mapping.source_id == source_id:
                 return mapping.target_id
         return None
@@ -837,6 +862,7 @@ class BuildContent(SymbolContent):
 
 @dataclass(repr=False)
 class Build(InterpSymbol, BuildContent):
+    generated_mappings: list[GeneratedMapping] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
 
@@ -868,30 +894,6 @@ class BlockContent(SymbolContent):
 @dataclass(repr=False)
 class Block(InterpSymbol, BlockContent):
     contents: list[InterpSymbol] = field(default_factory=list)
-
-
-class GeneratedMappingType(enum.StrEnum):
-    STATEMENT = "statement"
-    RECORD = "record"
-    XBLOCK = "xblock"
-    TYPE_NODE = "type_node"
-
-
-@dataclass(repr=False)
-class GeneratedMapping:
-    """A mapping between a source and a generated target symbol."""
-
-    type: GeneratedMappingType
-    source_id: UUID
-    source_revision: int
-    target_id: Optional[UUID]
-    target_revision: Optional[int]
-
-    def __str__(self):
-        return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
-
-    def __repr__(self):
-        return f"<GeneratedMapping {self}>"
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {

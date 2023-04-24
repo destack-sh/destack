@@ -389,17 +389,14 @@ class EvaluationScope(enum.StrEnum):
 class EvaluationPlan:
     system: Task
     eval_model: Model
-    build: Build
-    build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
     datasets: list[Dataset] = field(default_factory=list)
     id: UUID = field(init=False)
 
     def __post_init__(self):
-        environment_id = self.build_candidate.id if self.build_candidate else self.build.id
-        self.id = uuid5(environment_id, f"evaluation_plan:{self.system_id}")
+        self.id = uuid5(self.system_id, f"evaluation_plan:{self.system_id}")
 
     def __str__(self):
-        return f"{self.build} on {self.system}"
+        return f"evals for {self.system}"
 
     def __repr__(self):
         return f"<EvaluationPlan {str(self)}>"

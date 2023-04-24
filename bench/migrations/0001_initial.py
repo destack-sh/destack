@@ -21,7 +21,6 @@ import bench.utils.uuidt
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -465,7 +464,7 @@ class Migration(migrations.Migration):
                     "target",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name="source_mappings",
+                        related_name="generated_mappings",
                         to="bench.statement",
                     ),
                 ),
