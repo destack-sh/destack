@@ -2,22 +2,30 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from itertools import chain
-from typing import Callable, ClassVar, Optional, cast
+from typing import Callable, ClassVar, Optional
 from uuid import UUID
 
+from more_itertools import first
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.type import Build, BuildSettings, EvaluateSettings, InterpSymbol, TypeTag
+from bench.language.type import (
+    Build,
+    BuildSettings,
+    EvaluateSettings,
+    InterpSymbol,
+    TypeTag,
+    GeneratedMapping,
+    GeneratedMappingType,
+)
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.job import PENDING_JOB_STATUSES, JobStatus, JobType
-from bench.models.mapper import read_module, write_module
+from bench.models.mapper import read_module, write_module, write_statements
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -49,7 +57,7 @@ from bench.runtime.build import (
     get_build_files_for,
     get_builds_for,
 )
-from bench.runtime.evaluate import lint
+from bench.runtime.evaluate import lint, plan_evaluate_task
 from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
@@ -58,8 +66,8 @@ from bench.runtime.interp import (
     get_requirements,
     interp_module,
 )
-from bench.runtime.map import map_to_file
-from bench.runtime.reactivity import RevisionMap, get_stale_symbols
+from bench.runtime.map import map_to_file, map_to_statement
+from bench.runtime.reactivity import RevisionMap, get_stale_symbols, tracked_tree_from_symbol
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
@@ -75,8 +83,9 @@ from bench.runtime.type import (
     JobData,
 )
 from bench.utils.cache import redis
+from bench.utils.fractional import INTEGER_MINUS_ONE
 from bench.utils.func import debounce, wrap_task
-from bench.utils.utils import get_from_env, sentry_capture_if_enabled
+from bench.utils.utils import get_from_env, sentry_capture_if_enabled, required_field
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -440,8 +449,9 @@ class LintJob(Job):
 @dataclass(repr=False, slots=True)
 class GenerateJob(Job):
     type: ClassVar[JobType] = JobType.GENERATE
-    success: bool = False
+    revmap: RevisionMap = required_field()
     generator: Optional[InterpSymbol] = None
+    success: bool = False
 
 
 @dataclass(repr=False, slots=True)
@@ -594,7 +604,7 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
-    async def write_immediate(
+    async def write_files_immediate(
         self,
         files: list[wire.FileData],
         overwrite: bool,
@@ -606,6 +616,22 @@ class LanguageWorker:
             files=files,
             overwrite=overwrite,
             delete_files=delete_files,
+            generated_mappings=generated_mappings,
+        )
+        # TODO @Performance: apply module writes locally immediately :ImmediateModuleWrites
+        module = await sync_to_async(read_module)(self.project_version, exclude_non_semantic=True)
+        self.on_module_changed(module)
+
+    async def write_statements_immediate(
+        self,
+        statements: list[wire.StatementData],
+        overwrite: bool,
+        generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
+    ) -> None:
+        await sync_to_async(write_statements)(
+            project_v=self.project_version,
+            statements=statements,
+            overwrite=overwrite,
             generated_mappings=generated_mappings,
         )
         # TODO @Performance: apply module writes locally immediately :ImmediateModuleWrites
@@ -644,10 +670,13 @@ class LanguageWorker:
         # default generate job for unbound/misc generation tasks
         self.queue_generate(generator=None, cancel_running=True)
         if not self.interp.has_user_errors:
+            # all reactive stale builds and first timers (that weren't generated yet)
             stale_tasks = [
-                symbol for symbol in self.stale_symbols if isinstance(symbol, language.Task)
+                task
+                for task in self.idx.symbols_of_type(language.Task)
+                if (task in self.stale_symbols or task.generated_mappings == [])
+                and not task.is_generated
             ]
-
             for task in stale_tasks:
                 self.queue_generate(generator=task, cancel_running=True)
 
@@ -662,20 +691,13 @@ class LanguageWorker:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.has_user_errors:
-            # all stale builds
+            # all reactive stale builds and first timers (that weren't built yet)
             stale_builds = [
-                symbol
-                for symbol in self.stale_symbols
-                if isinstance(symbol, language.Build) and symbol.settings.reactive
+                b
+                for b in self.idx.symbols_of_type(language.Build)
+                if b.settings.reactive and (b in self.stale_symbols or b.generated_mappings == [])
             ]
-            # first-timers (builds without generator dependencies)
-            first_timers = [
-                build
-                for build in self.interp.module_idx.symbols_of_type(language.Build)
-                if build.settings.reactive
-                and len(cast(language.Build, build).generated_mappings) == 0
-            ]
-            for b in chain(stale_builds, first_timers):
+            for b in stale_builds:
                 self.queue_build(BuildScope.SELECTED, b.id, cancel_running=True)
 
     def queue_lint(self, cancel_running: bool) -> LintJob:
@@ -699,6 +721,7 @@ class LanguageWorker:
         self, generator: Optional[InterpSymbol], cancel_running: bool
     ) -> GenerateJob:
         job = GenerateJob(
+            revmap=self.revmap,
             project_id=self.project_id,
             project_version_id=self.module_id,
             worker_id=self.worker_id,
@@ -712,23 +735,66 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
-    async def do_generate(self, generator: Optional[InterpSymbol]) -> bool:
+    async def do_generate(self, generator: Optional[InterpSymbol], revmap: RevisionMap) -> bool:
         if generator is None:
-            # special case: create default builds if they don't exist yet
-            #  :AutobuildTasks
-            autobuild_file, created = get_or_create_file(self.interp.module_idx, ".instructors")
-            if created:
-                # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
-                default_builds = get_default_builds(self.interp)
-                autobuild_file = map_to_file(default_builds, [], autobuild_file)
-                await self.write_immediate(files=[wire.rmap_file(autobuild_file)], overwrite=False)
-            # could also diff and update here later on
-            return True
+            await self._do_generate_autobuilds()
         elif isinstance(generator, language.Task):
-            # run evaluation plan generator
-            pass  # nocheckin
+            await self._do_generate_task_evaluation(generator, revmap)
         else:
             raise NotImplementedError(f"unexpected generator type: {generator}")
+        return True
+
+    async def _do_generate_autobuilds(self) -> bool:
+        # special case: create default builds if they don't exist yet
+        #  :AutobuildTasks
+        autobuild_file, created = get_or_create_file(self.interp.module_idx, ".instruct")
+        if created:
+            # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
+            default_builds = get_default_builds(self.interp)
+            autobuild_file = map_to_file(default_builds, [], autobuild_file)
+            await self.write_files_immediate(
+                files=[wire.rmap_file(autobuild_file)], overwrite=False
+            )
+        # could also diff and update here later on
+
+    async def _do_generate_task_evaluation(self, task: language.Task, revmap: RevisionMap):
+        # run evaluation plan generator
+        instruct_model = self.interp.symbol("openai.std.text.gpt-3-5-turbo")
+        # TODO @UX: configure n_samples properly
+        plan = await plan_evaluate_task(task=task, n_samples=2, eval_model=instruct_model)
+
+        # upsert generated dataset, generated mappings and evaluation plan
+        gen_dataset = plan.datasets[0]
+        existing_gen_dataset = first(task.generated_expectations, None)
+        if existing_gen_dataset is not None:
+            gen_dataset.id = existing_gen_dataset.id
+            order_key = existing_gen_dataset.order_key
+        else:
+            order_key = INTEGER_MINUS_ONE
+
+        # map all task dependencies into generated mapping
+        task_tree = tracked_tree_from_symbol(task)
+        task_dependencies: list[GeneratedMapping] = []
+        for node in task_tree:
+            dependency = GeneratedMapping(
+                type=GeneratedMappingType(node.type.value),
+                source_id=node.id,
+                source_revision=revmap[node.id],
+                target_id=None,
+                target_revision=None,
+            )
+            task_dependencies.append(dependency)
+
+        gen_dataset_statement = map_to_statement(task.source.file, gen_dataset, order_key)
+        gen_dataset_statement.parent = task
+        gen_dataset_statement.modifier = language.StatementModifier.LIKE
+        await self.write_statements_immediate(
+            [wire.rmap_statement(gen_dataset_statement)],
+            overwrite=True,
+            generated_mappings=[(task.id, task_dependencies)],
+        )
+
+        raise NotImplementedError  # nocheckin: also write evaluation plan
 
     def queue_build(
         self, scope: BuildScope, buildable_id: UUID, cancel_running: bool
@@ -797,7 +863,7 @@ class LanguageWorker:
             generated_mappings.append((build_result.build.id, mappings))
 
         #  :ImmediateModuleWrites
-        await self.write_immediate(
+        await self.write_files_immediate(
             files=generated_files,
             generated_mappings=generated_mappings,
             delete_files=previous_builds_files,
@@ -832,7 +898,7 @@ class LanguageWorker:
                     job.task = create_task(self.do_lint(job.id))
                     job.evaluation = await job.task
                 elif isinstance(job, GenerateJob):
-                    job.task = create_task(self.do_generate(job.generator))
+                    job.task = create_task(self.do_generate(job.generator, job.revmap))
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
                     job.task = create_task(self.do_build(job.revmap, job.builds, job.id))

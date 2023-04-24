@@ -400,11 +400,11 @@ class SampleGenerateWithModel(SampleSource):
                 instantiate(implementation), {"count": self.count}, is_trusted=True
             )
         target_dataset = anonymous_dataset(self.type, len(generated_samples))
-        if len(generated_samples) != self.count:
+        if len(generated_samples) < self.count:
             raise RuntimeError(
                 f"expected {self.count} samples, got {len(generated_samples)} samples"
             )
-        for i, sample in enumerate(generated_samples):
+        for i, sample in enumerate(generated_samples[: self.count]):
             target_dataset.records[i].data = sample
         return target_dataset
 

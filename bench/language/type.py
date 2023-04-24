@@ -647,6 +647,10 @@ class Task(InterpSymbol, TaskContent):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
 
+    @property
+    def generated_expectations(self) -> list[Expectation]:
+        return [e for e in self.expectations if e.is_generated]
+
 
 @dataclass(repr=False)
 class ExpectationContent(SymbolContent):

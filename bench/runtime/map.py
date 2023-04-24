@@ -56,7 +56,7 @@ def map_to_file(
 
     # render symbols themselves
     for order_key, symbol in zip(order_keys, symbols):
-        statement = _map_statement(file, symbol, order_key)
+        statement = map_to_statement(file, symbol, order_key)
         children = _map_statement_children(symbol, statement)
         file.statements.append(statement)
         file.statements.extend(children)
@@ -64,7 +64,7 @@ def map_to_file(
     return file
 
 
-def _map_statement(file: File, symbol: InterpSymbol, order_key: str) -> Statement:
+def map_to_statement(file: File, symbol: InterpSymbol, order_key: str) -> Statement:
     """Map a single symbol to a statement."""
     if isinstance(symbol, Dataset):
         content = map_dataset_content(symbol)
