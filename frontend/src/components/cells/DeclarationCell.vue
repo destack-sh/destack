@@ -134,5 +134,8 @@ defineExpose({
       v-if="localErrors != null && localErrors.length > 0"
       class="absolute bottom-0 left-0 h-0.5 w-full bg-red-600"
     />
+    <!-- TODO @UX: come up with better generated indicator -->
+    <!-- Blue underline if statement was generated -->
+    <div v-if="context.statement.value.generated" class="absolute bottom-0 left-0 h-0.5 w-full bg-sky-300" />
   </div>
 </template>

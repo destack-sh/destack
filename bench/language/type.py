@@ -651,6 +651,10 @@ class Task(InterpSymbol, TaskContent):
     def generated_expectations(self) -> list[Expectation]:
         return [e for e in self.expectations if e.is_generated]
 
+    @property
+    def is_minimally_specified(self):
+        return self.name and self.type.input.children and self.type.output.children
+
 
 @dataclass(repr=False)
 class ExpectationContent(SymbolContent):

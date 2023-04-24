@@ -10,7 +10,8 @@ import { computed } from "vue";
 const props = defineProps<{ version: ProjectVersion; focused: boolean }>();
 
 const interp = useCurrentInterpModule();
-const autobuildFile = computed(() => interp.module.value?.files.find((f) => f.path == "__autobuild__"));
+// sync the file name!  :AutobuildTasks
+const autobuildFile = computed(() => interp.module.value?.files.find((f) => f.path == "instructors"));
 const { result: autobuildFileResult } = useQuery(
   graphql(/* GraphQL */ `
     query autobuildFileContentById($fileId: GlobalID!) {
