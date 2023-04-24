@@ -29,7 +29,7 @@ from bench.language.type import (
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
 from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
-from bench.runtime.type import EvaluationPlan, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -740,18 +740,6 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         trigger_type=frame.trigger_type,
         user_id=user_id,
         access_token_id=access_token_id,
-    )
-
-
-def rmap_evaluation_plan(plan: EvaluationPlan) -> models.EvaluationPlan:
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return models.EvaluationPlan(
-        id=plan.id,
-        created_at=now,
-        updated_at=now,
-        system_id=plan.system.id,
-        eval_model_id=plan.eval_model.id,
-        # datasets are not and cannot be mapped here because it's a m2m
     )
 
 

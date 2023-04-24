@@ -48,7 +48,13 @@ from bench.runtime.map import map_to_file
 from bench.runtime.model import TextGenerationSettings
 from bench.runtime.reactivity import RawMapping, TrackedNodeType, TrackedTree, track_interp_symbol
 from bench.runtime.run import instantiate
-from bench.runtime.type import BuildCandidateStatus, EvaluationKind, EvaluationScope, Modality
+from bench.runtime.type import (
+    BuildCandidateStatus,
+    EvaluationKind,
+    EvaluationScope,
+    Modality,
+    EvaluationPlan,
+)
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 from bench.utils.fractional import generate_key_between, generate_n_keys_between
 from bench.utils.random import get_random_veggie_name
@@ -338,7 +344,12 @@ class BuildTracker:
         pass
 
 
-async def build(build: Build, instruct_model: Model, tracker: BuildTracker = None) -> BuildResult:
+async def build(
+    build: Build,
+    instruct_model: Model,
+    evals: dict[UUID, EvaluationPlan],
+    tracker: BuildTracker = None,
+) -> BuildResult:
     tracker = tracker or BuildTracker()
     log = logger.bind(build=build)
     log.info("build.start")
@@ -387,7 +398,7 @@ async def build(build: Build, instruct_model: Model, tracker: BuildTracker = Non
         # evaluate, rank and update best
         build_results = [candidate.state.to_result() for candidate in candidates]
         evals = [
-            evaluate_candidate(candidate=c, result=r, eval_model=instruct_model)
+            evaluate_candidate(candidate=c, result=r, evals=evals)
             for c, r in zip(candidates, build_results)
         ]
         evaluations = await asyncio.gather(*evals)
@@ -408,7 +419,9 @@ async def build(build: Build, instruct_model: Model, tracker: BuildTracker = Non
     return best_result
 
 
-async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> EvaluationResult:
+async def evaluate_candidate(
+    candidate: BuildCandidate, result: BuildResult, evals: dict[UUID, EvaluationPlan]
+) -> EvaluationResult:
     """Evaluates the generated task implementations of a build candidate."""
     task_instances = [
         # :SymbolDefinitionReference
@@ -417,8 +430,10 @@ async def evaluate_candidate(candidate: BuildCandidate, result: BuildResult) -> 
     ]
     tasks_evaluations = await asyncio.gather(
         *(
-            evaluate_task(task=task, plan=plan)
-            for task, plan in zip(task_instances, evaluation_plans)  # nocheckin
+            evaluate_task(
+                task=task, eval=evals[task.id], build=candidate.build, build_candidate=candidate
+            )
+            for task in task_instances
         )
     )
     return EvaluationResult(

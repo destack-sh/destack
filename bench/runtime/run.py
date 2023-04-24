@@ -449,7 +449,7 @@ def instantiate(
     buildmap: Optional[BuildMap] = None,
     refmap: dict[UUID, SymbolInstance] = None,
     proxy: Proxy | None = None,
-) -> SymbolInstance:
+) -> InterpSymbol:
     """Instantiate a symbol in a build with all relevant context recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")

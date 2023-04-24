@@ -209,7 +209,7 @@ async def plan_evaluate_task(
 
 async def evaluate_task(
     task: TaskInstance,
-    plan: EvaluationPlan,
+    eval: EvaluationPlan,
     build: Build,
     build_candidate: Optional[Any] = None,
 ) -> EvaluationResult:
@@ -219,7 +219,7 @@ async def evaluate_task(
 
     # generate samples to test
     all_samples: list[Record] = list(
-        chain.from_iterable(dataset.records for dataset in plan.datasets)
+        chain.from_iterable(dataset.records for dataset in eval.datasets)
     )
     output_keys = task.type.output.keys
 
@@ -258,7 +258,7 @@ async def evaluate_task(
             output_type=task.type.output,
             output=output.data,
             instructions=evalable_instructions,
-            eval_model=plan.eval_model,
+            eval_model=eval.eval_model,
             build=build,
             build_candidate=build_candidate,
         )
@@ -299,9 +299,9 @@ async def evaluate_task(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.INSTRUCTION,
         system=task,
-        build=plan.build,
-        build_candidate=plan.build_candidate,
-        plan=plan,
+        build=eval.build,
+        build_candidate=eval.build_candidate,
+        plan=eval,
         self_metrics=self_evaluation.aggregated_metrics,
         aggregated_metrics=metrics,
         children=[e for e in instruction_evaluations if e.system.id != task.id],
