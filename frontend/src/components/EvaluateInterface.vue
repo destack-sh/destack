@@ -2,7 +2,7 @@
 import type { SymbolType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { EDITOR_INTERFACE_STATE, type EditorInterfaceState } from "@/state/editor";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf, useCurrentInterpModule } from "@/state/runtime";
 import { computed, inject } from "vue";
 
 const props = defineProps<{ symbolId: string; symbolType: SymbolType; focused: boolean }>();
@@ -12,6 +12,8 @@ const state = inject<EditorInterfaceState>(EDITOR_INTERFACE_STATE);
 if (state == null) {
   throw new Error("need interface state context");
 }
+
+const interp = useCurrentInterpModule();
 
 const appearance = useAppearance();
 </script>
