@@ -521,7 +521,7 @@ rich==13.3.4
     #   strawberry-graphql
 ruff==0.0.261
     # via -r requirements-dev.in
-sentry-sdk[django]==1.16.0
+sentry-sdk[django]==1.18.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
