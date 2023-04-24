@@ -296,7 +296,7 @@ export function useStatementContext() {
     file,
     reference,
     depth: computed(() => context.value.depth),
-    readonly: computed(() => context.value.readonly),
+    readonly: computed(() => context.value.readonly || statement.value.generated),
     focused: computed(() => context.value.focused),
     editing: computed(() => context.value.editing),
     xOffset: computed(() => context.value.xOffset),

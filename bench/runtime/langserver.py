@@ -6,10 +6,10 @@ from itertools import chain
 from typing import Callable, ClassVar, Optional
 from uuid import UUID
 
-from more_itertools import first
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
+from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
@@ -17,10 +17,10 @@ from bench.language.type import (
     Build,
     BuildSettings,
     EvaluateSettings,
-    InterpSymbol,
-    TypeTag,
     GeneratedMapping,
     GeneratedMappingType,
+    InterpSymbol,
+    TypeTag,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
@@ -78,15 +78,16 @@ from bench.runtime.tracing import (
 from bench.runtime.type import (
     BuildScope,
     EvaluationMetric,
+    EvaluationPlan,
     EvaluationResult,
     EvaluationResultData,
     ExecutionFrameData,
-    JobData, EvaluationPlan,
+    JobData,
 )
 from bench.utils.cache import redis
 from bench.utils.fractional import INTEGER_MINUS_ONE
 from bench.utils.func import debounce, wrap_task
-from bench.utils.utils import get_from_env, sentry_capture_if_enabled, required_field
+from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -374,7 +375,11 @@ class Job:
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
 
     def __str__(self):
-        return f"{self.type} {self.id} ({self.status})"
+        return f"{self.type} {self.id} ({self._content_str}, {self.status})"
+
+    @property
+    def _content_str(self):
+        return "<blank>"
 
     def __repr__(self):
         return f"<Job {self}>"
@@ -454,6 +459,10 @@ class GenerateJob(Job):
     generator: Optional[InterpSymbol] = None
     success: bool = False
 
+    @property
+    def _content_str(self):
+        return f"{self.generator}" if self.generator else "<blank>"
+
 
 @dataclass(repr=False, slots=True)
 class BuildJob(Job):
@@ -461,13 +470,17 @@ class BuildJob(Job):
     scope: BuildScope = None
     buildable_id: UUID = None
     builds: list[Build] = None
-    evals: dict[UUID, EvaluationPlan]= None
+    evals: dict[UUID, EvaluationPlan] = None
     revmap: RevisionMap = None
     build_results: list[BuildResult] = None
 
     @property
     def success(self) -> bool:
         return self.build_results is not None
+
+    @property
+    def _content_str(self):
+        return ", ".join(str(b) for b in self.builds) if self.builds else "<blank>"
 
 
 @dataclass(repr=False, slots=True)
@@ -480,6 +493,10 @@ class EvaluateJob(Job):
     @property
     def success(self) -> bool:
         return self.evaluation_result is not None
+
+    @property
+    def _content_str(self):
+        return f"{self.evalable_id}" if self.evalable_id else "<blank>"
 
 
 def get_default_builds(interp):
@@ -682,6 +699,7 @@ class LanguageWorker:
                 for task in self.idx.symbols_of_type(language.Task)
                 if (task in self.stale_symbols or task.generated_mappings == [])
                 and not task.is_generated
+                and task.is_minimally_specified
             ]
             for task in stale_tasks:
                 self.queue_generate(generator=task, cancel_running=True)
@@ -752,8 +770,8 @@ class LanguageWorker:
 
     async def _do_generate_autobuilds(self) -> bool:
         # special case: create default builds if they don't exist yet
-        #  :AutobuildTasks
-        autobuild_file, created = get_or_create_file(self.interp.module_idx, ".instruct")
+        # sync the file name!  :AutobuildTasks
+        autobuild_file, created = get_or_create_file(self.interp.module_idx, "instructors")
         if created:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
             default_builds = get_default_builds(self.interp)
@@ -826,11 +844,25 @@ class LanguageWorker:
             builds = [buildable]
         else:
             return BuildErrorType.INVALID_BUILDABLE
-        
+
         tasks = list(chain.from_iterable(b.tasks for b in builds))
-        # assemble evaluation plans by task
-        for task in tasks:
-            pass
+        # assemble evaluation plans by task from DB
+
+        model_tasks_dataset_ids = models.Statement.objects.filter(
+            id__in=[t.id for t in tasks]
+        ).values_list("evaluation_plan__datasets__id")
+        evals: dict[UUID, EvaluationPlan] = {}
+        for task, dataset_ids in zip(tasks, model_tasks_dataset_ids):
+            if not dataset_ids:
+                logger.warning(
+                    "missing_evaluation_plan", buildable_id=buildable_id, task_id=task.id
+                )
+                return BuildErrorType.NOT_READY
+            evals[task.id] = EvaluationPlan(
+                system=task,
+                eval_model=self.instruct_model,
+                datasets=[self.idx.symbols[id] for id in dataset_ids],
+            )
 
         job = BuildJob(
             revmap=self.revmap,
@@ -851,15 +883,20 @@ class LanguageWorker:
         return job
 
     async def do_build(
-        self, revmap: RevisionMap, builds: list[language.Build], evals: list[EvaluationPlan], job_id: UUID
+        self,
+        revmap: RevisionMap,
+        builds: list[language.Build],
+        evals: dict[UUID, EvaluationPlan],
+        job_id: UUID,
     ) -> list[BuildResult]:
-        # instruct model should be configurable maybe? but we'll likely use our own
+        if not builds:
+            return []
         build_processes = [
             wrap_task(
-                build(b, self.instruct_model, eval, DbBuildTracker(self, job_id)),
+                build(b, self.instruct_model, evals, DbBuildTracker(self, job_id)),
                 f"build_{b.id}",
             )
-            for b, eval in zip(builds, evals)
+            for b in builds
         ]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
         previous_builds_files: set[UUID] = set()
@@ -915,7 +952,7 @@ class LanguageWorker:
                     job.task = create_task(self.do_generate(job.generator, job.revmap))
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
-                    job.task = create_task(self.do_build(job.revmap, job.builds∂, job.id))
+                    job.task = create_task(self.do_build(job.revmap, job.builds, job.evals, job.id))
                     job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
