@@ -145,7 +145,7 @@ function copyApiUrlToClipboard() {
           <h2 class="font-bold text-gray-900">Manage deployment</h2>
           <p class="pt-2 text-gray-900">Deployments own the resources to run a Bench version.</p>
           <p v-if="!committed" class="text-gray-900">
-            The current version is always deployed (tagged
+            The latest version is always deployed (tagged
             <span class="rounded-sm bg-gray-200 px-0.5 font-mono">x</span>).
           </p>
           <p class="pt-0 text-gray-900">

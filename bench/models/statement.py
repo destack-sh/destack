@@ -218,7 +218,7 @@ class StatementManager(models.Manager["Statement"]):
                         new_type_nodes[old_id] = type_node
                         _refmap(RefType.TYPE_NODE, old_id, old_revision, type_node)
 
-                # copy records
+                # copy records (obviously very inefficient)
                 if statement.symbol_type == SymbolType.DATA:
                     for record in statement.records.all():
                         old_id = record.id
@@ -256,8 +256,9 @@ class StatementManager(models.Manager["Statement"]):
                             mapping.target_revision = 0
                             new_gen_mappings.append(mapping)
                     build_settings = statement.build_settings
-                    build_settings.pk = None
-                    build_settings.statement_id = target_statement_ids[statement.id]
+                    build_settings.id = uuid4()
+                    build_settings._state.adding = True
+                    statement.build_settings_id = build_settings.id  # update manually
                     new_build_settings.append(build_settings)
 
                 if (
@@ -265,8 +266,9 @@ class StatementManager(models.Manager["Statement"]):
                     or statement.symbol_type == SymbolType.BUILD  # :BuildEvaluationSettings
                 ):
                     evaluate_settings = statement.evaluate_settings
-                    evaluate_settings.pk = None
-                    evaluate_settings.statement_id = target_statement_ids[statement.id]
+                    evaluate_settings.id = uuid4()
+                    evaluate_settings._state.adding = True
+                    statement.evaluate_settings_id = evaluate_settings.id  # update manually
                     new_evaluate_settings.append(evaluate_settings)
 
             # copy statement
@@ -288,12 +290,16 @@ class StatementManager(models.Manager["Statement"]):
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
             return statement
 
-        # walk statements BFS, starting at roots that are _within_ selection (may not be actual roots)
-        for old_statements_batch in walk_children_bfs_batched(list(statements), "parent_id"):
-            new_statements_batch = []
-            for old_statement in old_statements_batch:
-                new_statement = _copy_statement(old_statement)
-                new_statements_batch.append(new_statement)
+        # copy statements
+        for statement in statements:
+            _copy_statement(statement)
+
+        # create referenced statements relations (FKs in statements)
+        BuildSettings.objects.bulk_create(new_build_settings)
+        EvaluateSettings.objects.bulk_create(new_evaluate_settings)
+
+        # create statements BFS, starting at roots that are _within_ selection (may not be actual roots)
+        for new_statements_batch in walk_children_bfs_batched(list(statements), "parent_id"):
             Statement.objects.bulk_create(new_statements_batch)
 
         # re-assign references (can't be part of bfs walk)
@@ -307,13 +313,11 @@ class StatementManager(models.Manager["Statement"]):
             new.reference_id = target_statement_ids.get(old.reference_id, old.reference_id)
         Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
 
-        # save statement's relations
+        # create referencing statement's relations (FKs to statements)
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
         DatasetRecord.objects.bulk_create(new_records.values())
         XBlock.objects.bulk_create(new_xblocks.values())
         GeneratedMapping.objects.bulk_create(new_gen_mappings)
-        BuildSettings.objects.bulk_create(new_build_settings)
-        EvaluateSettings.objects.bulk_create(new_evaluate_settings)
 
         return ref_mappings
 
