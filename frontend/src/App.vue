@@ -5,6 +5,7 @@ import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
+import { useClient } from "@/state/sync";
 import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
 import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
@@ -28,6 +29,9 @@ errorListeners.push(onError);
 onBeforeUnmount(() => {
   errorListeners.splice(errorListeners.indexOf(onError), 1);
 });
+
+// track client info
+const { clientInfo } = useClient();
 
 // always track versioning
 const { systemInfo, outOfDate } = useSystemVersioning();
