@@ -493,7 +493,7 @@ class StatementMutation:
             target_files={s: target_file for s in source_file_ids},
             source_version=source_project_v,
             target_version=target_file.project_version,
-            copy_generated_mappings=False,
+            copy_generate_info=False,
             target_statement_ids={s: t for s, t in zip(source_ids, target_ids)},
             target_parent_ids=target_parent_ids,
             target_order_keys={s: t for s, t in zip(target_ids, input.target_order_keys)},

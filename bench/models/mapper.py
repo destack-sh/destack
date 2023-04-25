@@ -240,7 +240,7 @@ def write_statements(
             id=stmt_data.id,
             project_version=project_v,
             file_id=stmt_data.file_id,
-            parent_id=stmt_data.parent_id if stmt_data.parent_id not in statements_ids else None,
+            parent_id=stmt_data.parent_id if external_parent else None,
             order_key=stmt_data.order_key if external_parent else ok,
             type=stmt_data.type,
             modifier=stmt_data.modifier,

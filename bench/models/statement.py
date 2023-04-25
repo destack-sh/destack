@@ -157,7 +157,7 @@ class StatementManager(models.Manager["Statement"]):
         target_files: dict[UUID, File],
         source_version: ProjectVersion,
         target_version: ProjectVersion,
-        copy_generated_mappings: bool,
+        copy_generate_info: bool,
         target_statement_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
@@ -242,7 +242,7 @@ class StatementManager(models.Manager["Statement"]):
 
                 if statement.symbol_type == SymbolType.BUILD:
                     # copy generated mappings (only Builds can have them right now)
-                    if copy_generated_mappings:
+                    if copy_generate_info:
                         for mapping in statement.generated_mappings.all():
                             mapping.pk = None
                             mapping.statement_id = target_statement_ids[mapping.statement_id]
@@ -283,6 +283,7 @@ class StatementManager(models.Manager["Statement"]):
             statement.order_key = target_order_keys.get(statement.id, statement.order_key)
             statement.deleted_at = None  # restore in copy if it was deleted
             statement.revision = 0  # reset revision
+            statement.generated = statement.generated and copy_generate_info
             statement.file = target_files[statement.file_id]
             statement.project_version = target_version
             statement.reference = None

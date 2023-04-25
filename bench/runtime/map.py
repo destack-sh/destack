@@ -33,7 +33,7 @@ def map_to_file(
     else:
         start_ok = max((s.order_key for s in file.statements if s.parent is None), default=None)
 
-    order_keys = generate_n_keys_between(start_ok, None, len(symbols) + len(weak_references))
+    order_keys = generate_n_keys_between(start_ok, None, len(weak_references) + len(symbols))
 
     # render weak references :WeakReferences
     for order_key, symbol in zip(order_keys, weak_references):
@@ -55,7 +55,7 @@ def map_to_file(
         file.statements.append(statement)
 
     # render symbols themselves
-    for order_key, symbol in zip(order_keys, symbols):
+    for order_key, symbol in zip(order_keys[len(weak_references) :], symbols):
         statement = map_to_statement(file, symbol, order_key)
         children = _map_statement_children(symbol, statement)
         file.statements.append(statement)
