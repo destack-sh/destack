@@ -1,5 +1,7 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, cast
 
+import pytz
 from asgiref.sync import async_to_sync
 from channels.auth import login as channels_login
 from channels.auth import logout as channels_logout
@@ -20,7 +22,7 @@ from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
-    from bench.api.project import Project
+    from bench.api.project import Project, ProjectVersion
     from bench.api.token import AccessToken
 
 
@@ -82,6 +84,20 @@ class User(gql.relay.Node, Owner):
         return self.owner_slug_id
 
 
+ClientType = gql.enum(models.ClientType)
+
+
+@gql.django.type(models.Client)
+class Client(gql.relay.Node):
+    created_at: auto
+    updated_at: auto
+    last_seen_at: auto
+    type: ClientType
+    device_name: auto
+    browser_name: auto
+    project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
+
+
 @gql.input
 class UserCompleteSignupInput(gql.NodeInput):
     username: str
@@ -97,6 +113,14 @@ class UserUpdateInput(gql.NodeInput):
 @gql.input
 class UserRenameInput(gql.NodeInput):
     slug: str
+
+
+@gql.input
+class ClientUpsertInput(gql.NodeInput):
+    type: ClientType
+    device_name: Optional[str]
+    browser_name: Optional[str]
+    project_version_id: Optional[GlobalID]
 
 
 @gql.type
@@ -148,3 +172,50 @@ class UserMutation:
             info.context.request.scope, user, backend="django.contrib.auth.backends.ModelBackend"
         )
         return user
+
+    @safe_mutation
+    def upsert_client(self, info: Info, input: ClientUpsertInput) -> Client | OperationInfo:
+        user = info.context.request.scope["user"]
+        if not user.is_authenticated:
+            raise PermissionDenied("can only upsert client when logged in")
+        client, _ = models.Client.objects.get_or_create(
+            id=input.id.node_id,
+            user=user,
+            defaults={"type": input.type, "device_name": input.device_name},
+        )
+        client.type = input.type
+        client.device_name = input.device_name
+        client.project_version_id = input.project_version_id.node_id
+        client.browser_name = input.browser_name
+        client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.save()
+
+        # set client id in session
+        info.context.request.session["client_id"] = client.id
+
+        return client
+
+    @safe_mutation
+    def close_client(self, info: Info) -> None | OperationInfo:
+        user = info.context.request.scope["user"]
+        if not user.is_authenticated:
+            raise PermissionDenied("can only close client when logged in")
+        client_id = info.context.request.session.get("client_id")
+        if client_id is not None:
+            models.Client.objects.filter(id=client_id).update(
+                closed_at=datetime.utcnow().replace(tzinfo=pytz.utc)
+            )
+        return None
+
+    @safe_mutation
+    def update_presence(self, info: Info) -> None | OperationInfo:
+        user = info.context.request.scope["user"]
+        if not user.is_authenticated:
+            raise PermissionDenied("can only update presence when logged in")
+        client_id = info.context.request.session.get("client_id")
+        if client_id is None:
+            raise PermissionDenied("can only update presence when client_id is set")
+        client = models.Client.objects.get(id=client_id)
+        client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.save()
+        return None

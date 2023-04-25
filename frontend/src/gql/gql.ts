@@ -104,6 +104,12 @@ const documents = {
     types.NewNotificationsDocument,
   "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.MarkNotificationDocument,
+  "\n      mutation upsertClient(\n        $id: GlobalID!\n        $type: ClientType!\n        $deviceName: String\n        $browserName: String\n        $projectVersionId: GlobalID\n      ) {\n        upsertClient(\n          input: {\n            id: $id\n            type: $type\n            deviceName: $deviceName\n            browserName: $browserName\n            projectVersionId: $projectVersionId\n          }\n        ) {\n          ... on Client {\n            id\n            type\n            deviceName\n            browserName\n            projectVersion {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpsertClientDocument,
+  "\n      mutation closeClient {\n        closeClient {\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.CloseClientDocument,
+  "\n      mutation updatePresence {\n        updatePresence {\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdatePresenceDocument,
   "\n      mutation updateDeployment($id: GlobalID!, $status: DeploymentStatus!) {\n        updateDeployment(input: { id: $id, status: $status }) {\n          ... on Deployment {\n            id\n            type\n            status\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateDeploymentDocument,
   "\n      # path is only used for optimistic responses\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n        $path: String!\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n            path: $path\n          }\n        ) {\n          ... on File {\n            id\n            ...FileHeader\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              ...StatementContent\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -492,6 +498,24 @@ export function graphql(
 export function graphql(
   source: "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation upsertClient(\n        $id: GlobalID!\n        $type: ClientType!\n        $deviceName: String\n        $browserName: String\n        $projectVersionId: GlobalID\n      ) {\n        upsertClient(\n          input: {\n            id: $id\n            type: $type\n            deviceName: $deviceName\n            browserName: $browserName\n            projectVersionId: $projectVersionId\n          }\n        ) {\n          ... on Client {\n            id\n            type\n            deviceName\n            browserName\n            projectVersion {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation upsertClient(\n        $id: GlobalID!\n        $type: ClientType!\n        $deviceName: String\n        $browserName: String\n        $projectVersionId: GlobalID\n      ) {\n        upsertClient(\n          input: {\n            id: $id\n            type: $type\n            deviceName: $deviceName\n            browserName: $browserName\n            projectVersionId: $projectVersionId\n          }\n        ) {\n          ... on Client {\n            id\n            type\n            deviceName\n            browserName\n            projectVersion {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation closeClient {\n        closeClient {\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation closeClient {\n        closeClient {\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updatePresence {\n        updatePresence {\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updatePresence {\n        updatePresence {\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

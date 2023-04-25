@@ -1,3 +1,4 @@
+import { useClientOps } from "@/state/operations/client";
 import { useDeploymentOps } from "@/state/operations/deployment";
 import { useFileOps } from "@/state/operations/file";
 import { useOrganizationOps } from "@/state/operations/organization";
@@ -163,6 +164,7 @@ export function _useOperations() {
   const state = useOperationsStore();
   return {
     user: useUserOps(),
+    client: useClientOps(),
     organization: useOrganizationOps(),
     project: useProjectOps(),
     file: useFileOps(),
