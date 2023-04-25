@@ -55,7 +55,9 @@ class ProjectMutation:
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
-
+    record_id: Optional[UUID] = None
+    type_node_id: Optional[UUID] = None
+    xblock_id: Optional[str] = None
     revision: Optional[int] = None
 
 

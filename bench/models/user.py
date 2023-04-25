@@ -4,6 +4,7 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
 from django.utils.translation import gettext_lazy as _
+from django_choices_field import TextChoicesField
 
 from bench.models.organization import (
     Organization,
@@ -99,3 +100,26 @@ class User(AbstractUser, UUIDModel):
 
     class Meta:
         default_manager_name = "objects"
+
+
+class ClientType(models.TextChoices):
+    """The type of device/client."""
+
+    DesktopBrowser = "desktop_browser"
+    MobileBrowser = "mobile_browser"
+
+
+class Client(UUIDModel):
+    """A user's client (e.g. web browser window) connected to the server."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_seen_at = models.DateTimeField(null=True)
+    closed_at = models.DateTimeField(null=True)
+    user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="clients")
+    type = TextChoicesField(choices_enum=ClientType)
+    device_name = models.CharField(max_length=256, null=True, blank=True)
+    browser_name = models.CharField(max_length=256, null=True, blank=True)
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, null=True, blank=True
+    )

@@ -154,6 +154,34 @@ export type BuildState = {
 
 export type BuildStateOperationInfo = BuildState | OperationInfo;
 
+export type Client = Node & {
+  __typename?: "Client";
+  browserName?: Maybe<Scalars["String"]>;
+  createdAt: Scalars["DateTime"];
+  deviceName?: Maybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  lastSeenAt?: Maybe<Scalars["DateTime"]>;
+  projectVersion?: Maybe<ProjectVersion>;
+  type: ClientType;
+  updatedAt: Scalars["DateTime"];
+};
+
+export type ClientOperationInfo = Client | OperationInfo;
+
+/** The type of device/client. */
+export enum ClientType {
+  DesktopBrowser = "DesktopBrowser",
+  MobileBrowser = "MobileBrowser",
+}
+
+export type ClientUpsertInput = {
+  browserName?: InputMaybe<Scalars["String"]>;
+  deviceName?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  type: ClientType;
+};
+
 export type CommitInput = {
   autoDeploy?: Scalars["Boolean"];
   description?: InputMaybe<Scalars["String"]>;
@@ -648,6 +676,7 @@ export type Mutation = {
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
+  closeClient?: Maybe<OperationInfo>;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -686,6 +715,7 @@ export type Mutation = {
   updateDeployment: DeploymentOperationInfo;
   updateOrganization: OrganizationOperationInfo;
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
+  updatePresence?: Maybe<OperationInfo>;
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
@@ -698,6 +728,7 @@ export type Mutation = {
   updateStatementText: StatementOperationInfo;
   updateStatementTypeNode: SimpleTypeNodeOperationInfo;
   updateUser: UserOperationInfo;
+  upsertClient: ClientOperationInfo;
 };
 
 export type MutationAcceptOrganizationInviteArgs = {
@@ -930,6 +961,10 @@ export type MutationUpdateStatementTypeNodeArgs = {
 
 export type MutationUpdateUserArgs = {
   input: UserUpdateInput;
+};
+
+export type MutationUpsertClientArgs = {
+  input: ClientUpsertInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -3248,6 +3283,52 @@ export type MarkNotificationMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type UpsertClientMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  type: ClientType;
+  deviceName?: InputMaybe<Scalars["String"]>;
+  browserName?: InputMaybe<Scalars["String"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type UpsertClientMutation = {
+  __typename?: "Mutation";
+  upsertClient:
+    | {
+        __typename?: "Client";
+        id: any;
+        type: ClientType;
+        deviceName?: string | null;
+        browserName?: string | null;
+        projectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type CloseClientMutationVariables = Exact<{ [key: string]: never }>;
+
+export type CloseClientMutation = {
+  __typename?: "Mutation";
+  closeClient?:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | null;
+};
+
+export type UpdatePresenceMutationVariables = Exact<{ [key: string]: never }>;
+
+export type UpdatePresenceMutation = {
+  __typename?: "Mutation";
+  updatePresence?:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | null;
 };
 
 export type UpdateDeploymentMutationVariables = Exact<{
@@ -8226,6 +8307,164 @@ export const MarkNotificationDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
+export const UpsertClientDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "upsertClient" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "ClientType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "deviceName" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "browserName" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "upsertClient" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "deviceName" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "deviceName" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "browserName" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "browserName" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Client" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "deviceName" } },
+                      { kind: "Field", name: { kind: "Name", value: "browserName" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "projectVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpsertClientMutation, UpsertClientMutationVariables>;
+export const CloseClientDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "closeClient" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "closeClient" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CloseClientMutation, CloseClientMutationVariables>;
+export const UpdatePresenceDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updatePresence" },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updatePresence" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdatePresenceMutation, UpdatePresenceMutationVariables>;
 export const UpdateDeploymentDocument = {
   kind: "Document",
   definitions: [

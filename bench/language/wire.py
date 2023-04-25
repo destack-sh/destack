@@ -477,28 +477,6 @@ def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
 
 
 #
-# Change tracking
-#
-
-
-class ModuleMutationType(enum.Enum):
-    CREATE_FILE = "CREATE_FILE"
-    UPDATE_FILE = "UPDATE_FILE"
-    DELETE_FILE = "DELETE_FILE"
-    CREATE_STATEMENT = "CREATE_STATEMENT"
-    UPDATE_STATEMENT = "UPDATE_STATEMENT"
-    DELETE_STATEMENT = "DELETE_STATEMENT"
-
-
-@dataclass(repr=False)
-class ModuleMutation:
-    module_id: UUID
-    type: ModuleMutationType
-    file: Optional[FileData]
-    statement: Optional[StatementData]
-
-
-#
 # Errors
 #
 

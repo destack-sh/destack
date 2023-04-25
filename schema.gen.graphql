@@ -141,6 +141,33 @@ type BuildState {
 
 union BuildStateOperationInfo = BuildState | OperationInfo
 
+type Client implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  lastSeenAt: DateTime
+  type: ClientType!
+  deviceName: String
+  browserName: String
+  projectVersion: ProjectVersion
+}
+
+union ClientOperationInfo = Client | OperationInfo
+
+"""The type of device/client."""
+enum ClientType {
+  DesktopBrowser
+  MobileBrowser
+}
+
+input ClientUpsertInput {
+  id: GlobalID!
+  type: ClientType!
+  deviceName: String
+  browserName: String
+  projectVersionId: GlobalID
+}
+
 input CommitInput {
   projectVersionId: GlobalID!
   name: String = null
@@ -633,6 +660,9 @@ type Mutation {
   acceptOrganizationInvite(id: GlobalID!): UserOperationInfo!
   logout: OperationInfo
   secretRootLogin(username: String!): UserOperationInfo!
+  upsertClient(input: ClientUpsertInput!): ClientOperationInfo!
+  closeClient: OperationInfo
+  updatePresence: OperationInfo
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
   createOrganizationInvites(input: OrganizationInviteInput!): OrganizationOperationInfo!
