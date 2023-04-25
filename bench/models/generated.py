@@ -29,7 +29,7 @@ class GeneratedMapping(UUIDModel):
     )
     type = TextChoicesField(choices_enum=GeneratedMappingType)
     source_id = models.UUIDField(null=True, blank=True)
-    source_revision = models.IntegerField()
+    source_revision = models.IntegerField(null=True, blank=True)
     target_id = models.UUIDField(null=True, blank=True)
     target_revision = models.IntegerField(null=True, blank=True)
 

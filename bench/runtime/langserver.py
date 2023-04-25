@@ -348,9 +348,9 @@ class LanguageServer:
 
 # TODO @UX: reduce/avoid debounce for reactive module jobs
 #  If too frequent, reactors lead to lots of unnecessary work and can run into rate limits.
-GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 1, type_cast=float)
+GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 5, type_cast=float)
 GENERATE_DEBOUNCE_MAX_WAIT = get_from_env(
-    "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 3, type_cast=float
+    "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 20, type_cast=float
 )
 LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
 LINT_DEBOUNCE_MAX_WAIT = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 5, type_cast=float)
@@ -596,6 +596,9 @@ class LanguageWorker:
     def interpreted(self) -> bool:
         return self.interp.module_idx is not None
 
+    def is_stale(self, id: UUID):
+        return any(s.id == id for s in self.stale_symbols)
+
     def _provide_context(self, job: Job):
         worker_ctx.set(self.worker_ctx)
         pub_ctx = ExecutionTrackerContext(
@@ -726,7 +729,7 @@ class LanguageWorker:
             stale_tasks = [
                 task
                 for task in self.idx.symbols_of_type(language.Task)
-                if (task in self.stale_symbols or task.generated_mappings == [])
+                if (self.is_stale(task.id) or task.generated_mappings == [])
                 and not task.is_generated
                 and task.is_minimally_specified
             ]
@@ -748,7 +751,7 @@ class LanguageWorker:
             stale_builds = [
                 b
                 for b in self.idx.symbols_of_type(language.Build)
-                if b.settings.reactive and (b in self.stale_symbols or b.generated_mappings == [])
+                if b.settings.reactive and (self.is_stale(b.id) or b.generated_mappings == [])
             ]
             self.queue_build(builds=stale_builds, reactive=True, cancel_running=True)
 
@@ -810,16 +813,25 @@ class LanguageWorker:
 
         # upsert generated dataset, generated mappings and evaluation plan
         gen_dataset = plan.datasets[0]
-        existing_gen_dataset = first(task.generated_expectations, None)
+        existing_gen_dataset: Optional[language.Dataset] = first(task.generated_expectations, None)
         if existing_gen_dataset is not None:
             gen_dataset.id = existing_gen_dataset.id
-            order_key = existing_gen_dataset.order_key
+            order_key = existing_gen_dataset.source.order_key
         else:
             order_key = INTEGER_MINUS_ONE
 
-        # map all task dependencies into generated mapping
-        task_tree = tracked_tree_from_symbol(task)
-        task_dependencies: list[GeneratedMapping] = []
+        # map all task dependencies into generated mapping (excl. generated dataset)
+        # (the state here is still the _last_ state, since we haven't written the new dataset yet)
+        task_tree = tracked_tree_from_symbol(task, filter=lambda s: s.id != gen_dataset.id)
+        task_mappings: list[GeneratedMapping] = [
+            GeneratedMapping(
+                type=GeneratedMappingType.STATEMENT,
+                source_id=None,
+                source_revision=None,
+                target_id=gen_dataset.id,
+                target_revision=revmap.get(gen_dataset.id) + 1,
+            )
+        ]
         for node in task_tree:
             dependency = GeneratedMapping(
                 type=GeneratedMappingType(node.type.value),
@@ -828,7 +840,7 @@ class LanguageWorker:
                 target_id=None,
                 target_revision=None,
             )
-            task_dependencies.append(dependency)
+            task_mappings.append(dependency)
 
         gen_dataset_statement = map_to_statement(task.source.file, gen_dataset, order_key)
         gen_dataset_statement.parent = task
@@ -836,12 +848,14 @@ class LanguageWorker:
         await self.write_statements_immediate(
             [wire.rmap_statement(gen_dataset_statement)],
             overwrite=True,
-            generated_mappings=[(task.id, task_dependencies)],
+            generated_mappings=[(task.id, task_mappings)],
         )
 
         # upsert evaluation plan (this is all rather inefficient)
         model_task = await models.Statement.objects.aget(id=task.id)
-        model_task.evaluation_plan = models.EvaluationPlan.objects.aget_or_create(id=plan.id)
+        model_task.evaluation_plan, _ = await models.EvaluationPlan.objects.aget_or_create(
+            id=plan.id
+        )
         await model_task.evaluation_plan.datasets.aset([d.id for d in plan.datasets])
         await model_task.asave()
 
@@ -872,8 +886,10 @@ class LanguageWorker:
         if self.interp.committed:
             return BuildErrorType.COMMITTED
         tasks = list(chain.from_iterable(b.tasks for b in builds))
-        # assemble evaluation plans by task from DB
+        if not tasks:
+            return BuildErrorType.INVALID_BUILDABLE
 
+        # assemble evaluation plans by task from DB
         model_tasks_dataset_ids = models.Statement.objects.filter(
             id__in=[t.id for t in tasks]
         ).values_list("evaluation_plan__datasets__id")
