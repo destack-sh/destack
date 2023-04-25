@@ -222,7 +222,7 @@ class LanguageServer:
         if isinstance(builds, BuildErrorType):
             error = builds
         else:
-            build_job = worker.queue_build(msg.p.scope, msg.p.buildable_id, cancel_running=True)
+            build_job = worker.queue_build(builds, reactive=False, cancel_running=True)
             error = build_job if isinstance(build_job, BuildErrorType) else None
         await msg.reply(RepBuildPayload(error=error))
 
@@ -481,7 +481,6 @@ class GenerateJob(Job):
 class BuildJob(Job):
     type: ClassVar[JobType] = JobType.BUILD
     builds: list[Build] = None
-    evals: dict[UUID, EvaluationPlan] = None
     revmap: RevisionMap = None
     build_results: list[BuildResult] = None
 
@@ -889,26 +888,10 @@ class LanguageWorker:
         if not tasks:
             return BuildErrorType.INVALID_BUILDABLE
 
-        # assemble evaluation plans by task from DB
-        model_tasks_dataset_ids = models.Statement.objects.filter(
-            id__in=[t.id for t in tasks]
-        ).values_list("evaluation_plan__datasets__id")
-        evals: dict[UUID, EvaluationPlan] = {}
-        for task, dataset_ids in zip(tasks, model_tasks_dataset_ids):
-            if not dataset_ids:
-                logger.warning("missing_evaluation_plan", builds=builds, task=task)
-                return BuildErrorType.NOT_READY
-            evals[task.id] = EvaluationPlan(
-                system=task,
-                eval_model=self.instruct_model,
-                datasets=[self.idx.symbols[id] for id in dataset_ids],
-            )
-
         job = BuildJob(
             revmap=self.revmap,
             worker_ctx=self.worker_ctx,
             builds=builds,
-            evals=evals,
             module_hash=self.module_hash,
             reactive=reactive,
         )
@@ -921,11 +904,34 @@ class LanguageWorker:
         self,
         revmap: RevisionMap,
         builds: list[language.Build],
-        evals: dict[UUID, EvaluationPlan],
         job_id: UUID,
     ) -> list[BuildResult]:
         if not builds:
             return []
+
+        # assemble evaluation plans by task from DB
+        # TODO @Robustness @Architecture: read evaluation plans with module state?
+        #  (and other non-language state)
+        tasks = []
+        for task in chain.from_iterable(b.tasks for b in builds):
+            if task not in tasks:
+                tasks.append(task)
+        model_tasks = models.Statement.objects.filter(
+            id__in=[t.id for t in tasks]
+        ).prefetch_related("evaluation_plan__datasets")
+        evals: dict[UUID, EvaluationPlan] = {}
+        async for model_task in model_tasks:  # can't use enumerate here...
+            task = self.idx.symbols[model_task.id]
+            datasets = [
+                self.idx.symbols[dataset.id]
+                for dataset in model_task.evaluation_plan.datasets.all()  # safe because prefetch
+                if dataset.id in self.idx.symbols
+            ]
+            evals[task.id] = EvaluationPlan(
+                system=task, eval_model=self.instruct_model, datasets=datasets
+            )
+
+        # launch builds
         build_processes = [
             wrap_task(
                 build(b, self.instruct_model, evals, DbBuildTracker(self, job_id)),
@@ -987,7 +993,7 @@ class LanguageWorker:
                     job.task = create_task(self.do_generate(job.generator, job.revmap))
                     job.success = await job.task
                 elif isinstance(job, BuildJob):
-                    job.task = create_task(self.do_build(job.revmap, job.builds, job.evals, job.id))
+                    job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
                     job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
