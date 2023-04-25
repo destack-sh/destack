@@ -445,10 +445,6 @@ class InterpSymbol:
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
     @property
-    def is_generator(self):
-        return self.symbol_type == SymbolType.BUILD
-
-    @property
     def is_generated(self):
         return self.source is None or self.source.generated
 
@@ -485,8 +481,8 @@ class GeneratedMapping:
     """A mapping between a source and a generated target symbol."""
 
     type: GeneratedMappingType
-    source_id: UUID
-    source_revision: int
+    source_id: Optional[UUID]
+    source_revision: Optional[int]
     target_id: Optional[UUID]
     target_revision: Optional[int]
 
@@ -652,8 +648,8 @@ class Task(InterpSymbol, TaskContent):
         return [e for e in self.expectations if e.is_generated]
 
     @property
-    def is_minimally_specified(self):
-        return self.name and self.type.input.children and self.type.output.children
+    def is_minimally_specified(self) -> bool:
+        return bool(self.name and self.type.input.children and self.type.output.children)
 
 
 @dataclass(repr=False)

@@ -228,26 +228,27 @@ def write_statements(
     overwrite: bool = False,
     generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
 ) -> None:
-    wire_statements: dict[UUID, wire.StatementData] = {}
+    statements_ids = {stmt_data.id for stmt_data in statements}
     model_statements: dict[UUID, models.Statement] = {}
     model_contents_relations: list[typing.Any] = []
-    # assign temporary global order keys to prevent conflicts (parents aren't assigned yet)
+
+    # assign temporary parent, reference and order keys to statements within the batch
     temp_order_keys = generate_n_keys_between(None, None, len(statements))
     for ok, stmt_data in zip(temp_order_keys, statements):
-        wire_statements[stmt_data.id] = stmt_data
+        external_parent = stmt_data.parent_id not in statements_ids
         model_statement = models.Statement(
             id=stmt_data.id,
             project_version=project_v,
             file_id=stmt_data.file_id,
-            parent=None,
-            order_key=ok,
+            parent_id=stmt_data.parent_id if stmt_data.parent_id not in statements_ids else None,
+            order_key=stmt_data.order_key if external_parent else ok,
             type=stmt_data.type,
             modifier=stmt_data.modifier,
             name=stmt_data.name,
             #  :StatementCodeTextReuse
             code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
             symbol_type=stmt_data.symbol_type,
-            reference=None,
+            reference_id=stmt_data.reference_id,
             generated=stmt_data.generated,
         )
         model_statements[stmt_data.id] = model_statement
@@ -268,13 +269,20 @@ def write_statements(
     for relation_cls, relations in groupby(model_contents_relations, key=type):
         relation_cls.objects.bulk_create(relations)
 
-    # map actual order key, parent and references
-    for stmt_data in wire_statements.values():
+    # map actual order key, parent and references if not external
+    dirty_statements = []
+    for stmt_data in statements:
         model_statement = model_statements[stmt_data.id]
-        model_statement.order_key = stmt_data.order_key
-        model_statement.parent_id = stmt_data.parent_id
-        model_statement.reference_id = stmt_data.reference_id
-    models.Statement.objects.bulk_update(model_statements.values(), ["parent", "reference"])
+        dirty = (
+            model_statement.parent_id != stmt_data.parent_id
+            or model_statement.reference_id != stmt_data.reference_id
+        )
+        if dirty:
+            model_statement.order_key = stmt_data.order_key
+            model_statement.parent_id = stmt_data.parent_id
+            model_statement.reference_id = stmt_data.reference_id
+            dirty_statements.append(model_statement)
+    models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
 
     # update source mappings per generative statement
     write_generated_mappings(generated_mappings)
@@ -350,7 +358,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         SymbolType.EVALUATE,
     ):
         data.generated_mappings = [
-            rmap_source_mapping(m) for m in statement.generated_mappings.all()
+            rmap_generated_mapping(m) for m in statement.generated_mappings.all()
         ]
     if statement.symbol_type == SymbolType.DATA:
         data.records = [
@@ -438,10 +446,10 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 def wmap_generated_mappings(
     statement_id: UUID | None, generated_mappings: list[language.GeneratedMapping]
 ) -> list[models.GeneratedMapping]:
-    return [wmap_source_mapping(statement_id, m) for m in generated_mappings]
+    return [wmap_generated_mapping(statement_id, m) for m in generated_mappings]
 
 
-def wmap_source_mapping(
+def wmap_generated_mapping(
     statement_id: UUID | None, source_mapping: language.GeneratedMapping
 ) -> models.GeneratedMapping:
     return models.GeneratedMapping(
@@ -454,7 +462,7 @@ def wmap_source_mapping(
     )
 
 
-def rmap_source_mapping(source_mapping: models.GeneratedMapping) -> language.GeneratedMapping:
+def rmap_generated_mapping(source_mapping: models.GeneratedMapping) -> language.GeneratedMapping:
     return language.GeneratedMapping(
         type=source_mapping.type,
         source_id=source_mapping.source_id,

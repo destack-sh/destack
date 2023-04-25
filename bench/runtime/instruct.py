@@ -4,7 +4,7 @@ import enum
 import random
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Union
+from typing import Any, Callable, Union
 
 import structlog
 
@@ -127,26 +127,32 @@ class InstructionTree:
             yield node, parent_by_node.get(node.id)
 
 
-def _unwrap_type_node(type: TypeNode) -> list[TypeNode]:
+def unwrap_type_node(type: TypeNode) -> list[TypeNode]:
     if type.tag == TypeTag.FUNCTION:
         return [*(type.input.children or []), *(type.output.children or [])]
     elif type.tag == TypeTag.ENUM:
         return type.members
     elif type.tag == TypeTag.ARRAY:
-        return _unwrap_type_node(type.head_type)
+        return unwrap_type_node(type.head_type)
     elif type.is_union_with_null:
-        return _unwrap_type_node(type.non_null_children[0])
+        return unwrap_type_node(type.non_null_children[0])
     else:
         return type.children or []
 
 
 def map_instruction(
-    node: InterpSymbol | TypeNode, tree: InstructionTree, op: InstructionOp = None
-) -> Instruction:
+    node: InterpSymbol | TypeNode,
+    tree: InstructionTree,
+    op: InstructionOp = None,
+    filter: Callable[[InterpSymbol | TypeNode], bool] = None,
+) -> Instruction | None:
     """
     Maps out the instruction tree starting from the given symbol.
     If nodes are already present, they are skipped (including the given node).
     """
+
+    if filter is not None and not filter(node):
+        return None
 
     if node.id in tree.nodes and isinstance(tree.nodes[node.id].node, InterpSymbol):
         # we can overwrite the node if it's not a statement
@@ -159,7 +165,7 @@ def map_instruction(
             node=node,
             id=node.id,
         )
-        reference = map_instruction(node.reference, tree)
+        reference = map_instruction(node.reference, tree, filter=filter)
         pseudo_link.children.append(reference)
         return pseudo_link
 
@@ -196,13 +202,16 @@ def map_instruction(
     instruction = Instruction(op=op, node=node, id=node.id)
     tree.nodes[node.id] = instruction
 
+    def _map_child(child: InterpSymbol, op: InstructionOp = None):
+        child_instruction = map_instruction(child, tree, op=op, filter=filter)
+        if child_instruction is not None:
+            instruction.children.append(child_instruction)
+
     if isinstance(node, Build):
         for task in node.tasks:
-            child = map_instruction(task, tree)
-            instruction.children.append(child)
+            _map_child(task, tree)
         for model in node.models:
-            child = map_instruction(model, tree)
-            instruction.children.append(child)
+            _map_child(model, tree)
 
     if isinstance(node, Dataset):
         for record in node.records:
@@ -222,7 +231,7 @@ def map_instruction(
         # _and_ tracking them causes downstream errors because these nodes don't exist in the DB
         # (they're created virtually when mapping from SimpleTypeNode in DB to TypeNode in language)
         # TODO @Cleanup @Architecture: revisit TypeNode/SimpleTypeNode distinction & boundary
-        children = _unwrap_type_node(type)
+        children = unwrap_type_node(type)
         for type_node in children:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
@@ -231,26 +240,22 @@ def map_instruction(
                 elif not isinstance(type_node.reference, Type):
                     raise RuntimeError(f"type node references must be imputed: {type_node}")
                 type_node = type_node.reference
-            child = map_instruction(type_node, tree)
-            instruction.children.append(child)
+            _map_child(type_node)
 
     # context symbols
     if isinstance(node, InterpSymbol):
         for context_symbol in node.context.values():
-            child = map_instruction(context_symbol, tree)
-            instruction.children.append(child)
+            _map_child(context_symbol)
 
     # walk expectations
     if isinstance(node, (Task, Expectation, Type)):
         for expectation in node.expectations:
-            child = map_instruction(expectation, tree)
-            instruction.children.append(child)
+            _map_child(expectation)
 
     # walk task steps & implementation
     if isinstance(node, Task):
         for step in node.steps:
-            child = map_instruction(step, tree, op=InstructionOp.TaskStep)
-            instruction.children.append(child)
+            _map_child(step, op=InstructionOp.TaskStep)
 
     return instruction
 

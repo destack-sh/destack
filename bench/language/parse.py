@@ -1680,7 +1680,7 @@ def interp(
                 _error(ET.BUILD_MISSING_MODEL, statement)
 
             # add all tasks in module for autobuilds :AutobuildTasks
-            if symbol.source is not None and symbol.source.file.path == ".instructors":
+            if symbol.source is not None and symbol.source.file.path == "instructors":
                 for task in idx.symbols.values():
                     if (
                         isinstance(task, Task)

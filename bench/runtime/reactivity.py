@@ -9,7 +9,13 @@ from uuid import UUID
 
 from bench import language
 from bench.language import GeneratedMapping, ModuleIndex
-from bench.language.type import Build, GeneratedMappingType, InterpSymbol, Record, TypeNode
+from bench.language.type import (
+    GeneratedMappingType,
+    GeneratorContent,
+    InterpSymbol,
+    Record,
+    TypeNode,
+)
 from bench.language.wire import ModuleData
 from bench.runtime.instruct import InstructionTree, map_instruction
 
@@ -133,7 +139,7 @@ def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for mapping in mappings:
         # we only care about source nodes since they are the dependencies
-        if mapping.source_id not in tree.nodes:
+        if mapping.source_id and mapping.source_id not in tree.nodes:
             tree.nodes[mapping.source_id] = TrackedNode(
                 type=TrackedNodeType(mapping.type),
                 id=mapping.source_id,
@@ -149,7 +155,7 @@ def tree_from_module(
     for symbol in idx.symbols.values():
         if filter and not filter(symbol):
             continue
-        track_interp_symbol(tree, symbol)
+        track_interp_symbol(tree, symbol, filter=filter)
     # assign revisions from revmap
     for node in tree.nodes.values():
         node.revision = revmap.get(node.id)
@@ -178,14 +184,18 @@ def diff_trees(old: TrackedTree, new: TrackedTree) -> list[TrackedNode]:
             yield node
 
 
-def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
+def track_interp_symbol(
+    tree: TrackedTree,
+    symbol: InterpSymbol,
+    filter: Callable[[InterpSymbol | TypeNode], bool] = None,
+) -> None:
     """
     Tracks the instruction tree for the symbol into the given tree.
     """
     if symbol.id in tree.nodes:
         return
     tree._instruction_tree = tree._instruction_tree or InstructionTree()
-    map_instruction(symbol, tree._instruction_tree)
+    map_instruction(symbol, tree._instruction_tree, filter=filter)
 
     for node, parent in tree._instruction_tree.walk_with_parent():
         if node.id not in tree.nodes:
@@ -205,9 +215,12 @@ def track_interp_symbol(tree: TrackedTree, symbol: InterpSymbol) -> None:
             )
 
 
-def tracked_tree_from_symbol(symbol: InterpSymbol) -> TrackedTree:
+def tracked_tree_from_symbol(
+    symbol: InterpSymbol,
+    filter: Callable[[InterpSymbol | TypeNode], bool] = None,
+) -> TrackedTree:
     tree = TrackedTree()
-    track_interp_symbol(tree, symbol)
+    track_interp_symbol(tree, symbol, filter=filter)
     return tree
 
 
@@ -230,22 +243,18 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
     #  To solve this, we'll probably invert nodes to track children (instead of parents),
     #  enabling multiple dependencies per trigger.
     #  :NaiveTreeTracking
-    new_tree = tree_from_module(
-        revmap, idx, filter=lambda s: not s.is_generated or isinstance(s, Build)
-    )
-    # (include builds since we need generated implicit builds to diff as well)
 
     stale_symbols = []
     for symbol in idx.symbols.values():
-        if not symbol.is_generator:
+        if not isinstance(symbol, GeneratorContent):
             continue
-        if isinstance(symbol, Build):
-            generated_mappings = symbol.generated_mappings
-        else:
-            raise ValueError(f"unexpected generator symbol: {symbol}")
+
+        # new tree excludes the generators output
+        generated_ids = {m.target_id for m in symbol.generated_mappings}
+        new_tree = tree_from_module(revmap, idx, filter=lambda s: s.id not in generated_ids)
 
         # rebuild old tree for this generator
-        old_tree = tree_from_mappings(generated_mappings)
+        old_tree = tree_from_mappings(symbol.generated_mappings)
         diff_nodes = list(diff_trees(old_tree, new_tree))
         if not diff_nodes:
             # nothing relevant changed
@@ -254,7 +263,7 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
         # mark generated statements as stale
         # also mark generator and the directly mapped source of the generated symbol
         # ideally we would also track which generator the symbol is stale in
-        for mapping in generated_mappings:
+        for mapping in symbol.generated_mappings:
             if mapping.target_id is None:
                 continue
             generated_target = idx.get_symbol_by_id(mapping.target_id)
