@@ -13,12 +13,12 @@ from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
     ModuleChangedPayload,
-    RepModuleRunPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
-    ReqModuleRunPayload,
+    RepRunPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
+    ReqRunPayload,
     RunErrorType,
     WorkerHeartbeatPayload,
 )
@@ -284,7 +284,7 @@ class SandboxedWorker:
             raise RuntimeError("failed to register worker")
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
-            await handle_reply(NMessageType.REQUEST_MODULE_RUN, self.request_module_run),
+            await handle_reply(NMessageType.REQUEST_RUN, self.request_module_run),
         ]
         self.tasks = [
             create_wrapped_task(self.send_heartbeats(interval_seconds=WORKER_HEARTBEAT_INTERVAL))
@@ -332,7 +332,7 @@ class SandboxedWorker:
         # module worker will trigger any follow-ups
 
     @message_handler
-    async def request_module_run(self, msg: NMessage[ReqModuleRunPayload]):
+    async def request_module_run(self, msg: NMessage[ReqRunPayload]):
         worker = await self._get_ready_worker(msg.p.module_id)
         worker.provide_context()
         run_job = worker.queue_run(
@@ -345,11 +345,11 @@ class SandboxedWorker:
             trigger_id=msg.p.trigger_id,
         )
         if isinstance(run_job, RunErrorType):
-            await msg.reply(RepModuleRunPayload(None, run_job, None, None))
+            await msg.reply(RepRunPayload(None, run_job, None, None))
         else:
             if msg.p.block:
                 await run_job.terminated.wait()
-            rep = RepModuleRunPayload(
+            rep = RepRunPayload(
                 execution_id=run_job.id,
                 error=run_job.error,
                 error_details=run_job.error_details,
@@ -391,7 +391,7 @@ class Sandbox:
     async def run(
         self, code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
     ) -> dict[str, LiteralValue]:
-        req = ReqModuleRunPayload(
+        req = ReqRunPayload(
             module_id=self.module_id,
             runnable=code.fqn,
             runnable_type="code",
@@ -402,9 +402,7 @@ class Sandbox:
             trigger_type=ExecutionTriggerType.JOB,
             trigger_id=self.job_id,
         )
-        rep: NMessage[RepModuleRunPayload] = await request(
-            NMessageType.REQUEST_MODULE_RUN, req, RepModuleRunPayload
-        )
+        rep: NMessage[RepRunPayload] = await request(NMessageType.REQUEST_RUN, req, RepRunPayload)
         if rep.p.error is not None:
             raise RunError(rep.p.error, code)
         return rep.p.output

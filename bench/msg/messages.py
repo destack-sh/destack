@@ -50,21 +50,23 @@ class NMessageType(StrEnum):
     EVALUATION_SAVED = "evaluation.saved"
 
     # API <-> Worker
-    REQUEST_MODULE_BUILD = "runtime.build"
-    REPLY_MODULE_BUILD = "runtime.build.rep"
-    REQUEST_MODULE_RUN = "runtime.run"
-    REPLY_MODULE_RUN = "runtime.run.rep"
-    REQUEST_INTERP_MODULE = "interp.get"
-    REPLY_INTERP_MODULE = "interp.get.rep"
-    INTERP_MODULE_CHANGED = "interp.changed"
+    REQUEST_BUILD = "build"
+    REPLY_BUILD = "build.rep"
+    REQUEST_RUN = "run"
+    REPLY_RUN = "run.rep"
+    REQUEST_GENERATE = "generate"
+    REPLY_GENERATE = "generate.rep"
+    REQUEST_INTERP = "interp.get"
+    REPLY_INTERP = "interp.get.rep"
+    INTERP_CHANGED = "interp.changed"
 
 
 REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
-    NMessageType.REQUEST_MODULE_BUILD: NMessageType.REPLY_MODULE_BUILD,
-    NMessageType.REQUEST_MODULE_RUN: NMessageType.REPLY_MODULE_RUN,
-    NMessageType.REQUEST_INTERP_MODULE: NMessageType.REPLY_INTERP_MODULE,
+    NMessageType.REQUEST_BUILD: NMessageType.REPLY_BUILD,
+    NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
+    NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -109,8 +111,8 @@ class ModuleChangedPayload:
     module: wire.ModuleData
 
 
-@payload(NMessageType.REQUEST_MODULE_BUILD)
-class ReqModuleBuildPayload:
+@payload(NMessageType.REQUEST_BUILD)
+class ReqBuildPayload:
     module_id: UUID
     scope: BuildScope
     buildable_id: Optional[UUID]
@@ -122,13 +124,13 @@ class BuildErrorType(enum.Enum):
     COMMITTED = "committed"
 
 
-@payload(NMessageType.REPLY_MODULE_BUILD)
-class RepModuleBuildPayload:
+@payload(NMessageType.REPLY_BUILD)
+class RepBuildPayload:
     error: Optional[BuildErrorType] = None
 
 
-@payload(NMessageType.REQUEST_MODULE_RUN)
-class ReqModuleRunPayload:
+@payload(NMessageType.REQUEST_RUN)
+class ReqRunPayload:
     deployment_id: UUID
     module_id: UUID
     runnable: Optional[UUID | str]
@@ -149,12 +151,33 @@ class RunErrorType(enum.Enum):
     RUNTIME_ERROR = "runtime_error"
 
 
-@payload(NMessageType.REPLY_MODULE_RUN)
-class RepModuleRunPayload:
+@payload(NMessageType.REPLY_RUN)
+class RepRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[RunErrorType] = None
     error_details: Optional[typing.Any] = None
     output: Optional[typing.Any] = None
+
+
+@payload(NMessageType.REQUEST_GENERATE)
+class ReqGeneratePayload:
+    module_id: UUID
+    generatable: Optional[UUID | str]
+
+
+class GenerateErrorType(enum.Enum):
+    INTERNAL_ERROR = "internal_error"
+    NOT_READY = "not_ready"
+    INVALID_GENERATABLE = "invalid_generatable"
+    TIMEOUT = "timeout"
+    RUNTIME_ERROR = "runtime_error"
+
+
+@payload(NMessageType.REPLY_GENERATE)
+class RepGeneratePayload:
+    output: Optional[typing.Any] = None
+    error: Optional[GenerateErrorType] = None
+    error_details: Optional[typing.Any] = None
 
 
 @payload(NMessageType.EXECUTION_CHANGED)
@@ -192,13 +215,13 @@ class RepReadModulePayload:
     project_id: UUID
 
 
-@payload(NMessageType.REQUEST_INTERP_MODULE)
-class ReqInterpModulePayload:
+@payload(NMessageType.REQUEST_INTERP)
+class ReqInterpPayload:
     module_id: UUID
 
 
-@payload(NMessageType.REPLY_INTERP_MODULE)
-class RepInterpModulePayload:
+@payload(NMessageType.REPLY_INTERP)
+class RepInterpPayload:
     module_id: UUID
     updated_at: datetime
     module: wire.ModuleData
@@ -208,8 +231,8 @@ class RepInterpModulePayload:
     builds_by_symbol: Optional[dict[UUID, list[UUID]]]
 
 
-@payload(NMessageType.INTERP_MODULE_CHANGED)
-class InterpModuleChangedPayload:
+@payload(NMessageType.INTERP_CHANGED)
+class InterpChangedPayload:
     # unfortunately full data :PartialModuleUpdates
     module_id: UUID
     updated_at: datetime
@@ -242,8 +265,8 @@ def to_topic(
     elif message_type == NMessageType.MODULE_CHANGED:
         payload = cast(ModuleChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.INTERP_MODULE_CHANGED:
-        payload = cast(InterpModuleChangedPayload, payload)
+    elif message_type == NMessageType.INTERP_CHANGED:
+        payload = cast(InterpChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.EXECUTION_CHANGED:
         payload = cast(ExecutionChangedPayload, payload)

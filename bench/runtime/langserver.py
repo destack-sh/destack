@@ -1,9 +1,9 @@
 import asyncio
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from itertools import chain
-from typing import Callable, ClassVar, Optional
+from typing import Callable, ClassVar, Deque, Optional
 from uuid import UUID
 
 import pytz
@@ -34,17 +34,17 @@ from bench.msg.messages import (
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
-    InterpModuleChangedPayload,
+    InterpChangedPayload,
     JobSavedPayload,
     ModuleChangedPayload,
     NMessageType,
     ProjectVersionChangedPayload,
-    RepInterpModulePayload,
-    RepModuleBuildPayload,
+    RepBuildPayload,
+    RepInterpPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
-    ReqInterpModulePayload,
-    ReqModuleBuildPayload,
+    ReqBuildPayload,
+    ReqInterpPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
     WorkerHeartbeatPayload,
@@ -68,7 +68,12 @@ from bench.runtime.interp import (
     interp_module,
 )
 from bench.runtime.map import map_to_file, map_to_statement
-from bench.runtime.reactivity import RevisionMap, get_stale_symbols, tracked_tree_from_symbol
+from bench.runtime.reactivity import (
+    RevisionMap,
+    get_stale_symbols,
+    tracked_tree_from_symbol,
+    tree_from_module,
+)
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
@@ -138,8 +143,8 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.REQUEST_INTERP_MODULE, self.request_module_interp),
-            await handle_reply(NMessageType.REQUEST_MODULE_BUILD, self.request_module_build),
+            await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
+            await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(
                 f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
@@ -203,19 +208,23 @@ class LanguageServer:
         await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
 
     @message_handler
-    async def request_module_interp(self, msg: NMessage[ReqInterpModulePayload]):
+    async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):
         logger.debug("module.interp", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
-        payload = make_full_change_payload(worker, RepInterpModulePayload)
+        payload = make_full_change_payload(worker, RepInterpPayload)
         await msg.reply(payload)
 
     @message_handler
-    async def request_module_build(self, msg: NMessage[ReqModuleBuildPayload]):
+    async def request_module_build(self, msg: NMessage[ReqBuildPayload]):
         logger.debug("module.build", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
-        build_job = worker.queue_build(msg.p.scope, msg.p.buildable_id, cancel_running=True)
-        error = build_job if isinstance(build_job, BuildErrorType) else None
-        await msg.reply(RepModuleBuildPayload(error=error))
+        builds = worker.get_builds(msg.p.buildable_id, msg.p.scope)
+        if isinstance(builds, BuildErrorType):
+            error = builds
+        else:
+            build_job = worker.queue_build(msg.p.scope, msg.p.buildable_id, cancel_running=True)
+            error = build_job if isinstance(build_job, BuildErrorType) else None
+        await msg.reply(RepBuildPayload(error=error))
 
     @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
@@ -363,10 +372,9 @@ JOB_DEFAULT_PRIORITY = {
 @dataclass(repr=False)
 class Job:
     type: ClassVar[JobType]
-    project_id: UUID
-    project_version_id: UUID
-    deployment_id: Optional[UUID]
-    worker_id: UUID
+    worker_ctx: "WorkerContext"
+    module_hash: str | None
+    reactive: bool
     id: UUID = field(default_factory=UUIDT)
     status: JobStatus = JobStatus.Queued
     started_at: Optional[datetime] = None
@@ -381,6 +389,10 @@ class Job:
     def _content_str(self):
         return "<blank>"
 
+    @property
+    def _content_symbols(self) -> list[UUID]:
+        return []
+
     def __repr__(self):
         return f"<Job {self}>"
 
@@ -391,28 +403,25 @@ class Job:
         return JobData(
             id=self.id,
             type=self.type,
-            project_id=self.project_id,
-            project_version_id=self.project_version_id,
-            deployment_id=self.deployment_id,
-            worker_id=self.worker_id,
+            project_id=self.worker_ctx.project_id,
+            project_version_id=self.worker_ctx.module_id,
+            deployment_id=self.worker_ctx.deployment_id,
+            worker_id=self.worker_ctx.worker_id,
             status=self.status,
             started_at=self.started_at,
             terminated_at=self.terminated_at,
         )
 
-    async def save(self):
+    async def save_and_notify(self):
         await models.Job.objects.abulk_create(
             [mapper.rmap_job(self.to_data())],
             update_conflicts=True,
             unique_fields=["id"],
             update_fields=["status", "started_at", "terminated_at"],
         )
-
-    async def save_and_notify(self):
-        await self.save()
         await publish(
             NMessageType.JOB_SAVED,
-            JobSavedPayload(module_id=self.project_version_id, job=self.to_data()),
+            JobSavedPayload(module_id=self.worker_ctx.module_id, job=self.to_data()),
         )
 
     async def cancel(self):
@@ -463,12 +472,14 @@ class GenerateJob(Job):
     def _content_str(self):
         return f"{self.generator}" if self.generator else "<blank>"
 
+    @property
+    def _content_symbols(self) -> list[UUID]:
+        return [self.generator.id] if self.generator else []
+
 
 @dataclass(repr=False, slots=True)
 class BuildJob(Job):
     type: ClassVar[JobType] = JobType.BUILD
-    scope: BuildScope = None
-    buildable_id: UUID = None
     builds: list[Build] = None
     evals: dict[UUID, EvaluationPlan] = None
     revmap: RevisionMap = None
@@ -482,21 +493,9 @@ class BuildJob(Job):
     def _content_str(self):
         return ", ".join(str(b) for b in self.builds) if self.builds else "<blank>"
 
-
-@dataclass(repr=False, slots=True)
-class EvaluateJob(Job):
-    type: ClassVar[JobType] = JobType.EVALUATE
-    evalable_id: UUID = None
-    builds: list[Build] = None
-    evaluation_result: Optional[EvaluationResult] = None
-
     @property
-    def success(self) -> bool:
-        return self.evaluation_result is not None
-
-    @property
-    def _content_str(self):
-        return f"{self.evalable_id}" if self.evalable_id else "<blank>"
+    def _content_symbols(self) -> list[UUID]:
+        return [b.id for b in self.builds] if self.builds else []
 
 
 def get_default_builds(interp):
@@ -540,6 +539,9 @@ def get_default_builds(interp):
     return default_builds
 
 
+COMPLETED_JOBS_BUFFER_SIZE = 128
+
+
 class LanguageWorker:
     """Language server worker for a single module"""
 
@@ -560,15 +562,17 @@ class LanguageWorker:
             project_id=self.project_id,
             deployment_id=None,
         )
+        self.jobs_queue: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
+        self.completed_jobs: Deque[Job] = deque(maxlen=COMPLETED_JOBS_BUFFER_SIZE)
         # module data
         self.source: wire.ModuleData | None = None
         self.interp: Optional[InterpModule] = None
         self.revmap: RevisionMap | None = None
         self.stale_symbols: list[language.Statement] | None = None
+        self.module_hash: str | None = None
         self.wire_module: wire.ModuleData | None = None
         self.wire_errors: list[wire.ErrorData] | None = None
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
-        self.jobs_queue: asyncio.Queue[tuple[int, Job]] = asyncio.PriorityQueue()
 
     @property
     def module_id(self) -> UUID:
@@ -602,6 +606,30 @@ class LanguageWorker:
         pub_tracker_ctx.set(pub_ctx)
 
     def _queue_job(self, job: Job, priority: int = None) -> int:
+        # prevent reactive loops
+        if job.reactive:
+            # we detect loops by checking for an unbroken string of same-state stateful reactive jobs
+            # note that this doesn't detect mutation loops yet
+            same_state_jobs = [
+                j
+                for j in self.completed_jobs
+                if j.type == job.type and j.reactive and j._content_symbols == job._content_symbols
+            ]
+            found_break = len(same_state_jobs) == 0
+            for j in self.completed_jobs:
+                if j.type in (JobType.GENERATE, JobType.BUILD) and (
+                    not j.reactive or j.module_hash != job.module_hash
+                ):
+                    found_break = True
+                    break
+                if j.type == job.type and j.reactive and j._content_symbols == job._content_symbols:
+                    # found ourselves again
+                    break
+            if not found_break:
+                job.status = JobStatus.Cancelled
+                logger.warning("react.break", job=job)
+                return -1
+
         priority = priority or job.default_priority
         self.jobs_queue.put_nowait((priority, job))
         qpos = self.jobs_queue.qsize()
@@ -618,11 +646,11 @@ class LanguageWorker:
 
     def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
         job = InterpJob(
+            # not sure if reactive=False is always correct?
+            worker_ctx=self.worker_ctx,
+            reactive=False,
             new_source=source,
-            project_id=self.project_id,
-            project_version_id=self.module_id,
-            worker_id=self.worker_id,
-            deployment_id=None,
+            module_hash=None,
         )
         self._queue_job(job)
         return job
@@ -670,6 +698,7 @@ class LanguageWorker:
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
         self.revmap = RevisionMap.from_module(self.source)
         self.stale_symbols = get_stale_symbols(self.revmap, self.interp.module_idx)
+        self.module_hash = tree_from_module(self.revmap, self.idx).stable_hash()
         if self.interp.module_idx:
             self.wire_module = wire.rmap_module(self.interp.module_idx.module)
         else:  # re-use source (if failed to parse or not yet parsed)
@@ -684,14 +713,14 @@ class LanguageWorker:
             create_wrapped_task(self._fire_reactive_lint())
             create_wrapped_task(self._fire_reactive_build())
         # notify
-        payload = make_full_change_payload(self, InterpModuleChangedPayload)
-        await publish(NMessageType.INTERP_MODULE_CHANGED, payload)
+        payload = make_full_change_payload(self, InterpChangedPayload)
+        await publish(NMessageType.INTERP_CHANGED, payload)
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_generate(self) -> None:
         self.log.debug("module.react.generate")
         # default generate job for unbound/misc generation tasks
-        self.queue_generate(generator=None, cancel_running=True)
+        self.queue_generate(generator=None, reactive=True, cancel_running=True)
         if not self.interp.has_user_errors:
             # all reactive stale builds and first timers (that weren't generated yet)
             stale_tasks = [
@@ -702,7 +731,7 @@ class LanguageWorker:
                 and task.is_minimally_specified
             ]
             for task in stale_tasks:
-                self.queue_generate(generator=task, cancel_running=True)
+                self.queue_generate(generator=task, reactive=True, cancel_running=True)
 
     @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
     async def _fire_reactive_lint(self) -> None:
@@ -721,16 +750,10 @@ class LanguageWorker:
                 for b in self.idx.symbols_of_type(language.Build)
                 if b.settings.reactive and (b in self.stale_symbols or b.generated_mappings == [])
             ]
-            for b in stale_builds:
-                self.queue_build(BuildScope.SELECTED, b.id, cancel_running=True)
+            self.queue_build(builds=stale_builds, reactive=True, cancel_running=True)
 
     def queue_lint(self, cancel_running: bool) -> LintJob:
-        job = LintJob(
-            project_id=self.project_id,
-            project_version_id=self.module_id,
-            worker_id=self.worker_id,
-            deployment_id=None,
-        )
+        job = LintJob(worker_ctx=self.worker_ctx, reactive=False, module_hash=self.module_hash)
         if cancel_running:
             self._cancel_jobs_like(lambda j: isinstance(j, LintJob))
         self._queue_job(job)
@@ -742,14 +765,13 @@ class LanguageWorker:
         return evaluation
 
     def queue_generate(
-        self, generator: Optional[InterpSymbol], cancel_running: bool
+        self, generator: Optional[InterpSymbol], reactive: bool, cancel_running: bool
     ) -> GenerateJob:
         job = GenerateJob(
+            worker_ctx=self.worker_ctx,
             revmap=self.revmap,
-            project_id=self.project_id,
-            project_version_id=self.module_id,
-            worker_id=self.worker_id,
-            deployment_id=None,
+            module_hash=self.module_hash,
+            reactive=reactive,
             generator=generator,
         )
         if cancel_running:
@@ -768,7 +790,7 @@ class LanguageWorker:
             raise NotImplementedError(f"unexpected generator type: {generator}")
         return True
 
-    async def _do_generate_autobuilds(self) -> bool:
+    async def _do_generate_autobuilds(self):
         # special case: create default builds if they don't exist yet
         # sync the file name!  :AutobuildTasks
         autobuild_file, created = get_or_create_file(self.interp.module_idx, "instructors")
@@ -823,14 +845,9 @@ class LanguageWorker:
         await model_task.evaluation_plan.datasets.aset([d.id for d in plan.datasets])
         await model_task.asave()
 
-    def queue_build(
-        self, scope: BuildScope, buildable_id: UUID, cancel_running: bool
-    ) -> BuildJob | BuildErrorType:
-        # get the builds to run
-        if not self.interpreted or self.interp.has_user_errors:
-            return BuildErrorType.NOT_READY
-        if self.interp.committed:
-            return BuildErrorType.COMMITTED
+    def get_builds(
+        self, buildable_id: UUID, scope: BuildScope
+    ) -> list[language.Build] | BuildErrorType:
         buildable = self.interp.module_idx.symbol_by_id(buildable_id)
         if isinstance(buildable, language.Task):
             builds = get_builds_for(buildable, self.interp.module_idx)
@@ -844,7 +861,16 @@ class LanguageWorker:
             builds = [buildable]
         else:
             return BuildErrorType.INVALID_BUILDABLE
+        return builds
 
+    def queue_build(
+        self, builds: list[language.Build], reactive: bool, cancel_running: bool
+    ) -> BuildJob | BuildErrorType:
+        # get the builds to run
+        if not self.interpreted or self.interp.has_user_errors:
+            return BuildErrorType.NOT_READY
+        if self.interp.committed:
+            return BuildErrorType.COMMITTED
         tasks = list(chain.from_iterable(b.tasks for b in builds))
         # assemble evaluation plans by task from DB
 
@@ -854,9 +880,7 @@ class LanguageWorker:
         evals: dict[UUID, EvaluationPlan] = {}
         for task, dataset_ids in zip(tasks, model_tasks_dataset_ids):
             if not dataset_ids:
-                logger.warning(
-                    "missing_evaluation_plan", buildable_id=buildable_id, task_id=task.id
-                )
+                logger.warning("missing_evaluation_plan", builds=builds, task=task)
                 return BuildErrorType.NOT_READY
             evals[task.id] = EvaluationPlan(
                 system=task,
@@ -866,19 +890,14 @@ class LanguageWorker:
 
         job = BuildJob(
             revmap=self.revmap,
-            scope=scope,
-            buildable_id=buildable_id,
+            worker_ctx=self.worker_ctx,
             builds=builds,
             evals=evals,
-            project_id=self.project_id,
-            project_version_id=self.module_id,
-            worker_id=self.worker_id,
-            deployment_id=None,
+            module_hash=self.module_hash,
+            reactive=reactive,
         )
         if cancel_running:
-            self._cancel_jobs_like(
-                lambda j: isinstance(j, BuildJob) and j.buildable_id == buildable_id
-            )
+            self._cancel_jobs_like(lambda j: isinstance(j, BuildJob) and j.builds == builds)
         self._queue_job(job)
         return job
 
@@ -970,6 +989,7 @@ class LanguageWorker:
                 job.terminated.set()
                 await job.save_and_notify()
                 self.jobs_queue.task_done()
+                self.completed_jobs.appendleft(job)
 
     async def write_build_candidates(
         self, candidates: list[BuildCandidate], delete_others: bool, job_id: UUID

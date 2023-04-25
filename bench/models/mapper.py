@@ -10,7 +10,7 @@ import typing
 from dataclasses import asdict
 from datetime import datetime
 from itertools import chain, groupby
-from uuid import UUID, uuid4, uuid5
+from uuid import UUID, uuid5
 
 import pytz
 from django.db import transaction
@@ -113,13 +113,18 @@ def read_module(
     return wire_module
 
 
+# ensure stable ids for implicit requirements
+# (all module contents are used for tracking changes)
+IMPLICIT_FILE_ID = uuid5(UUID("53400ed5-ccd5-4bcf-899d-c93c3e8a0d15"), "implicit_file")
+
+
 def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     """Stupid way of implicitly requiring some core libraries :ManageRequirements"""
     default_libs = ("symbolx.std", "openai.std", "anthropic.std")
     if wire_module.name in default_libs:
         return  # only add to user modules
     implicit_file = wire.FileData(
-        id=uuid4(),
+        id=IMPLICIT_FILE_ID,
         module_id=wire_module.id,
         path="__implicit__",
         generated=True,
@@ -135,7 +140,7 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
             id=lookup_module(module, version).id,
         )
         implicit_statement = wire.StatementData(
-            id=uuid4(),
+            id=uuid5(IMPLICIT_FILE_ID, module),
             name=module,
             fqn=None,
             type=StatementType.DEFINITION,
