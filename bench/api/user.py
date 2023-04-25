@@ -159,6 +159,12 @@ class UserMutation:
     def logout(self, info: Info) -> None | OperationInfo:
         if not info.context.request.scope["user"].is_authenticated:
             raise PermissionDenied("can only logout when logged in")
+        # also close client
+        client_id = info.context.request.session.get("client_id")
+        if client_id is not None:
+            models.Client.objects.filter(id=client_id).update(
+                closed_at=datetime.utcnow().replace(tzinfo=pytz.utc)
+            )
         async_to_sync(channels_logout)(info.context.request.scope)
         return None
 
