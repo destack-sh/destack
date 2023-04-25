@@ -51,9 +51,9 @@ from bench.runtime.run import instantiate
 from bench.runtime.type import (
     BuildCandidateStatus,
     EvaluationKind,
+    EvaluationPlan,
     EvaluationScope,
     Modality,
-    EvaluationPlan,
 )
 from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 from bench.utils.fractional import generate_key_between, generate_n_keys_between
@@ -356,7 +356,7 @@ async def build(
 
     ctx = BuildContext(build=build)
     if not build.tasks:
-        log.info("build.abort", reason="no tasks")
+        log.warning("build.abort", reason="no tasks")
         return BuildResult.empty(build)
 
     # TODO @Feature: make build/instruction metric weights configurable

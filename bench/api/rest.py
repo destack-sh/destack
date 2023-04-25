@@ -18,7 +18,7 @@ from bench.models.execution import ExecutionTracingLevel
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import NMessageType
 from bench.msg.core import request
-from bench.msg.messages import RepModuleRunPayload, ReqModuleRunPayload
+from bench.msg.messages import RepRunPayload, ReqRunPayload
 
 logger = structlog.get_logger(__name__)
 
@@ -171,7 +171,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
 
-    run = ReqModuleRunPayload(
+    run = ReqRunPayload(
         deployment_id=access.deployment_id,
         module_id=access.project_version_id,
         runnable=runnable,
@@ -183,7 +183,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         trigger_type=ExecutionTriggerType.REST_API,
         trigger_id=access.access_token_id,
     )
-    rep = await request(NMessageType.REQUEST_MODULE_RUN, run, RepModuleRunPayload, timeout=60)
+    rep = await request(NMessageType.REQUEST_RUN, run, RepRunPayload, timeout=60)
     outputs = dict(
         execution_id=rep.p.execution_id,
         output=rep.p.output,

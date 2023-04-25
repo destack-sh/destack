@@ -23,13 +23,13 @@ from bench.models import mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request, subscribe
 from bench.msg.messages import (
-    InterpModuleChangedPayload,
-    RepInterpModulePayload,
-    RepModuleBuildPayload,
-    RepModuleRunPayload,
-    ReqInterpModulePayload,
-    ReqModuleBuildPayload,
-    ReqModuleRunPayload,
+    InterpChangedPayload,
+    RepBuildPayload,
+    RepInterpPayload,
+    RepRunPayload,
+    ReqBuildPayload,
+    ReqInterpPayload,
+    ReqRunPayload,
 )
 
 logger = structlog.get_logger(__name__)
@@ -230,10 +230,10 @@ class ModuleRuntimeMutation:
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         posthog.capture(str(user.id), "build", {"project_version_id": str(project_version_id)})
 
-        req = ReqModuleBuildPayload(
+        req = ReqBuildPayload(
             module_id=project_version_id, scope=input.scope, buildable_id=input.buildable_id.node_id
         )
-        rep = await request(NMessageType.REQUEST_MODULE_BUILD, req, RepModuleBuildPayload)
+        rep = await request(NMessageType.REQUEST_BUILD, req, RepBuildPayload)
         return BuildState(
             project_version_id=input.project_version_id,
             success=rep.p.error is None,
@@ -256,7 +256,7 @@ class ModuleRuntimeMutation:
         if deployment_id is None:
             raise ValueError("no available deployment found")
 
-        run = ReqModuleRunPayload(
+        run = ReqRunPayload(
             module_id=project_version_id,
             runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
             runnable_type=None,
@@ -270,9 +270,9 @@ class ModuleRuntimeMutation:
         )
         try:
             rep = await request(
-                NMessageType.REQUEST_MODULE_RUN,
+                NMessageType.REQUEST_RUN,
                 run,
-                RepModuleRunPayload,
+                RepRunPayload,
                 timeout=input.timeout_seconds,
             )
             success = rep.p.error is None
@@ -320,15 +320,15 @@ class InterpSubscription:
 
         log.info("interp.subscribe")
         interp_sub = await subscribe(
-            f"{NMessageType.INTERP_MODULE_CHANGED}.{project_version_id}",
-            payload_t=InterpModuleChangedPayload,
+            f"{NMessageType.INTERP_CHANGED}.{project_version_id}",
+            payload_t=InterpChangedPayload,
         )
 
         # get initial runtime
-        rep: NMessage[RepInterpModulePayload] = await request(
-            NMessageType.REQUEST_INTERP_MODULE,
-            ReqInterpModulePayload(module_id=project_version_id),
-            RepInterpModulePayload,
+        rep: NMessage[RepInterpPayload] = await request(
+            NMessageType.REQUEST_INTERP,
+            ReqInterpPayload(module_id=project_version_id),
+            RepInterpPayload,
         )
         new_interp = rep.payload
         module = rmap_module(rep.p.module, rep.p.builds_by_symbol)
@@ -349,7 +349,7 @@ class InterpSubscription:
         # get runtime changes
         log.info("interp.listen")
         while True:
-            update: NMessage[InterpModuleChangedPayload] = await interp_sub.next_msg()
+            update: NMessage[InterpChangedPayload] = await interp_sub.next_msg()
             new_interp = update.payload
             log.debug("interp.update", updated_at=new_interp.updated_at)
             # module updates aren't really partial end-to-end yet (only complete fields for worker<->here)

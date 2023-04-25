@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import hashlib
 from dataclasses import dataclass, field
 from itertools import chain
 from typing import Callable, Iterator, Optional
@@ -109,6 +110,15 @@ class TrackedTree:
     def merge(self, other: TrackedTree):
         self.nodes.update(other.nodes)
 
+    def stable_hash(self) -> str:
+        """Stable hash of nodes (sorted)"""
+        sorted_nodes = sorted(self.nodes.values(), key=lambda n: n.id)
+        sorted_nodes_str = ",".join(
+            f"{n.type}:{n.id}:{n.revision}:{n.parent_id}" for n in sorted_nodes
+        )
+        stable_hash = hashlib.sha256(sorted_nodes_str.encode("utf-8")).hexdigest()
+        return stable_hash
+
     def __str__(self):
         return str(len(self.nodes))
 
@@ -133,7 +143,7 @@ def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
 
 
 def tree_from_module(
-    revmap: RevisionMap, idx: ModuleIndex, filter: Callable[[InterpSymbol], bool]
+    revmap: RevisionMap, idx: ModuleIndex, filter: Callable[[InterpSymbol], bool] = None
 ) -> TrackedTree:
     tree = TrackedTree(nodes={})
     for symbol in idx.symbols.values():
