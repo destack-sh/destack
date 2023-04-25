@@ -21,6 +21,7 @@ import {
   DocumentDuplicateIcon,
   PlayIcon,
   PlusIcon,
+  SparklesIcon,
   WrenchIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
@@ -369,6 +370,21 @@ const inlineActions = computed(() => {
     >
       {{ lineNumberBase + 1 }}
     </span>
+    <!-- Left gutter indicators (beneath line numbers) -->
+    <div
+      v-if="statement.generated"
+      class="absolute top-[28px] select-none"
+      :style="{ transform: 'translateX(' + -19 + 'px)' }"
+    >
+      <SparklesIcon
+        class="h-4 w-4"
+        :class="{
+          'text-gray-200 group-focus-within/statement:text-gray-500 group-hover/statement:text-gray-500': isStale,
+          'text-orange-200 group-focus-within/statement:text-orange-500 group-hover/statement:text-orange-500':
+            !isStale,
+        }"
+      />
+    </div>
     <!-- Statement main -->
     <div
       tabindex="-1"
