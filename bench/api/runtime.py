@@ -222,7 +222,7 @@ class RunState:
 
 
 @gql.type
-class ModuleRuntimeMutation:
+class RuntimeMutation:
     @asafe_mutation
     async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)

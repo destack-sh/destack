@@ -185,8 +185,9 @@ def rmap_file(file: models.File, module_id: UUID) -> wire.FileData:
 @transaction.atomic
 def write_module(
     files: list[wire.FileData],
+    statements: list[wire.StatementData],
     project_v: models.ProjectVersion,
-    generated_mappings: list[tuple[UUID, wire.StatementData]] = None,
+    generated_mappings: list[tuple[UUID, wire.GeneratedMapping]] = None,
     overwrite: bool = False,
     delete_files: set[UUID] = None,
 ) -> None:
@@ -194,13 +195,13 @@ def write_module(
     write_files(project_v, files, delete_files=delete_files, overwrite=overwrite)
 
     # map statements
-    statements = list(chain.from_iterable(file_data.statements for file_data in files))
+    statements = statements + list(chain.from_iterable(file_data.statements for file_data in files))
     write_statements(
         statements,
         project_v,
-        overwrite=False,  # already overwriting files
-        generated_mappings=generated_mappings,
+        overwrite=overwrite,
     )
+    write_generated_mappings(generated_mappings)
 
 
 def write_files(
@@ -235,20 +236,8 @@ def write_files(
     return model_files
 
 
-def write_generated_mappings(generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]):
-    # update source mappings per generative statement
-    for generator_id, generated_mappings in generated_mappings or []:
-        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
-        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
-        models.GeneratedMapping.objects.bulk_create(model_mappings)
-
-
-@transaction.atomic
 def write_statements(
-    statements: list[wire.StatementData],
-    project_v: ProjectVersion,
-    overwrite: bool = False,
-    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
+    statements: list[wire.StatementData], project_v: ProjectVersion, overwrite: bool = False
 ) -> None:
     statements_ids = {stmt_data.id for stmt_data in statements}
     model_statements: dict[UUID, models.Statement] = {}
@@ -308,8 +297,13 @@ def write_statements(
             dirty_statements.append(model_statement)
     models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
 
+
+def write_generated_mappings(generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]):
     # update source mappings per generative statement
-    write_generated_mappings(generated_mappings)
+    for generator_id, generated_mappings in generated_mappings or []:
+        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
+        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
+        models.GeneratedMapping.objects.bulk_create(model_mappings)
 
 
 def rmap_reference(
@@ -557,42 +551,82 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
     )
 
 
+def wmap_simple_type_node(
+    statement: models.Statement, node: wire.SimpleTypeNodeData
+) -> models.SimpleTypeNode:
+    return models.SimpleTypeNode(
+        id=node.id,
+        statement=statement,
+        order_key=node.order_key,
+        name=node.name,
+        tag=node.tag,
+        description=node.description,
+        is_output=node.is_output,
+        is_array=node.is_array,
+        is_nullable=node.is_nullable,
+        value=node.value,
+        reference_id=node.reference,
+    )
+
+
 def wmap_type_nodes(
     statement: models.Statement | None,
     type_nodes: list[wire.TypeNodeData] | None,
     impute_type_reference: bool = False,
 ) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
+    tag, type_nodes = wmap_type_nodes_data(type_nodes, impute_type_reference)
+    if type_nodes:
+        type_nodes = [wmap_simple_type_node(statement, node) for node in type_nodes]
+    return tag, type_nodes
+
+
+def wmap_type_nodes_data(
+    type_nodes: list[wire.TypeNodeData] | None,
+    impute_type_reference: bool = False,
+) -> tuple[TypeTag | None, list[wire.SimpleTypeNodeData] | None]:
     """Writes a wire type node into a database type node."""
     if not type_nodes:
         return None, None
 
     root: language.TypeNode = wire.wmap_type_node(type_nodes)
     root_type_tag = root.tag
-    child_nodes: list[models.SimpleTypeNode] = []
+    child_nodes: list[wire.SimpleTypeNodeData] = []
 
     # map inner nodes (children)
-    def _wmap_child_node(node: language.TypeNode, **kwargs) -> models.SimpleTypeNode:
+    def _wmap_child_node(
+        node: language.TypeNode,
+        is_array: bool = False,
+        is_nullable: bool = False,
+        is_output: bool = False,
+        **kwargs,
+    ) -> wire.SimpleTypeNodeData:
         # retain resolved references (we trust it's a valid foreign key, else the save will fail)
         reference_id = node.reference if isinstance(node.reference, UUID) else None
         if node.tag == TypeTag.TYPE_REFERENCE or reference_id is not None:
-            return models.SimpleTypeNode(
-                statement=statement,
+            return wire.SimpleTypeNodeData(
                 id=node.id,
                 name=node.name,
                 tag=node.tag if impute_type_reference else TypeTag.TYPE_REFERENCE,
                 description=node.description,
-                reference_id=reference_id,
+                reference=reference_id,
+                revision=1,
+                is_array=is_array,
+                is_nullable=is_nullable,
+                is_output=is_output,
                 **kwargs,
             )
         elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
-            return models.SimpleTypeNode(
-                statement=statement,
+            return wire.SimpleTypeNodeData(
                 id=node.id,
                 name=node.name,
                 tag=node.tag,
                 description=node.description,
                 value=node.value,
-                reference_id=reference_id,
+                reference=reference_id,
+                revision=1,
+                is_array=is_array,
+                is_nullable=is_nullable,
+                is_output=is_output,
                 **kwargs,
             )
         elif node.tag == TypeTag.ARRAY:
@@ -636,7 +670,7 @@ def wmap_type_nodes(
 def rmap_type_nodes(
     root_id: UUID,
     root_type_tag: TypeTag | None,
-    type_nodes: list[models.SimpleTypeNode] | None,
+    type_nodes: list[wire.SimpleTypeNodeData] | None,
     for_statement: models.Statement,
 ) -> list[wire.TypeNodeData]:
     """

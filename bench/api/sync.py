@@ -190,7 +190,7 @@ def pub_project_mutation(
     async_to_sync(publish)(
         NMessageType.PROJECT_VERSION_CHANGED,
         ProjectVersionChangedPayload(
-            project_version_id=project_version_id, client_id=client_id, mutations=mutations
+            project_version_id=project_version_id, client=("user", client_id), mutations=mutations
         ),
     )
 

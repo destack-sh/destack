@@ -71,6 +71,7 @@ import {
   type Ref,
 } from "vue";
 import { useRouter } from "vue-router";
+import { useModuleSync } from "@/state/sync";
 
 const props = defineProps<{
   owner: string;
@@ -347,6 +348,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
 });
 
 const runtime = useCurrentInterpModule();
+const sync = useModuleSync(versionToViewId);
 const visibleErrors = useVisibleErrors();
 
 // show notification if disconnected/reconnected
