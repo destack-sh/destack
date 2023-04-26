@@ -78,14 +78,7 @@ def read_module(
 
     # map files
     for file in project_v.files.filter(deleted_at=None).all():
-        wire_file = wire.FileData(
-            module_id=wire_module.id,
-            id=file.id,
-            path=file.path,
-            statements=[],
-            generated=file.generated,
-            revision=file.revision,
-        )
+        wire_file = rmap_file(file, module_id=wire_module.id)
         wire_files[file.id] = wire_file
         wire_module.files.append(wire_file)
 
@@ -99,7 +92,9 @@ def read_module(
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
 
     for statement in statements:
-        wire_statement = rmap_statement(statement, file=wire_files[statement.file_id])
+        wire_statement = rmap_statement(
+            statement, file_id=statement.file_id, module_id=wire_module.id
+        )
         wire_statements[statement.id] = wire_statement
         wire_files[statement.file_id].statements.append(wire_statement)
 
@@ -113,11 +108,10 @@ def read_module(
     return wire_module
 
 
-# ensure stable ids for implicit requirements
-# (all module contents are used for tracking changes)
 IMPLICIT_FILE_ID = uuid5(UUID("53400ed5-ccd5-4bcf-899d-c93c3e8a0d15"), "implicit_file")
 
 
+# ensure stable ids for implicit requirements
 def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     """Stupid way of implicitly requiring some core libraries :ManageRequirements"""
     default_libs = ("symbolx.std", "openai.std", "anthropic.std")
@@ -158,6 +152,34 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
         )
         implicit_file.statements.append(implicit_statement)
     wire_module.files.append(implicit_file)
+
+
+# (all module contents are used for tracking changes)
+def rmap_flat(
+    obj: models.File | models.Statement | models.SimpleTypeNode | models.DatasetRecord,
+) -> wire.FileData | wire.StatementData | wire.SimpleTypeNodeData | wire.RecordData:
+    """Read a DB object into a wire object without any children."""
+    if isinstance(obj, models.File):
+        return rmap_file(obj, module_id=obj.project_version_id)
+    elif isinstance(obj, models.Statement):
+        return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id)
+    elif isinstance(obj, models.SimpleTypeNode):
+        return rmap_simple_type_node(obj)
+    elif isinstance(obj, models.DatasetRecord):
+        return rmap_record(obj)
+    else:
+        raise ValueError(f"unexpected obj: {obj}")
+
+
+def rmap_file(file: models.File, module_id: UUID) -> wire.FileData:
+    return wire.FileData(
+        id=file.id,
+        module_id=module_id,
+        path=file.path,
+        statements=[],
+        generated=file.generated,
+        revision=file.revision,
+    )
 
 
 @transaction.atomic
@@ -308,7 +330,9 @@ def rmap_reference(
         return StatementPath(import_source, reference.name)
 
 
-def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.StatementData:
+def rmap_statement(
+    statement: models.Statement, file_id: UUID, module_id: UUID, flat: bool = False
+) -> wire.StatementData:
     """Reads a database statement into a wire statement."""
     # map reference into wire-able reference (convert module-external ref to statement path)
     reference = rmap_reference(statement, statement.reference)
@@ -320,8 +344,8 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         name = statement.name
     data = wire.StatementData(
         id=statement.id,
-        module_id=file.module_id,
-        file_id=file.id,
+        module_id=module_id,
+        file_id=file_id,
         revision=statement.revision,
         parent_id=statement.parent_id,
         order_key=statement.order_key,
@@ -336,23 +360,24 @@ def rmap_statement(statement: models.Statement, file: wire.FileData) -> wire.Sta
         generated=statement.generated,
     )
     if statement.type == StatementType.DEFINITION:
-        rmap_symbol(statement, data)
+        rmap_symbol(statement, data, flat=flat)
     return data
 
 
-def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
+def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: bool) -> None:
     """Reads a database statement's symbol into a wire statement."""
     data.description = statement.description
     data.lang = statement.lang
     data.code = statement.code
     data.provider = statement.provider
     data.external_name = statement.external_name
-    data.type_nodes = rmap_type_nodes(
-        statement.id,
-        statement.root_type_tag,
-        statement.type_nodes.filter(deleted_at=None).all(),
-        statement,
-    )
+    if not flat:
+        data.type_nodes = rmap_type_nodes(
+            statement.id,
+            statement.root_type_tag,
+            statement.type_nodes.filter(deleted_at=None).all(),
+            statement,
+        )
     if statement.symbol_type in (
         SymbolType.TASK,
         SymbolType.CODE,
@@ -362,16 +387,11 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
         data.generated_mappings = [
             rmap_generated_mapping(m) for m in statement.generated_mappings.all()
         ]
-    if statement.symbol_type == SymbolType.DATA:
-        data.records = [
-            RecordData(
-                id=record.id, revision=record.revision, order_key=record.order_key, data=record.data
-            )
-            for record in statement.records.filter(deleted_at=None).all()
-        ]
-    elif statement.symbol_type == SymbolType.CODE:
+    if statement.symbol_type == SymbolType.DATA and not flat:
+        data.records = [rmap_record(record) for record in statement.records.filter(deleted_at=None)]
+    if statement.symbol_type == SymbolType.CODE and not flat:
         data.xblocks = rmap_xblocks(statement.xblocks.all())
-    elif statement.symbol_type == SymbolType.BUILD:
+    if statement.symbol_type == SymbolType.BUILD:
         data.build_settings = wire.BuildSettings(
             reactive=statement.build_settings.reactive,
         )
@@ -379,7 +399,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData) -> None:
             reactive=statement.evaluate_settings.reactive,
             weights=statement.evaluate_settings.weights,
         )
-    elif statement.symbol_type == SymbolType.REQUIREMENT:
+    if statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
             name=statement.reference_project_version.project.path,
             version=statement.reference_project_version.name,
@@ -417,16 +437,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         statement.build_settings = build_settings
         relations.append(build_settings)
     if data.records:
-        model_records = [
-            models.DatasetRecord(
-                id=record.id,
-                statement=statement,
-                order_key=record.order_key,
-                revision=record.revision,
-                data=record.data,
-            )
-            for record in data.records
-        ]
+        model_records = [wmap_record(statement, record) for record in data.records]
         relations.extend(model_records)
     elif data.xblocks:
         model_xblocks = wmap_xblocks(statement, data.xblocks)
@@ -443,6 +454,25 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
             )
 
     return relations
+
+
+def rmap_record(record: models.DatasetRecord) -> RecordData:
+    return RecordData(
+        id=record.id,
+        revision=record.revision,
+        order_key=record.order_key,
+        data=record.data,
+    )
+
+
+def wmap_record(statement: models.Statement, record: RecordData) -> models.DatasetRecord:
+    return models.DatasetRecord(
+        id=record.id,
+        statement=statement,
+        order_key=record.order_key,
+        revision=record.revision,
+        data=record.data,
+    )
 
 
 def wmap_generated_mappings(
@@ -509,6 +539,22 @@ def wmap_xblocks(
         )
         for x in xblocks
     ]
+
+
+def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeData:
+    return wire.SimpleTypeNodeData(
+        id=node.id,
+        revision=node.revision,
+        name=node.name,
+        tag=node.tag,
+        order_key=node.order_key,
+        description=node.description,
+        is_output=node.is_output,
+        is_array=node.is_array,
+        is_nullable=node.is_nullable,
+        value=node.value,
+        reference=node.reference_id,
+    )
 
 
 def wmap_type_nodes(

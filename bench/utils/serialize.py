@@ -11,7 +11,7 @@ from uuid import UUID
 
 
 @cache
-def _preply_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
+def _prepare_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
     data_class_hints = get_type_hints(cls)
     fields = {}
     for f in dataclasses.fields(cls):  # noqa
@@ -35,7 +35,7 @@ def deepcopy(obj: typing.Any) -> typing.Any:
 def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
     """Convert any "reasonable" object to dict-able representation."""
     if dataclasses.is_dataclass(obj):
-        fields = _preply_dataclass_fields(obj.__class__)
+        fields = _prepare_dataclass_fields(obj.__class__)
         return {
             f.name: to_dict(getattr(obj, f.name), omit_empty)
             for f in fields.values()
@@ -74,7 +74,7 @@ def from_dict(
     elif dataclasses.is_dataclass(cls):
         if not isinstance(data, dict):
             raise TypeError(f"expected dict, got {type(data)} in {data}")
-        fields = _preply_dataclass_fields(cls)
+        fields = _prepare_dataclass_fields(cls)
         # first pass: create object while skipping not required fields
         deserialized = {}
         for key, field in fields.items():

@@ -6,13 +6,13 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 
 import enum
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
-from bench.language import StatementType
+from bench.language import StatementType, wire
 
 
-class ProjectMutationType(enum.Enum):
+class ModuleMutationType(enum.Enum):
     COMMIT = "COMMIT"
     # File mutations
     CREATE_FILE = "CREATE_FILE"
@@ -36,12 +36,13 @@ class ProjectMutationType(enum.Enum):
     UPDATE_STATEMENT_DESCRIPTION = "UPDATE_STATEMENT_DESCRIPTION"
     UPDATE_STATEMENT_CODE = "UPDATE_STATEMENT_CODE"
     UPDATE_STATEMENT_LANGUAGE = "UPDATE_STATEMENT_LANGUAGE"
-    # Relational symbol content mutations
+    # Type node mutations
     CREATE_TYPE_NODE = "CREATE_TYPE_NODE"
     UPDATE_TYPE_NODE = "UPDATE_TYPE_NODE"
     MOVE_TYPE_NODE = "MOVE_TYPE_NODE"
     DELETE_TYPE_NODE = "DELETE_TYPE_NODE"
     RESTORE_TYPE_NODE = "RESTORE_TYPE_NODE"
+    # Record mutations
     CREATE_RECORD = "CREATE_RECORD"
     UPDATE_RECORD = "UPDATE_RECORD"
     MOVE_RECORD = "MOVE_RECORD"
@@ -50,24 +51,27 @@ class ProjectMutationType(enum.Enum):
 
 
 @dataclass
-class ProjectMutation:
-    type: ProjectMutationType
+class ModuleMutation:
+    type: ModuleMutationType
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
     record_id: Optional[UUID] = None
     type_node_id: Optional[UUID] = None
-    xblock_id: Optional[str] = None
     revision: Optional[int] = None
+    input: Optional[dict[str, Any]] = None  # for GQL mutations
+    data: Optional[
+        wire.FileData | wire.StatementData | wire.SimpleTypeNodeData | wire.RecordData
+    ] = None
 
 
 NON_SEMANTIC_MUTATION_TYPES = {
-    ProjectMutationType.COMMIT,
-    ProjectMutationType.CREATE_FILE,
-    ProjectMutationType.CREATE_STATEMENT_BLANK,
-    ProjectMutationType.UPDATE_STATEMENT_TEXT,  # for comments
-    ProjectMutationType.MOVE_TYPE_NODE,
-    ProjectMutationType.MOVE_RECORD,
+    ModuleMutationType.COMMIT,
+    ModuleMutationType.CREATE_FILE,
+    ModuleMutationType.CREATE_STATEMENT_BLANK,
+    ModuleMutationType.UPDATE_STATEMENT_TEXT,  # for comments
+    ModuleMutationType.MOVE_TYPE_NODE,
+    ModuleMutationType.MOVE_RECORD,
 }
 NON_SEMANTIC_STATEMENT_TYPES = {
     StatementType.COMMENT,
@@ -79,7 +83,7 @@ def is_semantic_statement(statement_type: StatementType) -> bool:
     return statement_type not in NON_SEMANTIC_STATEMENT_TYPES
 
 
-def is_semantic_mutation(mutation: ProjectMutation) -> bool:
+def is_semantic_mutation(mutation: ModuleMutation) -> bool:
     # trivial filter for definitely non-semantic mutations
     # we could do more here (like filter blank morphs), but not worth it now
     return mutation.type not in NON_SEMANTIC_MUTATION_TYPES

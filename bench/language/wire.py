@@ -50,6 +50,21 @@ class TypeNodeData:
 
 
 @dataclass(repr=False, slots=True)
+class SimpleTypeNodeData:
+    id: UUID
+    revision: int
+    name: Optional[str]
+    tag: TypeTag
+    order_key: str
+    description: Optional[str]
+    is_output: bool
+    is_array: bool
+    is_nullable: bool
+    value: Optional[typing.Any] = None
+    reference: Union[None, UUID] = None
+
+
+@dataclass(repr=False, slots=True)
 class RecordData:
     id: UUID
     order_key: str

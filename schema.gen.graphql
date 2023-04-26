@@ -679,7 +679,7 @@ type Mutation {
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
-  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createStatementBlank(input: StatementCreateBlankInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
@@ -1656,7 +1656,7 @@ type StatementConnection {
 }
 
 """Creates a blank statement"""
-input StatementCreateInput {
+input StatementCreateBlankInput {
   id: GlobalID = null
   fileId: GlobalID!
   orderKey: String!

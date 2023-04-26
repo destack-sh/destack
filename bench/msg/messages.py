@@ -99,7 +99,7 @@ class WorkerHeartbeatPayload:
 class ProjectVersionChangedPayload:
     project_version_id: UUID
     client_id: UUID
-    mutations: list[sync.ProjectMutation]
+    mutations: list[sync.ModuleMutation]
 
 
 @payload(NMessageType.MODULE_CHANGED)

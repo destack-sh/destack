@@ -1,7 +1,10 @@
 import functools
 import inspect
+from collections import OrderedDict
+from dataclasses import fields, is_dataclass
+from datetime import datetime
 from inspect import Signature
-from typing import Optional, Sequence, Union, cast
+from typing import Any, Optional, Sequence, Union, cast
 from uuid import UUID
 
 import posthog
@@ -12,25 +15,26 @@ from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
 from strawberry_django_plus import gql
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
-from bench.models import ProjectVersion
+from bench.models import ProjectVersion, mapper
 from bench.msg import NMessageType
 from bench.msg.core import publish
 from bench.msg.messages import ProjectVersionChangedPayload
-from bench.msg.sync import ProjectMutation, ProjectMutationType
+from bench.msg.sync import ModuleMutation, ModuleMutationType
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
 
-PMT = ProjectMutationType
+MMT = ModuleMutationType
 
 
 def project_mutation(
-    type: PMT,
+    type: MMT,
     *,
     atomic: bool = False,
     batch: bool = False,
@@ -100,13 +104,15 @@ def project_mutation(
                 if not is_new:
                     thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
-            # TODO @Robustness @Performance: trigger pub_project_mutation after resolver
+            # TODO @Robustness @Broken: trigger pub_project_mutation after resolver
             #  Currently this is also triggered even if permission check (on ret) fails,
             #  because the permission check runs after the return value is computed.
             #  This also creates a race condition where the mutation may be published before it's written.
             client_id = info.context.request.scope["session"]["client_id"]
             # publish change
-            pub_project_mutation(client_id, type, things)
+            pub_project_mutation(
+                client_id=client_id, type=type, input=kwargs.get("input", None), things=things
+            )
             # analytics
             track_project_mutation(type, project_version, things, batch, info)
 
@@ -143,37 +149,41 @@ def project_mutation(
 
 def pub_project_mutation(
     client_id: UUID,
-    type: PMT,
+    type: MMT,
+    input: Any,
     things: list[Union[models.File, models.Statement, models.SimpleTypeNode, models.DatasetRecord]],
 ):
     """Publish a project mutation to the project change pub socket."""
-    if not things:
+    if not things or not SEND_API_PUB_MSG:
         return
     mutations = []
+    input = input_to_jsonable(input)  # original input is some dataclass
     for thing in things:
         if isinstance(thing, models.File):
-            file_id = thing.id
             statement_id = None
             project_version_id = thing.project_version_id
+            file_id = thing.id
         elif isinstance(thing, models.Statement):
-            file_id = None
             statement_id = thing.id
             project_version_id = thing.project_version_id
+            file_id = thing.file_id
         elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord)):
-            file_id = None
-            statement_id = thing.statement_id
             project_version_id = thing.statement.project_version_id
+            file_id = thing.statement.file_id
+            statement_id = thing.statement_id
         else:
             raise TypeError(f"thing is not a project thing: {thing}")
-
-        if not SEND_API_PUB_MSG:
-            return
-        mutation = ProjectMutation(
+        data = mapper.rmap_flat(thing)
+        mutation = ModuleMutation(
             type,
             project_version_id=project_version_id,
             file_id=file_id,
             statement_id=statement_id,
+            type_node_id=thing.id if isinstance(thing, models.SimpleTypeNode) else None,
+            record_id=thing.id if isinstance(thing, models.DatasetRecord) else None,
             revision=thing.revision,
+            input=input,
+            data=data,
         )
         mutations.append(mutation)
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
@@ -186,7 +196,7 @@ def pub_project_mutation(
 
 
 def track_project_mutation(
-    type: PMT, project_version: ProjectVersion, things, batch: bool, info: Info
+    type: MMT, project_version: ProjectVersion, things, batch: bool, info: Info
 ):
     user = cast(models.User, info.context.request.scope["user"]._wrapped)
     if user.is_anonymous:
@@ -209,7 +219,7 @@ def track_project_mutation(
         }
     elif "RECORD" in type.value:
         properties = {"dataset_record_id": things[0].id, "order_key": things[0].order_key}
-    elif type == PMT.COMMIT:
+    elif type == MMT.COMMIT:
         properties = {}
     else:
         properties = {}
@@ -224,3 +234,25 @@ def track_project_mutation(
     posthog.capture(
         str(user.id), normalized_type, properties={batch: batch, **properties, **project_properties}
     )
+
+
+def input_to_jsonable(value: Any) -> Any:
+    """Walk and transform a GraphQL input into a JSON object that could be used as an input."""
+    if isinstance(value, GlobalID):
+        return str(value)
+    elif is_dataclass(value):
+        data = OrderedDict()
+        for field in fields(value):
+            key = field.name
+            data[key] = input_to_jsonable(getattr(value, key))
+        return data
+    elif isinstance(value, (list, tuple)):
+        return [input_to_jsonable(item) for item in value]
+    elif isinstance(value, dict):  # JSON
+        return value
+    elif isinstance(value, (int, float, str, bool, type(None))):
+        return value
+    elif isinstance(value, (UUID, datetime)):
+        return str(value)
+    else:
+        raise TypeError(f"unexpected value: {value}")

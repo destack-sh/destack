@@ -686,7 +686,7 @@ export type Mutation = {
   createOrganization: OrganizationOperationInfo;
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
-  createStatement: StatementOperationInfo;
+  createStatementBlank: StatementOperationInfo;
   createStatementRecord: DatasetRecordOperationInfo;
   createStatementTypeNode: SimpleTypeNodeOperationInfo;
   deleteStatementRecord: DatasetRecordOperationInfo;
@@ -800,8 +800,8 @@ export type MutationCreateProjectArgs = {
   input: ProjectCreateInput;
 };
 
-export type MutationCreateStatementArgs = {
-  input: StatementCreateInput;
+export type MutationCreateStatementBlankArgs = {
+  input: StatementCreateBlankInput;
 };
 
 export type MutationCreateStatementRecordArgs = {
@@ -1850,7 +1850,7 @@ export type StatementConnection = {
 };
 
 /** Creates a blank statement */
-export type StatementCreateInput = {
+export type StatementCreateBlankInput = {
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
@@ -3549,16 +3549,16 @@ export type RunMutation = {
       };
 };
 
-export type CreateStatementMutationVariables = Exact<{
+export type CreateStatementBlankMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
   fileId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
 }>;
 
-export type CreateStatementMutation = {
+export type CreateStatementBlankMutation = {
   __typename?: "Mutation";
-  createStatement:
+  createStatementBlank:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -9555,13 +9555,13 @@ export const RunDocument = {
     },
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
-export const CreateStatementDocument = {
+export const CreateStatementBlankDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "createStatement" },
+      name: { kind: "Name", value: "createStatementBlank" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -9589,7 +9589,7 @@ export const CreateStatementDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "createStatement" },
+            name: { kind: "Name", value: "createStatementBlank" },
             arguments: [
               {
                 kind: "Argument",
@@ -9666,7 +9666,7 @@ export const CreateStatementDocument = {
     ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
+} as unknown as DocumentNode<CreateStatementBlankMutation, CreateStatementBlankMutationVariables>;
 export const MorphStatementDocument = {
   kind: "Document",
   definitions: [

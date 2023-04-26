@@ -11,7 +11,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
-from bench.api.sync import PMT, project_mutation
+from bench.api.sync import MMT, project_mutation
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
@@ -436,7 +436,7 @@ class FileMoveInput(gql.NodeInput):
 
 @gql.type
 class FileMutation:
-    @project_mutation(PMT.CREATE_FILE)
+    @project_mutation(MMT.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
         id = input.id.node_id if input.id else None
         return models.File(
@@ -447,26 +447,26 @@ class FileMutation:
             directory=input.directory,
         )
 
-    @project_mutation(PMT.SOFT_DELETE_FILE, atomic=True)
+    @project_mutation(MMT.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
-    @project_mutation(PMT.RESTORE_FILE, atomic=True)
+    @project_mutation(MMT.RESTORE_FILE, atomic=True)
     def restore_file(self, input: gql.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
         return file
 
-    @project_mutation(PMT.MOVE_FILE)
+    @project_mutation(MMT.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.parent_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @project_mutation(PMT.RENAME_FILE)
+    @project_mutation(MMT.RENAME_FILE)
     def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
