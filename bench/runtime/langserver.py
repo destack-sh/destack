@@ -13,6 +13,7 @@ from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
+from bench.language.mutate import ModuleMutation, ModuleMutator, is_semantic_mutation
 from bench.language.type import (
     Build,
     BuildSettings,
@@ -26,11 +27,12 @@ from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.job import PENDING_JOB_STATUSES, JobStatus, JobType
-from bench.models.mapper import read_module, write_module
+from bench.models.mapper import read_module, write_mutations
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     BuildErrorType,
+    ClientOrigin,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
@@ -38,7 +40,6 @@ from bench.msg.messages import (
     JobSavedPayload,
     ModuleChangedPayload,
     NMessageType,
-    ProjectVersionChangedPayload,
     RepBuildPayload,
     RepInterpPayload,
     RepReadModulePayload,
@@ -49,7 +50,6 @@ from bench.msg.messages import (
     ReqRegisterWorkerPayload,
     WorkerHeartbeatPayload,
 )
-from bench.msg.sync import is_semantic_mutation
 from bench.runtime.build import (
     BuildCandidate,
     BuildResult,
@@ -146,9 +146,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
-            await subscribe(
-                f"{NMessageType.PROJECT_VERSION_CHANGED}.*", cb=self.project_version_changed
-            ),
+            await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
         ]
         self.tasks = [
             create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10)),
@@ -237,23 +235,15 @@ class LanguageServer:
             )
 
     @message_handler
-    async def project_version_changed(self, msg: NMessage[ProjectVersionChangedPayload]) -> None:
-        # reload project version as module
-        # TODO @Performance: use and share partial module updates :PartialModuleUpdates
+    async def module_changed(self, msg: NMessage[ModuleChangedPayload]) -> None:
+        if msg.p.client.id == self.id:
+            return  # ignore own changes
         if not any(is_semantic_mutation(mutation) for mutation in msg.p.mutations):
             return  # ignore non-semantic changes to modules
-        project_v = await ProjectVersion.objects.filter(id=msg.p.project_version_id).afirst()
-        if project_v is None:
-            return  # just ignore, was probably deleted
-        module = await sync_to_async(read_module)(project_v, exclude_non_semantic=True)
-        await publish(
-            NMessageType.MODULE_CHANGED, ModuleChangedPayload(module_id=module.id, module=module)
-        )
-
-        # update language workers
-        if module.id in self.lang_workers:
-            worker = self.lang_workers[module.id]
-            worker.on_module_changed(module)
+        # update language worker
+        if msg.p.module_id in self.lang_workers:
+            worker = self.lang_workers[msg.p.moduleid]
+            worker.on_module_changed(msg.p.mutations)
 
     async def manage_sandboxed_workers(self, interval_seconds: int):
         """Update last seens and mark any unresponsive workers as inactive."""
@@ -587,6 +577,9 @@ class LanguageWorker:
             raise RuntimeError("not interpreted yet")
         return self.interp.module_idx
 
+    def mutate(self) -> ModuleMutator:
+        return ModuleMutator(self.idx)
+
     @property
     def instruct_model(self) -> language.Model:
         return self.interp.symbol("openai.std.text.gpt-3-5-turbo")
@@ -646,36 +639,31 @@ class LanguageWorker:
             if predicate(job):
                 job.status = JobStatus.Cancelled
 
-    def on_module_changed(self, source: wire.ModuleData) -> InterpJob:
+    def on_module_changed(self, mutator: list[ModuleMutation] | ModuleMutator) -> InterpJob:
+        if not isinstance(mutator, ModuleMutator):
+            mutator = ModuleMutator(self.idx, mutator)
+        new_source = mutator.apply()
         job = InterpJob(
             # not sure if reactive=False is always correct?
             worker_ctx=self.worker_ctx,
             reactive=False,
-            new_source=source,
+            new_source=new_source,
             module_hash=None,
         )
         self._queue_job(job)
         return job
 
-    async def write_immediate(
-        self,
-        files: list[wire.FileData],
-        statements: list[wire.StatementData],
-        delete_files: set[UUID] = None,
-        generated_mappings: list[tuple[UUID, wire.GeneratedMapping]] = None,
-    ) -> None:
-        """Writes the"""
-        self.idx.statements
-        await sync_to_async(write_module)(
-            project_v=self.project_version,
-            files=files,
-            overwrite=overwrite,
-            delete_files=delete_files,
-            generated_mappings=generated_mappings,
+    async def write_module(self, mutator: ModuleMutator):
+        await sync_to_async(write_mutations)(
+            project_v=self.project_version, mutations=mutator.mutations
         )
-        # TODO @Performance: apply module writes locally immediately :ImmediateModuleWrites
-        module = await sync_to_async(read_module)(self.project_version, exclude_non_semantic=True)
-        self.on_module_changed(module)
+        self.on_module_changed(mutator)
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                module_id=self.module_id, client=ClientOrigin("worker", self.worker_id)
+            ),
+        )
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
@@ -786,10 +774,7 @@ class LanguageWorker:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
             default_builds = get_default_builds(self.interp)
             autobuild_file = map_to_file(default_builds, [], autobuild_file)
-            await self.write_files_immediate(
-                files=[wire.rmap_file(autobuild_file)], overwrite=False
-            )
-        # could also diff and update here later on
+            await self.write_module(self.mutate().create(wire.rmap_file(autobuild_file)))
 
     async def _do_generate_task_evaluation(self, task: language.Task, revmap: RevisionMap):
         # run evaluation plan generator
@@ -811,8 +796,6 @@ class LanguageWorker:
         task_mappings: list[GeneratedMapping] = [
             GeneratedMapping(
                 type=GeneratedMappingType.STATEMENT,
-                source_id=None,
-                source_revision=None,
                 target_id=gen_dataset.id,
                 target_revision=revmap.get(gen_dataset.id) + 1,
             )
@@ -822,18 +805,19 @@ class LanguageWorker:
                 type=GeneratedMappingType(node.type.value),
                 source_id=node.id,
                 source_revision=revmap[node.id],
-                target_id=None,
-                target_revision=None,
             )
             task_mappings.append(dependency)
 
         gen_dataset_statement = map_to_statement(task.source.file, gen_dataset, order_key)
         gen_dataset_statement.parent = task
         gen_dataset_statement.modifier = language.StatementModifier.LIKE
-        await self.write_immediate(
-            files=[],
-            statements=[wire.rmap_statement(gen_dataset_statement)],
-            generated_mappings=[(task.id, task_mappings)],
+
+        await self.write_module(
+            self.mutate()
+            # TODO @Cleanup @UX: dataset delete/create should be update
+            .delete(wire.rmap_statement(existing_gen_dataset.source))
+            .create(wire.rmap_statement(gen_dataset_statement))
+            .map(task.id, task_mappings)
         )
 
         # upsert evaluation plan (this is all rather inefficient)
@@ -926,26 +910,18 @@ class LanguageWorker:
             for b in builds
         ]
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
-        previous_builds_files: set[UUID] = set()
-        for b in builds:
-            build_files = get_build_files_for(b, self.idx)
-            previous_builds_files.update({file.id for file in build_files})
 
-        # convert build results into writes with the revisions that were used
-        generated_files = []
-        generated_mappings = []
-        for build_result in build_results:
-            generated_file = build_result.to_file(self.idx.module)
-            generated_files.append(wire.rmap_file(generated_file))
-            mappings = [revmap.map_mapping(m) for m in build_result.generated_mappings]
-            generated_mappings.append((build_result.build.id, mappings))
-
-        #  :ImmediateModuleWrites
-        await self.write_immediate(
-            files=generated_files,
-            generated_mappings=generated_mappings,
-            delete_files=previous_builds_files,
+        mutator = self.mutate()
+        mutator.delete_many(
+            wire.rmap_file(chain.from_iterable(get_build_files_for(b, self.idx) for b in builds))
         )
+        for build_result in build_results:
+            mutator.create(wire.rmap_file(build_result.to_file(self.idx.module)))
+            mutator.map(
+                build_result.build.id,
+                [revmap.map_mapping(m) for m in build_result.generated_mappings],
+            )
+        await self.write_module(mutator)
         return build_results
 
     async def run(self) -> None:

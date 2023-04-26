@@ -686,6 +686,7 @@ export type ModuleMutation = {
   typeNodeId?: Maybe<Scalars["GlobalID"]>;
 };
 
+/** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
   CommentStatement = "COMMENT_STATEMENT",
   Commit = "COMMIT",
@@ -709,7 +710,10 @@ export enum ModuleMutationType {
   RestoreTypeNode = "RESTORE_TYPE_NODE",
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  UpdateFile = "UPDATE_FILE",
+  UpdateGeneratedMappings = "UPDATE_GENERATED_MAPPINGS",
   UpdateRecord = "UPDATE_RECORD",
+  UpdateStatement = "UPDATE_STATEMENT",
   UpdateStatementCode = "UPDATE_STATEMENT_CODE",
   UpdateStatementDescription = "UPDATE_STATEMENT_DESCRIPTION",
   UpdateStatementLanguage = "UPDATE_STATEMENT_LANGUAGE",

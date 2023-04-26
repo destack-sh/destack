@@ -672,6 +672,7 @@ type ModuleMutation {
   input: JSON
 }
 
+"""Fine-grained atomic mutations for multiplayer modules."""
 enum ModuleMutationType {
   COMMIT
   CREATE_FILE
@@ -679,6 +680,7 @@ enum ModuleMutationType {
   RESTORE_FILE
   RENAME_FILE
   MOVE_FILE
+  UPDATE_FILE
   CREATE_STATEMENT
   CREATE_STATEMENT_BLANK
   SOFT_DELETE_STATEMENT
@@ -693,6 +695,8 @@ enum ModuleMutationType {
   UPDATE_STATEMENT_DESCRIPTION
   UPDATE_STATEMENT_CODE
   UPDATE_STATEMENT_LANGUAGE
+  UPDATE_STATEMENT
+  UPDATE_GENERATED_MAPPINGS
   CREATE_TYPE_NODE
   UPDATE_TYPE_NODE
   MOVE_TYPE_NODE
