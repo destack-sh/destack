@@ -1,5 +1,8 @@
 import functools
+import inspect
+from inspect import Signature
 from typing import Optional, Sequence, Union, cast
+from uuid import UUID
 
 import posthog
 import structlog
@@ -50,9 +53,13 @@ def project_mutation(
         directives.append(CanWriteProject())
 
     def make_resolver(func):
+        needs_info = "info" in func.__annotations__
+
         @functools.wraps(func)
-        def wrapped_mutation(*args, **kwargs):
-            ret = func(*args, **kwargs)
+        def wrapped_mutation(self, info: Info, *args, **kwargs):
+            if needs_info:
+                kwargs["info"] = info
+            ret = func(self, *args, **kwargs)
             if batch:
                 # assumes things property on any returned batches (see StatementBatch)
                 things = ret.things
@@ -97,12 +104,25 @@ def project_mutation(
             #  Currently this is also triggered even if permission check (on ret) fails,
             #  because the permission check runs after the return value is computed.
             #  This also creates a race condition where the mutation may be published before it's written.
+            client_id = info.context.request.scope["session"]["client_id"]
             # publish change
-            pub_project_mutation(type, things)
+            pub_project_mutation(client_id, type, things)
             # analytics
             track_project_mutation(type, project_version, things, batch, kwargs.get("info"))
 
             return ret
+
+        # add info to wrapped_mutation function signature if missing
+        if "info" not in wrapped_mutation.__annotations__:
+            wrapped_mutation.__annotations__["info"] = Info
+            original_signature = Signature.from_callable(func)
+            original_parameters = list(original_signature.parameters.values())
+            info_arg = inspect.Parameter(
+                "info", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Info
+            )
+            wrapped_mutation.__signature__ = original_signature.replace(
+                parameters=original_parameters + [info_arg]
+            )
 
         # wrap in atomic if needed
         if atomic:
@@ -122,6 +142,7 @@ def project_mutation(
 
 
 def pub_project_mutation(
+    client_id: UUID,
     type: PMT,
     things: list[Union[models.File, models.Statement, models.SimpleTypeNode, models.DatasetRecord]],
 ):
@@ -158,7 +179,9 @@ def pub_project_mutation(
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
     async_to_sync(publish)(
         NMessageType.PROJECT_VERSION_CHANGED,
-        ProjectVersionChangedPayload(project_version_id, mutations=mutations),
+        ProjectVersionChangedPayload(
+            project_version_id=project_version_id, client_id=client_id, mutations=mutations
+        ),
     )
 
 

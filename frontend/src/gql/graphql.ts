@@ -178,6 +178,7 @@ export type ClientUpsertInput = {
   browserName?: InputMaybe<Scalars["String"]>;
   deviceName?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   type: ClientType;
 };
@@ -676,7 +677,7 @@ export type Mutation = {
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
-  closeClient?: Maybe<OperationInfo>;
+  closeClient: ClientOperationInfo;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -715,7 +716,7 @@ export type Mutation = {
   updateDeployment: DeploymentOperationInfo;
   updateOrganization: OrganizationOperationInfo;
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
-  updatePresence?: Maybe<OperationInfo>;
+  updatePresence: ClientOperationInfo;
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
@@ -3290,6 +3291,7 @@ export type UpsertClientMutationVariables = Exact<{
   type: ClientType;
   deviceName?: InputMaybe<Scalars["String"]>;
   browserName?: InputMaybe<Scalars["String"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
@@ -3313,22 +3315,22 @@ export type CloseClientMutationVariables = Exact<{ [key: string]: never }>;
 
 export type CloseClientMutation = {
   __typename?: "Mutation";
-  closeClient?:
+  closeClient:
+    | { __typename?: "Client" }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | null;
+      });
 };
 
 export type UpdatePresenceMutationVariables = Exact<{ [key: string]: never }>;
 
 export type UpdatePresenceMutation = {
   __typename?: "Mutation";
-  updatePresence?:
+  updatePresence:
+    | { __typename?: "Client" }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | null;
+      });
 };
 
 export type UpdateDeploymentMutationVariables = Exact<{
@@ -8337,6 +8339,11 @@ export const UpsertClientDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -8373,6 +8380,11 @@ export const UpsertClientDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "browserName" },
                       value: { kind: "Variable", name: { kind: "Name", value: "browserName" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
                     },
                     {
                       kind: "ObjectField",

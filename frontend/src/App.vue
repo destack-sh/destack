@@ -5,7 +5,7 @@ import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { errorListeners, type Operation } from "@/state/operations";
-import { useClient } from "@/state/sync";
+import { useClient } from "@/state/client";
 import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
 import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
@@ -31,7 +31,11 @@ onBeforeUnmount(() => {
 });
 
 // track client info
-const { clientInfo } = useClient();
+const { clientInfo, close: closeClient } = useClient();
+console.info(`Client: ${clientInfo.value}`);
+window.addEventListener("beforeunload", async () => {
+  await closeClient();
+});
 
 // always track versioning
 const { systemInfo, outOfDate } = useSystemVersioning();
