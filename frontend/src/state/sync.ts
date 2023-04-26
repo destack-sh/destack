@@ -1,11 +1,45 @@
-import { useEditorState } from "@/state/editor";
-import { createSharedComposable } from "@vueuse/core";
-import { toRef } from "vue";
+import { graphql } from "@/gql";
+import { useSubscription } from "@vue/apollo-composable";
+import { watch } from "vue";
 
-function _useProjectSync() {
-  const editor = useEditorState();
-  const projectVersionId = toRef(editor, "currentProjectVersionId");
+export function useModuleSync(projectVersionId: Ref<string | null>) {
   // TODO @Incomplete: implement basic sync
-}
 
-export const useProjectSync = createSharedComposable(_useProjectSync);
+  const {
+    onResult: onModuleChanged,
+    start,
+    stop,
+  } = useSubscription(
+    graphql(/* GraphQL */ `
+      subscription moduleChanged($projectVersionId: GlobalID!) {
+        moduleChanged(projectVersionId: $projectVersionId) {
+          id
+          clientId
+          mutations {
+            fileId
+            input
+          }
+        }
+      }
+    `),
+    {
+      projectVersionId,
+    }
+  );
+  // enable/disable subscription when projectVersionId changes
+  watch(
+    projectVersionId,
+    () => {
+      if (projectVersionId.value != null) {
+        start();
+      } else {
+        stop();
+      }
+    },
+    { immediate: true }
+  );
+
+  onModuleChanged((result) => {
+    console.log("moduleChanged", result.data?.moduleChanged);
+  });
+}

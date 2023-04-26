@@ -655,6 +655,56 @@ enum JobType {
   LINT
 }
 
+type ModuleChange {
+  id: UUID!
+  clientId: GlobalID
+  mutations: [ModuleMutation!]!
+}
+
+type ModuleMutation {
+  type: ModuleMutationType!
+  projectVersionId: GlobalID!
+  fileId: GlobalID
+  statementId: GlobalID
+  recordId: GlobalID
+  typeNodeId: GlobalID
+  revision: Int
+  input: JSON
+}
+
+enum ModuleMutationType {
+  COMMIT
+  CREATE_FILE
+  SOFT_DELETE_FILE
+  RESTORE_FILE
+  RENAME_FILE
+  MOVE_FILE
+  CREATE_STATEMENT
+  CREATE_STATEMENT_BLANK
+  SOFT_DELETE_STATEMENT
+  RESTORE_STATEMENT
+  UPDATE_STATEMENT_MODIFIER
+  UPDATE_STATEMENT_REFERENCE
+  MORPH_STATEMENT
+  COMMENT_STATEMENT
+  MOVE_STATEMENT
+  RENAME_STATEMENT
+  UPDATE_STATEMENT_TEXT
+  UPDATE_STATEMENT_DESCRIPTION
+  UPDATE_STATEMENT_CODE
+  UPDATE_STATEMENT_LANGUAGE
+  CREATE_TYPE_NODE
+  UPDATE_TYPE_NODE
+  MOVE_TYPE_NODE
+  DELETE_TYPE_NODE
+  RESTORE_TYPE_NODE
+  CREATE_RECORD
+  UPDATE_RECORD
+  MOVE_RECORD
+  DELETE_RECORD
+  RESTORE_RECORD
+}
+
 type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   updateUser(input: UserUpdateInput!): UserOperationInfo!
@@ -1758,6 +1808,7 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   interpChanged(projectVersionId: GlobalID!): InterpModule!
+  moduleChanged(projectVersionId: GlobalID!): ModuleChange!
   executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
   jobsChanged(projectId: GlobalID!, projectVersionId: GlobalID!, typeIn: [JobType!] = null): Job!
   evaluationsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, latestCandidateOnly: Boolean! = false, kindIn: [EvaluationKind!] = null, scopeIn: [EvaluationScope!] = null, buildIdIn: [GlobalID!] = null, systemIdIn: [GlobalID!] = null): EvaluationResult!
@@ -1849,6 +1900,8 @@ enum TypeTag {
   ANY
   TYPE_REFERENCE
 }
+
+scalar UUID
 
 input UpdateProjectVersion {
   id: GlobalID!

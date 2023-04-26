@@ -1122,6 +1122,7 @@ class ModuleIndex:
 
     module: Module
     requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
+    files: dict[UUID, File] = field(default_factory=OrderedDict)
     statements: dict[UUID, Statement] = field(default_factory=OrderedDict)
     interpreted: bool = False
     scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
@@ -1444,6 +1445,7 @@ def index_module(
     # create scopes for files and statements (but don't populate nested statements them yet)
     statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
     for file in module.files:
+        idx.files[file.id] = file
         file_scope = Scope(
             id=file.id, name=file.path_without_extension, file=file, parent=None, statement=None
         )

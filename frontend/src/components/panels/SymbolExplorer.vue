@@ -86,7 +86,7 @@ defineExpose({
       tabindex="-1"
       class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 hover:text-gray-900 focus:border-orange-600"
       :class="{
-        'border-l-2 border-orange-200 pl-2.5': symbol.generated,
+        'border-l-2 border-gray-300 pl-2.5': symbol.generated,
         'bg-orange-100 text-orange-600': symbol.id == editor?.focusedElementId,
         'text-gray-700 hover:text-orange-600': symbol.id != editor?.focusedElementId,
       }"

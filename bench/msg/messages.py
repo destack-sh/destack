@@ -98,7 +98,7 @@ class WorkerHeartbeatPayload:
 @payload(NMessageType.PROJECT_VERSION_CHANGED)
 class ProjectVersionChangedPayload:
     project_version_id: UUID
-    client_id: UUID
+    client: tuple[str, UUID]
     mutations: list[sync.ModuleMutation]
 
 
@@ -117,7 +117,7 @@ class ReqBuildPayload:
     buildable_id: Optional[UUID]
 
 
-class BuildErrorType(enum.Enum):
+class BuildErrorType(enum.StrEnum):
     NOT_READY = "not_ready"
     INVALID_BUILDABLE = "invalid_buildable"
     COMMITTED = "committed"
@@ -142,7 +142,7 @@ class ReqRunPayload:
     trigger_id: Optional[UUID]
 
 
-class RunErrorType(enum.Enum):
+class RunErrorType(enum.StrEnum):
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_RUNCONFIG = "invalid_runconfig"
@@ -164,7 +164,7 @@ class ReqGeneratePayload:
     generatable: Optional[UUID | str]
 
 
-class GenerateErrorType(enum.Enum):
+class GenerateErrorType(enum.StrEnum):
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_GENERATABLE = "invalid_generatable"

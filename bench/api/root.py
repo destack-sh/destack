@@ -20,6 +20,7 @@ from bench.api.deployment import DeploymentMutation
 from bench.api.evaluation import EvaluationQuery, EvaluationSubscription
 from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.job import JobQuery, JobSubscription
+from bench.api.multiplayer import ModuleSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
@@ -31,7 +32,7 @@ from bench.api.project import (
     ProjectVersionMutation,
     ProjectVisibility,
 )
-from bench.api.runtime import InterpSubscription, ModuleRuntimeMutation
+from bench.api.runtime import InterpSubscription, RuntimeMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.token import AccessTokenMutation
@@ -162,7 +163,7 @@ class Mutation(
     SymbolMutation,
     FileMutation,
     DeploymentMutation,
-    ModuleRuntimeMutation,
+    RuntimeMutation,
 ):
     pass
 
@@ -170,6 +171,7 @@ class Mutation(
 @strawberry.type
 class Subscription(
     InterpSubscription,
+    ModuleSubscription,
     ExecutionSubscription,
     JobSubscription,
     EvaluationSubscription,

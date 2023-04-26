@@ -18,6 +18,7 @@ export type Scalars = {
   GlobalID: any;
   /** The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf). */
   JSON: any;
+  UUID: any;
 };
 
 export type AccessToken = Node & {
@@ -664,6 +665,58 @@ export enum JobType {
   Generate = "GENERATE",
   Interp = "INTERP",
   Lint = "LINT",
+}
+
+export type ModuleChange = {
+  __typename?: "ModuleChange";
+  clientId?: Maybe<Scalars["GlobalID"]>;
+  id: Scalars["UUID"];
+  mutations: Array<ModuleMutation>;
+};
+
+export type ModuleMutation = {
+  __typename?: "ModuleMutation";
+  fileId?: Maybe<Scalars["GlobalID"]>;
+  input?: Maybe<Scalars["JSON"]>;
+  projectVersionId: Scalars["GlobalID"];
+  recordId?: Maybe<Scalars["GlobalID"]>;
+  revision?: Maybe<Scalars["Int"]>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
+  type: ModuleMutationType;
+  typeNodeId?: Maybe<Scalars["GlobalID"]>;
+};
+
+export enum ModuleMutationType {
+  CommentStatement = "COMMENT_STATEMENT",
+  Commit = "COMMIT",
+  CreateFile = "CREATE_FILE",
+  CreateRecord = "CREATE_RECORD",
+  CreateStatement = "CREATE_STATEMENT",
+  CreateStatementBlank = "CREATE_STATEMENT_BLANK",
+  CreateTypeNode = "CREATE_TYPE_NODE",
+  DeleteRecord = "DELETE_RECORD",
+  DeleteTypeNode = "DELETE_TYPE_NODE",
+  MorphStatement = "MORPH_STATEMENT",
+  MoveFile = "MOVE_FILE",
+  MoveRecord = "MOVE_RECORD",
+  MoveStatement = "MOVE_STATEMENT",
+  MoveTypeNode = "MOVE_TYPE_NODE",
+  RenameFile = "RENAME_FILE",
+  RenameStatement = "RENAME_STATEMENT",
+  RestoreFile = "RESTORE_FILE",
+  RestoreRecord = "RESTORE_RECORD",
+  RestoreStatement = "RESTORE_STATEMENT",
+  RestoreTypeNode = "RESTORE_TYPE_NODE",
+  SoftDeleteFile = "SOFT_DELETE_FILE",
+  SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  UpdateRecord = "UPDATE_RECORD",
+  UpdateStatementCode = "UPDATE_STATEMENT_CODE",
+  UpdateStatementDescription = "UPDATE_STATEMENT_DESCRIPTION",
+  UpdateStatementLanguage = "UPDATE_STATEMENT_LANGUAGE",
+  UpdateStatementModifier = "UPDATE_STATEMENT_MODIFIER",
+  UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
+  UpdateStatementText = "UPDATE_STATEMENT_TEXT",
+  UpdateTypeNode = "UPDATE_TYPE_NODE",
 }
 
 export type Mutation = {
@@ -1957,6 +2010,7 @@ export type Subscription = {
   executionsChanged: Execution;
   interpChanged: InterpModule;
   jobsChanged: Job;
+  moduleChanged: ModuleChange;
 };
 
 export type SubscriptionBuildCandidateChangedArgs = {
@@ -1995,6 +2049,10 @@ export type SubscriptionJobsChangedArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   typeIn?: InputMaybe<Array<JobType>>;
+};
+
+export type SubscriptionModuleChangedArgs = {
+  projectVersionId: Scalars["GlobalID"];
 };
 
 /** The type of symbol content. */
@@ -4207,6 +4265,20 @@ export type InterpChangedSubscription = {
   __typename?: "Subscription";
   interpChanged: { __typename?: "InterpModule" } & {
     " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
+  };
+};
+
+export type ModuleChangedSubscriptionVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type ModuleChangedSubscription = {
+  __typename?: "Subscription";
+  moduleChanged: {
+    __typename?: "ModuleChange";
+    id: any;
+    clientId?: any | null;
+    mutations: Array<{ __typename?: "ModuleMutation"; fileId?: any | null; input?: any | null }>;
   };
 };
 
@@ -11991,6 +12063,57 @@ export const InterpChangedDocument = {
     ...InterpErrorContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<InterpChangedSubscription, InterpChangedSubscriptionVariables>;
+export const ModuleChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "moduleChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "moduleChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "clientId" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "mutations" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "fileId" } },
+                      { kind: "Field", name: { kind: "Name", value: "input" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
 export const SystemInfoDocument = {
   kind: "Document",
   definitions: [
