@@ -108,7 +108,7 @@ def project_mutation(
             # publish change
             pub_project_mutation(client_id, type, things)
             # analytics
-            track_project_mutation(type, project_version, things, batch, kwargs.get("info"))
+            track_project_mutation(type, project_version, things, batch, info)
 
             return ret
 
@@ -186,10 +186,8 @@ def pub_project_mutation(
 
 
 def track_project_mutation(
-    type: PMT, project_version: ProjectVersion, things, batch: bool, info: Optional[Info]
+    type: PMT, project_version: ProjectVersion, things, batch: bool, info: Info
 ):
-    if not info:
-        return
     user = cast(models.User, info.context.request.scope["user"]._wrapped)
     if user.is_anonymous:
         return

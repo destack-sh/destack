@@ -12,8 +12,6 @@ from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import sync
 from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
 
-PROTOCOL_VERSION = 1
-
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
 

@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import json
+import os
 import typing
 import uuid
 from dataclasses import dataclass
@@ -15,7 +16,6 @@ import structlog
 from nats.aio.subscription import Subscription
 
 from bench.msg.messages import (
-    PROTOCOL_VERSION,
     REGISTERED_MESSAGE_PAYLOADS,
     REPLY_BY_REQUEST_TYPE,
     NMessageType,
@@ -72,6 +72,8 @@ async def drain_nats():
 PayloadT = TypeVar("PayloadT", bound=Any)
 # TODO @Robustness: fix PayloadT checking
 
+VERSION = os.environ["VERSION"]
+
 
 @dataclass(repr=False)
 class NMessage(Generic[PayloadT]):
@@ -79,7 +81,7 @@ class NMessage(Generic[PayloadT]):
     payload: PayloadT = None
     sent_at: datetime = required_field()
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
-    version: int = PROTOCOL_VERSION
+    version: str = VERSION
     msg: nats.aio.client.Msg | None = None  # the original nats message (if received)
 
     def __str__(self):
@@ -128,11 +130,6 @@ def _serialize_message(message: NMessage) -> str:
 
 def _parse_message(message_json: str) -> NMessage:
     message_dict = json.loads(message_json)
-    if message_dict["version"] != PROTOCOL_VERSION:  # inelegant exit for now
-        raise RuntimeError(
-            f"message version mismatch: {message_dict['_version']} != {PROTOCOL_VERSION}"
-        )
-
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
     if payload_cls and message_dict.get("payload") is not None:
         try:

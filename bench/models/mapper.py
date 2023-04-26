@@ -235,7 +235,9 @@ def write_statements(
     # assign temporary parent, reference and order keys to statements within the batch
     temp_order_keys = generate_n_keys_between(None, None, len(statements))
     for ok, stmt_data in zip(temp_order_keys, statements):
-        external_parent = stmt_data.parent_id not in statements_ids
+        external_parent = (
+            stmt_data.parent_id is not None and stmt_data.parent_id not in statements_ids
+        )
         model_statement = models.Statement(
             id=stmt_data.id,
             project_version=project_v,
