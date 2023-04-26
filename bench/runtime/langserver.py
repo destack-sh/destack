@@ -13,7 +13,6 @@ from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.mutate import ModuleMutation, ModuleMutator, is_semantic_mutation
 from bench.language.type import (
     Build,
     BuildSettings,
@@ -32,13 +31,11 @@ from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     BuildErrorType,
-    ClientOrigin,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     InterpChangedPayload,
     JobSavedPayload,
-    ModuleChangedPayload,
     NMessageType,
     RepBuildPayload,
     RepInterpPayload,
@@ -49,7 +46,10 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
     WorkerHeartbeatPayload,
+    ModuleChangedPayload,
+    ClientOrigin,
 )
+from bench.language.mutate import is_semantic_mutation, ModuleMutator, ModuleMutation
 from bench.runtime.build import (
     BuildCandidate,
     BuildResult,
@@ -242,7 +242,7 @@ class LanguageServer:
             return  # ignore non-semantic changes to modules
         # update language worker
         if msg.p.module_id in self.lang_workers:
-            worker = self.lang_workers[msg.p.moduleid]
+            worker = self.lang_workers[msg.p.module_id]
             worker.on_module_changed(msg.p.mutations)
 
     async def manage_sandboxed_workers(self, interval_seconds: int):

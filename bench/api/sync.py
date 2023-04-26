@@ -21,11 +21,11 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
-from bench.language.mutate import ModuleMutation, ModuleMutationType
 from bench.models import ProjectVersion, mapper
 from bench.msg import NMessageType
 from bench.msg.core import publish
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload
+from bench.language.mutate import ModuleMutation, ModuleMutationType
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
@@ -176,7 +176,6 @@ def pub_project_mutation(
         data = mapper.rmap_flat(thing)
         mutation = ModuleMutation(
             type=type,
-            simple_type=type.simple,
             project_version_id=project_version_id,
             file_id=file_id,
             statement_id=statement_id,

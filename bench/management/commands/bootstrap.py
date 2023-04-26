@@ -8,9 +8,10 @@ from django.db import transaction
 
 from bench.language import lex, parse, wire
 from bench.language.lex import SourceFile
+from bench.language.mutate import ModuleMutator
 from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
-from bench.models.mapper import lookup_in_db_module, write_module
+from bench.models.mapper import lookup_in_db_module, write_mutations
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.utils.fractional import generate_n_keys_between
 
@@ -97,9 +98,9 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
     std_v = std.create_version(name=version_id, parent=std_v)
     std_v.reset()
     source_file = SourceFile(path=path, content=Path(path).read_text())
-    module, _ = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
+    module, idx = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
     wire_module = wire.rmap_module(module)
-    write_module(wire_module.files, std_v)
+    write_mutations(std_v, ModuleMutator(idx).create_many(*wire_module.files).mutations)
 
     # advance head
     std_v.commit(name=version_id)

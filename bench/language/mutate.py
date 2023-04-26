@@ -147,13 +147,6 @@ class ModuleMutator:
         self.module = idx.module
         self.mutations = mutations or []
 
-    def map(self, generator_id: UUID, mappings: list[GeneratedMapping]) -> "ModuleMutator":
-        """Map a list of generated mappings to a statement."""
-        statement = wire.rmap_statement(self.idx.statements[generator_id])
-        statement.generated_mappings = mappings
-        self.do(MMT.UPDATE_GENERATED_MAPPINGS, statement)
-        return self
-
     def do(
         self, type: MMT, obj: FileData | StatementData | SimpleTypeNodeData | RecordData
     ) -> "ModuleMutator":
@@ -168,6 +161,13 @@ class ModuleMutator:
             data=obj,
         )
         self.mutations.append(mutation)
+        return self
+
+    def map(self, generator_id: UUID, mappings: list[GeneratedMapping]) -> "ModuleMutator":
+        """Map a list of generated mappings to a statement."""
+        statement = wire.rmap_statement(self.idx.statements[generator_id])
+        statement.generated_mappings = mappings
+        self.do(MMT.UPDATE_GENERATED_MAPPINGS, statement)
         return self
 
     def create_many(
@@ -237,6 +237,9 @@ class ModuleMutator:
             self.do(MMT.DELETE_RECORD, obj)
         return self
 
+    def bundle(self) -> "MutationBundle":
+        return MutationBundle(self.mutations)
+
     def apply(self) -> ModuleData:
         """Apply mutations to the module and return the new module data."""
         module_data = wire.rmap_module(self.module)
@@ -244,6 +247,26 @@ class ModuleMutator:
         raise NotImplementedError
 
         return module_data
+
+
+class MutationBundle:
+    def __init__(self, mutations: list[ModuleMutation]):
+        self.mutations = mutations
+        self._cache: dict[Any, list[ModuleMutation]] = {}
+
+    def __getitem__(self, type: MMT | MMK | MMS) -> list[ModuleMutation]:
+        if type in self._cache:
+            return self._cache[type]
+        if isinstance(type, MMT):
+            mutations = [m for m in self.mutations if m.type == type]
+        elif isinstance(type, MMK):
+            mutations = [m for m in self.mutations if m.type.kind == type]
+        elif isinstance(type, MMS):
+            mutations = [m for m in self.mutations if m.type.scope == type]
+        else:
+            raise TypeError(f"Invalid mutation type: {type}")
+        self._cache[type] = mutations
+        return mutations
 
 
 NON_SEMANTIC_MUTATION_TYPES = {

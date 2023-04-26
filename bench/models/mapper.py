@@ -17,7 +17,13 @@ from django.db import transaction
 
 from bench import language, models
 from bench.language import wire
-from bench.language.mutate import NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation
+from bench.language.mutate import (
+    NON_SEMANTIC_STATEMENT_TYPES,
+    ModuleMutation,
+    MutationBundle,
+    MMT,
+    MMK,
+)
 from bench.language.parse import get_type_root_id, index_module
 from bench.language.type import (
     PRIMITIVE_TYPES,
@@ -27,7 +33,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.wire import RecordData
+from bench.language.wire import RecordData, FileData, StatementData, SimpleTypeNodeData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
@@ -183,38 +189,112 @@ def rmap_file(file: models.File, module_id: UUID) -> wire.FileData:
 
 
 @transaction.atomic
-def write_module(
-    files: list[wire.FileData],
-    statements: list[wire.StatementData],
-    project_v: models.ProjectVersion,
-    generated_mappings: list[tuple[UUID, wire.GeneratedMapping]] = None,
-    overwrite: bool = False,
-    delete_files: set[UUID] = None,
-) -> None:
-    """Write the wire files (and their contents) as models to the database."""
-    write_files(project_v, files, delete_files=delete_files, overwrite=overwrite)
+def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
+    mut = MutationBundle(mutations)
 
-    # map statements
-    statements = statements + list(chain.from_iterable(file_data.statements for file_data in files))
-    write_statements(
-        statements,
-        project_v,
-        overwrite=overwrite,
-    )
-    write_generated_mappings(generated_mappings)
-
-
-@transaction.atomic
-def write_mutations(
-    project_v: models.ProjectVersion,
-    mutations: list[ModuleMutation],
-    # TODO @Architecture: generated mappings don't really fit into module mutations (yet?)
-    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
-):
     # first process deletes
-    # nocheckin: implement this
+    if mut[MMT.DELETE_FILE]:
+        file_ids = [m.file_id for m in mut[MMT.DELETE_FILE]]
+        for file in models.File.objects.filter(id__in=file_ids):
+            file.delete()
+    if mut[MMT.DELETE_STATEMENT]:
+        statement_ids = [m.statement_id for m in mut[MMT.DELETE_STATEMENT]]
+        for statement in models.Statement.objects.filter(id__in=statement_ids):
+            statement.delete()
+    if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
+        dataset_ids = [m.record_id for m in mut[MMT.DELETE_RECORD]]
+        models.DatasetRecord.objects.filter(id__in=dataset_ids).delete()
+    if mut[MMT.DELETE_TYPE_NODE]:  # batch delete since no dependent models
+        type_node_ids = [m.type_node_id for m in mut[MMT.DELETE_TYPE_NODE]]
+        models.SimpleTypeNode.objects.filter(id__in=type_node_ids).delete()
 
-    write_generated_mappings(generated_mappings)
+    # then process creates
+    if mut[MMT.CREATE_FILE]:
+        for create in mut[MMT.CREATE_FILE]:
+            file_data = typing.cast(FileData, create.data)
+            # remove extension from file path (assumed to be .x, but not stored)
+            path = file_data.path
+            if "." in path:
+                path = file_data.path.rsplit(".", 1)[0]
+            file = project_v.create_file_from_path(path, exists_ok=True, id=file_data.id)
+            if file.id != file_data.id:
+                # delete old file
+                file.delete()
+                file.id = file_data.id
+            file.generated = file_data.generated
+            file.save()
+    model_contents_relations: list[typing.Any] = []
+    if mut[MMT.CREATE_STATEMENT]:
+        statements = [typing.cast(StatementData, c.data) for c in mut[MMT.CREATE_STATEMENT]]
+        statements_ids = {stmt_data.id for stmt_data in statements}
+        model_statements: dict[UUID, models.Statement] = {}
+
+        # assign temporary parent, reference and order keys to statements within the batch
+        temp_order_keys = generate_n_keys_between(None, None, len(statements))
+        for ok, stmt_data in zip(temp_order_keys, statements):
+            external_parent = (
+                stmt_data.parent_id is not None and stmt_data.parent_id not in statements_ids
+            )
+            model_statement = models.Statement(
+                id=stmt_data.id,
+                project_version=project_v,
+                file_id=stmt_data.file_id,
+                parent_id=stmt_data.parent_id if external_parent else None,
+                order_key=stmt_data.order_key if external_parent else ok,
+                type=stmt_data.type,
+                modifier=stmt_data.modifier,
+                name=stmt_data.name,
+                #  :StatementCodeTextReuse
+                code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
+                symbol_type=stmt_data.symbol_type,
+                reference_id=stmt_data.reference_id,
+                generated=stmt_data.generated,
+            )
+            model_statements[stmt_data.id] = model_statement
+            if stmt_data.type == StatementType.DEFINITION:
+                new_relations = wmap_symbol(model_statement, stmt_data)
+                model_contents_relations.extend(new_relations)
+        # create statements
+        models.Statement.objects.bulk_create(model_statements.values())
+        # map actual order key, parent and references if not external
+        dirty_statements = []
+        for stmt_data in statements:
+            model_statement = model_statements[stmt_data.id]
+            dirty = (
+                model_statement.parent_id != stmt_data.parent_id
+                or model_statement.reference_id != stmt_data.reference_id
+            )
+            if dirty:
+                model_statement.order_key = stmt_data.order_key
+                model_statement.parent_id = stmt_data.parent_id
+                model_statement.reference_id = stmt_data.reference_id
+                dirty_statements.append(model_statement)
+        models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
+    for m in mut[MMT.CREATE_RECORD]:
+        model_contents_relations.append(
+            wmap_record(m.statement_id, typing.cast(RecordData, m.data))
+        )
+    for m in mut[MMT.CREATE_TYPE_NODE]:
+        model_contents_relations.append(
+            wmap_simple_type_node(m.statement_id, typing.cast(SimpleTypeNodeData, m.data))
+        )
+    # create content relations
+    for relation_cls, relations in groupby(model_contents_relations, key=type):
+        relation_cls.objects.bulk_create(relations)
+
+    # then process updates
+    if mut[MMT.UPDATE_GENERATED_MAPPINGS]:
+        generator_ids = {m.statement_id for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]}
+        models.GeneratedMapping.objects.filter(statement_id__in=generator_ids).delete()
+        models.GeneratedMapping.objects.bulk_create(
+            rmap_generated_mapping(m)
+            for m in chain.from_iterable(
+                (m.data.generated_mappings or []) for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]
+            )
+        )
+    # :WriteModuleUpdates
+    if len(mut[MMK.UPDATE]) > len(mut[MMT.UPDATE_GENERATED_MAPPINGS]):
+        raise NotImplementedError(f"updates not supported yet: {mut[MMK.UPDATE]}")
 
 
 def write_files(
@@ -247,79 +327,6 @@ def write_files(
         file.generated = file_data.generated
         file.save()
     return model_files
-
-
-def write_statements(
-    statements: list[wire.StatementData], project_v: ProjectVersion, overwrite: bool = False
-) -> None:
-    statements_ids = {stmt_data.id for stmt_data in statements}
-    model_statements: dict[UUID, models.Statement] = {}
-    model_contents_relations: list[typing.Any] = []
-
-    # assign temporary parent, reference and order keys to statements within the batch
-    temp_order_keys = generate_n_keys_between(None, None, len(statements))
-    for ok, stmt_data in zip(temp_order_keys, statements):
-        external_parent = (
-            stmt_data.parent_id is not None and stmt_data.parent_id not in statements_ids
-        )
-        model_statement = models.Statement(
-            id=stmt_data.id,
-            project_version=project_v,
-            file_id=stmt_data.file_id,
-            parent_id=stmt_data.parent_id if external_parent else None,
-            order_key=stmt_data.order_key if external_parent else ok,
-            type=stmt_data.type,
-            modifier=stmt_data.modifier,
-            name=stmt_data.name,
-            #  :StatementCodeTextReuse
-            code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
-            symbol_type=stmt_data.symbol_type,
-            reference_id=stmt_data.reference_id,
-            generated=stmt_data.generated,
-        )
-        model_statements[stmt_data.id] = model_statement
-
-        if stmt_data.type == StatementType.DEFINITION:
-            new_relations = wmap_symbol(model_statement, stmt_data)
-            model_contents_relations.extend(new_relations)
-
-    # wipe existing statements if overwrite and not empty
-    if overwrite:
-        statement_ids = set(model_statements.keys())
-        for statement in models.Statement.objects.filter(id__in=statement_ids):
-            statement.delete()
-
-    # create statements
-    models.Statement.objects.bulk_create(model_statements.values())
-    # and their relations
-    for relation_cls, relations in groupby(model_contents_relations, key=type):
-        relation_cls.objects.bulk_create(relations)
-
-    # map actual order key, parent and references if not external
-    dirty_statements = []
-    for stmt_data in statements:
-        model_statement = model_statements[stmt_data.id]
-        dirty = (
-            model_statement.parent_id != stmt_data.parent_id
-            or model_statement.reference_id != stmt_data.reference_id
-        )
-        if dirty:
-            model_statement.order_key = stmt_data.order_key
-            model_statement.parent_id = stmt_data.parent_id
-            model_statement.reference_id = stmt_data.reference_id
-            dirty_statements.append(model_statement)
-    models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
-
-
-def write_generated_mappings(generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]):
-    # delete old mappings
-    generator_ids = {generator_id for generator_id, _ in generated_mappings or []}
-    models.GeneratedMapping.objects.filter(statement_id__in=generator_ids).delete()
-    # update source mappings per generative statement
-    for generator_id, generated_mappings in generated_mappings or []:
-        models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()
-        model_mappings = wmap_generated_mappings(generator_id, generated_mappings)
-        models.GeneratedMapping.objects.bulk_create(model_mappings)
 
 
 def rmap_reference(
@@ -447,7 +454,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         statement.build_settings = build_settings
         relations.append(build_settings)
     if data.records:
-        model_records = [wmap_record(statement, record) for record in data.records]
+        model_records = [wmap_record(statement.id, record) for record in data.records]
         relations.extend(model_records)
     elif data.xblocks:
         model_xblocks = wmap_xblocks(statement, data.xblocks)
@@ -475,10 +482,10 @@ def rmap_record(record: models.DatasetRecord) -> RecordData:
     )
 
 
-def wmap_record(statement: models.Statement, record: RecordData) -> models.DatasetRecord:
+def wmap_record(statement_id: UUID, record: RecordData) -> models.DatasetRecord:
     return models.DatasetRecord(
         id=record.id,
-        statement=statement,
+        statement_id=statement_id,
         order_key=record.order_key,
         revision=record.revision,
         data=record.data,
@@ -568,11 +575,11 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
 
 
 def wmap_simple_type_node(
-    statement: models.Statement, node: wire.SimpleTypeNodeData
+    statement_id: UUID, node: wire.SimpleTypeNodeData
 ) -> models.SimpleTypeNode:
     return models.SimpleTypeNode(
         id=node.id,
-        statement=statement,
+        statement_id=statement_id,
         order_key=node.order_key,
         name=node.name,
         tag=node.tag,
@@ -586,13 +593,13 @@ def wmap_simple_type_node(
 
 
 def wmap_type_nodes(
-    statement: models.Statement | None,
+    statement_id: UUID | None,
     type_nodes: list[wire.TypeNodeData] | None,
     impute_type_reference: bool = False,
 ) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
     tag, type_nodes = wmap_type_nodes_data(type_nodes, impute_type_reference)
     if type_nodes:
-        type_nodes = [wmap_simple_type_node(statement, node) for node in type_nodes]
+        type_nodes = [wmap_simple_type_node(statement_id, node) for node in type_nodes]
     return tag, type_nodes
 
 
