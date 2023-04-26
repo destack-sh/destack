@@ -165,6 +165,7 @@ input ClientUpsertInput {
   type: ClientType!
   deviceName: String
   browserName: String
+  projectId: GlobalID
   projectVersionId: GlobalID
 }
 
@@ -661,8 +662,8 @@ type Mutation {
   logout: OperationInfo
   secretRootLogin(username: String!): UserOperationInfo!
   upsertClient(input: ClientUpsertInput!): ClientOperationInfo!
-  closeClient: OperationInfo
-  updatePresence: OperationInfo
+  closeClient: ClientOperationInfo!
+  updatePresence: ClientOperationInfo!
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
   createOrganizationInvites(input: OrganizationInviteInput!): OrganizationOperationInfo!

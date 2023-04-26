@@ -1,8 +1,11 @@
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Optional
 
+import pytz
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
+from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 from django_choices_field import TextChoicesField
 
@@ -14,6 +17,9 @@ from bench.models.organization import (
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
+
+if TYPE_CHECKING:
+    from bench.models import Project, ProjectVersion
 
 
 class UserManager(BaseUserManager["User"]):
@@ -102,11 +108,40 @@ class User(AbstractUser, UUIDModel):
         default_manager_name = "objects"
 
 
+CLIENT_ACTIVE_TIMEOUT_SECONDS = 60 * 1  # 1 minute
+
+
 class ClientType(models.TextChoices):
     """The type of device/client."""
 
     DesktopBrowser = "desktop_browser"
     MobileBrowser = "mobile_browser"
+
+
+class ClientManager(models.Manager):
+    def active(
+        self,
+        organization: Optional["Organization"] = None,
+        user: Optional["User"] = None,
+        project: Optional["Project"] = None,
+        project_version: Optional["ProjectVersion"] = None,
+    ) -> models.QuerySet["Client"]:
+        active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
+            seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
+        )
+        qs = self.filter(
+            Q(last_seen_at__gte=active_cutoff)
+            & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
+        )
+        if organization is not None:
+            qs = qs.filter(user__memberships__organization=organization)
+        if user is not None:
+            qs = qs.filter(user=user)
+        if project is not None:
+            qs = qs.filter(project=project)
+        if project_version is not None:
+            qs = qs.filter(project_version=project_version)
+        return qs
 
 
 class Client(UUIDModel):
@@ -120,6 +155,25 @@ class Client(UUIDModel):
     type = TextChoicesField(choices_enum=ClientType)
     device_name = models.CharField(max_length=256, null=True, blank=True)
     browser_name = models.CharField(max_length=256, null=True, blank=True)
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, null=True, blank=True
     )
+
+    @property
+    def active(self) -> bool:
+        if self.closed_at is not None and self.closed_at >= self.last_seen_at:
+            return False
+        active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
+            seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
+        )
+        return self.last_seen_at is not None and self.last_seen_at >= active_cutoff
+
+    def __str__(self):
+        active_str = "active" if self.active else "inactive"
+        return f"{self.user} {self.id} {active_str} ({self.type}, {self.device_name}, {self.browser_name})"
+
+    def __repr__(self):
+        return f"<Client {self}>"
+
+    objects = ClientManager()

@@ -13,6 +13,7 @@ export function useClientOps() {
         $type: ClientType!
         $deviceName: String
         $browserName: String
+        $projectId: GlobalID
         $projectVersionId: GlobalID
       ) {
         upsertClient(
@@ -21,6 +22,7 @@ export function useClientOps() {
             type: $type
             deviceName: $deviceName
             browserName: $browserName
+            projectId: $projectId
             projectVersionId: $projectVersionId
           }
         ) {
@@ -44,6 +46,7 @@ export function useClientOps() {
     type: ClientType,
     deviceName: string,
     browserName: string,
+    projectId: string | null,
     projectVersionId: string | null
   ) {
     return await operations.perform({
@@ -55,6 +58,7 @@ export function useClientOps() {
           type,
           deviceName,
           browserName,
+          projectId,
           projectVersionId,
         });
       },

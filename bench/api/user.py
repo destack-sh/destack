@@ -120,6 +120,7 @@ class ClientUpsertInput(gql.NodeInput):
     type: ClientType
     device_name: Optional[str]
     browser_name: Optional[str]
+    project_id: Optional[GlobalID]
     project_version_id: Optional[GlobalID]
 
 
@@ -160,11 +161,12 @@ class UserMutation:
         if not info.context.request.scope["user"].is_authenticated:
             raise PermissionDenied("can only logout when logged in")
         # also close client
-        client_id = info.context.request.session.get("client_id")
+        client_id = info.context.request.scope["session"].get("client_id")
         if client_id is not None:
-            models.Client.objects.filter(id=client_id).update(
-                closed_at=datetime.utcnow().replace(tzinfo=pytz.utc)
-            )
+            client = models.Client.objects.get(id=client_id)
+            client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            client.last_seen_at = client.closed_at
+            client.save()
         async_to_sync(channels_logout)(info.context.request.scope)
         return None
 
@@ -191,37 +193,40 @@ class UserMutation:
         )
         client.type = input.type
         client.device_name = input.device_name
-        client.project_version_id = input.project_version_id.node_id
+        client.project_id = input.project_id.node_id if input.project_id else None
+        client.project_version_id = (
+            input.project_version_id.node_id if input.project_version_id else None
+        )
         client.browser_name = input.browser_name
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
-
         # set client id in session
-        info.context.request.session["client_id"] = client.id
-
+        info.context.request.scope["session"]["client_id"] = client.id
         return client
 
     @safe_mutation
-    def close_client(self, info: Info) -> None | OperationInfo:
+    def close_client(self, info: Info) -> Client | OperationInfo:
         user = info.context.request.scope["user"]
         if not user.is_authenticated:
             raise PermissionDenied("can only close client when logged in")
-        client_id = info.context.request.session.get("client_id")
+        client_id = info.context.request.scope["session"].get("client_id")
         if client_id is not None:
-            models.Client.objects.filter(id=client_id).update(
-                closed_at=datetime.utcnow().replace(tzinfo=pytz.utc)
-            )
-        return None
+            raise PermissionDenied("can only close client when client_id is set")
+        client = models.Client.objects.get(id=client_id)
+        client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.last_seen_at = client.closed_at
+        client.save()
+        return client
 
     @safe_mutation
-    def update_presence(self, info: Info) -> None | OperationInfo:
+    def update_presence(self, info: Info) -> Client | OperationInfo:
         user = info.context.request.scope["user"]
         if not user.is_authenticated:
             raise PermissionDenied("can only update presence when logged in")
-        client_id = info.context.request.session.get("client_id")
+        client_id = info.context.request.scope["session"].get("client_id")
         if client_id is None:
             raise PermissionDenied("can only update presence when client_id is set")
         client = models.Client.objects.get(id=client_id)
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
-        return None
+        return client
