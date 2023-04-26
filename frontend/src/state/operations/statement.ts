@@ -5,7 +5,6 @@ import {
   type BatchDeleteStatementsMutation,
   type BatchMoveStatementMutation,
   type BatchRestoreStatementsMutation,
-  type CreateStatementMutation,
   type CreateTypeNodeMutation,
   type DeleteStatementMutation,
   type DeleteTypeNodeMutation,
@@ -23,6 +22,7 @@ import {
   type UpdateTypeNodeMutation,
   type SetReferenceMutation,
   type CommentStatementMutation,
+  type CreateStatementBlankMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -51,10 +51,10 @@ const PENDING_REVISION = -1;
 export function useStatementOps() {
   const operations = useOperationsStore();
 
-  const { mutate: createStatementMut } = useMutation(
+  const { mutate: createStatementBlankMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation createStatement($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
-        createStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
+      mutation createStatementBlank($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
+        createStatementBlank(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
           ... on Statement {
             id
             type
@@ -77,7 +77,7 @@ export function useStatementOps() {
       optimisticResponse: (vars: { id: string; fileId: string; parentId: string | null; orderKey: string }) =>
         ({
           __typename: "Mutation",
-          createStatement: {
+          createStatementBlank: {
             __typename: "Statement",
             id: vars.id,
             file: {
@@ -85,7 +85,7 @@ export function useStatementOps() {
               id: vars.fileId,
             },
             parent: vars.parentId == null ? null : { __typename: "Statement", id: vars.parentId },
-            revision: -1,
+            revision: PENDING_REVISION,
             orderKey: vars.orderKey,
             // default new fields (all! fields in StatementContent fragment)
             createdAt: new Date().toISOString(),
@@ -107,18 +107,18 @@ export function useStatementOps() {
             generated: false,
             commented: false,
           },
-        } as CreateStatementMutation),
+        } as CreateStatementBlankMutation),
       update(cache, { data: createStatement }) {
-        if (createStatement?.createStatement.__typename != "Statement") {
+        if (createStatement?.createStatementBlank.__typename != "Statement") {
           return; // error
         }
         // extend File.statements array with (ref to) new statement
         // must ensure that all relevant fields are present or weird things happen
         cache.modify({
-          id: cache.identify(createStatement.createStatement?.file),
+          id: cache.identify(createStatement.createStatementBlank?.file),
           fields: {
             statements(currentStatements = []) {
-              return [...currentStatements, { __ref: cache.identify(createStatement?.createStatement) }];
+              return [...currentStatements, { __ref: cache.identify(createStatement?.createStatementBlank) }];
             },
           },
           optimistic: true,
@@ -127,9 +127,9 @@ export function useStatementOps() {
     }
   );
 
-  async function create(id: string, fileId: string, parentId: string | null, orderKey: string) {
+  async function createBlank(id: string, fileId: string, parentId: string | null, orderKey: string) {
     async function apply() {
-      return await createStatementMut({
+      return await createStatementBlankMut({
         id,
         fileId,
         parentId,
@@ -936,7 +936,7 @@ export function useStatementOps() {
   }
 
   return {
-    create,
+    create: createBlank,
     morph,
     modify,
     setReference,

@@ -300,7 +300,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function updateRecord(id: string, statementId: string, oldData: JSON, newData: JSON) {
+  async function updateRecord(id: string, oldData: JSON, newData: JSON) {
     await operations.perform({
       type: "statement.updateRecord",
       do: async () => {
@@ -312,7 +312,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function deleteRecord(id: string, statementId: string, orderKey: string, data: JSON) {
+  async function deleteRecord(id: string) {
     await operations.perform({
       type: "statement.deleteRecord",
       do: async () => {
