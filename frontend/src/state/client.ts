@@ -2,6 +2,7 @@ import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
+import { WS_CONNECTED } from "@/utils/globals";
 import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { onBeforeUnmount, ref, toRef, watch } from "vue";
@@ -117,7 +118,7 @@ function _useClient(presenceIntervalMs = 10000) {
 
   async function close() {
     clearInterval(interval);
-    if (auth.loggedIn.value) {
+    if (auth.loggedIn.value && WS_CONNECTED.value) {
       await ops.client.close();
     }
   }

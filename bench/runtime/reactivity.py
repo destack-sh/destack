@@ -262,17 +262,13 @@ def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[la
 
         # mark generated statements as stale
         # also mark generator and the directly mapped source of the generated symbol
-        # ideally we would also track which generator the symbol is stale in
+        # ideally we would also track which generator the symbol is stale in?
         for mapping in symbol.generated_mappings:
             if mapping.target_id is None:
                 continue
             generated_target = idx.get_symbol_by_id(mapping.target_id)
-            generated_source = idx.get_symbol_by_id(mapping.source_id)
             if generated_target is not None:
-                # ignore if no target (was deleted or undirected dependency)
                 stale_symbols.append(generated_target.source)
-                if generated_source is not None:  # may have been deleted
-                    stale_symbols.append(generated_source.source)
         stale_symbols.append(symbol.source)
 
     return stale_symbols
