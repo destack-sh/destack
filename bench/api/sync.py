@@ -21,11 +21,11 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
+from bench.language.mutate import ModuleMutation, ModuleMutationType
 from bench.models import ProjectVersion, mapper
 from bench.msg import NMessageType
 from bench.msg.core import publish
-from bench.msg.messages import ProjectVersionChangedPayload
-from bench.msg.sync import ModuleMutation, ModuleMutationType
+from bench.msg.messages import ClientOrigin, ModuleChangedPayload
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
@@ -175,7 +175,8 @@ def pub_project_mutation(
             raise TypeError(f"thing is not a project thing: {thing}")
         data = mapper.rmap_flat(thing)
         mutation = ModuleMutation(
-            type,
+            type=type,
+            simple_type=type.simple,
             project_version_id=project_version_id,
             file_id=file_id,
             statement_id=statement_id,
@@ -188,9 +189,11 @@ def pub_project_mutation(
         mutations.append(mutation)
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
     async_to_sync(publish)(
-        NMessageType.PROJECT_VERSION_CHANGED,
-        ProjectVersionChangedPayload(
-            project_version_id=project_version_id, client=("user", client_id), mutations=mutations
+        NMessageType.MODULE_CHANGED,
+        ModuleChangedPayload(
+            module_id=project_version_id,
+            client=ClientOrigin("user", client_id),
+            mutations=mutations,
         ),
     )
 

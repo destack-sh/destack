@@ -17,6 +17,7 @@ from django.db import transaction
 
 from bench import language, models
 from bench.language import wire
+from bench.language.mutate import NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation
 from bench.language.parse import get_type_root_id, index_module
 from bench.language.type import (
     PRIMITIVE_TYPES,
@@ -28,7 +29,6 @@ from bench.language.type import (
 )
 from bench.language.wire import RecordData
 from bench.models.project import Project, ProjectVersion
-from bench.msg.sync import NON_SEMANTIC_STATEMENT_TYPES
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
 
@@ -204,6 +204,19 @@ def write_module(
     write_generated_mappings(generated_mappings)
 
 
+@transaction.atomic
+def write_mutations(
+    project_v: models.ProjectVersion,
+    mutations: list[ModuleMutation],
+    # TODO @Architecture: generated mappings don't really fit into module mutations (yet?)
+    generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]] = None,
+):
+    # first process deletes
+    # nocheckin: implement this
+
+    write_generated_mappings(generated_mappings)
+
+
 def write_files(
     project_v: models.ProjectVersion,
     files: list[wire.FileData],
@@ -299,6 +312,9 @@ def write_statements(
 
 
 def write_generated_mappings(generated_mappings: list[tuple[UUID, list[wire.GeneratedMapping]]]):
+    # delete old mappings
+    generator_ids = {generator_id for generator_id, _ in generated_mappings or []}
+    models.GeneratedMapping.objects.filter(statement_id__in=generator_ids).delete()
     # update source mappings per generative statement
     for generator_id, generated_mappings in generated_mappings or []:
         models.GeneratedMapping.objects.filter(statement_id=generator_id).delete()

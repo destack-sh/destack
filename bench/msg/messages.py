@@ -7,9 +7,8 @@ from enum import StrEnum
 from typing import Optional, cast
 from uuid import UUID
 
-from bench.language import wire
+from bench.language import mutate, wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.msg import sync
 from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -31,8 +30,6 @@ class NMessageType(StrEnum):
 
     # Bench project version content sync
     # API <-> API,, API <-> Internal
-    PROJECT_VERSION_CHANGED = "project_version.changed"
-    # Internal -> Worker
     MODULE_CHANGED = "module.changed"
 
     # Worker <-> Internal
@@ -95,19 +92,14 @@ class WorkerHeartbeatPayload:
     worker_id: UUID
 
 
-@payload(NMessageType.PROJECT_VERSION_CHANGED)
-class ProjectVersionChangedPayload:
-    project_version_id: UUID
-    client: tuple[str, UUID]
-    mutations: list[sync.ModuleMutation]
+ClientOrigin = typing.NamedTuple("ClientOrigin", [("type", str), ("id", UUID)])
 
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
     module_id: UUID
-    #  :PartialModuleUpdates
-    # mutations: list[wire.ModuleMutation]
-    module: wire.ModuleData
+    client: ClientOrigin
+    mutations: list[mutate.ModuleMutation]
 
 
 @payload(NMessageType.REQUEST_BUILD)
@@ -258,10 +250,7 @@ def to_topic(
     :NATSTopics
     """
     # note: this seems a tad repetitive, maybe cleanup somehow (sacrifice type safety?)
-    if message_type == NMessageType.PROJECT_VERSION_CHANGED:
-        payload = cast(ProjectVersionChangedPayload, payload)
-        return f"{message_type}.{payload.project_version_id}"
-    elif message_type == NMessageType.MODULE_CHANGED:
+    if message_type == NMessageType.MODULE_CHANGED:
         payload = cast(ModuleChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.INTERP_CHANGED:
