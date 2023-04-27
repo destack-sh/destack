@@ -679,11 +679,9 @@ export type ModuleMutation = {
   fileId?: Maybe<Scalars["GlobalID"]>;
   input?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
-  recordId?: Maybe<Scalars["GlobalID"]>;
   revision?: Maybe<Scalars["Int"]>;
   statementId?: Maybe<Scalars["GlobalID"]>;
   type: ModuleMutationType;
-  typeNodeId?: Maybe<Scalars["GlobalID"]>;
 };
 
 /** Fine-grained atomic mutations for multiplayer modules. */
@@ -695,8 +693,10 @@ export enum ModuleMutationType {
   CreateStatement = "CREATE_STATEMENT",
   CreateStatementBlank = "CREATE_STATEMENT_BLANK",
   CreateTypeNode = "CREATE_TYPE_NODE",
+  CreateXblock = "CREATE_XBLOCK",
   DeleteRecord = "DELETE_RECORD",
   DeleteTypeNode = "DELETE_TYPE_NODE",
+  DeleteXblock = "DELETE_XBLOCK",
   MorphStatement = "MORPH_STATEMENT",
   MoveFile = "MOVE_FILE",
   MoveRecord = "MOVE_RECORD",
@@ -709,7 +709,9 @@ export enum ModuleMutationType {
   RestoreStatement = "RESTORE_STATEMENT",
   RestoreTypeNode = "RESTORE_TYPE_NODE",
   SoftDeleteFile = "SOFT_DELETE_FILE",
+  SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  SoftDeleteTypeNode = "SOFT_DELETE_TYPE_NODE",
   UpdateFile = "UPDATE_FILE",
   UpdateGeneratedMappings = "UPDATE_GENERATED_MAPPINGS",
   UpdateRecord = "UPDATE_RECORD",
@@ -743,48 +745,55 @@ export type Mutation = {
   createOrganization: OrganizationOperationInfo;
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
+  createRecord: DatasetRecordOperationInfo;
+  createStatement: StatementOperationInfo;
   createStatementBlank: StatementOperationInfo;
-  createStatementRecord: DatasetRecordOperationInfo;
-  createStatementTypeNode: SimpleTypeNodeOperationInfo;
-  deleteStatementRecord: DatasetRecordOperationInfo;
-  deleteStatementTypeNode: SimpleTypeNodeOperationInfo;
+  createTypeNode: SimpleTypeNodeOperationInfo;
+  deleteFile: FileOperationInfo;
+  deleteRecord: DatasetRecordOperationInfo;
+  deleteStatement: StatementOperationInfo;
+  deleteTypeNode: SimpleTypeNodeOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
+  moveRecord: DatasetRecordOperationInfo;
   moveStatement: StatementOperationInfo;
-  moveStatementRecord: DatasetRecordOperationInfo;
-  moveStatementTypeNode: SimpleTypeNodeOperationInfo;
+  moveTypeNode: SimpleTypeNodeOperationInfo;
   removeDeployedStatement: DeploymentOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
+  restoreRecord: DatasetRecordOperationInfo;
   restoreStatement: StatementOperationInfo;
-  restoreStatementRecord: DatasetRecordOperationInfo;
   restoreStatementTypeNode: SimpleTypeNodeOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
   setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
+  softDeleteRecord: DatasetRecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
+  softDeleteTypeNode: SimpleTypeNodeOperationInfo;
   updateDeployment: DeploymentOperationInfo;
+  updateFile: FileOperationInfo;
   updateOrganization: OrganizationOperationInfo;
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
   updatePresence: ClientOperationInfo;
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
+  updateRecord: DatasetRecordOperationInfo;
+  updateStatement: StatementOperationInfo;
   updateStatementCode: StatementOperationInfo;
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
-  updateStatementRecord: DatasetRecordOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
-  updateStatementTypeNode: SimpleTypeNodeOperationInfo;
+  updateTypeNode: SimpleTypeNodeOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -857,23 +866,35 @@ export type MutationCreateProjectArgs = {
   input: ProjectCreateInput;
 };
 
+export type MutationCreateRecordArgs = {
+  input: RecordCreateInput;
+};
+
+export type MutationCreateStatementArgs = {
+  input: StatementCreateInput;
+};
+
 export type MutationCreateStatementBlankArgs = {
   input: StatementCreateBlankInput;
 };
 
-export type MutationCreateStatementRecordArgs = {
-  input: RecordCreateInput;
-};
-
-export type MutationCreateStatementTypeNodeArgs = {
+export type MutationCreateTypeNodeArgs = {
   input: TypeNodeCreateInput;
 };
 
-export type MutationDeleteStatementRecordArgs = {
+export type MutationDeleteFileArgs = {
+  input: NodeInput;
+};
+
+export type MutationDeleteRecordArgs = {
   input: RecordDeleteInput;
 };
 
-export type MutationDeleteStatementTypeNodeArgs = {
+export type MutationDeleteStatementArgs = {
+  input: StatementDeleteInput;
+};
+
+export type MutationDeleteTypeNodeArgs = {
   input: TypeNodeDeleteInput;
 };
 
@@ -889,15 +910,15 @@ export type MutationMoveFileArgs = {
   input: FileMoveInput;
 };
 
+export type MutationMoveRecordArgs = {
+  input: RecordMoveInput;
+};
+
 export type MutationMoveStatementArgs = {
   input: StatementMoveInput;
 };
 
-export type MutationMoveStatementRecordArgs = {
-  input: RecordMoveInput;
-};
-
-export type MutationMoveStatementTypeNodeArgs = {
+export type MutationMoveTypeNodeArgs = {
   input: TypeNodeMoveInput;
 };
 
@@ -925,12 +946,12 @@ export type MutationRestoreFileArgs = {
   input: NodeInput;
 };
 
-export type MutationRestoreStatementArgs = {
-  input: StatementRestoreInput;
+export type MutationRestoreRecordArgs = {
+  input: RecordDeleteInput;
 };
 
-export type MutationRestoreStatementRecordArgs = {
-  input: RecordDeleteInput;
+export type MutationRestoreStatementArgs = {
+  input: StatementRestoreInput;
 };
 
 export type MutationRestoreStatementTypeNodeArgs = {
@@ -957,12 +978,24 @@ export type MutationSoftDeleteFileArgs = {
   input: NodeInput;
 };
 
+export type MutationSoftDeleteRecordArgs = {
+  input: RecordDeleteInput;
+};
+
 export type MutationSoftDeleteStatementArgs = {
   input: StatementSoftDeleteInput;
 };
 
+export type MutationSoftDeleteTypeNodeArgs = {
+  input: TypeNodeDeleteInput;
+};
+
 export type MutationUpdateDeploymentArgs = {
   input: DeployInput;
+};
+
+export type MutationUpdateFileArgs = {
+  input: FileCreateInput;
 };
 
 export type MutationUpdateOrganizationArgs = {
@@ -985,6 +1018,14 @@ export type MutationUpdateProjectVisibilityArgs = {
   input: ProjectUpdateVisibilityInput;
 };
 
+export type MutationUpdateRecordArgs = {
+  input: RecordUpdateInput;
+};
+
+export type MutationUpdateStatementArgs = {
+  input: StatementCreateInput;
+};
+
 export type MutationUpdateStatementCodeArgs = {
   input: StatementUpdateCodeInput;
 };
@@ -1001,10 +1042,6 @@ export type MutationUpdateStatementModifierArgs = {
   input: StatementSetModifierInput;
 };
 
-export type MutationUpdateStatementRecordArgs = {
-  input: RecordUpdateInput;
-};
-
 export type MutationUpdateStatementReferenceArgs = {
   input: StatementSetReferenceInput;
 };
@@ -1013,7 +1050,7 @@ export type MutationUpdateStatementTextArgs = {
   input: StatementUpdateCodeInput;
 };
 
-export type MutationUpdateStatementTypeNodeArgs = {
+export type MutationUpdateTypeNodeArgs = {
   input: TypeNodeUpdateInput;
 };
 
@@ -1833,6 +1870,7 @@ export type Statement = Node &
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
+    xblocks: Array<XBlock>;
   };
 
 export type StatementRecordsArgs = {
@@ -1852,6 +1890,10 @@ export type StatementReferencedByArgs = {
 
 export type StatementTypeNodesArgs = {
   filters?: InputMaybe<SimpleTypeNodeFilter>;
+};
+
+export type StatementXblocksArgs = {
+  filters?: InputMaybe<XBlockFilter>;
 };
 
 export type StatementBatch = {
@@ -1914,6 +1956,31 @@ export type StatementCreateBlankInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
+/** Creates a full statement */
+export type StatementCreateInput = {
+  code?: InputMaybe<Scalars["String"]>;
+  commented?: InputMaybe<Scalars["Boolean"]>;
+  description?: InputMaybe<Scalars["String"]>;
+  fileId: Scalars["GlobalID"];
+  generated?: InputMaybe<Scalars["Boolean"]>;
+  id?: InputMaybe<Scalars["GlobalID"]>;
+  lang?: InputMaybe<Scalars["String"]>;
+  modifier?: InputMaybe<StatementModifier>;
+  name?: InputMaybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  revision?: InputMaybe<Scalars["Int"]>;
+  rootTypeTag?: InputMaybe<TypeTag>;
+  symbolType?: InputMaybe<SymbolType>;
+  text?: InputMaybe<Scalars["String"]>;
+  type: StatementType;
+};
+
+export type StatementDeleteInput = {
+  id: Scalars["GlobalID"];
+};
+
 /** An edge in a connection. */
 export type StatementEdge = {
   __typename?: "StatementEdge";
@@ -1946,7 +2013,6 @@ export type StatementMorphInput = {
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
-  typeNodes?: InputMaybe<Array<TypeNodeCreateInput>>;
 };
 
 export type StatementMoveInput = {
@@ -2088,7 +2154,6 @@ export type Type = {
   description?: Maybe<Scalars["String"]>;
 };
 
-/** Upsert a statement type node data */
 export type TypeNodeCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -2254,6 +2319,37 @@ export type UserUpdateInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 };
+
+export type XBlock = Node & {
+  __typename?: "XBlock";
+  createdAt: Scalars["DateTime"];
+  description?: Maybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  kind: XKind;
+  orderKey: Scalars["String"];
+  revision: Scalars["Int"];
+  source: XSource;
+  statement: Statement;
+  value?: Maybe<Scalars["JSON"]>;
+};
+
+export type XBlockFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export enum XKind {
+  Input = "Input",
+  Output = "Output",
+  Settings = "Settings",
+  Static = "Static",
+}
+
+export enum XSource {
+  Developer = "Developer",
+  Model = "Model",
+  System = "System",
+  User = "User",
+}
 
 export type DeploymentsQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -3868,7 +3964,7 @@ export type CreateTypeNodeMutationVariables = Exact<{
 
 export type CreateTypeNodeMutation = {
   __typename?: "Mutation";
-  createStatementTypeNode:
+  createTypeNode:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -3889,7 +3985,7 @@ export type DeleteTypeNodeMutationVariables = Exact<{
 
 export type DeleteTypeNodeMutation = {
   __typename?: "Mutation";
-  deleteStatementTypeNode:
+  deleteTypeNode:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -3915,7 +4011,7 @@ export type UpdateTypeNodeMutationVariables = Exact<{
 
 export type UpdateTypeNodeMutation = {
   __typename?: "Mutation";
-  updateStatementTypeNode:
+  updateTypeNode:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -3985,7 +4081,7 @@ export type CreateRecordMutationVariables = Exact<{
 
 export type CreateRecordMutation = {
   __typename?: "Mutation";
-  createStatementRecord:
+  createRecord:
     | {
         __typename?: "DatasetRecord";
         id: any;
@@ -4009,7 +4105,7 @@ export type UpdateRecordMutationVariables = Exact<{
 
 export type UpdateRecordMutation = {
   __typename?: "Mutation";
-  updateStatementRecord:
+  updateRecord:
     | { __typename?: "DatasetRecord"; id: any; updatedAt: any; revision: number; data: any }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -4022,7 +4118,7 @@ export type DeleteRecordMutationVariables = Exact<{
 
 export type DeleteRecordMutation = {
   __typename?: "Mutation";
-  deleteStatementRecord:
+  deleteRecord:
     | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -4035,7 +4131,7 @@ export type RestoreRecordMutationVariables = Exact<{
 
 export type RestoreRecordMutation = {
   __typename?: "Mutation";
-  restoreStatementRecord:
+  restoreRecord:
     | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -10798,7 +10894,7 @@ export const CreateTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "createStatementTypeNode" },
+            name: { kind: "Name", value: "createTypeNode" },
             arguments: [
               {
                 kind: "Argument",
@@ -10862,7 +10958,7 @@ export const DeleteTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "deleteStatementTypeNode" },
+            name: { kind: "Name", value: "deleteTypeNode" },
             arguments: [
               {
                 kind: "Argument",
@@ -10985,7 +11081,7 @@ export const UpdateTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateStatementTypeNode" },
+            name: { kind: "Name", value: "updateTypeNode" },
             arguments: [
               {
                 kind: "Argument",
@@ -11279,7 +11375,7 @@ export const CreateRecordDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "createStatementRecord" },
+            name: { kind: "Name", value: "createRecord" },
             arguments: [
               {
                 kind: "Argument",
@@ -11372,7 +11468,7 @@ export const UpdateRecordDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateStatementRecord" },
+            name: { kind: "Name", value: "updateRecord" },
             arguments: [
               {
                 kind: "Argument",
@@ -11439,7 +11535,7 @@ export const DeleteRecordDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "deleteStatementRecord" },
+            name: { kind: "Name", value: "deleteRecord" },
             arguments: [
               {
                 kind: "Argument",
@@ -11499,7 +11595,7 @@ export const RestoreRecordDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "restoreStatementRecord" },
+            name: { kind: "Name", value: "restoreRecord" },
             arguments: [
               {
                 kind: "Argument",

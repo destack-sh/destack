@@ -20,6 +20,7 @@ export type Operation<T> = {
   startedAt?: DateTime;
   key?: string | Record<string, string>;
   stateless?: boolean; // whether the operation mutates synced state (true by default)
+  suppressErrors?: boolean; // whether to suppress errors (false by default)
   do(): Promise<T>;
   redo?(): Promise<T | unknown>;
   undo?(): Promise<unknown>;
@@ -118,7 +119,9 @@ export const useOperationsStore = defineStore("operations", {
         }
         return ret;
       } catch (e) {
-        onError(operation, e);
+        if (!operation.suppressErrors) {
+          onError(operation, e);
+        }
         return Promise.resolve(null);
       } finally {
         this.inflight = this.inflight.filter((op) => op.id !== operation.id);

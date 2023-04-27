@@ -111,7 +111,7 @@ function _useClient(presenceIntervalMs = 10000) {
   // periodically update presence (if logged in and window is focused)
   const interval = setInterval(async () => {
     if (auth.loggedIn.value && document.visibilityState === "visible") {
-      await ops.client.updatePresence();
+      await ops.client.updatePresence(true); // silence errors
     }
   }, presenceIntervalMs);
   onBeforeUnmount(close);

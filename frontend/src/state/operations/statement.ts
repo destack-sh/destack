@@ -743,7 +743,7 @@ export function useStatementOps() {
   const { mutate: createTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
-        createStatementTypeNode(input: $typeNode) {
+        createTypeNode(input: $typeNode) {
           ... on SimpleTypeNode {
             id
             createdAt
@@ -808,7 +808,7 @@ export function useStatementOps() {
   const { mutate: deleteTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation deleteTypeNode($id: GlobalID!) {
-        deleteStatementTypeNode(input: { id: $id }) {
+        deleteTypeNode(input: { id: $id }) {
           ... on SimpleTypeNode {
             id
             deletedAt
@@ -883,7 +883,7 @@ export function useStatementOps() {
   const { mutate: updateTypeNodeMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
-        updateStatementTypeNode(input: $typeNode) {
+        updateTypeNode(input: $typeNode) {
           ... on SimpleTypeNode {
             id
             updatedAt

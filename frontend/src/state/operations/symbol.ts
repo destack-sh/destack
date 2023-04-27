@@ -140,7 +140,7 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
-        createStatementRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
+        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
           ... on DatasetRecord {
             id
             createdAt
@@ -205,7 +205,7 @@ export function useSymbolContentOps() {
   const { mutate: updateRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateRecord($id: GlobalID!, $data: JSON!) {
-        updateStatementRecord(input: { id: $id, data: $data }) {
+        updateRecord(input: { id: $id, data: $data }) {
           ... on DatasetRecord {
             id
             updatedAt
@@ -233,7 +233,7 @@ export function useSymbolContentOps() {
   const { mutate: deleteRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation deleteRecord($id: GlobalID!) {
-        deleteStatementRecord(input: { id: $id }) {
+        deleteRecord(input: { id: $id }) {
           ... on DatasetRecord {
             id
             deletedAt
@@ -258,7 +258,7 @@ export function useSymbolContentOps() {
   const { mutate: restoreRecordMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation restoreRecord($id: GlobalID!) {
-        restoreStatementRecord(input: { id: $id }) {
+        restoreRecord(input: { id: $id }) {
           ... on DatasetRecord {
             id
             deletedAt

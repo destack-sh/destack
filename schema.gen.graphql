@@ -666,8 +666,6 @@ type ModuleMutation {
   projectVersionId: GlobalID!
   fileId: GlobalID
   statementId: GlobalID
-  recordId: GlobalID
-  typeNodeId: GlobalID
   revision: Int
   input: JSON
 }
@@ -700,13 +698,17 @@ enum ModuleMutationType {
   CREATE_TYPE_NODE
   UPDATE_TYPE_NODE
   MOVE_TYPE_NODE
+  SOFT_DELETE_TYPE_NODE
   DELETE_TYPE_NODE
   RESTORE_TYPE_NODE
   CREATE_RECORD
   UPDATE_RECORD
   MOVE_RECORD
+  SOFT_DELETE_RECORD
   DELETE_RECORD
   RESTORE_RECORD
+  CREATE_XBLOCK
+  DELETE_XBLOCK
 }
 
 type Mutation {
@@ -734,6 +736,9 @@ type Mutation {
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatementBlank(input: StatementCreateBlankInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  createStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  updateStatement(input: StatementCreateInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
+  deleteStatement(input: StatementDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   morphStatement(input: StatementMorphInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   renameStatement(input: StatementRenameInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
@@ -751,17 +756,21 @@ type Mutation {
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo! @canWriteProject(atRoot: true)
-  createStatementRecord(input: RecordCreateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
-  updateStatementRecord(input: RecordUpdateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
-  moveStatementRecord(input: RecordMoveInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
-  deleteStatementRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
-  restoreStatementRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
-  createStatementTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
-  updateStatementTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
-  moveStatementTypeNode(input: TypeNodeMoveInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
-  deleteStatementTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  createRecord(input: RecordCreateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  updateRecord(input: RecordUpdateInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  moveRecord(input: RecordMoveInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  softDeleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  deleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  restoreRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo! @canWriteProject(atRoot: true)
+  createTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  updateTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  moveTypeNode(input: TypeNodeMoveInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  softDeleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
+  deleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
   restoreStatementTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo! @canWriteProject(atRoot: true)
   createFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  updateFile(input: FileCreateInput!): FileOperationInfo! @canWriteProject(atRoot: true)
+  deleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
   softDeleteFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
   restoreFile(input: NodeInput!): FileOperationInfo! @canWriteProject(atRoot: true)
   moveFile(input: FileMoveInput!): FileOperationInfo! @canWriteProject(atRoot: true)
@@ -1635,6 +1644,7 @@ type Statement implements Node & SimplyTyped {
   symbolType: SymbolType
   lang: String
   code: String
+  xblocks(filters: XBlockFilter): [XBlock!]!
   description: String
   referenceProjectVersion: ProjectVersion
   records(
@@ -1717,6 +1727,31 @@ input StatementCreateBlankInput {
   parentId: GlobalID = null
 }
 
+"""Creates a full statement"""
+input StatementCreateInput {
+  id: GlobalID = null
+  fileId: GlobalID!
+  orderKey: String!
+  revision: Int = null
+  type: StatementType!
+  generated: Boolean = null
+  parentId: GlobalID = null
+  commented: Boolean = null
+  modifier: StatementModifier = null
+  name: String = null
+  rootTypeTag: TypeTag = null
+  symbolType: SymbolType = null
+  referenceId: GlobalID = null
+  description: String = null
+  lang: String = null
+  code: String = null
+  text: String = null
+}
+
+input StatementDeleteInput {
+  id: GlobalID!
+}
+
 """An edge in a connection."""
 type StatementEdge {
   """A cursor for use in pagination"""
@@ -1748,7 +1783,6 @@ input StatementMorphInput {
   symbolType: SymbolType = null
   name: String = null
   rootTypeTag: TypeTag = null
-  typeNodes: [TypeNodeCreateInput!] = null
   lang: String = null
 }
 
@@ -1846,7 +1880,6 @@ type Type {
   btl: String!
 }
 
-"""Upsert a statement type node data"""
 input TypeNodeCreateInput {
   id: GlobalID!
   orderKey: String!
@@ -2038,4 +2071,34 @@ input UserUpdateInput {
   id: GlobalID!
   name: String!
   description: String!
+}
+
+type XBlock implements Node {
+  id: GlobalID!
+  statement: Statement!
+  revision: Int!
+  createdAt: DateTime!
+  kind: XKind!
+  source: XSource!
+  orderKey: String!
+  value: JSON
+  description: String
+}
+
+input XBlockFilter {
+  isVisible: Boolean = true
+}
+
+enum XKind {
+  Settings
+  Static
+  Input
+  Output
+}
+
+enum XSource {
+  System
+  User
+  Developer
+  Model
 }

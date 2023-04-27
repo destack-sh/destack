@@ -25,12 +25,10 @@ from bench.models import ProjectVersion, mapper
 from bench.msg import NMessageType
 from bench.msg.core import publish
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload
-from bench.language.mutate import ModuleMutation, ModuleMutationType
+from bench.language.mutate import ModuleMutation, MMT
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
-
-MMT = ModuleMutationType
 
 
 def project_mutation(
@@ -110,7 +108,7 @@ def project_mutation(
             #  This also creates a race condition where the mutation may be published before it's written.
             client_id = info.context.request.scope["session"]["client_id"]
             # publish change
-            pub_project_mutation(
+            pub_mutation(
                 client_id=client_id, type=type, input=kwargs.get("input", None), things=things
             )
             # analytics
@@ -147,13 +145,17 @@ def project_mutation(
     return make_resolver
 
 
-def pub_project_mutation(
-    client_id: UUID,
-    type: MMT,
-    input: Any,
-    things: list[Union[models.File, models.Statement, models.SimpleTypeNode, models.DatasetRecord]],
-):
-    """Publish a project mutation to the project change pub socket."""
+MutableThing = Union[
+    models.File,
+    models.Statement,
+    models.SimpleTypeNode,
+    models.DatasetRecord,
+    models.XBlock,
+]
+
+
+def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThing]):
+    """Publish mutations."""
     if not things or not SEND_API_PUB_MSG:
         return
     mutations = []
@@ -167,7 +169,7 @@ def pub_project_mutation(
             statement_id = thing.id
             project_version_id = thing.project_version_id
             file_id = thing.file_id
-        elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord)):
+        elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
             project_version_id = thing.statement.project_version_id
             file_id = thing.statement.file_id
             statement_id = thing.statement_id
@@ -179,14 +181,13 @@ def pub_project_mutation(
             project_version_id=project_version_id,
             file_id=file_id,
             statement_id=statement_id,
-            type_node_id=thing.id if isinstance(thing, models.SimpleTypeNode) else None,
-            record_id=thing.id if isinstance(thing, models.DatasetRecord) else None,
             revision=thing.revision,
             input=input,
             data=data,
         )
         mutations.append(mutation)
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
+    #  (can't use publish_soon here because it requires an event loop to be running)
     async_to_sync(publish)(
         NMessageType.MODULE_CHANGED,
         ModuleChangedPayload(

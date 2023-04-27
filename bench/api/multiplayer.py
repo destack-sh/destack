@@ -27,8 +27,6 @@ class ModuleMutation:
     project_version_id: GlobalID
     file_id: Optional[GlobalID]
     statement_id: Optional[GlobalID]
-    record_id: Optional[GlobalID]
-    type_node_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
 
@@ -52,8 +50,6 @@ def rmap_mutation(mutation: sync.ModuleMutation) -> ModuleMutation:
         project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
         file_id=to_global_id("File", mutation.file_id),
         statement_id=to_global_id("Statement", mutation.statement_id),
-        record_id=to_global_id("Record", mutation.record_id),
-        type_node_id=to_global_id("TypeNode", mutation.type_node_id),
         revision=mutation.revision,
         input=mutation.input,
     )
@@ -68,6 +64,8 @@ class ModuleSubscription:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         client_id = info.context.request.scope["session"].get("client_id")
+        if client_id:
+            client_id = UUID(client_id)
         log = logger.bind(
             project_version_id=project_version_id,
             user=user,

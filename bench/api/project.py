@@ -423,6 +423,11 @@ class FileCreateInput:
 
 
 @gql.input
+class FileDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
 class FileRenameInput(gql.NodeInput):
     name: str
     path: str  # unused, as in FileCreateInput
@@ -446,6 +451,20 @@ class FileMutation:
             parent_id=input.parent_id.node_id if input.parent_id else None,
             directory=input.directory,
         )
+
+    @project_mutation(MMT.UPDATE_FILE)
+    def update_file(self, input: FileCreateInput) -> File | OperationInfo:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.name = input.name
+        file.parent_id = input.parent_id.node_id if input.parent_id else None
+        file.directory = input.directory
+        return file
+
+    @project_mutation(MMT.DELETE_FILE, atomic=True)
+    def delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
+        file = models.File.objects.get(id=input.id.node_id)
+        file.delete()
+        return file
 
     @project_mutation(MMT.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:

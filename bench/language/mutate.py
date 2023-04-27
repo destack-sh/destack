@@ -4,13 +4,21 @@ It shouldn't live in models, so we can use it in messages.py, which shouldn't de
 Maybe a better move would be to make the payload partially opaque and keep this in api.
 """
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from itertools import chain
 from typing import Any, Optional
 from uuid import UUID
 
 from bench.language import ModuleIndex, wire
 from bench.language.type import GeneratedMapping, StatementType
-from bench.language.wire import FileData, ModuleData, RecordData, SimpleTypeNodeData, StatementData
+from bench.language.wire import (
+    FileData,
+    ModuleData,
+    RecordData,
+    SimpleTypeNodeData,
+    StatementData,
+    XBlockData,
+)
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -47,14 +55,19 @@ class ModuleMutationType(enum.StrEnum):
     CREATE_TYPE_NODE = "CREATE_TYPE_NODE"
     UPDATE_TYPE_NODE = "UPDATE_TYPE_NODE"
     MOVE_TYPE_NODE = "MOVE_TYPE_NODE"
+    SOFT_DELETE_TYPE_NODE = "SOFT_DELETE_TYPE_NODE"
     DELETE_TYPE_NODE = "DELETE_TYPE_NODE"
     RESTORE_TYPE_NODE = "RESTORE_TYPE_NODE"
     # Records
     CREATE_RECORD = "CREATE_RECORD"
     UPDATE_RECORD = "UPDATE_RECORD"
     MOVE_RECORD = "MOVE_RECORD"
+    SOFT_DELETE_RECORD = "SOFT_DELETE_RECORD"
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
+    # X blocks
+    CREATE_XBLOCK = "CREATE_XBLOCK"
+    DELETE_XBLOCK = "DELETE_XBLOCK"
 
     @property
     def kind(self) -> "ModuleMutationKind":
@@ -63,6 +76,10 @@ class ModuleMutationType(enum.StrEnum):
     @property
     def scope(self) -> "ModuleMutationScope":
         return _MODULE_MUTATION_MAP[self][1]
+
+    @property
+    def simple(self) -> bool:
+        return self in SIMPLE_MUTATIONS
 
 
 class ModuleMutationKind(enum.StrEnum):
@@ -78,7 +95,25 @@ class ModuleMutationScope(enum.StrEnum):
     STATEMENT = "STATEMENT"
     TYPE_NODE = "TYPE_NODE"
     RECORD = "RECORD"
+    XBLOCK = "XBLOCK"
 
+
+SIMPLE_MUTATIONS = {
+    ModuleMutationType.CREATE_FILE,
+    ModuleMutationType.UPDATE_FILE,
+    ModuleMutationType.DELETE_FILE,
+    ModuleMutationType.CREATE_STATEMENT,
+    ModuleMutationType.UPDATE_STATEMENT,
+    ModuleMutationType.DELETE_STATEMENT,
+    ModuleMutationType.CREATE_TYPE_NODE,
+    ModuleMutationType.UPDATE_TYPE_NODE,
+    ModuleMutationType.DELETE_TYPE_NODE,
+    ModuleMutationType.CREATE_RECORD,
+    ModuleMutationType.UPDATE_RECORD,
+    ModuleMutationType.DELETE_RECORD,
+    ModuleMutationType.CREATE_XBLOCK,
+    ModuleMutationType.DELETE_XBLOCK,
+}
 
 MMT = ModuleMutationType
 MMK = ModuleMutationKind
@@ -88,7 +123,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     # Files
     MMT.CREATE_FILE: (MMK.CREATE, MMS.FILE),
     MMT.SOFT_DELETE_FILE: (MMK.DELETE, MMS.FILE),
-    MMT.RESTORE_FILE: (MMK.UPDATE, MMS.FILE),
+    MMT.RESTORE_FILE: (MMK.CREATE, MMS.FILE),
     MMT.RENAME_FILE: (MMK.UPDATE, MMS.FILE),
     MMT.MOVE_FILE: (MMK.UPDATE, MMS.FILE),
     MMT.UPDATE_FILE: (MMK.UPDATE, MMS.FILE),
@@ -97,7 +132,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.CREATE_STATEMENT: (MMK.CREATE, MMS.STATEMENT),
     MMT.CREATE_STATEMENT_BLANK: (MMK.CREATE, MMS.STATEMENT),
     MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MMS.STATEMENT),
-    MMT.RESTORE_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
+    MMT.RESTORE_STATEMENT: (MMK.CREATE, MMS.STATEMENT),
     MMT.UPDATE_STATEMENT_MODIFIER: (MMK.UPDATE, MMS.STATEMENT),
     MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MMS.STATEMENT),
     MMT.MORPH_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
@@ -116,14 +151,21 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.UPDATE_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
     MMT.MOVE_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
     MMT.DELETE_TYPE_NODE: (MMK.DELETE, MMS.TYPE_NODE),
-    MMT.RESTORE_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
+    MMT.SOFT_DELETE_TYPE_NODE: (MMK.DELETE, MMS.TYPE_NODE),
+    MMT.RESTORE_TYPE_NODE: (MMK.CREATE, MMS.TYPE_NODE),
     # Records
     MMT.CREATE_RECORD: (MMK.CREATE, MMS.RECORD),
     MMT.UPDATE_RECORD: (MMK.UPDATE, MMS.RECORD),
     MMT.MOVE_RECORD: (MMK.UPDATE, MMS.RECORD),
     MMT.DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
-    MMT.RESTORE_RECORD: (MMK.UPDATE, MMS.RECORD),
+    MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
+    MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
+    # X blocks
+    MMT.CREATE_XBLOCK: (MMK.CREATE, MMS.XBLOCK),
+    MMT.DELETE_XBLOCK: (MMK.DELETE, MMS.XBLOCK),
 }
+
+MutableData = FileData | StatementData | SimpleTypeNodeData | RecordData | XBlockData
 
 
 @dataclass(repr=False, slots=True)
@@ -132,11 +174,15 @@ class ModuleMutation:
     project_version_id: UUID
     file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
-    record_id: Optional[UUID] = None
-    type_node_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
-    data: Optional[FileData | StatementData | SimpleTypeNodeData | RecordData] = None
+    data: Optional[MutableData] = None
+
+    def __str__(self):
+        return f"{self.type} {self.revision} {self.data}"
+
+    def __repr__(self):
+        return f"<Mutation {self}>"
 
 
 class ModuleMutator:
@@ -146,21 +192,39 @@ class ModuleMutator:
         self.idx = idx
         self.module = idx.module
         self.mutations = mutations or []
+        self._created_statements: dict[UUID, StatementData] = {}
 
     def do(
-        self, type: MMT, obj: FileData | StatementData | SimpleTypeNodeData | RecordData
+        self,
+        type: MMT,
+        obj: MutableData,
     ) -> "ModuleMutator":
+        if isinstance(obj, FileData):
+            file_id = obj.id
+            statement_id = None
+        elif isinstance(obj, StatementData):
+            statement_id = obj.id
+            file_id = obj.file_id
+        elif isinstance(obj, (SimpleTypeNodeData, RecordData, XBlockData)):
+            statement = self.idx.statements.get(obj.statement_id)
+            if statement is None:
+                statement = self._created_statements[obj.statement_id]
+            statement_id = statement.id
+            file_id = statement.file_id
+        else:
+            raise ValueError(f"unexpected mutation object: {obj}")
+
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module.id,
             revision=obj.revision,
-            file_id=obj.id if isinstance(obj, FileData) else None,
-            statement_id=obj.id if isinstance(obj, StatementData) else None,
-            record_id=obj.id if isinstance(obj, RecordData) else None,
-            type_node_id=obj.id if isinstance(obj, SimpleTypeNodeData) else None,
+            file_id=file_id,
+            statement_id=statement_id,
             data=obj,
         )
         self.mutations.append(mutation)
+        if type.kind == MMK.CREATE and type.scope == MMS.STATEMENT:
+            self._created_statements[statement_id] = obj
         return self
 
     def map(self, generator_id: UUID, mappings: list[GeneratedMapping]) -> "ModuleMutator":
@@ -170,16 +234,12 @@ class ModuleMutator:
         self.do(MMT.UPDATE_GENERATED_MAPPINGS, statement)
         return self
 
-    def create_many(
-        self, *objs: FileData | StatementData | SimpleTypeNodeData | RecordData
-    ) -> "ModuleMutator":
+    def create_many(self, *objs: MutableData) -> "ModuleMutator":
         for obj in objs:
             self.create(obj)
         return self
 
-    def create(
-        self, obj: FileData | StatementData | SimpleTypeNodeData | RecordData, flat: bool = False
-    ) -> "ModuleMutator":
+    def create(self, obj: MutableData, flat: bool = False) -> "ModuleMutator":
         if isinstance(obj, FileData):
             self.do(MMT.CREATE_FILE, obj)
             if not flat:
@@ -191,22 +251,24 @@ class ModuleMutator:
                 # nocheckin: create type nodes
                 for record in obj.records or []:
                     self.create(record)
+                for xblock in obj.xblocks or []:
+                    self.create(xblock)
         elif isinstance(obj, SimpleTypeNodeData):
             self.do(MMT.CREATE_TYPE_NODE, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.CREATE_RECORD, obj)
+        elif isinstance(obj, XBlockData):
+            self.do(MMT.CREATE_XBLOCK, obj)
+        else:
+            raise ValueError(f"unexpected mutation object: {obj}")
         return self
 
-    def update_many(
-        self, *objs: FileData | StatementData | SimpleTypeNodeData | RecordData
-    ) -> "ModuleMutator":
+    def update_many(self, *objs: MutableData) -> "ModuleMutator":
         for obj in objs:
             self.update(obj)
         return self
 
-    def update(
-        self, obj: FileData | StatementData | SimpleTypeNodeData | RecordData
-    ) -> "ModuleMutator":
+    def update(self, obj: MutableData) -> "ModuleMutator":
         if isinstance(obj, FileData):
             self.do(MMT.UPDATE_FILE, obj)
         elif isinstance(obj, StatementData):
@@ -215,18 +277,16 @@ class ModuleMutator:
             self.do(MMT.UPDATE_TYPE_NODE, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.UPDATE_RECORD, obj)
+        else:
+            raise ValueError(f"unexpected mutation object: {obj}")
         return self
 
-    def delete_many(
-        self, *objs: FileData | StatementData | SimpleTypeNodeData | RecordData
-    ) -> "ModuleMutator":
+    def delete_many(self, *objs: MutableData) -> "ModuleMutator":
         for obj in objs:
             self.delete(obj)
         return self
 
-    def delete(
-        self, obj: FileData | StatementData | SimpleTypeNodeData | RecordData
-    ) -> "ModuleMutator":
+    def delete(self, obj: MutableData) -> "ModuleMutator":
         if isinstance(obj, FileData):
             self.do(MMT.DELETE_FILE, obj)
         elif isinstance(obj, StatementData):
@@ -235,18 +295,76 @@ class ModuleMutator:
             self.do(MMT.DELETE_TYPE_NODE, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.DELETE_RECORD, obj)
+        elif isinstance(obj, XBlockData):
+            self.do(MMT.DELETE_XBLOCK, obj)
+        else:
+            raise ValueError(f"unexpected mutation object: {obj}")
         return self
 
     def bundle(self) -> "MutationBundle":
         return MutationBundle(self.mutations)
 
     def apply(self) -> ModuleData:
-        """Apply mutations to the module and return the new module data."""
-        module_data = wire.rmap_module(self.module)
+        """Apply mutations to a copy of the module and return the mutated data."""
+        module = wire.rmap_module(self.module)
+        files: dict[UUID, FileData] = {f.id: f for f in module.files}
+        statements: dict[UUID, StatementData] = {
+            s.id: s for s in chain.from_iterable(f.statements for f in module.files)
+        }
+        mut = MutationBundle(self.mutations)
 
-        raise NotImplementedError
+        # apply deletes
+        deleted_type_nodes = {m.type_node_id for m in mut[MMT.DELETE_TYPE_NODE]}
+        deleted_records = {m.record_id for m in mut[MMT.DELETE_RECORD]}
+        for m in chain(mut[MMT.DELETE_TYPE_NODE], mut[MMT.DELETE_RECORD]):
+            statement = statements[m.statement_id]
+            if statement.type_nodes:
+                statement.type_nodes = [
+                    t for t in statement.type_nodes if t.id not in deleted_type_nodes
+                ]
+            if statement.records:
+                statement.records = [r for r in statement.records if r.id not in deleted_records]
+        for m in mut[MMT.DELETE_STATEMENT]:
+            del statements[m.statement_id]
+        for m in mut[MMT.DELETE_FILE]:
+            for statement in files[m.file_id].statements:
+                del statements[statement.id]
+            del files[m.file_id]
 
-        return module_data
+        # apply creates
+        for m in mut[MMT.CREATE_FILE]:
+            files[m.data.id] = m.data
+        for m in mut[MMT.CREATE_STATEMENT]:
+            statements[m.data.id] = m.data
+        for m in mut[MMT.CREATE_TYPE_NODE]:
+            # TODO @Broken: use simple type nodes in statement data
+            statements[m.statement_id].type_nodes.append(m.data)
+        for m in mut[MMT.CREATE_RECORD]:
+            statements[m.statement_id].records.append(m.data)
+        for m in mut[MMT.CREATE_XBLOCK]:
+            statements[m.statement_id].xblocks.append(m.data)
+
+        # apply updates
+        for m in mut[MMT.UPDATE_FILE]:
+            files[m.file_id] = m.data
+        for m in mut[MMT.UPDATE_STATEMENT]:
+            statements[m.statement_id] = m.data
+        for m in mut[MMT.UPDATE_TYPE_NODE]:
+            statement = statements[m.statement_id]
+            _replace_by_id(statement.type_nodes, m.data)
+        for m in mut[MMT.UPDATE_RECORD]:
+            statement = statements[m.statement_id]
+            _replace_by_id(statement.records, m.data)
+
+        # re-assemble module data
+        new_module = replace(module, files=[])
+        for file in files.values():
+            file = replace(file, statements=[])
+            for statement in statements.values():
+                if statement.file_id == file.id:
+                    file.statements.append(statement)
+            new_module.files.append(file)
+        return new_module
 
 
 class MutationBundle:
@@ -291,3 +409,10 @@ def is_semantic_mutation(mutation: ModuleMutation) -> bool:
     # trivial filter for definitely non-semantic mutations
     # we could do more here (like filter blank morphs), but not worth it now
     return mutation.type not in NON_SEMANTIC_MUTATION_TYPES
+
+
+def _replace_by_id(things, new_thing) -> None:
+    for i, t in enumerate(things):
+        if t.id == new_thing.id:
+            things[i] = new_thing
+            break

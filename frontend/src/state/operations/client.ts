@@ -95,10 +95,11 @@ export function useClientOps() {
     `)
   );
 
-  async function updatePresence() {
+  async function updatePresence(silent?: boolean) {
     return await operations.perform({
       type: "client.updatePresence",
       stateless: true,
+      suppressErrors: silent,
       do: async () => {
         return await updatePresenceMut();
       },

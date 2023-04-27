@@ -50,6 +50,16 @@ class SimpleTypeNodeFilter:
         return queryset
 
 
+@gql.django.filter(models.XBlock)
+class XBlockFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
 @gql.type
 class Type:
     description: Optional[str]
@@ -81,8 +91,8 @@ class XBlock(gql.Node):
     kind: XKind
     source: XSource
     order_key: str
-    value: JSON
-    description: str
+    value: Optional[JSON]
+    description: Optional[str]
 
 
 TypeTag = gql.enum(language.type.TypeTag)
@@ -153,6 +163,7 @@ class Statement(gql.Node, SimplyTyped):
     type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)
     lang: auto
     code: auto
+    xblocks: list[XBlock] = gql.django.field(filters=XBlockFilter)
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
@@ -187,12 +198,39 @@ class StatementCreateBlankInput:
 
 
 @gql.input
+class StatementCreateInput:
+    """Creates a full statement"""
+
+    id: Optional[GlobalID] = None
+    file_id: GlobalID
+    order_key: str
+    revision: Optional[int] = None
+    type: StatementType
+    generated: Optional[bool] = None
+    parent_id: Optional[GlobalID] = None
+    commented: Optional[bool] = None
+    modifier: Optional[StatementModifier] = None
+    name: Optional[str] = None
+    root_type_tag: Optional[TypeTag] = None
+    symbol_type: Optional[SymbolType] = None
+    reference_id: Optional[GlobalID] = None
+    description: Optional[str] = None
+    lang: Optional[str] = None
+    code: Optional[str] = None
+    text: Optional[str] = None
+
+
+@gql.input
+class StatementDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
 class StatementMorphInput(gql.NodeInput):
     type: StatementType
     symbol_type: Optional[SymbolType] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
-    type_nodes: Optional[list["TypeNodeCreateInput"]] = None
     lang: Optional[str] = None
 
 
@@ -299,9 +337,6 @@ class StatementMutation:
     def create_statement_blank(self, input: StatementCreateBlankInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
-        parent = (
-            models.Statement.objects.get(id=input.parent_id.node_id) if input.parent_id else None
-        )
         id = input.id.node_id if input.id else None
         statement = models.Statement(
             id=id,
@@ -309,9 +344,63 @@ class StatementMutation:
             file=file,
             type=StatementType.BLANK,
             name=None,
-            parent=parent,
+            parent_id=input.parent_id.node_id if input.parent_id else None,
             order_key=input.order_key,
         )
+        return statement
+
+    @project_mutation(MMT.CREATE_STATEMENT)
+    def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
+        file = models.File.objects.get(id=input.file_id.node_id)
+        project_version = file.project_version
+        id = input.id.node_id if input.id else None
+        statement = models.Statement(
+            id=id,
+            project_version=project_version,
+            file=file,
+            type=input.type,
+            name=input.name,
+            parent_id=input.parent_id.node_id if input.parent_id else None,
+            order_key=input.order_key,
+            revision=input.revision,
+            generated=input.generated,
+            commented=input.commented,
+            modifier=input.modifier,
+            root_type_tag=input.root_type_tag,
+            symbol_type=input.symbol_type,
+            reference_id=input.reference_id.node_id if input.reference_id else None,
+            description=input.description,
+            lang=input.lang,
+            code=input.code,
+            text=input.text,
+        )
+        return statement
+
+    @project_mutation(MMT.UPDATE_STATEMENT)
+    def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.type = input.type
+        statement.name = input.name
+        statement.file_id = input.file_id.node_id
+        statement.parent_id = input.parent_id.node_id if input.parent_id else None
+        statement.order_key = input.order_key
+        statement.revision = input.revision
+        statement.generated = input.generated
+        statement.commented = input.commented
+        statement.modifier = input.modifier
+        statement.root_type_tag = input.root_type_tag
+        statement.symbol_type = input.symbol_type
+        statement.reference_id = input.reference_id.node_id if input.reference_id else None
+        statement.description = input.description
+        statement.lang = input.lang
+        statement.code = input.code
+        statement.text = input.text
+        return statement
+
+    @project_mutation(MMT.DELETE_STATEMENT)
+    def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.delete()
         return statement
 
     @project_mutation(MMT.MORPH_STATEMENT, atomic=True)
@@ -328,16 +417,6 @@ class StatementMutation:
         statement.symbol_type = input.symbol_type
         statement.name = input.name
         statement.root_type_tag = input.root_type_tag
-        # update related type nodes
-        if input.type_nodes:
-            SimpleTypeNode.objects.filter(statement=statement).delete()
-            model_type_nodes = []
-            for type_node in input.type_nodes:
-                type_node = type_node.to_model()
-                type_node.statement = statement
-                type_node.full_clean()
-                model_type_nodes.append(type_node)
-            SimpleTypeNode.objects.bulk_create(model_type_nodes)
         statement.lang = input.lang
         return statement
 
@@ -559,8 +638,6 @@ class RecordDeleteInput(gql.NodeInput):
 
 @gql.input
 class TypeNodeCreateInput:
-    """Upsert a statement type node data"""
-
     id: GlobalID
     order_key: str
     statement_id: GlobalID
@@ -572,20 +649,6 @@ class TypeNodeCreateInput:
     is_array: bool = False
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
-
-    def to_model(self) -> models.SimpleTypeNode:
-        return models.SimpleTypeNode(
-            id=UUID(self.id.node_id),
-            order_key=self.order_key,
-            name=self.name,
-            description=self.description,
-            tag=self.tag,
-            is_output=self.is_output,
-            is_nullable=self.is_nullable,
-            is_array=self.is_array,
-            value=self.value,
-            reference_id=UUID(self.reference_id.node_id) if self.reference_id else None,
-        )
 
 
 @gql.input
@@ -607,6 +670,22 @@ class TypeNodeMoveInput(gql.NodeInput):
 
 @gql.input
 class TypeNodeDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class XBlockCreateInput:
+    id: GlobalID
+    order_key: str
+    statement_id: GlobalID
+    kind: XKind
+    source: XSource
+    value: JSON
+    description: Optional[str]
+
+
+@gql.input
+class XBlockDeleteInput(gql.NodeInput):
     pass
 
 
@@ -643,7 +722,7 @@ class SymbolMutation:
         return statement
 
     @project_mutation(MMT.CREATE_RECORD)
-    def create_statement_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
+    def create_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(
             statement=statement,
@@ -654,44 +733,55 @@ class SymbolMutation:
         return record
 
     @project_mutation(MMT.UPDATE_RECORD)
-    def update_statement_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
+    def update_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.data = input.data
         return record
 
     @project_mutation(MMT.MOVE_TYPE_NODE)
-    def move_statement_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
+    def move_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
         return record
 
-    @project_mutation(MMT.DELETE_RECORD)
-    def delete_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+    @project_mutation(MMT.SOFT_DELETE_RECORD)
+    def soft_delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.soft_delete()
         return record
 
+    @project_mutation(MMT.DELETE_RECORD)
+    def delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        record.delete()
+        return record
+
     @project_mutation(MMT.RESTORE_RECORD)
-    def restore_statement_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+    def restore_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         # use _base_manager since soft deleted records are not visible
         record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
 
     @project_mutation(MMT.CREATE_TYPE_NODE)
-    def create_statement_type_node(
-        self, input: TypeNodeCreateInput
-    ) -> SimpleTypeNode | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        type_node = input.to_model()
-        type_node.statement = statement
-        type_node.full_clean(validate_unique=False, validate_constraints=False)
+    def create_type_node(self, input: TypeNodeCreateInput) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode(
+            id=UUID(input.id.node_id),
+            statement_id=UUID(input.statement_id.node_id),
+            order_key=input.order_key,
+            name=input.name,
+            description=input.description,
+            tag=input.tag,
+            is_output=input.is_output,
+            is_nullable=input.is_nullable,
+            is_array=input.is_array,
+            value=input.value,
+            reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
+        )
         return type_node
 
     @project_mutation(MMT.UPDATE_TYPE_NODE)
-    def update_statement_type_node(
-        self, input: TypeNodeUpdateInput
-    ) -> SimpleTypeNode | OperationInfo:
+    def update_type_node(self, input: TypeNodeUpdateInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.name = input.name
         type_node.description = input.description
@@ -701,22 +791,25 @@ class SymbolMutation:
         type_node.is_array = input.is_array
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
-        type_node.full_clean(validate_unique=False, validate_constraints=False)
         return type_node
 
     @project_mutation(MMT.MOVE_TYPE_NODE)
-    def move_statement_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
+    def move_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.order_key = input.order_key
         return type_node
 
-    @project_mutation(MMT.DELETE_TYPE_NODE)
-    def delete_statement_type_node(
-        self, input: TypeNodeDeleteInput
-    ) -> SimpleTypeNode | OperationInfo:
+    @project_mutation(MMT.SOFT_DELETE_TYPE_NODE)
+    def soft_delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
         type_node = models.SimpleTypeNode._base_manager.get(id=input.id.node_id)
         type_node.soft_delete()
+        return type_node
+
+    @project_mutation(MMT.DELETE_TYPE_NODE)
+    def delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.delete()
         return type_node
 
     @project_mutation(MMT.RESTORE_TYPE_NODE)
