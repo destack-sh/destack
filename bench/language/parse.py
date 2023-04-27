@@ -104,7 +104,9 @@ def lookup_in_error(*args, **kwargs):
     raise NotImplementedError("external module lookup disabled")
 
 
-LookupFunc = Callable[[RequirementContent, StatementPath], typing.Union["Scope", None]]
+LookupFunc = Callable[
+    [RequirementContent | None, StatementPath | UUID], typing.Union["Scope", None]
+]
 
 
 def parse(
@@ -1336,7 +1338,7 @@ def resolve_type_references_rec(
 
 
 def resolve_statement_reference(
-    reference: StatementPath | None,
+    reference: StatementPath | UUID | None,
     idx: ModuleIndex,
     lookup_in_module: LookupFunc,
     for_statement: Statement,
@@ -1346,23 +1348,32 @@ def resolve_statement_reference(
     def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, for_statement, cause, **error_args))
 
-    if reference is None or not isinstance(reference, StatementPath):
+    if reference is None:
         _error(ET.MISSING_REFERENCE)
         return
 
+    if isinstance(reference, UUID):
+        # resolve by id
+        resolved_scope = idx.scopes.get(reference)
+        if resolved_scope is None:
+            resolved_scope = lookup_in_module(None, reference)
+        if resolved_scope is None:
+            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
+            return
+        idx.import_scope(resolved_scope)
+
     # normalize path to resolve file-local references (with .)
     # :StatementReferencePath
-    reference_path, reference_name = reference
-    if reference_path == ".":
+    elif reference.path == ".":
         # resolve relative to this statement
         statement_scope = idx.scopes[for_statement.id]
-        resolved = statement_scope.lookup_statement(reference_name, exclude=for_statement)
+        resolved = statement_scope.lookup_statement(reference.name, exclude=for_statement)
         if resolved is None:
             _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
             return
         resolved_scope = idx.scopes[resolved.id]
 
-    elif reference_path.startswith("."):
+    elif reference.path.startswith("."):
         # resolve by "absolute" path in local module
         resolved_scope = idx.get_scope(reference)
         if resolved_scope is None:
@@ -1373,7 +1384,7 @@ def resolve_statement_reference(
         # resolve by absolute path in external module
 
         # get source requirement for external module
-        source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference_path)
+        source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference.path)
         if source is None:  # (should be caught in parse)
             raise RuntimeError(f"invalid import source at {for_statement}")
         requirement_name = f"{source.group('module_owner')}.{source.group('module_name')}"
@@ -1383,7 +1394,7 @@ def resolve_statement_reference(
             return
 
         # localize path to required module
-        localized_path = StatementPath("." + source.group("path"), reference_name)
+        localized_path = StatementPath("." + source.group("path"), reference.name)
         try:  # use module lookup to resolve
             resolved_scope = lookup_in_module(requirement, localized_path)
         except Exception as e:
@@ -1678,8 +1689,6 @@ def interp(
                     symbol.tasks.append(child)
                 else:
                     _error(ET.UNEXPECTED_STATEMENT, child.source)
-            if not symbol.models:
-                _error(ET.BUILD_MISSING_MODEL, statement)
 
             # add all tasks in module for autobuilds :AutobuildTasks
             if symbol.source is not None and symbol.source.file.path == "instructors":

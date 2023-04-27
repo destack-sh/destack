@@ -143,7 +143,7 @@ export function useStatementOps() {
       type: "statement.create",
       do: apply,
       undo: async () => {
-        await deleteStatementMut({ id });
+        await softDeleteStatementMut({ id });
       },
       redo: async () => {
         return await restoreStatementMut({ id });
@@ -480,7 +480,7 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: batchDeleteStatementMut } = useMutation(
+  const { mutate: batchSoftDeleteStatementMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation batchDeleteStatements($ids: [GlobalID!]!) {
         batchSoftDeleteStatement(input: { ids: $ids }) {
@@ -592,7 +592,7 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.batchDelete",
       do: async () => {
-        return await batchDeleteStatementMut({ ids: ids });
+        return await batchSoftDeleteStatementMut({ ids: ids });
       },
       undo: async () => {
         return await batchRestoreStatementMut({ ids: ids });
@@ -672,7 +672,7 @@ export function useStatementOps() {
         });
       },
       undo: async () => {
-        return await batchDeleteStatementMut({ ids: targetIds });
+        return await batchSoftDeleteStatementMut({ ids: targetIds });
       },
       redo: async () => {
         return await batchRestoreStatementMut({ ids: targetIds });
@@ -921,7 +921,7 @@ export function useStatementOps() {
         return await createTypeNodeMut({ typeNode: typeNode });
       },
       undo: async () => {
-        return await deleteTypeNodeMut({ id: typeNode.id });
+        return await softDeleteTypeNodeMut({ id: typeNode.id });
       },
       redo: async () => {
         return await restoreTypeNodeMut({ id: typeNode.id });

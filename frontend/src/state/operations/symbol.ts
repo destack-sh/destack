@@ -318,7 +318,7 @@ export function useSymbolContentOps() {
         });
       },
       undo: async () => {
-        return await deleteRecordMut({ id: id });
+        return await softDeleteRecordMut({ id: id });
       },
       redo: async () => {
         return await restoreRecordMut({ id: id });

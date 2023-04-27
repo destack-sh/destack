@@ -366,6 +366,10 @@ async def build(
         EvaluationMetric.InstructionSatisfaction: 1,
     }
     plans = await generate_plans(ctx)
+    if not plans:
+        log.warning("build.abort", reason="no plans")
+        return BuildResult.empty(build)
+
     while not ctx.exhausted and len(plans) > 0:
         log.debug("build.step", best_candidate=ctx.best_candidate)
         tracker.step(ctx)
@@ -413,6 +417,8 @@ async def build(
         # make new build plans
         plans = await generate_plans(ctx)
 
+    if ctx.best_candidate is None:
+        raise RuntimeError(f"failed to generate build candidates: {build}")
     log.info("build.complete", best_candidate=ctx.best_candidate)
     best_result = ctx.best_candidate.state.to_result()
     tracker.completed(ctx.best_candidate, best_result)

@@ -187,10 +187,10 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
 
     # first process deletes
     if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
-        dataset_ids = [m.record_id for m in mut[MMT.DELETE_RECORD]]
+        dataset_ids = [m.data.id for m in mut[MMT.DELETE_RECORD]]
         models.DatasetRecord.objects.filter(id__in=dataset_ids).delete()
     if mut[MMT.DELETE_TYPE_NODE]:  # batch delete since no dependent models
-        type_node_ids = [m.type_node_id for m in mut[MMT.DELETE_TYPE_NODE]]
+        type_node_ids = [m.data.id for m in mut[MMT.DELETE_TYPE_NODE]]
         models.SimpleTypeNode.objects.filter(id__in=type_node_ids).delete()
     if mut[MMT.DELETE_STATEMENT]:
         statement_ids = [m.statement_id for m in mut[MMT.DELETE_STATEMENT]]
@@ -244,7 +244,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
             )
             model_statements[stmt_data.id] = model_statement
             if stmt_data.type == StatementType.DEFINITION:
-                new_relations = wmap_symbol(model_statement, stmt_data)
+                new_relations = wmap_symbol(model_statement, stmt_data, flat=True)
                 model_contents_relations.extend(new_relations)
         # create statements
         models.Statement.objects.bulk_create(model_statements.values())
@@ -278,12 +278,14 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     if mut[MMT.UPDATE_GENERATED_MAPPINGS]:
         generator_ids = {m.statement_id for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]}
         models.GeneratedMapping.objects.filter(statement_id__in=generator_ids).delete()
-        models.GeneratedMapping.objects.bulk_create(
-            rmap_generated_mapping(m)
-            for m in chain.from_iterable(
-                (m.data.generated_mappings or []) for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]
+        mappings = chain.from_iterable(
+            (
+                wmap_generated_mapping(m.statement_id, mapping)
+                for mapping in m.data.generated_mappings or []
             )
+            for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]
         )
+        models.GeneratedMapping.objects.bulk_create(mappings)
     # :WriteModuleUpdates
     if len(mut[MMK.UPDATE]) > len(mut[MMT.UPDATE_GENERATED_MAPPINGS]):
         raise NotImplementedError(f"updates not supported yet: {mut[MMK.UPDATE]}")
@@ -360,6 +362,7 @@ def rmap_statement(
         order_key=statement.order_key,
         type=statement.type,
         modifier=statement.modifier,
+        root_type_tag=statement.root_type_tag,
         name=name,
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
@@ -415,7 +418,9 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
         )
 
 
-def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[typing.Any]:
+def wmap_symbol(
+    statement: models.Statement, data: wire.StatementData, flat: bool
+) -> list[typing.Any]:
     """Writes a wire statement's symbol into a database statement."""
     relations = []
 
@@ -427,10 +432,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text
     statement.root_type_tag = data.root_type_tag
-    # copy relational data
-    if data.type_nodes:
-        type_nodes = [wmap_simple_type_node(statement.id, node) for node in data.type_nodes]
-        relations.extend(type_nodes)
+    # copy basic normalized data
     if data.evaluate_settings:
         evaluate_settings = models.EvaluateSettings(
             weights=data.evaluate_settings.weights,
@@ -444,22 +446,27 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
         )
         statement.build_settings = build_settings
         relations.append(build_settings)
-    if data.records:
-        model_records = [wmap_record(statement.id, record) for record in data.records]
-        relations.extend(model_records)
-    elif data.xblocks:
-        model_xblocks = wmap_xblocks(statement, data.xblocks)
-        relations.extend(model_xblocks)
-    elif data.generated_mappings:
-        mappings = wmap_generated_mappings(statement.id, data.generated_mappings)
-        relations.extend(mappings)
-    elif data.reference_module:
+    if data.reference_module:
         if isinstance(data.reference_module, UUID):
             statement.reference_project_version_id = data.reference_module
         else:  # lookup by (name, version)
             statement.reference_project_version = lookup_module(
                 data.reference_module.name, data.reference_module.version
             )
+    if not flat:
+        # copy nested relations
+        if data.type_nodes:
+            type_nodes = [wmap_simple_type_node(statement.id, node) for node in data.type_nodes]
+            relations.extend(type_nodes)
+        if data.records:
+            model_records = [wmap_record(statement.id, record) for record in data.records]
+            relations.extend(model_records)
+        if data.xblocks:
+            model_xblocks = wmap_xblocks(statement, data.xblocks)
+            relations.extend(model_xblocks)
+        if data.generated_mappings:
+            mappings = wmap_generated_mappings(statement.id, data.generated_mappings)
+            relations.extend(mappings)
 
     return relations
 
@@ -525,6 +532,7 @@ def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
             value=x.value,
             description=x.description,
             path=x.path,
+            revision=x.revision,
         )
         for x in xblocks
     ]
@@ -545,6 +553,7 @@ def wmap_xblocks(
             source=x.source,
             value=x.value,
             description=x.description,
+            revision=x.revision,
             path=x.path,
         )
         for x in xblocks

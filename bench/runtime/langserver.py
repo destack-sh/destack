@@ -13,7 +13,7 @@ from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.mutate import ModuleMutation, ModuleMutator, is_semantic_mutation
+from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import (
     Build,
     BuildSettings,
@@ -38,7 +38,7 @@ from bench.msg.messages import (
     ExecutionSavedPayload,
     InterpChangedPayload,
     JobSavedPayload,
-    ModuleChangedPayload,
+    ModuleInternalChangedPayload,
     NMessageType,
     RepBuildPayload,
     RepInterpPayload,
@@ -63,6 +63,7 @@ from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
     ModuleFetcher,
+    get_file,
     get_or_create_file,
     get_requirements,
     interp_module,
@@ -146,7 +147,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
-            await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
+            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
         ]
         self.tasks = [
             create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10)),
@@ -235,11 +236,9 @@ class LanguageServer:
             )
 
     @message_handler
-    async def module_changed(self, msg: NMessage[ModuleChangedPayload]) -> None:
+    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]) -> None:
         if msg.p.client.id == self.id:
             return  # ignore own changes
-        if not any(is_semantic_mutation(mutation) for mutation in msg.p.mutations):
-            return  # ignore non-semantic changes to modules
         # update language worker
         if msg.p.module_id in self.lang_workers:
             worker = self.lang_workers[msg.p.module_id]
@@ -659,8 +658,8 @@ class LanguageWorker:
         )
         self.on_module_changed(mutator)
         await publish(
-            NMessageType.MODULE_CHANGED,
-            ModuleChangedPayload(
+            NMessageType.MODULE_INTERNAL_CHANGED,
+            ModuleInternalChangedPayload(
                 module_id=self.module_id,
                 client=ClientOrigin("worker", self.worker_id),
                 mutations=mutator.mutations,
@@ -818,9 +817,8 @@ class LanguageWorker:
         # TODO @Cleanup @UX: dataset delete/create should be update :WriteModuleUpdates
         if existing_gen_dataset:
             mut.delete(wire.rmap_statement(existing_gen_dataset.source))
-        await self.write_module(
-            mut.create(wire.rmap_statement(gen_dataset_statement)).map(task.id, task_mappings)
-        )
+        mut.create(wire.rmap_statement(gen_dataset_statement)).map(task.id, task_mappings)
+        await self.write_module(mut)
 
         # upsert evaluation plan (this is all rather inefficient)
         model_task = await models.Statement.objects.aget(id=task.id)
@@ -914,11 +912,17 @@ class LanguageWorker:
         build_results = await asyncio.gather(*build_processes, return_exceptions=False)
 
         mutator = self.mutate()
-        mutator.delete_many(
-            wire.rmap_file(chain.from_iterable(get_build_files_for(b, self.idx) for b in builds))
+        old_build_files = (
+            wire.rmap_file(f)
+            for f in chain.from_iterable(get_build_files_for(b, self.idx) for b in builds)
         )
+        mutator.delete_many(*old_build_files)
         for build_result in build_results:
-            mutator.create(wire.rmap_file(build_result.to_file(self.idx.module)))
+            build_file = build_result.to_file(self.idx.module)
+            old_build_file = get_file(self.idx, build_file.path)
+            if old_build_file:
+                mutator.delete(wire.rmap_file(old_build_file))
+            mutator.create(wire.rmap_file(build_file))
             mutator.map(
                 build_result.build.id,
                 [revmap.map_mapping(m) for m in build_result.generated_mappings],
