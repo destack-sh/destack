@@ -24,14 +24,11 @@ from bench.language.mutate import (
     MMT,
     MMK,
 )
-from bench.language.parse import get_type_root_id, index_module
+from bench.language.parse import index_module
 from bench.language.type import (
-    PRIMITIVE_TYPES,
     StatementPath,
     StatementType,
     SymbolType,
-    TypeNode,
-    TypeTag,
 )
 from bench.language.wire import RecordData, FileData, StatementData, SimpleTypeNodeData
 from bench.models.project import Project, ProjectVersion
@@ -193,20 +190,20 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     mut = MutationBundle(mutations)
 
     # first process deletes
-    if mut[MMT.DELETE_FILE]:
-        file_ids = [m.file_id for m in mut[MMT.DELETE_FILE]]
-        for file in models.File.objects.filter(id__in=file_ids):
-            file.delete()
-    if mut[MMT.DELETE_STATEMENT]:
-        statement_ids = [m.statement_id for m in mut[MMT.DELETE_STATEMENT]]
-        for statement in models.Statement.objects.filter(id__in=statement_ids):
-            statement.delete()
     if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
         dataset_ids = [m.record_id for m in mut[MMT.DELETE_RECORD]]
         models.DatasetRecord.objects.filter(id__in=dataset_ids).delete()
     if mut[MMT.DELETE_TYPE_NODE]:  # batch delete since no dependent models
         type_node_ids = [m.type_node_id for m in mut[MMT.DELETE_TYPE_NODE]]
         models.SimpleTypeNode.objects.filter(id__in=type_node_ids).delete()
+    if mut[MMT.DELETE_STATEMENT]:
+        statement_ids = [m.statement_id for m in mut[MMT.DELETE_STATEMENT]]
+        for statement in models.Statement.objects.filter(id__in=statement_ids):
+            statement.delete()
+    if mut[MMT.DELETE_FILE]:
+        file_ids = [m.file_id for m in mut[MMT.DELETE_FILE]]
+        for file in models.File.objects.filter(id__in=file_ids):
+            file.delete()
 
     # then process creates
     if mut[MMT.CREATE_FILE]:
@@ -228,7 +225,6 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         statements = [typing.cast(StatementData, c.data) for c in mut[MMT.CREATE_STATEMENT]]
         statements_ids = {stmt_data.id for stmt_data in statements}
         model_statements: dict[UUID, models.Statement] = {}
-
         # assign temporary parent, reference and order keys to statements within the batch
         temp_order_keys = generate_n_keys_between(None, None, len(statements))
         for ok, stmt_data in zip(temp_order_keys, statements):
@@ -373,7 +369,7 @@ def rmap_statement(
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
         reference=reference,
-        reference_module=statement.reference_project_version_id,
+        reference_module=None,
         generated=statement.generated,
     )
     if statement.type == StatementType.DEFINITION:
@@ -389,11 +385,12 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.provider = statement.provider
     data.external_name = statement.external_name
     if not flat:
-        data.type_nodes = rmap_type_nodes(
+        data.type_nodes = wire.rmap_type_nodes(
             statement.id,
             statement.root_type_tag,
             statement.type_nodes.filter(deleted_at=None).all(),
-            statement,
+            statement.symbol_type,
+            statement.id,
         )
     if statement.symbol_type in (
         SymbolType.TASK,
@@ -435,11 +432,14 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.external_name = data.external_name
     if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text
-    statement.root_type_tag, type_nodes = wmap_type_nodes(statement, data.type_nodes)
-    if type_nodes:
-        relations.extend(type_nodes)
 
     # copy relational data
+    if data.type_nodes:
+        statement.root_type_tag, type_nodes = wire.wmap_type_nodes(
+            statement.id, data.type_nodes, False
+        )
+        type_nodes = [wmap_simple_type_node(statement.id, node) for node in type_nodes]
+        relations.extend(type_nodes)
     if data.evaluate_settings:
         evaluate_settings = models.EvaluateSettings(
             weights=data.evaluate_settings.weights,
@@ -476,6 +476,7 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
 def rmap_record(record: models.DatasetRecord) -> RecordData:
     return RecordData(
         id=record.id,
+        statement_id=record.statement_id,
         revision=record.revision,
         order_key=record.order_key,
         data=record.data,
@@ -526,6 +527,7 @@ def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
     xblocks = [
         wire.XBlockData(
             id=x.id,
+            statement_id=x.statement_id,
             order_key=x.order_key,
             kind=x.kind,
             source=x.source,
@@ -564,6 +566,7 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
         revision=node.revision,
         name=node.name,
         tag=node.tag,
+        statement_id=node.statement_id,
         order_key=node.order_key,
         description=node.description,
         is_output=node.is_output,
@@ -590,196 +593,6 @@ def wmap_simple_type_node(
         value=node.value,
         reference_id=node.reference,
     )
-
-
-def wmap_type_nodes(
-    statement_id: UUID | None,
-    type_nodes: list[wire.TypeNodeData] | None,
-    impute_type_reference: bool = False,
-) -> tuple[TypeTag | None, list[models.SimpleTypeNode] | None]:
-    tag, type_nodes = wmap_type_nodes_data(type_nodes, impute_type_reference)
-    if type_nodes:
-        type_nodes = [wmap_simple_type_node(statement_id, node) for node in type_nodes]
-    return tag, type_nodes
-
-
-def wmap_type_nodes_data(
-    type_nodes: list[wire.TypeNodeData] | None,
-    impute_type_reference: bool = False,
-) -> tuple[TypeTag | None, list[wire.SimpleTypeNodeData] | None]:
-    """Writes a wire type node into a database type node."""
-    if not type_nodes:
-        return None, None
-
-    root: language.TypeNode = wire.wmap_type_node(type_nodes)
-    root_type_tag = root.tag
-    child_nodes: list[wire.SimpleTypeNodeData] = []
-
-    # map inner nodes (children)
-    def _wmap_child_node(
-        node: language.TypeNode,
-        is_array: bool = False,
-        is_nullable: bool = False,
-        is_output: bool = False,
-        **kwargs,
-    ) -> wire.SimpleTypeNodeData:
-        # retain resolved references (we trust it's a valid foreign key, else the save will fail)
-        reference_id = node.reference if isinstance(node.reference, UUID) else None
-        if node.tag == TypeTag.TYPE_REFERENCE or reference_id is not None:
-            return wire.SimpleTypeNodeData(
-                id=node.id,
-                name=node.name,
-                tag=node.tag if impute_type_reference else TypeTag.TYPE_REFERENCE,
-                description=node.description,
-                reference=reference_id,
-                revision=1,
-                is_array=is_array,
-                is_nullable=is_nullable,
-                is_output=is_output,
-                **kwargs,
-            )
-        elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
-            return wire.SimpleTypeNodeData(
-                id=node.id,
-                name=node.name,
-                tag=node.tag,
-                description=node.description,
-                value=node.value,
-                reference=reference_id,
-                revision=1,
-                is_array=is_array,
-                is_nullable=is_nullable,
-                is_output=is_output,
-                **kwargs,
-            )
-        elif node.tag == TypeTag.ARRAY:
-            child_node = _wmap_child_node(node.head_type, is_array=True, **kwargs)
-            child_node.name = node.name
-            return child_node
-        elif node.is_union_with_null:
-            child_node = _wmap_child_node(node.head_type, is_nullable=True, **kwargs)
-            child_node.name = node.name
-            return child_node
-        else:
-            raise ValueError(f"type node cannot be represented simply: {node}")
-
-    # map root node
-    if root.tag == TypeTag.STRUCT:
-        child_order_keys = generate_n_keys_between(None, None, len(root.children or []))
-        for child, order_key in zip(root.children or [], child_order_keys):
-            child_nodes.append(_wmap_child_node(child, order_key=order_key))
-    elif root.tag == TypeTag.ENUM:
-        if root.head_type.tag != TypeTag.STRING:  # :LiteralStringEnum
-            raise ValueError(f"non-string enum head type cannot be represented simply: {root}")
-        child_order_keys = generate_n_keys_between(None, None, len(root.members))
-        for member, order_key in zip(root.members, child_order_keys):
-            child_nodes.append(_wmap_child_node(member, order_key=order_key))
-    elif root.tag == TypeTag.FUNCTION:
-        child_order_keys = generate_n_keys_between(
-            None, None, len(root.input.children or []) + len(root.output.children or [])
-        )
-        for child, order_key in zip(root.input.children or [], child_order_keys):
-            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
-        for child, order_key in zip(
-            root.output.children or [], child_order_keys[len(root.input.children or []) :]
-        ):
-            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=True))
-    else:
-        raise ValueError(f"root type node cannot be represented simply: {type_nodes}")
-
-    return root_type_tag, child_nodes
-
-
-def rmap_type_nodes(
-    root_id: UUID,
-    root_type_tag: TypeTag | None,
-    type_nodes: list[wire.SimpleTypeNodeData] | None,
-    for_statement: models.Statement,
-) -> list[wire.TypeNodeData]:
-    """
-    Reads a database type node into a wire type node.
-    Because the database type is simpler and skips some intermediate nodes, we need to
-    reconstruct them and assign reproducible IDs.
-    """
-    if root_type_tag is None:
-        return []
-
-    def new_id(name: str) -> UUID:
-        """Generate a reproducible ID for a child node."""
-        return uuid5(root_id, name)
-
-    def _rmap_child_node(node: models.SimpleTypeNode) -> language.TypeNode:
-        if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
-            lang_node = language.TypeNode(
-                id=node.id, tag=node.tag, name=node.name, value=node.value
-            )
-        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
-            reference = rmap_reference(for_statement, node.reference)
-            lang_node = language.TypeNode(
-                id=node.id, tag=node.tag, name=node.name, reference=reference
-            )
-        else:
-            raise ValueError(f"type node is not represented simply: {node}")
-
-        if node.is_array:  # hoist into array
-            lang_node.name = None
-            lang_node.id = new_id("array" + str(lang_node.id))
-            lang_node = language.TypeNode(
-                id=node.id,
-                tag=TypeTag.ARRAY,
-                name=node.name,
-                description=lang_node.description,
-                children=[lang_node],
-            )
-        if node.is_nullable:  # hoist into union
-            lang_node.name = None
-            lang_node.id = new_id("union" + str(lang_node.id))
-            null = TypeNode(id=new_id("null" + str(lang_node.id)), tag=TypeTag.NULL, name=None)
-            lang_node = TypeNode(
-                id=node.id,
-                tag=TypeTag.UNION,
-                name=node.name,
-                description=lang_node.description,
-                children=[lang_node, null],
-            )
-        return lang_node
-
-    if root_type_tag == TypeTag.STRUCT:
-        children = [_rmap_child_node(node) for node in type_nodes]
-    elif root_type_tag == TypeTag.ENUM:
-        # assumes literal string enums only :LiteralStringEnum
-        head_type = TypeNode(id=new_id("head"), name=None, tag=TypeTag.STRING)
-        children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
-    elif root_type_tag == TypeTag.FUNCTION:
-        input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
-        output_children = [_rmap_child_node(node) for node in type_nodes if node.is_output]
-        input = TypeNode(
-            id=new_id("input"), tag=TypeTag.STRUCT, name="input", children=input_children
-        )
-        output = TypeNode(
-            id=new_id("output"), tag=TypeTag.STRUCT, name="output", children=output_children
-        )
-        children = [input, output]
-    else:
-        raise ValueError(f"root type node is not represented simply: {type_nodes}")
-
-    if for_statement.symbol_type == SymbolType.TYPE:
-        # use the root id directly
-        root = TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
-    else:
-        # statements share a deterministic id pair with their type root :TypeNodeRootId
-        root = TypeNode(
-            id=get_type_root_id(root_id), tag=root_type_tag, name=None, children=children
-        )
-
-    wire_nodes_data = wire.rmap_type_node(root)
-
-    type_nodes_revisions = {node.id: node.revision for node in type_nodes}
-    # patch revision
-    for wire_node in wire_nodes_data:
-        # find revision from child nodes (default to statement's revision)
-        wire_node.revision = type_nodes_revisions.get(wire_node.id, for_statement.revision)
-    return wire_nodes_data
 
 
 def rmap_job(job: JobData) -> models.Job:

@@ -812,6 +812,7 @@ class Program(InterpSymbol, ProgramContent):
 @dataclass(repr=False)
 class RequirementContent(SymbolContent):
     module_name: Optional[str]
+    module_id: Optional[UUID]
     version: Optional[str]
 
     def __str__(self):

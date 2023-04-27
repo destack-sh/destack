@@ -3,12 +3,13 @@ import typing
 from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from more_itertools import first
 
 from bench import language
 from bench.language import ErrorType
+from bench.language.parse import get_type_root_id
 from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
     BuildSettings,
@@ -21,6 +22,7 @@ from bench.language.type import (
     TypeTag,
     XKind,
     XSource,
+    PRIMITIVE_TYPES,
 )
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 
@@ -35,6 +37,7 @@ class TypeNodeData:
     revision: int
     name: Optional[str]
     tag: TypeTag
+    statement_id: UUID
     order_key: str
     description: Optional[str] = None
     value: Optional[typing.Any] = None
@@ -55,6 +58,7 @@ class SimpleTypeNodeData:
     revision: int
     name: Optional[str]
     tag: TypeTag
+    statement_id: UUID
     order_key: str
     description: Optional[str]
     is_output: bool
@@ -67,6 +71,7 @@ class SimpleTypeNodeData:
 @dataclass(repr=False, slots=True)
 class RecordData:
     id: UUID
+    statement_id: UUID
     order_key: str
     revision: int
     data: Optional[typing.Any] = None
@@ -75,6 +80,7 @@ class RecordData:
 @dataclass(repr=False, slots=True)
 class XBlockData:
     id: UUID
+    statement_id: UUID
     order_key: str
     kind: XKind
     source: XSource
@@ -295,18 +301,18 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     # generator content is a component of other content types
     if isinstance(content, language.TypeNode):
         data.description = content.description
-        data.type_nodes = rmap_type_node(content)
+        data.type_nodes = rmap_type_node(data.id, content)
     elif isinstance(content, language.TaskContent):
         data.description = content.description
-        data.type_nodes = rmap_type_node(content.type_node)
+        data.type_nodes = rmap_type_node(data.id, content.type_node)
     elif isinstance(content, language.ExpectationContent):
         data.description = content.description
     elif isinstance(content, language.CodeContent):
         data.description = content.description
         data.lang = content.language
         data.code = content.code
-        data.type_nodes = rmap_type_node(content.type_node)
-        data.xblocks = [rmap_xblock(xblock) for xblock in content.xblocks]
+        data.type_nodes = rmap_type_node(data.id, content.type_node)
+        data.xblocks = [rmap_xblock(data.id, xblock) for xblock in content.xblocks]
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
         data.external_name = content.external_name
@@ -315,15 +321,15 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     elif isinstance(content, language.DatasetContent):
         data.lang = content.language
         data.description = content.description
-        data.records = [rmap_record(r) for r in content.records]
-        data.type_nodes = rmap_type_node(content.type_node)
+        data.records = [rmap_record(data.id, r) for r in content.records]
+        data.type_nodes = rmap_type_node(data.id, content.type_node)
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
         data.build_settings = content.settings
         data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
-            data.reference_module = ModuleReference(content.module_name, content.version, id=None)
+            data.reference_module = ModuleReference(content.module_name, content.version, id=content.module_id)
     elif isinstance(content, language.RunconfigContent):
         pass
     else:
@@ -378,11 +384,63 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.RequirementContent(
             module_name=data.reference_module.name if data.reference_module else None,
             version=data.reference_module.version if data.reference_module else None,
+            module_id=data.reference_module.id if data.reference_module else None,
         )
     elif data.symbol_type == SymbolType.RUNCONFIG:
         return language.RunconfigContent()
     else:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
+
+
+def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
+    """Maps a record to a record data object."""
+    return RecordData(
+        id=record.id,
+        revision=1,
+        data=record.data,
+        statement_id=statement_id,
+        order_key=record.order_key,
+    )
+
+
+def wmap_record(data: RecordData) -> language.Record:
+    """Maps a record data object to a record."""
+    return language.Record(id=data.id, data=data.data, order_key=data.order_key)
+
+
+def rmap_type_node(statement_id: UUID, node: language.TypeNode) -> list[TypeNodeData]:
+    """Maps a type node tree structure to a flat list of type node data."""
+    nodes_data = OrderedDict()
+    for n in node.walk():
+        if n.id in nodes_data:
+            # already seen (multiple references to same node)
+            # this is allowed in rmap but in wmap as TypeNodeData is flattened
+            continue
+        reference = n.reference
+        if isinstance(reference, (language.TypeNode, language.Type)):
+            reference = reference.id
+        nodes_data[n.id] = TypeNodeData(
+            id=n.id,
+            revision=1,
+            name=n.name,
+            tag=n.tag,
+            description=n.description,
+            value=n.value,
+            reference=reference,
+            parent_id=None,  # will be set in second pass
+            statement_id=statement_id,
+            order_key=INTEGER_ZERO,  # will be set in second pass
+        )
+
+    # assign parent ids
+    for n in node.walk():
+        if n.children is not None:
+            child_order_keys = generate_n_keys_between(None, None, len(n.children))
+            for order_key, child in zip(child_order_keys, n.children):
+                nodes_data[child.id].order_key = order_key
+                nodes_data[child.id].parent_id = n.id
+
+    return list(nodes_data.values())
 
 
 def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
@@ -416,53 +474,186 @@ def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
     return root
 
 
-def rmap_record(record: language.Record) -> RecordData:
-    """Maps a record to a record data object."""
-    return RecordData(
-        id=record.id,
-        revision=1,
-        data=record.data,
-        order_key=record.order_key,
-    )
+def rmap_type_nodes(
+    root_id: UUID,
+    root_type_tag: TypeTag | None,
+    type_nodes: list[SimpleTypeNodeData] | None,
+    statement_id: UUID,
+    symbol_type: SymbolType,
+) -> list[TypeNodeData]:
+    """
+    Reads a simple type node into a graph type node.
+    Because the simple type is flat and skips some intermediate nodes, we need to
+    reconstruct them and assign reproducible IDs.
+    """
+    if root_type_tag is None:
+        return []
 
+    def new_id(name: str) -> UUID:
+        """Generate a reproducible ID for a child node."""
+        return uuid5(root_id, name)
 
-def wmap_record(data: RecordData) -> language.Record:
-    """Maps a record data object to a record."""
-    return language.Record(id=data.id, data=data.data, order_key=data.order_key)
+    def _rmap_child_node(node: SimpleTypeNodeData) -> language.TypeNode:
+        if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
+            lang_node = language.TypeNode(
+                id=node.id, tag=node.tag, name=node.name, value=node.value
+            )
+        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
+            lang_node = language.TypeNode(
+                id=node.id, tag=node.tag, name=node.name, reference=node.reference_id
+            )
+        else:
+            raise ValueError(f"type node is not represented simply: {node}")
 
+        if node.is_array:  # hoist into array
+            lang_node.name = None
+            lang_node.id = new_id("array" + str(lang_node.id))
+            lang_node = language.TypeNode(
+                id=node.id,
+                tag=TypeTag.ARRAY,
+                name=node.name,
+                description=lang_node.description,
+                children=[lang_node],
+            )
+        if node.is_nullable:  # hoist into union
+            lang_node.name = None
+            lang_node.id = new_id("union" + str(lang_node.id))
+            null = language.TypeNode(
+                id=new_id("null" + str(lang_node.id)), tag=TypeTag.NULL, name=None
+            )
+            lang_node = language.TypeNode(
+                id=node.id,
+                tag=TypeTag.UNION,
+                name=node.name,
+                description=lang_node.description,
+                children=[lang_node, null],
+            )
+        return lang_node
 
-def rmap_type_node(node: language.TypeNode) -> list[TypeNodeData]:
-    """Maps a type node tree structure to a flat list of type node data."""
-    nodes_data = OrderedDict()
-    for n in node.walk():
-        if n.id in nodes_data:
-            # already seen (multiple references to same node)
-            # this is allowed in rmap but in wmap as TypeNodeData is flattened
-            continue
-        reference = n.reference
-        if isinstance(reference, (language.TypeNode, language.Type)):
-            reference = reference.id
-        nodes_data[n.id] = TypeNodeData(
-            id=n.id,
-            revision=1,
-            name=n.name,
-            tag=n.tag,
-            description=n.description,
-            value=n.value,
-            reference=reference,
-            parent_id=None,  # will be set in second pass
-            order_key=INTEGER_ZERO,  # will be set in second pass
+    if root_type_tag == TypeTag.STRUCT:
+        children = [_rmap_child_node(node) for node in type_nodes]
+    elif root_type_tag == TypeTag.ENUM:
+        # assumes literal string enums only :LiteralStringEnum
+        head_type = language.TypeNode(id=new_id("head"), name=None, tag=TypeTag.STRING)
+        children = [head_type, *[_rmap_child_node(node) for node in type_nodes]]
+    elif root_type_tag == TypeTag.FUNCTION:
+        input_children = [_rmap_child_node(node) for node in type_nodes if not node.is_output]
+        output_children = [_rmap_child_node(node) for node in type_nodes if node.is_output]
+        input = language.TypeNode(
+            id=new_id("input"), tag=TypeTag.STRUCT, name="input", children=input_children
+        )
+        output = language.TypeNode(
+            id=new_id("output"), tag=TypeTag.STRUCT, name="output", children=output_children
+        )
+        children = [input, output]
+    else:
+        raise ValueError(f"root type node is not represented simply: {type_nodes}")
+
+    if symbol_type == SymbolType.TYPE:
+        # use the root id directly
+        root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+    else:
+        # statements share a deterministic id pair with their type root :TypeNodeRootId
+        root = language.TypeNode(
+            id=get_type_root_id(root_id), tag=root_type_tag, name=None, children=children
         )
 
-    # assign parent ids
-    for n in node.walk():
-        if n.children is not None:
-            child_order_keys = generate_n_keys_between(None, None, len(n.children))
-            for order_key, child in zip(child_order_keys, n.children):
-                nodes_data[child.id].order_key = order_key
-                nodes_data[child.id].parent_id = n.id
+    wire_nodes_data = rmap_type_node(statement_id, root)
+    # patch revision
+    type_nodes_revisions = {node.id: node.revision for node in type_nodes}
+    for wire_node in wire_nodes_data:
+        wire_node.revision = type_nodes_revisions.get(wire_node.id, 1)
+    return wire_nodes_data
 
-    return list(nodes_data.values())
+
+def wmap_type_nodes(
+    statement_id: UUID | None,
+    type_nodes: list[TypeNodeData] | None,
+    impute_type_reference: bool = False,
+) -> tuple[TypeTag | None, list[SimpleTypeNodeData] | None]:
+    """Maps a tree type node into a simple type node."""
+    if not type_nodes:
+        return None, None
+
+    root: language.TypeNode = wmap_type_node(type_nodes)
+    root_type_tag = root.tag
+    child_nodes: list[SimpleTypeNodeData] = []
+
+    # map inner nodes (children)
+    def _wmap_child_node(
+        node: language.TypeNode,
+        order_key: str,
+        is_array: bool = False,
+        is_nullable: bool = False,
+        is_output: bool = False,
+    ) -> SimpleTypeNodeData:
+        # retain resolved references (we trust it's a valid foreign key, else the save will fail)
+        reference_id = node.reference if isinstance(node.reference, UUID) else None
+        if node.tag == TypeTag.TYPE_REFERENCE or reference_id is not None:
+            return SimpleTypeNodeData(
+                id=node.id,
+                name=node.name,
+                tag=node.tag if impute_type_reference else TypeTag.TYPE_REFERENCE,
+                statement_id=statement_id,
+                order_key=order_key,
+                description=node.description,
+                reference=reference_id,
+                revision=1,
+                is_array=is_array,
+                is_nullable=is_nullable,
+                is_output=is_output,
+            )
+        elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
+            return SimpleTypeNodeData(
+                id=node.id,
+                name=node.name,
+                tag=node.tag,
+                statement_id=statement_id,
+                order_key=order_key,
+                description=node.description,
+                value=node.value,
+                reference=reference_id,
+                revision=1,
+                is_array=is_array,
+                is_nullable=is_nullable,
+                is_output=is_output,
+            )
+        elif node.tag == TypeTag.ARRAY:
+            child_node = _wmap_child_node(node.head_type, is_array=True, order_key=order_key)
+            child_node.name = node.name
+            return child_node
+        elif node.is_union_with_null:
+            child_node = _wmap_child_node(node.head_type, is_nullable=True, order_key=order_key)
+            child_node.name = node.name
+            return child_node
+        else:
+            raise ValueError(f"type node cannot be represented simply: {node}")
+
+    # map root node
+    if root.tag == TypeTag.STRUCT:
+        child_order_keys = generate_n_keys_between(None, None, len(root.children or []))
+        for child, order_key in zip(root.children or [], child_order_keys):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key))
+    elif root.tag == TypeTag.ENUM:
+        if root.head_type.tag != TypeTag.STRING:  # :LiteralStringEnum
+            raise ValueError(f"non-string enum head type cannot be represented simply: {root}")
+        child_order_keys = generate_n_keys_between(None, None, len(root.members))
+        for member, order_key in zip(root.members, child_order_keys):
+            child_nodes.append(_wmap_child_node(member, order_key=order_key))
+    elif root.tag == TypeTag.FUNCTION:
+        child_order_keys = generate_n_keys_between(
+            None, None, len(root.input.children or []) + len(root.output.children or [])
+        )
+        for child, order_key in zip(root.input.children or [], child_order_keys):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=False))
+        for child, order_key in zip(
+            root.output.children or [], child_order_keys[len(root.input.children or []) :]
+        ):
+            child_nodes.append(_wmap_child_node(child, order_key=order_key, is_output=True))
+    else:
+        raise ValueError(f"root type node cannot be represented simply: {type_nodes}")
+
+    return root_type_tag, child_nodes
 
 
 def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
@@ -478,10 +669,11 @@ def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
     )
 
 
-def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
+def rmap_xblock(statement_id: UUID, xblock: language.XBlockContent) -> XBlockData:
     """Maps an xblock to an xblock data object."""
     return XBlockData(
         id=xblock.id,
+        statement_id=statement_id,
         order_key=xblock.order_key,
         kind=xblock.kind,
         source=xblock.source,

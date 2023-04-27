@@ -661,7 +661,9 @@ class LanguageWorker:
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
-                module_id=self.module_id, client=ClientOrigin("worker", self.worker_id)
+                module_id=self.module_id,
+                client=ClientOrigin("worker", self.worker_id),
+                mutations=mutator.mutations,
             ),
         )
 
@@ -881,7 +883,7 @@ class LanguageWorker:
 
         # assemble evaluation plans by task from DB
         # TODO @Robustness @Architecture: read evaluation plans with module state?
-        #  (and other non-language state)
+        #  (and other non-language state?)
         tasks = []
         for task in chain.from_iterable(b.tasks for b in builds):
             if task not in tasks:
