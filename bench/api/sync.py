@@ -187,13 +187,11 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
             statement_id=statement_id,
             revision=thing.revision,
             input=input,
-            data=None,
         )
         mutations.append(mutation)
 
         # internal mutation (with data to apply in server)
-        data = mapper.rmap_flat(thing)
-        # nocheckin: map & publish proper internal mutation
+        # TODO @Broken: map & publish proper internal mutation
         internal_mutation = ModuleMutation(
             type=type,
             project_version_id=project_version_id,
@@ -201,8 +199,8 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
             statement_id=statement_id,
             revision=thing.revision,
             input=None,
-            data=data,
         )
+        internal_mutation.data = mapper.rmap_flat(thing)
         internal_mutations.append(internal_mutation)
 
     # TODO @Performance: using async_to_sync to publish mutation is inefficient

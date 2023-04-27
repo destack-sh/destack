@@ -170,6 +170,13 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
 }
 
 MutableData = FileData | StatementData | SimpleTypeNodeData | RecordData | XBlockData
+SCOPE_BY_CLASS = {
+    FileData: MMS.FILE,
+    StatementData: MMS.STATEMENT,
+    SimpleTypeNodeData: MMS.TYPE_NODE,
+    RecordData: MMS.RECORD,
+    XBlockData: MMS.XBLOCK,
+}
 
 
 @dataclass(repr=False, slots=True)
@@ -180,7 +187,47 @@ class ModuleMutation:
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
-    data: Optional[MutableData] = None
+
+    # data as a proper union doesn't work here since the dataclasses overlap
+    # and the deserializer doesn't know which one to use (so will pick the first that fits)
+
+    _data_file: Optional[FileData] = None
+    _data_statement: Optional[StatementData] = None
+    _data_type_node: Optional[SimpleTypeNodeData] = None
+    _data_record: Optional[RecordData] = None
+    _data_xblock: Optional[XBlockData] = None
+
+    @property
+    def data(self) -> MutableData:
+        if self.type.scope == MMS.FILE:
+            return self._data_file
+        elif self.type.scope == MMS.STATEMENT:
+            return self._data_statement
+        elif self.type.scope == MMS.TYPE_NODE:
+            return self._data_type_node
+        elif self.type.scope == MMS.RECORD:
+            return self._data_record
+        elif self.type.scope == MMS.XBLOCK:
+            return self._data_xblock
+        else:
+            raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
+
+    @data.setter
+    def data(self, value: MutableData):
+        if self.type.scope != SCOPE_BY_CLASS[type(value)]:
+            raise ValueError(f"type mismatch: {self.type} {self.type.scope}: {value}")
+        if self.type.scope == MMS.FILE:
+            self._data_file = value
+        elif self.type.scope == MMS.STATEMENT:
+            self._data_statement = value
+        elif self.type.scope == MMS.TYPE_NODE:
+            self._data_type_node = value
+        elif self.type.scope == MMS.RECORD:
+            self._data_record = value
+        elif self.type.scope == MMS.XBLOCK:
+            self._data_xblock = value
+        else:
+            raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
 
     def __str__(self):
         return f"{self.type} {self.revision} {self.data}"
