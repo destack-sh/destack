@@ -3536,6 +3536,19 @@ export type DeleteFileMutationVariables = Exact<{
 
 export type DeleteFileMutation = {
   __typename?: "Mutation";
+  deleteFile:
+    | { __typename?: "File"; id: any; deletedAt?: any | null }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type SoftDeleteFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteFileMutation = {
+  __typename?: "Mutation";
   softDeleteFile:
     | { __typename?: "File"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
@@ -3837,6 +3850,19 @@ export type DeleteStatementMutationVariables = Exact<{
 
 export type DeleteStatementMutation = {
   __typename?: "Mutation";
+  deleteStatement:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Statement"; id: any; deletedAt?: any | null };
+};
+
+export type SoftDeleteStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteStatementMutation = {
+  __typename?: "Mutation";
   softDeleteStatement:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -3992,6 +4018,19 @@ export type DeleteTypeNodeMutation = {
     | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
 };
 
+export type SoftDeleteTypeNodeMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteTypeNodeMutation = {
+  __typename?: "Mutation";
+  softDeleteTypeNode:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
+};
+
 export type RestoreTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
@@ -4119,6 +4158,19 @@ export type DeleteRecordMutationVariables = Exact<{
 export type DeleteRecordMutation = {
   __typename?: "Mutation";
   deleteRecord:
+    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type SoftDeleteRecordMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteRecordMutation = {
+  __typename?: "Mutation";
+  softDeleteRecord:
     | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -8884,7 +8936,7 @@ export const DeleteFileDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "softDeleteFile" },
+            name: { kind: "Name", value: "deleteFile" },
             arguments: [
               {
                 kind: "Argument",
@@ -8925,6 +8977,66 @@ export const DeleteFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteFileMutation, DeleteFileMutationVariables>;
+export const SoftDeleteFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteFileMutation, SoftDeleteFileMutationVariables>;
 export const RestoreFileDocument = {
   kind: "Document",
   definitions: [
@@ -10297,7 +10409,7 @@ export const DeleteStatementDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "softDeleteStatement" },
+            name: { kind: "Name", value: "deleteStatement" },
             arguments: [
               {
                 kind: "Argument",
@@ -10338,6 +10450,66 @@ export const DeleteStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteStatementMutation, DeleteStatementMutationVariables>;
+export const SoftDeleteStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteStatementMutation, SoftDeleteStatementMutationVariables>;
 export const BatchDeleteStatementsDocument = {
   kind: "Document",
   definitions: [
@@ -10999,6 +11171,66 @@ export const DeleteTypeNodeDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteTypeNodeMutation, DeleteTypeNodeMutationVariables>;
+export const SoftDeleteTypeNodeDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteTypeNode" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteTypeNode" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteTypeNodeMutation, SoftDeleteTypeNodeMutationVariables>;
 export const RestoreTypeNodeDocument = {
   kind: "Document",
   definitions: [
@@ -11576,6 +11808,66 @@ export const DeleteRecordDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteRecordMutation, DeleteRecordMutationVariables>;
+export const SoftDeleteRecordDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteRecord" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteRecord" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteRecordMutation, SoftDeleteRecordMutationVariables>;
 export const RestoreRecordDocument = {
   kind: "Document",
   definitions: [

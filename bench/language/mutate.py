@@ -248,7 +248,8 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             self.do(MMT.CREATE_STATEMENT, obj)
             if not flat:
-                # nocheckin: create type nodes
+                for type_node in obj.type_nodes or []:
+                    self.create(type_node)
                 for record in obj.records or []:
                     self.create(record)
                 for xblock in obj.xblocks or []:
@@ -314,8 +315,8 @@ class ModuleMutator:
         mut = MutationBundle(self.mutations)
 
         # apply deletes
-        deleted_type_nodes = {m.type_node_id for m in mut[MMT.DELETE_TYPE_NODE]}
-        deleted_records = {m.record_id for m in mut[MMT.DELETE_RECORD]}
+        deleted_type_nodes = {m.data.id for m in mut[MMT.DELETE_TYPE_NODE]}
+        deleted_records = {m.data.id for m in mut[MMT.DELETE_RECORD]}
         for m in chain(mut[MMT.DELETE_TYPE_NODE], mut[MMT.DELETE_RECORD]):
             statement = statements[m.statement_id]
             if statement.type_nodes:
@@ -337,7 +338,6 @@ class ModuleMutator:
         for m in mut[MMT.CREATE_STATEMENT]:
             statements[m.data.id] = m.data
         for m in mut[MMT.CREATE_TYPE_NODE]:
-            # TODO @Broken: use simple type nodes in statement data
             statements[m.statement_id].type_nodes.append(m.data)
         for m in mut[MMT.CREATE_RECORD]:
             statements[m.statement_id].records.append(m.data)

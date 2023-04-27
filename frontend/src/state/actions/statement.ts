@@ -522,7 +522,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       if (above.value) {
         editor.focusElement(above.value);
       }
-      await operations.statement.delete(current);
+      await operations.statement.softDelete(current);
     },
   });
   const deleteSelection = provideGlobalAction({
@@ -533,7 +533,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     apply: async () => {
       // after delete focus next statement above
       editor.blurElement();
-      await operations.statement.batchDelete(editor.selectedElementIds);
+      await operations.statement.batchSoftDelete(editor.selectedElementIds);
     },
   });
 
@@ -554,7 +554,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       if (above.value) {
         editor.focusElement(above.value, true);
       }
-      await operations.statement.delete(current);
+      await operations.statement.softDelete(current);
     },
   });
 
@@ -714,7 +714,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       copy.value.apply();
       const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
       editor.blurElement();
-      await operations.statement.batchDelete(selectedRoots.map((s) => s.id));
+      await operations.statement.batchSoftDelete(selectedRoots.map((s) => s.id));
     },
   });
   const paste = provideGlobalAction({

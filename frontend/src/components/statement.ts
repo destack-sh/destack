@@ -287,7 +287,10 @@ export function useStatementContext() {
     if (!oldTypeNode) {
       throw new Error("cannot delete type node that doesn't exist");
     }
-    await operations.statement.deleteTypeNode(statement.value.id, makeTypeNodeInput(statement.value.id, oldTypeNode));
+    await operations.statement.softDeleteTypeNode(
+      statement.value.id,
+      makeTypeNodeInput(statement.value.id, oldTypeNode)
+    );
   }
 
   return {

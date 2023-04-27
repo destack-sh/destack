@@ -234,7 +234,7 @@ const metaActions = computed(() => [
       if (fileHeader.value == null) {
         return;
       }
-      ops.file.delete(fileHeader.value?.id);
+      ops.file.softDelete(fileHeader.value?.id);
       emit("close");
     },
     enabled: !editor.readonly,

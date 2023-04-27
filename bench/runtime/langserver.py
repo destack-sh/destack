@@ -13,6 +13,7 @@ from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
+from bench.language.mutate import ModuleMutation, ModuleMutator, is_semantic_mutation
 from bench.language.type import (
     Build,
     BuildSettings,
@@ -31,11 +32,13 @@ from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     BuildErrorType,
+    ClientOrigin,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     InterpChangedPayload,
     JobSavedPayload,
+    ModuleChangedPayload,
     NMessageType,
     RepBuildPayload,
     RepInterpPayload,
@@ -46,10 +49,7 @@ from bench.msg.messages import (
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
     WorkerHeartbeatPayload,
-    ModuleChangedPayload,
-    ClientOrigin,
 )
-from bench.language.mutate import is_semantic_mutation, ModuleMutator, ModuleMutation
 from bench.runtime.build import (
     BuildCandidate,
     BuildResult,
@@ -814,12 +814,12 @@ class LanguageWorker:
         gen_dataset_statement.parent = task
         gen_dataset_statement.modifier = language.StatementModifier.LIKE
 
+        mut = self.mutate()
+        # TODO @Cleanup @UX: dataset delete/create should be update :WriteModuleUpdates
+        if existing_gen_dataset:
+            mut.delete(wire.rmap_statement(existing_gen_dataset.source))
         await self.write_module(
-            self.mutate()
-            # TODO @Cleanup @UX: dataset delete/create should be update
-            .delete(wire.rmap_statement(existing_gen_dataset.source))
-            .create(wire.rmap_statement(gen_dataset_statement))
-            .map(task.id, task_mappings)
+            mut.create(wire.rmap_statement(gen_dataset_statement)).map(task.id, task_mappings)
         )
 
         # upsert evaluation plan (this is all rather inefficient)

@@ -100,7 +100,7 @@ export function useFileOps() {
   const { mutate: deleteFileMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation deleteFile($id: GlobalID!) {
-        softDeleteFile(input: { id: $id }) {
+        deleteFile(input: { id: $id }) {
           ... on File {
             id
             deletedAt
@@ -119,6 +119,31 @@ export function useFileOps() {
             deletedAt: new Date().toISOString(),
           },
         } as DeleteFileMutation),
+    }
+  );
+
+  const { mutate: softDeleteFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation softDeleteFile($id: GlobalID!) {
+        softDeleteFile(input: { id: $id }) {
+          ... on File {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          __typename: "Mutation",
+          softDeleteFile: {
+            __typename: "File",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as SoftDeleteFileMutation),
     }
   );
 
@@ -148,6 +173,15 @@ export function useFileOps() {
       type: "file.delete",
       do: async () => {
         return await deleteFileMut({ id: id });
+      },
+    });
+  }
+
+  async function softDelete(id: string) {
+    return await operations.perform({
+      type: "file.softDelete",
+      do: async () => {
+        return await softDeleteFileMut({ id: id });
       },
       undo: async () => {
         return await restoreFileMut({ id: id });
@@ -229,5 +263,5 @@ export function useFileOps() {
       },
     });
   }
-  return { create, rename, delete: delete_, restore };
+  return { create, rename, delete: delete_, softDelete, restore };
 }

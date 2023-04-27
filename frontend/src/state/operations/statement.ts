@@ -23,6 +23,8 @@ import {
   type SetReferenceMutation,
   type CommentStatementMutation,
   type CreateStatementBlankMutation,
+  type SoftDeleteStatementMutation,
+  type SoftDeleteTypeNodeMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -431,6 +433,32 @@ export function useStatementOps() {
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
       mutation deleteStatement($id: GlobalID!) {
+        deleteStatement(input: { id: $id }) {
+          ... on Statement {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          deleteStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as DeleteStatementMutation),
+    }
+  );
+
+  const { mutate: softDeleteStatementMut } = useMutation(
+    // we don't bother updating descendants here since they will be automatically hidden
+    // when their parent/ancestor is deleted (and its more responsive that way on restore)
+    graphql(/* GraphQL */ `
+      mutation softDeleteStatement($id: GlobalID!) {
         softDeleteStatement(input: { id: $id }) {
           ... on Statement {
             id
@@ -448,7 +476,7 @@ export function useStatementOps() {
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
-        } as DeleteStatementMutation),
+        } as SoftDeleteStatementMutation),
     }
   );
 
@@ -545,13 +573,22 @@ export function useStatementOps() {
       do: async () => {
         return await deleteStatementMut({ id: id });
       },
+    });
+  }
+
+  async function softDelete(id: string) {
+    await operations.perform({
+      type: "statement.softDelete",
+      do: async () => {
+        return await softDeleteStatementMut({ id: id });
+      },
       undo: async () => {
         return await restoreStatementMut({ id: id });
       },
     });
   }
 
-  async function batchDelete_(ids: string[]) {
+  async function batchSoftDelete_(ids: string[]) {
     await operations.perform({
       type: "statement.batchDelete",
       do: async () => {
@@ -763,7 +800,7 @@ export function useStatementOps() {
       optimisticResponse: (vars: { typeNode: TypeNodeCreateInput }) =>
         ({
           __typename: "Mutation",
-          createStatementTypeNode: {
+          createTypeNode: {
             __typename: "SimpleTypeNode",
             id: vars.typeNode.id,
             statement: {
@@ -787,7 +824,7 @@ export function useStatementOps() {
           },
         } as CreateTypeNodeMutation),
       update(cache, { data }) {
-        const createStatementTypeNode = data?.createStatementTypeNode;
+        const createStatementTypeNode = data?.createTypeNode;
         if (createStatementTypeNode?.__typename != "SimpleTypeNode") {
           return; // error
         }
@@ -820,12 +857,36 @@ export function useStatementOps() {
     {
       optimisticResponse: (vars: { id: string }) =>
         ({
-          deleteStatementTypeNode: {
+          deleteTypeNode: {
             __typename: "SimpleTypeNode",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
         } as DeleteTypeNodeMutation),
+    }
+  );
+
+  const { mutate: softDeleteTypeNodeMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation softDeleteTypeNode($id: GlobalID!) {
+        softDeleteTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          softDeleteTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as SoftDeleteTypeNodeMutation),
     }
   );
 
@@ -874,6 +935,15 @@ export function useStatementOps() {
       do: async () => {
         return await deleteTypeNodeMut({ id: typeNode.id });
       },
+    });
+  }
+
+  async function softDeleteTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
+    await operations.perform({
+      type: "statement.softDeleteTypeNode",
+      do: async () => {
+        return await softDeleteTypeNodeMut({ id: typeNode.id });
+      },
       undo: async () => {
         return await restoreTypeNodeMut({ id: typeNode.id });
       },
@@ -905,7 +975,7 @@ export function useStatementOps() {
     {
       optimisticResponse: (vars: { typeNode: TypeNodeUpdateInput }) =>
         ({
-          updateStatementTypeNode: {
+          updateTypeNode: {
             __typename: "SimpleTypeNode",
             id: vars.typeNode.id,
             updatedAt: new Date().toISOString(),
@@ -946,9 +1016,11 @@ export function useStatementOps() {
     comment,
     rename,
     delete: delete_,
-    batchDelete: batchDelete_,
+    softDelete: softDelete,
+    batchSoftDelete: batchSoftDelete_,
     createTypeNode,
     updateTypeNode,
     deleteTypeNode,
+    softDeleteTypeNode,
   };
 }

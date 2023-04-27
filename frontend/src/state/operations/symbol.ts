@@ -7,6 +7,7 @@ import type {
   UpdateStatementDescriptionMutation,
   UpdateStatementTextMutation,
   RestoreRecordMutation,
+  SoftDeleteRecordMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -161,7 +162,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: { id: string; statementId: string; orderKey: string; data: any }) =>
         ({
           __typename: "Mutation",
-          createStatementRecord: {
+          createRecord: {
             __typename: "DatasetRecord",
             id: vars.id,
             statement: {
@@ -177,17 +178,17 @@ export function useSymbolContentOps() {
           },
         } as CreateRecordMutation),
       update(cache, { data: createStatementRecord }) {
-        if (createStatementRecord?.createStatementRecord.__typename != "DatasetRecord") {
+        if (createStatementRecord?.createRecord.__typename != "DatasetRecord") {
           return; // error
         }
         // extend Statement.records with the new record
         const newEdge = {
           __typename: "DatasetRecordEdge",
           cursor: btoa(`arrayconnection:0`),
-          node: { __ref: cache.identify(createStatementRecord?.createStatementRecord) },
+          node: { __ref: cache.identify(createStatementRecord?.createRecord) },
         };
         cache.modify({
-          id: cache.identify(createStatementRecord?.createStatementRecord.statement),
+          id: cache.identify(createStatementRecord?.createRecord.statement),
           fields: {
             records(existingRecords = { totalCount: 0, edges: [] }) {
               return {
@@ -219,7 +220,7 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string; data: any }) =>
         ({
-          updateStatementRecord: {
+          updateRecord: {
             __typename: "DatasetRecord",
             id: vars.id,
             updatedAt: new Date().toISOString(),
@@ -246,12 +247,37 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: { id: string }) =>
         ({
           __typename: "Mutation",
-          deleteStatementRecord: {
+          deleteRecord: {
             __typename: "DatasetRecord",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
         } as DeleteRecordMutation),
+    }
+  );
+
+  const { mutate: softDeleteRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation softDeleteRecord($id: GlobalID!) {
+        softDeleteRecord(input: { id: $id }) {
+          ... on DatasetRecord {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          __typename: "Mutation",
+          softDeleteRecord: {
+            __typename: "DatasetRecord",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as SoftDeleteRecordMutation),
     }
   );
 
@@ -271,7 +297,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: { id: string }) =>
         ({
           __typename: "Mutation",
-          restoreStatementRecord: {
+          restoreRecord: {
             __typename: "DatasetRecord",
             id: vars.id,
             deletedAt: null,
@@ -318,6 +344,15 @@ export function useSymbolContentOps() {
       do: async () => {
         return await deleteRecordMut({ id });
       },
+    });
+  }
+
+  async function softDeleteRecord(id: string) {
+    await operations.perform({
+      type: "statement.softDeleteRecord",
+      do: async () => {
+        return await softDeleteRecordMut({ id });
+      },
       undo: async () => {
         return await restoreRecordMut({ id });
       },
@@ -331,5 +366,6 @@ export function useSymbolContentOps() {
     createRecord,
     updateRecord,
     deleteRecord,
+    softDeleteRecord,
   };
 }

@@ -18,19 +18,15 @@ from django.db import transaction
 from bench import language, models
 from bench.language import wire
 from bench.language.mutate import (
+    MMK,
+    MMT,
     NON_SEMANTIC_STATEMENT_TYPES,
     ModuleMutation,
     MutationBundle,
-    MMT,
-    MMK,
 )
 from bench.language.parse import index_module
-from bench.language.type import (
-    StatementPath,
-    StatementType,
-    SymbolType,
-)
-from bench.language.wire import RecordData, FileData, StatementData, SimpleTypeNodeData
+from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 from bench.utils.fractional import generate_n_keys_between
@@ -384,14 +380,12 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.code = statement.code
     data.provider = statement.provider
     data.external_name = statement.external_name
+    data.root_type_tag = statement.root_type_tag
     if not flat:
-        data.type_nodes = wire.rmap_type_nodes(
-            statement.id,
-            statement.root_type_tag,
-            statement.type_nodes.filter(deleted_at=None).all(),
-            statement.symbol_type,
-            statement.id,
-        )
+        data.type_nodes = [
+            rmap_simple_type_node(node)
+            for node in statement.type_nodes.filter(deleted_at=None).all()
+        ]
     if statement.symbol_type in (
         SymbolType.TASK,
         SymbolType.CODE,
@@ -432,13 +426,10 @@ def wmap_symbol(statement: models.Statement, data: wire.StatementData) -> list[t
     statement.external_name = data.external_name
     if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text
-
+    statement.root_type_tag = data.root_type_tag
     # copy relational data
     if data.type_nodes:
-        statement.root_type_tag, type_nodes = wire.wmap_type_nodes(
-            statement.id, data.type_nodes, False
-        )
-        type_nodes = [wmap_simple_type_node(statement.id, node) for node in type_nodes]
+        type_nodes = [wmap_simple_type_node(statement.id, node) for node in data.type_nodes]
         relations.extend(type_nodes)
     if data.evaluate_settings:
         evaluate_settings = models.EvaluateSettings(
