@@ -474,7 +474,7 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @project_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True)
+    @project_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_soft_delete_statement(
         self, input: StatementBatchSoftDeleteInput
     ) -> StatementBatch | OperationInfo:
@@ -489,7 +489,7 @@ class StatementMutation:
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.RESTORE_STATEMENT, atomic=True, batch=True)
+    @project_mutation(MMT.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_restore_statement(
         self, input: StatementBatchRestoreInput
     ) -> StatementBatch | OperationInfo:
@@ -505,7 +505,7 @@ class StatementMutation:
         statements.update(deleted_at=None)
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.COMMENT_STATEMENT, atomic=True, batch=True)
+    @project_mutation(MMT.COMMENT_STATEMENT, atomic=True, batch=True, register=False)
     def batch_comment_statement(
         self, input: StatementBatchCommentedInput
     ) -> StatementBatch | OperationInfo:
@@ -514,7 +514,7 @@ class StatementMutation:
         models.Statement.objects.get_descendants(statement_ids).update(commented=input.commented)
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True)
+    @project_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_move_statement(
         self, input: StatementBatchMoveInput
     ) -> StatementBatch | OperationInfo:
@@ -538,7 +538,9 @@ class StatementMutation:
         return StatementBatch(statements=list(statements))
 
     # we check auth manually here (simpler for copy/paste across projects & versions)
-    @project_mutation(MMT.CREATE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
+    @project_mutation(
+        MMT.CREATE_STATEMENT, atomic=True, batch=True, skip_auth_check=True, register=False
+    )
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
@@ -738,7 +740,7 @@ class SymbolMutation:
         record.data = input.data
         return record
 
-    @project_mutation(MMT.MOVE_TYPE_NODE)
+    @project_mutation(MMT.MOVE_RECORD)
     def move_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
