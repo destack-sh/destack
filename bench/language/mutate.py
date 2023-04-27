@@ -28,7 +28,7 @@ class ModuleMutationType(enum.StrEnum):
     COMMIT = "COMMIT"
     # Files
     CREATE_FILE = "CREATE_FILE"
-    SOFT_DELETE_FILE = "DELETE_FILE"
+    SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
     RESTORE_FILE = "RESTORE_FILE"
     RENAME_FILE = "RENAME_FILE"
     MOVE_FILE = "MOVE_FILE"
@@ -37,7 +37,7 @@ class ModuleMutationType(enum.StrEnum):
     # Statements
     CREATE_STATEMENT = "CREATE_STATEMENT"
     CREATE_STATEMENT_BLANK = "CREATE_STATEMENT_BLANK"
-    SOFT_DELETE_STATEMENT = "DELETE_STATEMENT"
+    SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
     UPDATE_STATEMENT_MODIFIER = "UPDATE_STATEMENT_MODIFIER"
     UPDATE_STATEMENT_REFERENCE = "UPDATE_STATEMENT_REFERENCE"
@@ -280,8 +280,8 @@ class ModuleMutator:
             revision=obj.revision,
             file_id=file_id,
             statement_id=statement_id,
-            data=obj,
         )
+        mutation.data = obj
         self.mutations.append(mutation)
         if type.kind == MMK.CREATE and type.scope == MMS.STATEMENT:
             self._created_statements[statement_id] = obj
@@ -434,6 +434,8 @@ class ModuleMutator:
 
 
 class MutationBundle:
+    """Indexed access to an assumed constant list of mutations."""
+
     def __init__(self, mutations: list[ModuleMutation]):
         self.mutations = mutations
         self._cache: dict[Any, list[ModuleMutation]] = {}

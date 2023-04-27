@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
 import { useEditorState, type FileHeader, type ViewId } from "@/state/editor";
-import { useOperations } from "@/state/operations";
 import { onClickOutside, useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -40,8 +39,6 @@ function focusFile(file: FileHeader) {
 function focusFileAndGoThere(file: FileHeader) {
   editor.focusFile(file);
 }
-
-const operations = useOperations();
 
 // blur focused file if clicking outside file explorer
 const listRef: Ref<HTMLDivElement | null> = ref(null);

@@ -1,10 +1,7 @@
 import functools
 import inspect
-from collections import OrderedDict
-from dataclasses import fields, is_dataclass
-from datetime import datetime
 from inspect import Signature
-from typing import Any, Optional, Sequence, Union, cast
+from typing import Any, Optional, Sequence, cast
 from uuid import UUID
 
 import posthog
@@ -15,20 +12,27 @@ from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
 from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
-from bench.language.mutate import MMT, ModuleMutation
-from bench.models import ProjectVersion, mapper
+from bench.language.mutate import MMT
+from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
+from bench.runtime.mutate import (
+    MutableThing,
+    input_to_jsonable,
+    map_mutation_to_internal,
+    to_public_mutation,
+)
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
+
+INPUT_CLASS_BY_MMT = {}
 
 
 def project_mutation(
@@ -37,6 +41,7 @@ def project_mutation(
     atomic: bool = False,
     batch: bool = False,
     skip_auth_check: bool = False,
+    register: bool = True,
     directives: Optional[Sequence[object]] = None,
 ):
     """
@@ -56,6 +61,13 @@ def project_mutation(
 
     def make_resolver(func):
         needs_info = "info" in func.__annotations__
+
+        # register mutation type to input class
+        if register:
+            if type in INPUT_CLASS_BY_MMT:
+                raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_MMT[type]}")
+            input_class = func.__annotations__["input"]
+            INPUT_CLASS_BY_MMT[type] = input_class
 
         @functools.wraps(func)
         def wrapped_mutation(self, info: Info, *args, **kwargs):
@@ -145,15 +157,6 @@ def project_mutation(
     return make_resolver
 
 
-MutableThing = Union[
-    models.File,
-    models.Statement,
-    models.SimpleTypeNode,
-    models.DatasetRecord,
-    models.XBlock,
-]
-
-
 def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThing]):
     """Publish mutations."""
     if not things or not SEND_API_PUB_MSG:
@@ -162,47 +165,12 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
     internal_mutations = []
     input = input_to_jsonable(input)  # original input is some dataclass
     for thing in things:
-        if isinstance(thing, models.File):
-            statement_id = None
-            project_version_id = thing.project_version_id
-            file_id = thing.id
-        elif isinstance(thing, models.Statement):
-            statement_id = thing.id
-            project_version_id = thing.project_version_id
-            file_id = thing.file_id
-        elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
-            project_version_id = thing.statement.project_version_id
-            file_id = thing.statement.file_id
-            statement_id = thing.statement_id
-        else:
-            raise TypeError(f"thing is not a project thing: {thing}")
-
-        # public mutation (with inputs to apply in client)
-        # TODO @Broken: some public mutations need to be mapped for previously offline clients
-        #  e.g. restore is insufficient if you don't have the original file/statement/etc.
-        mutation = ModuleMutation(
-            type=type,
-            project_version_id=project_version_id,
-            file_id=file_id,
-            statement_id=statement_id,
-            revision=thing.revision,
-            input=input,
-        )
+        mutation = to_public_mutation(type, input, thing)
         mutations.append(mutation)
-
         # internal mutation (with data to apply in server)
-        # TODO @Broken: map & publish proper internal mutation
-        internal_mutation = ModuleMutation(
-            type=type,
-            project_version_id=project_version_id,
-            file_id=file_id,
-            statement_id=statement_id,
-            revision=thing.revision,
-            input=None,
-        )
-        internal_mutation.data = mapper.rmap_flat(thing)
-        internal_mutations.append(internal_mutation)
+        internal_mutations.extend(map_mutation_to_internal(mutation, thing))
 
+    project_version_id = mutations[0].project_version_id
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
     #  (can't use publish_soon here because it requires an event loop to be running)
     origin = ClientOrigin("user", client_id)
@@ -258,25 +226,3 @@ def track_project_mutation(
     posthog.capture(
         str(user.id), normalized_type, properties={batch: batch, **properties, **project_properties}
     )
-
-
-def input_to_jsonable(value: Any) -> Any:
-    """Walk and transform a GraphQL input into a JSON object that could be used as an input."""
-    if isinstance(value, GlobalID):
-        return str(value)
-    elif is_dataclass(value):
-        data = OrderedDict()
-        for field in fields(value):
-            key = field.name
-            data[key] = input_to_jsonable(getattr(value, key))
-        return data
-    elif isinstance(value, (list, tuple)):
-        return [input_to_jsonable(item) for item in value]
-    elif isinstance(value, dict):  # JSON
-        return value
-    elif isinstance(value, (int, float, str, bool, type(None))):
-        return value
-    elif isinstance(value, (UUID, datetime)):
-        return str(value)
-    else:
-        raise TypeError(f"unexpected value: {value}")

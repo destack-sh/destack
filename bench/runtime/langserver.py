@@ -38,6 +38,7 @@ from bench.msg.messages import (
     ExecutionSavedPayload,
     InterpChangedPayload,
     JobSavedPayload,
+    ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
     RepBuildPayload,
@@ -69,6 +70,7 @@ from bench.runtime.interp import (
     interp_module,
 )
 from bench.runtime.map import map_to_file, map_to_statement
+from bench.runtime.mutate import map_mutation_to_public
 from bench.runtime.reactivity import (
     RevisionMap,
     get_stale_symbols,
@@ -653,18 +655,27 @@ class LanguageWorker:
         return job
 
     async def write_module(self, mutator: ModuleMutator):
-        await sync_to_async(write_mutations)(
-            project_v=self.project_version, mutations=mutator.mutations
-        )
+        mutations = mutator.mutations
+        await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
         self.on_module_changed(mutator)
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
                 module_id=self.module_id,
                 client=ClientOrigin("worker", self.worker_id),
-                mutations=mutator.mutations,
+                mutations=mutations,
             ),
         )
+        public_mutations = list(chain.from_iterable(map_mutation_to_public(m) for m in mutations))
+        if public_mutations:
+            await publish(
+                NMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(
+                    module_id=self.module_id,
+                    client=ClientOrigin("worker", self.worker_id),
+                    mutations=public_mutations,
+                ),
+            )
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""

@@ -44,7 +44,7 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
     return GlobalID(type, str(id))
 
 
-def rmap_mutation(mutation: sync.ModuleMutation) -> ModuleMutation:
+def rmap_mutation(mutation: ModuleMutation) -> ModuleMutation:
     return ModuleMutation(
         type=mutation.type,
         project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
