@@ -626,19 +626,6 @@ BASE_SETTINGS_BY_MODALITY = {
     Modality.Struct: StructSettings,
 }
 
-
-def summarize_args(arguments: Any) -> str:
-    """
-    Summarize the names (if available) and types of arguments.
-    """
-    if isinstance(arguments, dict):
-        return ", ".join(f"{name}={type(value).__name__}" for name, value in arguments.items())
-    elif isinstance(arguments, (list, tuple, set)):
-        return ", ".join(type(value).__name__ for value in arguments)
-    else:
-        return type(arguments).__name__
-
-
 BuildMap = Callable[[InterpSymbol], Optional[InterpSymbol]]
 
 

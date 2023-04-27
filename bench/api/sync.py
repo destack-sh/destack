@@ -21,11 +21,11 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import CanWriteProject
 from bench.api.util import wrap_exceptions
+from bench.language.mutate import MMT, ModuleMutation
 from bench.models import ProjectVersion, mapper
 from bench.msg import NMessageType
 from bench.msg.core import publish
-from bench.msg.messages import ClientOrigin, ModuleChangedPayload
-from bench.language.mutate import ModuleMutation, MMT
+from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
@@ -159,6 +159,7 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
     if not things or not SEND_API_PUB_MSG:
         return
     mutations = []
+    internal_mutations = []
     input = input_to_jsonable(input)  # original input is some dataclass
     for thing in things:
         if isinstance(thing, models.File):
@@ -175,7 +176,10 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
             statement_id = thing.statement_id
         else:
             raise TypeError(f"thing is not a project thing: {thing}")
-        data = mapper.rmap_flat(thing)
+
+        # public mutation (with inputs to apply in client)
+        # TODO @Broken: some public mutations need to be mapped for previously offline clients
+        #  e.g. restore is insufficient if you don't have the original file/statement/etc.
         mutation = ModuleMutation(
             type=type,
             project_version_id=project_version_id,
@@ -183,19 +187,38 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
             statement_id=statement_id,
             revision=thing.revision,
             input=input,
-            data=data,
+            data=None,
         )
         mutations.append(mutation)
+
+        # internal mutation (with data to apply in server)
+        data = mapper.rmap_flat(thing)
+        # nocheckin: map & publish proper internal mutation
+        internal_mutation = ModuleMutation(
+            type=type,
+            project_version_id=project_version_id,
+            file_id=file_id,
+            statement_id=statement_id,
+            revision=thing.revision,
+            input=None,
+            data=data,
+        )
+        internal_mutations.append(internal_mutation)
+
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
     #  (can't use publish_soon here because it requires an event loop to be running)
+    origin = ClientOrigin("user", client_id)
     async_to_sync(publish)(
         NMessageType.MODULE_CHANGED,
-        ModuleChangedPayload(
-            module_id=project_version_id,
-            client=ClientOrigin("user", client_id),
-            mutations=mutations,
-        ),
+        ModuleChangedPayload(module_id=project_version_id, client=origin, mutations=mutations),
     )
+    if internal_mutations:
+        async_to_sync(publish)(
+            NMessageType.MODULE_INTERNAL_CHANGED,
+            ModuleInternalChangedPayload(
+                module_id=project_version_id, client=origin, mutations=internal_mutations
+            ),
+        )
 
 
 def track_project_mutation(

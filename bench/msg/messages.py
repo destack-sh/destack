@@ -29,8 +29,8 @@ class NMessageType(StrEnum):
     """All messages types"""
 
     # Bench project version content sync
-    # API <-> API,, API <-> Internal
-    MODULE_CHANGED = "module.changed"
+    MODULE_CHANGED = "module.changed"  # for API
+    MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
 
     # Worker <-> Internal
     REQUEST_REGISTER_WORKER = "worker.register"
@@ -97,6 +97,13 @@ ClientOrigin = typing.NamedTuple("ClientOrigin", [("type", str), ("id", UUID)])
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload:
+    module_id: UUID
+    client: ClientOrigin
+    mutations: list[mutate.ModuleMutation]
+
+
+@payload(NMessageType.MODULE_INTERNAL_CHANGED)
+class ModuleInternalChangedPayload:
     module_id: UUID
     client: ClientOrigin
     mutations: list[mutate.ModuleMutation]
@@ -252,6 +259,9 @@ def to_topic(
     # note: this seems a tad repetitive, maybe cleanup somehow (sacrifice type safety?)
     if message_type == NMessageType.MODULE_CHANGED:
         payload = cast(ModuleChangedPayload, payload)
+        return f"{message_type}.{payload.module_id}"
+    elif message_type == NMessageType.MODULE_INTERNAL_CHANGED:
+        payload = cast(ModuleInternalChangedPayload, payload)
         return f"{message_type}.{payload.module_id}"
     elif message_type == NMessageType.INTERP_CHANGED:
         payload = cast(InterpChangedPayload, payload)

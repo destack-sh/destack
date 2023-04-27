@@ -28,7 +28,7 @@ from bench.language.type import (
 from bench.runtime.instruct import (
     Instruction,
     InstructionOp,
-    SampleGenerateWithModel,
+    SampleFabricateRandom,
     anonymous_dataset,
     instruction_tree_from_module,
     instruction_tree_from_symbol,
@@ -195,9 +195,11 @@ async def plan_evaluate_task(
     n_samples: int,
     eval_model: Model,
 ) -> EvaluationPlan:
-    samples = await SampleGenerateWithModel(
-        task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
-    )()
+    # TODO @Broken: replace fabricated with real samples
+    samples = await SampleFabricateRandom(type=flatten_func_type(task.type), count=n_samples)()
+    # samples = await SampleGenerateWithModel(
+    #     task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
+    # )()
     samples.name = "magic " + task.name + " samples"
     plan = EvaluationPlan(
         system=task,
@@ -278,11 +280,11 @@ async def evaluate_task(
     )
     performance_metrics = {
         # for type validity we assume that unsuccessful run == type error
-        EvaluationMetric.TypeValidity: n_successful_runs / len(all_samples),
+        EvaluationMetric.TypeValidity: n_successful_runs / (len(all_samples) or 1),
         EvaluationMetric.AverageRunDuration: average_run_duration,
-        EvaluationMetric.InstructionSatisfaction: instruction_metrics[
-            EvaluationMetric.InstructionSatisfaction
-        ],
+        EvaluationMetric.InstructionSatisfaction: instruction_metrics.get(
+            EvaluationMetric.InstructionSatisfaction, 0
+        ),
         EvaluationMetric.FeedbackCorrelation: 1.0,
     }
 
@@ -294,7 +296,7 @@ async def evaluate_task(
     }
     metrics.update(get_summary_metrics(metrics))
     # filter out the task self evaluation
-    self_evaluation = first(e for e in instruction_evaluations if e.system.id == task.id)
+    self_evaluation = first((e for e in instruction_evaluations if e.system.id == task.id), None)
     return EvaluationResult(
         kind=EvaluationKind.EVALUATION,
         scope=EvaluationScope.INSTRUCTION,
@@ -302,7 +304,7 @@ async def evaluate_task(
         build=build,
         build_candidate=build_candidate,
         plan=eval,
-        self_metrics=self_evaluation.aggregated_metrics,
+        self_metrics=self_evaluation.aggregated_metrics if self_evaluation else None,
         aggregated_metrics=metrics,
         children=[e for e in instruction_evaluations if e.system.id != task.id],
     )

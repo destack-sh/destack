@@ -117,12 +117,19 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
     def lookup(
-        requirement: language.RequirementContent, path: StatementPath
+        requirement: language.RequirementContent, path: StatementPath | UUID
     ) -> language.Scope | None:
-        idx: language.ModuleIndex = dependencies_by_name.get(requirement.module_name)
-        if not idx:
+        if isinstance(path, UUID):  # lookup in any dependency
+            for idx in dependencies:
+                scope = idx.scopes.get(path)
+                if scope is not None:
+                    return scope
             return None
-        return idx.get_scope(path)
+        else:  # lookup in specific requirement
+            idx: language.ModuleIndex = dependencies_by_name.get(requirement.module_name)
+            if not idx:
+                return None
+            return idx.get_scope(path)
 
     return lookup
 
@@ -133,7 +140,6 @@ def interp_module(
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     module = wire.wmap_module(source)
-    # TODO @Language: revert explicit statement references to StatementPath to lookup refs properly?
     collector = ErrorCollector()
     sort(module)  # for nicer debugging and automatically sorted module index
     module_idx = resolve(
@@ -157,3 +163,7 @@ def get_or_create_file(
         return file, True
     else:
         return file, False
+
+
+def get_file(idx: language.ModuleIndex, path: str) -> Optional[language.File]:
+    return first((f for f in idx.module.files if f.path == path), None)

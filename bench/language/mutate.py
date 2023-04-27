@@ -5,6 +5,7 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 """
 import enum
 from dataclasses import dataclass, replace
+from functools import cached_property
 from itertools import chain
 from typing import Any, Optional
 from uuid import UUID
@@ -98,6 +99,7 @@ class ModuleMutationScope(enum.StrEnum):
     XBLOCK = "XBLOCK"
 
 
+# Basic CRUD mutations with full (flat) data for the model
 SIMPLE_MUTATIONS = {
     ModuleMutationType.CREATE_FILE,
     ModuleMutationType.UPDATE_FILE,
@@ -113,6 +115,8 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.DELETE_RECORD,
     ModuleMutationType.CREATE_XBLOCK,
     ModuleMutationType.DELETE_XBLOCK,
+    # Update generated mappings is a weird exception, it's internal, but technically not simple
+    ModuleMutationType.UPDATE_GENERATED_MAPPINGS,
 }
 
 MMT = ModuleMutationType
@@ -194,6 +198,12 @@ class ModuleMutator:
         self.mutations = mutations or []
         self._created_statements: dict[UUID, StatementData] = {}
 
+    def __str__(self):
+        return f"mutate {len(self.mutations)} {self.module}"
+
+    def __repr__(self):
+        return f"<Mutator {self}>"
+
     def do(
         self,
         type: MMT,
@@ -206,11 +216,14 @@ class ModuleMutator:
             statement_id = obj.id
             file_id = obj.file_id
         elif isinstance(obj, (SimpleTypeNodeData, RecordData, XBlockData)):
-            statement = self.idx.statements.get(obj.statement_id)
-            if statement is None:
+            if obj.statement_id in self.idx.statements:
+                statement = self.idx.statements.get(obj.statement_id)
+                statement_id = statement.id
+                file_id = statement.file.id
+            else:
                 statement = self._created_statements[obj.statement_id]
-            statement_id = statement.id
-            file_id = statement.file_id
+                statement_id = statement.id
+                file_id = statement.file_id
         else:
             raise ValueError(f"unexpected mutation object: {obj}")
 
@@ -306,13 +319,16 @@ class ModuleMutator:
         return MutationBundle(self.mutations)
 
     def apply(self) -> ModuleData:
-        """Apply mutations to a copy of the module and return the mutated data."""
+        """Apply (simple!)  mutations to a copy of the module and return the mutated data."""
+        mut = MutationBundle(self.mutations)
+        if not mut.simple:
+            raise ValueError(f"cannot apply complex mutations in {self}: {mut.complex_mutations}")
+
         module = wire.rmap_module(self.module)
         files: dict[UUID, FileData] = {f.id: f for f in module.files}
         statements: dict[UUID, StatementData] = {
             s.id: s for s in chain.from_iterable(f.statements for f in module.files)
         }
-        mut = MutationBundle(self.mutations)
 
         # apply deletes
         deleted_type_nodes = {m.data.id for m in mut[MMT.DELETE_TYPE_NODE]}
@@ -355,6 +371,9 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_RECORD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.records, m.data)
+        for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]:
+            statement = statements[m.statement_id]
+            statement.generated_mappings = m.data.generated_mappings
 
         # re-assemble module data
         new_module = replace(module, files=[])
@@ -371,6 +390,14 @@ class MutationBundle:
     def __init__(self, mutations: list[ModuleMutation]):
         self.mutations = mutations
         self._cache: dict[Any, list[ModuleMutation]] = {}
+
+    @cached_property
+    def simple(self) -> bool:
+        return not any(m.type not in SIMPLE_MUTATIONS for m in self.mutations)
+
+    @property
+    def complex_mutations(self):
+        return [m for m in self.mutations if m.type not in SIMPLE_MUTATIONS]
 
     def __getitem__(self, type: MMT | MMK | MMS) -> list[ModuleMutation]:
         if type in self._cache:

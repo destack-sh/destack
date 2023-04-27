@@ -59,10 +59,10 @@ from bench.runtime.type import (
     SyncCodeCallable,
     TaskInstance,
     TypeInstance,
-    summarize_args,
 )
 from bench.runtime.x import X_BUILTINS
 from bench.utils.cache import redis
+from bench.utils.func import describe_type
 from bench.utils.record import RecordList
 from bench.utils.utils import get_from_env, to_pyidentifier
 
@@ -120,13 +120,13 @@ class SyncCodeProxy:
         self.tracer = tracer
 
     def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
+        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.tracer.code_enter(self.code, args, kwargs)
             log.debug("code.enter")
             result = self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.exit", result=summarize_args(result))
+            log.debug("code.exit", result=describe_type(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
@@ -143,13 +143,13 @@ class AsyncCodeProxy:
         self.tracer = tracer
 
     async def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=summarize_args(kwargs))
+        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.tracer.code_enter(self.code, args, kwargs)
             log.debug("code.enter")
             result = await self.raw_callable(*args, **kwargs)
             self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.exit", result=summarize_args(result))
+            log.debug("code.exit", result=describe_type(result))
             return result
         except Exception as exception:
             self.tracer.code_exception(self.code, args, kwargs, exception)
@@ -210,7 +210,7 @@ class InferenceProxy:
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_str(cached_inference)
-                    log.debug("inference.cache.hit", ret=summarize_args(inference.result))
+                    log.debug("inference.cache.hit", ret=describe_type(inference.result))
                     self.tracer.inference_cached(self.ctx, blocks, settings, inference)
                     return inference.result
                 except (ValueError, TypeError, JSONDecodeError):
@@ -226,7 +226,7 @@ class InferenceProxy:
                 log.debug("inference.enter")
                 result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
                 self.tracer.inference_exit(self.ctx, blocks, settings, result)
-                log.debug("inference.exit", ret=summarize_args(result))
+                log.debug("inference.exit", ret=describe_type(result))
                 if self.cache_inferences:
                     now = datetime.utcnow().replace(tzinfo=pytz.utc)
                     inference = Inference(

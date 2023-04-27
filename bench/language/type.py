@@ -285,7 +285,7 @@ class Statement(Generic[SymbolContentT]):
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
     content: Optional[SymbolContentT] = None
-    reference: Optional[Statement | StatementPath] = None
+    reference: Optional[Statement | StatementPath | UUID] = None
     id: UUID = field(default_factory=uuid.uuid4)
     generated: bool = False
 
@@ -505,7 +505,7 @@ class TypeNode(SymbolContent):
     tag: TypeTag = required_field()
     description: Optional[str] = None
     value: Optional[LiteralValue] = None  # for literal types
-    reference: Union[None, StatementPath, Statement, "TypeNode", "Type"] = None
+    reference: Union[None, StatementPath, Statement, UUID, "TypeNode", "Type"] = None
     # source reference is separate as the resolved TypeNode may not contain the name
     source_reference: Optional[StatementPath] = None
     children: Optional[list["TypeNode"]] = None

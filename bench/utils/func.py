@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 from asyncio import CancelledError
 from collections import OrderedDict
 from functools import wraps
-from typing import Coroutine, Iterable, Type, TypeVar, cast
+from typing import Any, Coroutine, Iterable, Type, TypeVar, cast
 
 import structlog
 
@@ -89,3 +91,15 @@ def debounce(delay: int, max_wait: int = None):
         return debounced
 
     return decorator
+
+
+def describe_type(obj: Any) -> str:
+    """
+    Summarize the names (if available) and types of arguments.
+    """
+    if isinstance(obj, dict):
+        return ", ".join(f"{name}={type(value).__name__}" for name, value in obj.items())
+    elif isinstance(obj, (list, tuple, set)):
+        return ", ".join(type(value).__name__ for value in obj)
+    else:
+        return type(obj).__name__

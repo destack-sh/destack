@@ -7,12 +7,13 @@ import structlog
 
 from bench import language
 from bench.language import wire
+from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
-    ModuleChangedPayload,
+    ModuleInternalChangedPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     RepRunPayload,
@@ -85,8 +86,13 @@ class ModuleWorker:
         return self.interp.module_idx
 
     async def do_interp(self, source: wire.ModuleData):
-        self.log.debug("module.changed")
+        self.log.debug("module.init")
         self.interp = await self.interpreter.interp(source)
+
+    async def do_interp_on_change(self, mutations: list[ModuleMutation]):
+        self.log.debug("module.changed")
+        new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
+        self.interp = await self.interpreter.interp(new_source)
 
     def queue_run(
         self,
@@ -283,7 +289,7 @@ class SandboxedWorker:
         if not register_rep.p.success:
             raise RuntimeError("failed to register worker")
         self.subs = [
-            await subscribe(f"{NMessageType.MODULE_CHANGED}.*", cb=self.module_changed),
+            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
             await handle_reply(NMessageType.REQUEST_RUN, self.request_module_run),
         ]
         self.tasks = [
@@ -322,14 +328,15 @@ class SandboxedWorker:
         return worker
 
     @message_handler
-    async def module_changed(self, msg: NMessage[ModuleChangedPayload]):
+    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
         if msg.p.module_id not in self.workers:
             # ignore if we don't have a worker for this module
             return
         worker = await self._get_ready_worker(msg.p.module_id)
         worker.provide_context()
-        await worker.do_interp(msg.p.module)
-        # module worker will trigger any follow-ups
+        if msg.p.client.id != worker.master.worker_id:
+            await worker.do_interp_on_change(msg.p.mutations)
+            # module worker will trigger any follow-ups
 
     @message_handler
     async def request_module_run(self, msg: NMessage[ReqRunPayload]):

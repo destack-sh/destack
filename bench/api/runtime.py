@@ -131,13 +131,13 @@ def rmap_files(
         for statement in file.statements:
             if statement.type in (StatementType.COMMENT, StatementType.BLANK):
                 continue  # ignore non-symbol statements
-            root_type_tag, type_nodes = wire.rmap_type_nodes(
-                None, statement.type_nodes, impute_type_reference=True
-            )
-            if type_nodes:
+            if statement.type_nodes is not None:
                 type_nodes = [
-                    mapper.wmap_simple_type_node(statement.id, node) for node in type_nodes
+                    mapper.wmap_simple_type_node(statement.id, node)
+                    for node in statement.type_nodes
                 ]
+            else:
+                type_nodes = None
             available_builds = builds_by_symbol.get(statement.id)
             if available_builds:  # to GlobalID
                 available_builds = [
@@ -154,7 +154,7 @@ def rmap_files(
                 generated=statement.generated,
                 modifier=statement.modifier,
                 symbol_type=statement.symbol_type,
-                root_type_tag=root_type_tag,
+                root_type_tag=statement.root_type_tag,
                 type_nodes=type_nodes,
                 available_builds=available_builds,
             )
