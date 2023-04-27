@@ -12,6 +12,7 @@ from bench.language import ErrorType
 from bench.language.parse import get_type_root_id
 from bench.language.reconstruct import get_reference_as_path
 from bench.language.type import (
+    PRIMITIVE_TYPES,
     BuildSettings,
     EvaluateSettings,
     GeneratedMapping,
@@ -22,7 +23,6 @@ from bench.language.type import (
     TypeTag,
     XKind,
     XSource,
-    PRIMITIVE_TYPES,
 )
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 
@@ -142,7 +142,8 @@ class StatementData:
     symbol_type: Optional[SymbolType]
     generated: bool
     # symbol contents
-    type_nodes: Union[list[TypeNodeData], None] = None
+    root_type_tag: Optional[TypeTag] = None
+    type_nodes: Union[list[SimpleTypeNodeData], None] = None
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
@@ -187,20 +188,20 @@ def wmap_module(data: ModuleData) -> language.Module:
 
     # restore statement references
     statements = {statement.id: statement for file in module.files for statement in file.statements}
-    for data_file, file in zip(data.files, module.files):
-        for data_statement, statement in zip(data_file.statements, file.statements):
-            if data_statement.parent_id is not None:
+    for file_data, file in zip(data.files, module.files):
+        for statement_data, statement in zip(file_data.statements, file.statements):
+            if statement_data.parent_id is not None:
                 # parent should exist but may not if it was not included in the module data
                 # but exists in the source (e.g. an invalid comment parent)
-                statement.parent = statements.get(data_statement.parent_id)
+                statement.parent = statements.get(statement_data.parent_id)
 
             # resolve references in statement and in symbol content
             # ignore references we couldn't find since are either
             #  1) refs to "deleted" statements or
             #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
 
-            if isinstance(data_statement.reference, UUID):
-                reference = statements.get(data_statement.reference, None)
+            if isinstance(statement_data.reference, UUID):
+                reference = statements.get(statement_data.reference, None)
                 if reference is not None:
                     statement.reference = get_reference_as_path(reference, statement)
 
@@ -214,8 +215,10 @@ def wmap_module(data: ModuleData) -> language.Module:
                 type_node = statement.content.type_node
             if type_node is not None:
                 for node in type_node.walk():
-                    data_node = first(n for n in data_statement.type_nodes if n.id == node.id)
-                    if isinstance(data_node.reference, UUID):
+                    data_node = first(
+                        (n for n in statement_data.type_nodes if n.id == node.id), None
+                    )
+                    if data_node and isinstance(data_node.reference, UUID):
                         reference = statements.get(node.reference, None)
                         if reference is not None:
                             node.reference = get_reference_as_path(reference, statement)
@@ -301,17 +304,17 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     # generator content is a component of other content types
     if isinstance(content, language.TypeNode):
         data.description = content.description
-        data.type_nodes = rmap_type_node(data.id, content)
+        data.root_type_tag, data.type_nodes = rmap_type_nodes(data.id, data.type_nodes)
     elif isinstance(content, language.TaskContent):
         data.description = content.description
-        data.type_nodes = rmap_type_node(data.id, content.type_node)
+        data.root_type_tag, data.type_nodes = rmap_type_nodes(data.id, data.type_nodes)
     elif isinstance(content, language.ExpectationContent):
         data.description = content.description
     elif isinstance(content, language.CodeContent):
         data.description = content.description
         data.lang = content.language
         data.code = content.code
-        data.type_nodes = rmap_type_node(data.id, content.type_node)
+        data.root_type_tag, data.type_nodes = rmap_type_nodes(data.id, data.type_nodes)
         data.xblocks = [rmap_xblock(data.id, xblock) for xblock in content.xblocks]
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
@@ -322,14 +325,14 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.description = content.description
         data.records = [rmap_record(data.id, r) for r in content.records]
-        data.type_nodes = rmap_type_node(data.id, content.type_node)
+        data.root_type_tag, data.type_nodes = rmap_type_nodes(data.id, data.type_nodes)
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
         data.build_settings = content.settings
         data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
-            data.reference_module = ModuleReference(content.module_name, content.version, id=content.module_id)
+            data.reference_module = ModuleReference(content.module_name, content.version, id=None)
     elif isinstance(content, language.RunconfigContent):
         pass
     else:
@@ -339,13 +342,17 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
-        type_node = wmap_type_node(data.type_nodes)
+        type_node = wmap_type_node(
+            wmap_type_nodes(data.root_type_tag, data.type_nodes, data.id, data.symbol_type)
+        )
         type_node.description = data.description  # prefer type node from wire
         return type_node
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(
             generated_mappings=data.generated_mappings,
-            type_node=wmap_type_node(data.type_nodes),
+            type_node=wmap_type_node(
+                wmap_type_nodes(data.root_type_tag, data.type_nodes, data.id, data.symbol_type)
+            ),
             description=data.description,
         )
     elif data.symbol_type == SymbolType.EXPECTATION:
@@ -356,7 +363,9 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             description=data.description,
             language=data.lang,
             code=data.code,
-            type_node=wmap_type_node(data.type_nodes),
+            type_node=wmap_type_node(
+                wmap_type_nodes(data.root_type_tag, data.type_nodes, data.id, data.symbol_type)
+            ),
             xblocks=[wmap_xblock(x) for x in data.xblocks],
         )
     elif data.symbol_type == SymbolType.MODEL:
@@ -370,7 +379,9 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.DatasetContent(
             description=data.description,
             language=data.lang,
-            type_node=wmap_type_node(data.type_nodes),
+            type_node=wmap_type_node(
+                wmap_type_nodes(data.root_type_tag, data.type_nodes, data.id, data.symbol_type)
+            ),
             records=[wmap_record(r) for r in data.records],
         )
     elif data.symbol_type == SymbolType.BUILD:
@@ -474,8 +485,7 @@ def wmap_type_node(nodes_data: list[TypeNodeData]) -> language.TypeNode:
     return root
 
 
-def rmap_type_nodes(
-    root_id: UUID,
+def wmap_type_nodes(
     root_type_tag: TypeTag | None,
     type_nodes: list[SimpleTypeNodeData] | None,
     statement_id: UUID,
@@ -491,16 +501,16 @@ def rmap_type_nodes(
 
     def new_id(name: str) -> UUID:
         """Generate a reproducible ID for a child node."""
-        return uuid5(root_id, name)
+        return uuid5(statement_id, name)
 
     def _rmap_child_node(node: SimpleTypeNodeData) -> language.TypeNode:
         if node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.LITERAL:
             lang_node = language.TypeNode(
                 id=node.id, tag=node.tag, name=node.name, value=node.value
             )
-        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
+        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
             lang_node = language.TypeNode(
-                id=node.id, tag=node.tag, name=node.name, reference=node.reference_id
+                id=node.id, tag=node.tag, name=node.name, reference=node.reference
             )
         else:
             raise ValueError(f"type node is not represented simply: {node}")
@@ -551,11 +561,11 @@ def rmap_type_nodes(
 
     if symbol_type == SymbolType.TYPE:
         # use the root id directly
-        root = language.TypeNode(id=root_id, tag=root_type_tag, name=None, children=children)
+        root = language.TypeNode(id=statement_id, tag=root_type_tag, name=None, children=children)
     else:
         # statements share a deterministic id pair with their type root :TypeNodeRootId
         root = language.TypeNode(
-            id=get_type_root_id(root_id), tag=root_type_tag, name=None, children=children
+            id=get_type_root_id(statement_id), tag=root_type_tag, name=None, children=children
         )
 
     wire_nodes_data = rmap_type_node(statement_id, root)
@@ -566,7 +576,7 @@ def rmap_type_nodes(
     return wire_nodes_data
 
 
-def wmap_type_nodes(
+def rmap_type_nodes(
     statement_id: UUID | None,
     type_nodes: list[TypeNodeData] | None,
     impute_type_reference: bool = False,

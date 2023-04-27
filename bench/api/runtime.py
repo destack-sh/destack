@@ -131,7 +131,7 @@ def rmap_files(
         for statement in file.statements:
             if statement.type in (StatementType.COMMENT, StatementType.BLANK):
                 continue  # ignore non-symbol statements
-            root_type_tag, type_nodes = wire.wmap_type_nodes(
+            root_type_tag, type_nodes = wire.rmap_type_nodes(
                 None, statement.type_nodes, impute_type_reference=True
             )
             if type_nodes:
