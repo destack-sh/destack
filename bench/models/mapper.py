@@ -573,7 +573,7 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
         is_array=node.is_array,
         is_nullable=node.is_nullable,
         value=node.value,
-        reference=node.reference_id,
+        reference_id=node.reference_id,
     )
 
 
@@ -591,7 +591,7 @@ def wmap_simple_type_node(
         is_array=node.is_array,
         is_nullable=node.is_nullable,
         value=node.value,
-        reference_id=node.reference,
+        reference_id=node.reference_id,
     )
 
 

@@ -66,7 +66,7 @@ class SimpleTypeNodeData:
     is_array: bool
     is_nullable: bool
     value: Optional[typing.Any] = None
-    reference: Union[None, UUID] = None
+    reference_id: Union[None, UUID] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -241,7 +241,7 @@ def wmap_module(data: ModuleData) -> language.Module:
                     data_node = first(
                         (n for n in statement_data.type_nodes if n.id == node.id), None
                     )
-                    if data_node and isinstance(data_node.reference, UUID):
+                    if data_node and isinstance(data_node.reference_id, UUID):
                         reference = statements.get(node.reference, None)
                         if reference is not None:
                             node.reference = get_reference_as_path(reference, statement)
@@ -541,9 +541,9 @@ def wmap_type_nodes(
             lang_node = language.TypeNode(
                 id=node.id, tag=node.tag, name=node.name, value=node.value
             )
-        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference is not None:
+        elif node.tag == TypeTag.TYPE_REFERENCE or node.reference_id is not None:
             lang_node = language.TypeNode(
-                id=node.id, tag=node.tag, name=node.name, reference=node.reference
+                id=node.id, tag=node.tag, name=node.name, reference=node.reference_id
             )
         else:
             raise ValueError(f"type node is not represented simply: {node}")
@@ -640,7 +640,7 @@ def rmap_type_nodes(
                 statement_id=statement_id,
                 order_key=order_key,
                 description=node.description,
-                reference=reference_id,
+                reference_id=reference_id,
                 revision=1,
                 is_array=is_array,
                 is_nullable=is_nullable,
@@ -655,7 +655,7 @@ def rmap_type_nodes(
                 order_key=order_key,
                 description=node.description,
                 value=node.value,
-                reference=reference_id,
+                reference_id=reference_id,
                 revision=1,
                 is_array=is_array,
                 is_nullable=is_nullable,
