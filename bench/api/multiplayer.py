@@ -66,6 +66,8 @@ class ModuleSubscription:
         client_id = info.context.request.scope["session"].get("client_id")
         if client_id:
             client_id = UUID(client_id)
+        client_nonce = info.context.connection_params.get("X-Client-Nonce")
+
         log = logger.bind(
             project_version_id=project_version_id,
             user=user,
@@ -87,7 +89,7 @@ class ModuleSubscription:
         log.info("module.listen")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
-            if client_id == change.p.client.id:
+            if client_id == change.p.client.id and client_nonce == change.p.client.nonce:
                 continue  # skip self
 
             log.debug(

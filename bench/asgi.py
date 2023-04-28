@@ -41,7 +41,7 @@ gql_http_consumer = CORSMiddleware(
     AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
     allow_origins=CORS_ALLOWED_ORIGINS,
     # see https://docs.sentry.io/platforms/javascript/guides/react/performance/instrumentation/automatic-instrumentation
-    allow_headers=["sentry-trace", "baggage"],
+    allow_headers=["sentry-trace", "baggage", "x-client-nonce"],
     allow_methods=["*"],
     allow_credentials=True,
 )
@@ -80,7 +80,7 @@ if RUN_WORKER:
         raise RuntimeError("worker should be run via isolated runworker in prod")
     from bench.runtime.worker import SandboxedWorker
 
-    local_id = random.randint(0, 2 ** 32)  # just some random number
+    local_id = random.randint(0, 2**32)  # just some random number
     run.ALLOW_UNTRUSTED_CODE = True
     worker = SandboxedWorker(worker_id=uuid4(), deployment_id=None, project_id=None)
     coro = worker.run()

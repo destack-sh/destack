@@ -1,5 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { ClientType } from "@/gql/graphql";
+import { CLIENT_NONCE } from "@/main";
 import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
@@ -99,11 +100,12 @@ function _useClient(presenceIntervalMs = 10000) {
   const clientType = ["Windows", "MacOS", "Linux"].includes(deviceName)
     ? ClientType.DesktopBrowser
     : ClientType.MobileBrowser;
-  const clientInfo = ref({
+  const info = ref({
     id: localClientId,
     type: clientType,
     deviceName,
     browserName,
+    nonce: CLIENT_NONCE,
   });
 
   // upsert client info if logged in
@@ -142,7 +144,7 @@ function _useClient(presenceIntervalMs = 10000) {
   }
 
   return {
-    clientInfo,
+    info,
     close,
   };
 }
@@ -222,6 +224,6 @@ export function useConnectedClients(
   return {
     totalCount: computed(() => clientsResult.value?.clients.totalCount ?? 0),
     clients,
-    clientsWithoutSelf: computed(() => clients.value.filter((c) => c.id != client.clientInfo.value.id)),
+    clientsWithoutSelf: computed(() => clients.value.filter((c) => c.id != client.info.value.id)),
   };
 }

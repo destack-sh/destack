@@ -31,7 +31,7 @@ onBeforeUnmount(() => {
 });
 
 // track client info
-const { clientInfo, close: closeClient } = useClient();
+const { info: clientInfo, close: closeClient } = useClient();
 console.info(`Client: ${clientInfo.value}`);
 window.addEventListener("beforeunload", async () => {
   await closeClient();

@@ -75,7 +75,9 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 #
 
 
-ClientOrigin = typing.NamedTuple("ClientOrigin", [("type", str), ("id", UUID)])
+ClientOrigin = typing.NamedTuple(
+    "ClientOrigin", [("type", str), ("id", UUID), ("nonce", Optional[UUID])]
+)
 
 
 @payload(NMessageType.CLIENT_CHANGED)

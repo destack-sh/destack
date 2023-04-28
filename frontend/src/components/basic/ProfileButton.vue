@@ -41,7 +41,7 @@ const userNavigation = computed(() => [
           class="border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1 group-hover:bg-orange-200"
           :class="{ 'bg-orange-200': open }"
           :style="{
-            backgroundColor: getClientColor(client.clientInfo.value.id),
+            backgroundColor: getClientColor(client.info.value.id),
           }"
         >
           <!-- should be two proper letters or profile pic? -->

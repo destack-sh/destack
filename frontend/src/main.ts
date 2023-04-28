@@ -27,12 +27,21 @@ import posthog from "posthog-js";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
+import { v4 as uuidv4 } from "uuid";
+
+export const CLIENT_NONCE = uuidv4();
 
 const MAX_RETRY_TIME_MS = 10000;
 function createApolloClient() {
   // split requests between http and ws
   // see https://www.apollographql.com/docs/react/data/subscriptions
-  const httpLink = new HttpLink({ uri: `${HTTP_API_BASE_URL}/graphql`, credentials: "include" });
+  const httpLink = new HttpLink({
+    uri: `${HTTP_API_BASE_URL}/graphql`,
+    credentials: "include",
+    headers: {
+      "X-Client-Nonce": CLIENT_NONCE,
+    },
+  });
   const wsLink = new GraphQLWsLink(
     createClient({
       url: `${WS_API_BASE_URL}/graphql`,
@@ -47,6 +56,9 @@ function createApolloClient() {
       on: {
         connected: () => (WS_CONNECTED.value = true),
         closed: () => (WS_CONNECTED.value = false),
+      },
+      connectionParams: {
+        "X-Client-Nonce": CLIENT_NONCE,
       },
     })
   );
