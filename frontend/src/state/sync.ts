@@ -152,7 +152,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
   const syncedOps = useSyncedOps();
   onModuleChanged((result) => {
     if (result.data?.moduleChanged != null) {
-      console.log("accept sync change", result.data?.moduleChanged.clientId);
+      console.debug("accept sync change", result.data?.moduleChanged.clientId);
       // apply all mutations
       for (const mutation of result.data.moduleChanged.mutations) {
         syncedOps.applyMutation(mutation);
@@ -171,7 +171,7 @@ function useSyncedOps() {
     if (registeredOp == null) {
       throw new Error(`cannt apply unknown: ${mutation.type}`);
     }
-    console.log("apply sync mutation", mutation);
+    console.debug("apply sync mutation", mutation);
     applyOp(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
