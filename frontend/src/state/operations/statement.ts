@@ -25,8 +25,10 @@ import {
   type CreateStatementBlankMutation,
   type SoftDeleteStatementMutation,
   type SoftDeleteTypeNodeMutation,
+  ModuleMutationType,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
+import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
@@ -48,12 +50,12 @@ export function newDatasetRecordId(): string {
   return btoa(`DatasetRecord:${nodeId}`);
 }
 
-const PENDING_REVISION = -1;
-
 export function useStatementOps() {
   const operations = useOperationsStore();
+  const registry = new OpRegistry();
 
-  const { mutate: createStatementBlankMut } = useMutation(
+  const { mutate: createStatementBlankMut } = registry.useMutation(
+    ModuleMutationType.CreateStatementBlank,
     graphql(/* GraphQL */ `
       mutation createStatementBlank($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
         createStatementBlank(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
@@ -151,7 +153,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: morphStatementMut } = useMutation(
+  const { mutate: morphStatementMut } = registry.useMutation(
+    ModuleMutationType.MorphStatement,
     graphql(/* GraphQL */ `
       mutation morphStatement($input: StatementMorphInput!) {
         morphStatement(input: $input) {
@@ -213,7 +216,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: updateStatementModifier } = useMutation(
+  const { mutate: updateStatementModifier } = registry.useMutation(
+    ModuleMutationType.UpdateStatementModifier,
     graphql(/* GraphQL */ `
       mutation updateStatementModifier($id: GlobalID!, $modifier: StatementModifier) {
         updateStatementModifier(input: { id: $id, modifier: $modifier }) {
@@ -251,7 +255,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: moveStatementMut } = useMutation(
+  const { mutate: moveStatementMut } = registry.useMutation(
+    ModuleMutationType.MoveStatement,
     graphql(/* GraphQL */ `
       mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
         moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
@@ -390,7 +395,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: renameStatementMut } = useMutation(
+  const { mutate: renameStatementMut } = registry.useMutation(
+    ModuleMutationType.RenameStatement,
     graphql(/* GraphQL */ `
       mutation renameStatement($id: GlobalID!, $name: String) {
         renameStatement(input: { id: $id, name: $name }) {
@@ -428,7 +434,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: deleteStatementMut } = useMutation(
+  const { mutate: deleteStatementMut } = registry.useMutation(
+    ModuleMutationType.DeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
@@ -454,7 +461,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: softDeleteStatementMut } = useMutation(
+  const { mutate: softDeleteStatementMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
@@ -509,7 +517,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: restoreStatementMut } = useMutation(
+  const { mutate: restoreStatementMut } = registry.useMutation(
+    ModuleMutationType.RestoreStatement,
     graphql(/* GraphQL */ `
       mutation restoreStatement($id: GlobalID!) {
         restoreStatement(input: { id: $id }) {
@@ -680,7 +689,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: commentStatementMut } = useMutation(
+  const { mutate: commentStatementMut } = registry.useMutation(
+    ModuleMutationType.CommentStatement,
     // TODO @UX: uncommenting nested statements feels janky
     graphql(/* GraphQL */ `
       mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
@@ -724,7 +734,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: setReferenceMut } = useMutation(
+  const { mutate: setReferenceMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatementReference,
     graphql(/* GraphQL */ `
       mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {
         updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {
@@ -777,7 +788,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: createTypeNodeMut } = useMutation(
+  const { mutate: createTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.CreateTypeNode,
     graphql(/* GraphQL */ `
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
         createTypeNode(input: $typeNode) {
@@ -842,7 +854,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: deleteTypeNodeMut } = useMutation(
+  const { mutate: deleteTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.DeleteTypeNode,
     graphql(/* GraphQL */ `
       mutation deleteTypeNode($id: GlobalID!) {
         deleteTypeNode(input: { id: $id }) {
@@ -866,7 +879,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: softDeleteTypeNodeMut } = useMutation(
+  const { mutate: softDeleteTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteTypeNode,
     graphql(/* GraphQL */ `
       mutation softDeleteTypeNode($id: GlobalID!) {
         softDeleteTypeNode(input: { id: $id }) {
@@ -890,7 +904,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: restoreTypeNodeMut } = useMutation(
+  const { mutate: restoreTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.RestoreTypeNode,
     graphql(/* GraphQL */ `
       mutation restoreTypeNode($id: GlobalID!) {
         restoreStatementTypeNode(input: { id: $id }) {
@@ -950,7 +965,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: updateTypeNodeMut } = useMutation(
+  const { mutate: updateTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.UpdateTypeNode,
     graphql(/* GraphQL */ `
       mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
         updateTypeNode(input: $typeNode) {
@@ -1006,6 +1022,7 @@ export function useStatementOps() {
   }
 
   return {
+    registry,
     create: createBlank,
     morph,
     modify,

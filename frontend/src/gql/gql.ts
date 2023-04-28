@@ -216,7 +216,7 @@ const documents = {
     types.InterpErrorContentFragmentDoc,
   "\n      subscription interpChanged($projectVersionId: GlobalID!) {\n        interpChanged(projectVersionId: $projectVersionId) {\n          ...InterpModuleContent\n        }\n      }\n    ":
     types.InterpChangedDocument,
-  "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            fileId\n            input\n          }\n        }\n      }\n    ":
+  "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n          }\n        }\n      }\n    ":
     types.ModuleChangedDocument,
   "\n      query systemInfo {\n        systemInfo {\n          version\n          gitCommit\n        }\n      }\n    ":
     types.SystemInfoDocument,
@@ -852,8 +852,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            fileId\n            input\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            fileId\n            input\n          }\n        }\n      }\n    "];
+  source: "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

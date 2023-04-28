@@ -4508,7 +4508,14 @@ export type ModuleChangedSubscription = {
     __typename?: "ModuleChange";
     id: any;
     clientId?: any | null;
-    mutations: Array<{ __typename?: "ModuleMutation"; fileId?: any | null; input?: any | null }>;
+    mutations: Array<{
+      __typename?: "ModuleMutation";
+      type: ModuleMutationType;
+      fileId?: any | null;
+      statementId?: any | null;
+      revision?: number | null;
+      input?: any | null;
+    }>;
   };
 };
 
@@ -12711,7 +12718,10 @@ export const ModuleChangedDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "fileId" } },
+                      { kind: "Field", name: { kind: "Name", value: "statementId" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "input" } },
                     ],
                   },

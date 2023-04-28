@@ -127,7 +127,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
     else:
         raise ValueError(f"mutation cannot be mapped to internal: {mutation}")
 
-    # TODO @Broken: cascade create/delete to children?
+    # TODO @Broken: cascade create/delete/restore to children?
 
     internal_mutation = ModuleMutation(
         type=internal_type,

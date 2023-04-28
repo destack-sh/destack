@@ -1,12 +1,65 @@
 import { graphql } from "@/gql";
+import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
 import { useClient } from "@/state/client";
-import { useSubscription } from "@vue/apollo-composable";
-import { watch } from "vue";
+import { useOperations } from "@/state/operations";
+import type { DocumentNode, OperationVariables, TypedDocumentNode } from "@apollo/client";
+import { useMutation, useSubscription, type UseMutationReturn, type UseMutationOptions } from "@vue/apollo-composable";
+import type { ReactiveFunction } from "@vue/apollo-composable/dist/util/ReactiveFunction";
+import { watch, type Ref } from "vue";
+
+export const PENDING_REVISION = -1;
+
+type RegisteredOp = {
+  type: ModuleMutationType;
+  innerFragment: string;
+};
+
+// borrowed from non-exported vue/apollo-composable file
+declare type DocumentParameter<TResult, TVariables> =
+  | DocumentNode
+  | Ref<DocumentNode>
+  | ReactiveFunction<DocumentNode>
+  | TypedDocumentNode<TResult, TVariables>
+  | Ref<TypedDocumentNode<TResult, TVariables>>
+  | ReactiveFunction<TypedDocumentNode<TResult, TVariables>>;
+declare type OptionsParameter<TResult, TVariables> =
+  | UseMutationOptions<TResult, TVariables>
+  | Ref<UseMutationOptions<TResult, TVariables>>
+  | ReactiveFunction<UseMutationOptions<TResult, TVariables>>;
+
+export class OpRegistry {
+  public ops: Partial<Record<ModuleMutationType, RegisteredOp>> = {};
+
+  public merge(registry: OpRegistry) {
+    for (const [type, op] of Object.entries(registry.ops)) {
+      // error if already registered
+      if (this.ops[type as ModuleMutationType] != null) {
+        throw new Error(`OpRegistry: type ${type} already registered`);
+      }
+      this.ops[type as ModuleMutationType] = op;
+    }
+  }
+
+  static mergeAll(registries: OpRegistry[]) {
+    const registry = new OpRegistry();
+    for (const r of registries) {
+      registry.merge(r);
+    }
+    return registry;
+  }
+
+  public useMutation<TResult = any, TVariables extends OperationVariables = OperationVariables>(
+    type: ModuleMutationType,
+    document: DocumentParameter<TResult, TVariables>,
+    options?: OptionsParameter<TResult, TVariables>
+  ): UseMutationReturn<TResult, TVariables> {
+    console.log("useMutation", type, document, options);
+
+    return useMutation(document, options);
+  }
+}
 
 export function useModuleSync(projectVersionId: Ref<string | null>) {
-  // TODO @Incomplete: implement basic sync
-
-  const client = useClient();
   const {
     onResult: onModuleChanged,
     start,
@@ -18,7 +71,10 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
           id
           clientId
           mutations {
+            type
             fileId
+            statementId
+            revision
             input
           }
         }
@@ -41,7 +97,29 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
     { immediate: true }
   );
 
+  const syncedOps = useSyncedOps();
   onModuleChanged((result) => {
-    console.log("moduleChanged", result.data?.moduleChanged);
+    if (result.data?.moduleChanged != null) {
+      console.log("receive module change", result.data?.moduleChanged.clientId);
+      // apply all mutations
+      for (const mutation of result.data.moduleChanged.mutations) {
+        syncedOps.applyMutation(mutation);
+      }
+    }
   });
+}
+
+function useSyncedOps() {
+  const ops = useOperations();
+  const opRegistry = OpRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
+
+  function applyMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
+    const registeredOp = opRegistry.ops[mutation.type];
+    if (registeredOp == null) {
+      throw new Error(`cannt apply unknown: ${mutation.type}`);
+    }
+    console.log("apply mutation", mutation);
+  }
+
+  return { applyMutation };
 }

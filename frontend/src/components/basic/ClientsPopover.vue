@@ -27,8 +27,9 @@ const { totalCount, clientsWithoutSelf: clients } = useConnectedClients(
         backgroundColor: getClientColor(client.id),
       }"
     >
-      <!-- should be two proper letters or profile pic? -->
-      {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+      <span class="text-sm">
+        {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+      </span>
     </div>
   </div>
 </template>

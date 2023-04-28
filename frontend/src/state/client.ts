@@ -1,6 +1,5 @@
 import { graphql, useFragment } from "@/gql";
 import { ClientType } from "@/gql/graphql";
-import { CLIENT_NONCE } from "@/main";
 import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
@@ -9,6 +8,8 @@ import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { onBeforeUnmount, ref, toRef, watch, type Ref, computed } from "vue";
+
+export const CLIENT_NONCE = uuidv4();
 
 function newClientId(): string {
   /* Generates a new statement global id (as in relay) with a new uuid4 */

@@ -67,6 +67,8 @@ class ModuleSubscription:
         if client_id:
             client_id = UUID(client_id)
         client_nonce = info.context.connection_params.get("X-Client-Nonce")
+        if client_nonce:
+            client_nonce = UUID(client_nonce)
 
         log = logger.bind(
             project_version_id=project_version_id,
