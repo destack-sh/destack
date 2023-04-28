@@ -2,6 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
+import { getClientColor, useClient } from "@/state/client";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ArrowLeftOnRectangleIcon, Cog8ToothIcon, UserCircleIcon } from "@heroicons/vue/24/outline";
 import { useBrowserLocation } from "@vueuse/core";
@@ -10,6 +11,7 @@ import { computed } from "vue";
 const auth = useAuth();
 const location = useBrowserLocation();
 const actions = useActions();
+const client = useClient();
 
 const userNavigation = computed(() => [
   { name: "Profile", icon: UserCircleIcon, to: "/" + auth.me.value?.username },
@@ -34,25 +36,33 @@ const userNavigation = computed(() => [
       </router-link>
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
-      <MenuButton
-        class="flex h-full items-center px-3 text-left hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
-        :class="{ 'bg-orange-100': open }"
-      >
-        <div class="flex flex-col">
-          <span class="text-xs font-bold text-gray-900">{{ auth.me.value?.username }}</span>
-          <span class="text-xs text-gray-500">{{ auth.me.value?.name }}</span>
+      <MenuButton class="group flex h-full items-center px-2 text-left focus:bg-gray-100 focus:outline-none">
+        <div
+          class="border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1 group-hover:bg-orange-200"
+          :class="{ 'bg-orange-200': open }"
+          :style="{
+            backgroundColor: getClientColor(client.clientInfo.value.id),
+          }"
+        >
+          <!-- should be two proper letters or profile pic? -->
+          {{ auth.me.value?.username.slice(0, 2).toLocaleUpperCase() }}
         </div>
       </MenuButton>
       <FadeTransition>
         <MenuItems
           class="absolute right-1 top-12 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
         >
+          <p class="flex max-w-full flex-col px-2 py-2">
+            <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>
+            <span class="truncate text-sm text-gray-500">{{ auth.me.value?.name }}</span>
+            <!-- Future plan info -->
+          </p>
           <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
             <router-link
               v-if="item.to"
               :to="item.to"
               class="flex flex-row items-center gap-2"
-              :class="[active ? 'bg-orange-100' : '', 'block py-2 px-2 text-sm text-gray-900']"
+              :class="[active ? 'bg-orange-100' : '', 'block px-2 py-2 text-sm text-gray-900']"
             >
               <component :is="item.icon" class="h-5 w-5 text-gray-700" />
               {{ item.name }}
@@ -60,7 +70,7 @@ const userNavigation = computed(() => [
             <button
               v-else
               class="flex flex-row items-center gap-2"
-              :class="[active ? 'bg-orange-100' : '', 'block w-full py-2 px-2 text-left text-sm text-gray-900']"
+              :class="[active ? 'bg-orange-100' : '', 'block w-full px-2 py-2 text-left text-sm text-gray-900']"
               @click="item.action"
             >
               <component :is="item.icon" class="h-5 w-5 text-gray-700" />

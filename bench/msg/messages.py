@@ -28,7 +28,8 @@ def payload(message_type: "NMessageType"):
 class NMessageType(StrEnum):
     """All messages types"""
 
-    # Bench project version content sync
+    # Bench sync
+    CLIENT_CHANGED = "client.changed"
     MODULE_CHANGED = "module.changed"  # for API
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
 
@@ -74,6 +75,28 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 #
 
 
+ClientOrigin = typing.NamedTuple("ClientOrigin", [("type", str), ("id", UUID)])
+
+
+@payload(NMessageType.CLIENT_CHANGED)
+class ClientChangedPayload:
+    client: ClientOrigin
+
+
+@payload(NMessageType.MODULE_CHANGED)
+class ModuleChangedPayload:
+    module_id: UUID
+    client: ClientOrigin
+    mutations: list[mutate.ModuleMutation]
+
+
+@payload(NMessageType.MODULE_INTERNAL_CHANGED)
+class ModuleInternalChangedPayload:
+    module_id: UUID
+    client: ClientOrigin
+    mutations: list[mutate.ModuleMutation]
+
+
 @payload(NMessageType.REQUEST_REGISTER_WORKER)
 class ReqRegisterWorkerPayload:
     worker_id: UUID
@@ -90,23 +113,6 @@ class RepRegisterWorkerPayload:
 @payload(NMessageType.WORKER_HEARTBEAT)
 class WorkerHeartbeatPayload:
     worker_id: UUID
-
-
-ClientOrigin = typing.NamedTuple("ClientOrigin", [("type", str), ("id", UUID)])
-
-
-@payload(NMessageType.MODULE_CHANGED)
-class ModuleChangedPayload:
-    module_id: UUID
-    client: ClientOrigin
-    mutations: list[mutate.ModuleMutation]
-
-
-@payload(NMessageType.MODULE_INTERNAL_CHANGED)
-class ModuleInternalChangedPayload:
-    module_id: UUID
-    client: ClientOrigin
-    mutations: list[mutate.ModuleMutation]
 
 
 @payload(NMessageType.REQUEST_BUILD)

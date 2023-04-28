@@ -63,6 +63,10 @@ const documents = {
     types.SettingsDocument,
   "\n      query me {\n        me {\n          id\n          username\n          slug\n          email\n          name\n          createdAt\n          updatedAt\n          completedSignup\n          organizationMemberships {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                organization {\n                  id\n                  name\n                  slug\n                }\n              }\n            }\n          }\n        }\n      }\n    ":
     types.MeDocument,
+  "\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n    }\n    project {\n      id\n      name\n      path\n    }\n  }\n":
+    types.ClientContentTypeFragmentDoc,
+  "\n      query connectedClients(\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $userId: GlobalID\n        $inSameOrganizations: Boolean!\n        $first: Int\n      ) {\n        clients(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          userId: $userId\n          inSameOrganizations: $inSameOrganizations\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...ClientContentType\n            }\n          }\n        }\n      }\n    ":
+    types.ConnectedClientsDocument,
   "\n      query projectMigrationRefs($projectId: GlobalID!, $sourceVersionId: GlobalID!, $targetVersionId: GlobalID!) {\n        project(id: $projectId) {\n          migrationMappings(sourceVersionId: $sourceVersionId, targetVersionId: $targetVersionId) {\n            isReverse\n            sourceVersion {\n              id\n              createdAt\n              tag\n              name\n            }\n            targetVersion {\n              id\n              createdAt\n              tag\n              name\n            }\n            refMappings {\n              type\n              sourceId\n              sourceVersionId\n              targetId\n              targetVersionId\n            }\n          }\n        }\n      }\n    ":
     types.ProjectMigrationRefsDocument,
   "\n  fragment EvaluationResultContent on EvaluationResult {\n    id\n    createdAt\n    updatedAt\n    kind\n    scope\n    project {\n      id\n    }\n    projectVersion {\n      id\n    }\n    build {\n      id\n    }\n    statement {\n      id\n    }\n    record {\n      id\n    }\n    typeNode {\n      id\n    }\n    selfMetrics\n    aggregatedMetrics\n  }\n":
@@ -382,6 +386,18 @@ export function graphql(
 export function graphql(
   source: "\n      query me {\n        me {\n          id\n          username\n          slug\n          email\n          name\n          createdAt\n          updatedAt\n          completedSignup\n          organizationMemberships {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                organization {\n                  id\n                  name\n                  slug\n                }\n              }\n            }\n          }\n        }\n      }\n    "
 ): typeof documents["\n      query me {\n        me {\n          id\n          username\n          slug\n          email\n          name\n          createdAt\n          updatedAt\n          completedSignup\n          organizationMemberships {\n            totalCount\n            edges {\n              node {\n                id\n                createdAt\n                level\n                organization {\n                  id\n                  name\n                  slug\n                }\n              }\n            }\n          }\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n    }\n    project {\n      id\n      name\n      path\n    }\n  }\n"
+): typeof documents["\n  fragment ClientContentType on Client {\n    id\n    type\n    deviceName\n    browserName\n    user {\n      id\n      name\n      username\n    }\n    project {\n      id\n      name\n      path\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      query connectedClients(\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $userId: GlobalID\n        $inSameOrganizations: Boolean!\n        $first: Int\n      ) {\n        clients(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          userId: $userId\n          inSameOrganizations: $inSameOrganizations\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...ClientContentType\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      query connectedClients(\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $userId: GlobalID\n        $inSameOrganizations: Boolean!\n        $first: Int\n      ) {\n        clients(\n          projectId: $projectId\n          projectVersionId: $projectVersionId\n          userId: $userId\n          inSameOrganizations: $inSameOrganizations\n          first: $first\n        ) {\n          totalCount\n          edges {\n            node {\n              ...ClientContentType\n            }\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

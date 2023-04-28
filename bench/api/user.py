@@ -1,11 +1,12 @@
-from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional, cast
+from datetime import datetime, timedelta
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional, cast
 
 import pytz
 from asgiref.sync import async_to_sync
 from channels.auth import login as channels_login
 from channels.auth import logout as channels_logout
 from django.core.exceptions import PermissionDenied
+from django.db.models import F, Q
 from strawberry import lazy
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -17,7 +18,8 @@ from bench import models
 from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
-from bench.api.util import safe_mutation
+from bench.api.util import asafe_subscription, safe_mutation, to_uuid
+from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS
 from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
@@ -95,6 +97,8 @@ class Client(gql.relay.Node):
     type: ClientType
     device_name: auto
     browser_name: auto
+    user: Annotated["User", lazy(".user")]
+    project: Optional[Annotated["Project", lazy(".project")]]
     project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
 
 
@@ -230,3 +234,67 @@ class UserMutation:
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
         return client
+
+
+@gql.type
+class ClientQuery:
+    @gql.django.connection
+    async def clients(
+        self,
+        info: Info,
+        project_id: GlobalID | None = None,
+        project_version_id: GlobalID | None = None,
+        user_id: GlobalID | None = None,
+        organization_id: GlobalID | None = None,
+        in_same_organizations: bool = True,
+        active: bool = True,
+    ) -> Iterable[Client]:
+        qs = models.Client.objects.all()
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        if not user.is_authenticated:
+            raise PermissionDenied("can only query clients when logged in")
+
+        project_id = to_uuid(project_id)
+        project_version_id = to_uuid(project_version_id)
+        user_id = to_uuid(user_id)
+        organization_id = to_uuid(organization_id)
+        organization_ids = None
+        if in_same_organizations:
+            organization_ids = [id async for id in user.organizations.values_list("id", flat=True)]
+        if organization_id:
+            organization_ids = [organization_id]
+
+        if project_id:
+            qs = qs.filter(project_id=project_id)
+        if project_version_id:
+            qs = qs.filter(project_version_id=project_version_id)
+        if user_id:
+            qs = qs.filter(user_id=user_id)
+        if organization_ids:
+            qs = qs.filter(user__organizations__id__in=organization_ids)
+        if active:
+            active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
+                seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
+            )
+            qs = qs.filter(
+                Q(last_seen_at__gte=active_cutoff)
+                & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
+            )
+
+        return qs
+
+
+@gql.type
+class ClientSubscription:
+    @asafe_subscription
+    async def clients_changed(
+        self,
+        info: Info,
+        project_id: GlobalID | None,
+        project_version_id: GlobalID | None,
+        user_id: GlobalID | None,
+        organization_id: GlobalID | None,
+        in_same_organizations: bool = False,
+        active: bool = True,
+    ) -> AsyncGenerator[Client, None]:
+        raise NotImplementedError

@@ -315,8 +315,10 @@ def get_reference_as_path(reference: Statement, via: Statement | None) -> Statem
         )
 
 
-def render_reference(reference: Statement | StatementPath, via: Statement | None) -> str:
-    if not isinstance(reference, StatementPath):
+def render_reference(reference: Statement | StatementPath | UUID, via: Statement | None) -> str:
+    if isinstance(reference, UUID):
+        return escape_identifier(str(reference))
+    elif not isinstance(reference, StatementPath):
         reference = get_reference_as_path(reference, via)
     if reference[0] == ".":
         return escape_identifier(reference[1])

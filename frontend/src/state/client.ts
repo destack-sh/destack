@@ -1,16 +1,34 @@
+import { graphql, useFragment } from "@/gql";
 import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { WS_CONNECTED } from "@/utils/globals";
+import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
-import { onBeforeUnmount, ref, toRef, watch } from "vue";
+import { onBeforeUnmount, ref, toRef, watch, type Ref, computed } from "vue";
 
 function newClientId(): string {
   /* Generates a new statement global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
   return btoa(`Client:${nodeId}`);
+}
+
+export function getClientColor(clientId: string): string {
+  /* Generate a pastelle color for the given client id */
+
+  // Convert the client ID to a numerical seed
+  const seed = clientId.split("").reduce((acc, char) => {
+    return acc * 31 + char.charCodeAt(0);
+  }, 0);
+
+  // Generate a random pastel color based on the seed
+  const hue = seed % 360;
+  const saturation = 50 + (seed % 30); // Range: 50-80
+  const lightness = 70 + (seed % 20); // Range: 70-90
+
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 export function getBrowserName(): string {
@@ -130,3 +148,80 @@ function _useClient(presenceIntervalMs = 10000) {
 }
 
 export const useClient = createSharedComposable(_useClient);
+
+export const ClientContentType = graphql(/* GraphQL */ `
+  fragment ClientContentType on Client {
+    id
+    type
+    deviceName
+    browserName
+    user {
+      id
+      name
+      username
+    }
+    project {
+      id
+      name
+      path
+    }
+  }
+`);
+
+export function useConnectedClients(
+  filter: {
+    projectId: Ref<string | null>;
+    projectVersionId: Ref<string | null>;
+    userId: Ref<string | null>;
+    inSameOrganizations?: Ref<boolean>;
+  },
+  options: { live?: boolean; first?: number }
+) {
+  const { result: clientsResult, subscribeToMore } = useQuery(
+    graphql(/* GraphQL */ `
+      query connectedClients(
+        $projectId: GlobalID
+        $projectVersionId: GlobalID
+        $userId: GlobalID
+        $inSameOrganizations: Boolean!
+        $first: Int
+      ) {
+        clients(
+          projectId: $projectId
+          projectVersionId: $projectVersionId
+          userId: $userId
+          inSameOrganizations: $inSameOrganizations
+          first: $first
+        ) {
+          totalCount
+          edges {
+            node {
+              ...ClientContentType
+            }
+          }
+        }
+      }
+    `),
+    {
+      projectId: filter.projectId,
+      projectVersionId: filter.projectVersionId,
+      userId: filter.userId,
+      inSameOrganizations: filter.inSameOrganizations,
+      first: options.first,
+    }
+  );
+
+  if (options.live) {
+    // TODO @Feature: subscribe to client changes
+  }
+
+  const client = useClient();
+  const clients = computed(
+    () => clientsResult.value?.clients.edges.map((edge: any) => useFragment(ClientContentType, edge.node)) ?? []
+  );
+  return {
+    totalCount: computed(() => clientsResult.value?.clients.totalCount ?? 0),
+    clients,
+    clientsWithoutSelf: computed(() => clients.value.filter((c) => c.id != client.clientInfo.value.id)),
+  };
+}

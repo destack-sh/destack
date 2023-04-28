@@ -36,7 +36,7 @@ from bench.api.runtime import InterpSubscription, RuntimeMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation, Type
 from bench.api.token import AccessTokenMutation
-from bench.api.user import User, UserFilter, UserMutation
+from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
@@ -120,7 +120,7 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 
 @strawberry.type
-class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery):
+class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery, ClientQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
@@ -170,6 +170,7 @@ class Mutation(
 
 @strawberry.type
 class Subscription(
+    ClientSubscription,
     InterpSubscription,
     ModuleSubscription,
     ExecutionSubscription,

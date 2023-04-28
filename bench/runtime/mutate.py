@@ -146,6 +146,8 @@ _EXTRA_FIELDS_BY_SCOPE = {
     }
 }
 
+_EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
+
 
 def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
@@ -173,24 +175,27 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
     input_cls = INPUT_CLASS_BY_MMT[mutation.type]
     input_args = {}
     for field in fields(input_cls):
-        if field.name in extra_fields:
-            value = extra_fields[field.name]
+        key = field.name
+        if key in _EXTRA_FIELD_RENAMES:
+            key = _EXTRA_FIELD_RENAMES[key]
+        if key in extra_fields:
+            value = extra_fields[key]
         else:
-            value = getattr(mutation.data, field.name)
+            value = getattr(mutation.data, key)
         if field.type == GlobalID and value is not None:
             # map id to global id with appropriate type name
-            if field.name == "file_id":
+            if key == "file_id":
                 type_name = "File"
-            elif field.name == "statement_id":
+            elif key == "statement_id":
                 type_name = "Statement"
-            elif field.name == "parent_id" and mutation.type.scope == MMS.STATEMENT:
+            elif key == "parent_id" and mutation.type.scope == MMS.STATEMENT:
                 type_name = "Statement"
-            elif field.name == "parent_id" and mutation.type.scope == MMS.FILE:
+            elif key == "parent_id" and mutation.type.scope == MMS.FILE:
                 type_name = "File"
             else:
                 type_name = _SCOPE_TO_TYPE_NAME[mutation.type.scope]
             value = GlobalID(type_name, str(value))
-        input_args[field.name] = value
+        input_args[key] = value
     input = input_cls(**input_args)
 
     public_mutation = ModuleMutation(
@@ -205,7 +210,7 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
 
 
 def input_to_jsonable(value: Any) -> Any:
-    """Walk and transform a GraphQL input into a JSON object that could be used as an input."""
+    """Walk and transform a GraphQL input into a JSON object that can be parsed into that input."""
     from strawberry_django_plus.relay import GlobalID
 
     if isinstance(value, GlobalID):
