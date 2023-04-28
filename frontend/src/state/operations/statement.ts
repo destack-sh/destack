@@ -1,11 +1,13 @@
 import { graphql } from "@/gql";
 import {
+  ModuleMutationType,
   StatementType,
   TypeTag,
   type BatchDeleteStatementsMutation,
   type BatchMoveStatementMutation,
   type BatchRestoreStatementsMutation,
-  type CreateTypeNodeMutation,
+  type CommentStatementMutation,
+  type CreateStatementBlankMutation,
   type DeleteStatementMutation,
   type DeleteTypeNodeMutation,
   type MorphStatementMutation,
@@ -13,6 +15,9 @@ import {
   type RenameStatementMutation,
   type RestoreStatementMutation,
   type RestoreTypeNodeMutation,
+  type SetReferenceMutation,
+  type SoftDeleteStatementMutation,
+  type SoftDeleteTypeNodeMutation,
   type StatementModifier,
   type StatementMorphInput,
   type SymbolType,
@@ -20,12 +25,6 @@ import {
   type TypeNodeUpdateInput,
   type UpdateStatementModifierMutation,
   type UpdateTypeNodeMutation,
-  type SetReferenceMutation,
-  type CommentStatementMutation,
-  type CreateStatementBlankMutation,
-  type SoftDeleteStatementMutation,
-  type SoftDeleteTypeNodeMutation,
-  ModuleMutationType,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -188,8 +187,17 @@ export function useStatementOps() {
   const { mutate: morphStatementMut } = registry.useMutation(
     ModuleMutationType.MorphStatement,
     graphql(/* GraphQL */ `
-      mutation morphStatement($input: StatementMorphInput!) {
-        morphStatement(input: $input) {
+      mutation morphStatement(
+        $id: GlobalID!
+        $type: StatementType!
+        $symbolType: SymbolType
+        $name: String
+        $rootTypeTag: TypeTag
+        $lang: String
+      ) {
+        morphStatement(
+          input: { id: $id, type: $type, symbolType: $symbolType, name: $name, rootTypeTag: $rootTypeTag, lang: $lang }
+        ) {
           ... on Statement {
             id
             revision
@@ -204,17 +212,24 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { input: StatementMorphInput }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        type: StatementType;
+        symbolType?: SymbolType;
+        name?: string;
+        rootTypeTag?: TypeTag;
+        lang?: string;
+      }) =>
         ({
           morphStatement: {
             __typename: "Statement",
-            id: vars.input.id,
+            id: vars.id,
             revision: PENDING_REVISION,
-            type: vars.input.type,
-            symbolType: vars.input.symbolType ?? null,
-            name: vars.input.name ?? null,
-            rootTypeTag: vars.input.rootTypeTag ?? null,
-            lang: vars.input.lang ?? null,
+            type: vars.type,
+            symbolType: vars.symbolType ?? null,
+            name: vars.name ?? null,
+            rootTypeTag: vars.rootTypeTag ?? null,
+            lang: vars.lang ?? null,
           },
         } as MorphStatementMutation),
     }
@@ -240,10 +255,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.morph",
       do: async () => {
-        return await morphStatementMut({ input: { id, ...newStatement } });
+        return await morphStatementMut({ id, ...newStatement });
       },
       undo: async () => {
-        return await morphStatementMut({ input: { id, ...oldStatement } });
+        return await morphStatementMut({ id, ...oldStatement });
       },
     });
   }
@@ -823,8 +838,34 @@ export function useStatementOps() {
   const { mutate: createTypeNodeMut } = registry.useMutation(
     ModuleMutationType.CreateTypeNode,
     graphql(/* GraphQL */ `
-      mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
-        createTypeNode(input: $typeNode) {
+      mutation createTypeNode(
+        $id: GlobalID!
+        $statementId: GlobalID!
+        $tag: TypeTag!
+        $orderKey: String!
+        $name: String!
+        $description: String
+        $isOutput: Boolean!
+        $isArray: Boolean!
+        $isNullable: Boolean!
+        $value: JSON
+        $referenceId: GlobalID
+      ) {
+        createTypeNode(
+          input: {
+            id: $id
+            statementId: $statementId
+            tag: $tag
+            orderKey: $orderKey
+            name: $name
+            description: $description
+            isOutput: $isOutput
+            isArray: $isArray
+            isNullable: $isNullable
+            value: $value
+            referenceId: $referenceId
+          }
+        ) {
           ... on SimpleTypeNode {
             # should match SimpleTypeNodeContent fragment
             id
@@ -852,32 +893,43 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { typeNode: TypeNodeCreateInput }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        tag: string;
+        orderKey: string;
+        statementId: string;
+        name: string;
+        description: string | null;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
+        value: any;
+        referenceId: string | null;
+      }) =>
         ({
           __typename: "Mutation",
           createTypeNode: {
             __typename: "SimpleTypeNode",
-            id: vars.typeNode.id,
+            id: vars.id,
             statement: {
               __typename: "Statement",
-              id: vars.typeNode.statementId,
+              id: vars.statementId,
             },
             revision: PENDING_REVISION,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,
-            tag: vars.typeNode.tag,
-            name: vars.typeNode.name,
-            description: vars.typeNode.description ?? null,
-            value: vars.typeNode.value,
-            orderKey: vars.typeNode.orderKey,
-            reference:
-              vars.typeNode.referenceId == null ? null : { __typename: "Statement", id: vars.typeNode.referenceId },
-            isOutput: vars.typeNode.isOutput,
-            isArray: vars.typeNode.isArray,
-            isNullable: vars.typeNode.isNullable,
+            tag: vars.tag,
+            name: vars.name,
+            description: vars.description ?? null,
+            value: vars.value,
+            orderKey: vars.orderKey,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            isOutput: vars.isOutput,
+            isArray: vars.isArray,
+            isNullable: vars.isNullable,
           },
-        } as CreateTypeNodeMutation),
+        } as any),
       update(cache, { data }) {
         const createStatementTypeNode = data?.createTypeNode;
         if (createStatementTypeNode?.__typename != "SimpleTypeNode") {
@@ -976,7 +1028,7 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.createTypeNode",
       do: async () => {
-        return await createTypeNodeMut({ typeNode: typeNode });
+        return await createTypeNodeMut(typeNode);
       },
       undo: async () => {
         return await softDeleteTypeNodeMut({ id: typeNode.id });
@@ -1011,8 +1063,30 @@ export function useStatementOps() {
   const { mutate: updateTypeNodeMut } = registry.useMutation(
     ModuleMutationType.UpdateTypeNode,
     graphql(/* GraphQL */ `
-      mutation updateTypeNode($typeNode: TypeNodeUpdateInput!) {
-        updateTypeNode(input: $typeNode) {
+      mutation updateTypeNode(
+        $id: GlobalID!
+        $tag: TypeTag!
+        $name: String
+        $description: String
+        $isOutput: Boolean!
+        $isArray: Boolean!
+        $isNullable: Boolean!
+        $value: JSON
+        $referenceId: GlobalID
+      ) {
+        updateTypeNode(
+          input: {
+            id: $id
+            tag: $tag
+            name: $name
+            description: $description
+            isOutput: $isOutput
+            isArray: $isArray
+            isNullable: $isNullable
+            value: $value
+            referenceId: $referenceId
+          }
+        ) {
           ... on SimpleTypeNode {
             id
             updatedAt
@@ -1032,21 +1106,31 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { typeNode: TypeNodeUpdateInput }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        tag: TypeTag;
+        name: string | null;
+        description: string;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
+        value: any;
+        referenceId?: string;
+      }) =>
         ({
           updateTypeNode: {
             __typename: "SimpleTypeNode",
-            id: vars.typeNode.id,
+            id: vars.id,
+            tag: vars.tag,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
-            name: vars.typeNode.name,
-            description: vars.typeNode.description,
-            isOutput: vars.typeNode.isOutput,
-            isArray: vars.typeNode.isArray,
-            isNullable: vars.typeNode.isNullable,
-            value: vars.typeNode.value,
-            reference:
-              vars.typeNode.referenceId == null ? null : { __typename: "Statement", id: vars.typeNode.referenceId },
+            name: vars.name,
+            description: vars.description,
+            isOutput: vars.isOutput,
+            isArray: vars.isArray,
+            isNullable: vars.isNullable,
+            value: vars.value,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
           },
         } as UpdateTypeNodeMutation),
     }
@@ -1056,10 +1140,10 @@ export function useStatementOps() {
     await operations.perform({
       type: "statement.updateTypeNode",
       do: async () => {
-        return await updateTypeNodeMut({ typeNode: newTypeNode });
+        return await updateTypeNodeMut(newTypeNode);
       },
       undo: async () => {
-        return await updateTypeNodeMut({ typeNode: oldTypeNode });
+        return await updateTypeNodeMut(oldTypeNode);
       },
     });
   }

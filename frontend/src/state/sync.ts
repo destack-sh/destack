@@ -167,7 +167,7 @@ function useSyncedOps() {
     if (registeredOp == null) {
       throw new Error(`cannt apply unknown: ${mutation.type}`);
     }
-    console.log("apply mutation", mutation);
+    console.log("apply sync mutation", mutation);
     applyOp(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
