@@ -558,11 +558,11 @@ starlette==0.26.1
     # via
     #   -c requirements.txt
     #   strawberry-graphql
-strawberry-django-plus==2.3.0
+strawberry-django-plus==2.3.2
     # via
     #   -c requirements.txt
     #   -r requirements.in
-strawberry-graphql[channels,debug-server,opentelemetry]==0.171.3
+strawberry-graphql[channels,debug-server,opentelemetry]==0.174.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
