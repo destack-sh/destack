@@ -72,6 +72,7 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import { useModuleSync } from "@/state/sync";
+import ClientsPopover from "@/components/basic/ClientsPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -625,9 +626,10 @@ onBeforeUnmount(() => {
             <SharePopover @show="editor.showGlobalHeader = true" />
             <DeployPopover :project="project" @show="editor.showGlobalHeader = true" />
             <OmniCreate @show="editor.showGlobalHeader = true" />
-            <NotificationPopover @show="editor.showGlobalHeader = true" />
+            <!-- <NotificationPopover @show="editor.showGlobalHeader = true" /> -->
           </div>
         </FadeTransition>
+        <ClientsPopover />
         <ProfileButton class="ml-2" />
       </template>
     </FatHeader>

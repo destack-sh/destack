@@ -79,6 +79,7 @@ export function useClientOps() {
     return await operations.perform({
       type: "client.close",
       stateless: true,
+      suppressErrors: true,
       do: async () => {
         return await closeClientMut();
       },

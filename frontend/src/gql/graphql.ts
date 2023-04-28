@@ -162,9 +162,31 @@ export type Client = Node & {
   deviceName?: Maybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
+  project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
   type: ClientType;
   updatedAt: Scalars["DateTime"];
+  user: User;
+};
+
+/** A connection to a list of items. */
+export type ClientConnection = {
+  __typename?: "ClientConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<ClientEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type ClientEdge = {
+  __typename?: "ClientEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Client;
 };
 
 export type ClientOperationInfo = Client | OperationInfo;
@@ -1542,6 +1564,7 @@ export enum ProjectVisibility {
 export type Query = {
   __typename?: "Query";
   buildCandidates: BuildCandidateConnection;
+  clients: ClientConnection;
   evaluations: EvaluationResultConnection;
   executions: ExecutionConnection;
   featuredProjects: ProjectConnection;
@@ -1572,6 +1595,19 @@ export type QueryBuildCandidatesArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   statusIn?: InputMaybe<Array<BuildCandidateStatus>>;
+};
+
+export type QueryClientsArgs = {
+  active?: Scalars["Boolean"];
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  inSameOrganizations?: Scalars["Boolean"];
+  last?: InputMaybe<Scalars["Int"]>;
+  organizationId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  userId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type QueryEvaluationsArgs = {
@@ -2078,6 +2114,7 @@ export type StatementUpdateLanguageInput = {
 export type Subscription = {
   __typename?: "Subscription";
   buildCandidateChanged: BuildCandidate;
+  clientsChanged: Client;
   evaluationsChanged: EvaluationResult;
   executionsChanged: Execution;
   interpChanged: InterpModule;
@@ -2089,6 +2126,15 @@ export type SubscriptionBuildCandidateChangedArgs = {
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionClientsChangedArgs = {
+  active?: Scalars["Boolean"];
+  inSameOrganizations?: Scalars["Boolean"];
+  organizationId?: InputMaybe<Scalars["GlobalID"]>;
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  userId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SubscriptionEvaluationsChangedArgs = {
@@ -3025,6 +3071,36 @@ export type MeQuery = {
       }>;
     };
   } | null;
+};
+
+export type ClientContentTypeFragment = {
+  __typename?: "Client";
+  id: any;
+  type: ClientType;
+  deviceName?: string | null;
+  browserName?: string | null;
+  user: { __typename?: "User"; id: any; name: string; username: string };
+  project?: { __typename?: "Project"; id: any; name: string; path: string } | null;
+} & { " $fragmentName"?: "ClientContentTypeFragment" };
+
+export type ConnectedClientsQueryVariables = Exact<{
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  userId?: InputMaybe<Scalars["GlobalID"]>;
+  inSameOrganizations: Scalars["Boolean"];
+  first?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type ConnectedClientsQuery = {
+  __typename?: "Query";
+  clients: {
+    __typename?: "ClientConnection";
+    totalCount?: number | null;
+    edges: Array<{
+      __typename?: "ClientEdge";
+      node: { __typename?: "Client" } & { " $fragmentRefs"?: { ClientContentTypeFragment: ClientContentTypeFragment } };
+    }>;
+  };
 };
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
@@ -4443,6 +4519,49 @@ export type SystemInfoQuery = {
   systemInfo: { __typename?: "SystemInfo"; version: string; gitCommit: string };
 };
 
+export const ClientContentTypeFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ClientContentType" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Client" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "deviceName" } },
+          { kind: "Field", name: { kind: "Name", value: "browserName" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "user" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "path" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ClientContentTypeFragment, unknown>;
 export const EvaluationResultContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -7524,6 +7643,103 @@ export const MeDocument = {
     },
   ],
 } as unknown as DocumentNode<MeQuery, MeQueryVariables>;
+export const ConnectedClientsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "connectedClients" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "userId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "inSameOrganizations" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "clients" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "userId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "userId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "inSameOrganizations" },
+                value: { kind: "Variable", name: { kind: "Name", value: "inSameOrganizations" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "first" },
+                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ClientContentType" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...ClientContentTypeFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ConnectedClientsQuery, ConnectedClientsQueryVariables>;
 export const ProjectMigrationRefsDocument = {
   kind: "Document",
   definitions: [

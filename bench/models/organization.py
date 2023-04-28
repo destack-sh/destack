@@ -43,10 +43,7 @@ class Organization(UUIDModel):
 
     projects: models.QuerySet["Project"]  # noqa via Project.user
     members: models.ManyToManyField = models.ManyToManyField(
-        "bench.User",
-        through="OrganizationMembership",
-        related_name="organizations",
-        related_query_name="organization",
+        "bench.User", through="OrganizationMembership", related_name="organizations"
     )
     memberships: models.QuerySet[
         "OrganizationMembership"
