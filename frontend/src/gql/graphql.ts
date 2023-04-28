@@ -3850,7 +3850,12 @@ export type CreateStatementBlankMutation = {
 };
 
 export type MorphStatementMutationVariables = Exact<{
-  input: StatementMorphInput;
+  id: Scalars["GlobalID"];
+  type: StatementType;
+  symbolType?: InputMaybe<SymbolType>;
+  name?: InputMaybe<Scalars["String"]>;
+  rootTypeTag?: InputMaybe<TypeTag>;
+  lang?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type MorphStatementMutation = {
@@ -4089,7 +4094,17 @@ export type SetReferenceMutation = {
 };
 
 export type CreateTypeNodeMutationVariables = Exact<{
-  typeNode: TypeNodeCreateInput;
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+  tag: TypeTag;
+  orderKey: Scalars["String"];
+  name: Scalars["String"];
+  description?: InputMaybe<Scalars["String"]>;
+  isOutput: Scalars["Boolean"];
+  isArray: Scalars["Boolean"];
+  isNullable: Scalars["Boolean"];
+  value?: InputMaybe<Scalars["JSON"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
 export type CreateTypeNodeMutation = {
@@ -4158,7 +4173,15 @@ export type RestoreTypeNodeMutation = {
 };
 
 export type UpdateTypeNodeMutationVariables = Exact<{
-  typeNode: TypeNodeUpdateInput;
+  id: Scalars["GlobalID"];
+  tag: TypeTag;
+  name?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]>;
+  isOutput: Scalars["Boolean"];
+  isArray: Scalars["Boolean"];
+  isNullable: Scalars["Boolean"];
+  value?: InputMaybe<Scalars["JSON"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
 export type UpdateTypeNodeMutation = {
@@ -10324,11 +10347,33 @@ export const MorphStatementDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "input" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "StatementMorphInput" } },
-          },
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
       ],
       selectionSet: {
@@ -10341,7 +10386,41 @@ export const MorphStatementDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "input" },
-                value: { kind: "Variable", name: { kind: "Name", value: "input" } },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeTag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "lang" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+                    },
+                  ],
+                },
               },
             ],
             selectionSet: {
@@ -11417,11 +11496,58 @@ export const CreateTypeNodeDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "TypeNodeCreateInput" } },
-          },
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
       ],
       selectionSet: {
@@ -11434,7 +11560,66 @@ export const CreateTypeNodeDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "input" },
-                value: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "tag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "orderKey" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isOutput" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isArray" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isNullable" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                  ],
+                },
               },
             ],
             selectionSet: {
@@ -11678,11 +11863,48 @@ export const UpdateTypeNodeDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "TypeNodeUpdateInput" } },
-          },
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
       ],
       selectionSet: {
@@ -11695,7 +11917,56 @@ export const UpdateTypeNodeDocument = {
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "input" },
-                value: { kind: "Variable", name: { kind: "Name", value: "typeNode" } },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "tag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isOutput" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isArray" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isNullable" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                  ],
+                },
               },
             ],
             selectionSet: {
