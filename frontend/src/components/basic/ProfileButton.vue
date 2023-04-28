@@ -46,7 +46,7 @@ const userNavigation = computed(() => [
             backgroundColor: getClientColor(client.info.value.id),
           }"
         >
-          <span class="text-sm">
+          <span class="text-sm font-bold text-gray-900">
             {{ auth.me.value?.username.slice(0, 2).toLocaleUpperCase() }}
           </span>
         </div>

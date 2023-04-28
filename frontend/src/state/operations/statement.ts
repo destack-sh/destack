@@ -60,10 +60,18 @@ export function useStatementOps() {
       mutation createStatementBlank($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
         createStatementBlank(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
           ... on Statement {
+            # should match STatementContent fragment
             id
             type
-            symbolType
             revision
+            symbolType
+            createdAt
+            updatedAt
+            deletedAt
+            name
+            commented
+            generated
+            modifier
             orderKey
             file {
               id
@@ -71,7 +79,28 @@ export function useStatementOps() {
             parent {
               id
             }
-            ...StatementContent
+            reference {
+              id
+            }
+            # symbol contents
+            lang
+            code
+            description
+            referenceProjectVersion {
+              id
+            }
+            rootTypeTag
+            typeNodes(filters: { isVisible: true }) {
+              id
+            }
+            records(filters: { isVisible: true }) {
+              totalCount
+              edges {
+                node {
+                  id
+                }
+              }
+            }
           }
           ...OperationInfoContent
         }
@@ -103,7 +132,10 @@ export function useStatementOps() {
             value: null,
             code: null,
             referenceProjectVersion: null,
-            records: [],
+            records: {
+              totalCount: 0,
+              edges: [],
+            },
             rootTypeTag: null,
             typeNodes: [],
             lang: null,
@@ -794,6 +826,7 @@ export function useStatementOps() {
       mutation createTypeNode($typeNode: TypeNodeCreateInput!) {
         createTypeNode(input: $typeNode) {
           ... on SimpleTypeNode {
+            # should match SimpleTypeNodeContent fragment
             id
             createdAt
             updatedAt
@@ -802,7 +835,17 @@ export function useStatementOps() {
             statement {
               id
             }
-            ...SimpleTypeNodeContent
+            revision
+            name
+            tag
+            description
+            value
+            reference {
+              id
+            }
+            isOutput
+            isArray
+            isNullable
           }
           ...OperationInfoContent
         }

@@ -3595,14 +3595,21 @@ export type CreateFileMutationVariables = Exact<{
 export type CreateFileMutation = {
   __typename?: "Mutation";
   createFile:
-    | ({
+    | {
         __typename?: "File";
         id: any;
+        revision: number;
+        name: string;
+        path: string;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        directory: boolean;
+        generated: boolean;
+        parent?: { __typename?: "File"; id: any } | null;
         projectVersion: { __typename?: "ProjectVersion"; id: any };
-        statements: Array<
-          { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
-        >;
-      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+        statements: Array<{ __typename?: "Statement"; id: any }>;
+      }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -3811,16 +3818,35 @@ export type CreateStatementBlankMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({
+    | {
         __typename?: "Statement";
         id: any;
         type: StatementType;
-        symbolType?: SymbolType | null;
         revision: number;
+        symbolType?: SymbolType | null;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        name?: string | null;
+        commented: boolean;
+        generated: boolean;
+        modifier?: StatementModifier | null;
         orderKey: string;
+        lang?: string | null;
+        code?: string | null;
+        description?: string | null;
+        rootTypeTag?: TypeTag | null;
         file: { __typename?: "File"; id: any };
         parent?: { __typename?: "Statement"; id: any } | null;
-      } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } });
+        reference?: { __typename?: "Statement"; id: any } | null;
+        referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
+        typeNodes: Array<{ __typename?: "SimpleTypeNode"; id: any }>;
+        records: {
+          __typename?: "DatasetRecordConnection";
+          totalCount?: number | null;
+          edges: Array<{ __typename?: "DatasetRecordEdge"; node: { __typename?: "DatasetRecord"; id: any } }>;
+        };
+      };
 };
 
 export type MorphStatementMutationVariables = Exact<{
@@ -4072,15 +4098,24 @@ export type CreateTypeNodeMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | ({
+    | {
         __typename?: "SimpleTypeNode";
         id: any;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
         orderKey: string;
+        revision: number;
+        name?: string | null;
+        tag: TypeTag;
+        description?: string | null;
+        value?: any | null;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
         statement: { __typename?: "Statement"; id: any };
-      } & { " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment } });
+        reference?: { __typename?: "Statement"; id: any } | null;
+      };
 };
 
 export type DeleteTypeNodeMutationVariables = Exact<{
@@ -9093,7 +9128,22 @@ export const CreateFileDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "path" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "directory" } },
+                      { kind: "Field", name: { kind: "Name", value: "generated" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "projectVersion" },
@@ -9123,7 +9173,7 @@ export const CreateFileDocument = {
                         ],
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } }],
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
                     ],
@@ -9136,9 +9186,6 @@ export const CreateFileDocument = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
-    ...StatementContentFragmentDoc.definitions,
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateFileMutation, CreateFileMutationVariables>;
@@ -10141,8 +10188,15 @@ export const CreateStatementBlankDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "commented" } },
+                      { kind: "Field", name: { kind: "Name", value: "generated" } },
+                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
                         kind: "Field",
@@ -10160,7 +10214,93 @@ export const CreateStatementBlankDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lang" } },
+                      { kind: "Field", name: { kind: "Name", value: "code" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "referenceProjectVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "typeNodes" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "records" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "edges" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "node" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
                     ],
                   },
                 },
@@ -10171,8 +10311,6 @@ export const CreateStatementBlankDocument = {
         ],
       },
     },
-    ...StatementContentFragmentDoc.definitions,
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateStatementBlankMutation, CreateStatementBlankMutationVariables>;
@@ -11321,7 +11459,22 @@ export const CreateTypeNodeDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "tag" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "isOutput" } },
+                      { kind: "Field", name: { kind: "Name", value: "isArray" } },
+                      { kind: "Field", name: { kind: "Name", value: "isNullable" } },
                     ],
                   },
                 },
@@ -11332,7 +11485,6 @@ export const CreateTypeNodeDocument = {
         ],
       },
     },
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateTypeNodeMutation, CreateTypeNodeMutationVariables>;

@@ -46,12 +46,22 @@ export function useFileOps() {
         ) {
           ... on File {
             id
-            ...FileHeader
+            revision
+            name
+            path
+            parent {
+              id
+            }
+            createdAt
+            updatedAt
+            deletedAt
+            directory
+            generated
             projectVersion {
               id
             }
             statements(filters: { isVisible: true }) {
-              ...StatementContent
+              id
             }
           }
           ...OperationInfoContent
@@ -209,7 +219,7 @@ export function useFileOps() {
         return await restoreFileMut({ id: id });
       },
       undo: async () => {
-        return await deleteFileMut({ id: id });
+        return await softDeleteFileMut({ id: id });
       },
     });
   }
@@ -228,7 +238,7 @@ export function useFileOps() {
         return await createFileMut({ id, projectVersionId, name, path, parentId, directory: directory ?? false });
       },
       undo: async () => {
-        return await deleteFileMut({ id });
+        return await softDeleteFileMut({ id });
       },
       redo: async () => {
         return await restoreFileMut({ id });

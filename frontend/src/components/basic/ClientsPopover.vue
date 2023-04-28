@@ -19,15 +19,16 @@ const { totalCount, clientsWithoutSelf: clients } = useConnectedClients(
 </script>
 <template>
   <div class="flex flex-row">
+    <!-- :ProfilePreview -->
     <div
       v-for="client in clients"
       :key="client.id"
-      class="border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1"
+      class="border border-orange-900 border-opacity-[15%] bg-orange-100 px-2.5 py-1"
       :style="{
         backgroundColor: getClientColor(client.id),
       }"
     >
-      <span class="text-sm">
+      <span class="text-sm font-bold text-gray-900">
         {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
       </span>
     </div>
