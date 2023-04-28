@@ -1,17 +1,19 @@
 import { graphql } from "@/gql";
 import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
-import type { DocumentNode, OperationVariables, TypedDocumentNode } from "@apollo/client";
+import { dedent } from "@/utils/functools";
+import type { DocumentNode, MutationUpdaterFunction, OperationVariables, TypedDocumentNode } from "@apollo/client";
 import { useMutation, useSubscription, type UseMutationOptions, type UseMutationReturn } from "@vue/apollo-composable";
-import { print } from "graphql";
+import { print, parse } from "graphql";
 import { watch, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
 type RegisteredOp = {
   type: ModuleMutationType;
-  innerFragment: DocumentNode | TypedDocumentNode;
-  optimisticResponse: (variables: OperationVariables) => any;
+  fragment: DocumentNode | TypedDocumentNode;
+  optimisticResponse: (vars: any) => any;
+  updateCache?: MutationUpdaterFunction<any, any, any, any>;
 };
 
 // borrowed and trimmed from non-exported vue/apollo-composable file
@@ -44,17 +46,27 @@ export class OpRegistry {
     document: DocumentParameter<TResult, TVariables>,
     options?: OptionsParameter<TResult, TVariables>
   ): UseMutationReturn<TResult, TVariables> {
-    console.log("useMutation", type, print(document), options);
-    if (options?.optimisticResponse == null) {
-      throw new Error(`optimisticResponse is required: ${type}`);
-    }
+    /* Registers a mutation for synced application  */
+    const operationName = document.definitions[0].name?.value;
+    const mutationString = print(document);
 
+    // get the string between '... on' and '...OperationInfoContent'
+    const mutationFragment = mutationString.match(/(?<=\.\.\. on )(.*)(?=\.\.\.OperationInfoContent)/s)?.[0];
+    if (mutationFragment == null) {
+      throw new Error(`could not parse mutation fragment: ${type}`);
+    }
+    const fragment = `fragment __${operationName} on ${dedent(mutationFragment, 2)}`;
+
+    if (options?.optimisticResponse == null || typeof options?.optimisticResponse != "function") {
+      throw new Error(`optimisticResponse function is required: ${type}`);
+    }
     const op: RegisteredOp = {
       type,
-      innerFragment: print(document),
-      optimisticResponse: options?.optimisticResponse,
+      fragment: parse(fragment),
+      optimisticResponse: options?.optimisticResponse as (vars: any) => any,
       updateCache: options?.update,
     };
+    this.ops[type] = op;
 
     return useMutation(document, options);
   }
