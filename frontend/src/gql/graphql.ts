@@ -2008,7 +2008,6 @@ export type StatementCreateInput = {
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
-  revision?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
   text?: InputMaybe<Scalars["String"]>;
@@ -3805,16 +3804,27 @@ export type RunMutation = {
       };
 };
 
-export type CreateStatementBlankMutationVariables = Exact<{
+export type CreateStatementMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
   fileId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
+  type: StatementType;
+  modifier?: InputMaybe<StatementModifier>;
+  name?: InputMaybe<Scalars["String"]>;
+  symbolType?: InputMaybe<SymbolType>;
+  lang?: InputMaybe<Scalars["String"]>;
+  code?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  rootTypeTag?: InputMaybe<TypeTag>;
+  commented?: InputMaybe<Scalars["Boolean"]>;
+  generated?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type CreateStatementBlankMutation = {
+export type CreateStatementMutation = {
   __typename?: "Mutation";
-  createStatementBlank:
+  createStatement:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -10134,13 +10144,13 @@ export const RunDocument = {
     },
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
-export const CreateStatementBlankDocument = {
+export const CreateStatementDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "createStatementBlank" },
+      name: { kind: "Name", value: "createStatement" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -10162,13 +10172,68 @@ export const CreateStatementBlankDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "StatementModifier" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "commented" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "generated" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "createStatementBlank" },
+            name: { kind: "Name", value: "createStatement" },
             arguments: [
               {
                 kind: "Argument",
@@ -10195,6 +10260,61 @@ export const CreateStatementBlankDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "orderKey" },
                       value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "modifier" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "symbolType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "lang" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "code" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeTag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "commented" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "commented" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "generated" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "generated" } },
                     },
                   ],
                 },
@@ -10336,7 +10456,7 @@ export const CreateStatementBlankDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<CreateStatementBlankMutation, CreateStatementBlankMutationVariables>;
+} as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
 export const MorphStatementDocument = {
   kind: "Document",
   definitions: [

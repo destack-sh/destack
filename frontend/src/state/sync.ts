@@ -33,19 +33,23 @@ function applyOp(client: ApolloClient<any>, op: MutationOp, vars: any, revision:
   /* Apply the mutation operation */
 
   // first, get the expected response for the input vars
-  const expectedResponse = op.optimisticResponse(vars)[op.name];
+  const expectedResponse = op.optimisticResponse(vars);
+  const mutatedThing = expectedResponse[op.name];
+  if (mutatedThing == null) {
+    throw new Error(`expected response is missing ${op.name}: ${JSON.stringify(expectedResponse)}`);
+  }
   if (revision != null) {
     // set revision (since optimistic updates set it to pending)
-    expectedResponse.revision = revision;
+    mutatedThing.revision = revision;
   }
   // write the response fragment
   client.writeFragment({
     fragment: op.fragment,
-    data: expectedResponse,
+    data: mutatedThing,
   });
   // update cache if needed
   if (op.updateCache != null) {
-    op.updateCache(client.cache, { data: { [op.name]: expectedResponse } }, {});
+    op.updateCache(client.cache, { data: { [op.name]: mutatedThing } }, {});
   }
 }
 

@@ -1776,7 +1776,6 @@ input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
   orderKey: String!
-  revision: Int = null
   type: StatementType!
   generated: Boolean = null
   parentId: GlobalID = null
