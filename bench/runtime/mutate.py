@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Any, Union
 from uuid import UUID
 
+from strawberry.utils.str_converters import to_camel_case
+
 from bench import models
 from bench.language.mutate import MMS, MMT, ModuleMutation
 from bench.models import mapper
@@ -206,13 +208,16 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
         file_id=mutation.file_id,
         statement_id=mutation.statement_id,
         revision=mutation.revision,
-        input=input_to_jsonable(input),
+        input=input_to_gql_jsonable(input),
     )
     return [public_mutation]
 
 
-def input_to_jsonable(value: Any) -> Any:
-    """Walk and transform a GraphQL input into a JSON object that can be parsed into that input."""
+def input_to_gql_jsonable(value: Any) -> Any:
+    """
+    Walk and transform a GraphQL input into a JSON object that can be parsed into that input.
+    Also rename keys from snake_case to camelCase.
+    """
     from strawberry_django_plus.relay import GlobalID
 
     if isinstance(value, GlobalID):
@@ -220,11 +225,11 @@ def input_to_jsonable(value: Any) -> Any:
     elif is_dataclass(value):
         data = OrderedDict()
         for field in fields(value):
-            key = field.name
-            data[key] = input_to_jsonable(getattr(value, key))
+            target_key = to_camel_case(field.name)
+            data[target_key] = input_to_gql_jsonable(getattr(value, field.name))
         return data
     elif isinstance(value, (list, tuple)):
-        return [input_to_jsonable(item) for item in value]
+        return [input_to_gql_jsonable(item) for item in value]
     elif isinstance(value, dict):  # JSON
         return value
     elif isinstance(value, (int, float, str, bool, type(None))):

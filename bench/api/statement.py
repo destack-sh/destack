@@ -16,7 +16,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import check_can_view_project, check_can_write_project
-from bench.api.sync import MMT, project_mutation
+from bench.api.sync import MMT, BatchMutationInput, project_mutation
 
 if TYPE_CHECKING:
     from bench.api.build import BuildCandidate, BuildSettings
@@ -276,28 +276,65 @@ class StatementCommentedInput(gql.NodeInput):
 
 
 @gql.input
-class StatementBatchSoftDeleteInput:
+class StatementBatchSoftDeleteInput(BatchMutationInput):
     ids: list[GlobalID]
     deleted_at: Optional[datetime] = None
 
+    def unbatch(self) -> list[StatementSoftDeleteInput]:
+        return [
+            StatementSoftDeleteInput(
+                id=id,
+                deleted_at=self.deleted_at,
+            )
+            for id in self.ids
+        ]
+
 
 @gql.input
-class StatementBatchRestoreInput:
+class StatementBatchRestoreInput(BatchMutationInput):
     ids: list[GlobalID]
 
+    def unbatch(self) -> list[StatementRestoreInput]:
+        return [
+            StatementRestoreInput(
+                id=id,
+            )
+            for id in self.ids
+        ]
+
 
 @gql.input
-class StatementBatchCommentedInput:
+class StatementBatchCommentedInput(BatchMutationInput):
+    ids: list[GlobalID]
     commented: bool
-    ids: list[GlobalID]
+
+    def unbatch(self) -> list[StatementCommentedInput]:
+        return [
+            StatementCommentedInput(
+                id=id,
+                commented=self.commented,
+            )
+            for id in self.ids
+        ]
 
 
 @gql.input
-class StatementBatchMoveInput:
+class StatementBatchMoveInput(BatchMutationInput):
+    ids: list[GlobalID]
     file_id: GlobalID
     parent_ids: list[Optional[GlobalID]]
     order_keys: list[str]
-    ids: list[GlobalID]
+
+    def unbatch(self) -> list[StatementMoveInput]:
+        return [
+            StatementMoveInput(
+                id=id,
+                file_id=self.file_id,
+                parent_id=self.parent_ids[i],
+                order_key=self.order_keys[i],
+            )
+            for i, id in enumerate(self.ids)
+        ]
 
 
 @gql.input
