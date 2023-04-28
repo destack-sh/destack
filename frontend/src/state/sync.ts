@@ -1,10 +1,12 @@
 import { graphql } from "@/gql";
+import { useClient } from "@/state/client";
 import { useSubscription } from "@vue/apollo-composable";
 import { watch } from "vue";
 
 export function useModuleSync(projectVersionId: Ref<string | null>) {
   // TODO @Incomplete: implement basic sync
 
+  const client = useClient();
   const {
     onResult: onModuleChanged,
     start,

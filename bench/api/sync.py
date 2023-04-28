@@ -2,7 +2,6 @@ import functools
 import inspect
 from inspect import Signature
 from typing import Any, Optional, Sequence, cast
-from uuid import UUID
 
 import posthog
 import structlog
@@ -119,10 +118,9 @@ def project_mutation(
             #  because the permission check runs after the return value is computed.
             #  This also creates a race condition where the mutation may be published before it's written.
             client_id = info.context.request.scope["session"]["client_id"]
-            # publish change
-            pub_mutation(
-                client_id=client_id, type=type, input=kwargs.get("input", None), things=things
-            )
+            client_nonce = info.context.request.headers.get("x-client-nonce")
+            origin = ClientOrigin("user", client_id, client_nonce)
+            pub_mutation(origin, type, kwargs.get("input", None), things)
             # analytics
             track_project_mutation(type, project_version, things, batch, info)
 
@@ -157,7 +155,7 @@ def project_mutation(
     return make_resolver
 
 
-def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThing]):
+def pub_mutation(origin: ClientOrigin, type: MMT, input: Any, things: list[MutableThing]):
     """Publish mutations."""
     if not things or not SEND_API_PUB_MSG:
         return
@@ -173,7 +171,6 @@ def pub_mutation(client_id: UUID, type: MMT, input: Any, things: list[MutableThi
     project_version_id = mutations[0].project_version_id
     # TODO @Performance: using async_to_sync to publish mutation is inefficient
     #  (can't use publish_soon here because it requires an event loop to be running)
-    origin = ClientOrigin("user", client_id)
     async_to_sync(publish)(
         NMessageType.MODULE_CHANGED,
         ModuleChangedPayload(module_id=project_version_id, client=origin, mutations=mutations),
