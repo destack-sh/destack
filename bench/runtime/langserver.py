@@ -658,12 +658,11 @@ class LanguageWorker:
         mutations = mutator.mutations
         await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
         self.on_module_changed(mutator)
+        origin = ClientOrigin("worker", self.worker_id, None)
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=self.module_id,
-                client=ClientOrigin("worker", self.worker_id),
-                mutations=mutations,
+                module_id=self.module_id, client=origin, mutations=mutations
             ),
         )
         public_mutations = list(chain.from_iterable(map_mutation_to_public(m) for m in mutations))
@@ -671,9 +670,7 @@ class LanguageWorker:
             await publish(
                 NMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(
-                    module_id=self.module_id,
-                    client=ClientOrigin("worker", self.worker_id),
-                    mutations=public_mutations,
+                    module_id=self.module_id, client=origin, mutations=public_mutations
                 ),
             )
 
@@ -700,7 +697,7 @@ class LanguageWorker:
             create_wrapped_task(self._fire_reactive_generate())
             create_wrapped_task(self._fire_reactive_lint())
             create_wrapped_task(self._fire_reactive_build())
-        # notify
+        # notify clients
         payload = make_full_change_payload(self, InterpChangedPayload)
         await publish(NMessageType.INTERP_CHANGED, payload)
 
