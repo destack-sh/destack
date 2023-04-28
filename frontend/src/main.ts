@@ -27,9 +27,7 @@ import posthog from "posthog-js";
 import { createMetaManager } from "vue-meta";
 import App from "./App.vue";
 import router from "./router";
-import { v4 as uuidv4 } from "uuid";
-
-export const CLIENT_NONCE = uuidv4();
+import { CLIENT_NONCE } from "@/state/client";
 
 const MAX_RETRY_TIME_MS = 10000;
 function createApolloClient() {

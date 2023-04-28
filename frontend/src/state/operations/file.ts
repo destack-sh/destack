@@ -1,6 +1,14 @@
 import { graphql } from "@/gql";
-import type { CreateFileMutation, RenameFileMutation, DeleteFileMutation, RestoreFileMutation } from "@/gql/graphql";
+import {
+  type CreateFileMutation,
+  type RenameFileMutation,
+  type DeleteFileMutation,
+  type RestoreFileMutation,
+  ModuleMutationType,
+  type SoftDeleteFileMutation,
+} from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
+import { OpRegistry } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
@@ -12,8 +20,10 @@ export function newFileId(): string {
 
 export function useFileOps() {
   const operations = useOperationsStore();
+  const registry = new OpRegistry();
 
-  const { mutate: createFileMut } = useMutation(
+  const { mutate: createFileMut } = registry.useMutation(
+    ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
       # path is only used for optimistic responses
       mutation createFile(
@@ -97,7 +107,8 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: deleteFileMut } = useMutation(
+  const { mutate: deleteFileMut } = registry.useMutation(
+    ModuleMutationType.DeleteFile,
     graphql(/* GraphQL */ `
       mutation deleteFile($id: GlobalID!) {
         deleteFile(input: { id: $id }) {
@@ -113,7 +124,7 @@ export function useFileOps() {
       optimisticResponse: (vars: { id: string }) =>
         ({
           __typename: "Mutation",
-          softDeleteFile: {
+          deleteFile: {
             __typename: "File",
             id: vars.id,
             deletedAt: new Date().toISOString(),
@@ -122,7 +133,8 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: softDeleteFileMut } = useMutation(
+  const { mutate: softDeleteFileMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteFile,
     graphql(/* GraphQL */ `
       mutation softDeleteFile($id: GlobalID!) {
         softDeleteFile(input: { id: $id }) {
@@ -147,7 +159,8 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: restoreFileMut } = useMutation(
+  const { mutate: restoreFileMut } = registry.useMutation(
+    ModuleMutationType.RestoreFile,
     graphql(/* GraphQL */ `
       mutation restoreFile($id: GlobalID!) {
         restoreFile(input: { id: $id }) {
@@ -223,7 +236,8 @@ export function useFileOps() {
     });
   }
 
-  const { mutate: renameFileMut } = useMutation(
+  const { mutate: renameFileMut } = registry.useMutation(
+    ModuleMutationType.RenameFile,
     graphql(/* GraphQL */ `
       mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {
         renameFile(input: { id: $id, name: $name, path: $path }) {
@@ -263,5 +277,5 @@ export function useFileOps() {
       },
     });
   }
-  return { create, rename, delete: delete_, softDelete, restore };
+  return { registry, create, rename, delete: delete_, softDelete, restore };
 }

@@ -1,24 +1,26 @@
 import { graphql } from "@/gql";
-import type {
-  CreateRecordMutation,
-  DeleteRecordMutation,
-  UpdateRecordMutation,
-  UpdateStatementCodeMutation,
-  UpdateStatementDescriptionMutation,
-  UpdateStatementTextMutation,
-  RestoreRecordMutation,
-  SoftDeleteRecordMutation,
+import {
+  type CreateRecordMutation,
+  type DeleteRecordMutation,
+  type UpdateRecordMutation,
+  type UpdateStatementCodeMutation,
+  type UpdateStatementDescriptionMutation,
+  type UpdateStatementTextMutation,
+  type RestoreRecordMutation,
+  type SoftDeleteRecordMutation,
+  ModuleMutationType,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
-import { useMutation } from "@vue/apollo-composable";
-const PENDING_REVISION = -1;
+import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
+  const registry = new OpRegistry();
 
   // symbol content mutations
 
-  const { mutate: updateStatementDescriptionMut } = useMutation(
+  const { mutate: updateStatementDescriptionMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatementDescription,
     graphql(/* GraphQL */ `
       mutation updateStatementDescription($id: GlobalID!, $description: String!) {
         updateStatementDescription(input: { id: $id, description: $description }) {
@@ -58,7 +60,8 @@ export function useSymbolContentOps() {
 
   // code mutations
 
-  const { mutate: updateStatementCodeMut } = useMutation(
+  const { mutate: updateStatementCodeMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatementCode,
     graphql(/* GraphQL */ `
       mutation updateStatementCode($id: GlobalID!, $code: String) {
         updateStatementCode(input: { id: $id, code: $code }) {
@@ -98,7 +101,8 @@ export function useSymbolContentOps() {
 
   // text mutation (exactly like code due to reuse but different op) :StatementCodeTextReuse
 
-  const { mutate: updateStatementTextMut } = useMutation(
+  const { mutate: updateStatementTextMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatementText,
     graphql(/* GraphQL */ `
       mutation updateStatementText($id: GlobalID!, $code: String) {
         updateStatementText(input: { id: $id, code: $code }) {
@@ -138,7 +142,8 @@ export function useSymbolContentOps() {
 
   // record mutations
 
-  const { mutate: createRecordMut } = useMutation(
+  const { mutate: createRecordMut } = registry.useMutation(
+    ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
         createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
@@ -203,7 +208,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: updateRecordMut } = useMutation(
+  const { mutate: updateRecordMut } = registry.useMutation(
+    ModuleMutationType.UpdateRecord,
     graphql(/* GraphQL */ `
       mutation updateRecord($id: GlobalID!, $data: JSON!) {
         updateRecord(input: { id: $id, data: $data }) {
@@ -231,7 +237,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: deleteRecordMut } = useMutation(
+  const { mutate: deleteRecordMut } = registry.useMutation(
+    ModuleMutationType.DeleteRecord,
     graphql(/* GraphQL */ `
       mutation deleteRecord($id: GlobalID!) {
         deleteRecord(input: { id: $id }) {
@@ -256,7 +263,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: softDeleteRecordMut } = useMutation(
+  const { mutate: softDeleteRecordMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteRecord,
     graphql(/* GraphQL */ `
       mutation softDeleteRecord($id: GlobalID!) {
         softDeleteRecord(input: { id: $id }) {
@@ -281,7 +289,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: restoreRecordMut } = useMutation(
+  const { mutate: restoreRecordMut } = registry.useMutation(
+    ModuleMutationType.RestoreRecord,
     graphql(/* GraphQL */ `
       mutation restoreRecord($id: GlobalID!) {
         restoreRecord(input: { id: $id }) {
@@ -360,6 +369,7 @@ export function useSymbolContentOps() {
   }
 
   return {
+    registry,
     updateStatementDescription,
     updateStatementCode,
     updateStatementText,

@@ -37,6 +37,8 @@ const userNavigation = computed(() => [
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
       <MenuButton class="group flex h-full items-center px-2 text-left focus:bg-gray-100 focus:outline-none">
+        <!-- :ProfilePreview -->
+        <!-- should be two proper letters or profile pic? -->
         <div
           class="border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1 group-hover:bg-orange-200"
           :class="{ 'bg-orange-200': open }"
@@ -44,8 +46,9 @@ const userNavigation = computed(() => [
             backgroundColor: getClientColor(client.info.value.id),
           }"
         >
-          <!-- should be two proper letters or profile pic? -->
-          {{ auth.me.value?.username.slice(0, 2).toLocaleUpperCase() }}
+          <span class="text-sm">
+            {{ auth.me.value?.username.slice(0, 2).toLocaleUpperCase() }}
+          </span>
         </div>
       </MenuButton>
       <FadeTransition>
