@@ -1716,15 +1716,15 @@ type StatementBatch {
 }
 
 input StatementBatchCommentedInput {
-  commented: Boolean!
   ids: [GlobalID!]!
+  commented: Boolean!
 }
 
 input StatementBatchMoveInput {
+  ids: [GlobalID!]!
   fileId: GlobalID!
   parentIds: [GlobalID]!
   orderKeys: [String!]!
-  ids: [GlobalID!]!
 }
 
 union StatementBatchOperationInfo = StatementBatch | OperationInfo

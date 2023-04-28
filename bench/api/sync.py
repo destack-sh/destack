@@ -23,7 +23,7 @@ from bench.msg.core import publish
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
 from bench.runtime.mutate import (
     MutableThing,
-    input_to_jsonable,
+    input_to_gql_jsonable,
     map_mutation_to_internal,
     to_public_mutation,
 )
@@ -32,6 +32,11 @@ from bench.settings import SEND_API_PUB_MSG
 logger = structlog.get_logger(__name__)
 
 INPUT_CLASS_BY_MMT = {}
+
+
+class BatchMutationInput:
+    def unbatch(self) -> list:
+        raise NotImplementedError
 
 
 def project_mutation(
@@ -120,7 +125,7 @@ def project_mutation(
             client_id = info.context.request.scope["session"]["client_id"]
             client_nonce = info.context.request.headers.get("x-client-nonce")
             origin = ClientOrigin("user", client_id, client_nonce)
-            pub_mutation(origin, type, kwargs.get("input", None), things)
+            pub_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
             # analytics
             track_project_mutation(type, project_version, things, batch, info)
 
@@ -155,14 +160,21 @@ def project_mutation(
     return make_resolver
 
 
-def pub_mutation(origin: ClientOrigin, type: MMT, input: Any, things: list[MutableThing]):
+def pub_mutation(
+    origin: ClientOrigin, type: MMT, original_input: Any, things: list[MutableThing], batch: bool
+):
     """Publish mutations."""
     if not things or not SEND_API_PUB_MSG:
         return
+    if batch:
+        inputs = original_input.unbatch()
+    else:
+        inputs = [original_input]
+    inputs = [input_to_gql_jsonable(i) for i in inputs]
+
     mutations = []
     internal_mutations = []
-    input = input_to_jsonable(input)  # original input is some dataclass
-    for thing in things:
+    for input, thing in zip(inputs, things):
         mutation = to_public_mutation(type, input, thing)
         mutations.append(mutation)
         # internal mutation (with data to apply in server)

@@ -144,17 +144,17 @@ export function useStatementOps() {
             commented: false,
           },
         } as CreateStatementBlankMutation),
-      update(cache, { data: createStatement }) {
-        if (createStatement?.createStatementBlank.__typename != "Statement") {
+      update(cache, { data }) {
+        if (data?.createStatementBlank.__typename != "Statement") {
           return; // error
         }
         // extend File.statements array with (ref to) new statement
         // must ensure that all relevant fields are present or weird things happen
         cache.modify({
-          id: cache.identify(createStatement.createStatementBlank?.file),
+          id: cache.identify(data.createStatementBlank?.file),
           fields: {
             statements(currentStatements = []) {
-              return [...currentStatements, { __ref: cache.identify(createStatement?.createStatementBlank) }];
+              return [...currentStatements, { __ref: cache.identify(data?.createStatementBlank) }];
             },
           },
           optimistic: true,

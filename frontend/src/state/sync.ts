@@ -2,26 +2,59 @@ import { graphql } from "@/gql";
 import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { dedent } from "@/utils/functools";
-import type { DocumentNode, MutationUpdaterFunction, OperationVariables, TypedDocumentNode } from "@apollo/client";
-import { useMutation, useSubscription, type UseMutationOptions, type UseMutationReturn } from "@vue/apollo-composable";
+import type {
+  ApolloClient,
+  DocumentNode,
+  MutationUpdaterFunction,
+  OperationVariables,
+  TypedDocumentNode,
+} from "@apollo/client";
+import {
+  useMutation,
+  useSubscription,
+  type UseMutationOptions,
+  type UseMutationReturn,
+  useApolloClient,
+} from "@vue/apollo-composable";
 import { print, parse } from "graphql";
 import { watch, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
-type RegisteredOp = {
+type MutationOp = {
   type: ModuleMutationType;
+  name: string;
   fragment: DocumentNode | TypedDocumentNode;
   optimisticResponse: (vars: any) => any;
   updateCache?: MutationUpdaterFunction<any, any, any, any>;
 };
+
+function applyOp(client: ApolloClient<any>, op: MutationOp, vars: any, revision: number | null) {
+  /* Apply the mutation operation */
+
+  // first, get the expected response for the input vars
+  const expectedResponse = op.optimisticResponse(vars)[op.name];
+  if (revision != null) {
+    // set revision (since optimistic updates set it to pending)
+    expectedResponse.revision = revision;
+  }
+  // write the response fragment
+  client.writeFragment({
+    fragment: op.fragment,
+    data: expectedResponse,
+  });
+  // update cache if needed
+  if (op.updateCache != null) {
+    op.updateCache(client.cache, { data: { [op.name]: expectedResponse } }, {});
+  }
+}
 
 // borrowed and trimmed from non-exported vue/apollo-composable file
 declare type DocumentParameter<TResult, TVariables> = DocumentNode | TypedDocumentNode<TResult, TVariables>;
 declare type OptionsParameter<TResult, TVariables> = UseMutationOptions<TResult, TVariables>;
 
 export class OpRegistry {
-  public ops: Partial<Record<ModuleMutationType, RegisteredOp>> = {};
+  public ops: Partial<Record<ModuleMutationType, MutationOp>> = {};
 
   public merge(registry: OpRegistry) {
     for (const [type, op] of Object.entries(registry.ops)) {
@@ -46,8 +79,9 @@ export class OpRegistry {
     document: DocumentParameter<TResult, TVariables>,
     options?: OptionsParameter<TResult, TVariables>
   ): UseMutationReturn<TResult, TVariables> {
-    /* Registers a mutation for synced application  */
-    const operationName = document.definitions[0].name?.value;
+    /* Registers a mutation for multiplayer  */
+
+    const operationName = document.definitions[0].name.value;
     const mutationString = print(document);
 
     // get the string between '... on' and '...OperationInfoContent'
@@ -60,8 +94,9 @@ export class OpRegistry {
     if (options?.optimisticResponse == null || typeof options?.optimisticResponse != "function") {
       throw new Error(`optimisticResponse function is required: ${type}`);
     }
-    const op: RegisteredOp = {
+    const op: MutationOp = {
       type,
+      name: operationName,
       fragment: parse(fragment),
       optimisticResponse: options?.optimisticResponse as (vars: any) => any,
       updateCache: options?.update,
@@ -124,6 +159,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
 
 function useSyncedOps() {
   const ops = useOperations();
+  const { client } = useApolloClient();
   const opRegistry = OpRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
 
   function applyMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
@@ -132,6 +168,7 @@ function useSyncedOps() {
       throw new Error(`cannt apply unknown: ${mutation.type}`);
     }
     console.log("apply mutation", mutation);
+    applyOp(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
   return { applyMutation };
