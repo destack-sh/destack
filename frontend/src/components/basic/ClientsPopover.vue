@@ -18,7 +18,7 @@ const { totalCount, clientsWithoutSelf: clients } = useConnectedClients(
 );
 </script>
 <template>
-  <div class="flex flex-row">
+  <div class="flex flex-row gap-1">
     <!-- :ProfilePreview -->
     <div
       v-for="client in clients"

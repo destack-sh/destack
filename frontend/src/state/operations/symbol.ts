@@ -196,10 +196,16 @@ export function useSymbolContentOps() {
           id: cache.identify(createStatementRecord?.createRecord.statement),
           fields: {
             records(existingRecords = { totalCount: 0, edges: [] }) {
-              return {
-                totalCount: existingRecords.totalCount + 1,
-                edges: [...existingRecords.edges, newEdge],
-              };
+              const alreadyExists = existingRecords.edges.some((e: any) => e.node.__ref == newEdge.node.__ref);
+              if (alreadyExists) {
+                // ignore if already exists
+                return existingRecords;
+              } else {
+                return {
+                  totalCount: existingRecords.totalCount + 1,
+                  edges: [...existingRecords.edges, newEdge],
+                };
+              }
             },
           },
           optimistic: true,

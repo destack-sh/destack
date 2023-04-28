@@ -171,8 +171,6 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
     if mutation.type in _IGNORED_PUBLIC:
         return []
 
-    from strawberry_django_plus.relay import GlobalID
-
     from bench.api.sync import INPUT_CLASS_BY_MMT
 
     # auto map data to input
@@ -187,19 +185,8 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
             value = extra_fields[key]
         else:
             value = getattr(mutation.data, key)
-        if field.type == GlobalID and value is not None:
-            # map id to global id with appropriate type name
-            if key == "file_id":
-                type_name = "File"
-            elif key == "statement_id":
-                type_name = "Statement"
-            elif key == "parent_id" and mutation.type.scope == MMS.STATEMENT:
-                type_name = "Statement"
-            elif key == "parent_id" and mutation.type.scope == MMS.FILE:
-                type_name = "File"
-            else:
-                type_name = _SCOPE_TO_TYPE_NAME[mutation.type.scope]
-            value = GlobalID(type_name, str(value))
+        if isinstance(value, UUID):
+            value = _map_id_field(key, value, mutation.type.scope)
         input_args[key] = value
     input = input_cls(**input_args)
 
@@ -241,3 +228,21 @@ def input_to_gql_jsonable(value: Any) -> Any:
         return str(value)
     else:
         raise TypeError(f"unexpected value: {value}")
+
+
+def _map_id_field(key: str, value: UUID, scope: MMS):
+    from strawberry_django_plus.relay import GlobalID
+
+    # map id to global id with appropriate type name
+    if key == "file_id":
+        type_name = "File"
+    elif key == "statement_id":
+        type_name = "Statement"
+    elif key == "parent_id" and scope == MMS.STATEMENT:
+        type_name = "Statement"
+    elif key == "parent_id" and scope == MMS.FILE:
+        type_name = "File"
+    else:
+        type_name = _SCOPE_TO_TYPE_NAME[scope]
+    value = GlobalID(type_name, str(value))
+    return value

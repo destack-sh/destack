@@ -204,7 +204,6 @@ class StatementCreateInput:
     id: Optional[GlobalID] = None
     file_id: GlobalID
     order_key: str
-    revision: Optional[int] = None
     type: StatementType
     generated: Optional[bool] = None
     parent_id: Optional[GlobalID] = None
@@ -399,7 +398,6 @@ class StatementMutation:
             name=input.name,
             parent_id=input.parent_id.node_id if input.parent_id else None,
             order_key=input.order_key,
-            revision=input.revision,
             generated=input.generated,
             commented=input.commented,
             modifier=input.modifier,
@@ -408,8 +406,7 @@ class StatementMutation:
             reference_id=input.reference_id.node_id if input.reference_id else None,
             description=input.description,
             lang=input.lang,
-            code=input.code,
-            text=input.text,
+            code=input.text if input.symbol_type == StatementType.COMMENT else input.code,
         )
         return statement
 

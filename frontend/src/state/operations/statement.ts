@@ -53,11 +53,45 @@ export function useStatementOps() {
   const operations = useOperationsStore();
   const registry = new OpRegistry();
 
-  const { mutate: createStatementBlankMut } = registry.useMutation(
-    ModuleMutationType.CreateStatementBlank,
+  const { mutate: createStatementMut } = registry.useMutation(
+    ModuleMutationType.CreateStatement,
     graphql(/* GraphQL */ `
-      mutation createStatementBlank($id: GlobalID, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
-        createStatementBlank(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
+      mutation createStatement(
+        $id: GlobalID
+        $fileId: GlobalID!
+        $parentId: GlobalID
+        $orderKey: String!
+        $type: StatementType!
+        $modifier: StatementModifier
+        $name: String
+        $symbolType: SymbolType
+        $lang: String
+        $code: String
+        $description: String
+        $referenceId: GlobalID
+        $rootTypeTag: TypeTag
+        $commented: Boolean
+        $generated: Boolean
+      ) {
+        createStatement(
+          input: {
+            id: $id
+            fileId: $fileId
+            parentId: $parentId
+            orderKey: $orderKey
+            type: $type
+            modifier: $modifier
+            name: $name
+            symbolType: $symbolType
+            lang: $lang
+            code: $code
+            description: $description
+            rootTypeTag: $rootTypeTag
+            referenceId: $referenceId
+            commented: $commented
+            generated: $generated
+          }
+        ) {
           ... on Statement {
             # should match STatementContent fragment
             id
@@ -106,10 +140,26 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; fileId: string; parentId: string | null; orderKey: string }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        fileId: string;
+        parentId: string | null;
+        orderKey: string;
+        type: StatementType;
+        modifier: StatementModifier | null;
+        name: string | null;
+        symbolType: SymbolType | null;
+        lang: string | null;
+        code: string | null;
+        description: string | null;
+        referenceId: string | null;
+        rootTypeTag: TypeTag | null;
+        commented: boolean;
+        generated: boolean;
+      }) =>
         ({
           __typename: "Mutation",
-          createStatementBlank: {
+          createStatement: {
             __typename: "Statement",
             id: vars.id,
             file: {
@@ -123,37 +173,41 @@ export function useStatementOps() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,
-            type: StatementType.Blank,
-            modifier: null,
-            name: null,
-            symbolType: null,
-            description: null,
-            value: null,
-            code: null,
+            type: vars.type,
+            modifier: vars.modifier,
+            name: vars.name,
+            symbolType: vars.symbolType,
+            description: vars.description,
+            code: vars.code,
             referenceProjectVersion: null,
             records: {
               totalCount: 0,
               edges: [],
             },
-            rootTypeTag: null,
+            rootTypeTag: vars.rootTypeTag,
             typeNodes: [],
-            lang: null,
-            reference: null,
-            generated: false,
-            commented: false,
+            lang: vars.lang,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            generated: vars.generated,
+            commented: vars.commented,
           },
         } as CreateStatementBlankMutation),
       update(cache, { data }) {
-        if (data?.createStatementBlank.__typename != "Statement") {
+        if (data?.createStatement.__typename != "Statement") {
           return; // error
         }
         // extend File.statements array with (ref to) new statement
         // must ensure that all relevant fields are present or weird things happen
         cache.modify({
-          id: cache.identify(data.createStatementBlank?.file),
+          id: cache.identify(data.createStatement?.file),
           fields: {
             statements(currentStatements = []) {
-              return [...currentStatements, { __ref: cache.identify(data?.createStatementBlank) }];
+              console.log(currentStatements[0]);
+              const newRef = cache.identify(data?.createStatement);
+              return [
+                ...currentStatements.filter((s: any) => s.__ref != newRef), // remove if already present
+                { __ref: newRef },
+              ];
             },
           },
           optimistic: true,
@@ -164,11 +218,22 @@ export function useStatementOps() {
 
   async function createBlank(id: string, fileId: string, parentId: string | null, orderKey: string) {
     async function apply() {
-      return await createStatementBlankMut({
+      return await createStatementMut({
         id,
         fileId,
         parentId,
         orderKey,
+        type: StatementType.Blank,
+        modifier: null,
+        name: null,
+        symbolType: null,
+        lang: null,
+        code: null,
+        description: null,
+        referenceId: null,
+        rootTypeTag: null,
+        commented: false,
+        generated: false,
       });
     }
 
@@ -940,7 +1005,11 @@ export function useStatementOps() {
           id: cache.identify(createStatementTypeNode.statement),
           fields: {
             typeNodes(existingTypeNodes = []) {
-              return [...existingTypeNodes, { __ref: cache.identify(createStatementTypeNode) }];
+              const newRef = cache.identify(createStatementTypeNode);
+              return [
+                ...existingTypeNodes.filter((t: any) => t.__ref != newRef), // remove old type node if exists
+                { __ref: newRef },
+              ];
             },
           },
           optimistic: true,
