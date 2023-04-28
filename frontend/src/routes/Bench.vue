@@ -629,7 +629,7 @@ onBeforeUnmount(() => {
             <!-- <NotificationPopover @show="editor.showGlobalHeader = true" /> -->
           </div>
         </FadeTransition>
-        <ClientsPopover />
+        <ClientsPopover class="ml-2" />
         <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
