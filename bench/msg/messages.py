@@ -82,7 +82,7 @@ ClientOrigin = typing.NamedTuple(
 
 @payload(NMessageType.CLIENT_CHANGED)
 class ClientChangedPayload:
-    client: ClientOrigin
+    client_id: UUID
 
 
 @payload(NMessageType.MODULE_CHANGED)

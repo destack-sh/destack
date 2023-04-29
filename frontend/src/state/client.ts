@@ -111,7 +111,7 @@ function _useClient(presenceIntervalMs = 10000) {
 
   // upsert client info if logged in
   watch(
-    () => [auth.loggedIn.value, projectId.value, projectVersionId.value],
+    () => [auth.loggedIn.value, projectId.value, projectVersionId.value, editor.focusedFileId, editor.focusedElementId],
     async () => {
       if (auth.loggedIn.value) {
         await ops.client.upsert(
@@ -120,7 +120,12 @@ function _useClient(presenceIntervalMs = 10000) {
           deviceName,
           browserName,
           projectId.value,
-          projectVersionId.value
+          projectVersionId.value,
+          editor.focusedFileId,
+          editor.focusedElementType == "Statement" ? editor.focusedElementId : null,
+          null,
+          null,
+          null
         );
       } else {
         // remove client info
@@ -162,14 +167,29 @@ export const ClientContentType = graphql(/* GraphQL */ `
       id
       name
       username
+      email
     }
     project {
       id
       name
-      path
     }
+    file {
+      id
+      name
+    }
+    statement {
+      id
+      name
+    }
+    lastSeenAt
+    active
+    present
   }
 `);
+
+// :ClientTimeouts
+export const CLIENT_ACTIVE_TIMEOUT_SECONDS = 60 * 1; // 1 minute
+export const CLIENT_PRESENT_TIMEOUT_SECONDS = 60 * 60; // 1 hour
 
 export function useConnectedClients(
   filter: {

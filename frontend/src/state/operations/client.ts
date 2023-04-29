@@ -15,6 +15,11 @@ export function useClientOps() {
         $browserName: String
         $projectId: GlobalID
         $projectVersionId: GlobalID
+        $fileId: GlobalID
+        $statementId: GlobalID
+        $typeNodeId: GlobalID
+        $recordId: GlobalID
+        $path: String
       ) {
         upsertClient(
           input: {
@@ -24,6 +29,11 @@ export function useClientOps() {
             browserName: $browserName
             projectId: $projectId
             projectVersionId: $projectVersionId
+            fileId: $fileId
+            statementId: $statementId
+            typeNodeId: $typeNodeId
+            recordId: $recordId
+            path: $path
           }
         ) {
           ... on Client {
@@ -47,7 +57,12 @@ export function useClientOps() {
     deviceName: string,
     browserName: string,
     projectId: string | null,
-    projectVersionId: string | null
+    projectVersionId: string | null,
+    fileId: string | null,
+    statementId: string | null,
+    typeNodeId: string | null,
+    recordId: string | null,
+    path: string | null
   ) {
     return await operations.perform({
       type: "client.upsert",
@@ -60,6 +75,11 @@ export function useClientOps() {
           browserName,
           projectId,
           projectVersionId,
+          fileId,
+          statementId,
+          typeNodeId,
+          recordId,
+          path,
         });
       },
     });

@@ -108,7 +108,9 @@ class User(AbstractUser, UUIDModel):
         default_manager_name = "objects"
 
 
+# :ClientTimeouts
 CLIENT_ACTIVE_TIMEOUT_SECONDS = 60 * 1  # 1 minute
+CLIENT_PRESENT_TIMEOUT_SECONDS = 60 * 60  # 1 hour
 
 
 class ClientType(models.TextChoices):
@@ -155,10 +157,19 @@ class Client(UUIDModel):
     type = TextChoicesField(choices_enum=ClientType)
     device_name = models.CharField(max_length=256, null=True, blank=True)
     browser_name = models.CharField(max_length=256, null=True, blank=True)
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
+    # current location in the app
+    project = models.ForeignKey("Project", on_delete=models.SET_NULL, null=True, blank=True)
     project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, null=True, blank=True
+        "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
+    file = models.ForeignKey("File", on_delete=models.SET_NULL, null=True, blank=True)
+    statement = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
+    type_node = models.ForeignKey(
+        "SimpleTypeNode", on_delete=models.SET_NULL, null=True, blank=True
+    )
+    record = models.ForeignKey("DatasetRecord", on_delete=models.SET_NULL, null=True, blank=True)
+    path = models.CharField(max_length=256, null=True, blank=True)
+    lock = models.OneToOneField("Lock", on_delete=models.SET_NULL, null=True, blank=True)
 
     @property
     def active(self) -> bool:
@@ -169,6 +180,15 @@ class Client(UUIDModel):
         )
         return self.last_seen_at is not None and self.last_seen_at >= active_cutoff
 
+    @property
+    def present(self) -> bool:
+        if self.closed_at is not None and self.closed_at >= self.last_seen_at:
+            return False
+        present_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
+            seconds=CLIENT_PRESENT_TIMEOUT_SECONDS
+        )
+        return self.last_seen_at is not None and self.last_seen_at >= present_cutoff
+
     def __str__(self):
         active_str = "active" if self.active else "inactive"
         return f"{self.user} {self.id} {active_str} ({self.type}, {self.device_name}, {self.browser_name})"
@@ -177,3 +197,35 @@ class Client(UUIDModel):
         return f"<Client {self}>"
 
     objects = ClientManager()
+
+
+class Lock(UUIDModel):
+    """A client's lock on editing a specific resource."""
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="locks"
+    )
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+")
+    type_node = models.ForeignKey("SimpleTypeNode", on_delete=models.CASCADE, related_name="+")
+    record = models.ForeignKey("DatasetRecord", on_delete=models.CASCADE, related_name="+")
+    path = models.CharField(max_length=256)
+
+    class Meta:
+        constraints = [
+            # unique lock per project version and each resource
+            models.UniqueConstraint(
+                fields=["project_version", "statement", "path"],
+                name="bench_lock_statement_ak",
+                condition=Q(type_node__isnull=True) & Q(record__isnull=True),
+            ),
+            models.UniqueConstraint(
+                fields=["project_version", "type_node", "path"],
+                name="bench_lock_type_node_ak",
+            ),
+            models.UniqueConstraint(
+                fields=["project_version", "record", "path"],
+                name="bench_lock_record_ak",
+            ),
+        ]

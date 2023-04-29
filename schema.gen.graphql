@@ -152,6 +152,14 @@ type Client implements Node {
   user: User!
   project: Project
   projectVersion: ProjectVersion
+  file: File
+  statement: Statement
+  typeNode: SimpleTypeNode
+  record: DatasetRecord
+  path: String
+  lock: Lock
+  active: Boolean!
+  present: Boolean!
 }
 
 """A connection to a list of items."""
@@ -190,6 +198,11 @@ input ClientUpsertInput {
   browserName: String
   projectId: GlobalID
   projectVersionId: GlobalID
+  fileId: GlobalID
+  statementId: GlobalID
+  typeNodeId: GlobalID
+  recordId: GlobalID
+  path: String
 }
 
 input CommitInput {
@@ -676,6 +689,17 @@ enum JobType {
   BUILD
   EVALUATE
   LINT
+}
+
+type Lock implements Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  projectVersion: ProjectVersion!
+  statement: Statement
+  typeNode: SimpleTypeNode
+  record: DatasetRecord
+  path: String!
 }
 
 type ModuleChange {
@@ -1429,7 +1453,8 @@ type Query {
     userId: GlobalID = null
     organizationId: GlobalID = null
     inSameOrganizations: Boolean! = true
-    active: Boolean! = true
+    active: Boolean = null
+    present: Boolean = true
   ): ClientConnection!
   systemInfo: SystemInfo!
   me: User
@@ -1887,7 +1912,7 @@ input StatementUpdateLanguageInput {
 }
 
 type Subscription {
-  clientsChanged(projectId: GlobalID, projectVersionId: GlobalID, userId: GlobalID, organizationId: GlobalID, inSameOrganizations: Boolean! = false, active: Boolean! = true): Client!
+  clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   interpChanged(projectVersionId: GlobalID!): InterpModule!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
   executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
