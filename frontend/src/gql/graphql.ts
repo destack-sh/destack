@@ -4203,6 +4203,7 @@ export type UpdateTypeNodeMutation = {
     | {
         __typename?: "SimpleTypeNode";
         id: any;
+        tag: TypeTag;
         updatedAt: any;
         revision: number;
         name?: string | null;
@@ -12099,6 +12100,7 @@ export const UpdateTypeNodeDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
