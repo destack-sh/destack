@@ -14,7 +14,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import CanWriteProject
+from bench.api.auth import check_can_write_project
 from bench.api.util import wrap_exceptions
 from bench.language.mutate import MMT
 from bench.models import ProjectVersion
@@ -60,8 +60,6 @@ def project_mutation(
     """
 
     directives = directives or []
-    if not skip_auth_check:
-        directives.append(CanWriteProject())
 
     def make_resolver(func):
         needs_info = "info" in func.__annotations__
@@ -104,13 +102,17 @@ def project_mutation(
             if project_version.committed:
                 raise PermissionDenied("cannot mutate committed project version")
 
+            # check auth
+            if not skip_auth_check:
+                check_can_write_project(info, thing)
+
             # validate (ignoring uniqueness, constraints, and 'revision' field which may be an F expression)
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )
 
+            # save and bump revision (if not new or batched)
             if not batch:
-                # save and bump revision (if not new or batched)
                 is_new = thing._state.adding
                 if not is_new:
                     thing.revision = F("revision") + 1
@@ -118,15 +120,11 @@ def project_mutation(
                 if not is_new:
                     thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
-            # TODO @Robustness @Broken: trigger pub_project_mutation after resolver
-            #  Currently this is also triggered even if permission check (on ret) fails,
-            #  because the permission check runs after the return value is computed.
-            #  This also creates a race condition where the mutation may be published before it's written.
+            # publish and track mutation
             client_id = info.context.request.scope["session"]["client_id"]
             client_nonce = info.context.request.headers.get("x-client-nonce")
             origin = ClientOrigin("user", client_id, client_nonce)
             pub_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
-            # analytics
             track_project_mutation(type, project_version, things, batch, info)
 
             return ret

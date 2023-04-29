@@ -279,7 +279,7 @@ export function useConnectedClients(
         .sort((a, b) => (a.id < b.id ? -1 : 1)) ?? []
   );
 
-  // every minute, update active/present status for clients in cache (we don't always get notified on disconnect)
+  // periodically update active/present status for clients in cache (we don't always get notified on disconnect)
   const { client: apolloClient } = useApolloClient();
   const interval = setInterval(async () => {
     const fragment = graphql(/* GraphQL */ `
@@ -299,7 +299,7 @@ export function useConnectedClients(
         active: !(prev.closedAt && prev.closedAt >= prev.lastSeenAt) && prev.lastSeenAt >= activeCutoff,
         present: !(prev.closedAt && prev.closedAt >= prev.lastSeenAt) && prev.lastSeenAt >= presentCutoff,
       }));
-    }, 60 * 1000);
+    }, 10 * 1000);
   });
   onBeforeUnmount(() => clearInterval(interval));
 
