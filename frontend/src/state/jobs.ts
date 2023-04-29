@@ -1,6 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import { JobStatus, JobType } from "@/gql/graphql";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
+import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
 
@@ -28,6 +29,7 @@ export function useJobs(
   },
   options?: { first?: number; live?: boolean }
 ) {
+  filter = wrapValueRefs(filter); // rewrap to trigger only if value really changed
   const first = options?.first || 25;
   const { result: jobsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `

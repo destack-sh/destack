@@ -11,6 +11,7 @@ import {
 import { useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
+import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
@@ -117,6 +118,7 @@ function indexModule(module: InterpModule): ModuleIndex {
 
 // TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
 function _useInterpModule(projectVersionId: Ref<string | null>) {
+  projectVersionId = toValueRef(projectVersionId);
   const {
     result: fetchedRuntime,
     loading,
@@ -223,6 +225,9 @@ export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: R
 }
 
 export function symbolOf(id: string, projectVersionId?: Ref<string | null>) {
+  if (id == undefined) {
+    return undefined;
+  }
   // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
   const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {

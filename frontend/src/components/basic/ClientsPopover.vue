@@ -39,7 +39,7 @@ const now = useTimeFromNow();
             {{ client.user.username }}
           </span>
         </div>
-        <p class="text-xs text-gray-500">{{ client.user.email }}</p>
+        <p class="text-xs text-gray-500">{{ client.user.name }}</p>
         <p class="mt-2 flex flex-col font-bold text-gray-900">
           <span
             >{{ client.project?.name }}

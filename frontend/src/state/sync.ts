@@ -1,7 +1,7 @@
 import { graphql } from "@/gql";
 import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
-import { dedent } from "@/utils/functools";
+import { dedent, toValueRef } from "@/utils/functools";
 import type {
   ApolloClient,
   DocumentNode,
@@ -112,6 +112,7 @@ export class OpRegistry {
 }
 
 export function useModuleSync(projectVersionId: Ref<string | null>) {
+  projectVersionId = toValueRef(projectVersionId);
   const {
     onResult: onModuleChanged,
     start,
@@ -171,7 +172,7 @@ function useSyncedOps() {
     if (registeredOp == null) {
       throw new Error(`cannt apply unknown: ${mutation.type}`);
     }
-    console.log("apply sync mutation", mutation);
+    console.debug("apply sync mutation", mutation);
     applyOp(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 

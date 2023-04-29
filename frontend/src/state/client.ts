@@ -4,6 +4,7 @@ import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
+import { wrapValueRefs } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { createSharedComposable, useDebounceFn } from "@vueuse/core";
@@ -210,6 +211,7 @@ export function useConnectedClients(
   },
   options: { live?: boolean; first?: number }
 ) {
+  filter = wrapValueRefs(filter); // rewrap to trigger only if value really changed
   const { result: clientsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query connectedClients(
