@@ -237,16 +237,22 @@ class ModuleMutation:
 
 
 class ModuleMutator:
-    """Helper for mutating module state."""
+    """Helper for mutating module data."""
 
-    def __init__(self, idx: ModuleIndex, mutations: list[ModuleMutation] = None):
+    def __init__(
+        self,
+        idx: Optional[ModuleIndex] = None,
+        mutations: list[ModuleMutation] = None,
+        module_id: Optional[UUID] = None,
+    ):
         self.idx = idx
-        self.module = idx.module
+        self.module = idx.module if idx else None
+        self.module_id = module_id or (idx.module.id if idx else None)
         self.mutations = mutations or []
         self._created_statements: dict[UUID, StatementData] = {}
 
     def __str__(self):
-        return f"mutate {len(self.mutations)} {self.module}"
+        return f"mutate {len(self.mutations)} {self.module or '<no module>'}"
 
     def __repr__(self):
         return f"<Mutator {self}>"
@@ -263,20 +269,20 @@ class ModuleMutator:
             statement_id = obj.id
             file_id = obj.file_id
         elif isinstance(obj, (SimpleTypeNodeData, RecordData, XBlockData)):
-            if obj.statement_id in self.idx.statements:
-                statement = self.idx.statements.get(obj.statement_id)
-                statement_id = statement.id
-                file_id = statement.file.id
-            else:
+            if obj.statement_id in self._created_statements:
                 statement = self._created_statements[obj.statement_id]
                 statement_id = statement.id
                 file_id = statement.file_id
+            else:
+                statement = self.idx.statements.get(obj.statement_id)
+                statement_id = statement.id
+                file_id = statement.file.id
         else:
             raise ValueError(f"unexpected mutation object: {obj}")
 
         mutation = ModuleMutation(
             type=type,
-            project_version_id=self.module.id,
+            project_version_id=self.module_id,
             revision=obj.revision,
             file_id=file_id,
             statement_id=statement_id,
@@ -367,6 +373,8 @@ class ModuleMutator:
 
     def apply(self) -> ModuleData:
         """Apply (simple!)  mutations to a copy of the module and return the mutated data."""
+        if self.module is None:
+            raise ValueError("cannot apply mutations without a module")
         mut = MutationBundle(self.mutations)
         if not mut.simple:
             raise ValueError(f"cannot apply complex mutations in {self}: {mut.complex_mutations}")
@@ -389,11 +397,17 @@ class ModuleMutator:
             if statement.records:
                 statement.records = [r for r in statement.records if r.id not in deleted_records]
         for m in mut[MMT.DELETE_STATEMENT]:
-            del statements[m.statement_id]
+            if m.statement_id in statements:  # statement may be non-semantic
+                del statements[m.statement_id]
         for m in mut[MMT.DELETE_FILE]:
             for statement in files[m.file_id].statements:
                 del statements[statement.id]
             del files[m.file_id]
+
+        # delete orphaned statements (who no longer have a parent)
+        for statement in list(statements.values()):
+            if statement.parent_id is not None and statement.parent_id not in statements:
+                del statements[statement.id]
 
         # apply creates
         for m in mut[MMT.CREATE_FILE]:
@@ -423,13 +437,11 @@ class ModuleMutator:
             statement.generated_mappings = m.data.generated_mappings
 
         # re-assemble module data
-        new_module = replace(module, files=[])
+        new_module = replace(module, files=list(files.values()))
         for file in files.values():
-            file = replace(file, statements=[])
-            for statement in statements.values():
-                if statement.file_id == file.id:
-                    file.statements.append(statement)
-            new_module.files.append(file)
+            file.statements = []
+        for statement in statements.values():
+            files[statement.file_id].statements.append(statement)
         return new_module
 
 

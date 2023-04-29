@@ -573,6 +573,7 @@ def wmap_type_nodes(
             )
         return lang_node
 
+    type_nodes = type_nodes or []
     if root_type_tag == TypeTag.STRUCT:
         children = [_rmap_child_node(node) for node in type_nodes]
     elif root_type_tag == TypeTag.ENUM:

@@ -1743,7 +1743,6 @@ input StatementBatchRestoreInput {
 
 input StatementBatchSoftDeleteInput {
   ids: [GlobalID!]!
-  deletedAt: DateTime = null
 }
 
 input StatementCommentedInput {

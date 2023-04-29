@@ -62,51 +62,6 @@ def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
         return ProjectVersion.objects.filter(project=library, name=version).first()
 
 
-@transaction.atomic(savepoint=False)  # read-only
-def read_module(
-    project_v: ProjectVersion,
-    exclude_non_semantic: bool = False,
-    add_implicit_requirements: bool = True,
-) -> wire.ModuleData:
-    """Reads the DB module."""
-    wire_module = wire.ModuleData(
-        id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
-    )
-    wire_files: dict[UUID, wire.FileData] = {}
-    wire_statements: dict[UUID, wire.StatementData] = {}
-
-    # map files
-    for file in project_v.files.filter(deleted_at=None).all():
-        wire_file = rmap_file(file, module_id=wire_module.id)
-        wire_files[file.id] = wire_file
-        wire_module.files.append(wire_file)
-
-    # map statements
-    statements = (
-        project_v.statements.filter(deleted_at=None, commented=False)
-        .select_related("reference")
-        .prefetch_related("records", "type_nodes")
-    )
-    if exclude_non_semantic:
-        statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
-
-    for statement in statements:
-        wire_statement = rmap_statement(
-            statement, file_id=statement.file_id, module_id=wire_module.id
-        )
-        wire_statements[statement.id] = wire_statement
-        wire_files[statement.file_id].statements.append(wire_statement)
-
-    if add_implicit_requirements:
-        # Implicitly require all current libraries at their latest version because
-        # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
-        # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
-        #  (std should be a global default, but we want that version pinned too (?))
-        _add_implicit_requirements(wire_module)
-
-    return wire_module
-
-
 IMPLICIT_FILE_ID = uuid5(UUID("53400ed5-ccd5-4bcf-899d-c93c3e8a0d15"), "implicit_file")
 
 
@@ -153,15 +108,86 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     wire_module.files.append(implicit_file)
 
 
+@transaction.atomic(savepoint=False)  # read-only
+def read_module(
+    project_v: ProjectVersion,
+    exclude_non_semantic: bool = False,
+    add_implicit_requirements: bool = True,
+) -> wire.ModuleData:
+    """Reads the DB module."""
+    wire_module = wire.ModuleData(
+        id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
+    )
+    wire_files: dict[UUID, wire.FileData] = {}
+    wire_statements: dict[UUID, wire.StatementData] = {}
+
+    # map files
+    for file in project_v.files.filter(deleted_at=None).all():
+        wire_file = rmap_file_flat(file, module_id=wire_module.id)
+        wire_files[file.id] = wire_file
+        wire_module.files.append(wire_file)
+
+    # map statements
+    statements = (
+        project_v.statements.filter(deleted_at=None, commented=False)
+        .select_related("reference")
+        .prefetch_related("records", "type_nodes", "xblocks")
+    )
+    if exclude_non_semantic:
+        statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
+
+    for statement in statements:
+        wire_statement = rmap_statement(
+            statement, file_id=statement.file_id, module_id=wire_module.id
+        )
+        wire_statements[statement.id] = wire_statement
+        wire_files[statement.file_id].statements.append(wire_statement)
+
+    if add_implicit_requirements:
+        # Implicitly require all current libraries at their latest version because
+        # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
+        # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
+        #  (std should be a global default, but we want that version pinned too (?))
+        _add_implicit_requirements(wire_module)
+
+    return wire_module
+
+
+def rmap_file_nested(file: models.File, exclude_non_semantic: bool) -> FileData:
+    """Reads a file and its statements (and their contents)."""
+    statements = (
+        file.statements.filter(deleted_at=None, commented=False)
+        .select_related("reference")
+        .prefetch_related("records", "type_nodes", "xblocks")
+    )
+    if exclude_non_semantic:
+        statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
+
+    wire_file = rmap_file_flat(file, module_id=file.project_version_id)
+    wire_file.statements = [
+        rmap_statement(s, file_id=file.id, module_id=file.project_version_id) for s in statements
+    ]
+    return wire_file
+
+
+def rmap_statement_nested(statement: models.Statement) -> list[StatementData]:
+    """Reads a statement and all its children."""
+    wire_statements = [
+        rmap_statement(s, file_id=statement.file_id, module_id=statement.project_version_id)
+        for s in statement.descendants
+    ]
+    return wire_statements
+
+
 # (all module contents are used for tracking changes)
 def rmap_flat(
     obj: models.File | models.Statement | models.SimpleTypeNode | models.DatasetRecord,
 ) -> wire.FileData | wire.StatementData | wire.SimpleTypeNodeData | wire.RecordData:
     """Read a DB object into a wire object without any children."""
     if isinstance(obj, models.File):
-        return rmap_file(obj, module_id=obj.project_version_id)
+        return rmap_file_flat(obj, module_id=obj.project_version_id)
     elif isinstance(obj, models.Statement):
-        return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id)
+        return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
     elif isinstance(obj, models.SimpleTypeNode):
         return rmap_simple_type_node(obj)
     elif isinstance(obj, models.DatasetRecord):
@@ -170,7 +196,7 @@ def rmap_flat(
         raise ValueError(f"unexpected obj: {obj}")
 
 
-def rmap_file(file: models.File, module_id: UUID) -> wire.FileData:
+def rmap_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
     return wire.FileData(
         id=file.id,
         module_id=module_id,

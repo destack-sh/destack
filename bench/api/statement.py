@@ -277,16 +277,9 @@ class StatementCommentedInput(gql.NodeInput):
 @gql.input
 class StatementBatchSoftDeleteInput(BatchMutationInput):
     ids: list[GlobalID]
-    deleted_at: Optional[datetime] = None
 
     def unbatch(self) -> list[StatementSoftDeleteInput]:
-        return [
-            StatementSoftDeleteInput(
-                id=id,
-                deleted_at=self.deleted_at,
-            )
-            for id in self.ids
-        ]
+        return [StatementSoftDeleteInput(id=id) for id in self.ids]
 
 
 @gql.input
@@ -294,12 +287,7 @@ class StatementBatchRestoreInput(BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list[StatementRestoreInput]:
-        return [
-            StatementRestoreInput(
-                id=id,
-            )
-            for id in self.ids
-        ]
+        return [StatementRestoreInput(id=id) for id in self.ids]
 
 
 @gql.input
@@ -514,7 +502,7 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.soft_delete but for a batch
-        deleted_at = input.deleted_at or datetime.utcnow().replace(tzinfo=pytz.utc)
+        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
         models.Statement.objects.get_descendants(statement_ids).filter(deleted_at=None).update(
             deleted_at=deleted_at
