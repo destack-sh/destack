@@ -194,11 +194,11 @@ class StatementData:
         return f"<Statement {str(self)}>"
 
 
-def rmap_module(module: language.Module) -> ModuleData:
+def rmap_module(module: language.Module, impute_type_references: bool = False) -> ModuleData:
     return ModuleData(
         id=module.id,
         name=module.name,
-        files=[rmap_file(file) for file in module.files],
+        files=[rmap_file(file, impute_type_references=impute_type_references) for file in module.files],
     )
 
 
@@ -250,13 +250,13 @@ def wmap_module(data: ModuleData) -> language.Module:
     return module
 
 
-def rmap_file(file: language.File) -> FileData:
+def rmap_file(file: language.File, impute_type_references: bool = False) -> FileData:
     return FileData(
         id=file.id,
         module_id=file.module.id,
         path=file.path,
         generated=file.generated,
-        statements=[rmap_statement(statement) for statement in file.statements],
+        statements=[rmap_statement(statement, impute_type_references=impute_type_references) for statement in file.statements],
         revision=1,
     )
 
@@ -272,7 +272,7 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
     return file
 
 
-def rmap_statement(statement: language.Statement) -> StatementData:
+def rmap_statement(statement: language.Statement, impute_type_references: bool = False) -> StatementData:
     """Maps a language statement to a wire statement (incl. refs)."""
     # use statement id if possible, else use statement path
     reference = (
@@ -295,7 +295,7 @@ def rmap_statement(statement: language.Statement) -> StatementData:
         generated=statement.generated,
     )
     if statement.content is not None:
-        rmap_symbol(statement.content, data)
+        rmap_symbol(statement.content, data, impute_type_references=impute_type_references)
     return data
 
 
@@ -320,7 +320,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
     return statement
 
 
-def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
+def rmap_symbol(content: language.SymbolContent, data: StatementData, impute_type_references: bool = False) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     if isinstance(content, language.GeneratorContent):
         data.generated_mappings = content.generated_mappings
@@ -328,12 +328,12 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
     if isinstance(content, language.TypeNode):
         data.description = content.description
         data.root_type_tag, data.type_nodes = rmap_type_nodes(
-            data.id, rmap_type_node(data.id, content)
+            data.id, rmap_type_node(data.id, content), impute_type_references
         )
     elif isinstance(content, language.TaskContent):
         data.description = content.description
         data.root_type_tag, data.type_nodes = rmap_type_nodes(
-            data.id, rmap_type_node(data.id, content.type_node)
+            data.id, rmap_type_node(data.id, content.type_node), impute_type_references
         )
     elif isinstance(content, language.ExpectationContent):
         data.description = content.description
@@ -342,7 +342,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.lang = content.language
         data.code = content.code
         data.root_type_tag, data.type_nodes = rmap_type_nodes(
-            data.id, rmap_type_node(data.id, content.type_node)
+            data.id, rmap_type_node(data.id, content.type_node), impute_type_references
         )
         data.xblocks = [rmap_xblock(data.id, xblock) for xblock in content.xblocks]
     elif isinstance(content, language.ModelContent):
@@ -355,7 +355,7 @@ def rmap_symbol(content: language.SymbolContent, data: StatementData) -> None:
         data.description = content.description
         data.records = [rmap_record(data.id, r) for r in content.records]
         data.root_type_tag, data.type_nodes = rmap_type_nodes(
-            data.id, rmap_type_node(data.id, content.type_node)
+            data.id, rmap_type_node(data.id, content.type_node), impute_type_references
         )
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
@@ -613,7 +613,7 @@ def wmap_type_nodes(
 def rmap_type_nodes(
     statement_id: UUID | None,
     type_nodes: list[TypeNodeData] | None,
-    impute_type_reference: bool = False,
+    impute_type_reference: bool,
 ) -> tuple[TypeTag | None, list[SimpleTypeNodeData] | None]:
     """Maps a tree type node into a simple type node."""
     if not type_nodes:
