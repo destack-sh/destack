@@ -9,9 +9,10 @@ import {
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
+import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue?: SimpleType;
@@ -78,6 +79,16 @@ function writeValue(type: SimpleTypeNode) {
   emit("update:modelValue", type);
   emit("escape");
 }
+
+// sync modelValue if changed externally
+watch(
+  () => [props.modelValue],
+  () => {
+    if (props.modelValue != value.value) {
+      value.value = props.modelValue ?? ANY_TYPE_NODE;
+    }
+  }
+);
 
 onClickOutside(optionsRef, (event: PointerEvent) => {
   // if outside options and not within valueRef stop editing
@@ -164,7 +175,7 @@ defineExpose({
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2',
+            'relative cursor-default select-none px-2 py-0.5',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected ? 'underline' : '',
           ]"

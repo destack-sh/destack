@@ -202,7 +202,6 @@ export function useStatementOps() {
           id: cache.identify(data.createStatement?.file),
           fields: {
             statements(currentStatements = []) {
-              console.log(currentStatements[0]);
               const newRef = cache.identify(data?.createStatement);
               return [
                 ...currentStatements.filter((s: any) => s.__ref != newRef), // remove if already present
@@ -1158,6 +1157,7 @@ export function useStatementOps() {
         ) {
           ... on SimpleTypeNode {
             id
+            tag
             updatedAt
             revision
             name
@@ -1185,8 +1185,8 @@ export function useStatementOps() {
         isNullable: boolean;
         value: any;
         referenceId?: string;
-      }) =>
-        ({
+      }) => {
+        return {
           updateTypeNode: {
             __typename: "SimpleTypeNode",
             id: vars.id,
@@ -1201,7 +1201,8 @@ export function useStatementOps() {
             value: vars.value,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
           },
-        } as UpdateTypeNodeMutation),
+        } as UpdateTypeNodeMutation;
+      },
     }
   );
 
