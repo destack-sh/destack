@@ -307,7 +307,7 @@ defineExpose({
           >
             <li
               :class="[
-                'relative cursor-default select-none py-0.5 px-2',
+                'relative cursor-default select-none px-2 py-0.5',
                 active ? 'bg-orange-600 text-white' : 'text-gray-900',
                 selected ? 'underline' : '',
               ]"

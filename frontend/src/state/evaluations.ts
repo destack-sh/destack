@@ -3,9 +3,10 @@ import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
+import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/shared";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watchEffect, type Ref } from "vue";
 
 export const EvaluationResultContentType = graphql(/* GraphQL */ `
   fragment EvaluationResultContent on EvaluationResult {
@@ -50,6 +51,7 @@ export function useEvaluations(
   },
   options?: { first?: number; live?: boolean; enabled?: Ref<boolean> }
 ) {
+  filter = wrapValueRefs(filter); // rewrap to trigger only if value really changed
   const { result: evaluationsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
       query evaluations(
@@ -93,7 +95,7 @@ export function useEvaluations(
       first: options?.first,
     } as any,
     {
-      enabled: options?.enabled ?? ref(true),
+      enabled: options?.enabled != null ? toValueRef(options?.enabled) : ref(true),
     }
   );
 
@@ -124,6 +126,7 @@ export function useEvaluations(
           }
         }
       `),
+
       variables: {
         projectId: filter.projectId,
         projectVersionId: filter.projectVersionId,

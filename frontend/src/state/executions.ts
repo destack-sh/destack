@@ -1,5 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
+import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, type Ref } from "vue";
 
@@ -65,6 +66,8 @@ export function useExecutions(
   },
   options: { root: boolean; first?: number; live?: boolean }
 ) {
+  // rewrap refs to prevent eager updates
+  filter = wrapValueRefs(filter);
   const first = options?.first ?? 25;
   const { result: executionsResult, subscribeToMore } = useQuery(
     graphql(/* GraphQL */ `
