@@ -1,20 +1,28 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { getClientColor, useCurrentClients } from "@/state/client";
+import { computed } from "vue";
 
-const props = defineProps<{ size: "large" | "medium" | "small" }>();
+const props = defineProps<{ size: "large" | "medium" | "small"; fileId?: string; first?: number }>();
+const first = computed(() => props.first ?? 4);
 
 const { activeClientsWithoutSelf: clients } = useCurrentClients();
+const filteredClients = computed(() => clients.value.filter((c) => props.fileId == null || c.file?.id == props.fileId));
 
 const now = useTimeFromNow();
 </script>
 <template>
-  <div class="flex flex-row gap-1">
+  <div class="flex flex-row items-baseline gap-1">
     <!-- :ProfilePreview -->
     <div
-      v-for="client in clients.slice(0, 4)"
+      v-for="client in filteredClients.slice(0, first)"
       :key="client.id"
-      class="group relative border border-orange-900 border-opacity-[15%] bg-orange-100 px-2.5 py-1"
+      class="group relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
+      :class="{
+        'px-2.5 py-1': props.size === 'large',
+        'px-1.5 py-0.5': props.size === 'medium',
+        'px-1 py-0.5': props.size === 'small',
+      }"
       :style="{
         backgroundColor: getClientColor(client.id),
       }"
@@ -22,7 +30,7 @@ const now = useTimeFromNow();
       <span class="text-sm font-bold text-gray-900">
         {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
       </span>
-      <!-- Info popover -->
+      <!-- Profile info popover -->
       <div
         class="invisible absolute right-0 z-10 mt-3 w-72 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover:visible"
       >
@@ -45,5 +53,7 @@ const now = useTimeFromNow();
         </p>
       </div>
     </div>
+    <!-- +x -->
+    <div v-if="filteredClients.length > first" class="text-sm text-gray-900">+{{ filteredClients.length - first }}</div>
   </div>
 </template>
