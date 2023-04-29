@@ -2,6 +2,7 @@
 import EditableSpan from "@/components/EditableSpan.vue";
 import StatementAddArea from "@/components/StatementAddArea.vue";
 import StatementInterface from "@/components/StatementInterface.vue";
+import ClientsPopover from "@/components/basic/ClientsPopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
@@ -284,42 +285,47 @@ const metaActions = computed(() => [
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center px-[58px] pt-6 font-bold text-gray-900"
+        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center justify-between px-[58px] pt-6 font-bold text-gray-900"
         :class="editor.fontMono ? 'font-mono' : ''"
       >
-        <!-- Name -->
-        <span>
-          <!-- Note the :EditableSyncDance on the name update -->
-          <EditableSpan
-            ref="nameRef"
-            class="text-3xl"
-            suppress-shortcuts
-            :readonly="editor.readonly || isDeleted || isOtherVersion"
-            v-model="name"
-            @enter="goToContent"
-            @keyup.up.prevent="() => ({}) /* noop */"
-          />
-          <span
-            class="cursor-text select-none text-3xl text-gray-300"
-            v-if="name?.trim().length == 0"
-            @click="nameRef?.focus()"
-          >
-            Untitled AI
+        <!-- Name & actions -->
+        <span class="flex flex-row items-center">
+          <!-- Name -->
+          <span>
+            <!-- Note the :EditableSyncDance on the name update -->
+            <EditableSpan
+              ref="nameRef"
+              class="text-3xl"
+              suppress-shortcuts
+              :readonly="editor.readonly || isDeleted || isOtherVersion"
+              v-model="name"
+              @enter="goToContent"
+              @keyup.up.prevent="() => ({}) /* noop */"
+            />
+            <span
+              class="cursor-text select-none text-3xl text-gray-300"
+              v-if="name?.trim().length == 0"
+              @click="nameRef?.focus()"
+            >
+              Untitled AI
+            </span>
+          </span>
+          <!-- Actions -->
+          <span class="ml-4 flex flex-row gap-1">
+            <button
+              v-for="action in metaActions"
+              :key="action.label"
+              class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
+              :class="[action.enabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
+              @click="action.action()"
+              :disabled="!action.enabled"
+            >
+              <component :is="action.icon" class="h-5 w-5" />
+            </button>
           </span>
         </span>
-        <!-- Actions -->
-        <span class="ml-4 flex flex-row gap-1">
-          <button
-            v-for="action in metaActions"
-            :key="action.label"
-            class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
-            :class="[action.enabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
-            @click="action.action()"
-            :disabled="!action.enabled"
-          >
-            <component :is="action.icon" class="h-5 w-5" />
-          </button>
-        </span>
+        <!-- Other clients -->
+        <ClientsPopover size="medium" :file-id="props.fileId" />
       </div>
       <!-- Add statement to start -->
       <StatementAddArea class="mx-auto max-w-[900px]" @click="editor.readonly || insertStatementStart()" />
