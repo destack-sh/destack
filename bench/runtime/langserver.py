@@ -560,6 +560,7 @@ class LanguageWorker:
         self.revmap: RevisionMap | None = None
         self.stale_symbols: list[language.Statement] | None = None
         self.module_hash: str | None = None
+        # wire-able data of interpreted module
         self.wire_module: wire.ModuleData | None = None
         self.wire_errors: list[wire.ErrorData] | None = None
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
@@ -685,7 +686,9 @@ class LanguageWorker:
         self.stale_symbols = get_stale_symbols(self.revmap, self.interp.module_idx)
         self.module_hash = tree_from_module(self.revmap, self.idx).stable_hash()
         if self.interp.module_idx:
-            self.wire_module = wire.rmap_module(self.interp.module_idx.module)
+            self.wire_module = wire.rmap_module(
+                self.interp.module_idx.module, impute_type_references=True
+            )
         else:  # re-use source (if failed to parse or not yet parsed)
             self.wire_module = self.source
         self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
@@ -696,7 +699,7 @@ class LanguageWorker:
         if not self.interp.committed:
             create_wrapped_task(self._fire_reactive_generate())
             create_wrapped_task(self._fire_reactive_lint())
-            create_wrapped_task(self._fire_reactive_build())
+            # create_wrapped_task(self._fire_reactive_build()) # nocheckin
         # notify clients
         payload = make_full_change_payload(self, InterpChangedPayload)
         await publish(NMessageType.INTERP_CHANGED, payload)
