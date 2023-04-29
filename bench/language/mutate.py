@@ -404,7 +404,7 @@ class ModuleMutator:
                 del statements[statement.id]
             del files[m.file_id]
 
-        # delete orphaned statements (who no longer have a parent)
+        # delete orphaned statements (who no longer have a parent, emulates delete cascade)
         for statement in list(statements.values()):
             if statement.parent_id is not None and statement.parent_id not in statements:
                 del statements[statement.id]
@@ -425,7 +425,13 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_FILE]:
             files[m.file_id] = m.data
         for m in mut[MMT.UPDATE_STATEMENT]:
+            old_statement = statements.get(m.statement_id)
             statements[m.statement_id] = m.data
+            # keep statement's relations
+            if old_statement is not None:  # otherwise panic?
+                statements[m.statement_id].type_nodes = old_statement.type_nodes
+                statements[m.statement_id].records = old_statement.records
+                statements[m.statement_id].xblocks = old_statement.xblocks
         for m in mut[MMT.UPDATE_TYPE_NODE]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.type_nodes, m.data)

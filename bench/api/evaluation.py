@@ -164,6 +164,10 @@ class EvaluationSubscription:
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
+            kind_in=kind_in,
+            scope_in=scope_in,
+            build_id_in=build_id_in,
+            system_id_in=system_id_in,
             user=user,
         )
         try:

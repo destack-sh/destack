@@ -239,7 +239,7 @@ def wmap_module(data: ModuleData) -> language.Module:
             if type_node is not None:
                 for node in type_node.walk():
                     data_node = first(
-                        (n for n in statement_data.type_nodes if n.id == node.id), None
+                        (n for n in (statement_data.type_nodes or []) if n.id == node.id), None
                     )
                     if data_node and isinstance(data_node.reference_id, UUID):
                         reference = statements.get(node.reference, None)
