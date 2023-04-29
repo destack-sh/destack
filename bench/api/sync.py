@@ -24,8 +24,8 @@ from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInterna
 from bench.runtime.mutate import (
     MutableThing,
     input_to_gql_jsonable,
+    make_public_mutation,
     map_mutation_to_internal,
-    to_public_mutation,
 )
 from bench.settings import SEND_API_PUB_MSG
 
@@ -175,7 +175,7 @@ def pub_mutation(
     mutations = []
     internal_mutations = []
     for input, thing in zip(inputs, things):
-        mutation = to_public_mutation(type, input, thing)
+        mutation = make_public_mutation(type, input, thing)
         mutations.append(mutation)
         # internal mutation (with data to apply in server)
         internal_mutations.extend(map_mutation_to_internal(mutation, thing))

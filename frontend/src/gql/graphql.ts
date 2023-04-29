@@ -1966,7 +1966,6 @@ export type StatementBatchRestoreInput = {
 };
 
 export type StatementBatchSoftDeleteInput = {
-  deletedAt?: InputMaybe<Scalars["DateTime"]>;
   ids: Array<Scalars["GlobalID"]>;
 };
 

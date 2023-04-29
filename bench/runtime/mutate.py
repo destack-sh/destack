@@ -8,7 +8,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language.mutate import MMS, MMT, ModuleMutation
+from bench.language.mutate import MMS, MMT, ModuleMutation, ModuleMutator
 from bench.models import mapper
 
 MutableThing = Union[
@@ -18,38 +18,6 @@ MutableThing = Union[
     models.DatasetRecord,
     models.XBlock,
 ]
-
-
-def to_public_mutation(type: MMT, input: Any, thing: MutableThing):
-    """
-    Create the public multiplayer mutation corresponding to a mutation of a project thing.
-    """
-    if isinstance(thing, models.File):
-        statement_id = None
-        project_version_id = thing.project_version_id
-        file_id = thing.id
-    elif isinstance(thing, models.Statement):
-        statement_id = thing.id
-        project_version_id = thing.project_version_id
-        file_id = thing.file_id
-    elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
-        project_version_id = thing.statement.project_version_id
-        file_id = thing.statement.file_id
-        statement_id = thing.statement_id
-    else:
-        raise TypeError(f"thing is not a project thing: {thing}")
-
-    # public mutation (with inputs to apply in client)
-    # TODO @Broken: some public mutations need to be mapped for previously offline clients
-    #  e.g. restore is insufficient if you don't have the original file/statement/etc.
-    return ModuleMutation(
-        type=type,
-        project_version_id=project_version_id,
-        file_id=file_id,
-        statement_id=statement_id,
-        revision=thing.revision,
-        input=input,
-    )
 
 
 # refer to ModuleMutationType and _MODULE_MUTATION_MAP
@@ -110,6 +78,38 @@ _SCOPE_TO_TYPE_NAME = {
 }
 
 
+def make_public_mutation(type: MMT, input: Any, thing: MutableThing):
+    """
+    Create the public multiplayer mutation corresponding to a mutation of a project thing.
+    """
+    if isinstance(thing, models.File):
+        statement_id = None
+        project_version_id = thing.project_version_id
+        file_id = thing.id
+    elif isinstance(thing, models.Statement):
+        statement_id = thing.id
+        project_version_id = thing.project_version_id
+        file_id = thing.file_id
+    elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
+        project_version_id = thing.statement.project_version_id
+        file_id = thing.statement.file_id
+        statement_id = thing.statement_id
+    else:
+        raise TypeError(f"thing is not a project thing: {thing}")
+
+    # public mutation (with inputs to apply in client)
+    # TODO @Broken: some public mutations need to be extended for previously offline clients
+    #  e.g. restore is insufficient if you don't have the original file?/statement/etc.
+    return ModuleMutation(
+        type=type,
+        project_version_id=project_version_id,
+        file_id=file_id,
+        statement_id=statement_id,
+        revision=thing.revision,
+        input=input,
+    )
+
+
 def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> list[ModuleMutation]:
     """
     Maps the full multiplayer mutation set into simple internal mutations.
@@ -124,13 +124,18 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT
         else:
-            internal_type = MMT.CREATE_STATEMENT
+            descendants_datas = mapper.rmap_statement_nested(thing)
+            return ModuleMutator().create_many(*descendants_datas).mutations
     elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
         internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
+    elif mutation.type == MMT.RESTORE_FILE:
+        file_data = mapper.rmap_file_nested(thing, exclude_non_semantic=True)
+        return ModuleMutator().create(file_data).mutations
+    elif mutation.type == MMT.RESTORE_STATEMENT:
+        descendants_datas = mapper.rmap_statement_nested(thing)
+        return ModuleMutator().create_many(*descendants_datas).mutations
     else:
         raise ValueError(f"mutation cannot be mapped to internal: {mutation}")
-
-    # TODO @Broken: cascade create/delete/restore/commented to children?
 
     internal_mutation = ModuleMutation(
         type=internal_type,
@@ -140,7 +145,6 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         revision=thing.revision,
     )
     internal_mutation.data = mapper.rmap_flat(thing)
-
     return [internal_mutation]
 
 
