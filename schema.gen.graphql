@@ -146,6 +146,7 @@ type Client implements Node {
   createdAt: DateTime!
   updatedAt: DateTime!
   lastSeenAt: DateTime
+  closedAt: DateTime
   type: ClientType!
   deviceName: String
   browserName: String

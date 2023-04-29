@@ -23,7 +23,7 @@ from bench.api.util import asafe_subscription, safe_mutation, to_uuid
 from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS, CLIENT_PRESENT_TIMEOUT_SECONDS
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, publish, subscribe
-from bench.msg.messages import ClientChangedPayload
+from bench.msg.messages import ClientChangedPayload, ClientOrigin
 from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
@@ -101,6 +101,7 @@ class Client(gql.relay.Node):
     created_at: auto
     updated_at: auto
     last_seen_at: auto
+    closed_at: auto
     type: ClientType
     device_name: auto
     browser_name: auto
@@ -242,9 +243,8 @@ class UserMutation:
         client.save()
         # set client id in session
         info.context.request.scope["session"]["client_id"] = client.id
-        async_to_sync(publish)(
-            NMessageType.CLIENT_CHANGED, ClientChangedPayload(client_id=client.id)
-        )
+        # broadcast client change
+        _publish_client_changed(client, info)
         return client
 
     @safe_mutation
@@ -259,6 +259,7 @@ class UserMutation:
         client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.last_seen_at = client.closed_at
         client.save()
+        _publish_client_changed(client, info)
         return client
 
     @safe_mutation
@@ -272,7 +273,14 @@ class UserMutation:
         client = models.Client.objects.get(id=client_id)
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
+        _publish_client_changed(client, info)
         return client
+
+
+def _publish_client_changed(client: models.Client, info: Info):
+    client_nonce = info.context.request.headers.get("x-client-nonce")
+    origin = ClientOrigin("user", client.id, client_nonce)
+    async_to_sync(publish)(NMessageType.CLIENT_CHANGED, ClientChangedPayload(client=origin))
 
 
 @gql.type
@@ -342,20 +350,27 @@ class ClientSubscription:
         project_version_id: GlobalID | None,
     ) -> AsyncGenerator[Client, None]:
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        project_id = to_uuid(project_id)
+        project_version_id = to_uuid(project_version_id)
         client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
-        to_uuid(info.context.connection_params.get("X-Client-Nonce"))
-        logger.bind(user=user, project_version_id=project_version_id, client_id=client_id)
+        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        log = logger.bind(user=user, project_version_id=project_version_id, client_id=client_id)
 
         change_sub = await subscribe(NMessageType.CLIENT_CHANGED, payload_t=ClientChangedPayload)
 
+        log.info("clients.listen")
         while True:
             change: NMessage[ClientChangedPayload] = await change_sub.next_msg()
-            if change.payload.client_id == client_id:
+            if (
+                change.payload.client.id == client_id
+                and change.payload.client.nonce == client_nonce
+            ):
                 continue  # skip self
 
-            client = await models.Client.objects.aget(id=change.payload.client_id)
+            client = await models.Client.objects.aget(id=change.payload.client.id)
             if project_id and client.project_id != project_id:
                 continue
             if project_version_id and client.project_version_id != project_version_id:
                 continue
+            log.debug("clients.update", client=client.id)
             yield client

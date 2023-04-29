@@ -3,9 +3,10 @@ import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
+import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { WS_CONNECTED } from "@/utils/globals";
-import { useQuery } from "@vue/apollo-composable";
-import { createSharedComposable } from "@vueuse/core";
+import { useApolloClient, useQuery } from "@vue/apollo-composable";
+import { createSharedComposable, useDebounceFn } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { onBeforeUnmount, ref, toRef, watch, type Ref, computed } from "vue";
 
@@ -88,7 +89,7 @@ function getOrCreateClientId(): string {
   }
 }
 
-function _useClient(presenceIntervalMs = 10000) {
+function _useClient(presenceIntervalMs = 15000) {
   const editor = useEditorState();
   const projectId = toRef(editor, "currentProjectId");
   const projectVersionId = toRef(editor, "currentProjectVersionId");
@@ -109,24 +110,30 @@ function _useClient(presenceIntervalMs = 10000) {
     nonce: CLIENT_NONCE,
   });
 
+  async function _upsertInfo() {
+    await ops.client.upsert(
+      localClientId,
+      clientType,
+      deviceName,
+      browserName,
+      projectId.value,
+      projectVersionId.value,
+      editor.focusedFileId,
+      editor.focusedElementType == "Statement" ? editor.focusedElementId : null,
+      null,
+      null,
+      null
+    );
+  }
+
+  const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 1000, { maxWait: 3000 });
+
   // upsert client info if logged in
   watch(
     () => [auth.loggedIn.value, projectId.value, projectVersionId.value, editor.focusedFileId, editor.focusedElementId],
     async () => {
       if (auth.loggedIn.value) {
-        await ops.client.upsert(
-          localClientId,
-          clientType,
-          deviceName,
-          browserName,
-          projectId.value,
-          projectVersionId.value,
-          editor.focusedFileId,
-          editor.focusedElementType == "Statement" ? editor.focusedElementId : null,
-          null,
-          null,
-          null
-        );
+        await _upsertInfoDebounced();
       } else {
         // remove client info
         localStorage.removeItem("client_id");
@@ -182,6 +189,7 @@ export const ClientContentType = graphql(/* GraphQL */ `
       name
     }
     lastSeenAt
+    closedAt
     active
     present
   }
@@ -197,6 +205,8 @@ export function useConnectedClients(
     projectVersionId: Ref<string | null>;
     userId: Ref<string | null>;
     inSameOrganizations?: Ref<boolean>;
+    active: Ref<boolean | null>;
+    present: Ref<boolean | null>;
   },
   options: { live?: boolean; first?: number }
 ) {
@@ -208,6 +218,7 @@ export function useConnectedClients(
         $userId: GlobalID
         $inSameOrganizations: Boolean!
         $first: Int
+        $active: Boolean
       ) {
         clients(
           projectId: $projectId
@@ -215,6 +226,7 @@ export function useConnectedClients(
           userId: $userId
           inSameOrganizations: $inSameOrganizations
           first: $first
+          active: $active
         ) {
           totalCount
           edges {
@@ -230,21 +242,97 @@ export function useConnectedClients(
       projectVersionId: filter.projectVersionId,
       userId: filter.userId,
       inSameOrganizations: filter.inSameOrganizations,
+      active: filter.active,
+      present: filter.present,
       first: options.first,
     }
   );
 
   if (options.live) {
-    // TODO @Feature: subscribe to client changes
+    subscribeToMore({
+      document: graphql(/* GraphQL */ `
+        subscription clientsChanged($projectId: GlobalID, $projectVersionId: GlobalID) {
+          clientsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {
+            ...ClientContentType
+          }
+        }
+      `),
+      variables: {
+        projectId: filter.projectId,
+        projectVersionId: filter.projectVersionId,
+      },
+      updateQuery: (prev, { subscriptionData }) => {
+        if (!subscriptionData.data) return prev;
+        const client = useFragment(ClientContentType, subscriptionData.data.clientsChanged);
+        return {
+          clients: getUpdatedConnectionQuery(client, prev.clients),
+        };
+      },
+    });
   }
 
   const client = useClient();
   const clients = computed(
-    () => clientsResult.value?.clients.edges.map((edge: any) => useFragment(ClientContentType, edge.node)) ?? []
+    () =>
+      clientsResult.value?.clients.edges
+        .map((edge: any) => useFragment(ClientContentType, edge.node))
+        .sort((a, b) => (a.id < b.id ? -1 : 1)) ?? []
   );
+
+  // every minute, update active/present status for clients in cache (we don't always get notified on disconnect)
+  const { client: apolloClient } = useApolloClient();
+  const interval = setInterval(async () => {
+    const fragment = graphql(/* GraphQL */ `
+      fragment ClientStatus on Client {
+        id
+        lastSeenAt
+        closedAt
+        active
+        present
+      }
+    `);
+    const activeCutoff = new Date(Date.now() - CLIENT_ACTIVE_TIMEOUT_SECONDS * 1000).toISOString();
+    const presentCutoff = new Date(Date.now() - CLIENT_PRESENT_TIMEOUT_SECONDS * 1000).toISOString();
+    clients.value.forEach((c) => {
+      apolloClient.cache.updateFragment({ id: `Client:${c.id}`, fragment }, (prev: any) => ({
+        ...prev,
+        active: !(prev.closedAt && prev.closedAt >= prev.lastSeenAt) && prev.lastSeenAt >= activeCutoff,
+        present: !(prev.closedAt && prev.closedAt >= prev.lastSeenAt) && prev.lastSeenAt >= presentCutoff,
+      }));
+    }, 60 * 1000);
+  });
+  onBeforeUnmount(() => clearInterval(interval));
+
   return {
     totalCount: computed(() => clientsResult.value?.clients.totalCount ?? 0),
     clients,
     clientsWithoutSelf: computed(() => clients.value.filter((c) => c.id != client.info.value.id)),
+    activeClients: computed(() => clients.value.filter((c) => c.active)),
+    activeClientsWithoutSelf: computed(() => clients.value.filter((c) => c.active && c.id != client.info.value.id)),
+    presentClients: computed(() => clients.value.filter((c) => c.present)),
+    presentClientsWithoutSelf: computed(() => clients.value.filter((c) => c.present && c.id != client.info.value.id)),
   };
 }
+
+function _useCurrentClients() {
+  const editor = useEditorState();
+  const clients = useConnectedClients(
+    {
+      projectId: toRef(editor, "currentProjectId"),
+      projectVersionId: toRef(editor, "currentProjectVersionId"),
+      userId: ref(null),
+      inSameOrganizations: computed(() => editor.currentProjectId == null),
+      active: ref(null),
+      present: ref(true),
+    },
+    {
+      live: true,
+    }
+  );
+
+  return {
+    ...clients,
+  };
+}
+
+export const useCurrentClients = createSharedComposable(_useCurrentClients);

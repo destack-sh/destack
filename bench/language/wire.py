@@ -399,7 +399,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             language=data.lang,
             code=data.code,
             type_node=type_node,
-            xblocks=[wmap_xblock(x) for x in data.xblocks],
+            xblocks=[wmap_xblock(x) for x in (data.xblocks or [])],
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
@@ -413,7 +413,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             description=data.description,
             language=data.lang,
             type_node=type_node,
-            records=[wmap_record(r) for r in data.records],
+            records=[wmap_record(r) for r in (data.records or [])],
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(

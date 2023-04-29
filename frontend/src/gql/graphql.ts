@@ -159,6 +159,7 @@ export type Client = Node & {
   __typename?: "Client";
   active: Scalars["Boolean"];
   browserName?: Maybe<Scalars["String"]>;
+  closedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
   file?: Maybe<File>;
@@ -3100,6 +3101,7 @@ export type ClientContentTypeFragment = {
   deviceName?: string | null;
   browserName?: string | null;
   lastSeenAt?: any | null;
+  closedAt?: any | null;
   active: boolean;
   present: boolean;
   user: { __typename?: "User"; id: any; name: string; username: string; email: string };
@@ -3114,6 +3116,7 @@ export type ConnectedClientsQueryVariables = Exact<{
   userId?: InputMaybe<Scalars["GlobalID"]>;
   inSameOrganizations: Scalars["Boolean"];
   first?: InputMaybe<Scalars["Int"]>;
+  active?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type ConnectedClientsQuery = {
@@ -3127,6 +3130,27 @@ export type ConnectedClientsQuery = {
     }>;
   };
 };
+
+export type ClientsChangedSubscriptionVariables = Exact<{
+  projectId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type ClientsChangedSubscription = {
+  __typename?: "Subscription";
+  clientsChanged: { __typename?: "Client" } & {
+    " $fragmentRefs"?: { ClientContentTypeFragment: ClientContentTypeFragment };
+  };
+};
+
+export type ClientStatusFragment = {
+  __typename?: "Client";
+  id: any;
+  lastSeenAt?: any | null;
+  closedAt?: any | null;
+  active: boolean;
+  present: boolean;
+} & { " $fragmentName"?: "ClientStatusFragment" };
 
 export type ProjectMigrationRefsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
@@ -4687,6 +4711,7 @@ export const ClientContentTypeFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
+          { kind: "Field", name: { kind: "Name", value: "closedAt" } },
           { kind: "Field", name: { kind: "Name", value: "active" } },
           { kind: "Field", name: { kind: "Name", value: "present" } },
         ],
@@ -4694,6 +4719,26 @@ export const ClientContentTypeFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ClientContentTypeFragment, unknown>;
+export const ClientStatusFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ClientStatus" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Client" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
+          { kind: "Field", name: { kind: "Name", value: "closedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "present" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ClientStatusFragment, unknown>;
 export const EvaluationResultContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -7808,6 +7853,11 @@ export const ConnectedClientsDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "active" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -7841,6 +7891,11 @@ export const ConnectedClientsDocument = {
                 name: { kind: "Name", value: "first" },
                 value: { kind: "Variable", name: { kind: "Name", value: "first" } },
               },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "active" },
+                value: { kind: "Variable", name: { kind: "Name", value: "active" } },
+              },
             ],
             selectionSet: {
               kind: "SelectionSet",
@@ -7872,6 +7927,54 @@ export const ConnectedClientsDocument = {
     ...ClientContentTypeFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ConnectedClientsQuery, ConnectedClientsQueryVariables>;
+export const ClientsChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "clientsChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "clientsChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ClientContentType" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...ClientContentTypeFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ClientsChangedSubscription, ClientsChangedSubscriptionVariables>;
 export const ProjectMigrationRefsDocument = {
   kind: "Document",
   definitions: [
