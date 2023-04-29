@@ -12,7 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
-from bench.api.util import asafe_subscription
+from bench.api.util import asafe_subscription, to_uuid
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType
 
@@ -63,13 +63,8 @@ class ModuleSubscription:
     ) -> AsyncGenerator[ModuleChange, None]:
         project_version_id = UUID(project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
-        client_id = info.context.request.scope["session"].get("client_id")
-        if client_id:
-            client_id = UUID(client_id)
-        client_nonce = info.context.connection_params.get("X-Client-Nonce")
-        if client_nonce:
-            client_nonce = UUID(client_nonce)
-
+        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
         log = logger.bind(
             project_version_id=project_version_id,
             user=user,

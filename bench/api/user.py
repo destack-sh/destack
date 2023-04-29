@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional, cast
 
 import pytz
+import structlog
 from asgiref.sync import async_to_sync
 from channels.auth import login as channels_login
 from channels.auth import logout as channels_logout
@@ -19,13 +20,19 @@ from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_c
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import asafe_subscription, safe_mutation, to_uuid
-from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS
+from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS, CLIENT_PRESENT_TIMEOUT_SECONDS
+from bench.msg import NMessageType
+from bench.msg.core import NMessage, publish, subscribe
+from bench.msg.messages import ClientChangedPayload
 from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
-    from bench.api.project import Project, ProjectVersion
+    from bench.api.project import File, Project, ProjectVersion
+    from bench.api.statement import DatasetRecord, SimpleTypeNode, Statement
     from bench.api.token import AccessToken
+
+logger = structlog.get_logger(__name__)
 
 
 @gql.django.filter(models.User)
@@ -100,6 +107,25 @@ class Client(gql.relay.Node):
     user: Annotated["User", lazy(".user")]
     project: Optional[Annotated["Project", lazy(".project")]]
     project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
+    file: Optional[Annotated["File", lazy(".project")]]
+    statement: Optional[Annotated["Statement", lazy(".statement")]]
+    type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
+    record: Optional[Annotated["DatasetRecord", lazy(".statement")]]
+    path: auto
+    lock: Optional["Lock"]
+    active: bool
+    present: bool
+
+
+@gql.django.type(models.Lock)
+class Lock(gql.relay.Node):
+    created_at: auto
+    updated_at: auto
+    project_version: Annotated["ProjectVersion", lazy(".project")]
+    statement: Optional[Annotated["Statement", lazy(".statement")]]
+    type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
+    record: Optional[Annotated["DatasetRecord", lazy(".statement")]]
+    path: auto
 
 
 @gql.input
@@ -126,6 +152,11 @@ class ClientUpsertInput(gql.NodeInput):
     browser_name: Optional[str]
     project_id: Optional[GlobalID]
     project_version_id: Optional[GlobalID]
+    file_id: Optional[GlobalID]
+    statement_id: Optional[GlobalID]
+    type_node_id: Optional[GlobalID]
+    record_id: Optional[GlobalID]
+    path: Optional[str]
 
 
 @gql.type
@@ -201,11 +232,19 @@ class UserMutation:
         client.project_version_id = (
             input.project_version_id.node_id if input.project_version_id else None
         )
+        client.file_id = input.file_id.node_id if input.file_id else None
+        client.statement_id = input.statement_id.node_id if input.statement_id else None
+        client.type_node_id = input.type_node_id.node_id if input.type_node_id else None
+        client.record_id = input.record_id.node_id if input.record_id else None
+        client.path = input.path
         client.browser_name = input.browser_name
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
         # set client id in session
         info.context.request.scope["session"]["client_id"] = client.id
+        async_to_sync(publish)(
+            NMessageType.CLIENT_CHANGED, ClientChangedPayload(client_id=client.id)
+        )
         return client
 
     @safe_mutation
@@ -247,7 +286,8 @@ class ClientQuery:
         user_id: GlobalID | None = None,
         organization_id: GlobalID | None = None,
         in_same_organizations: bool = True,
-        active: bool = True,
+        active: Optional[bool] = None,
+        present: Optional[bool] = True,
     ) -> Iterable[Client]:
         qs = models.Client.objects.all()
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
@@ -280,6 +320,14 @@ class ClientQuery:
                 Q(last_seen_at__gte=active_cutoff)
                 & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
             )
+        if present:
+            present_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
+                seconds=CLIENT_PRESENT_TIMEOUT_SECONDS
+            )
+            qs = qs.filter(
+                Q(last_seen_at__gte=present_cutoff)
+                & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
+            )
 
         return qs
 
@@ -292,9 +340,22 @@ class ClientSubscription:
         info: Info,
         project_id: GlobalID | None,
         project_version_id: GlobalID | None,
-        user_id: GlobalID | None,
-        organization_id: GlobalID | None,
-        in_same_organizations: bool = False,
-        active: bool = True,
     ) -> AsyncGenerator[Client, None]:
-        raise NotImplementedError
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
+        to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        logger.bind(user=user, project_version_id=project_version_id, client_id=client_id)
+
+        change_sub = await subscribe(NMessageType.CLIENT_CHANGED, payload_t=ClientChangedPayload)
+
+        while True:
+            change: NMessage[ClientChangedPayload] = await change_sub.next_msg()
+            if change.payload.client_id == client_id:
+                continue  # skip self
+
+            client = await models.Client.objects.aget(id=change.payload.client_id)
+            if project_id and client.project_id != project_id:
+                continue
+            if project_version_id and client.project_version_id != project_version_id:
+                continue
+            yield client

@@ -157,14 +157,22 @@ export type BuildStateOperationInfo = BuildState | OperationInfo;
 
 export type Client = Node & {
   __typename?: "Client";
+  active: Scalars["Boolean"];
   browserName?: Maybe<Scalars["String"]>;
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
+  file?: Maybe<File>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
+  lock?: Maybe<Lock>;
+  path?: Maybe<Scalars["String"]>;
+  present: Scalars["Boolean"];
   project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
+  record?: Maybe<DatasetRecord>;
+  statement?: Maybe<Statement>;
   type: ClientType;
+  typeNode?: Maybe<SimpleTypeNode>;
   updatedAt: Scalars["DateTime"];
   user: User;
 };
@@ -200,10 +208,15 @@ export enum ClientType {
 export type ClientUpsertInput = {
   browserName?: InputMaybe<Scalars["String"]>;
   deviceName?: InputMaybe<Scalars["String"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]>;
   id: Scalars["GlobalID"];
+  path?: InputMaybe<Scalars["String"]>;
   projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  recordId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]>;
   type: ClientType;
+  typeNodeId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type CommitInput = {
@@ -688,6 +701,18 @@ export enum JobType {
   Interp = "INTERP",
   Lint = "LINT",
 }
+
+export type Lock = Node & {
+  __typename?: "Lock";
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  path: Scalars["String"];
+  projectVersion: ProjectVersion;
+  record?: Maybe<DatasetRecord>;
+  statement?: Maybe<Statement>;
+  typeNode?: Maybe<SimpleTypeNode>;
+  updatedAt: Scalars["DateTime"];
+};
 
 export type ModuleChange = {
   __typename?: "ModuleChange";
@@ -1598,13 +1623,14 @@ export type QueryBuildCandidatesArgs = {
 };
 
 export type QueryClientsArgs = {
-  active?: Scalars["Boolean"];
+  active?: InputMaybe<Scalars["Boolean"]>;
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   inSameOrganizations?: Scalars["Boolean"];
   last?: InputMaybe<Scalars["Int"]>;
   organizationId?: InputMaybe<Scalars["GlobalID"]>;
+  present?: InputMaybe<Scalars["Boolean"]>;
   projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   userId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2127,12 +2153,8 @@ export type SubscriptionBuildCandidateChangedArgs = {
 };
 
 export type SubscriptionClientsChangedArgs = {
-  active?: Scalars["Boolean"];
-  inSameOrganizations?: Scalars["Boolean"];
-  organizationId?: InputMaybe<Scalars["GlobalID"]>;
   projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  userId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SubscriptionEvaluationsChangedArgs = {
@@ -3077,8 +3099,13 @@ export type ClientContentTypeFragment = {
   type: ClientType;
   deviceName?: string | null;
   browserName?: string | null;
-  user: { __typename?: "User"; id: any; name: string; username: string };
-  project?: { __typename?: "Project"; id: any; name: string; path: string } | null;
+  lastSeenAt?: any | null;
+  active: boolean;
+  present: boolean;
+  user: { __typename?: "User"; id: any; name: string; username: string; email: string };
+  project?: { __typename?: "Project"; id: any; name: string } | null;
+  file?: { __typename?: "File"; id: any; name: string } | null;
+  statement?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "ClientContentTypeFragment" };
 
 export type ConnectedClientsQueryVariables = Exact<{
@@ -3527,6 +3554,11 @@ export type UpsertClientMutationVariables = Exact<{
   browserName?: InputMaybe<Scalars["String"]>;
   projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]>;
+  typeNodeId?: InputMaybe<Scalars["GlobalID"]>;
+  recordId?: InputMaybe<Scalars["GlobalID"]>;
+  path?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type UpsertClientMutation = {
@@ -4617,6 +4649,7 @@ export const ClientContentTypeFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "email" } },
               ],
             },
           },
@@ -4628,10 +4661,34 @@ export const ClientContentTypeFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "path" } },
               ],
             },
           },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "present" } },
         ],
       },
     },
@@ -8864,6 +8921,31 @@ export const UpsertClientDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "typeNodeId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "recordId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "path" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8907,6 +8989,31 @@ export const UpsertClientDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "projectVersionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "fileId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "typeNodeId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "typeNodeId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "recordId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "recordId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "path" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "path" } },
                     },
                   ],
                 },

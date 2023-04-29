@@ -122,9 +122,11 @@ def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
     return _map_exception(e)  # borrowed from strawberry_django_plus
 
 
-def to_uuid(id: UUID | GlobalID | None) -> UUID | None:
+def to_uuid(id: str | UUID | GlobalID | None) -> UUID | None:
     if id is None:
         return id
+    if isinstance(id, str):
+        return UUID(id)
     if isinstance(id, UUID):
         return id
     return UUID(id.node_id)

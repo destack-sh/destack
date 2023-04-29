@@ -39,7 +39,7 @@ from .project import (
 )
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType, XBlock, XKind, XSource
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
-from .user import Client, ClientType, User
+from .user import Client, ClientType, Lock, User
 
 __all__ = [
     "AccessToken",
@@ -57,9 +57,9 @@ __all__ = [
     "DeploymentType",
     "EvaluateSettings",
     "EvaluationKind",
+    "EvaluationPlan",
     "EvaluationResult",
     "EvaluationScope",
-    "EvaluationPlan",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",
@@ -69,6 +69,7 @@ __all__ = [
     "Job",
     "JobStatus",
     "JobType",
+    "Lock",
     "Notification",
     "NotificationStatus",
     "NotificationType",
