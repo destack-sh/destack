@@ -425,6 +425,8 @@ def fabricate_value(type: TypeNode) -> Any:
     elif type.tag == TypeTag.ARRAY:
         return [fabricate_value(type.children[0])]
     elif type.tag == TypeTag.ENUM:
+        if len(type.members) == 0:
+            return None
         return type.members[0].value
     elif type.tag == TypeTag.STRUCT:
         return {subtype.name: fabricate_value(subtype) for subtype in type.children}
