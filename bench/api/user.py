@@ -22,7 +22,7 @@ from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import asafe_subscription, safe_mutation, to_uuid
 from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS, CLIENT_PRESENT_TIMEOUT_SECONDS
 from bench.msg import NMessageType
-from bench.msg.core import NMessage, publish, subscribe
+from bench.msg.core import NMessage, publish_soon, subscribe
 from bench.msg.messages import ClientChangedPayload, ClientOrigin
 from bench.settings import DEBUG, TEST
 
@@ -279,10 +279,10 @@ class UserMutation:
 
 def _publish_client_changed(client: models.Client, info: Info):
     # TODO @Performance: client/presence info should live in Redis
-    #  (and status changes should contain the entire data, so no reads are required after first)
+    #  (and status changes should contain the entire data, so no reads are required after initial)
     client_nonce = info.context.request.headers.get("x-client-nonce")
     origin = ClientOrigin("user", client.id, client_nonce)
-    async_to_sync(publish)(NMessageType.CLIENT_CHANGED, ClientChangedPayload(client=origin))
+    publish_soon(NMessageType.CLIENT_CHANGED, ClientChangedPayload(client=origin))
 
 
 @gql.type

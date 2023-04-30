@@ -10,6 +10,7 @@ from functools import wraps
 from typing import Any, Awaitable, Callable, Generic, Type, TypeVar
 from uuid import UUID
 
+import janus as janus
 import nats
 import nats.aio.client
 import structlog
@@ -21,7 +22,6 @@ from bench.msg.messages import (
     NMessageType,
     to_topic,
 )
-from bench.utils.func import wrap_task
 from bench.utils.serialize import from_dict, to_dict
 from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 
@@ -79,6 +79,7 @@ VERSION = os.environ["VERSION"]
 class NMessage(Generic[PayloadT]):
     type: NMessageType
     payload: PayloadT = None
+    topic: typing.Optional[str] = None
     sent_at: datetime = required_field()
     id: UUID = dataclasses.field(default_factory=uuid.uuid4)
     version: str = VERSION
@@ -118,6 +119,7 @@ def _serialize_message(message: NMessage) -> str:
     # serialize any dataclass as something jsonable
     message_dict = {
         "type": message.type,
+        "topic": message.topic,
         "id": str(message.id),
         "sent_at": str(message.sent_at),
         "version": message.version,
@@ -143,6 +145,7 @@ def _parse_message(message_json: str) -> NMessage:
             )
             raise
     message_dict["type"] = NMessageType(message_dict["type"])
+    message_dict["topic"] = message_dict.get("topic")
     message_dict["sent_at"] = datetime.fromisoformat(message_dict["sent_at"])
     message_dict["id"] = UUID(message_dict["id"])
 
@@ -231,20 +234,48 @@ async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscripti
 
 
 async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> None:
-    if not nc_init.is_set():
-        raise RuntimeError("nats not initialized")
+    message = prepare_publish(type, payload, topic)
+    message.sent_at = datetime.utcnow()
+    await do_publish(message, message.topic)
+
+
+def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
     if topic is None:
         topic = to_topic(type, payload)
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
-    message = NMessage(type, payload, sent_at=datetime.utcnow())
+    message = NMessage(type=type, topic=topic, payload=payload, sent_at=datetime.utcnow())
+    return message
+
+
+async def do_publish(message: NMessage, topic: str):
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
     log.debug("publish", topic=topic, message=message)
     serialized = _serialize_message(message)
     await nc.publish(topic, serialized.encode("utf-8"))
 
 
+_soon_queue: janus.Queue[NMessage] | None = None
+
+
 def publish_soon(type: NMessageType, payload: Any, *, topic: str = None) -> None:
-    asyncio.create_task(wrap_task(publish(type, payload, topic=topic), f"publish_soon_{type}"))
+    global _soon_queue
+    if _soon_queue is None:
+        raise RuntimeError("publish_soon called before process_soon_queue started")
+    message = prepare_publish(type, payload, topic)
+    _soon_queue.sync_q.put_nowait(message)
+
+
+async def process_soon_queue():
+    global _soon_queue
+    if _soon_queue is not None:
+        raise RuntimeError("process_soon_queue already started")
+    _soon_queue = janus.Queue()
+    while True:
+        message = await _soon_queue.async_q.get()
+        log.debug("publish_soon", message=message)
+        await do_publish(message, message.topic)
 
 
 class NSubscription(Generic[PayloadT]):
