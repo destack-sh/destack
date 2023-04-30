@@ -175,6 +175,8 @@ incremental==22.10.0
     # via twisted
 inflection==0.5.1
     # via drf-spectacular
+janus==1.0.0
+    # via -r requirements.in
 json-stream==2.2.1
     # via -r requirements.in
 json-stream-rs-tokenizer==0.4.16
@@ -325,6 +327,7 @@ txaio==23.1.1
 typing-extensions==4.5.0
     # via
     #   django-stubs-ext
+    #   janus
     #   libcst
     #   opentelemetry-sdk
     #   strawberry-django-plus

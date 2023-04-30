@@ -152,7 +152,10 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
 _EXTRA_FIELDS_BY_SCOPE = {
     MMS.STATEMENT: {
         "commented": False,
-    }
+    },
+    MMS.FILE: {
+        "parent_id": None,
+    },
 }
 
 _EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}

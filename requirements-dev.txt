@@ -297,6 +297,10 @@ iniconfig==2.0.0
     # via pytest
 isort==5.10.1
     # via -r requirements-dev.in
+janus==1.0.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 json-stream==2.2.1
     # via
     #   -c requirements.txt
@@ -622,6 +626,7 @@ typing-extensions==4.5.0
     #   django-stubs
     #   django-stubs-ext
     #   djangorestframework-stubs
+    #   janus
     #   libcst
     #   mypy
     #   opentelemetry-sdk

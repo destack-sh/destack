@@ -5,7 +5,6 @@ from typing import Any, Optional, Sequence, cast
 
 import posthog
 import structlog
-from asgiref.sync import async_to_sync
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
@@ -19,7 +18,7 @@ from bench.api.util import wrap_exceptions
 from bench.language.mutate import MMT
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
-from bench.msg.core import publish
+from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
 from bench.runtime.mutate import (
     MutableThing,
@@ -179,14 +178,12 @@ def pub_mutation(
         internal_mutations.extend(map_mutation_to_internal(mutation, thing))
 
     project_version_id = mutations[0].project_version_id
-    # TODO @Performance: using async_to_sync to publish mutation is inefficient
-    #  (can't use publish_soon here because it requires an event loop to be running)
-    async_to_sync(publish)(
+    publish_soon(
         NMessageType.MODULE_CHANGED,
         ModuleChangedPayload(module_id=project_version_id, client=origin, mutations=mutations),
     )
     if internal_mutations:
-        async_to_sync(publish)(
+        publish_soon(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
                 module_id=project_version_id, client=origin, mutations=internal_mutations

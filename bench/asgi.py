@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-from bench.msg.core import drain_nats, init_nats
+from bench.msg.core import drain_nats, init_nats, process_soon_queue
 from bench.runtime import run
 from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_INTSERVER, RUN_WORKER, TEST
 from bench.utils.func import wrap_task
@@ -65,6 +65,9 @@ application = ProtocolTypeRouter(
 # NATS must always run.
 task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
 reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
+
+# 'soon' publish queue must always run.
+task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
 if RUN_INTSERVER:
     from bench.runtime.langserver import LanguageServer
