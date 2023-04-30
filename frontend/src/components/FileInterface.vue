@@ -8,6 +8,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { provideStatementActions, type FileState } from "@/state/actions/statement";
+import { useAuth } from "@/state/auth";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
@@ -241,6 +242,8 @@ const metaActions = computed(() => [
     enabled: !editor.readonly,
   },
 ]);
+
+const auth = useAuth();
 </script>
 
 <template>
@@ -325,7 +328,7 @@ const metaActions = computed(() => [
           </span>
         </span>
         <!-- Other clients -->
-        <ClientsPopover size="medium" :file-id="props.fileId" />
+        <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="props.fileId" />
       </div>
       <!-- Add statement to start -->
       <StatementAddArea class="mx-auto max-w-[900px]" @click="editor.readonly || insertStatementStart()" />
