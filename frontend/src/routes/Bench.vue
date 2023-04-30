@@ -73,6 +73,7 @@ import {
 import { useRouter } from "vue-router";
 import { useModuleSync } from "@/state/sync";
 import ClientsPopover from "@/components/basic/ClientsPopover.vue";
+import { useAuth } from "@/state/auth";
 
 const props = defineProps<{
   owner: string;
@@ -332,11 +333,11 @@ watchEffect(() => {
   }
 });
 
-// suppress control+s (offer named commit instead)
+// suppress control+s (suggest snapshot instead)
 Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   notifications.showIf(
     {
-      type: "saveSuppressed",
+      type: "editor.suppressSave",
       kind: "notice",
       message: "Saving is automatic",
       description: "All changes are synced automatically.",
@@ -351,6 +352,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
 const runtime = useCurrentInterpModule();
 const sync = useModuleSync(versionToViewId);
 const visibleErrors = useVisibleErrors();
+const auth = useAuth();
 
 // show notification if disconnected/reconnected
 const connectionLost = ref(false);
@@ -629,7 +631,7 @@ onBeforeUnmount(() => {
             <!-- <NotificationPopover @show="editor.showGlobalHeader = true" /> -->
           </div>
         </FadeTransition>
-        <ClientsPopover class="ml-2" size="large" />
+        <ClientsPopover v-if="auth.loggedIn.value" class="ml-2" size="large" />
         <ProfileButton class="ml-2" />
       </template>
     </FatHeader>
