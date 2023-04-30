@@ -134,8 +134,12 @@ class FileData:
     generated: bool
 
     def __str__(self):
-        generated_str = ".gen" if self.generated else ""
-        return f"{self.module_id}/{self.path}{generated_str}"
+        return f"{self.module_id}/{self.path}"
+
+    @property
+    def name(self):
+        # name property to emulate File model
+        return self.path.split(".")[-1]
 
     def __repr__(self):
         return f"<File {str(self)}>"
@@ -198,7 +202,9 @@ def rmap_module(module: language.Module, impute_type_references: bool = False) -
     return ModuleData(
         id=module.id,
         name=module.name,
-        files=[rmap_file(file, impute_type_references=impute_type_references) for file in module.files],
+        files=[
+            rmap_file(file, impute_type_references=impute_type_references) for file in module.files
+        ],
     )
 
 
@@ -256,7 +262,10 @@ def rmap_file(file: language.File, impute_type_references: bool = False) -> File
         module_id=file.module.id,
         path=file.path,
         generated=file.generated,
-        statements=[rmap_statement(statement, impute_type_references=impute_type_references) for statement in file.statements],
+        statements=[
+            rmap_statement(statement, impute_type_references=impute_type_references)
+            for statement in file.statements
+        ],
         revision=1,
     )
 
@@ -272,7 +281,9 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
     return file
 
 
-def rmap_statement(statement: language.Statement, impute_type_references: bool = False) -> StatementData:
+def rmap_statement(
+    statement: language.Statement, impute_type_references: bool = False
+) -> StatementData:
     """Maps a language statement to a wire statement (incl. refs)."""
     # use statement id if possible, else use statement path
     reference = (
@@ -320,7 +331,9 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
     return statement
 
 
-def rmap_symbol(content: language.SymbolContent, data: StatementData, impute_type_references: bool = False) -> None:
+def rmap_symbol(
+    content: language.SymbolContent, data: StatementData, impute_type_references: bool = False
+) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     if isinstance(content, language.GeneratorContent):
         data.generated_mappings = content.generated_mappings
