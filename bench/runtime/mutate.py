@@ -2,6 +2,7 @@ import enum
 from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from datetime import datetime
+from itertools import chain
 from typing import Any, Union
 from uuid import UUID
 
@@ -18,7 +19,6 @@ MutableThing = Union[
     models.DatasetRecord,
     models.XBlock,
 ]
-
 
 # refer to ModuleMutationType and _MODULE_MUTATION_MAP
 _TRIVIAL_PUBLIC_TO_INTERNAL = {
@@ -78,18 +78,21 @@ _SCOPE_TO_TYPE_NAME = {
 }
 
 
-def make_public_mutation(type: MMT, input: Any, thing: MutableThing):
+def map_mutation_from_public(
+    type: MMT, input: Any, thing: MutableThing
+) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
     """
-    Create the public multiplayer mutation corresponding to a mutation of a project thing.
+    Remap/create public multiplayer mutation for other clients and internals.
+    Returns both the internal and public mutations to publish.
     """
     if isinstance(thing, models.File):
-        statement_id = None
         project_version_id = thing.project_version_id
         file_id = thing.id
+        statement_id = None
     elif isinstance(thing, models.Statement):
-        statement_id = thing.id
         project_version_id = thing.project_version_id
         file_id = thing.file_id
+        statement_id = thing.id
     elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
         project_version_id = thing.statement.project_version_id
         file_id = thing.statement.file_id
@@ -97,10 +100,7 @@ def make_public_mutation(type: MMT, input: Any, thing: MutableThing):
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
 
-    # public mutation (with inputs to apply in client)
-    # TODO @Broken: some public mutations need to be extended for previously offline clients
-    #  e.g. restore is insufficient if you don't have the original file?/statement/etc.
-    return ModuleMutation(
+    public_mutation = ModuleMutation(
         type=type,
         project_version_id=project_version_id,
         file_id=file_id,
@@ -108,6 +108,27 @@ def make_public_mutation(type: MMT, input: Any, thing: MutableThing):
         revision=thing.revision,
         input=input,
     )
+    if type == MMT.PASTE_FILE:
+        public_mutation.type = MMT.CREATE_FILE
+        statement_data = mapper.rmap_file_nested(thing, project_version_id)
+        internal = ModuleMutator(module_id=project_version_id).create(statement_data)
+        public_mutations = list(
+            chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
+        )
+        return internal.mutations, public_mutations
+    elif type == MMT.PASTE_STATEMENT:  # remap to create children
+        public_mutation.type = MMT.CREATE_STATEMENT
+        statement_data = mapper.rmap_statement(thing, file_id, project_version_id, flat=False)
+        internal = ModuleMutator(module_id=project_version_id).create(statement_data)
+        public_mutations = list(
+            chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
+        )
+        return internal.mutations, public_mutations
+    else:
+        # TODO @Broken: remap restore public mutations for previously offline clients
+        #  (restore is insufficient if you don't have the original file?/statement/etc.)
+        internal = map_mutation_to_internal(public_mutation, thing)
+        return internal, [public_mutation]
 
 
 def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> list[ModuleMutation]:
@@ -116,24 +137,27 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
 
     Simple here means only CRUD on full objects (no partial/"atomic" mutations).
     The multiplayer module state and the internal module state are not equally representative,
-    so we must further map some mutations to wholly different mutations.
+    so we map some mutations to different mutations.
     (e.g., comment mutations map to create/delete mutations on the statement)
     """
 
     if mutation.type == MMT.COMMENT_STATEMENT:
         if thing.commented:
-            internal_type = MMT.DELETE_STATEMENT
+            internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
             descendants_datas = mapper.rmap_statement_nested(thing)
-            return ModuleMutator().create_many(*descendants_datas).mutations
+            mut = ModuleMutator(module_id=mutation.project_version_id)
+            return mut.create_many(*descendants_datas).mutations
     elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
         internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
     elif mutation.type == MMT.RESTORE_FILE:
         file_data = mapper.rmap_file_nested(thing, exclude_non_semantic=True)
-        return ModuleMutator().create(file_data).mutations
+        mut = ModuleMutator(module_id=mutation.project_version_id)
+        return mut.create(file_data).mutations
     elif mutation.type == MMT.RESTORE_STATEMENT:
         descendants_datas = mapper.rmap_statement_nested(thing)
-        return ModuleMutator().create_many(*descendants_datas).mutations
+        mut = ModuleMutator(module_id=mutation.project_version_id)
+        return mut.create_many(*descendants_datas).mutations
     else:
         raise ValueError(f"mutation cannot be mapped to internal: {mutation}")
 
@@ -146,19 +170,6 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
     )
     internal_mutation.data = mapper.rmap_flat(thing)
     return [internal_mutation]
-
-
-# extra fields in public mutations that are not in internal module data
-_EXTRA_FIELDS_BY_SCOPE = {
-    MMS.STATEMENT: {
-        "commented": False,
-    },
-    MMS.FILE: {
-        "parent_id": None,
-    },
-}
-
-_EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
 
 
 def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
@@ -177,10 +188,41 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
         raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
     if mutation.type in _IGNORED_PUBLIC:
         return []
+    input = map_mutation_to_input(mutation)
+    public_mutation = ModuleMutation(
+        type=mutation.type,
+        project_version_id=mutation.project_version_id,
+        file_id=mutation.file_id,
+        statement_id=mutation.statement_id,
+        revision=mutation.revision,
+        input=input,
+    )
+    return [public_mutation]
 
+
+# extra fields in public mutations that are not in internal module data
+_EXTRA_FIELDS_BY_SCOPE = {
+    MMS.STATEMENT: {
+        "commented": False,
+    },
+    MMS.FILE: {
+        "parent_id": None,
+    },
+}
+
+_EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
+
+
+def map_mutation_to_input(mutation: ModuleMutation) -> Any:
+    """
+    Maps a simple internal mutation to an input that would cause the same mutation.
+    The returned input is already jsonable (not the original input class).
+    """
     from bench.api.sync import INPUT_CLASS_BY_MMT
 
-    # auto map data to input
+    if mutation.data is None:
+        raise ValueError(f"mutation has no data: {mutation}")
+
     extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.scope, {})
     input_cls = INPUT_CLASS_BY_MMT[mutation.type]
     input_args = {}
@@ -196,16 +238,8 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
             value = _map_id_field(key, value, mutation.type.scope)
         input_args[key] = value
     input = input_cls(**input_args)
-
-    public_mutation = ModuleMutation(
-        type=mutation.type,
-        project_version_id=mutation.project_version_id,
-        file_id=mutation.file_id,
-        statement_id=mutation.statement_id,
-        revision=mutation.revision,
-        input=input_to_gql_jsonable(input),
-    )
-    return [public_mutation]
+    input = input_to_gql_jsonable(input)
+    return input
 
 
 def input_to_gql_jsonable(value: Any) -> Any:

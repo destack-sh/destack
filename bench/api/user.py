@@ -204,6 +204,7 @@ class UserMutation:
             client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             client.last_seen_at = client.closed_at
             client.save()
+            _publish_client_changed(client, info)
         async_to_sync(channels_logout)(info.context.request.scope)
         return None
 
@@ -287,6 +288,11 @@ def _get_client_id(info: Info) -> Optional[UUID]:
 
 
 def _set_client_id(info: Info, client_id: UUID) -> None:
+    # TODO @Robustness: modifying session data causes the request to stall (and never return)
+    #  This seems to be broken in channels.sessions.SessionMiddleware, but I couldn't figure how.
+    #  In practice this means the first upsert client request will hang and
+    #  clog one client connection per host for a while (minutes?).
+    #  This isn't great and should be addressed but it doesn't affect the UX.
     info.context.request.scope["session"]["client_id"] = str(client_id)
 
 
