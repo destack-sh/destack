@@ -2038,7 +2038,6 @@ export type StatementCreateInput = {
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
-  text?: InputMaybe<Scalars["String"]>;
   type: StatementType;
 };
 

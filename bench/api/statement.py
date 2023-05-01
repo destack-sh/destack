@@ -216,7 +216,6 @@ class StatementCreateInput:
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
-    text: Optional[str] = None
 
 
 @gql.input
@@ -394,7 +393,7 @@ class StatementMutation:
             reference_id=input.reference_id.node_id if input.reference_id else None,
             description=input.description,
             lang=input.lang,
-            code=input.text if input.symbol_type == StatementType.COMMENT else input.code,
+            code=input.code,
         )
         return statement
 
@@ -416,7 +415,6 @@ class StatementMutation:
         statement.description = input.description
         statement.lang = input.lang
         statement.code = input.code
-        statement.text = input.text
         return statement
 
     @project_mutation(MMT.DELETE_STATEMENT)

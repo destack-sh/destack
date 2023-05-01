@@ -9,6 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
+from bench.language import StatementType
 from bench.language.mutate import MMS, MMT, ModuleMutation, ModuleMutator
 from bench.models import mapper
 
@@ -227,16 +228,18 @@ def map_mutation_to_input(mutation: ModuleMutation) -> Any:
     input_cls = INPUT_CLASS_BY_MMT[mutation.type]
     input_args = {}
     for field in fields(input_cls):
-        key = field.name
-        if key in _EXTRA_FIELD_RENAMES:
-            key = _EXTRA_FIELD_RENAMES[key]
-        if key in extra_fields:
-            value = extra_fields[key]
+        s_key, t_key = field.name, field.name
+        if s_key in _EXTRA_FIELD_RENAMES:
+            t_key = _EXTRA_FIELD_RENAMES[s_key]
+        if s_key == "code" and mutation.data.type == StatementType.COMMENT:
+            s_key = "text"  # :StatementCodeTextReuse
+        if s_key in extra_fields:
+            value = extra_fields[s_key]
         else:
-            value = getattr(mutation.data, key)
+            value = getattr(mutation.data, s_key)
         if isinstance(value, UUID):
-            value = _map_id_field(key, value, mutation.type.scope)
-        input_args[key] = value
+            value = _map_id_field(s_key, value, mutation.type.scope)
+        input_args[t_key] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)
     return input

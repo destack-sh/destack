@@ -1815,7 +1815,6 @@ input StatementCreateInput {
   description: String = null
   lang: String = null
   code: String = null
-  text: String = null
 }
 
 input StatementDeleteInput {
