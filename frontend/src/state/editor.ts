@@ -490,8 +490,6 @@ export const useEditorState = defineStore("editor", {
       this.zenMode = zenMode;
       this.showGlobalHeader = !zenMode;
       this.showEditorGroupHeader = !zenMode;
-      this.showLineNumbers = !zenMode;
-      this.showViewSelection = true;
       appearance.fullscreen = zenMode;
     },
 
