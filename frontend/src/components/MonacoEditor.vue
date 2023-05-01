@@ -29,7 +29,7 @@ const focused: Ref<boolean> = ref(false);
 function getEditorHeight(code: string) {
   let lines = code.split("\n").length;
   if (lines == 0) lines = 1;
-  return lines * 19;
+  return lines * 21; // TODO @Robustness: compute monaco line height automatically
 }
 
 function updateEditorHeight(container: HTMLElement, code: string) {
