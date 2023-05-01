@@ -28,6 +28,7 @@ class ModuleMutationType(enum.StrEnum):
     COMMIT = "COMMIT"
     # Files
     CREATE_FILE = "CREATE_FILE"
+    PASTE_FILE = "PASTE_FILE"
     SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
     RESTORE_FILE = "RESTORE_FILE"
     RENAME_FILE = "RENAME_FILE"
@@ -37,6 +38,7 @@ class ModuleMutationType(enum.StrEnum):
     # Statements
     CREATE_STATEMENT = "CREATE_STATEMENT"
     CREATE_STATEMENT_BLANK = "CREATE_STATEMENT_BLANK"
+    PASTE_STATEMENT = "PASTE_STATEMENT"
     SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
     UPDATE_STATEMENT_MODIFIER = "UPDATE_STATEMENT_MODIFIER"
@@ -248,6 +250,8 @@ class ModuleMutator:
         self.idx = idx
         self.module = idx.module if idx else None
         self.module_id = module_id or (idx.module.id if idx else None)
+        if self.module_id is None:
+            raise ValueError("module_id is required")
         self.mutations = mutations or []
         self._created_statements: dict[UUID, StatementData] = {}
 

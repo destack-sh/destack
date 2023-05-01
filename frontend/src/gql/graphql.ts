@@ -752,6 +752,8 @@ export enum ModuleMutationType {
   MoveRecord = "MOVE_RECORD",
   MoveStatement = "MOVE_STATEMENT",
   MoveTypeNode = "MOVE_TYPE_NODE",
+  PasteFile = "PASTE_FILE",
+  PasteStatement = "PASTE_STATEMENT",
   RenameFile = "RENAME_FILE",
   RenameStatement = "RENAME_STATEMENT",
   RestoreFile = "RESTORE_FILE",

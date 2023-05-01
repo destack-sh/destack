@@ -560,9 +560,7 @@ class StatementMutation:
         return StatementBatch(statements=list(statements))
 
     # we check auth manually here (simpler for copy/paste across projects & versions)
-    @project_mutation(
-        MMT.CREATE_STATEMENT, atomic=True, batch=True, skip_auth_check=True, register=False
-    )
+    @project_mutation(MMT.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:

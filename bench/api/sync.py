@@ -20,12 +20,7 @@ from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
-from bench.runtime.mutate import (
-    MutableThing,
-    input_to_gql_jsonable,
-    make_public_mutation,
-    map_mutation_to_internal,
-)
+from bench.runtime.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_public
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
@@ -123,7 +118,7 @@ def project_mutation(
             client_id = info.context.request.scope["session"]["client_id"]
             client_nonce = info.context.request.headers.get("x-client-nonce")
             origin = ClientOrigin("user", client_id, client_nonce)
-            pub_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
+            pub_project_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
             track_project_mutation(type, project_version, things, batch, info)
 
             return ret
@@ -157,25 +152,26 @@ def project_mutation(
     return make_resolver
 
 
-def pub_mutation(
+def pub_project_mutation(
     origin: ClientOrigin, type: MMT, original_input: Any, things: list[MutableThing], batch: bool
 ):
     """Publish mutations."""
     if not things or not SEND_API_PUB_MSG:
         return
-    if batch:
+
+    if type in (MMT.PASTE_FILE, MMT.PASTE_STATEMENT):
+        inputs = [original_input] * len(things)  # not directly unbatchable
+    elif batch:
         inputs = original_input.unbatch()
     else:
         inputs = [original_input]
-    inputs = [input_to_gql_jsonable(i) for i in inputs]
-
     mutations = []
     internal_mutations = []
     for input, thing in zip(inputs, things):
-        mutation = make_public_mutation(type, input, thing)
-        mutations.append(mutation)
-        # internal mutation (with data to apply in server)
-        internal_mutations.extend(map_mutation_to_internal(mutation, thing))
+        input = input_to_gql_jsonable(input)
+        internal, public = map_mutation_from_public(type, input, thing)
+        mutations.extend(public)
+        internal_mutations.extend(internal)
 
     project_version_id = mutations[0].project_version_id
     publish_soon(
