@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional, cast
+from uuid import UUID
 
 import pytz
 import structlog
@@ -197,7 +198,7 @@ class UserMutation:
         if not info.context.request.scope["user"].is_authenticated:
             raise PermissionDenied("can only logout when logged in")
         # also close client
-        client_id = info.context.request.scope["session"].get("client_id")
+        client_id = _get_client_id(info)
         if client_id is not None:
             client = models.Client.objects.get(id=client_id)
             client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -229,6 +230,7 @@ class UserMutation:
         )
         client.type = input.type
         client.device_name = input.device_name
+        client.browser_name = input.browser_name
         client.project_id = input.project_id.node_id if input.project_id else None
         client.project_version_id = (
             input.project_version_id.node_id if input.project_version_id else None
@@ -238,11 +240,11 @@ class UserMutation:
         client.type_node_id = input.type_node_id.node_id if input.type_node_id else None
         client.record_id = input.record_id.node_id if input.record_id else None
         client.path = input.path
-        client.browser_name = input.browser_name
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
-        # set client id in session
-        info.context.request.scope["session"]["client_id"] = client.id
+        # update client id in session if needed
+        if _get_client_id(info) != client.id:
+            _set_client_id(info, client.id)
         # broadcast client change
         _publish_client_changed(client, info)
         return client
@@ -252,7 +254,7 @@ class UserMutation:
         user = info.context.request.scope["user"]
         if not user.is_authenticated:
             raise PermissionDenied("can only close client when logged in")
-        client_id = info.context.request.scope["session"].get("client_id")
+        client_id = _get_client_id(info)
         if client_id is not None:
             raise PermissionDenied("can only close client when client_id is set")
         client = models.Client.objects.get(id=client_id)
@@ -267,7 +269,7 @@ class UserMutation:
         user = info.context.request.scope["user"]
         if not user.is_authenticated:
             raise PermissionDenied("can only update presence when logged in")
-        client_id = info.context.request.scope["session"].get("client_id")
+        client_id = _get_client_id(info)
         if client_id is None:
             raise PermissionDenied("can only update presence when client_id is set")
         client = models.Client.objects.get(id=client_id)
@@ -275,6 +277,17 @@ class UserMutation:
         client.save()
         _publish_client_changed(client, info)
         return client
+
+
+def _get_client_id(info: Info) -> Optional[UUID]:
+    client_id = info.context.request.scope["session"].get("client_id")
+    if client_id is None:
+        return None
+    return UUID(client_id)
+
+
+def _set_client_id(info: Info, client_id: UUID) -> None:
+    info.context.request.scope["session"]["client_id"] = str(client_id)
 
 
 def _publish_client_changed(client: models.Client, info: Info):
@@ -354,7 +367,7 @@ class ClientSubscription:
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
-        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
+        client_id = _get_client_id(info)
         client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
         log = logger.bind(user=user, project_version_id=project_version_id, client_id=client_id)
 

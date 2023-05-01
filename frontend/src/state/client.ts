@@ -127,7 +127,7 @@ function _useClient(presenceIntervalMs = 15000) {
     );
   }
 
-  const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 1000, { maxWait: 3000 });
+  const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 500, { maxWait: 2500 });
 
   // upsert client info if logged in
   watch(

@@ -29,7 +29,7 @@ const actions = useActions();
               @click="appearance.fontMono = false"
             >
               <span class="font-sans text-2xl" :class="{ 'text-orange-600': !editor.fontMono }">Ag</span>
-              <span class="text-xs text-gray-500">Default</span>
+              <span class="text-xs text-gray-500">Sans</span>
             </button>
             <button
               class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-100"
