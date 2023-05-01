@@ -240,27 +240,15 @@ class StatementManager(models.Manager["Statement"]):
                         new_xblocks[old_id] = xblock
                         _refmap(RefType.XBLOCK, old_id, old_revision, xblock)
 
+                # copy build settings
                 if statement.symbol_type == SymbolType.BUILD:
-                    # copy generated mappings (only Builds can have them right now)
-                    if copy_generate_info:
-                        for mapping in statement.generated_mappings.all():
-                            mapping.pk = None
-                            mapping.statement_id = target_statement_ids[mapping.statement_id]
-                            mapping.source_id = ref_mappings_ids.get(
-                                mapping.source_id, mapping.source_id
-                            )
-                            mapping.target_id = ref_mappings_ids.get(
-                                mapping.target_id, mapping.target_id
-                            )
-                            mapping.source_revision = 0
-                            mapping.target_revision = 0
-                            new_gen_mappings.append(mapping)
                     build_settings = statement.build_settings
                     build_settings.id = uuid4()
                     build_settings._state.adding = True
                     statement.build_settings_id = build_settings.id  # update manually
                     new_build_settings.append(build_settings)
 
+                # copy evaluate settings
                 if (
                     statement.symbol_type == SymbolType.EVALUATE
                     or statement.symbol_type == SymbolType.BUILD  # :BuildEvaluationSettings
@@ -270,6 +258,29 @@ class StatementManager(models.Manager["Statement"]):
                     evaluate_settings._state.adding = True
                     statement.evaluate_settings_id = evaluate_settings.id  # update manually
                     new_evaluate_settings.append(evaluate_settings)
+
+                # copy generated mappings
+                if copy_generate_info and statement.symbol_type in (
+                    SymbolType.BUILD,
+                    SymbolType.TASK,
+                    SymbolType.CODE,
+                ):
+                    for mapping in statement.generated_mappings.all():
+                        mapping.pk = None
+                        mapping.statement_id = target_statement_ids[mapping.statement_id]
+                        mapping.source_id = ref_mappings_ids.get(
+                            mapping.source_id, mapping.source_id
+                        )
+                        mapping.target_id = ref_mappings_ids.get(
+                            mapping.target_id, mapping.target_id
+                        )
+                        mapping.source_revision = 0
+                        mapping.target_revision = 0
+                        new_gen_mappings.append(mapping)
+
+                # copy? task evaluation plan
+                if statement.symbol_type == SymbolType.TASK:
+                    statement.evaluation_plan_id = None
 
             # copy statement
             # automatically copies all non-relational columns
