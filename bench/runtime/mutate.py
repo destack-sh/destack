@@ -68,6 +68,8 @@ _TRIVIAL_PUBLIC_TO_INTERNAL = {
 
 _IGNORED_PUBLIC = {
     MMT.UPDATE_GENERATED_MAPPINGS,  # not used in frontend client
+    MMT.CREATE_XBLOCK,  # not supported yet
+    MMT.DELETE_XBLOCK,  # not supported yet
 }
 
 _SCOPE_TO_TYPE_NAME = {
@@ -208,6 +210,7 @@ _EXTRA_FIELDS_BY_SCOPE = {
     },
     MMS.FILE: {
         "parent_id": None,
+        "directory": False,
     },
 }
 
@@ -230,7 +233,7 @@ def map_mutation_to_input(mutation: ModuleMutation) -> Any:
     for field in fields(input_cls):
         s_key, t_key = field.name, field.name
         if s_key in _EXTRA_FIELD_RENAMES:
-            t_key = _EXTRA_FIELD_RENAMES[s_key]
+            s_key = _EXTRA_FIELD_RENAMES[s_key]
         if s_key == "code" and mutation.data.type == StatementType.COMMENT:
             s_key = "text"  # :StatementCodeTextReuse
         if s_key in extra_fields:

@@ -2267,6 +2267,7 @@ export enum TypeTag {
   Boolean = "BOOLEAN",
   Embedding = "EMBEDDING",
   Enum = "ENUM",
+  File = "FILE",
   Function = "FUNCTION",
   Image = "IMAGE",
   Intersection = "INTERSECTION",

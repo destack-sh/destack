@@ -697,15 +697,15 @@ class LanguageWorker:
         }
         # reactively trigger (debounced) reactors
         if not self.interp.committed:
-            create_wrapped_task(self._fire_reactive_generate())
-            create_wrapped_task(self._fire_reactive_lint())
-            # create_wrapped_task(self._fire_reactive_build()) # nocheckin
+            create_wrapped_task(self._trigger_reactive_generate())
+            create_wrapped_task(self._trigger_reactive_lint())
+            create_wrapped_task(self._trigger_reactive_build())
         # notify clients
         payload = make_full_change_payload(self, InterpChangedPayload)
         await publish(NMessageType.INTERP_CHANGED, payload)
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
-    async def _fire_reactive_generate(self) -> None:
+    async def _trigger_reactive_generate(self) -> None:
         self.log.debug("module.react.generate")
         # default generate job for unbound/misc generation tasks
         self.queue_generate(generator=None, reactive=True, cancel_running=True)
@@ -722,13 +722,13 @@ class LanguageWorker:
                 self.queue_generate(generator=task, reactive=True, cancel_running=True)
 
     @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
-    async def _fire_reactive_lint(self) -> None:
+    async def _trigger_reactive_lint(self) -> None:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react.lint")
         self.queue_lint(cancel_running=True)
 
     @debounce(BUILD_DEBOUNCE, max_wait=BUILD_DEBOUNCE_MAX_WAIT)
-    async def _fire_reactive_build(self) -> None:
+    async def _trigger_reactive_build(self) -> None:
         """Triggers all reactive jobs for this module (as needed)"""
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.has_user_errors:

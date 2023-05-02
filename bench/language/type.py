@@ -193,6 +193,7 @@ class TypeTag(models.TextChoices):
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
+    FILE = "file"
     ARRAY = "array"
     TUPLE = "tuple"
     MAP = "map"
