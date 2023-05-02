@@ -11,6 +11,7 @@ from uuid import UUID
 
 from bench.language import File, Statement
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
+from bench.language.parse import get_reference_as_path
 from bench.language.type import (
     PRIMITIVE_TYPES,
     BuildContent,
@@ -302,17 +303,6 @@ def get_reference_name(reference: Statement | StatementPath) -> str:
         return reference.name
     else:
         raise ValueError(f"unexpected reference type: {reference}")
-
-
-def get_reference_as_path(reference: Statement, via: Statement | None) -> StatementPath:
-    if via is None or reference.file.id == via.file.id:
-        return StatementPath(".", reference.name)
-    elif reference.file.module.name == via.file.module.name:
-        return StatementPath("." + reference.file.path_without_extension, reference.name)
-    else:
-        return StatementPath(
-            reference.file.module.name + "." + reference.file.path_without_extension, reference.name
-        )
 
 
 def render_reference(reference: Statement | StatementPath | UUID, via: Statement | None) -> str:

@@ -689,7 +689,7 @@ class XEmitTypeExplanation(XEmit):
 
 @xemit
 class XEmitTypeSample(XEmit):
-    """Emits a single sample of the given type (default to fabricated)"""
+    """Emits a single sample of the given type (default to fabricate)"""
 
     type: Type
     type_label: Optional[str]

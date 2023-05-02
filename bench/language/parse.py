@@ -1335,6 +1335,7 @@ def resolve_type_references_rec(
         if not isinstance(resolved_stmt.content, TypeNode):
             raise RuntimeError(f"resolved statement is not a type: {resolved_stmt})")
         node.reference = resolved_stmt
+        node.source_reference = get_reference_as_path(node.reference, via=for_statement)
 
 
 def resolve_statement_reference(
@@ -1738,3 +1739,14 @@ def symbol_mentions_symbol(symbol: InterpSymbol, other: InterpSymbol) -> bool:
         return other.name in symbol.code
     else:
         return False
+
+
+def get_reference_as_path(reference: Statement, via: Statement | None) -> StatementPath:
+    if via is None or reference.file.id == via.file.id:
+        return StatementPath(".", reference.name)
+    elif reference.file.module.name == via.file.module.name:
+        return StatementPath("." + reference.file.path_without_extension, reference.name)
+    else:
+        return StatementPath(
+            reference.file.module.name + "." + reference.file.path_without_extension, reference.name
+        )

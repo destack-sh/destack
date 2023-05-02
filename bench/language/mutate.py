@@ -404,9 +404,10 @@ class ModuleMutator:
             if m.statement_id in statements:  # statement may be non-semantic
                 del statements[m.statement_id]
         for m in mut[MMT.DELETE_FILE]:
-            for statement in files[m.file_id].statements:
-                del statements[statement.id]
-            del files[m.file_id]
+            if m.file_id in files:  # file may not exist locally?
+                for statement in files[m.file_id].statements:
+                    del statements[statement.id]
+                del files[m.file_id]
 
         # delete orphaned statements (who no longer have a parent, emulates delete cascade)
         for statement in list(statements.values()):
@@ -461,6 +462,12 @@ class MutationBundle:
     def __init__(self, mutations: list[ModuleMutation]):
         self.mutations = mutations
         self._cache: dict[Any, list[ModuleMutation]] = {}
+
+    def __str__(self):
+        return f"mut {len(self.mutations)}"
+
+    def __repr__(self):
+        return f"<MutationBundle {self}>"
 
     @cached_property
     def simple(self) -> bool:

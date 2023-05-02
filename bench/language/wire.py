@@ -9,8 +9,7 @@ from more_itertools import first
 
 from bench import language
 from bench.language import ErrorType
-from bench.language.parse import get_type_root_id
-from bench.language.reconstruct import get_reference_as_path
+from bench.language.parse import get_reference_as_path, get_type_root_id
 from bench.language.type import (
     PRIMITIVE_TYPES,
     BuildSettings,
@@ -676,11 +675,21 @@ def rmap_type_nodes(
                 is_output=is_output,
             )
         elif node.tag == TypeTag.ARRAY:
-            child_node = _wmap_child_node(node.head_type, is_array=True, order_key=order_key)
+            child_node = _wmap_child_node(
+                node.head_type,
+                is_array=True,
+                order_key=order_key,
+                is_nullable=is_nullable,
+                is_output=is_output,
+            )
+            child_node.id = node.id
             child_node.name = node.name
             return child_node
         elif node.is_union_with_null:
-            child_node = _wmap_child_node(node.head_type, is_nullable=True, order_key=order_key)
+            child_node = _wmap_child_node(
+                node.head_type, is_nullable=True, order_key=order_key, is_output=is_output
+            )
+            child_node.id = node.id
             child_node.name = node.name
             return child_node
         else:

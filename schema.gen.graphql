@@ -1994,6 +1994,7 @@ enum TypeTag {
   IMAGE
   VIDEO
   AUDIO
+  FILE
   ARRAY
   TUPLE
   MAP
