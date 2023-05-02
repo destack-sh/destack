@@ -34,6 +34,7 @@ janus==1.0.0
 json-stream==2.2.1
 more-itertools==9.0.0
 nats-py==2.2.0
+numpy==1.24.3
 openai==0.27.2
 Pillow==9.4.0
 posthog==2.3.1

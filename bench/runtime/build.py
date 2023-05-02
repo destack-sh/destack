@@ -657,8 +657,8 @@ class XEmitTypeExplanation(XEmit):
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
                 for child in type.children:
                     el_str += f"- {child.name}: {_render_simple_type(child)}{_render_description(child.description)}\n"
-            elif type.tag == TypeTag.ARRAY:
-                el_str = f"\n{label} array of {_render_simple_type(type.children[0])}{_render_description(type.description)}\n"
+            elif type.is_array:
+                el_str = f"\n{label} array of {_render_simple_type(type)}{_render_description(type.description)}\n"
             else:
                 el_str = f"{label}: {_render_simple_type(type)} {_render_description(type.description)}\n"
             el_strs.append(el_str)
@@ -667,7 +667,7 @@ class XEmitTypeExplanation(XEmit):
                 for child in type.children or []:
                     if isinstance(child.reference, TypeNode):
                         unexplained_types.append((child.reference.name, child.reference))
-                    elif child.tag in (TypeTag.ARRAY, TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):
+                    elif child.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):
                         unexplained_types.append((child.name, child))
 
         el_str = f"Schemas:\n{''.join(el_strs)}".strip()
@@ -749,12 +749,7 @@ class XEmitOutput(XEmit):
             raise ValueError(f"invalid X output: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        if self.type.is_flat:
-            output_request = xstatic(
-                f'{self.type_label}\n(JSON literal, nothing else, not an object, start with " or number)',
-                XSource.System,
-            )
-        elif self.type.tag == TypeTag.ARRAY:
+        if self.type.is_array:
             output_request = xstatic(
                 f"{self.type_label}\n(JSON array, nothing else, include ',', start with [)",
                 XSource.System,

@@ -45,7 +45,7 @@ KEYWORDS = {
     "as": None,
     "from": None,
 }
-SEPARATORS = [" ", r"\|", "&", ",", "::", ":", "-", "=", "@", "->"]  # order matters!
+SEPARATORS = [" ", r"\|", "&", ",", "::", ":", "=", "@", "->", "-"]  # order matters (LTR)!
 
 # indent with 4 spaces or 1 tab
 INDENT_REGEX = re.compile(r"(?P<value>( {4})|\t)", re.MULTILINE)

@@ -10,11 +10,11 @@ type Entity:
 - mentioned_as: [string] "The entity's names as they appear in the text"
 - 'type': EntityType
 
-enum EventType :: string:
+enum EventType:
 - Listing "A new entity is listed on the exchange"
 - Filing "Some regulatory filing is made"
 
-enum EventPriority :: string:
+enum EventPriority:
 - Critical "The event is incredibly important"
 - High
 - Medium
@@ -22,20 +22,16 @@ enum EventPriority :: string:
 
 type Event:
 "Something that happened"
-- title: string | null "The title of the event (if relevant)"
+- title: string? "The title of the event (if relevant)"
 - summary: string "What happened"
-- datetime: string | null "The date and time of the event"
+- datetime: string? "The date and time of the event"
 - 'type': EventType
 - priority: EventPriority
 - entities: [Entity] "The entities involved in the event"
 
-task 'extract events' :: (input: string) -> [Event]:
+task 'extract events' :: (input: string) -> (events: [Event]):
 "Extract events from the given text"
     expect 'event follows from text':
     "The text should imply the event"
-    expect 'non-overlapping events' on output:
+    expect 'non-overlapping events':
     "The events should be distinct in content"
-
-build main:
-    task 'extract events'
-    model openai.std.text.text-davinci-003
