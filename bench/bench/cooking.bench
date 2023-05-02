@@ -5,6 +5,8 @@
 type Recipe:
 "A cooking recipe"
 
+data 'notion recipes' :: Recipe:
+"Private Notion recipe database"
+
 task 'extract recipes' :: (input: file) -> (recipes: [Recipe]):
 'Extract recipes from an HTML page'
-

@@ -366,6 +366,10 @@ nats-py==2.2.0
     #   -r requirements.in
 nodeenv==1.7.0
     # via pre-commit
+numpy==1.24.3
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 oauthlib==3.2.2
     # via
     #   -c requirements.txt

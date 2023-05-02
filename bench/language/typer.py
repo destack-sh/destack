@@ -26,7 +26,11 @@ def on_invalid_raise(
 
 
 def check_type(
-    value: Any, expected: TypeNode, eager_error: bool = True, on_invalid=on_invalid_raise
+    value: Any,
+    expected: TypeNode,
+    eager_error: bool = True,
+    on_invalid=on_invalid_raise,
+    ignore_array: bool = False,
 ):
     """
     Checks whether the given value has the expected type (deeply).
@@ -50,13 +54,7 @@ def check_type(
             else:
                 _on_invalid_collect(value, expected, message)
 
-    if expected.tag == TypeTag.STRING:
-        _check(isinstance(value, str), "expected string")
-    elif expected.tag == TypeTag.NUMBER:
-        _check(isinstance(value, (int, float)), "expected number")
-    elif expected.tag == TypeTag.BOOLEAN:
-        _check(isinstance(value, bool), "expected boolean")
-    elif expected.tag == TypeTag.ARRAY:
+    if expected.is_array and not ignore_array:
         _check(isinstance(value, list), "expected array")
         if isinstance(value, list):  # _check may not be eager
             for item in value:
@@ -65,10 +63,17 @@ def check_type(
                     expected.children[0],
                     eager_error=eager_error,
                     on_invalid=_on_invalid_collect,
+                    ignore_array=True,
                 )
+    if expected.tag == TypeTag.STRING:
+        _check(isinstance(value, str), "expected string")
+    elif expected.tag == TypeTag.NUMBER:
+        _check(isinstance(value, (int, float)), "expected number")
+    elif expected.tag == TypeTag.BOOLEAN:
+        _check(isinstance(value, bool), "expected boolean")
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
-        _check(any(member.value == value for member in expected.members), "expected enum member")
+        _check(any(member.value == value for member in expected.children), "expected enum member")
     elif expected.tag == TypeTag.STRUCT:
         _check(isinstance(value, dict), "expected struct")
         if isinstance(value, dict):  # _check may not be eager

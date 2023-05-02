@@ -23,7 +23,7 @@ type Entity:
 
 task 'extract entities' :: (input: string) -> (entities: [Entity]):
 "Extract the distinct entities from the text"
-    expect 'no duplicates' on output:
+    expect 'no duplicates':
     "The entities are distinct"
 
 require symbolx.std@latest

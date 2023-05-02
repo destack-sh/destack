@@ -587,7 +587,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        type = parse_type_node_func(tokens, name=name.value)
+        type = parse_type_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = tokens.eat_description()
@@ -606,7 +606,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        type = parse_type_node_func(tokens, name=name.value)
+        type = parse_type_func(tokens, name=name.value)
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = _parse_description_line_optional(tokens)
@@ -621,7 +621,8 @@ def _parse_definition_content(
             description=description,
             language=lang,  # noqa
             code=code_text,
-            type_node=type,
+            tag=TypeTag.FUNCTION,
+            type_nodes=type.type_nodes,
             xblocks=[],  # not parsed yet
         )
     elif symbol_type.value == SymbolType.DATA:
@@ -629,7 +630,7 @@ def _parse_definition_content(
         tokens.eat_separator("::")
         tokens.eat_space()
         tokens.eat_bracket("(")
-        type = parse_type_node_struct_inline(tokens, name="element")
+        type = parse_type_struct_inline(tokens, name="element")
         tokens.eat_bracket(")")
         tokens.eat_separator(":")
         tokens.eat_newline()
@@ -641,7 +642,8 @@ def _parse_definition_content(
             description=description,
             language=lang,
             records=records,
-            type_node=type,
+            tag=TypeTag.STRUCT,
+            type_nodes=type.type_nodes,
         )
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
@@ -700,7 +702,9 @@ def _parse_definition_requirement(tokens: TokenParser, **kwargs) -> Statement:
         name=dependency.value,
         **kwargs,
     )
-    definition.content = RequirementContent(module_name=dependency.value, version=version.value)
+    definition.content = RequirementContent(
+        module_name=dependency.value, version=version.value, module_id=None
+    )
     return definition
 
 
@@ -712,7 +716,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_separator(":")
     tokens.eat_newline()
     description = _parse_description_line_optional(tokens)
-    struct = parse_type_node_struct(tokens, name=name.value)
+    struct = parse_type_struct(tokens, name=name.value)
     struct.description = description
     tokens.eat_newline_or_eos()
     definition = Statement(
@@ -740,17 +744,6 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         tokens.eat_separator("-")
         tokens.eat_space()
         member_name = tokens.eat_identifier().value
-        tokens.eat_space()
-        tokens.eat_separator("=")
-        tokens.eat_space()
-        member_literal = tokens.eat_literal()
-        try:
-            member_value = json.loads(member_literal.value)
-        except ValueError as e:
-            raise ParseError(
-                ET.INVALID_TOKEN_VALUE, member_literal, error=e, value=member_literal.value
-            )
-
         member_description = None
         if tokens.peek_separator(" "):
             tokens.eat_space()
@@ -760,7 +753,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             order_key=generate_key_between(None, last_order_key),
             name=member_name,
             tag=TypeTag.LITERAL,
-            value=member_value,
+            value=member_name,
             description=member_description,
         )
         members.append(member)
@@ -795,13 +788,12 @@ def parse_simple_type_node(tokens: TokenParser) -> SimpleTypeNode:
 def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> SimpleTypeNode:
     """Parse a type node type including description, handling simple nesting.."""
 
-    # parse array like [<type>] with recursive descent
+    # parse array like [<type>] (one layer only)
     if tokens.peek_bracket("["):
+        is_array = True
         tokens.eat_bracket("[")
-        node = parse_simple_type_node_inline(tokens, name=None)
-        node.is_array = True
-        tokens.eat_bracket("]")
-        return node
+    else:
+        is_array = False
 
     # parse actual type as either primitive or type reference
     reference = None
@@ -820,7 +812,17 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
         type = TypeTag.TYPE_REFERENCE
         reference = _parse_reference_slot(tokens)
 
+    if is_array:
+        tokens.eat_bracket("]")
+
+    if tokens.peek_type(TokenType.MARK_OPTIONAL):
+        tokens.eat()
+        is_optional = True
+    else:
+        is_optional = False
+
     if tokens.peek_separator(" "):
+        tokens.eat_space()
         description = tokens.eat_description().value
     else:
         description = None
@@ -831,10 +833,12 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
         value=value,
         reference=reference,
         description=description,
+        is_array=is_array,
+        is_nullable=is_optional,
     )
 
 
-def parse_type_node_struct(tokens: TokenParser, name: str | None) -> TypeContent:
+def parse_type_struct(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
     while True:
@@ -851,7 +855,7 @@ def parse_type_node_struct(tokens: TokenParser, name: str | None) -> TypeContent
     return struct
 
 
-def parse_type_node_struct_inline(
+def parse_type_struct_inline(
     tokens: TokenParser, name: str | None, is_output: bool = False
 ) -> TypeContent:
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
@@ -866,17 +870,17 @@ def parse_type_node_struct_inline(
     return struct
 
 
-def parse_type_node_func(tokens: TokenParser, name: str | None) -> TypeContent:
+def parse_type_func(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse signature like (<tuple1>, <tuple2>, ...) -> (<tuple1>, <tuple2>, ...)
     tokens.eat_bracket("(")
-    nodes = parse_type_node_struct_inline(tokens, "input").type_nodes
+    nodes = parse_type_struct_inline(tokens, "input").type_nodes
     tokens.eat_bracket(")")
     if tokens.peek_separator(" "):
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
         tokens.eat_bracket("(")
-        outputs = parse_type_node_struct_inline(tokens, "output", is_output=True)
+        outputs = parse_type_struct_inline(tokens, "output", is_output=True)
         nodes.extend(outputs.type_nodes)
         tokens.eat_bracket(")")
     return TypeContent(name=name, tag=TypeTag.FUNCTION, type_nodes=nodes)
@@ -1494,7 +1498,8 @@ def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
         raise ValueError(f"reference is unresolved type reference: {node}")
 
     node.tag = node.reference.tag
-    node.children = node.reference.children
+    node.is_nullable = node.reference.is_nullable
+    node.is_array = node.reference.is_array
     if not keep_references:
         node.reference = None
     elif node.source_reference is None:

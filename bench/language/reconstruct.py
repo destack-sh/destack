@@ -21,11 +21,13 @@ from bench.language.type import (
     ExpectationContent,
     RequirementContent,
     RunconfigContent,
+    SimpleTypeNode,
     StatementPath,
     StatementType,
     SymbolContent,
     SymbolType,
     TaskContent,
+    TypeContent,
     TypeNode,
     TypeTag,
 )
@@ -108,24 +110,19 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(RequirementContent, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
-            type_str = render_type_node(cast(TaskContent, statement.content).type_node, statement)
-            postfix = f" :: {type_str}:"
+            task = cast(TaskContent, statement.content)
+            inputs_str = render_type_struct(task.inputs, statement, ", ")
+            outputs_str = render_type_struct(task.outputs, statement, ", ")
+            postfix = f" :: ({inputs_str}) -> ({outputs_str}):"
         elif statement.symbol_type == SymT.CODE:
-            type_str = render_type_node(cast(CodeContent, statement.content).type_node, statement)
-            postfix = f" :: {type_str}:"
+            code = cast(CodeContent, statement.content)
+            inputs_str = render_type_struct(code.inputs, statement, ", ")
+            outputs_str = render_type_struct(code.outputs, statement, ", ")
+            postfix = f" :: ({inputs_str}) -> ({outputs_str}):"
         elif statement.symbol_type == SymT.DATA:
             content = cast(DatasetContent, statement.content)
-            type_str = render_type_node_struct(content.type_node, statement, ", ")
+            type_str = render_type_struct(content.type_node, statement, ", ")
             postfix = f" :: ({type_str}):"
-        elif (
-            statement.symbol_type == SymT.TYPE
-            and cast(TypeNode, statement.content).tag == TypeTag.ENUM
-        ):
-            # special case for enum types
-            content = cast(TypeNode, statement.content)
-            type_str = render_type_node(content.head_type, statement)
-            symt_str = "enum"
-            postfix = f" :: {type_str}:"
         else:
             postfix = ":"
         def_str = f"{modifier_str}{symt_str} {identifier_str}{postfix}"
@@ -219,53 +216,49 @@ def render_type_node(
     description_str = (
         f' "{node.description}"' if node.description and not ignore_description else ""
     )
-    if node.tag == TypeTag.TYPE_REFERENCE or (
-        node.source_reference is not None and not ignore_reference
-    ):
-        # if it's a reference _or_ used to be a reference, keep the type reference
-        reference_str = render_reference(node.source_reference, statement)
-        return f"{identifier_str}{reference_str}{description_str}"
-    elif node.tag == TypeTag.FUNCTION:
-        return render_type_node_func(node, statement)
-    elif node.tag == TypeTag.STRUCT:
-        return render_type_node_struct(node, statement, seperator="\n")
-    elif node.tag == TypeTag.ARRAY:
-        type_str = f"[{render_type_node(node.children[0], statement)}]"
-        return f"{identifier_str}{type_str}{description_str}"
+    if node.tag == TypeTag.TYPE_REFERENCE or (node.reference is not None and not ignore_reference):
+        type_str = render_reference(node.reference, statement)
     elif node.tag == TypeTag.UNION:
         type_str = " | ".join(render_type_node(e, statement) for e in node.children)
-        return f"{identifier_str}{type_str}{description_str}"
-    elif node.tag == TypeTag.ENUM:
-        members_strs = []
-        for m in node.children:
-            member_str = f"- {escape_identifier(m.name)}"
-            if m.description:
-                member_str += f' "{m.description}"'
-            members_strs.append(member_str)
-        return "\n".join(members_strs)
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
-        return f"{identifier_str}{node.tag.value}{description_str}"
+        type_str = node.tag.value
     elif node.tag == TypeTag.LITERAL:
-        literal_str = render_literal(json.dumps(node.value))
-        return f"{identifier_str}{literal_str}{description_str}"
+        type_str = render_literal(json.dumps(node.value))
     else:
         raise ValueError(f"unexpected type: {node.tag}")
 
+    if node.is_array:
+        type_str = f"[{type_str}]"
+    if node.is_nullable:
+        type_str = f"{type_str}?"
 
-def render_type_node_func(node: TypeNode, statement: Statement) -> str:
-    input_str = render_type_node_struct(node.input, statement, seperator=", ")
-    if node.output.tag != TypeTag.NULL:
-        output_str = render_type_node_struct(node.output, statement, seperator=", ")
+    return f"{identifier_str}{type_str}{description_str}"
+
+
+def render_type_func(node: TypeContent, statement: Statement) -> str:
+    input_str = render_type_struct(node.inputs, statement, seperator=", ")
+    if node.outputs:
+        output_str = render_type_struct(node.outputs, statement, seperator=", ")
         return f"({input_str}) -> ({output_str})"
     else:
         return f"({input_str})"
 
 
-def render_type_node_struct(node: TypeNode, statement: Statement | None, seperator: str) -> str:
-    if node.children is None:
+def render_type_struct(nodes: list[TypeNode], statement: Statement | None, seperator: str) -> str:
+    if not nodes:
         return ""
-    field_strs = [render_type_node(field, statement) for field in node.children]
+    field_strs = [render_type_node(field, statement) for field in nodes]
     return seperator.join(field_strs)
+
+
+def render_type_enum(nodes: list[SimpleTypeNode]) -> str:
+    members_strs = []
+    for m in nodes:
+        member_str = f"- {escape_identifier(m.name)}"
+        if m.description:
+            member_str += f' "{m.description}"'
+        members_strs.append(member_str)
+    return "\n".join(members_strs)
 
 
 def render_description(value: str) -> str:

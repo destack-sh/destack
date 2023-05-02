@@ -5,6 +5,7 @@ import enum
 import hashlib
 import inspect
 import json
+import pathlib
 import textwrap
 import typing
 from asyncio import iscoroutinefunction
@@ -17,6 +18,7 @@ from random import Random
 from typing import Any, Optional
 from uuid import UUID, uuid4
 
+import numpy
 import PIL.Image
 import pydub
 import pytz
@@ -316,8 +318,10 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         return PIL.Image.Image
     elif node.tag == TypeTag.AUDIO:
         return pydub.AudioSegment
-    elif node.tag == TypeTag.ARRAY:
-        return list
+    elif node.tag == TypeTag.EMBEDDING:
+        return numpy.ndarray
+    elif node.tag == TypeTag.FILE:
+        return pathlib.Path  # not sure what to return for double types (with remote blobs)
     elif node.tag == TypeTag.UNION:
         return typing.Union[tuple(instantiate_py_type(child) for child in node.children)]
     elif node.tag == TypeTag.STRUCT:
@@ -328,15 +332,9 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.tag == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
         # assumes enums are value enums (not type union enums)
-        if node.head_type.tag == TypeTag.STRING:
-            enum_cls = enum.StrEnum
-        elif node.head_type.tag == TypeTag.NUMBER:
-            enum_cls = enum.IntEnum
-        else:
-            raise ValueError(f"unexpected enum head type: {node.head_type}")
-        members = {to_pyidentifier(child.name): child.value for child in node.members}
+        members = {to_pyidentifier(child.name): child.name for child in node.children}
         enum_name = node.name or "_anon_" + uuid4().hex
-        return enum_cls(enum_name, members)
+        return enum.StrEnum(enum_name, members)
     elif node.tag == TypeTag.LITERAL:
         return node.value
     elif node.tag == TypeTag.ANY:
@@ -402,7 +400,7 @@ def _instantiate_code_callable(
         python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
 
     # create python function from python code
-    input_keys = code.type_node.input.keys
+    input_keys = [i.name for i in code.inputs]
     func_name = f"_{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
     async_str = "async " if is_async else ""
     func_params = ", ".join(to_pyidentifier(key) for key in input_keys)

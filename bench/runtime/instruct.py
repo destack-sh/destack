@@ -127,19 +127,6 @@ class InstructionTree:
             yield node, parent_by_node.get(node.id)
 
 
-def unwrap_type_node(type: TypeNode) -> list[TypeNode]:
-    if type.tag == TypeTag.FUNCTION:
-        return [*(type.input.children or []), *(type.output.children or [])]
-    elif type.tag == TypeTag.ENUM:
-        return type.members
-    elif type.tag == TypeTag.ARRAY:
-        return unwrap_type_node(type.head_type)
-    elif type.is_union_with_null:
-        return unwrap_type_node(type.non_null_children[0])
-    else:
-        return type.children or []
-
-
 def map_instruction(
     node: InterpSymbol | TypeNode,
     tree: InstructionTree,
@@ -221,18 +208,9 @@ def map_instruction(
             )
             instruction.children.append(tree.nodes[record.id])
 
-    # track types and their subsymbols
+    # track types and their sub-symbols
     if isinstance(node, (TypeNode, Task, Code, Type, Dataset)):
-        if isinstance(node, (TypeNode, Type)):
-            type = node
-        else:
-            type = node.type
-        # skip type wrapper nodes because they are semantically irrelevant
-        # _and_ tracking them causes downstream errors because these nodes don't exist in the DB
-        # (they're created virtually when mapping from SimpleTypeNode in DB to TypeNode in language)
-        # TODO @Cleanup @Architecture: revisit TypeNode/SimpleTypeNode distinction & boundary
-        children = unwrap_type_node(type)
-        for type_node in children:
+        for type_node in node.type_nodes:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
                 if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
@@ -414,21 +392,21 @@ class SampleGenerateWithModel(SampleSource):
         return target_dataset
 
 
-def fabricate_value(type: TypeNode) -> Any:
+def fabricate_value(type: TypeNode, skip_array: bool = False) -> Any:
     """Synthesizes a value of the given type with fake fields."""
-    if type.tag == TypeTag.STRING:
+    if type.is_array and not skip_array:
+        return [fabricate_value(type.children[0], skip_array=True)]
+    elif type.tag == TypeTag.STRING:
         return "lorem ipsum"
     elif type.tag == TypeTag.NUMBER:
         return 42
     elif type.tag == TypeTag.BOOLEAN:
         return False
-    elif type.tag == TypeTag.ARRAY:
-        return [fabricate_value(type.children[0])]
     elif type.tag == TypeTag.ENUM:
-        if len(type.members) == 0:
+        if len(type.children) == 0:
             return None
-        return type.members[0].value
-    elif type.tag == TypeTag.STRUCT:
+        return type.children[0].value
+    elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         return {subtype.name: fabricate_value(subtype) for subtype in type.children}
     elif type.tag == TypeTag.UNION:
         return fabricate_value(type.children[0])
@@ -438,7 +416,5 @@ def fabricate_value(type: TypeNode) -> Any:
         return type.value
     elif type.tag == TypeTag.ANY:
         return 42  # not sure what to do here
-    elif type.tag == TypeTag.FUNCTION:
-        return {**fabricate_value(type.input), "output": fabricate_value(type.output)}
     else:
         raise RuntimeError(f"unexpected type {type.tag}")

@@ -331,12 +331,7 @@ async def evaluate_output(
         do_build_task_plan,
     )
 
-    instruction_type = make_struct_type(
-        Type(name="description", tag=TypeTag.STRING),
-        Type(name="id", tag=TypeTag.NUMBER),
-        name="Instruction",
-    )
-    eval_type = make_struct_type(
+    evals_type = make_struct_type(
         Type(name="id", tag=TypeTag.NUMBER),
         Type(
             name="reasoning",
@@ -349,11 +344,21 @@ async def evaluate_output(
             description="Whether the instruction was followed exactly. If unclear, set to false.",
         ),
         name="Evaluation",
+        is_array=True,
+    )
+    instructions_type = make_struct_type(
+        Type(name="description", tag=TypeTag.STRING),
+        Type(name="id", tag=TypeTag.NUMBER),
+        name="instructions",
+        tag=TypeTag.STRUCT,
+        is_array=True,
     )
     eval_task_type = make_func_type(
-        Type(name="instructions", tag=TypeTag.ARRAY, children=[instruction_type]),
-        Type(name="sample", tag=TypeTag.STRUCT, children=[*input_type.children, output_type]),
-        output_type=Type(name="_output", tag=TypeTag.ARRAY, children=[eval_type]),
+        input_types=[
+            instructions_type,
+            Type(name="sample", tag=TypeTag.STRUCT, children=[*input_type.children, output_type]),
+        ],
+        output_types=[evals_type],
     )
     eval_task = Task(
         name="evaluate output",
@@ -373,18 +378,18 @@ async def evaluate_output(
         XEmitTask(task=eval_task),
         # TODO @Build: tune model eval generation settings (and adapt to model context size)
         XEmitTypeExplanation(
-            type=eval_task_type.output,
+            type=eval_task_type,
             type_label="Evaluation",
             include_descriptions=True,
             recursive=True,
         ),
-        XEmitInput(type=eval_task_type.input),
+        XEmitInput(),
         XEmitTypeSample(
-            type=eval_task_type.output, type_label="Evaluations", value=[sample_evaluation]
+            type=eval_task_type.outputs[0], type_label="Evaluations", value=[sample_evaluation]
         ),
         XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
         XEmitOutput(
-            type=eval_task_type.output, type_label="Evaluations (one for each instruction)"
+            type=eval_task_type.outputs[0], type_label="Evaluations (one for each instruction)"
         ),
     )
     implementation = await do_build_task_plan(plan)

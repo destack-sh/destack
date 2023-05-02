@@ -23,6 +23,7 @@ from uuid import UUID
 import PIL.Image
 import pydub
 from django.db import models
+from more_itertools import first
 
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
@@ -195,7 +196,6 @@ class TypeTag(models.TextChoices):
     VIDEO = "video"
     AUDIO = "audio"
     FILE = "file"
-    ARRAY = "array"
     STRUCT = "struct"
     JSON = "json"
     FUNCTION = "function"
@@ -506,6 +506,7 @@ class TypeNode(abc.ABC):
     is_array: bool
     description: Optional[str]
     children: list["TypeNode"]
+    value: Optional[LiteralValue]
 
     @property
     def inputs(self) -> list["TypeNode"]:
@@ -514,6 +515,9 @@ class TypeNode(abc.ABC):
     @property
     def outputs(self) -> list["TypeNode"]:
         return [child for child in self.children if child.is_output]
+
+    def __getitem__(self, item: str) -> "TypeNode":
+        return first(self.children, lambda child: child.name == item)
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
@@ -576,13 +580,15 @@ class SimpleTypeNode(TypeNode):
 
 @dataclass(repr=False)
 class TypeContent(SymbolContent, TypeNode):
-    name: Optional[str] = required_field()
+    name: Optional[str] = None
     tag: TypeTag = required_field()
+    type_nodes: list[SimpleTypeNode] = field(default_factory=list)
+    description: Optional[str] = None
+    # not directly configurable for types
     is_output = False
     is_array = False
     is_nullable = False
-    type_nodes: list[SimpleTypeNode] = field(default_factory=list)
-    description: Optional[str] = None
+    value: Optional[LiteralValue] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -621,7 +627,7 @@ class Capability(InterpSymbol, CapabilityContent):
 
 
 @dataclass(repr=False)
-class TaskContent(SymbolContent, TypeContent, GeneratorContent):
+class TaskContent(TypeContent, GeneratorContent):
     description: str = ""
     root_type_tag = TypeTag.FUNCTION
 
@@ -671,10 +677,10 @@ class Record:
 
 
 @dataclass(repr=False)
-class DatasetContent(SymbolContent, TypeContent):
-    language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
-    records: list[Record]
-    description: Optional[str]
+class DatasetContent(TypeContent):
+    language: Literal["csv"] | Literal["json"] | Literal["jsonl"] = "jsonl"
+    records: list[Record] = field(default_factory=list)
+    description: Optional[str] = None
 
     def deepcopy(self) -> "DatasetContent":
         return DatasetContent(
@@ -771,8 +777,7 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
 
 
 @dataclass(repr=False)
-class CodeContent(SymbolContent, GeneratorContent):
-    type_node: TypeNode = required_field()
+class CodeContent(TypeContent, GeneratorContent):
     description: Optional[str] = None
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
@@ -789,7 +794,8 @@ class Code(InterpSymbol, CodeContent):
 
 @dataclass(repr=False)
 class ProgramContent(SymbolContent):
-    pass
+    language: Literal["python"] = "python"
+    code: Optional[str] = None
 
 
 @dataclass(repr=False)
@@ -908,34 +914,38 @@ SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
 }
 
-EMPTY_FUNC_TYPE = TypeNode(
-    name=None,
-    tag=TypeTag.FUNCTION,
-    children=[
-        TypeNode(name="input", tag=TypeTag.STRUCT, children=[]),
-        TypeNode(name="output", tag=TypeTag.NULL),
-    ],
-)
-EMPTY_STRUCT_TYPE = TypeNode(name=None, tag=TypeTag.STRUCT, children=[])
+EMPTY_FUNC_TYPE = TypeContent(name=None, tag=TypeTag.FUNCTION)
+EMPTY_STRUCT_TYPE = TypeContent(name=None, tag=TypeTag.STRUCT)
 
 
-def make_func_type(*input_types: TypeNode, output_type: TypeNode, name: str = None) -> TypeNode:
+def make_func_type(
+    input_types: list[TypeNode], output_types: list[TypeNode], name: str = None
+) -> TypeContent:
     """Create a function type from input and output types."""
-    output_type = output_type.deepcopy()
-    output_type.name = "output"
-    return TypeNode(
+
+    return TypeContent(
         name=name,
         tag=TypeTag.FUNCTION,
-        children=[
-            TypeNode(name="input", tag=TypeTag.STRUCT, children=list(input_types)),
-            output_type,
-        ],
+        children=[*input_types, *output_types],
     )
 
 
-def make_struct_type(*children: TypeNode, name: str = None, description: str = None) -> TypeNode:
+def make_struct_type(
+    *children: TypeNode,
+    name: str = None,
+    description: str = None,
+    is_array: bool = False,
+    is_nullable: bool = False,
+) -> TypeContent:
     """Create a struct type from children types."""
-    return TypeNode(name=name, description=description, tag=TypeTag.STRUCT, children=list(children))
+    return TypeContent(
+        name=name,
+        description=description,
+        tag=TypeTag.STRUCT,
+        children=list(children),
+        is_array=is_array,
+        is_nullable=is_nullable,
+    )
 
 
 def deepcopy_types(nodes: list[TypeNode] | None, keep_id: bool) -> list[TypeNode]:
@@ -946,14 +956,8 @@ def deepcopy_types(nodes: list[TypeNode] | None, keep_id: bool) -> list[TypeNode
 def flatten_func_type(func_type: TypeNode) -> TypeNode:
     """Inline the input and output types into one struct."""
     # check that no input children are called output (hacky deluxe)
-    for child in func_type.input.children or []:
-        if child.name == "output":
-            raise ValueError("input child cannot be named output")
-    return SimpleTypeNode(
+    return TypeContent(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        type_nodes=[
-            *deepcopy_types(func_type.input.children, keep_id=False),
-            *deepcopy_types(func_type.output.children, keep_id=False),
-        ],
+        type_nodes=[*deepcopy_types(func_type.children, keep_id=False)],
     )
