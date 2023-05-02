@@ -60,7 +60,7 @@ def check_type(
             for item in value:
                 check_type(
                     item,
-                    expected.children[0],
+                    expected.type_nodes[0],
                     eager_error=eager_error,
                     on_invalid=_on_invalid_collect,
                     ignore_array=True,
@@ -73,18 +73,18 @@ def check_type(
         _check(isinstance(value, bool), "expected boolean")
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
-        _check(any(member.value == value for member in expected.children), "expected enum member")
+        _check(any(member.value == value for member in expected.type_nodes), "expected enum member")
     elif expected.tag == TypeTag.STRUCT:
         _check(isinstance(value, dict), "expected struct")
         if isinstance(value, dict):  # _check may not be eager
-            for subtype in expected.children:
+            for subtype in expected.type_nodes:
                 alt_name = to_pyidentifier(subtype.name)
                 subvalue = value.get(subtype.name, value.get(alt_name))
                 check_type(
                     subvalue, subtype, eager_error=eager_error, on_invalid=_on_invalid_collect
                 )
     elif expected.tag == TypeTag.UNION:
-        for subtype in expected.children:
+        for subtype in expected.type_nodes:
             try:
                 check_type(value, subtype)
                 return

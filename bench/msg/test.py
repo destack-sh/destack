@@ -36,10 +36,10 @@ class Node:
             and self.flags == other.flags
             and self.root_id == other.root_id
             and self.parent_id == other.parent_id
-            and len(self.children) == len(other.children)
+            and len(self.children) == len(other.type_nodes)
             and all(
                 self_child == other_child
-                for self_child, other_child in zip(self.children, other.children)
+                for self_child, other_child in zip(self.children, other.type_nodes)
             )
         )
 

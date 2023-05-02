@@ -176,7 +176,7 @@ def aggregate_metrics_by_system(evaluations: list[EvaluationResult]) -> list[Eva
     aggregated: list[EvaluationResult] = []
     for node_id, evaluations in evaluations_by_node.items():
         all_children = {
-            child.id: child for evaluation in evaluations for child in evaluation.children
+            child.id: child for evaluation in evaluations for child in evaluation.type_nodes
         }
         evaluation = EvaluationResult(
             kind=evaluations[0].kind,
@@ -493,7 +493,7 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     if instruction.op in (InstructionOp.SampleCode, InstructionOp.CheckCode):
         # sample / check code should have input & output type
         code = cast(Code, instruction.node)
-        if len(code.type.input.children or []) == 0:
+        if len(code.type.input.type_nodes or []) == 0:
             instruction_perplexity += FULL_CONFUSION
         if code.type.output.tag == TypeTag.NULL:
             instruction_perplexity += FULL_CONFUSION

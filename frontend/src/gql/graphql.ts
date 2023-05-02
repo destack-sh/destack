@@ -2262,7 +2262,6 @@ export type TypeNodeUpdateInput = {
 /** The type of type node. */
 export enum TypeTag {
   Any = "ANY",
-  Array = "ARRAY",
   Audio = "AUDIO",
   Boolean = "BOOLEAN",
   Embedding = "EMBEDDING",
@@ -2270,14 +2269,12 @@ export enum TypeTag {
   File = "FILE",
   Function = "FUNCTION",
   Image = "IMAGE",
-  Intersection = "INTERSECTION",
+  Json = "JSON",
   Literal = "LITERAL",
-  Map = "MAP",
   Null = "NULL",
   Number = "NUMBER",
   String = "STRING",
   Struct = "STRUCT",
-  Tuple = "TUPLE",
   TypeReference = "TYPE_REFERENCE",
   Union = "UNION",
   Video = "VIDEO",

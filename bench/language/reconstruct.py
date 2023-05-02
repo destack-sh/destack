@@ -106,22 +106,21 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             type_str = render_type_node(cast(TypeNode, statement.content), statement)
             return f"{modifier_str}{statement.symbol_type} {identifier_str} = {type_str}"
 
-        symt_str = statement.symbol_type
+        if isinstance(statement.content, TypeContent) and statement.content.tag == TypeTag.ENUM:
+            symt_str = "enum"
+        else:
+            symt_str = statement.symbol_type
         if statement.symbol_type == SymT.REQUIREMENT:
             postfix = f"@{cast(RequirementContent, statement.content).version}"
         elif statement.symbol_type == SymT.TASK:
-            task = cast(TaskContent, statement.content)
-            inputs_str = render_type_struct(task.inputs, statement, ", ")
-            outputs_str = render_type_struct(task.outputs, statement, ", ")
-            postfix = f" :: ({inputs_str}) -> ({outputs_str}):"
+            type_str = render_type_func(cast(TaskContent, statement.content), statement)
+            postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.CODE:
-            code = cast(CodeContent, statement.content)
-            inputs_str = render_type_struct(code.inputs, statement, ", ")
-            outputs_str = render_type_struct(code.outputs, statement, ", ")
-            postfix = f" :: ({inputs_str}) -> ({outputs_str}):"
+            type_str = render_type_func(cast(CodeContent, statement.content), statement)
+            postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATA:
             content = cast(DatasetContent, statement.content)
-            type_str = render_type_struct(content.type_node, statement, ", ")
+            type_str = render_type_struct(content.type_nodes, statement, ", ")
             postfix = f" :: ({type_str}):"
         else:
             postfix = ":"
@@ -145,13 +144,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
 
 
 def render_symbol_content(content: SymbolContent, statement: Statement) -> Optional[str]:
-    if isinstance(content, TypeNode):
-        rendered_type = render_type_node(content, statement)
-        if content.description is not None:
-            return f"{render_description(content.description)}\n{rendered_type}"
-        else:
-            return rendered_type
-    elif isinstance(content, CapabilityContent):
+    if isinstance(content, CapabilityContent):
         return render_description(content.description)
     elif isinstance(content, TaskContent):
         return render_description(content.description)
@@ -171,7 +164,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
         elif content.language == "json":
             rendered_data = render_literal(json.dumps(records_data), lang="json")
         elif content.language == "csv":
-            field_names = [field.name for field in content.type_node.children]
+            field_names = [field.name for field in content.type_nodes]
             csv_output = io.StringIO()
             csv_writer = csv.DictWriter(
                 csv_output,
@@ -187,6 +180,19 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return f"{render_description(content.description)}\n{rendered_data}"
         else:
             return rendered_data
+    elif isinstance(content, TypeContent):
+        if content.tag == TypeTag.STRUCT:
+            rendered_type = render_type_struct(content.type_nodes, statement, "\n", inline=False)
+        elif content.tag == TypeTag.ENUM:
+            rendered_type = render_type_enum(content.type_nodes)
+        elif content.tag == TypeTag.FUNCTION:
+            rendered_type = render_type_func(content, statement)
+        else:
+            rendered_type = render_type_node(content, statement)
+        if content.description is not None:
+            return f"{render_description(content.description)}\n{rendered_type}"
+        else:
+            return rendered_type
     elif isinstance(content, (BuildContent, RunconfigContent, RequirementContent)):
         return None
     else:
@@ -219,7 +225,7 @@ def render_type_node(
     if node.tag == TypeTag.TYPE_REFERENCE or (node.reference is not None and not ignore_reference):
         type_str = render_reference(node.reference, statement)
     elif node.tag == TypeTag.UNION:
-        type_str = " | ".join(render_type_node(e, statement) for e in node.children)
+        type_str = " | ".join(render_type_node(e, statement) for e in node.type_nodes)
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
         type_str = node.tag.value
     elif node.tag == TypeTag.LITERAL:
@@ -244,10 +250,15 @@ def render_type_func(node: TypeContent, statement: Statement) -> str:
         return f"({input_str})"
 
 
-def render_type_struct(nodes: list[TypeNode], statement: Statement | None, seperator: str) -> str:
+def render_type_struct(
+    nodes: list[TypeNode], statement: Statement | None, seperator: str, inline: bool = True
+) -> str:
     if not nodes:
         return ""
     field_strs = [render_type_node(field, statement) for field in nodes]
+    if not inline:
+        # prepend "- "
+        field_strs = [f"- {field_str}" for field_str in field_strs]
     return seperator.join(field_strs)
 
 

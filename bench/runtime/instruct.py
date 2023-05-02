@@ -395,7 +395,7 @@ class SampleGenerateWithModel(SampleSource):
 def fabricate_value(type: TypeNode, skip_array: bool = False) -> Any:
     """Synthesizes a value of the given type with fake fields."""
     if type.is_array and not skip_array:
-        return [fabricate_value(type.children[0], skip_array=True)]
+        return [fabricate_value(type.type_nodes[0], skip_array=True)]
     elif type.tag == TypeTag.STRING:
         return "lorem ipsum"
     elif type.tag == TypeTag.NUMBER:
@@ -403,13 +403,13 @@ def fabricate_value(type: TypeNode, skip_array: bool = False) -> Any:
     elif type.tag == TypeTag.BOOLEAN:
         return False
     elif type.tag == TypeTag.ENUM:
-        if len(type.children) == 0:
+        if len(type.type_nodes) == 0:
             return None
-        return type.children[0].value
+        return type.type_nodes[0].value
     elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
-        return {subtype.name: fabricate_value(subtype) for subtype in type.children}
+        return {subtype.name: fabricate_value(subtype) for subtype in type.type_nodes}
     elif type.tag == TypeTag.UNION:
-        return fabricate_value(type.children[0])
+        return fabricate_value(type.type_nodes[0])
     elif type.tag == TypeTag.NULL:
         return None
     elif type.tag == TypeTag.LITERAL:

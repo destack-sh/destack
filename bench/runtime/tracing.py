@@ -446,7 +446,7 @@ class ValidationTracer(Tracer):
         try:
             # check args
             for i, value in enumerate(args):
-                value_type = code.type_node.input.children[i]
+                value_type = code.type_node.input.type_nodes[i]
                 check_type(value, value_type, eager_error=self.eager_validation)
             # check kwargs
             for name, value in kwargs.items():
