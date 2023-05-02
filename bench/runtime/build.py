@@ -28,7 +28,6 @@ from bench.language.type import (
     TypeTag,
     XBlock,
     XSource,
-    make_struct_type,
 )
 from bench.runtime.evaluate import (
     EvaluationMetric,
@@ -484,18 +483,6 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
             output_label = "Output"
             output_type = task.type.output
             output_path = ""
-            if output_type.is_flat:
-                # lift flat output into object (easier to get model to generate)
-                lifted = task.type.output.deepcopy(keep_id=False)
-                if lifted.description is None:
-                    lifted.description = f"Output for task {task.name}"
-                lifted.name = (
-                    output_type.reference.name.lower()
-                    if output_type.reference
-                    else "output_" + output_type.tag.name.lower()
-                )
-                output_type = make_struct_type(lifted, name=output_label)
-                output_path = lifted.name
 
             # this is obviously hacky and suboptimal and will be replaced
             plan.emit(
@@ -522,8 +509,8 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                 XEmitTask(task=task),
                 XEmitTypeSample(type=output_type, type_label=output_label),
             )
-            if task.type.input.children:
-                plan.emit(XEmitInput(type=task.type.input, type_label="Input"))
+            if task.type.inputs:
+                plan.emit(XEmitInput())
             plan.emit(
                 # TODO @Broken: adjust & tune generation settings
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
@@ -655,9 +642,9 @@ class XEmitTypeExplanation(XEmit):
             return " # " + d if d and self.include_descriptions else ""
 
         def _render_simple_type(t: TypeNode):
-            if t.is_union_with_null:
+            if t.is_nullable:
                 return _render_simple_type(t.children[0]) + "?"
-            return t.source_reference.name if t.source_reference else t.tag.value
+            return t.reference.name if t.source_reference else t.tag.value
 
         el_strs = []
         while unexplained_types:
@@ -709,7 +696,6 @@ class XEmitTypeSample(XEmit):
 class XEmitInput(XEmit):
     """Emits the code to input the given type"""
 
-    type: Type
     type_label: str = "Input"
     path: str = ""
 

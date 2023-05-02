@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import copy
 import enum
 import re
@@ -25,7 +26,7 @@ from django.db import models
 
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
-from bench.utils.utils import required_field, to_pyidentifier
+from bench.utils.utils import required_field
 
 
 @dataclass(repr=False)
@@ -195,12 +196,10 @@ class TypeTag(models.TextChoices):
     AUDIO = "audio"
     FILE = "file"
     ARRAY = "array"
-    TUPLE = "tuple"
-    MAP = "map"
     STRUCT = "struct"
+    JSON = "json"
     FUNCTION = "function"
     UNION = "union"
-    INTERSECTION = "intersection"
     ENUM = "enum"
     LITERAL = "literal"
     NULL = "null"
@@ -499,40 +498,22 @@ class GeneratorContent:
     generated_mappings: list[GeneratedMapping] = field(default_factory=list)
 
 
-@dataclass
-class TypeNode(SymbolContent):
-    id: UUID = field(default_factory=uuid.uuid4)
-    name: Optional[str] = required_field()
-    tag: TypeTag = required_field()
-    description: Optional[str] = None
-    value: Optional[LiteralValue] = None  # for literal types
-    reference: Union[None, StatementPath, Statement, UUID, "TypeNode", "Type"] = None
-    # source reference is separate as the resolved TypeNode may not contain the name
-    source_reference: Optional[StatementPath] = None
-    children: Optional[list["TypeNode"]] = None
+class TypeNode(abc.ABC):
+    name: Optional[str]
+    tag: TypeTag
+    is_output: bool
+    is_nullable: bool
+    is_array: bool
+    description: Optional[str]
+    children: list["TypeNode"]
 
-    def __str__(self):
-        name_str = f"{self.name} " if self.name else ""
-        return f"{name_str}{self.tag.value}"
+    @property
+    def inputs(self) -> list["TypeNode"]:
+        return [child for child in self.children if not child.is_output]
 
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
-        if self.children is not None:
-            children = [
-                child.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
-                for child in self.children
-            ]
-        else:
-            children = None
-        return TypeNode(
-            id=self.id if keep_id else uuid.uuid4(),
-            name=self.name,
-            tag=self.tag,
-            description=self.description,
-            reference=self.source_reference if not keep_reference else self.reference,
-            source_reference=self.source_reference,
-            value=self.value,
-            children=children,
-        )
+    @property
+    def outputs(self) -> list["TypeNode"]:
+        return [child for child in self.children if child.is_output]
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
@@ -546,67 +527,74 @@ class TypeNode(SymbolContent):
                     continue  # break cycles (allowed, but we don't want to traverse them)
                 yield from child.walk(path)
 
-    def to_type(self) -> "Type":
-        if self.name is None:
-            raise ValueError("cannot convert anonymous type to Type")
-        return Type(**self.deepcopy().__dict__)
-
-    @property
-    def keys(self) -> list[str]:
-        if self.children is None:
-            return []
-        else:
-            return [e.name for e in self.children if e.name is not None]
-
-    @property
-    def input(self) -> TypeNode:  # for function types
-        return self.child("input")
-
-    @property
-    def output(self) -> TypeNode:  # for function types
-        return self.child("output")
-
-    @property
-    def head_type(self) -> TypeNode:  # for enum types
-        return self.children[0]
-
-    @property
-    def members(self) -> list[TypeNode]:  # for enum types
-        return self.children[1:]
-
-    @property
-    def is_union_with_null(self) -> bool:
-        return self.tag == TypeTag.UNION and any(
-            child.tag == TypeTag.NULL for child in self.children
-        )
-
-    @property
-    def non_null_children(self) -> list[TypeNode]:
-        return [child for child in self.children if child.tag != TypeTag.NULL]
-
-    @property
-    def is_flat(self) -> bool:
-        """Whether this type can be represented as a single un-nested primitive value."""
-        if self.tag in PRIMITIVE_TYPES:
-            return True
-        elif self.tag == TypeTag.ENUM:
-            return self.head_type.is_flat
-        elif self.tag == TypeTag.UNION:
-            return all(child.is_flat for child in self.children)
-        else:
-            return False
-
-    def child(self, key: str) -> TypeNode:
-        if self.children is None:
-            raise ValueError(f"find cannot be used on {self}")
-        for node in self.children:
-            if node.name == key or to_pyidentifier(node.name) == to_pyidentifier(key):
-                return node
-        raise KeyError(f"key {key} not found in {self}")
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
+        raise NotImplementedError
+        # if self.children is not None:
+        #     children = [
+        #         child.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+        #         for child in self.children
+        #     ]
+        # else:
+        #     children = None
+        # return TypeNode(
+        #     id=self.id if keep_id else uuid.uuid4(),
+        #     name=self.name,
+        #     tag=self.tag,
+        #     description=self.description,
+        #     reference=self.source_reference if not keep_reference else self.reference,
+        #     source_reference=self.source_reference,
+        #     value=self.value,
+        #     children=children,
+        # )
 
 
 @dataclass(repr=False)
-class Type(InterpSymbol, TypeNode):
+class SimpleTypeNode(TypeNode):
+    name: Optional[str]
+    tag: TypeTag
+    order_key: str = INTEGER_ZERO
+    id: UUID = field(default_factory=uuid.uuid4)
+    description: Optional[str] = None
+    is_output: bool = False
+    is_array: bool = False
+    is_nullable: bool = False
+    value: Optional[LiteralValue] = None  # for literal types
+    # source reference is separate as the resolved TypeNode may not contain the name
+    reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"] = None
+    source_reference: Optional[StatementPath] = None
+
+    def __str__(self):
+        name_str = f"{self.name} " if self.name else ""
+        return f"{name_str}{self.tag}"
+
+    @property
+    def children(self) -> list[TypeNode]:
+        if isinstance(self.reference, TypeContent):
+            return self.reference.type_nodes
+        return []
+
+
+@dataclass(repr=False)
+class TypeContent(SymbolContent, TypeNode):
+    name: Optional[str] = required_field()
+    tag: TypeTag = required_field()
+    is_output = False
+    is_array = False
+    is_nullable = False
+    type_nodes: list[SimpleTypeNode] = field(default_factory=list)
+    description: Optional[str] = None
+
+    def __str__(self):
+        name_str = f"{self.name} " if self.name else ""
+        return f"{name_str}{self.tag}"
+
+    @property
+    def children(self):
+        return self.type_nodes
+
+
+@dataclass(repr=False)
+class Type(InterpSymbol, TypeContent):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
     # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
@@ -633,9 +621,9 @@ class Capability(InterpSymbol, CapabilityContent):
 
 
 @dataclass(repr=False)
-class TaskContent(SymbolContent, GeneratorContent):
-    type_node: TypeNode = required_field()
+class TaskContent(SymbolContent, TypeContent, GeneratorContent):
     description: str = ""
+    root_type_tag = TypeTag.FUNCTION
 
 
 @dataclass(repr=False)
@@ -683,10 +671,9 @@ class Record:
 
 
 @dataclass(repr=False)
-class DatasetContent(SymbolContent):
+class DatasetContent(SymbolContent, TypeContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"]
     records: list[Record]
-    type_node: TypeNode
     description: Optional[str]
 
     def deepcopy(self) -> "DatasetContent":
@@ -921,7 +908,6 @@ SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
 }
 
-
 EMPTY_FUNC_TYPE = TypeNode(
     name=None,
     tag=TypeTag.FUNCTION,
@@ -963,10 +949,10 @@ def flatten_func_type(func_type: TypeNode) -> TypeNode:
     for child in func_type.input.children or []:
         if child.name == "output":
             raise ValueError("input child cannot be named output")
-    return TypeNode(
+    return SimpleTypeNode(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        children=[
+        type_nodes=[
             *deepcopy_types(func_type.input.children, keep_id=False),
             *deepcopy_types(func_type.output.children, keep_id=False),
         ],

@@ -235,13 +235,10 @@ def render_type_node(
     elif node.tag == TypeTag.UNION:
         type_str = " | ".join(render_type_node(e, statement) for e in node.children)
         return f"{identifier_str}{type_str}{description_str}"
-    elif node.tag == TypeTag.INTERSECTION:
-        type_str = " & ".join(render_type_node(e, statement) for e in node.children)
-        return f"{identifier_str}{type_str}{description_str}"
     elif node.tag == TypeTag.ENUM:
         members_strs = []
-        for m in node.members:
-            member_str = f"{escape_identifier(m.name)} = {render_literal(json.dumps(m.value))}"
+        for m in node.children:
+            member_str = f"- {escape_identifier(m.name)}"
             if m.description:
                 member_str += f' "{m.description}"'
             members_strs.append(member_str)
