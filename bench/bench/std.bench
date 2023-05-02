@@ -1,16 +1,11 @@
---- temperature ---
-enum Temperature :: string:
-High = `"high"`
-Medium = `"medium"`
-Low = `"low"`
+--- intrinsic ---
+# In-built simple types
+type Rating = number "0-5 stars"
+type Bytes = number "Number in bytes"
 
-data description_examples :: (text: string, temperature: Temperature):
-```jsonl
-{"text": "Write a poem about a space cat.", "temperature": "high"}
-{"text": "Repeat the following back to me: I am", "temperature": "low"}
-{"text": "Summarize the given news stories", "temperature": "medium"}
-{"text": "You are a helpful and truthful chat agent. If a user asks you a question, you should answer it truthfully. If you don't know, say so.", "temperature": "medium"}
-{"text": "You are a calculator", "temperature": "low"}
-{"text": "This is a conversation between a chatty and imaginative buddy and his friends.", "temperature": "high"}
-{"text": "Given an input command, write a program that implements it in Python", "temperature": "medium"}
-```
+type Document:
+"A text document"
+- name: text
+- format: text "File format"
+- size: Bytes "Total size in bytes"
+- content: file

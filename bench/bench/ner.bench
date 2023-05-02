@@ -2,17 +2,17 @@
 
 # # Classic NER
 
-enum EntityType :: string:
+enum EntityType:
 "Type of an entity"
-Person = `"Person"`
-Location = `"Location"`
-Organization = `"Organization"`
-Misc = `"Misc"`
+- Person
+- Location
+- Organization
+- Misc
 
 type Entity:
 "A named entity in a text"
-name: string "Canonical name of the entity"
-'type': EntityType
+- name: string "Canonical name of the entity"
+- 'type': EntityType
     like data samples :: (name: string, 'type': EntityType):
     "Common uses of Entity"
     ```csv
@@ -21,14 +21,10 @@ name: string "Canonical name of the entity"
     "Google","Organization"
     ```
 
-task 'extract entities' :: (input: string) -> [Entity]:
+task 'extract entities' :: (input: string) -> (entities: [Entity]):
 "Extract the distinct entities from the text"
     expect 'no duplicates' on output:
     "The entities are distinct"
-
-build prod:
-    task 'extract entities'
-    model openai.std.text.text-davinci-003
 
 require symbolx.std@latest
 require openai.std@latest
