@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
-from more_itertools import first
-
 from bench import language
 from bench.language import ErrorType
 from bench.language.parse import get_reference_as_path
@@ -208,26 +206,6 @@ def wmap_module(data: ModuleData) -> language.Module:
                 reference = statements.get(statement_data.reference, None)
                 if reference is not None:
                     statement.reference = get_reference_as_path(reference, statement)
-
-            type_node = None
-            if isinstance(statement.content, language.TypeNode):
-                type_node = statement.content
-            elif isinstance(
-                statement.content,
-                (language.DatasetContent, language.TaskContent, language.CodeContent),
-            ):
-                type_node = statement.content.type_node
-            if type_node is not None:
-                for node in type_node.walk():
-                    data_node = first(
-                        (n for n in (statement_data.type_nodes or []) if n.id == node.id), None
-                    )
-                    if data_node and isinstance(data_node.reference_id, UUID):
-                        reference = statements.get(node.reference, None)
-                        if reference is not None:
-                            node.reference = get_reference_as_path(reference, statement)
-                            node.source_reference = node.reference
-
     return module
 
 
@@ -317,7 +295,10 @@ def rmap_symbol(
     if isinstance(content, language.TypeContent):
         data.description = content.description
         data.root_type_tag = content.tag
-        data.type_nodes = [rmap_simple_type_node(node) for node in content.type_nodes]
+        data.type_nodes = [
+            rmap_simple_type_node(data.id, node, impute_type_references)
+            for node in content.type_nodes
+        ]
     if isinstance(content, language.TaskContent):
         data.description = content.description
     elif isinstance(content, language.ExpectationContent):
@@ -347,8 +328,6 @@ def rmap_symbol(
             )
     elif isinstance(content, language.RunconfigContent):
         pass
-    else:
-        raise ValueError(f"unexpected symbol type {content}")
 
 
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
@@ -418,14 +397,16 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 
 
-def rmap_simple_type_node(statement_id: UUID, node: language.SimpleTypeNode) -> SimpleTypeNodeData:
+def rmap_simple_type_node(
+    statement_id: UUID, node: language.SimpleTypeNode, impute_type_references: bool
+) -> SimpleTypeNodeData:
     """Maps a simple type node to a simple type node data object."""
     return SimpleTypeNodeData(
         id=node.id,
         revision=1,
         name=node.name,
         statement_id=statement_id,
-        tag=node.tag,
+        tag=node.reference.tag if node.reference and impute_type_references else node.tag,
         description=node.description,
         is_output=node.is_output,
         is_array=node.is_array,
@@ -446,7 +427,7 @@ def wmap_simple_type_node(data: SimpleTypeNodeData) -> language.SimpleTypeNode:
         is_output=data.is_output,
         is_array=data.is_array,
         is_nullable=data.is_nullable,
-        reference_id=data.reference_id,
+        reference=data.reference_id,
         order_key=data.order_key,
         value=data.value,
     )

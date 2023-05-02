@@ -505,19 +505,20 @@ class TypeNode(abc.ABC):
     is_nullable: bool
     is_array: bool
     description: Optional[str]
-    children: list["TypeNode"]
+    type_nodes: list["TypeNode"]
     value: Optional[LiteralValue]
+    reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
 
     @property
     def inputs(self) -> list["TypeNode"]:
-        return [child for child in self.children if not child.is_output]
+        return [child for child in self.type_nodes if not child.is_output]
 
     @property
     def outputs(self) -> list["TypeNode"]:
-        return [child for child in self.children if child.is_output]
+        return [child for child in self.type_nodes if child.is_output]
 
     def __getitem__(self, item: str) -> "TypeNode":
-        return first(self.children, lambda child: child.name == item)
+        return first(self.type_nodes, lambda child: child.name == item)
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
@@ -525,31 +526,14 @@ class TypeNode(abc.ABC):
         else:
             path = path + [self]
         yield self
-        if self.children:
-            for child in self.children:
+        if self.type_nodes:
+            for child in self.type_nodes:
                 if child in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
                 yield from child.walk(path)
 
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
         raise NotImplementedError
-        # if self.children is not None:
-        #     children = [
-        #         child.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
-        #         for child in self.children
-        #     ]
-        # else:
-        #     children = None
-        # return TypeNode(
-        #     id=self.id if keep_id else uuid.uuid4(),
-        #     name=self.name,
-        #     tag=self.tag,
-        #     description=self.description,
-        #     reference=self.source_reference if not keep_reference else self.reference,
-        #     source_reference=self.source_reference,
-        #     value=self.value,
-        #     children=children,
-        # )
 
 
 @dataclass(repr=False)
@@ -572,10 +556,26 @@ class SimpleTypeNode(TypeNode):
         return f"{name_str}{self.tag}"
 
     @property
-    def children(self) -> list[TypeNode]:
+    def type_nodes(self) -> list[TypeNode]:
         if isinstance(self.reference, TypeContent):
             return self.reference.type_nodes
         return []
+
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "SimpleTypeNode":
+        reference = (
+            self.source_reference
+            if not keep_reference or self.reference is None
+            else self.reference.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+        )
+        return SimpleTypeNode(
+            id=self.id if keep_id else uuid.uuid4(),
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            reference=reference,
+            source_reference=self.source_reference,
+            value=self.value,
+        )
 
 
 @dataclass(repr=False)
@@ -588,7 +588,8 @@ class TypeContent(SymbolContent, TypeNode):
     is_output = False
     is_array = False
     is_nullable = False
-    value: Optional[LiteralValue] = None
+    value = None
+    reference = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -597,6 +598,18 @@ class TypeContent(SymbolContent, TypeNode):
     @property
     def children(self):
         return self.type_nodes
+
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeContent":
+        type_nodes = [
+            type_node.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+            for type_node in self.type_nodes
+        ]
+        return TypeContent(
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            type_nodes=type_nodes,
+        )
 
 
 @dataclass(repr=False)
@@ -644,7 +657,7 @@ class Task(InterpSymbol, TaskContent):
 
     @property
     def is_minimally_specified(self) -> bool:
-        return bool(self.name and self.type.input.children and self.type.output.children)
+        return bool(self.name and self.type.input.type_nodes and self.type.output.type_nodes)
 
 
 @dataclass(repr=False)
@@ -948,12 +961,14 @@ def make_struct_type(
     )
 
 
-def deepcopy_types(nodes: list[TypeNode] | None, keep_id: bool) -> list[TypeNode]:
+def deepcopy_types(
+    nodes: list[SimpleTypeNode] | None, keep_id: bool = True
+) -> list[SimpleTypeNode]:
     nodes = nodes or []
     return [node.deepcopy(keep_id=keep_id) for node in nodes]
 
 
-def flatten_func_type(func_type: TypeNode) -> TypeNode:
+def flatten_func_type(func_type: TypeContent) -> TypeContent:
     """Inline the input and output types into one struct."""
     # check that no input children are called output (hacky deluxe)
     return TypeContent(

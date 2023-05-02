@@ -323,16 +323,16 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.tag == TypeTag.FILE:
         return pathlib.Path  # not sure what to return for double types (with remote blobs)
     elif node.tag == TypeTag.UNION:
-        return typing.Union[tuple(instantiate_py_type(child) for child in node.children)]
+        return typing.Union[tuple(instantiate_py_type(child) for child in node.type_nodes)]
     elif node.tag == TypeTag.STRUCT:
         return typing.TypedDict(
             node.name,
-            {node.name: instantiate_py_type(node) for node in node.children},
+            {node.name: instantiate_py_type(node) for node in node.type_nodes},
         )
     elif node.tag == TypeTag.ENUM:
         # create 'fake' enum with the given constants pointing to themselves
         # assumes enums are value enums (not type union enums)
-        members = {to_pyidentifier(child.name): child.name for child in node.children}
+        members = {to_pyidentifier(child.name): child.name for child in node.type_nodes}
         enum_name = node.name or "_anon_" + uuid4().hex
         return enum.StrEnum(enum_name, members)
     elif node.tag == TypeTag.LITERAL:

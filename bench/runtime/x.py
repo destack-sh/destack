@@ -155,7 +155,7 @@ class XBuilder:
             xblock.order_key = order_key
 
         input_dict_def = "from collections import OrderedDict\n" "_input_dict = OrderedDict()"
-        for input in self.type.input.children or []:
+        for input in self.type.input.type_nodes or []:
             input_ident = to_pyidentifier(input.name)
             input_dict_def += f"\n_input_dict['{input_ident}'] = {input_ident}"
 

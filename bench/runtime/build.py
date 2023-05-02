@@ -465,7 +465,7 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
         instruction_plans = []
         # TODO @Broken: consider context length in X prompt planning/building
         for task in root_tasks:
-            if task.type.output.tag == TypeTag.NULL:
+            if not task.outputs:
                 # cannot build task without output, should be caught before this
                 raise BuildError(BuildErrorType.CONFIG, ctx.build)
 
@@ -643,7 +643,7 @@ class XEmitTypeExplanation(XEmit):
 
         def _render_simple_type(t: TypeNode):
             if t.is_nullable:
-                return _render_simple_type(t.children[0]) + "?"
+                return _render_simple_type(t.type_nodes[0]) + "?"
             return t.reference.name if t.source_reference else t.tag.value
 
         el_strs = []
@@ -655,7 +655,7 @@ class XEmitTypeExplanation(XEmit):
                     el_str += f"- {choice.name}{_render_description(choice.description)}\n"
             elif type.tag == TypeTag.STRUCT:
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
-                for child in type.children:
+                for child in type.type_nodes:
                     el_str += f"- {child.name}: {_render_simple_type(child)}{_render_description(child.description)}\n"
             elif type.is_array:
                 el_str = f"\n{label} array of {_render_simple_type(type)}{_render_description(type.description)}\n"
@@ -664,7 +664,7 @@ class XEmitTypeExplanation(XEmit):
             el_strs.append(el_str)
 
             if self.recursive:
-                for child in type.children or []:
+                for child in type.type_nodes or []:
                     if isinstance(child.reference, TypeNode):
                         unexplained_types.append((child.reference.name, child.reference))
                     elif child.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):

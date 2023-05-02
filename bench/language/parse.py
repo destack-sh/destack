@@ -669,7 +669,7 @@ def _parse_dataset_records(
         elif lang == "json":
             records_data = json.loads(value_str)
         elif lang == "csv":
-            field_names = [element.name for element in type.children]
+            field_names = [element.name for element in type.type_nodes]
             csv_reader = csv.DictReader(
                 value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
             )
@@ -1249,13 +1249,10 @@ def resolve(
 
     # resolve type references
     for statement in statements:
-        type_node = None
-        if isinstance(statement.content, TypeNode):
-            type_node = statement.content
-        elif isinstance(statement.content, (DatasetContent, TaskContent, CodeContent)):
-            type_node = statement.content.type_node
-        if type_node is not None:
-            resolve_type_references_rec(statement, type_node, lookup_in_module, idx, on_error)
+        if isinstance(statement.content, TypeContent):
+            resolve_type_references_rec(
+                statement, statement.content, lookup_in_module, idx, on_error
+            )
 
     return idx
 
@@ -1269,7 +1266,7 @@ def resolve_type_references_rec(
 ) -> None:
     """Resolves and imputes type references in a type node recursively."""
     for node in type.walk():
-        if isinstance(node.reference, Statement) or node.tag != TypeTag.TYPE_REFERENCE:
+        if node.tag != TypeTag.TYPE_REFERENCE or isinstance(node.reference, Statement):
             continue  # nothing to resolve
         # normalize path to statement
         resolved_stmt = resolve_statement_reference(
@@ -1498,8 +1495,6 @@ def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
         raise ValueError(f"reference is unresolved type reference: {node}")
 
     node.tag = node.reference.tag
-    node.is_nullable = node.reference.is_nullable
-    node.is_array = node.reference.is_array
     if not keep_references:
         node.reference = None
     elif node.source_reference is None:
@@ -1547,20 +1542,16 @@ def interp(
             type_symbol = Type(
                 abstract=abstract,
                 source=statement,
-                # use id and name from source type node
-                **source_content.type_node.deepcopy().__dict__,
+                tag=source_content.tag,
+                type_nodes=source_content.type_nodes,
             )
-            # otherwise use name from source statement
-            if not type_symbol.name:
-                type_symbol.name = statement.name + " type"
-            source_kwargs = source_content.deepcopy().__dict__
-            # also point type_node to the type symbol
-            source_kwargs["type_node"] = type_symbol
-            symbol = symbol_cls(**base_symbol.__dict__, **source_kwargs, type=type_symbol)  # type: ignore
-        elif isinstance(source_content, TypeNode):
+            kwargs = {**source_content.__dict__}
+            kwargs.update(base_symbol.__dict__)
+            symbol = symbol_cls(**kwargs, type=type_symbol)
+        elif isinstance(source_content, TypeContent):
             # avoid name clash, use name from source statement
             # (TypeNode.name is not set sometimes for pure Type symbols)
-            kwargs = {**source_content.deepcopy().__dict__}
+            kwargs = {**source_content.__dict__}
             kwargs.update(base_symbol.__dict__)
             symbol = Type(**kwargs)
         else:
@@ -1592,10 +1583,8 @@ def interp(
         elif isinstance(symbol, (Dataset, Task, Code)):
             interp_type_node_rec(symbol.type, idx)
         # also replace in source type nodes
-        if isinstance(scope.statement.content, TypeNode):
+        if isinstance(scope.statement.content, TypeContent):
             interp_type_node_rec(scope.statement.content, idx)
-        elif isinstance(scope.statement.content, (DatasetContent, TaskContent, CodeContent)):
-            interp_type_node_rec(scope.statement.content.type_node, idx)
 
     # interp symbol contents using related symbols
     # this should probably set/work with :InstructionOps
@@ -1685,7 +1674,11 @@ def symbol_mentions_symbol(symbol: InterpSymbol, other: InterpSymbol) -> bool:
         return False
 
 
-def get_reference_as_path(reference: Statement, via: Statement | None) -> StatementPath:
+def get_reference_as_path(
+    reference: Statement | InterpSymbol, via: Statement | None
+) -> StatementPath:
+    if isinstance(reference, InterpSymbol):
+        reference = reference.source
     if via is None or reference.file.id == via.file.id:
         return StatementPath(".", reference.name)
     elif reference.file.module.name == via.file.module.name:
