@@ -263,6 +263,10 @@ union DatasetRecordOperationInfo = DatasetRecord | OperationInfo
 """Date with time (isoformat)"""
 scalar DateTime
 
+input DeleteObjectInput {
+  id: GlobalID!
+}
+
 input DeployInput {
   id: GlobalID!
   status: DeploymentStatus!
@@ -833,6 +837,9 @@ type Mutation {
   updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
+  requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
+  notifyUploadedObject(input: NotifyUploadedObjectInput!): RemoteObjectOperationInfo!
+  deleteObject(input: DeleteObjectInput!): RemoteObjectOperationInfo!
 }
 
 """An object with a Globally Unique ID"""
@@ -901,6 +908,10 @@ enum NotificationStatus {
 
 enum NotificationType {
   ORGANIZATION_INVITE
+}
+
+input NotifyUploadedObjectInput {
+  id: GlobalID!
 }
 
 """Multiple messages returned by an operation."""
@@ -1601,6 +1612,24 @@ enum RefType {
   RECORD
   XBLOCK
   TYPE_NODE
+}
+
+type RemoteObject {
+  id: UUID!
+  md5: String!
+  contentLength: Int!
+  contentType: String!
+  name: String
+}
+
+union RemoteObjectOperationInfo = RemoteObject | OperationInfo
+
+input RequestUploadObjectInput {
+  projectId: UUID!
+  md5: String!
+  contentLength: Int!
+  contentType: String!
+  name: String
 }
 
 input RestoreInput {

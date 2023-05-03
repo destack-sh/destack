@@ -12,6 +12,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
+from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
@@ -44,6 +45,7 @@ class ProjectManager(models.Manager["Project"]):
         create_adhoc_deployment: bool = True,
         create_onboarding_files: bool = False,
         create_blank_file: bool = False,
+        create_s3_bucket: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -83,6 +85,8 @@ class ProjectManager(models.Manager["Project"]):
         if create_blank_file:
             # create empty file
             project.head.create_path("Untitled")
+        if create_s3_bucket:
+            create_project_s3_bucket(project)
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -94,6 +98,10 @@ class ProjectManager(models.Manager["Project"]):
 
 
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
+
+
+def get_project_bucket_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}"
 
 
 class Project(UUIDModel):
@@ -140,6 +148,10 @@ class Project(UUIDModel):
     )
     def path(self) -> str:
         return f"{self.owner.slug}.{self.slug}"
+
+    @property
+    def bucket_name(self):
+        return get_project_bucket_name(self.id)
 
     @property
     def head_(self) -> ProjectVersion:
@@ -222,6 +234,13 @@ class Project(UUIDModel):
                 check=models.Q(organization__isnull=False) | models.Q(user__isnull=False),
             ),
         ]
+
+
+def create_project_s3_bucket(project: Project):
+    s3_client = get_s3_client()
+    response = s3_client.create_bucket(Bucket=project.bucket_name)
+    if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+        raise RuntimeError(f"failed to create s3 bucket: {response}")
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):
