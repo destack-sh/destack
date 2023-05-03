@@ -16,8 +16,11 @@ const emit = defineEmits<{
   (e: "update:modelValue", v: BasicObject | null): void;
 }>();
 
+const preparingUpload = ref(false);
 const isFileUploaded = computed(() => props.modelValue?.status == RemoteObjectStatus.Available);
-const isFileUploading = computed(() => props.modelValue?.status == RemoteObjectStatus.Uploading);
+const isFileUploading = computed(
+  () => props.modelValue?.status == RemoteObjectStatus.Uploading || preparingUpload.value
+);
 
 const ops = useOperations();
 const editor = useEditorState();
@@ -26,7 +29,7 @@ const dropZoneRef = ref<HTMLDivElement>();
 const { isOverDropZone } = useDropZone(dropZoneRef, beginUpload);
 
 function open() {
-  console.log("open", fileChooserRef.value); // TODO @Broken fix double (triple?) open on manual click
+  console.log("open", fileChooserRef.value); // nocheckin fix double (triple?) open on manual click
   fileChooserRef.value?.click();
 }
 
@@ -41,40 +44,43 @@ function beginUpload(files: File[] | null) {
   upload(editor.currentProjectId, file);
 }
 
+function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): BasicObject {
+  return {
+    id: remoteObject.id,
+    name: remoteObject.name,
+    contentLength: remoteObject.contentLength,
+    contentType: remoteObject.contentType,
+    sha512: remoteObject.sha512,
+    status: status ?? remoteObject.status,
+  };
+}
+
 async function upload(projectId: string, file: File) {
   // TODO @Cleanup: simplify and move to common object ops for re-use in other drop zones
   if (isFileUploaded.value) {
     throw new Error("file is already uploaded");
   }
+  preparingUpload.value = true;
   emit("update:modelValue", null);
   const ret = await ops.object.requestUpload(projectId, file);
+  preparingUpload.value = false;
   if (ret?.data?.requestUploadObject.__typename != "RemoteObject") {
     return; // ops errors are auto-handled
   }
   const remoteObject = ret.data.requestUploadObject;
+  if (remoteObject.status == RemoteObjectStatus.Available) {
+    emit("update:modelValue", makeBasicObject(remoteObject));
+    return; // already uploaded
+  }
   if (remoteObject.presignedPost == null) {
     throw new Error("no presigned post on remote object");
   }
   await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
   // emit uploading state
-  emit("update:modelValue", {
-    id: remoteObject.id,
-    name: remoteObject.name,
-    contentLength: remoteObject.contentLength,
-    contentType: remoteObject.contentType,
-    sha512: remoteObject.sha512,
-    status: RemoteObjectStatus.Uploading,
-  });
+  emit("update:modelValue", makeBasicObject(remoteObject, RemoteObjectStatus.Uploading));
   await ops.object.notifyUploaded(remoteObject.id);
   // emit uploaded state
-  emit("update:modelValue", {
-    id: remoteObject.id,
-    name: remoteObject.name,
-    contentLength: remoteObject.contentLength,
-    contentType: remoteObject.contentType,
-    sha512: remoteObject.sha512,
-    status: RemoteObjectStatus.Available,
-  });
+  emit("update:modelValue", makeBasicObject(remoteObject, RemoteObjectStatus.Available));
 }
 
 defineExpose({
@@ -105,5 +111,6 @@ defineExpose({
   </label>
   <span v-else-if="isFileUploading">uploading...</span>
   <!-- Existing file -->
+  <!-- TODO @Feature @UX: make file view openable and prettier -->
   <span v-else>{{ modelValue?.name }}</span>
 </template>
