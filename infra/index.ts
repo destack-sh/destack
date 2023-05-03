@@ -3,7 +3,7 @@ import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
-import { makeALBController, makeEbsCsiDriver } from "./aws";
+import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver } from "./aws";
 
 // configuration
 const config = new pulumi.Config();
@@ -204,6 +204,46 @@ const nats = new k8s.helm.v3.Release("nats", {
   },
 });
 
+// IAM access to manage bench-user S3 buckets
+const s3AccessKey = getBenchUserS3AccessKey();
+// put access key (id and secret) in a secret
+const s3AccessKeySecret = new k8s.core.v1.Secret("s3AccessKeySecret", {
+  metadata: {
+    name: "s3-access-key",
+  },
+  stringData: {
+    accessKeyId: s3AccessKey.accessKeyId.apply((id) => Buffer.from(id).toString("base64")),
+    secretAccessKey: s3AccessKey.secretAccessKey.apply((secret) => Buffer.from(secret).toString("base64")),
+  },
+  type: "Opaque",
+});
+
+// S3 backend env vars
+const AWS_BACKEND_ENV_VARS = [
+  {
+    name: "AWS_REGION",
+    value: config.require("awsRegion"),
+  },
+  {
+    name: "AWS_ACCESS_KEY_ID",
+    valueFrom: {
+      secretKeyRef: {
+        name: s3AccessKeySecret.metadata.name,
+        key: "accessKeyId",
+      },
+    },
+  },
+  {
+    name: "AWS_SECRET_ACCESS_KEY",
+    valueFrom: {
+      secretKeyRef: {
+        name: s3AccessKeySecret.metadata.name,
+        key: "secretAccessKey",
+      },
+    },
+  },
+];
+
 // General backend env vars
 const BACKEND_ENV_VARS = [
   // sentry
@@ -224,7 +264,7 @@ const BACKEND_ENV_VARS = [
 ];
 
 // SandboxedWorker env vars
-const SECRET_API_ENV_VARS = [
+const SECRET_MODEL_PROVIDER_VARS = [
   // provider secrets
   "OPENAI_API_KEY",
   "GOOSEAI_API_KEY",
@@ -305,7 +345,8 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...BACKEND_ENV_VARS,
                 ...DB_ENV_VARS,
-                ...SECRET_API_ENV_VARS, // needed for running langserver
+                ...SECRET_MODEL_PROVIDER_VARS, // needed for running langserver
+                ...AWS_BACKEND_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
                 { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
                 { name: "WEBAPP_URL", value: config.require("webappUrl") },
@@ -340,7 +381,11 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               name: workerName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
-              env: [...BACKEND_ENV_VARS, ...SECRET_API_ENV_VARS, { name: "ALLOW_UNTRUSTED_CODE", value: "true" }],
+              env: [
+                ...BACKEND_ENV_VARS,
+                ...SECRET_MODEL_PROVIDER_VARS,
+                { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
+              ],
               command: ["python", "bench/runworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },

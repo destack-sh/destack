@@ -22,6 +22,7 @@ from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.job import JobQuery, JobSubscription
 from bench.api.multiplayer import ModuleSubscription
 from bench.api.notification import NotificationMutation
+from bench.api.object import ObjectMutation
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     File,
@@ -164,6 +165,7 @@ class Mutation(
     FileMutation,
     DeploymentMutation,
     RuntimeMutation,
+    ObjectMutation,
 ):
     pass
 

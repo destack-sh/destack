@@ -20,6 +20,7 @@ from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
 from .notification import Notification, NotificationStatus, NotificationType
+from .object import RemoteObject, RemoteObjectStatus
 from .organization import (
     Organization,
     OrganizationInvite,
@@ -85,6 +86,8 @@ __all__ = [
     "RefMapping",
     "RefMappingKind",
     "RefType",
+    "RemoteObject",
+    "RemoteObjectStatus",
     "SimpleTypeNode",
     "Statement",
     "StatementType",

@@ -57,6 +57,16 @@ backoff==2.2.1
     #   posthog
 black==22.10.0
     # via -r requirements-dev.in
+boto3==1.26.125
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
+botocore==1.29.125
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
+    #   boto3
+    #   s3transfer
 build==0.10.0
     # via pip-tools
 cachetools==5.2.0
@@ -301,6 +311,11 @@ janus==1.0.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
+jmespath==1.0.1
+    # via
+    #   -c requirements.txt
+    #   boto3
+    #   botocore
 json-stream==2.2.1
     # via
     #   -c requirements.txt
@@ -480,6 +495,7 @@ pytest-xdist==3.0.2
 python-dateutil==2.8.2
     # via
     #   -c requirements.txt
+    #   botocore
     #   posthog
     #   strawberry-graphql
 python-dotenv==0.21.0
@@ -529,6 +545,10 @@ rich==13.3.4
     #   strawberry-graphql
 ruff==0.0.261
     # via -r requirements-dev.in
+s3transfer==0.6.0
+    # via
+    #   -c requirements.txt
+    #   boto3
 sentry-sdk[django]==1.18.0
     # via
     #   -c requirements.txt
@@ -650,6 +670,7 @@ uritemplate==4.1.1
 urllib3==1.26.15
     # via
     #   -c requirements.txt
+    #   botocore
     #   requests
     #   sentry-sdk
 uvicorn==0.19.0

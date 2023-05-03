@@ -114,6 +114,21 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     CodeInstance: SymbolType.CODE,
 }
 
+#
+# Object
+#
+
+
+@dataclass(repr=False, slots=True)
+class RemoteObjectData:
+    id: UUID
+    module_id: UUID
+    md5: str
+    content_length: int
+    content_type: str
+    content: Optional[bytes]
+    name: Optional[str]
+
 
 #
 # Executions

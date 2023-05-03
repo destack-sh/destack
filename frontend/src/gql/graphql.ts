@@ -275,6 +275,10 @@ export type DatasetRecordFilter = {
 
 export type DatasetRecordOperationInfo = DatasetRecord | OperationInfo;
 
+export type DeleteObjectInput = {
+  id: Scalars["GlobalID"];
+};
+
 export type DeployInput = {
   id: Scalars["GlobalID"];
   status: DeploymentStatus;
@@ -802,6 +806,7 @@ export type Mutation = {
   createStatementBlank: StatementOperationInfo;
   createTypeNode: SimpleTypeNodeOperationInfo;
   deleteFile: FileOperationInfo;
+  deleteObject: RemoteObjectOperationInfo;
   deleteRecord: DatasetRecordOperationInfo;
   deleteStatement: StatementOperationInfo;
   deleteTypeNode: SimpleTypeNodeOperationInfo;
@@ -812,10 +817,12 @@ export type Mutation = {
   moveRecord: DatasetRecordOperationInfo;
   moveStatement: StatementOperationInfo;
   moveTypeNode: SimpleTypeNodeOperationInfo;
+  notifyUploadedObject: RemoteObjectOperationInfo;
   removeDeployedStatement: DeploymentOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
+  requestUploadObject: RemoteObjectOperationInfo;
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
   restoreRecord: DatasetRecordOperationInfo;
@@ -938,6 +945,10 @@ export type MutationDeleteFileArgs = {
   input: NodeInput;
 };
 
+export type MutationDeleteObjectArgs = {
+  input: DeleteObjectInput;
+};
+
 export type MutationDeleteRecordArgs = {
   input: RecordDeleteInput;
 };
@@ -974,6 +985,10 @@ export type MutationMoveTypeNodeArgs = {
   input: TypeNodeMoveInput;
 };
 
+export type MutationNotifyUploadedObjectArgs = {
+  input: NotifyUploadedObjectInput;
+};
+
 export type MutationRemoveDeployedStatementArgs = {
   input: DeploymentRemoveStatementInput;
 };
@@ -988,6 +1003,10 @@ export type MutationRenameFileArgs = {
 
 export type MutationRenameStatementArgs = {
   input: StatementRenameInput;
+};
+
+export type MutationRequestUploadObjectArgs = {
+  input: RequestUploadObjectInput;
 };
 
 export type MutationRestoreArgs = {
@@ -1181,6 +1200,10 @@ export enum NotificationStatus {
 export enum NotificationType {
   OrganizationInvite = "ORGANIZATION_INVITE",
 }
+
+export type NotifyUploadedObjectInput = {
+  id: Scalars["GlobalID"];
+};
 
 /** Multiple messages returned by an operation. */
 export type OperationInfo = {
@@ -1823,6 +1846,25 @@ export enum RefType {
   TypeNode = "TYPE_NODE",
   Xblock = "XBLOCK",
 }
+
+export type RemoteObject = {
+  __typename?: "RemoteObject";
+  contentLength: Scalars["Int"];
+  contentType: Scalars["String"];
+  id: Scalars["UUID"];
+  md5: Scalars["String"];
+  name?: Maybe<Scalars["String"]>;
+};
+
+export type RemoteObjectOperationInfo = OperationInfo | RemoteObject;
+
+export type RequestUploadObjectInput = {
+  contentLength: Scalars["Int"];
+  contentType: Scalars["String"];
+  md5: Scalars["String"];
+  name?: InputMaybe<Scalars["String"]>;
+  projectId: Scalars["UUID"];
+};
 
 export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];

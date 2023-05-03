@@ -2,6 +2,7 @@ import * as aws from "@pulumi/aws";
 import * as awsx from "@pulumi/awsx";
 import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
+import { Output, output } from "@pulumi/pulumi";
 
 // see https://www.pulumi.com/blog/kubernetes-ingress-with-aws-alb-ingress-controller-and-pulumi-crosswalk/
 
@@ -376,4 +377,44 @@ export function makeEbsCsiDriver(vpc: awsx.ec2.Vpc, cluster: eks.Cluster) {
   });
 
   return ebsCsiDriver;
+}
+
+export function getBenchUserS3AccessKey() {
+  // Create a new IAM user
+  const s3User = new aws.iam.User("s3User", {});
+
+  // Create the IAM policy for S3 access with a specific prefix
+  const s3Policy = new aws.iam.Policy("s3Policy", {
+    policy: {
+      Version: "2012-10-17",
+      Statement: [
+        {
+          Action: ["s3:ListAllMyBuckets", "s3:GetBucketLocation"],
+          Effect: "Allow",
+          Resource: "arn:aws:s3:::*",
+        },
+        {
+          Action: "s3:*",
+          Effect: "Allow",
+          Resource: ["arn:aws:s3:::bench-user-*", "arn:aws:s3:::bench-user-*/*"],
+        },
+      ],
+    },
+  });
+
+  // Attach the policy to the user
+  const s3UserPolicyAttachment = new aws.iam.UserPolicyAttachment("s3UserPolicyAttachment", {
+    user: s3User.name,
+    policyArn: s3Policy.arn,
+  });
+
+  // Create an access key for the user
+  const s3UserAccessKey = new aws.iam.AccessKey("s3UserAccessKey", {
+    user: s3User.name,
+  });
+
+  return output({
+    accessKeyId: s3UserAccessKey.id,
+    secretAccessKey: s3UserAccessKey.secret,
+  });
 }

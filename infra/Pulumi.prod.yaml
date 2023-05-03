@@ -41,5 +41,6 @@ config:
   Bench:version: "current"
   Bench:vpcNetworkCidr: 10.0.0.0/16
   Bench:webappUrl: https://bench.symbolx.com
+  Bench:awsRegion: eu-central-1
   aws:region: "eu-central-1"
   pulumi:template: kubernetes-aws-typescript
