@@ -71,7 +71,7 @@ class ObjectMutation:
         remote_object: RemoteObject = project.remote_objects.filter(sha512=input.sha512).first()
         if remote_object is not None:
             if remote_object.status == models.RemoteObjectStatus.AVAILABLE:
-                raise ValidationError(f"object already exists: {remote_object}")
+                return remote_object
             else:
                 remote_object.status = models.RemoteObjectStatus.UPLOADING
         else:
