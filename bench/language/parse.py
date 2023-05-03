@@ -849,7 +849,7 @@ def assign_type_node_oks(nodes: list[SimpleTypeNode]) -> list[SimpleTypeNode]:
 def parse_type_struct(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
-    while True:
+    while tokens.peek_separator("-"):
         tokens.eat_separator("-")
         tokens.eat_space()
         tuple = parse_simple_type_node(tokens)
@@ -940,7 +940,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
         symbol_type=SymbolType.TYPE,
         name=name.value,
         modifier=modifier,
-        content=TypeContent(name=None, tag=node.tag),
+        content=TypeContent(name=None, description=node.description, tag=node.tag),
         **kwargs,
     )
     return statement
