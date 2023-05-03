@@ -5,7 +5,7 @@ type Bytes = number "Number in bytes"
 
 type Document:
 "A text document"
-- name: text
-- format: text "File format"
+- name: string
+- format: string "File format"
 - size: Bytes "Total size in bytes"
 - content: file

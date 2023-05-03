@@ -12,6 +12,7 @@ from bench.language.type import (
     LiteralValue,
     Model,
     Record,
+    Type,
     TypeNode,
     XBlockContent,
     XKind,
@@ -95,7 +96,8 @@ def xcode(
         code=source,
         name=name,
         type=type,
-        type_node=type,
+        tag=type.tag,
+        type_nodes=type.type_nodes,
         description=None,
         language=language,
         xblocks=xblocks,
@@ -155,7 +157,7 @@ class XBuilder:
             xblock.order_key = order_key
 
         input_dict_def = "from collections import OrderedDict\n" "_input_dict = OrderedDict()"
-        for input in self.type.input.type_nodes or []:
+        for input in self.type.inputs or []:
             input_ident = to_pyidentifier(input.name)
             input_dict_def += f"\n_input_dict['{input_ident}'] = {input_ident}"
 
@@ -222,7 +224,7 @@ class XBuilder:
 class DataBuilder:
     """Build a dataset."""
 
-    def __init__(self, name: str, type_node: TypeNode):
+    def __init__(self, name: str, type_node: Type):
         self.name = name
         self.type = type_node
         self.records: list[LiteralValue] = []
@@ -246,7 +248,7 @@ class DataBuilder:
         dataset = Dataset(
             name=self.name,
             type_node=self.type,
-            type=self.type.to_type().deepcopy(keep_id=False, keep_reference=True),
+            type=self.type.deepcopy(keep_id=False, keep_reference=True),
             records=records,
             description=None,
             language="jsonl",

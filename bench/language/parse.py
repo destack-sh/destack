@@ -838,6 +838,14 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
     )
 
 
+def assign_type_node_oks(nodes: list[SimpleTypeNode]) -> list[SimpleTypeNode]:
+    """Assign order keys to type nodes and return the list of nodes."""
+    oks = generate_n_keys_between(None, None, len(nodes))
+    for node, ok in zip(nodes, oks):
+        node.order_key = ok
+    return nodes
+
+
 def parse_type_struct(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
@@ -852,6 +860,7 @@ def parse_type_struct(tokens: TokenParser, name: str | None) -> TypeContent:
         if not tokens.peek_separator("-"):
             tokens.advance(-1)  # go back one token to leave newline separator
             break
+    assign_type_node_oks(struct.type_nodes)
     return struct
 
 
@@ -862,11 +871,12 @@ def parse_type_struct_inline(
     while not tokens.peek_bracket(")"):
         tuple = parse_simple_type_node(tokens)
         tuple.is_output = is_output
-        struct.children.append(tuple)
+        struct.type_nodes.append(tuple)
         if not tokens.peek_separator(","):
             break
         tokens.eat_separator(",")
         tokens.eat_space()
+    assign_type_node_oks(struct.type_nodes)
     return struct
 
 
@@ -883,6 +893,7 @@ def parse_type_func(tokens: TokenParser, name: str | None) -> TypeContent:
         outputs = parse_type_struct_inline(tokens, "output", is_output=True)
         nodes.extend(outputs.type_nodes)
         tokens.eat_bracket(")")
+    assign_type_node_oks(nodes)
     return TypeContent(name=name, tag=TypeTag.FUNCTION, type_nodes=nodes)
 
 
@@ -1266,7 +1277,7 @@ def resolve_type_references_rec(
 ) -> None:
     """Resolves and imputes type references in a type node recursively."""
     for node in type.walk():
-        if node.tag != TypeTag.TYPE_REFERENCE or isinstance(node.reference, Statement):
+        if node.reference is None or isinstance(node.reference, Statement):
             continue  # nothing to resolve
         # normalize path to statement
         resolved_stmt = resolve_statement_reference(

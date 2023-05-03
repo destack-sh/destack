@@ -147,6 +147,8 @@ def map_instruction(
         return tree.nodes[node.id]
     # if this is a reference, walk the referenced symbol directly (can only be definition for now)
     if node.reference is not None and node.reference != node:
+        if not isinstance(node.reference, (InterpSymbol, TypeNode)):
+            raise ValueError(f"expected reference to be a symbol: {node}")
         pseudo_link = Instruction(
             op=InstructionOp.Pseudo,
             node=node,
@@ -268,7 +270,13 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
     order_keys = generate_n_keys_between(None, None, n_records)
     records = [Record(order_key=order_key, data={}) for order_key in order_keys]
     return Dataset(
-        name="", type=type, type_node=type, description="", records=records, language="jsonl"
+        name="",
+        type=type,
+        tag=type.tag,
+        type_nodes=type.type_nodes,
+        description="",
+        records=records,
+        language="jsonl",
     )
 
 
@@ -370,10 +378,7 @@ class SampleGenerateWithModel(SampleSource):
             ),
             # TODO @Build: tune model sample generation settings (and adapt to model context size)
             XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
-            XEmitOutput(
-                type=generation_task_type.output,
-                type_label=f"Output samples ({self.count} JSON array elements)",
-            ),
+            XEmitOutput(type_label=f"Output samples ({self.count} JSON array elements)"),
         )
         implementation = await do_build_task_plan(plan)
         implementation.context[self.model.name] = self.model

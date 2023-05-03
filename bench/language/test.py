@@ -126,7 +126,7 @@ entities: [Entity]
     assert type_event["entities"].is_array
 
     type_entity = idx.symbol(".test:Entity", Type)
-    assert type_entity["first_event"].children[0].tag == type_event.tag
+    assert type_entity["first_event"].type_nodes[0].tag == type_event.tag
 
 
 def test_output_struct():
