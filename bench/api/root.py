@@ -22,7 +22,7 @@ from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.job import JobQuery, JobSubscription
 from bench.api.multiplayer import ModuleSubscription
 from bench.api.notification import NotificationMutation
-from bench.api.object import ObjectMutation
+from bench.api.object import ObjectMutation, RemoteObject
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
     File,
@@ -147,6 +147,7 @@ class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery, ClientQuery):
         resolver=get_project_version_by_tag, directives=[CanViewProject()]
     )
     file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
+    remote_object: Optional[RemoteObject] = gql.relay.node(directives=[CanViewProject()])
     featured_projects: gql.relay.Connection[Project] = gql.django.connection(
         resolver=get_featured_projects
     )

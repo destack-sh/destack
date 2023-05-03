@@ -1,29 +1,44 @@
 from typing import Optional
-from uuid import UUID
 
+import botocore.exceptions
+import structlog
+from django.core.exceptions import ValidationError
 from strawberry.types import Info
 from strawberry_django_plus import gql
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_write_project
-from bench.api.util import asafe_mutation
+from bench.api.util import safe_mutation
+from bench.models.object import (
+    REMOTE_OBJECT_CONTENT_TYPES,
+    REMOTE_OBJECT_MAX_SIZE,
+    get_project_bucket_name,
+    get_s3_client,
+)
+
+logger = structlog.get_logger(__name__)
+
+
+RemoteObjectStatus = gql.enum(models.RemoteObjectStatus)
 
 
 @gql.django.type(models.RemoteObject)
-class RemoteObject:
-    id: UUID
-    md5: str
+class RemoteObject(gql.Node):
+    status: RemoteObjectStatus
+    sha512: str
     content_length: int
     content_type: str
     name: Optional[str]
     presigned_post: Optional[str]
+    presigned_get: Optional[str]
 
 
 @gql.input
 class RequestUploadObjectInput:
-    project_id: UUID
-    md5: str
+    project_id: GlobalID
+    sha512: str
     content_length: int
     content_type: str
     name: Optional[str]
@@ -41,25 +56,62 @@ class DeleteObjectInput(gql.NodeInput):
 
 @gql.type
 class ObjectMutation:
-    @asafe_mutation
+    @safe_mutation
     def request_upload_object(
         self, info: Info, input: RequestUploadObjectInput
     ) -> RemoteObject | OperationInfo:
-        project = models.Project.objects.get(input.project_id)
+        project = models.Project.objects.get(id=input.project_id.node_id)
         check_can_write_project(info, project)
+        if input.content_length >= REMOTE_OBJECT_MAX_SIZE:
+            raise ValidationError(
+                f"object too large: {input.content_length} >= {REMOTE_OBJECT_MAX_SIZE}"
+            )
+        if input.content_type not in REMOTE_OBJECT_CONTENT_TYPES:
+            raise ValidationError(f"invalid content type: {input.content_type}")
+        remote_object: RemoteObject = project.remote_objects.filter(sha512=input.sha512).first()
+        if remote_object is not None:
+            if remote_object.status == models.RemoteObjectStatus.AVAILABLE:
+                raise ValidationError(f"object already exists: {remote_object}")
+            else:
+                remote_object.status = models.RemoteObjectStatus.UPLOADING
+        else:
+            remote_object = models.RemoteObject(
+                project=project,
+                sha512=input.sha512,
+                content_length=input.content_length,
+                content_type=input.content_type,
+                name=input.name,
+                status=models.RemoteObjectStatus.UPLOADING,
+            )
+        remote_object.save()
+        remote_object.generate_presigned_post()
+        return remote_object
 
-    @asafe_mutation
+    @safe_mutation
     def notify_uploaded_object(
         self, info: Info, input: NotifyUploadedObjectInput
     ) -> RemoteObject | OperationInfo:
-        remote_object = models.RemoteObject.objects.get(id=input.id)
+        remote_object = models.RemoteObject.objects.get(id=input.id.node_id)
         check_can_write_project(info, remote_object.project)
-        # TODO @Robustness: check in aws
+        # check that object exists in s3
+        s3_client = get_s3_client()
+        try:
+            metadata = s3_client.head_object(
+                Bucket=get_project_bucket_name(remote_object.project_id),
+                Key=str(remote_object.id),
+            )
+            if metadata["ContentLength"] != remote_object.content_length:
+                logger.warning(
+                    "object_content_length_mismatch", remote_object=remote_object, metadata=metadata
+                )
+        except botocore.exceptions.ClientError:
+            logger.warning("object_not_found", remote_object=remote_object)
+            raise ValidationError(f"object not found: {remote_object}")
         remote_object.status = models.RemoteObjectStatus.AVAILABLE
         remote_object.save()
         return remote_object
 
-    @asafe_mutation
+    @safe_mutation
     def delete_object(self, info: Info, input: DeleteObjectInput) -> RemoteObject | OperationInfo:
         object = models.RemoteObject.objects.get(input.id)
         check_can_write_project(info, object.project)

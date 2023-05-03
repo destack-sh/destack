@@ -12,13 +12,13 @@ services:
             - '5432:5432'
 
     objects:
-        image: minio/minio:RELEASE.2022-09-17T00-09-45Z
+        image: minio/minio:RELEASE.2023-04-28T18-11-17Z
         restart: on-failure
         ports:
             - '19000:19000'
             - '19001:19001'
         environment:
-            MINIO_ROOT_USER: 'FKqazrKtQfnt6zjzCDG2AefBUpPMhDqTxwYuWyzWvNYRwUvNnSzQypJB6HykBc7'
+            MINIO_ROOT_USER: 'AKIAIOSFODNN7EXAMPLE'
             MINIO_ROOT_PASSWORD: 'UKht5CaJPQ5ZCaAsfFY52URhg7RWv8V2489e9qSpoAhJRw97gttSBkEWU65wtGz'
         entrypoint: sh
         # create the 'bench' bucket before starting the service

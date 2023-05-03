@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import ObjectValueCell from "@/components/cells/ObjectValueCell.vue";
 import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
+import { OBJECT_TYPETAGS } from "@/state/object";
 import { symbolOf } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -101,6 +103,10 @@ function edit(event: KeyboardEvent | MouseEvent) {
   if (props.readonly) {
     return;
   }
+  if (OBJECT_TYPETAGS.includes(props.type.tag)) {
+    valueRef.value?.open();
+    return;
+  } // don't prevent anything
   event.preventDefault();
   if (event instanceof KeyboardEvent) {
     // we want to propagate clicks to manage focus upstream
@@ -160,12 +166,14 @@ defineExpose({
 <template>
   <!-- Wrapper for selectable value container -->
   <div class="relative">
-    <button
+    <!-- (not actually a button because inputs can't be inside a button) -->
+    <div
       ref="buttonRef"
       tabindex="-1"
       :disabled="readonly"
       @click="edit"
       @keydown.enter.exact="edit"
+      @keydown.space.exact="edit"
       @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
       @keydown.tab.exact.prevent="editing || emitPrevent($event, 'navigateRight')"
@@ -212,6 +220,14 @@ defineExpose({
         :disabled="props.readonly"
       />
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
+      <ObjectValueCell
+        ref="valueRef"
+        v-else-if="OBJECT_TYPETAGS.includes(type.tag)"
+        :type="type"
+        :modelValue="readValue"
+        @update:modelValue="writeValue($event, true)"
+        :readonly="readonly"
+      />
       <div
         v-else-if="type.tag == TypeTag.Struct"
         class="flex w-full flex-row flex-wrap gap-2 border border-orange-900 border-opacity-[12%] p-1"
@@ -229,7 +245,7 @@ defineExpose({
       </div>
       <!-- Can't render this type! -->
       <span ref="valueRef" v-else class="">{{ readValue }}</span>
-    </button>
+    </div>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
       class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline border border-solid border-orange-600 bg-orange-100 p-1"

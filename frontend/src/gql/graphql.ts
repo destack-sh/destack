@@ -1631,6 +1631,7 @@ export type Query = {
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
+  remoteObject?: Maybe<RemoteObject>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
   userBySlug?: Maybe<User>;
@@ -1757,6 +1758,10 @@ export type QueryProjectVersionByTagArgs = {
   tag: Scalars["String"];
 };
 
+export type QueryRemoteObjectArgs = {
+  id: Scalars["GlobalID"];
+};
+
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
 };
@@ -1847,23 +1852,32 @@ export enum RefType {
   Xblock = "XBLOCK",
 }
 
-export type RemoteObject = {
+export type RemoteObject = Node & {
   __typename?: "RemoteObject";
   contentLength: Scalars["Int"];
   contentType: Scalars["String"];
-  id: Scalars["UUID"];
-  md5: Scalars["String"];
+  id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
+  presignedGet?: Maybe<Scalars["String"]>;
+  presignedPost?: Maybe<Scalars["String"]>;
+  sha512: Scalars["String"];
+  status: RemoteObjectStatus;
 };
 
 export type RemoteObjectOperationInfo = OperationInfo | RemoteObject;
 
+export enum RemoteObjectStatus {
+  Available = "AVAILABLE",
+  Prepared = "PREPARED",
+  Uploading = "UPLOADING",
+}
+
 export type RequestUploadObjectInput = {
   contentLength: Scalars["Int"];
   contentType: Scalars["String"];
-  md5: Scalars["String"];
   name?: InputMaybe<Scalars["String"]>;
-  projectId: Scalars["UUID"];
+  projectId: Scalars["GlobalID"];
+  sha512: Scalars["String"];
 };
 
 export type RestoreInput = {
@@ -3762,6 +3776,55 @@ export type RenameFileMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type RequestUploadObjectMutationVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  contentType: Scalars["String"];
+  contentLength: Scalars["Int"];
+  sha512: Scalars["String"];
+}>;
+
+export type RequestUploadObjectMutation = {
+  __typename?: "Mutation";
+  requestUploadObject:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "RemoteObject";
+        id: any;
+        status: RemoteObjectStatus;
+        name?: string | null;
+        contentType: string;
+        contentLength: number;
+        sha512: string;
+        presignedPost?: string | null;
+        presignedGet?: string | null;
+      };
+};
+
+export type NotifyUploadedObjectMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type NotifyUploadedObjectMutation = {
+  __typename?: "Mutation";
+  notifyUploadedObject:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "RemoteObject";
+        id: any;
+        status: RemoteObjectStatus;
+        name?: string | null;
+        contentType: string;
+        contentLength: number;
+        sha512: string;
+        presignedGet?: string | null;
+      };
 };
 
 export type CreateOrganizationMutationVariables = Exact<{
@@ -9735,6 +9798,177 @@ export const RenameFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const RequestUploadObjectDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "requestUploadObject" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "contentType" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "contentLength" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sha512" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "requestUploadObject" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "contentType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "contentType" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "contentLength" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "contentLength" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sha512" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sha512" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "contentType" } },
+                      { kind: "Field", name: { kind: "Name", value: "contentLength" } },
+                      { kind: "Field", name: { kind: "Name", value: "sha512" } },
+                      { kind: "Field", name: { kind: "Name", value: "presignedPost" } },
+                      { kind: "Field", name: { kind: "Name", value: "presignedGet" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RequestUploadObjectMutation, RequestUploadObjectMutationVariables>;
+export const NotifyUploadedObjectDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "notifyUploadedObject" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "notifyUploadedObject" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "contentType" } },
+                      { kind: "Field", name: { kind: "Name", value: "contentLength" } },
+                      { kind: "Field", name: { kind: "Name", value: "sha512" } },
+                      { kind: "Field", name: { kind: "Name", value: "presignedGet" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<NotifyUploadedObjectMutation, NotifyUploadedObjectMutationVariables>;
 export const CreateOrganizationDocument = {
   kind: "Document",
   definitions: [

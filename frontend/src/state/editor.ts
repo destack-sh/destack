@@ -89,10 +89,13 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
-  [TypeTag.Array]: "list",
+  [TypeTag.File]: "file",
+  [TypeTag.Embedding]: "embedding",
+  [TypeTag.Image]: "image",
+  [TypeTag.Audio]: "audio",
+  [TypeTag.Video]: "video",
   [TypeTag.TypeReference]: "reference",
   [TypeTag.Enum]: "enum",
-  [TypeTag.Map]: "map",
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 

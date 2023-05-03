@@ -130,6 +130,10 @@ const documents = {
     types.RestoreFileDocument,
   "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameFileDocument,
+  "\n      mutation requestUploadObject(\n        $projectId: GlobalID!\n        $name: String\n        $contentType: String!\n        $contentLength: Int!\n        $sha512: String!\n      ) {\n        requestUploadObject(\n          input: {\n            projectId: $projectId\n            name: $name\n            contentType: $contentType\n            contentLength: $contentLength\n            sha512: $sha512\n          }\n        ) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedPost\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.RequestUploadObjectDocument,
+  "\n      mutation notifyUploadedObject($id: GlobalID!) {\n        notifyUploadedObject(input: { id: $id }) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.NotifyUploadedObjectDocument,
   "\n      mutation createOrganization($name: String!, $slug: String!) {\n        createOrganization(input: { name: $name, slug: $slug }) {\n          ... on Organization {\n            id\n            name\n            slug\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateOrganizationDocument,
   "\n      mutation createInvites(\n        $id: GlobalID!\n        $emails: [String!]!\n        $level: OrganizationMembershipLevel!\n        $message: String\n      ) {\n        createOrganizationInvites(input: { id: $id, emails: $emails, level: $level, message: $message }) {\n          ... on Organization {\n            id\n            invites {\n              totalCount\n              edges {\n                node {\n                  id\n                }\n              }\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -594,6 +598,18 @@ export function graphql(
 export function graphql(
   source: "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation requestUploadObject(\n        $projectId: GlobalID!\n        $name: String\n        $contentType: String!\n        $contentLength: Int!\n        $sha512: String!\n      ) {\n        requestUploadObject(\n          input: {\n            projectId: $projectId\n            name: $name\n            contentType: $contentType\n            contentLength: $contentLength\n            sha512: $sha512\n          }\n        ) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedPost\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation requestUploadObject(\n        $projectId: GlobalID!\n        $name: String\n        $contentType: String!\n        $contentLength: Int!\n        $sha512: String!\n      ) {\n        requestUploadObject(\n          input: {\n            projectId: $projectId\n            name: $name\n            contentType: $contentType\n            contentLength: $contentLength\n            sha512: $sha512\n          }\n        ) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedPost\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation notifyUploadedObject($id: GlobalID!) {\n        notifyUploadedObject(input: { id: $id }) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation notifyUploadedObject($id: GlobalID!) {\n        notifyUploadedObject(input: { id: $id }) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

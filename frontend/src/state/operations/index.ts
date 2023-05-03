@@ -1,6 +1,7 @@
 import { useClientOps } from "@/state/operations/client";
 import { useDeploymentOps } from "@/state/operations/deployment";
 import { useFileOps } from "@/state/operations/file";
+import { useObjectOps } from "@/state/operations/object";
 import { useOrganizationOps } from "@/state/operations/organization";
 import { useProjectOps } from "@/state/operations/project";
 import { useRuntimeOps } from "@/state/operations/runtime";
@@ -177,6 +178,7 @@ export function _useOperations() {
     runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
     deployment: useDeploymentOps(),
+    object: useObjectOps(),
     state,
   };
 }
