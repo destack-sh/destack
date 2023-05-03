@@ -223,7 +223,7 @@ async def evaluate_task(
     all_samples: list[Record] = list(
         chain.from_iterable(dataset.records for dataset in eval.datasets)
     )
-    output_keys = task.type.output.keys
+    output_keys = {output.name for output in task.type.outputs}
 
     with in_memory_traces() as traces:
         runs = (
@@ -234,7 +234,7 @@ async def evaluate_task(
             for sample in all_samples
         )
         results = await asyncio.gather(*runs, return_exceptions=True)
-    outputs = anonymous_dataset(task.type.output, len(results))
+    outputs = anonymous_dataset(task.type, len(results))
     n_successful_runs = 0
     for i, result in enumerate(results):
         if isinstance(result, Exception):
@@ -256,8 +256,8 @@ async def evaluate_task(
     evals = (
         evaluate_output(
             input_type=task.type,
-            input=dict_minus(input.data, "output"),
-            output_type=task.type.output,
+            input=dict_minus(input.data, output_keys),
+            output_type=task.type,
             output=output.data,
             instructions=evalable_instructions,
             eval_model=eval.eval_model,
@@ -356,7 +356,11 @@ async def evaluate_output(
     eval_task_type = make_func_type(
         input_types=[
             instructions_type,
-            Type(name="sample", tag=TypeTag.STRUCT, children=[*input_type.children, output_type]),
+            Type(
+                name="sample",
+                tag=TypeTag.STRUCT,
+                children=[*input_type.inputs, *output_type.type_nodes],
+            ),
         ],
         output_types=[evals_type],
     )
@@ -388,9 +392,7 @@ async def evaluate_output(
             type=eval_task_type.outputs[0], type_label="Evaluations", value=[sample_evaluation]
         ),
         XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
-        XEmitOutput(
-            type=eval_task_type.outputs[0], type_label="Evaluations (one for each instruction)"
-        ),
+        XEmitOutput(type_label="Evaluations (one for each instruction)"),
     )
     implementation = await do_build_task_plan(plan)
     implementation.context[eval_model.name] = eval_model
@@ -476,7 +478,7 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     if instruction.op == InstructionOp.TaskDefinition:
         # task definitions (not steps) should have types
         task = cast(Task, instruction.node)
-        if task.type.output.tag == TypeTag.NULL:  # output type at least?
+        if not task.type.outputs:  # output type at least?
             instruction_perplexity += FULL_CONFUSION
 
     if instruction.op in (InstructionOp.SampleData, InstructionOp.DataDefinition):
@@ -487,15 +489,15 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
         elif len(data.records) < 2:
             instruction_perplexity += FULL_CONFUSION
         # sample data / data defs should have types
-        if len(data.type.children or []) == 0:
+        if len(data.type.type_nodes or []) == 0:
             instruction_perplexity += FULL_CONFUSION
 
     if instruction.op in (InstructionOp.SampleCode, InstructionOp.CheckCode):
         # sample / check code should have input & output type
         code = cast(Code, instruction.node)
-        if len(code.type.input.type_nodes or []) == 0:
+        if not code.type.inputs:
             instruction_perplexity += FULL_CONFUSION
-        if code.type.output.tag == TypeTag.NULL:
+        if not code.type.outputs:
             instruction_perplexity += FULL_CONFUSION
 
     self_metrics = {

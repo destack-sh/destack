@@ -152,7 +152,8 @@ def map_dataset_content(dataset: Dataset) -> DatasetContent:
     return DatasetContent(
         description=dataset.description,
         language=dataset.language,
-        type_node=dataset.type_node,
+        tag=dataset.tag,
+        type_nodes=dataset.type_nodes,
         records=dataset.records,
     )
 
@@ -161,7 +162,8 @@ def map_code_content(code: Code) -> CodeContent:
     return CodeContent(
         description=code.description,
         language=code.language,
-        type_node=code.type_node,
+        tag=code.tag,
+        type_nodes=code.type_nodes,
         code=code.code,
         xblocks=code.xblocks,
     )

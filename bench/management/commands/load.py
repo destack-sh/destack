@@ -11,9 +11,10 @@ from django.db import transaction
 from bench import language
 from bench.language import SymbolType, lex, parse, wire
 from bench.language.lex import SourceFile
+from bench.language.mutate import ModuleMutator
 from bench.language.reconstruct import render
 from bench.models import Organization, OwnerSlug, Project
-from bench.models.mapper import lookup_in_db_module, read_module, write_module
+from bench.models.mapper import lookup_in_db_module, read_module, write_mutations
 from bench.models.project import ProjectVisibility
 
 logger = structlog.get_logger(__name__)
@@ -76,7 +77,8 @@ class Command(BaseCommand):
         lang_module.files = [f for f in lang_module.files if f.statements]
 
         wire_module = wire.rmap_module(lang_module)
-        write_module(wire_module.files, project_v)
+        mut = ModuleMutator(module_id=wire_module.id).create_many(*wire_module.files)
+        write_mutations(project_v, mut.mutations)
 
         # advance head to new version
         project.head = project_v

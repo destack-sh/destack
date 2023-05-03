@@ -481,14 +481,12 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
 
             # map output type
             output_label = "Output"
-            output_type = task.type.output
-            output_path = ""
 
             # this is obviously hacky and suboptimal and will be replaced
             plan.emit(
                 XEmitSystem(),
                 XEmitTypeExplanation(
-                    type=output_type,
+                    type=task.type,
                     type_label=output_label,
                     include_descriptions=True,
                     recursive=True,
@@ -507,16 +505,14 @@ async def generate_plans(ctx: BuildContext) -> list[BuildPlan]:
                     )
             plan.emit(
                 XEmitTask(task=task),
-                XEmitTypeSample(type=output_type, type_label=output_label),
+                XEmitTypeSample(type=task.type, type_label=output_label),
             )
             if task.type.inputs:
                 plan.emit(XEmitInput())
             plan.emit(
                 # TODO @Broken: adjust & tune generation settings
                 XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-                XEmitOutput(
-                    type=output_type, type_label=f"Output for task {task.name}", path=output_path
-                ),
+                XEmitOutput(type_label=f"Output for task {task.name}"),
             )
             instruction_plans.append(plan)
         plans.append(BuildPlan(id=len(plans), models=[model], task_plans=instruction_plans))
@@ -644,14 +640,14 @@ class XEmitTypeExplanation(XEmit):
         def _render_simple_type(t: TypeNode):
             if t.is_nullable:
                 return _render_simple_type(t.type_nodes[0]) + "?"
-            return t.reference.name if t.source_reference else t.tag.value
+            return t.reference.name if t.reference else t.tag.value
 
         el_strs = []
         while unexplained_types:
             label, type = unexplained_types.pop()
             if type.tag == TypeTag.ENUM:
                 el_str = f"\n{label} enum:{_render_description(type.description)}\n"
-                for choice in type.members:
+                for choice in type.type_nodes:
                     el_str += f"- {choice.name}{_render_description(choice.description)}\n"
             elif type.tag == TypeTag.STRUCT:
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
@@ -715,11 +711,10 @@ class XEmitInput(XEmit):
 class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
-    type: Type
     type_label: str = "Output"
     path: str = ""
 
-    # TODO @Incomplete: support proper jsonpath for xblocks
+    # TODO @Incomplete: support proper jsonpath for xblocks?
     @staticmethod
     def parse_output(output: XBlock):
         import json
@@ -749,23 +744,12 @@ class XEmitOutput(XEmit):
             raise ValueError(f"invalid X output: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
-        if self.type.is_array:
-            output_request = xstatic(
-                f"{self.type_label}\n(JSON array, nothing else, include ',', start with [)",
-                XSource.System,
-            )
-        else:
-            output_request = xstatic(
-                f"{self.type_label}\n(JSON object, nothing else, start with {{)",
-                XSource.System,
-            )
-
+        output_request = xstatic(
+            f"{self.type_label}\n(JSON object, nothing else, start with {{)",
+            XSource.System,
+        )
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
-
-    @property
-    def sources(self) -> list[InterpSymbol]:
-        return [self.type]
 
 
 @xemit

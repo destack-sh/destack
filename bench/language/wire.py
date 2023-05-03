@@ -43,7 +43,7 @@ class SimpleTypeNodeData:
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
-        return f"{name_str}{self.tag.value}"
+        return f"{self.statement_id}:{self.order_key} {name_str}{self.tag.value}"
 
     def __repr__(self):
         return f"<SimpleTypeNode {str(self)}>"
@@ -58,7 +58,7 @@ class RecordData:
     data: Optional[typing.Any] = None
 
     def __str__(self):
-        return f"{self.order_key} {describe_type(self.data)}"
+        return f"{self.statement_id}:{self.order_key} {describe_type(self.data)}"
 
     def __repr__(self):
         return f"<Record {str(self)}>"

@@ -428,6 +428,12 @@ class InterpSymbol:
             definition=self.definition,
         )
 
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "InterpSymbol":
+        id = self.id if keep_id else uuid.uuid4()
+        kwargs = {**self.__dict__}
+        kwargs["id"] = id
+        return self.__class__(**kwargs)
+
     @property
     def is_definition(self) -> bool:
         return self.definition is not None and self.definition.id == self.id
@@ -555,6 +561,9 @@ class SimpleTypeNode(TypeNode):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag}"
 
+    def __repr__(self):
+        return f"<SimpleTypeNode {self}>"
+
     @property
     def type_nodes(self) -> list[TypeNode]:
         if isinstance(self.reference, TypeContent):
@@ -565,16 +574,20 @@ class SimpleTypeNode(TypeNode):
         reference = (
             self.source_reference
             if not keep_reference or self.reference is None
-            else self.reference.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+            else self.reference.deepcopy(keep_id=True, keep_reference=keep_reference)
         )
         return SimpleTypeNode(
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
             tag=self.tag,
+            order_key=self.order_key,
             description=self.description,
             reference=reference,
             source_reference=self.source_reference,
             value=self.value,
+            is_output=self.is_output,
+            is_array=self.is_array,
+            is_nullable=self.is_nullable,
         )
 
 
@@ -595,9 +608,8 @@ class TypeContent(SymbolContent, TypeNode):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag}"
 
-    @property
-    def children(self):
-        return self.type_nodes
+    def __repr__(self):
+        return f"<TypeContent {self}>"
 
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeContent":
         type_nodes = [
@@ -615,6 +627,20 @@ class TypeContent(SymbolContent, TypeNode):
 @dataclass(repr=False)
 class Type(InterpSymbol, TypeContent):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "Type":
+        type_nodes = [
+            type_node.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+            for type_node in self.type_nodes
+        ]
+        return Type(
+            id=self.id if keep_id else uuid.uuid4(),
+            name=self.name,
+            tag=self.tag,
+            description=self.description,
+            type_nodes=type_nodes,
+            expectations=self.expectations,
+        )
 
     # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
     def __str__(self):
@@ -657,7 +683,7 @@ class Task(InterpSymbol, TaskContent):
 
     @property
     def is_minimally_specified(self) -> bool:
-        return bool(self.name and self.type.input.type_nodes and self.type.output.type_nodes)
+        return bool(self.name and self.type.inputs and self.type.outputs)
 
 
 @dataclass(repr=False)
@@ -974,5 +1000,5 @@ def flatten_func_type(func_type: TypeContent) -> TypeContent:
     return TypeContent(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        type_nodes=[*deepcopy_types(func_type.children, keep_id=False)],
+        type_nodes=[*deepcopy_types(func_type.type_nodes, keep_id=False)],
     )
