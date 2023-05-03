@@ -9,7 +9,6 @@ import {
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { fileOf, symbolsLike } from "@/state/runtime";
-import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";

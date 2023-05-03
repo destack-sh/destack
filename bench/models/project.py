@@ -12,7 +12,7 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
-from bench.models.object import get_s3_client
+from bench.models.object import get_project_bucket_name, get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
@@ -100,10 +100,6 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
-def get_project_bucket_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}"
-
-
 class Project(UUIDModel):
     """
     A project to instruct an AI to do some things.
@@ -135,6 +131,7 @@ class Project(UUIDModel):
         "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
     deployments: models.QuerySet["Deployment"]  # noqa via Deployment
+    remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"
@@ -237,8 +234,20 @@ class Project(UUIDModel):
 
 
 def create_project_s3_bucket(project: Project):
+    """Creates an (encrypted) S3 bucket for the project."""
     s3_client = get_s3_client()
-    response = s3_client.create_bucket(Bucket=project.bucket_name)
+    response = s3_client.create_bucket(
+        Bucket=project.bucket_name,
+        ServerSideEncryptionConfiguration={
+            "Rules": [
+                {
+                    "ApplyServerSideEncryptionByDefault": {
+                        "SSEAlgorithm": "AES256"  # Use AES256 encryption
+                    }
+                }
+            ]
+        },
+    )
     if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
         raise RuntimeError(f"failed to create s3 bucket: {response}")
 

@@ -1,15 +1,58 @@
 import os
+import urllib
+import urllib.parse
 from functools import cache
 from typing import Optional
+from uuid import UUID
 
 import structlog
 from django.db import models
 from django_choices_field import TextChoicesField
 
-from bench.models.project import get_project_bucket_name
 from bench.models.utils import UUIDModel
 
-REMOTE_OBJECT_HASH_LENGTH = 32
+REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
+REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
+REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
+REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
+DOCUMENT_CONTENT_TYPES = {
+    "text/plain",
+    "application/rtf",
+    "text/rtf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/pdf",
+}
+IMAGE_CONTENT_TYPES = {
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/bmp",
+    "image/webp",
+    "image/svg+xml",
+}
+AUDIO_CONTENT_TYPES = {
+    "audio/mpeg",
+    "audio/wav",
+    "audio/ogg",
+    "audio/aac",
+    "audio/flac",
+    "audio/mp4",
+}
+VIDEO_CONTENT_TYPES = {
+    "video/mp4",
+    "video/mpeg",
+    "video/quicktime",
+    "video/x-msvideo",
+    "video/x-flv",
+    "video/x-matroska",
+    "video/webm",
+}
+REMOTE_OBJECT_CONTENT_TYPES = {*DOCUMENT_CONTENT_TYPES}  # only support documents for now
 
 logger = structlog.get_logger(__name__)
 
@@ -20,10 +63,6 @@ class RemoteObjectStatus(models.TextChoices):
     AVAILABLE = "available"
 
 
-REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
-REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
-
-
 class RemoteObject(UUIDModel):
     """A pointer to a remotely stored object."""
 
@@ -31,11 +70,20 @@ class RemoteObject(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     prepared_at = models.DateTimeField(null=True, blank=True)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="remote_objects")
-    md5 = models.CharField(max_length=REMOTE_OBJECT_HASH_LENGTH)
+    sha512 = models.CharField(max_length=REMOTE_OBJECT_HASH_LENGTH)
     content_length = models.IntegerField()
     content_type = models.CharField(max_length=255)
     name = models.CharField(max_length=255, null=True, blank=True)
     status = TextChoicesField(RemoteObjectStatus, default=RemoteObjectStatus.PREPARED)
+
+    _presigned_post: Optional[str] = None  # set manually
+    _presigned_get: Optional[str] = None  # set manually
+
+    def __str__(self):
+        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
+
+    def __repr__(self):
+        return f"<RemoteObject {self}>"
 
     def delete(self, *args, **kwargs):
         if self.status == RemoteObjectStatus.AVAILABLE:
@@ -51,18 +99,21 @@ class RemoteObject(UUIDModel):
 
     @property
     def presigned_post(self) -> Optional[str]:
-        return None  # must be set manually
+        return self._presigned_post  # must be set manually
 
     @property
     def presigned_get(self) -> Optional[str]:
-        if self.status == RemoteObjectStatus.AVAILABLE:
-            return self.generate_presigned_get()
+        if self._presigned_get is not None:
+            return self._presigned_get
+        elif self.status == RemoteObjectStatus.AVAILABLE:
+            self._presigned_get = self.generate_presigned_get()
+            return self._presigned_get
         else:
             return None
 
     def generate_presigned_post(self) -> str:
-        if self.status != RemoteObjectStatus.PREPARED:
-            raise ValueError(f"cannot generate presigned post for {self} with status {self.status}")
+        if self.presigned_post is not None:
+            return self.presigned_post
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_post(
             Bucket=get_project_bucket_name(self.project_id),
@@ -76,7 +127,11 @@ class RemoteObject(UUIDModel):
         )
         if "url" not in response:
             raise RuntimeError(f"failed to generate presigned post for {self}: {response}")
-        return response["url"]
+        # encode the url as a string (with parameters)
+        encoded_params = urllib.parse.urlencode(response["fields"])
+        encoded_url = f"{response['url']}?{encoded_params}"
+        self._presigned_post = encoded_url
+        return self.presigned_post
 
     def generate_presigned_get(self) -> str:
         """Generate a presigned get url for this object."""
@@ -91,15 +146,19 @@ class RemoteObject(UUIDModel):
             },
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_GET_EXPIRY,
         )
-        if "url" not in response:
-            raise RuntimeError(f"failed to generate presigned get for {self}: {response}")
-        return response["url"]
+        return response
 
     class Meta:
         constraints = [
-            # deduplicate objects per project/md5
-            models.UniqueConstraint(fields=["project", "md5"], name="bench_remoteobject_md5_ak")
+            # deduplicate objects per project/sha512
+            models.UniqueConstraint(
+                fields=["project", "sha512"], name="bench_remoteobject_sha512_ak"
+            )
         ]
+
+
+def get_project_bucket_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}"
 
 
 @cache

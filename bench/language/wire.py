@@ -333,7 +333,7 @@ def rmap_symbol(
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.root_type_tag:
-        type_nodes = [wmap_simple_type_node(t) for t in data.type_nodes]
+        type_nodes = [wmap_simple_type_node(t) for t in (data.type_nodes or [])]
     else:
         type_nodes = None
 

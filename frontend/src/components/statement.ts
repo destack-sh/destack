@@ -438,7 +438,15 @@ export const BOOLEAN_TYPE_NODE = makeTypeNode({ tag: TypeTag.Boolean });
 export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
 export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });
 
-export const PRIMITIVE_TYPES = [TypeTag.Any, TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.Null];
+export const PRIMITIVE_TYPES = [
+  TypeTag.Any,
+  TypeTag.String,
+  TypeTag.Boolean,
+  TypeTag.Number,
+  TypeTag.File,
+  TypeTag.Embedding,
+  TypeTag.Null,
+];
 export const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
 
 export function renderSimpleType(node: SimpleType): string {

@@ -123,7 +123,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
 class RemoteObjectData:
     id: UUID
     module_id: UUID
-    md5: str
+    sha512: str
     content_length: int
     content_type: str
     content: Optional[bytes]
