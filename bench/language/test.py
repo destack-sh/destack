@@ -45,12 +45,12 @@ def test_absolute_references():
         """
 --- a ---
 type Apple:
-name: string
+- name: string
 
 type AppleTree:
-apples: [Apple]
+- apples: [Apple]
 
-code graft :: (tree: .a.AppleTree, apple: Apple) -> AppleTree:
+code graft :: (tree: .a.AppleTree, apple: Apple) -> (tree: AppleTree):
 ```python
 return tree + apple
 ```
@@ -58,33 +58,15 @@ return tree + apple
 --- b ---
 
 type FruitBasket:
-apples: [.a.Apple]
+- apples: [.a.Apple]
 """
     )
     type_graft = idx.symbol(".a:graft", Code)
     type_fruit_basket = idx.symbol(".b:FruitBasket", Type)
     # apple inside graft should be the same apple as the one in the fruit basket
     type_graft_apple = type_graft.type["apple"]
-    type_fruit_basket_apple = type_fruit_basket["apples"].head_type
+    type_fruit_basket_apple = type_fruit_basket["apples"]
     assert type_graft_apple.reference.id == type_fruit_basket_apple.reference.id
-
-
-def test_unexpected_indent():
-    with pytest.raises(ParseError) as excinfo:
-        # empty un-indented line stops the indent
-        parse_string(
-            """
---- test ---
-task something :: ():
-"Do something"
-
-
-
-    task something_else :: ():
-    "Do something else"
-"""
-        )
-    assert excinfo.value.type == ErrorType.UNEXPECTED_INDENT
 
 
 def test_resolve_nested_aliased_type():
@@ -96,8 +78,8 @@ type MyString = RealString
 type EntityType = MyString
 
 type Entity:
-name: string
-'type': EntityType
+- name: string
+- 'type': EntityType
 """
     )
 
@@ -113,12 +95,12 @@ def test_resolve_circular_type():
         """
 --- test ---
 type Entity:
-name: string
-first_event: Event | null
+- name: string
+- first_event: Event?
 
 type Event:
-summary: string
-entities: [Entity]
+- summary: string
+- entities: [Entity]
 """
     )
 
@@ -126,7 +108,7 @@ entities: [Entity]
     assert type_event["entities"].is_array
 
     type_entity = idx.symbol(".test:Entity", Type)
-    assert type_entity["first_event"].type_nodes[0].tag == type_event.tag
+    assert type_entity["first_event"].reference.id == type_event.id
 
 
 def test_output_struct():

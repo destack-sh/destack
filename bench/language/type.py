@@ -472,7 +472,18 @@ class SymbolContent:
 LiteralValue = Union[
     dict[str, Any], list[Any], bool, int, float, str, PIL.Image.Image, pydub.AudioSegment, None
 ]
-PRIMITIVE_TYPES = [TypeTag.ANY, TypeTag.NULL, TypeTag.BOOLEAN, TypeTag.NUMBER, TypeTag.STRING]
+PRIMITIVE_TYPES = [
+    TypeTag.ANY,
+    TypeTag.NULL,
+    TypeTag.BOOLEAN,
+    TypeTag.NUMBER,
+    TypeTag.STRING,
+    TypeTag.IMAGE,
+    TypeTag.AUDIO,
+    TypeTag.VIDEO,
+    TypeTag.FILE,
+    TypeTag.EMBEDDING,
+]
 
 
 class GeneratedMappingType(enum.StrEnum):
@@ -524,7 +535,7 @@ class TypeNode(abc.ABC):
         return [child for child in self.type_nodes if child.is_output]
 
     def __getitem__(self, item: str) -> "TypeNode":
-        return first(self.type_nodes, lambda child: child.name == item)
+        return first(child for child in self.type_nodes if child.name == item)
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
