@@ -55,7 +55,7 @@ const tag = computed(() => deploymentsResult.value?.projectVersion?.tag);
 const deployments = computed(() => deploymentsResult.value?.projectVersion?.deployments.edges.map((x) => x.node) || []);
 const isDeployed = computed(() => deployments.value.find((d) => d.type == DeploymentType.Manual));
 
-const operations = useOperations();
+const ops = useOperations();
 const notifications = useNotifications();
 
 const runtime = useCurrentInterpModule();
@@ -71,7 +71,7 @@ const deploy = provideGlobalAction({
   apply: async () => {
     await Promise.all(
       deployments.value.map(async (deployment) => {
-        operations.deployment.update(deployment.id, DeploymentStatus.Active);
+        ops.deployment.update(deployment.id, DeploymentStatus.Active);
       })
     );
     notifications.show({

@@ -4,7 +4,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useDeploymentOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: updateMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -22,7 +22,7 @@ export function useDeploymentOps() {
   );
 
   async function update(id: string, status: DeploymentStatus) {
-    return await operations.perform({
+    return await ops.perform({
       type: "version.deploy",
       do: async () => {
         return await updateMut({ id, status });

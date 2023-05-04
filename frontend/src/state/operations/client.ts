@@ -4,7 +4,7 @@ import { useMutation } from "@vue/apollo-composable";
 import { graphql } from "@/gql";
 
 export function useClientOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: upsertClientMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -64,7 +64,7 @@ export function useClientOps() {
     recordId: string | null,
     path: string | null
   ) {
-    return await operations.perform({
+    return await ops.perform({
       type: "client.upsert",
       stateless: true,
       do: async () => {
@@ -96,7 +96,7 @@ export function useClientOps() {
   );
 
   async function close() {
-    return await operations.perform({
+    return await ops.perform({
       type: "client.close",
       stateless: true,
       suppressErrors: true,
@@ -117,7 +117,7 @@ export function useClientOps() {
   );
 
   async function updatePresence(silent?: boolean) {
-    return await operations.perform({
+    return await ops.perform({
       type: "client.updatePresence",
       stateless: true,
       suppressErrors: silent,

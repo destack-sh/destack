@@ -350,12 +350,12 @@ export function useSymbolNavigation() {
 }
 
 export function useSymbolOps() {
-  const operations = useOperations();
+  const ops = useOperations();
   const notifications = useNotifications();
   const editor = useEditorState();
 
   async function build(symbol: { id: string; name?: string | null }, scope: BuildScope) {
-    const ret = await operations.runtime.build(scope, symbol.id);
+    const ret = await ops.runtime.build(scope, symbol.id);
     if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
       notifications.show({
         type: "build.fail",

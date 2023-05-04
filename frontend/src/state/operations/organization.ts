@@ -4,7 +4,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useOrganizationOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: createMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -22,7 +22,7 @@ export function useOrganizationOps() {
   );
 
   async function create(name: string, slug: string) {
-    return await operations.perform({
+    return await ops.perform({
       type: "organization.create",
       stateless: true,
       do: async () => {
@@ -58,7 +58,7 @@ export function useOrganizationOps() {
   );
 
   async function createInvites(id: string, emails: string[], level: OrganizationMembershipLevel, message?: string) {
-    return await operations.perform({
+    return await ops.perform({
       type: "organization.createInvites",
       stateless: true,
       do: async () => {
@@ -89,7 +89,7 @@ export function useOrganizationOps() {
   );
 
   async function cancelInvite(id: string) {
-    return await operations.perform({
+    return await ops.perform({
       type: "organization.cancelInvite",
       stateless: true,
       do: async () => {

@@ -99,12 +99,12 @@ const { mutate: createAccessTokenMut, loading: creating } = useMutation(
   }
 );
 
-const operations = useOperationsStore();
+const ops = useOperationsStore();
 const notifications = useNotifications();
 const clipboard = useClipboard();
 
 async function createAccessToken() {
-  const result = await operations.perform({
+  const result = await ops.perform({
     type: "auth.createAccessToken",
     do: async () => {
       return await createAccessTokenMut({
@@ -144,7 +144,7 @@ const { mutate: revokeAccessTokenMut } = useMutation(
 );
 
 async function revokeAccessToken(token: { id: string }) {
-  const result = await operations.perform({
+  const result = await ops.perform({
     type: "auth.revokeAccessToken",
     do: async () => {
       return await revokeAccessTokenMut({ id: token.id });
@@ -176,10 +176,10 @@ const { getTimeFromNowLongString } = useTimeFromNow();
     >
       <thead>
         <tr>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Secret key</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Status</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Scopes</th>
-          <th scope="col" class="py-2 px-3 text-left text-sm font-semibold text-gray-900">Created</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Secret key</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Status</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Scopes</th>
+          <th scope="col" class="px-3 py-2 text-left text-sm font-semibold text-gray-900">Created</th>
           <th scope="col" class="py-2 pr-1 text-left text-sm font-semibold text-gray-900">
             <button
               class="focuus:bg-gray-100 mt-1 text-orange-600 hover:bg-orange-100 focus:outline-none"

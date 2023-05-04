@@ -80,7 +80,7 @@ const addMemberRef = ref<HTMLButtonElement | null>(null);
 const invitingUser: Ref<{ id?: string; email: string } | null> = ref(null);
 const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembershipLevel.Member);
 
-const operations = useOperations();
+const ops = useOperations();
 const notifications = useNotifications();
 
 async function createInvites() {
@@ -91,11 +91,7 @@ async function createInvites() {
   // we also don't do any validation on which user can be added yet
 
   const organizationId = membersResult.value?.organizationBySlug?.id;
-  const ret = await operations.organization.createInvites(
-    organizationId,
-    [invitingUser.value?.email],
-    invitingLevel.value
-  );
+  const ret = await ops.organization.createInvites(organizationId, [invitingUser.value?.email], invitingLevel.value);
   if (ret?.data?.createOrganizationInvites?.__typename == "Organization") {
     // success
     notifications.show({
@@ -113,7 +109,7 @@ async function createInvites() {
 
 async function cancelInvite(invite: OrganizationInvite) {
   // not implemented
-  const ret = await operations.organization.cancelInvite(invite.id);
+  const ret = await ops.organization.cancelInvite(invite.id);
   if (ret?.data?.cancelOrganizationInvite?.__typename == "Organization") {
     // success
     notifications.show({
@@ -179,7 +175,7 @@ async function removeMembership(membership: OrganizationMembership) {
           <!-- Status -->
           <td class="px-3 py-3">
             <div class="flex flex-col">
-              <span class="w-fit rounded-sm bg-orange-100 py-0.5 px-1 text-xs text-orange-900">Active</span>
+              <span class="w-fit rounded-sm bg-orange-100 px-1 py-0.5 text-xs text-orange-900">Active</span>
               <span class="text-xs text-gray-500">joined {{ getTimeFromNowLongString(membership.createdAt) }}</span>
             </div>
           </td>
@@ -218,7 +214,7 @@ async function removeMembership(membership: OrganizationMembership) {
           <!-- Status -->
           <td class="px-3 py-3">
             <div class="flex flex-col">
-              <span class="w-fit rounded-sm bg-yellow-100 py-0.5 px-1 text-xs text-yellow-900">Invited</span>
+              <span class="w-fit rounded-sm bg-yellow-100 px-1 py-0.5 text-xs text-yellow-900">Invited</span>
               <span class="text-xs text-gray-500">invited {{ getTimeFromNowLongString(invite.createdAt) }}</span>
             </div>
           </td>
@@ -244,7 +240,7 @@ async function removeMembership(membership: OrganizationMembership) {
         </tr>
         <!-- Create invite -->
         <tr class="border-t border-orange-900 border-opacity-[12%]">
-          <th colspan="5" scope="colgroup" class="px-3 pt-3 pb-0 text-left text-gray-900">Grow the team</th>
+          <th colspan="5" scope="colgroup" class="px-3 pb-0 pt-3 text-left text-gray-900">Grow the team</th>
         </tr>
         <tr v-if="canWrite">
           <!-- User -->
@@ -254,7 +250,7 @@ async function removeMembership(membership: OrganizationMembership) {
           <!-- Status -->
           <td class="px-3 py-3">
             <div class="flex flex-col" v-if="invitingUser != null">
-              <span class="w-fit rounded-sm bg-yellow-100 py-0.5 px-1 text-xs text-yellow-900">Excited</span>
+              <span class="w-fit rounded-sm bg-yellow-100 px-1 py-0.5 text-xs text-yellow-900">Excited</span>
               <span class="text-xs text-gray-500">joining soon</span>
             </div>
           </td>

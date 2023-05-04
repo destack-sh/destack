@@ -2,7 +2,7 @@ import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useObjects } from "@/state/object";
-import { useOperations } from "@/state/operations";
+import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newDatasetRecordId, newStatementId, newTypeNodeId } from "@/state/operations/statement";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
@@ -372,27 +372,27 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   // indentation
 
-  async function indent(statement: StatementHeader) {
+  async function indent(statement: StatementHeader, tx?: Transaction) {
     const previousSibling = getPreviousSibling(statement);
     if (previousSibling == null) {
       return;
     }
     const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
     const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
-    await ops.statement.move(statement.id, getLocation(statement), {
+    await ops.statement.move(tx ?? null, statement.id, getLocation(statement), {
       fileId: file.value?.file.id,
       parentId: previousSibling.id,
       orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
     });
   }
 
-  async function unindent(statement: StatementHeader) {
+  async function unindent(statement: StatementHeader, tx?: Transaction) {
     // move to after parent in grandparent's children
     const parent = statementsById.value[statement.parent?.id];
     const grandparent = statementsById.value[parent.parent?.id];
     const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
     const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
-    await ops.statement.move(statement.id, getLocation(statement), {
+    await ops.statement.move(tx ?? null, statement.id, getLocation(statement), {
       fileId: file.value?.file.id,
       parentId: grandparent?.id,
       orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
@@ -412,6 +412,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     const oldLocations = roots.map((s) => getLocation(s));
     const insertOrderKeys = generateNKeysBetween(previousSiblingChildrenLast?.orderKey ?? null, null, roots.length);
     await ops.statement.batchMove(
+      null,
       ids,
       oldLocations,
       insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: previousSibling.id, orderKey: k }))
@@ -429,6 +430,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     const oldLocations = roots.map((s) => getLocation(s));
     const insertOrderKeys = generateNKeysBetween(parent.orderKey, parentNextSibling?.orderKey ?? null, roots.length);
     await ops.statement.batchMove(
+      null,
       ids,
       oldLocations,
       insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: grandparent?.id, orderKey: k }))
@@ -452,7 +454,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       parentId: above?.parent?.id,
       orderKey,
     };
-    await ops.statement.move(statement.id, getLocation(statement), targetLocation);
+    await ops.statement.move(null, statement.id, getLocation(statement), targetLocation);
   }
 
   async function moveDown(statement: StatementHeader) {
@@ -467,7 +469,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       parentId: belowCurGroup?.parent?.id,
       orderKey,
     };
-    await ops.statement.move(statement.id, getLocation(statement), targetLocation);
+    await ops.statement.move(null, statement.id, getLocation(statement), targetLocation);
   }
 
   async function moveBatchUp(statements: StatementHeader[]) {
@@ -489,7 +491,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       parentId: above.parent?.id,
       orderKey: k,
     }));
-    await ops.statement.batchMove(ids, oldLocations, targetLocations);
+    await ops.statement.batchMove(null, ids, oldLocations, targetLocations);
   }
 
   async function moveBatchDown(statements: StatementHeader[]) {
@@ -508,7 +510,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       parentId: belowCurGroup.parent?.id,
       orderKey: k,
     }));
-    await ops.statement.batchMove(ids, oldLocations, targetLocations);
+    await ops.statement.batchMove(null, ids, oldLocations, targetLocations);
   }
 
   // selection
@@ -725,6 +727,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (!as && statement.value?.symbolType != SymbolType.Data) {
       throw new Error("can only insert records into data statements");
     }
+    const tx = openTransaction("insertFilesAsRecords");
     const uploads = [];
     for (let i = 0; i < files.length; i++) {
       const newRecordId = newDatasetRecordId();
@@ -732,15 +735,16 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       const orderKey = orderKeys[i];
       const remoteObject = await ops.object.prepareUpload(editor.currentProjectId as string, file);
       const data = { [column]: remoteObject };
-      ops.symbol.createRecord(newRecordId, as ?? statement.value?.id, orderKey, data);
+      ops.symbol.createRecord(tx, newRecordId, as ?? statement.value?.id, orderKey, data);
       uploads.push(
         objects.upload(editor.currentProjectId as string, file, (updatedObject) => {
           const newData = { ...data, [column]: updatedObject };
-          ops.symbol.updateRecord(newRecordId, data, newData);
+          ops.symbol.updateRecord(tx, newRecordId, data, newData);
         })
       );
     }
     await Promise.all(uploads);
+    closeTransaction(tx);
   }
 
   async function insertFilesAsDataset(position: "above" | "below", files: File[]) {
@@ -752,6 +756,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       position == "above"
         ? nav.value.getLocationRightAbove(statement.value)
         : nav.value.getLocationRightBelow(statement.value);
+    const tx = openTransaction("insertFilesAsDataset");
     // create new dataset
     const dataset = {
       id: newStatementId(),
@@ -762,15 +767,16 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       rootTypeTag: TypeTag.Struct,
       name: getRandomAdjective() + " documents",
     };
-    ops.statement.createDefinition(dataset);
+    ops.statement.createDefinition(tx, dataset);
     // create 'content' column with file type
-    ops.statement.createTypeNode(dataset.id, {
+    ops.statement.createTypeNode(tx, dataset.id, {
       statementId: dataset.id,
       id: newTypeNodeId(),
       name: "content",
       tag: TypeTag.File,
       orderKey: INTEGER_ZERO,
     });
+    closeTransaction(tx);
 
     // insert files into dataset
     const orderKeys = generateNKeysBetween(null, null, files.length);

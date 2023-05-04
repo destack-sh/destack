@@ -70,14 +70,9 @@ const canCommit = computed(() => !tagLoading.value && availableTag.value);
 
 // if we can't commit, we're editing an already committed version
 // so auto-sync name, description and tag (debounced as usual)
-const operations = useOperations();
+const ops = useOperations();
 function updateVersion() {
-  operations.version.update(
-    props.version.id,
-    name.value,
-    tag.value.length > 0 ? tag.value : undefined,
-    description.value
-  );
+  ops.version.update(props.version.id, name.value, tag.value.length > 0 ? tag.value : undefined, description.value);
 }
 const updateVersionDebounced = useDebounceFn(updateVersion, 500);
 watch([name, description, tag, availableTag, tagLoading], () => {
@@ -93,7 +88,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute top-9 left-1 z-10 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute left-1 top-9 z-10 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
         unmount
       >
         <!-- Header -->
@@ -120,7 +115,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
             />
             <div class="relative flex flex-row">
               <TagIcon
-                class="absolute top-1.5 left-2.5 h-4 w-4"
+                class="absolute left-2.5 top-1.5 h-4 w-4"
                 :class="tag.length > 0 ? 'text-gray-700' : 'text-gray-400'"
               />
               <input

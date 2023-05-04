@@ -6,7 +6,7 @@ import { useMutation } from "@vue/apollo-composable";
 
 export function useRuntimeOps() {
   const editor = useEditorState();
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: buildMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -22,7 +22,7 @@ export function useRuntimeOps() {
   );
 
   async function build(scope: BuildScope, buildableId?: string) {
-    return await operations.perform({
+    return await ops.perform({
       type: "runtime.build",
       stateless: true,
       do: async () => {
@@ -75,7 +75,7 @@ export function useRuntimeOps() {
     arguments_?: Record<string, any>,
     options?: { block?: boolean; timeoutSeconds?: number }
   ) {
-    return await operations.perform({
+    return await ops.perform({
       type: "runtime.run",
       stateless: true,
       do: async () => {

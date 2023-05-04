@@ -14,18 +14,46 @@ import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 import { ref, type Ref } from "vue";
+import { v4 as uuidv4 } from "uuid";
 
+/** A single atomic(ish) operation (usually against the DB) */
 export type Operation<T> = {
+  tx?: Transaction | null;
   id?: string;
   type: string;
   startedAt?: DateTime;
   key?: string | Record<string, string>;
-  stateless?: boolean; // whether the operation mutates synced state (true by default)
+  stateless?: boolean; // whether the operation mutates synced state (the default)
   suppressErrors?: boolean; // whether to suppress errors (false by default)
   do(): Promise<T>;
   redo?(): Promise<T | unknown>;
   undo?(): Promise<unknown>;
 };
+
+/** A bundle of related operations (does not correspond to DB transactions (yet)) */
+export type Transaction = {
+  id: string;
+  name?: string;
+  startedAt: DateTime;
+  closedAt?: DateTime;
+  operations: Operation<unknown>[];
+};
+
+export function openTransaction(name?: string): Transaction {
+  return {
+    id: Math.random().toString(16).substring(2, 8),
+    name,
+    startedAt: DateTime.now(),
+    operations: [],
+  };
+}
+
+export function closeTransaction(tx: Transaction) {
+  if (tx.closedAt) {
+    throw new Error(`transaction ${tx.id} already closed at ${tx.closedAt}`);
+  }
+  tx.closedAt = DateTime.now();
+}
 
 const COMPLETED_STACK_SIZE = 500;
 const STALE_TIME_SECONDS = 1;
@@ -131,35 +159,77 @@ export const useOperationsStore = defineStore("operations", {
 
     async perform<T>(operation: Operation<T>): Promise<T | null> {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
-      console.log(`perform ${operation.type} (id=${operation.id})`);
-
+      console.log(`perform ${operation.type} (id=${operation.id}, tx=${operation.tx?.id ?? "<none>"})`);
+      // add operation to transaction if any
+      if (operation.tx != null) {
+        if (typeof operation.tx != "object") {
+          throw new Error(`invalid transaction ${operation.tx}`); // (probably forgot first argument)
+        }
+        if (operation.tx.closedAt != null) {
+          throw new Error(`transaction ${operation.tx.id} is already closed`);
+        }
+        if (operation.tx.operations.find((op) => op.id === operation.id)) {
+          throw new Error(`operation ${operation.id} is already in transaction ${operation.tx.id}`);
+        }
+        operation.tx.operations.push(operation);
+      }
       // enable undo even before the operation is performed (for responsiveness)
       if (operation.undo != null) {
         this.undoStack.push(operation);
       }
       const ret = await this._do(operation, "do");
-      this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
+      if (!operation.stateless) {
+        console.log(`reset redo stack for ${operation.type} (id=${operation.id})`);
+        this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
+      }
       return ret as T | null; // cannot be void because it's not undo
     },
 
     async undo(): Promise<void> {
       const operation = this.undoStack.pop();
-      if (operation == null || operation.undo == null) {
-        return;
+      if (operation == null) {
+        throw new Error("nothing to undo");
       }
-      console.log(`undo ${operation.type} (id=${operation.id})`);
-      await this._do(operation, "undo");
-      this.redoStack.push(operation);
+      // TODO @Performance: collapse transaction operations that do the same thing (e.g. update record on same id)
+      // TODO @Performance: batch transaction operations if length > 1
+      // undo operation and any other operations in the same transaction
+      let operationsToUndo;
+      if (operation.tx != null) {
+        // move all other tx ops from undo stack
+        operationsToUndo = [...this.undoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+        this.undoStack = this.undoStack.filter((op) => op.tx?.id !== operation.tx?.id);
+      } else {
+        operationsToUndo = [operation];
+      }
+      // apply operations one by one in reverse order
+      for (const op of operationsToUndo.reverse()) {
+        console.log(`undo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
+        await this._do(op, "undo");
+      }
+      this.redoStack.push(...operationsToUndo.reverse());
     },
 
     async redo(): Promise<void> {
       const operation = this.redoStack.pop();
       if (operation == null) {
-        return;
+        throw new Error("nothing to redo");
       }
-      console.log(`redo ${operation.type} (id=${operation.id})`);
-      await this._do(operation, "redo");
-      this.undoStack.push(operation);
+      let operationsToRedo;
+      if (operation.tx != null) {
+        // move all other tx ops from redo stack
+        operationsToRedo = [...this.redoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+        this.redoStack = this.redoStack.filter((op) => op.tx?.id !== operation.tx?.id);
+      } else {
+        operationsToRedo = [operation];
+      }
+      // apply operations one by one
+      // TODO @Performance: do we really need to apply operations one be one in redo/undo?
+      // Probably, since we can't guarantee that the same server is used in sequence (or can we?).
+      for (const op of operationsToRedo) {
+        console.log(`redo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
+        await this._do(op, "redo");
+      }
+      this.undoStack.push(...operationsToRedo);
     },
   },
 });

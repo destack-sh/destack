@@ -10,7 +10,7 @@ import {
   type SoftDeleteRecordMutation,
   ModuleMutationType,
 } from "@/gql/graphql";
-import { useOperationsStore } from "@/state/operations";
+import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 
 export function useSymbolContentOps() {
@@ -46,8 +46,14 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function updateStatementDescription(id: string, oldDescription: string, newDescription: string) {
+  async function updateStatementDescription(
+    tx: Transaction | null,
+    id: string,
+    oldDescription: string,
+    newDescription: string
+  ) {
     await operations.perform({
+      tx,
       type: "statement.updateDescription",
       do: async () => {
         return await updateStatementDescriptionMut({ id: id, description: newDescription });
@@ -87,8 +93,9 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function updateStatementCode(id: string, oldCode: string, newCode: string) {
+  async function updateStatementCode(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
     await operations.perform({
+      tx,
       type: "statement.updateCode",
       do: async () => {
         return await updateStatementCodeMut({ id, code: newCode });
@@ -128,8 +135,9 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function updateStatementText(id: string, oldCode: string, newCode: string) {
+  async function updateStatementText(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
     await operations.perform({
+      tx,
       type: "statement.updateText",
       do: async () => {
         return await updateStatementTextMut({ id, code: newCode });
@@ -321,8 +329,9 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function createRecord(id: string, statementId: string, orderKey: string, data: JSON) {
+  async function createRecord(tx: Transaction | null, id: string, statementId: string, orderKey: string, data: JSON) {
     await operations.perform({
+      tx,
       type: "statement.createRecord",
       do: async () => {
         return await createRecordMut({
@@ -341,8 +350,9 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function updateRecord(id: string, oldData: JSON, newData: JSON) {
+  async function updateRecord(tx: Transaction | null, id: string, oldData: JSON, newData: JSON) {
     await operations.perform({
+      tx,
       type: "statement.updateRecord",
       do: async () => {
         return await updateRecordMut({ id, data: newData });
@@ -353,8 +363,9 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function deleteRecord(id: string) {
+  async function deleteRecord(tx: Transaction | null, id: string) {
     await operations.perform({
+      tx,
       type: "statement.deleteRecord",
       do: async () => {
         return await deleteRecordMut({ id });
@@ -362,8 +373,9 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function softDeleteRecord(id: string) {
+  async function softDeleteRecord(tx: Transaction | null, id: string) {
     await operations.perform({
+      tx,
       type: "statement.softDeleteRecord",
       do: async () => {
         return await softDeleteRecordMut({ id });

@@ -16,7 +16,7 @@ const props = defineProps<{
 }>();
 
 // statement selection
-const operations = useOperations();
+const ops = useOperations();
 const editor = useEditorState();
 const runtime = useCurrentInterpModule();
 const { jobs: activeJobs } = useJobs(
@@ -107,14 +107,14 @@ const mainActions = [
     icon: WrenchIcon,
     enabled: canBuild,
     stale: mainSymbolStale,
-    active: computed(() => buildRunning.value || operations.state.hasInflightLike({ types: ["runtime.build"] })),
+    active: computed(() => buildRunning.value || ops.state.hasInflightLike({ types: ["runtime.build"] })),
     action: () => buildMain.value.apply(),
   },
   {
     label: "Run",
     icon: PlayIcon,
     enabled: canRun,
-    active: computed(() => operations.state.hasInflightLike({ types: ["runtime.run"] })),
+    active: computed(() => ops.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
   {
@@ -122,7 +122,7 @@ const mainActions = [
     icon: CheckCircleIcon,
     enabled: computed(() => evaluateMain.value.enabled),
     active: computed(
-      () => evaluateRunning.value || operations.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
+      () => evaluateRunning.value || ops.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
     ),
     stale: mainSymbolStale,
     action: () => evaluateMain.value.apply(),

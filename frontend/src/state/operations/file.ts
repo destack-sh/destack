@@ -1,15 +1,14 @@
 import { graphql } from "@/gql";
 import {
-  type CreateFileMutation,
-  type RenameFileMutation,
-  type DeleteFileMutation,
-  type RestoreFileMutation,
   ModuleMutationType,
+  type CreateFileMutation,
+  type DeleteFileMutation,
+  type RenameFileMutation,
+  type RestoreFileMutation,
   type SoftDeleteFileMutation,
 } from "@/gql/graphql";
-import { useOperationsStore } from "@/state/operations";
+import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry } from "@/state/sync";
-import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
 export function newFileId(): string {
@@ -19,7 +18,7 @@ export function newFileId(): string {
 }
 
 export function useFileOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
   const registry = new OpRegistry();
 
   const { mutate: createFileMut } = registry.useMutation(
@@ -194,8 +193,9 @@ export function useFileOps() {
     }
   );
 
-  async function delete_(id: string) {
-    return await operations.perform({
+  async function delete_(tx: Transaction | null, id: string) {
+    return await ops.perform({
+      tx,
       type: "file.delete",
       do: async () => {
         return await deleteFileMut({ id: id });
@@ -203,8 +203,9 @@ export function useFileOps() {
     });
   }
 
-  async function softDelete(id: string) {
-    return await operations.perform({
+  async function softDelete(tx: Transaction | null, id: string) {
+    return await ops.perform({
+      tx,
       type: "file.softDelete",
       do: async () => {
         return await softDeleteFileMut({ id: id });
@@ -215,8 +216,9 @@ export function useFileOps() {
     });
   }
 
-  async function restore(id: string) {
-    return await operations.perform({
+  async function restore(tx: Transaction | null, id: string) {
+    return await ops.perform({
+      tx,
       type: "file.restore",
       do: async () => {
         return await restoreFileMut({ id: id });
@@ -228,6 +230,7 @@ export function useFileOps() {
   }
 
   async function create(
+    tx: Transaction | null,
     id: string,
     projectVersionId: string,
     name: string,
@@ -235,7 +238,8 @@ export function useFileOps() {
     parentId: string | null,
     directory?: boolean
   ) {
-    return await operations.perform({
+    return await ops.perform({
+      tx,
       type: "file.create",
       do: async () => {
         return await createFileMut({ id, projectVersionId, name, path, parentId, directory: directory ?? false });
@@ -279,8 +283,9 @@ export function useFileOps() {
     }
   );
 
-  async function rename(id: string, oldName: string, newName: string) {
-    return await operations.perform({
+  async function rename(tx: Transaction | null, id: string, oldName: string, newName: string) {
+    return await ops.perform({
+      tx,
       type: "file.rename",
       do: async () => {
         return await renameFileMut({ id: id, name: newName, path: newName });

@@ -73,9 +73,9 @@ const fileState: Ref<FileState | null> = computed(() => {
 });
 const context = provideFileState(fileState);
 
-const operations = useOperations();
+const ops = useOperations();
 function restore() {
-  operations.file.restore(fileHeader.value?.id);
+  ops.file.restore(null, fileHeader.value?.id);
 }
 
 async function insertStatementStart() {
@@ -88,7 +88,7 @@ async function insertOrFocusStatementEnd() {
   if (fileHeader.value == null) return;
   editor.focusFile(fileHeader.value);
   // focus last statement if it's a blank
-  const lastStatement = context.value.positionedStatements[context.value.positionedStatements.length - 1];
+  const lastStatement = context.value?.positionedStatements[context.value.positionedStatements.length - 1];
   if (lastStatement?.statement.type == StatementType.Blank) {
     editor.editElement(lastStatement.statement as StatementHeader);
     return;
@@ -97,7 +97,6 @@ async function insertOrFocusStatementEnd() {
   }
 }
 
-const ops = useOperations();
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
@@ -105,7 +104,7 @@ syncProperty({
   value: name,
   editing: computed(() => nameRef.value?.focused),
   read: () => (name.value = fileHeader.value?.name ?? null),
-  write: () => ops.file.rename(fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
+  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
 });
 
 // auto-focus name once loaded and if contents are empty
@@ -124,7 +123,7 @@ watch(
 
 function goToContent() {
   nameRef.value?.blur();
-  if (context.value.positionedStatements.length == 0) {
+  if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
     insertOrFocusStatementEnd();
@@ -156,7 +155,7 @@ const metaActions = computed(() => [
       if (fileHeader.value == null) {
         return;
       }
-      ops.file.softDelete(fileHeader.value?.id);
+      ops.file.softDelete(null, fileHeader.value?.id);
       emit("close");
     },
     enabled: !editor.readonly,
@@ -254,7 +253,7 @@ const auth = useAuth();
       <StatementAddArea class="mx-auto max-w-[900px]" @click="editor.readonly || insertStatementStart()" />
       <!-- File's statements -->
       <div
-        v-for="positioned in context.positionedStatements"
+        v-for="positioned in context?.positionedStatements"
         :key="positioned.statement.id"
         class="mx-auto w-full max-w-[900px]"
       >
@@ -263,7 +262,7 @@ const auth = useAuth();
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
-          :ancestors="positioned.ancestors.map((ancestorId) => context.statementsById[ancestorId])"
+          :ancestors="positioned.ancestors.map((ancestorId) => context?.statementsById[ancestorId])"
           :isFirstInGroup="positioned.isFirstInGroup"
           :isLastInGroup="positioned.isLastInGroup"
           :lineNumberBase="positioned.lineNumberBase"

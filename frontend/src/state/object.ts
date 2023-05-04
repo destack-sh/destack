@@ -46,9 +46,9 @@ export function useObjects() {
     if (remoteObject.presignedPost == null) {
       throw new Error("no presigned post on remote object");
     }
-    await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
     // emit uploading state
     updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Uploading));
+    await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
     await ops.object.notifyUploaded(remoteObject.id);
     // emit uploaded state
     updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Available));
