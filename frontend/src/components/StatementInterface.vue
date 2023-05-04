@@ -236,7 +236,7 @@ function insertStatementBelow(e: MouseEvent) {
 }
 
 // drag & drop
-const innerDrag = computed(() => rootCellRef.value?.innerDrag == true);
+const innerDrag = computed(() => (rootCellRef.value as any)?.innerDrag == true);
 const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
@@ -249,6 +249,7 @@ const {
 
 function onDrop(files: File[] | null) {
   console.log("drop it! statement", files);
+  // create dataset from files
 }
 
 // runtime

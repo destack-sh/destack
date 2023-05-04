@@ -1,41 +1,13 @@
+import { activeFileState, fileContexts, type FileContext } from "@/components/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
-import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation, useSymbolOps } from "@/state/runtime";
-import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
-import { computed, nextTick, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
-
-export type FileState = {
-  editorId: string;
-  focused: boolean;
-  file: FileHeader;
-  statements: StatementHeader[]; // ordered
-  depths: number[];
-  navigateUp: () => void;
-  navigateDown: () => void;
-};
-
-// There can only be one active file to provide file shortcuts,
-// so we have a global reference here that is automatically set to the focused file.
-// We can't just use singleton actions here because multiple files may have
-// 'focused' set during moves or transition.
-
-const activeFileState = ref<FileState | null>(null);
-export function provideStatementActions(file: Ref<FileState | null>) {
-  watchEffect(() => {
-    if (file.value?.focused) {
-      activeFileState.value = file.value;
-    }
-  });
-  onBeforeUnmount(() => {
-    if (activeFileState.value?.editorId === file.value?.editorId) {
-      activeFileState.value = null;
-    }
-  });
-}
+import { computed, nextTick, type Ref } from "vue";
 
 export function useStatementActions() {
   return hostStatementActions();
@@ -44,22 +16,21 @@ export function useStatementActions() {
 export const hostStatementActions = createSharedComposable(_provideStatementActions);
 
 function _provideStatementActions() {
-  return _doProvideStatementActions(activeFileState);
+  const activeFileContext = computed(() => fileContexts.value[activeFileState.value?.file.id ?? ""]);
+  return _doProvideStatementActions(activeFileContext);
 }
 
-function _doProvideStatementActions(file: Ref<FileState | null>) {
+function _doProvideStatementActions(file: Ref<FileContext | null>) {
   const editor = useEditorState();
   const ops = useOperations();
 
   const statements = computed(() => file.value?.statements ?? []);
-  const statementPositions = computed(() => {
-    const result: Record<string, number> = {};
-    for (let i = 0; i < statements.value.length; i++) {
-      result[statements.value[i].id] = i;
-    }
-    return result;
-  });
   const depths = computed(() => file.value?.depths ?? []);
+  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => file.value?.statementsById ?? {});
+  const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(
+    () => file.value?.statementsByParentId ?? {}
+  );
+  const statementPositions: Ref<Record<string, number>> = computed(() => file.value?.statementPositions ?? {});
 
   function getLocation(statement: StatementHeader) {
     return {
@@ -68,25 +39,6 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       orderKey: statement?.orderKey ?? INTEGER_ZERO,
     };
   }
-
-  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => {
-    const result: Record<string, StatementHeader> = {};
-    for (const statement of statements.value) {
-      result[statement.id] = statement;
-    }
-    return result;
-  });
-
-  // statementsByParentId must be ordered like orderedStatements
-  const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
-    const result: Record<string, StatementHeader[]> = {};
-    for (const statement of statements.value) {
-      const parentId = statement.parent?.id ?? "";
-      if (!result[parentId]) result[parentId] = [];
-      result[parentId].push(statement);
-    }
-    return result;
-  });
 
   function getSiblings(statement?: StatementHeader) {
     return statementsByParentId.value[statement?.parent?.id ?? ""];

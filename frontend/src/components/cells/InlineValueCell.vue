@@ -237,7 +237,7 @@ defineExpose({
         :readonly="readonly"
         :active="active"
         :supportsDrop="props.supportsDrop"
-        @dropFiles="emit('dropFiles', $event)"
+        @dropFiles="(p, v) => emit('dropFiles', p, v)"
       />
       <div
         v-else-if="type.tag == TypeTag.Struct"

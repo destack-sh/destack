@@ -7,7 +7,6 @@ import {
   type BatchMoveStatementMutation,
   type BatchRestoreStatementsMutation,
   type CommentStatementMutation,
-  type CreateStatementBlankMutation,
   type DeleteStatementMutation,
   type DeleteTypeNodeMutation,
   type MorphStatementMutation,
@@ -19,12 +18,12 @@ import {
   type SoftDeleteStatementMutation,
   type SoftDeleteTypeNodeMutation,
   type StatementModifier,
-  type StatementMorphInput,
   type SymbolType,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
   type UpdateStatementModifierMutation,
   type UpdateTypeNodeMutation,
+  type CreateStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -191,7 +190,7 @@ export function useStatementOps() {
             generated: vars.generated,
             commented: vars.commented,
           },
-        } as CreateStatementBlankMutation),
+        } as CreateStatementMutation),
       update(cache, { data }) {
         if (data?.createStatement.__typename != "Statement") {
           return; // error
@@ -216,34 +215,71 @@ export function useStatementOps() {
   );
 
   async function createBlank(id: string, fileId: string, parentId: string | null, orderKey: string) {
-    async function apply() {
-      return await createStatementMut({
-        id,
-        fileId,
-        parentId,
-        orderKey,
-        type: StatementType.Blank,
-        modifier: null,
-        name: null,
-        symbolType: null,
-        lang: null,
-        code: null,
-        description: null,
-        referenceId: null,
-        rootTypeTag: null,
-        commented: false,
-        generated: false,
-      });
-    }
-
     return await operations.perform({
       type: "statement.create",
-      do: apply,
+      do: async () => {
+        return await createStatementMut({
+          id,
+          fileId,
+          parentId,
+          orderKey,
+          type: StatementType.Blank,
+          modifier: null,
+          name: null,
+          symbolType: null,
+          lang: null,
+          code: null,
+          description: null,
+          referenceId: null,
+          rootTypeTag: null,
+          commented: false,
+          generated: false,
+        });
+      },
       undo: async () => {
-        await softDeleteStatementMut({ id });
+        return await softDeleteStatementMut({ id });
       },
       redo: async () => {
         return await restoreStatementMut({ id });
+      },
+    });
+  }
+
+  async function createDefinition(input: {
+    id: string;
+    fileId: string;
+    parentId: string | null;
+    orderKey: string;
+    symbolType: SymbolType;
+    name?: string;
+    description?: string;
+  }) {
+    return await operations.perform({
+      type: "statement.create",
+      do: async () => {
+        return await createStatementMut({
+          id: input.id,
+          fileId: input.fileId,
+          parentId: input.parentId,
+          orderKey: input.orderKey,
+          type: StatementType.Definition,
+          modifier: null,
+          name: input.name ?? null,
+          symbolType: input.symbolType,
+          lang: null,
+          code: null,
+          description: input.description ?? null,
+          referenceId: null,
+          rootTypeTag: null,
+          commented: false,
+          generated: false,
+        });
+      },
+      undo: async () => {
+        return await softDeleteStatementMut({ id: input.id });
+      },
+      redo: async () => {
+        return await restoreStatementMut({ id: input.id });
       },
     });
   }
@@ -1221,6 +1257,7 @@ export function useStatementOps() {
   return {
     registry,
     create: createBlank,
+    createDefinition,
     morph,
     modify,
     setReference,
