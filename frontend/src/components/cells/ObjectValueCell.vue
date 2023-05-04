@@ -3,18 +3,21 @@ import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { useOperations } from "@/state/operations";
+import { useRelativeDropZone } from "@/utils/drop";
 import { DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
-import { useDropZone } from "@vueuse/core";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
   modelValue: ObjectRecord | null;
   type: SimpleType;
   readonly: boolean;
+  active?: boolean;
+  supportsDrop?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", v: ObjectRecord | null): void;
+  (e: "dropFiles", p: "above" | "below", v: File[]): void;
 }>();
 
 const preparingUpload = ref(false);
@@ -28,7 +31,26 @@ const objects = useObjects();
 const editor = useEditorState();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
 const dropZoneRef = ref<HTMLDivElement>();
-const { isOverDropZone } = useDropZone(dropZoneRef, beginUpload);
+const {
+  isOverDropZone: dragOver,
+  inTopHalf: dragInTopHalf,
+  inBottomHalf: dragInBottomHalf,
+} = useRelativeDropZone(dropZoneRef, onDrop);
+
+function onDrop(files: File[] | null) {
+  if (isFileUploaded.value && props.supportsDrop) {
+    // drop above or below
+    if (files != null && files.length > 0) {
+      emit("dropFiles", dragInTopHalf.value ? "above" : "below", files);
+    }
+  } else if (files != null && files.length > 0) {
+    // upload into here
+    beginUpload(files[0]);
+    if (files.length > 1 && props.supportsDrop) {
+      emit("dropFiles", "below", files);
+    }
+  }
+}
 
 async function open() {
   if (isFileUploaded.value) {
@@ -41,11 +63,10 @@ async function open() {
   }
 }
 
-async function beginUpload(files: File[] | null) {
-  if (files == null || files.length == 0) {
-    return;
+async function beginUpload(file: File | null) {
+  if (file == null) {
+    return; // ignore
   }
-  const file = files[0];
   if (editor.currentProjectId == null) {
     throw new Error("no active project");
   }
@@ -67,26 +88,42 @@ defineExpose({
     v-if="!isFileUploaded && !isFileUploading"
     ref="dropZoneRef"
     for="fileChooser"
-    class="inline-block w-full cursor-pointer"
+    class="group inline-block w-full cursor-pointer"
     :class="{
-      'rounded-sm border border-dashed border-orange-500': isOverDropZone,
-      'border border-transparent': !isOverDropZone,
+      'rounded-sm border border-dashed border-orange-500': dragOver,
+      'border border-transparent': !dragOver,
     }"
   >
-    file
-    <template v-if="isOverDropZone">(drop to upload)</template>
+    <span :class="active || dragOver ? '' : 'invisible group-hover:visible'">file</span>
+    <span class="ml-1" v-if="dragOver">(drop to upload)</span>
     <input
       ref="fileChooserRef"
       id="fileChooser"
       type="file"
       class="hidden"
-      @change="(e) => beginUpload(e.target?.files)"
+      @change="(e) => beginUpload(e.target?.files?.[0])"
     />
   </label>
   <span v-else-if="isFileUploading" class="text-gray-600">uploading...</span>
   <!-- Existing file -->
   <!-- TODO @Feature @UX: make file view openable and prettier -->
-  <span v-else class="group text-black hover:cursor-pointer" @click="open">
+  <span
+    v-else
+    ref="dropZoneRef"
+    class="group relative inline-block h-full w-full text-black hover:cursor-pointer"
+    :class="{ 'bg-orange-100': dragOver && supportsDrop }"
+    @click="open"
+  >
+    <!-- Statement drag & drop indicator (top/bottom) -->
+    <div
+      v-if="!readonly && dragOver && dragInTopHalf"
+      class="duration-50 absolute left-0 top-0 h-1 w-full bg-orange-300 transition-colors"
+    />
+    <div
+      v-if="!readonly && dragOver && dragInBottomHalf"
+      class="duration-50 absolute bottom-0 left-0 h-1 w-full bg-orange-300 transition-colors"
+    />
+    <!-- File ifo -->
     <DocumentArrowUpIcon class="inline-block h-4 w-4" />
     <span v-if="modelValue" class="ml-1 underline-offset-4 group-hover:underline">{{ modelValue.name }}</span>
     <span class="ml-2 text-xs text-gray-400" v-if="modelValue">{{ humanizeBytes(modelValue?.contentLength) }}</span>

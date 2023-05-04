@@ -282,6 +282,7 @@ const outputColumns = computed(() =>
             @update:model-value="(val: any) => setArgument(field.name as string, val)"
             :type="field"
             :readonly="false"
+            :active="true"
             :placeholder-value="field.name"
             immediate
             @navigate-left="argumentsGrid.navigateLeft(field?.id, 'value')"

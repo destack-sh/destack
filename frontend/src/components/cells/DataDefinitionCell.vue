@@ -10,6 +10,7 @@ import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf } from "@/state/runtime";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -20,6 +21,7 @@ context.syncDescription(
   description,
   computed(() => descriptionRef.value?.focused)
 );
+const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
@@ -140,6 +142,12 @@ function runtimeTypeOf(field: SimpleType) {
   return datasetSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
 }
 
+// drag & drop
+function onDropFiles(files: File[]) {
+  console.log("drop it! data", files);
+}
+const position = useMouseInElement(gridRef);
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -150,6 +158,8 @@ defineExpose({
     typeGrid.blur();
     recordGrid.blur();
   },
+  // prevent outer drag and drop while inside grid
+  innerDrag: computed(() => !position.isOutside.value),
 });
 </script>
 <template>
@@ -181,6 +191,7 @@ defineExpose({
   </button>
   <!-- Dataset type and records -->
   <div
+    ref="gridRef"
     class="grid min-w-fit"
     :style="{
       'grid-template-columns': `repeat(${columnsInOrder.length}, minmax(40px, 1fr))`,
@@ -200,6 +211,7 @@ defineExpose({
         slim
         :model-value="field.name"
         :readonly="context.readonly.value"
+        :active="context.editing.value || context.focused.value"
         @update:model-value="(val: any) => updateFieldName(field, val)"
         class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
@@ -231,9 +243,12 @@ defineExpose({
           @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
+          :active="context.editing.value || context.focused.value"
           :placeholder-value="context.editing.value ? field.name : undefined"
           immediate
           debounced
+          :supports-drop="!context.readonly.value"
+          @drop-files="onDropFiles"
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
           @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
