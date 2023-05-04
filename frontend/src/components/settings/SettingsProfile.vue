@@ -88,10 +88,10 @@ const { mutate: updateUserMut } = useMutation(
   `)
 );
 
-const operations = useOperationsStore();
+const ops = useOperationsStore();
 async function updateInfo(name: string, description: string) {
   const mut = isOrganization.value ? updateOrganizationMut : updateUserMut;
-  await operations.perform({
+  await ops.perform({
     type: "auth.updateInfo",
     do: async () => {
       return await mut({

@@ -9,7 +9,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useProjectOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: createMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -28,7 +28,7 @@ export function useProjectOps() {
   );
 
   async function create(ownerId: string, name: string, slug: string, type: ProjectType, visibility: ProjectVisibility) {
-    return await operations.perform({
+    return await ops.perform({
       type: "project.create",
       do: async () => {
         return await createMut({ input: { ownerId, name, slug, type, visibility } });
@@ -62,7 +62,7 @@ export function useProjectOps() {
   );
 
   async function updateVisibility(id: string, visibility: ProjectVisibility) {
-    return await operations.perform({
+    return await ops.perform({
       type: "project.updateVisibility",
       do: async () => {
         return await updateVisibilityMut({ id, visibility });

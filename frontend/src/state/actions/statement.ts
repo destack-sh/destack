@@ -279,7 +279,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       if (cur.value?.above) {
         editor.focusElement(cur.value?.above);
       }
-      await ops.statement.softDelete(current);
+      await ops.statement.softDelete(null, current);
     },
   });
   const deleteSelection = provideGlobalAction({
@@ -311,7 +311,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       if (cur.value?.above) {
         editor.focusElement(cur.value?.above, true);
       }
-      await ops.statement.softDelete(current);
+      await ops.statement.softDelete(null, current);
     },
   });
 
@@ -332,7 +332,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   // optimistic insert that doesn't wait for the server response
   function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
-    ops.statement.create(newStatement.id, file.value?.file.id, parentId, orderKey);
+    ops.statement.create(null, newStatement.id, file.value?.file.id, parentId, orderKey);
     return newStatement;
   }
 
@@ -372,6 +372,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       if (top != null) {
         const previousSibling = file.value?.getPreviousSibling(top);
         ops.statement.create(
+          null,
           newStatementId(),
           file.value?.file.id,
           top.parent?.id ?? null,
@@ -412,7 +413,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
         cur.value?.statement.type != StatementType.Comment
     ),
     apply: async () => {
-      await ops.statement.comment(cur.value?.statement?.id, !cur.value?.statement?.commented);
+      await ops.statement.comment(null, cur.value?.statement?.id, !cur.value?.statement?.commented);
     },
   });
 

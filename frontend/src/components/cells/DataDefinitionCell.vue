@@ -80,7 +80,7 @@ function focusLastRecord() {
   }
 }
 
-const operations = useOperations();
+const ops = useOperations();
 
 function insertField() {
   const nextOrderKey = generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null);
@@ -117,7 +117,7 @@ function insertRecord(belowRecordId?: string) {
     const record = context.records.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
-  operations.symbol.createRecord(newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
+  ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
   nextTick(() => recordGrid.focus(-1, columnsInOrder.value[0]));
 }
 
@@ -127,13 +127,13 @@ function writeRecordField(recordId: string, column: string, value: any) {
   const record = context.records.value[recordIdx];
   const oldData = record?.data;
   const newData = { ...oldData, [column]: value };
-  operations.symbol.updateRecord(recordId, oldData, newData);
+  ops.symbol.updateRecord(null, recordId, oldData, newData);
 }
 
 function deleteRecord(recordId: string) {
   const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
-  operations.symbol.softDeleteRecord(recordId);
+  ops.symbol.softDeleteRecord(null, recordId);
   // move focus up
   recordGrid.focus(recordIdx - 1, columnsInOrder.value[0]);
 }

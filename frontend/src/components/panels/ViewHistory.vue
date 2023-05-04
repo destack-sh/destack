@@ -62,7 +62,7 @@ const isAtHead = computed(() => editor.currentProjectVersionId == head.value?.id
 
 const router = useRouter();
 const notifications = useNotifications();
-const operations = useOperations();
+const ops = useOperations();
 const lastSemVerTag = computed(() => {
   // note that this may fail when we paginate versions (and there are many untagged versions)
   if (versions.value == null) return null;
@@ -83,7 +83,7 @@ const commit = provideGlobalAction({
     () =>
       props.project.canWrite &&
       editor.currentProjectVersionId != null &&
-      !operations.state.hasInflightLike({ types: ["version.commit"] })
+      !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: () => {
     // just open snapshot history view (view must be visible for popover to render)
@@ -99,7 +99,7 @@ async function doCommit(c: {
   description?: string;
   autoDeploy?: boolean;
 }) {
-  const ret = await operations.version.commit(c);
+  const ret = await ops.version.commit(c);
   if (ret?.data?.commit.__typename == "CommitPayload") {
     notifications.show({
       type: "commit.success",
@@ -119,7 +119,7 @@ provideGlobalAction({
     () =>
       props.project.canWrite &&
       editor.currentProjectVersionId != null &&
-      !operations.state.hasInflightLike({ types: ["version.commit"] })
+      !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: async () => {
     await doCommit({ projectVersionId: editor.currentProjectVersionId as string });
@@ -132,8 +132,8 @@ const restore = provideGlobalAction({
   shortcuts: [],
   enabled: computed(() => props.project.canWrite && !isAtHead.value),
   apply: async () => {
-    operations.state.reset();
-    const ret = await operations.version.restore(editor.currentProjectVersionId as string);
+    ops.state.reset();
+    const ret = await ops.version.restore(editor.currentProjectVersionId as string);
     if (ret?.data?.restore.__typename == "CommitPayload") {
       notifications.show({
         type: "restore.success",

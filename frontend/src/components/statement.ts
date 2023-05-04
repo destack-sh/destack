@@ -107,10 +107,11 @@ export function useStatementContext() {
 
   // self mutations
 
-  const operations = useOperations();
+  const ops = useOperations();
 
   async function morphToBlank() {
-    await operations.statement.morph(
+    await ops.statement.morph(
+      null,
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: StatementType.Blank }
@@ -118,8 +119,9 @@ export function useStatementContext() {
   }
 
   async function morphToComment(text?: string) {
-    const updateCode = operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", text);
-    const morphType = operations.statement.morph(
+    const updateCode = ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", text);
+    const morphType = ops.statement.morph(
+      null,
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: StatementType.Comment }
@@ -138,7 +140,8 @@ export function useStatementContext() {
     } else {
       newTypeTag = isTypeTagCompatible(rootTypeTag.value, symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
     }
-    await operations.statement.morph(
+    await ops.statement.morph(
+      null,
       statement.value.id,
       {
         type: statement.value.type,
@@ -161,7 +164,8 @@ export function useStatementContext() {
     if (statement.value.type != StatementType.Blank) {
       throw new Error("cannot morph from non-blank to reference: " + statement.value.id);
     }
-    await operations.statement.morph(
+    await ops.statement.morph(
+      null,
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: StatementType.Reference, symbolType, name }
@@ -169,11 +173,12 @@ export function useStatementContext() {
   }
 
   async function setModifier(modifier: StatementModifier | null) {
-    await operations.statement.modify(statement.value.id, statement.value.modifier ?? null, modifier);
+    await ops.statement.modify(null, statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
   async function setSymbolType(symbolType: SymbolType | null) {
-    await operations.statement.morph(
+    await ops.statement.morph(
+      null,
       statement.value.id,
       { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
       { type: statement.value.type, symbolType: symbolType ?? undefined }
@@ -182,7 +187,8 @@ export function useStatementContext() {
 
   async function setSymbolTypeEnum() {
     // morphs to type symbol with an enum as head type node
-    await operations.statement.morph(
+    await ops.statement.morph(
+      null,
       statement.value.id,
       {
         type: statement.value.type,
@@ -200,7 +206,8 @@ export function useStatementContext() {
   }
 
   async function setReference(reference: { id: string; name: string } | null) {
-    await operations.statement.setReference(
+    await ops.statement.setReference(
+      null,
       statement.value.id,
       statement.value.reference?.id,
       context?.value.reference?.name ?? null,
@@ -222,7 +229,7 @@ export function useStatementContext() {
       value: content,
       editing,
       read: () => (content.value = statement.value?.name ?? ""),
-      write: () => operations.statement.rename(statement.value.id, statement.value.name ?? "", content.value),
+      write: () => ops.statement.rename(null, statement.value.id, statement.value.name ?? "", content.value),
     });
   }
 
@@ -231,7 +238,7 @@ export function useStatementContext() {
       value: content,
       editing,
       read: () => (content.value = statement.value?.code ?? ""),
-      write: () => operations.symbol.updateStatementCode(statement.value.id, statement.value.code ?? "", content.value),
+      write: () => ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", content.value),
       debounceMs: 1000,
       debounceMaxWait: 5000,
     });
@@ -246,7 +253,8 @@ export function useStatementContext() {
       editing,
       read: () => (content.value = statement.value?.description ?? ""),
       write: () =>
-        operations.symbol.updateStatementDescription(
+        ops.symbol.updateStatementDescription(
+          null,
           statement.value.id,
           statement.value.description ?? "",
           content.value
@@ -257,7 +265,7 @@ export function useStatementContext() {
   // one-way writes to backend (:Singleplayer)
 
   async function createTypeNode(typeNode: SimpleType) {
-    await operations.statement.createTypeNode(statement.value.id, { ...typeNode, statementId: statement.value.id });
+    await ops.statement.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });
   }
 
   async function updateTypeNode(typeNode: SimpleType, newTypeNode: SimpleType) {
@@ -276,7 +284,8 @@ export function useStatementContext() {
       isNullable: newTypeNode.isNullable,
       isOutput: newTypeNode.isOutput,
     };
-    await operations.statement.updateTypeNode(
+    await ops.statement.updateTypeNode(
+      null,
       makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
       makeTypeNodeUpdate(newTypeNode as SimpleTypeNode)
     );
@@ -287,7 +296,8 @@ export function useStatementContext() {
     if (!oldTypeNode) {
       throw new Error("cannot delete type node that doesn't exist");
     }
-    await operations.statement.softDeleteTypeNode(
+    await ops.statement.softDeleteTypeNode(
+      null,
       statement.value.id,
       makeTypeNodeInput(statement.value.id, oldTypeNode)
     );

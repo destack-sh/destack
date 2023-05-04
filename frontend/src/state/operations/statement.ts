@@ -25,7 +25,7 @@ import {
   type UpdateTypeNodeMutation,
   type CreateStatementMutation,
 } from "@/gql/graphql";
-import { useOperationsStore } from "@/state/operations";
+import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import type { TypeNode } from "graphql";
@@ -50,7 +50,7 @@ export function newDatasetRecordId(): string {
 }
 
 export function useStatementOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
   const registry = new OpRegistry();
 
   const { mutate: createStatementMut } = registry.useMutation(
@@ -215,8 +215,15 @@ export function useStatementOps() {
     }
   );
 
-  async function createBlank(id: string, fileId: string, parentId: string | null, orderKey: string) {
-    return await operations.perform({
+  async function createBlank(
+    tx: Transaction | null,
+    id: string,
+    fileId: string,
+    parentId: string | null,
+    orderKey: string
+  ) {
+    return await ops.perform({
+      tx,
       type: "statement.create",
       do: async () => {
         return await createStatementMut({
@@ -246,17 +253,21 @@ export function useStatementOps() {
     });
   }
 
-  async function createDefinition(input: {
-    id: string;
-    fileId: string;
-    parentId: string | null;
-    orderKey: string;
-    symbolType: SymbolType;
-    name?: string;
-    description?: string;
-    rootTypeTag?: TypeTag;
-  }) {
-    return await operations.perform({
+  async function createDefinition(
+    tx: Transaction | null,
+    input: {
+      id: string;
+      fileId: string;
+      parentId: string | null;
+      orderKey: string;
+      symbolType: SymbolType;
+      name?: string;
+      description?: string;
+      rootTypeTag?: TypeTag;
+    }
+  ) {
+    return await ops.perform({
+      tx,
       type: "statement.create",
       do: async () => {
         return await createStatementMut({
@@ -338,6 +349,7 @@ export function useStatementOps() {
   );
 
   async function morph(
+    tx: Transaction | null,
     id: string,
     oldStatement: {
       type: StatementType;
@@ -354,7 +366,8 @@ export function useStatementOps() {
       lang?: string;
     }
   ) {
-    await operations.perform({
+    await ops.perform({
+      tx,
       type: "statement.morph",
       do: async () => {
         return await morphStatementMut({ id, ...newStatement });
@@ -392,8 +405,14 @@ export function useStatementOps() {
     }
   );
 
-  async function modify(id: string, oldModifier: StatementModifier | null, newModifier: StatementModifier | null) {
-    await operations.perform({
+  async function modify(
+    tx: Transaction | null,
+    id: string,
+    oldModifier: StatementModifier | null,
+    newModifier: StatementModifier | null
+  ) {
+    await ops.perform({
+      tx,
       type: "statement.modify",
       do: async () => {
         return await updateStatementModifier({ id: id, modifier: newModifier });
@@ -493,11 +512,13 @@ export function useStatementOps() {
   );
 
   async function move(
+    tx: Transaction | null,
     id: string,
     oldLoc: { fileId: string; parentId?: string; orderKey: string },
     newLoc: { fileId: string; parentId?: string; orderKey: string }
   ) {
-    await operations.perform({
+    await ops.perform({
+      tx,
       type: "statement.move",
       do: async () => {
         return await moveStatementMut({
@@ -519,11 +540,13 @@ export function useStatementOps() {
   }
 
   async function batchMove(
+    tx: Transaction | null,
     ids: string[],
     oldLocs: { fileId: string; parentId?: string; orderKey: string }[],
     newLocs: { fileId: string; parentId?: string; orderKey: string }[]
   ) {
-    await operations.perform({
+    await ops.perform({
+      tx,
       type: "statement.batchMove",
       do: async () => {
         return await batchMoveStatementMut({
@@ -571,8 +594,9 @@ export function useStatementOps() {
     }
   );
 
-  async function rename(id: string, oldName: string | null, newName: string | null) {
-    await operations.perform({
+  async function rename(tx: Transaction | null, id: string, oldName: string | null, newName: string | null) {
+    await ops.perform({
+      tx,
       type: "statement.rename",
       do: async () => {
         return await renameStatementMut({ id: id, name: newName });
@@ -725,8 +749,9 @@ export function useStatementOps() {
     }
   );
 
-  async function delete_(id: string) {
-    await operations.perform({
+  async function delete_(tx: Transaction | null, id: string) {
+    await ops.perform({
+      tx,
       type: "statement.delete",
       do: async () => {
         return await deleteStatementMut({ id: id });
@@ -734,8 +759,9 @@ export function useStatementOps() {
     });
   }
 
-  async function softDelete(id: string) {
-    await operations.perform({
+  async function softDelete(tx: Transaction | null, id: string) {
+    await ops.perform({
+      tx,
       type: "statement.softDelete",
       do: async () => {
         return await softDeleteStatementMut({ id: id });
@@ -747,7 +773,7 @@ export function useStatementOps() {
   }
 
   async function batchSoftDelete_(ids: string[]) {
-    await operations.perform({
+    await ops.perform({
       type: "statement.batchDelete",
       do: async () => {
         return await batchSoftDeleteStatementMut({ ids: ids });
@@ -818,7 +844,7 @@ export function useStatementOps() {
     targetParentIds: (string | null)[],
     targetOrderKeys: string[]
   ) {
-    await operations.perform({
+    await ops.perform({
       type: "statement.batchPaste",
       do: async () => {
         return await batchPasteMut({
@@ -871,8 +897,9 @@ export function useStatementOps() {
     }
   );
 
-  async function comment(id: string, commented: boolean) {
-    await operations.perform({
+  async function comment(tx: Transaction | null, id: string, commented: boolean) {
+    await ops.perform({
+      tx,
       type: "statement.comment",
       do: async () => {
         return await commentStatementMut({ id: id, commented: commented });
@@ -920,13 +947,15 @@ export function useStatementOps() {
   );
 
   async function setReference(
+    tx: Transaction | null,
     id: string,
     oldReferenceId: string | null,
     oldReferenceName: string | null,
     newReferenceId: string | null,
     newReferenceName: string | null
   ) {
-    await operations.perform({
+    await ops.perform({
+      tx,
       type: "statement.setReference",
       do: async () => {
         return await setReferenceMut({ id: id, referenceId: newReferenceId, referenceName: newReferenceName });
@@ -1143,8 +1172,9 @@ export function useStatementOps() {
     } as TypeNodeCreateInput;
   }
 
-  async function createTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
-    await operations.perform({
+  async function createTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
       type: "statement.createTypeNode",
       do: async () => {
         return await createTypeNodeMut(_toTypeNodeInput(typeNode));
@@ -1158,8 +1188,9 @@ export function useStatementOps() {
     });
   }
 
-  async function deleteTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
-    await operations.perform({
+  async function deleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
       type: "statement.deleteTypeNode",
       do: async () => {
         return await deleteTypeNodeMut({ id: typeNode.id });
@@ -1167,8 +1198,9 @@ export function useStatementOps() {
     });
   }
 
-  async function softDeleteTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
-    await operations.perform({
+  async function softDeleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
       type: "statement.softDeleteTypeNode",
       do: async () => {
         return await softDeleteTypeNodeMut({ id: typeNode.id });
@@ -1257,8 +1289,13 @@ export function useStatementOps() {
     }
   );
 
-  async function updateTypeNode(oldTypeNode: TypeNodeUpdateInput, newTypeNode: TypeNodeUpdateInput) {
-    await operations.perform({
+  async function updateTypeNode(
+    tx: Transaction | null,
+    oldTypeNode: TypeNodeUpdateInput,
+    newTypeNode: TypeNodeUpdateInput
+  ) {
+    await ops.perform({
+      tx,
       type: "statement.updateTypeNode",
       do: async () => {
         return await updateTypeNodeMut(newTypeNode);

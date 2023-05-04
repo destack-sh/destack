@@ -202,7 +202,7 @@ function _useNotifications() {
 
 function _useNotificationHandler() {
   const notifications = useNotificationsStore();
-  const operations = useOperations();
+  const ops = useOperations();
 
   const { mutate: markNotificationMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -235,7 +235,7 @@ function _useNotificationHandler() {
   );
 
   async function mark(notificationId: string, status: NotificationStatus) {
-    await operations.state.perform({
+    await ops.state.perform({
       type: "user.markNotification",
       stateless: true,
       do: async () => {
@@ -258,7 +258,7 @@ function _useNotificationHandler() {
         icon: UserPlusIcon,
         actionText: "Accept",
         action: async () => {
-          const ret = await operations.user.acceptOrganizationInvite(notification.invite.id);
+          const ret = await ops.user.acceptOrganizationInvite(notification.invite.id);
           if (ret?.data?.acceptOrganizationInvite?.__typename == "User") {
             // success
             notifications.show({

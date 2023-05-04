@@ -5,7 +5,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useObjectOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
 
   const { mutate: requestUploadObjectMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -48,7 +48,7 @@ export function useObjectOps() {
     contentLength: number,
     sha512: string
   ) {
-    return await operations.perform({
+    return await ops.perform({
       type: "object.requestUpload",
       stateless: true,
       do: async () => {
@@ -100,7 +100,7 @@ export function useObjectOps() {
   );
 
   async function notifyUploaded(id: string) {
-    return await operations.perform({
+    return await ops.perform({
       type: "object.notifyUploaded",
       stateless: true,
       do: async () => {

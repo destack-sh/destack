@@ -6,7 +6,7 @@ import { computed } from "vue";
 
 export function useFileActions() {
   const editor = useEditorState();
-  const operations = useOperations();
+  const ops = useOperations();
 
   const create = provideGlobalAction({
     id: "file.new",
@@ -15,7 +15,7 @@ export function useFileActions() {
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name = "") => {
       const fileId = newFileId();
-      const create = operations.file.create(fileId, editor.currentProjectVersionId as string, name, name, null, false);
+      const create = ops.file.create(null, fileId, editor.currentProjectVersionId as string, name, name, null, false);
       const optimisticFile = { __typename: "File", id: fileId, name, path: name } as FileHeader;
       const optimisticEditor = editor.focusFile(optimisticFile);
       try {
