@@ -28,6 +28,7 @@ import {
 import { useOperationsStore } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
+import type { TypeNode } from "graphql";
 import { v4 as uuidv4 } from "uuid";
 
 export function newStatementId(): string {
@@ -1128,11 +1129,24 @@ export function useStatementOps() {
     }
   );
 
+  function _toTypeNodeInput(input: TypeNodeCreateInput) {
+    return {
+      ...input,
+      // set optional values to null if not provided
+      description: input.description ?? null,
+      value: input.value ?? null,
+      referenceId: input.referenceId ?? null,
+      isArray: input.isArray ?? false,
+      isNullable: input.isNullable ?? false,
+      isOutput: input.isOutput ?? false,
+    } as TypeNodeCreateInput;
+  }
+
   async function createTypeNode(statementId: string, typeNode: TypeNodeCreateInput) {
     await operations.perform({
       type: "statement.createTypeNode",
       do: async () => {
-        return await createTypeNodeMut(typeNode);
+        return await createTypeNodeMut(_toTypeNodeInput(typeNode));
       },
       undo: async () => {
         return await softDeleteTypeNodeMut({ id: typeNode.id });

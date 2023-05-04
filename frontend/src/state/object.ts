@@ -34,7 +34,6 @@ export function useObjects() {
   const apollo = useApolloClient();
 
   async function upload(projectId: string, file: File, updateValue: (value: ObjectRecord | null) => void) {
-    updateValue(null);
     const ret = await ops.object.requestUpload(projectId, file);
     if (ret?.data?.requestUploadObject.__typename != "RemoteObject") {
       return; // ops errors are auto-handled

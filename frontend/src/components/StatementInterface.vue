@@ -6,6 +6,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
+import { useMagicActions, useNavigationContext } from "@/components/file";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { BuildScope, StatementType, SymbolType } from "@/gql/graphql";
@@ -14,8 +15,10 @@ import { useStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useOperations } from "@/state/operations";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
 import { useRelativeDropZone as useRelativeDropZone } from "@/utils/drop";
+import { generateKeyBetween } from "@/utils/fractional";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import {
   CheckCircleIcon,
@@ -236,6 +239,7 @@ function insertStatementBelow(e: MouseEvent) {
 }
 
 // drag & drop
+const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 const innerDrag = computed(() => (rootCellRef.value as any)?.innerDrag == true);
 const {
   isOverDropZone: dragOver,
@@ -247,9 +251,10 @@ const {
   computed(() => !innerDrag.value)
 );
 
-function onDrop(files: File[] | null) {
-  console.log("drop it! statement", files);
-  // create dataset from files
+async function onDrop(files: File[] | null) {
+  if (files == null) return;
+  console.log("drop insert files into new statement", files);
+  await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", files);
 }
 
 // runtime
@@ -458,11 +463,11 @@ const inlineActions = computed(() => {
       <!-- Statement drag & drop indicator (top/bottom) -->
       <div
         v-if="!readonly && dragOver && dragInTopHalf"
-        class="duration-50 absolute left-0 top-0 h-1 w-full bg-orange-300 transition-colors"
+        class="duration-50 absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition-colors"
       />
       <div
         v-if="!readonly && dragOver && dragInBottomHalf"
-        class="duration-50 absolute bottom-0 left-0 h-1 w-full bg-orange-300 transition-colors"
+        class="duration-50 absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition-colors"
       />
       <!-- Main cell -->
       <div

@@ -23,10 +23,12 @@ const emit = defineEmits<{
 const preparingUpload = ref(false);
 const isFileUploaded = computed(() => props.modelValue?.status == RemoteObjectStatus.Available);
 const isFileUploading = computed(
-  () => props.modelValue?.status == RemoteObjectStatus.Uploading || preparingUpload.value
+  () =>
+    props.modelValue?.status == RemoteObjectStatus.Uploading ||
+    props.modelValue?.status == RemoteObjectStatus.Prepared ||
+    preparingUpload.value
 );
 
-const ops = useOperations();
 const objects = useObjects();
 const editor = useEditorState();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
@@ -74,6 +76,7 @@ async function beginUpload(file: File | null) {
     throw new Error("file already uploaded");
   }
   preparingUpload.value = true;
+  emit("update:modelValue", null);
   await objects.upload(editor.currentProjectId, file, (val) => emit("update:modelValue", val));
   preparingUpload.value = false;
 }
@@ -117,11 +120,11 @@ defineExpose({
     <!-- Statement drag & drop indicator (top/bottom) -->
     <div
       v-if="!readonly && dragOver && dragInTopHalf"
-      class="duration-50 absolute left-0 top-0 h-1 w-full bg-orange-300 transition-colors"
+      class="duration-50 absolute -top-1 left-0 h-1 w-full bg-orange-300 transition-colors"
     />
     <div
       v-if="!readonly && dragOver && dragInBottomHalf"
-      class="duration-50 absolute bottom-0 left-0 h-1 w-full bg-orange-300 transition-colors"
+      class="duration-50 absolute -bottom-1 left-0 h-1 w-full bg-orange-300 transition-colors"
     />
     <!-- File ifo -->
     <DocumentArrowUpIcon class="inline-block h-4 w-4" />

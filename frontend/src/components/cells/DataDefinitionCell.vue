@@ -4,12 +4,15 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
+import { useMagicActions, useNavigationContext } from "@/components/file";
 import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
+import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useObjects } from "@/state/object";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf } from "@/state/runtime";
-import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -143,8 +146,20 @@ function runtimeTypeOf(field: SimpleType) {
 }
 
 // drag & drop
-function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
-  console.log("drop it! data", recordId, column, position, files);
+const magic = useMagicActions(context.statement as Ref<StatementHeader>);
+async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
+  console.log("drop insert files into dataset", recordId, column, position, files);
+  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
+  const record = context.records.value[recordIdx];
+  const above = context.records.value[recordIdx - 1];
+  const below = context.records.value[recordIdx + 1];
+  let orderKeys;
+  if (position == "above") {
+    orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey, files.length);
+  } else {
+    orderKeys = generateNKeysBetween(record.orderKey, below?.orderKey ?? null, files.length);
+  }
+  await magic.insertFilesAsRecords(column, orderKeys, files);
 }
 const position = useMouseInElement(gridRef);
 
