@@ -112,6 +112,8 @@ const documents = {
     types.NewNotificationsDocument,
   "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.MarkNotificationDocument,
+  "\n        query remoteObject($id: GlobalID!) {\n          remoteObject(id: $id) {\n            ... on RemoteObject {\n              id\n              presignedGet\n            }\n          }\n        }\n      ":
+    types.RemoteObjectDocument,
   "\n      mutation upsertClient(\n        $id: GlobalID!\n        $type: ClientType!\n        $deviceName: String\n        $browserName: String\n        $projectId: GlobalID\n        $projectVersionId: GlobalID\n        $fileId: GlobalID\n        $statementId: GlobalID\n        $typeNodeId: GlobalID\n        $recordId: GlobalID\n        $path: String\n      ) {\n        upsertClient(\n          input: {\n            id: $id\n            type: $type\n            deviceName: $deviceName\n            browserName: $browserName\n            projectId: $projectId\n            projectVersionId: $projectVersionId\n            fileId: $fileId\n            statementId: $statementId\n            typeNodeId: $typeNodeId\n            recordId: $recordId\n            path: $path\n          }\n        ) {\n          ... on Client {\n            id\n            type\n            deviceName\n            browserName\n            projectVersion {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpsertClientDocument,
   "\n      mutation closeClient {\n        closeClient {\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -544,6 +546,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation markNotification($id: GlobalID!, $status: NotificationStatus!) {\n        markNotification(input: { id: $id, status: $status }) {\n          ... on Notification {\n            id\n            status\n            readAt\n            archivedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n        query remoteObject($id: GlobalID!) {\n          remoteObject(id: $id) {\n            ... on RemoteObject {\n              id\n              presignedGet\n            }\n          }\n        }\n      "
+): typeof documents["\n        query remoteObject($id: GlobalID!) {\n          remoteObject(id: $id) {\n            ... on RemoteObject {\n              id\n              presignedGet\n            }\n          }\n        }\n      "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

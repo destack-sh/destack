@@ -1,5 +1,86 @@
-import { TypeTag, type RemoteObject } from "@/gql/graphql";
+import { graphql } from "@/gql";
+import { TypeTag, type RemoteObject, RemoteObjectStatus } from "@/gql/graphql";
+import { useOperations } from "@/state/operations";
+import { useApolloClient } from "@vue/apollo-composable";
 
 export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
 
-export type BasicObject = Pick<RemoteObject, "id" | "status" | "name" | "contentType" | "contentLength" | "sha512">;
+export type ObjectRecord = Pick<RemoteObject, "id" | "status" | "name" | "contentType" | "contentLength" | "sha512">;
+
+function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
+  return {
+    id: remoteObject.id,
+    name: remoteObject.name,
+    contentLength: remoteObject.contentLength,
+    contentType: remoteObject.contentType,
+    sha512: remoteObject.sha512,
+    status: status ?? remoteObject.status,
+  };
+}
+
+export function humanizeBytes(bytes: number) {
+  /** Shorten bytes into nearest (KB, MB, GB, etc.) */
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let unit = 0;
+  while (bytes >= 1024 && unit < units.length - 1) {
+    bytes /= 1024;
+    unit++;
+  }
+  return `${bytes.toFixed(1)}${units[unit]}`;
+}
+
+export function useObjects() {
+  const ops = useOperations();
+  const apollo = useApolloClient();
+
+  async function upload(projectId: string, file: File, updateValue: (value: ObjectRecord | null) => void) {
+    updateValue(null);
+    const ret = await ops.object.requestUpload(projectId, file);
+    if (ret?.data?.requestUploadObject.__typename != "RemoteObject") {
+      return; // ops errors are auto-handled
+    }
+    const remoteObject = ret.data.requestUploadObject;
+    if (remoteObject.status == RemoteObjectStatus.Available) {
+      updateValue(makeBasicObject(remoteObject));
+      return; // already uploaded
+    }
+    if (remoteObject.presignedPost == null) {
+      throw new Error("no presigned post on remote object");
+    }
+    await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
+    // emit uploading state
+    updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Uploading));
+    await ops.object.notifyUploaded(remoteObject.id);
+    // emit uploaded state
+    updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Available));
+  }
+
+  async function getPresignedGet(objectId: string): Promise<string> {
+    /* Fetch the remote object by id (incl. presigned get field) */
+    const ret = await apollo.client.query({
+      query: graphql(/* GraphQL */ `
+        query remoteObject($id: GlobalID!) {
+          remoteObject(id: $id) {
+            ... on RemoteObject {
+              id
+              presignedGet
+            }
+          }
+        }
+      `),
+      variables: { id: objectId },
+    });
+    if (ret.data.remoteObject?.__typename != "RemoteObject") {
+      throw new Error("could not get remote object");
+    }
+    if (ret.data.remoteObject.presignedGet == null) {
+      throw new Error("no presigned get on remote object");
+    }
+    return ret.data.remoteObject.presignedGet;
+  }
+
+  return {
+    upload,
+    getPresignedGet,
+  };
+}

@@ -1,19 +1,20 @@
 <script lang="ts" setup>
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
-import type { BasicObject } from "@/state/object";
+import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { useOperations } from "@/state/operations";
+import { DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
 import { useDropZone } from "@vueuse/core";
 import { computed, ref } from "vue";
 
 const props = defineProps<{
-  modelValue: BasicObject | null;
+  modelValue: ObjectRecord | null;
   type: SimpleType;
   readonly: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", v: BasicObject | null): void;
+  (e: "update:modelValue", v: ObjectRecord | null): void;
 }>();
 
 const preparingUpload = ref(false);
@@ -23,17 +24,24 @@ const isFileUploading = computed(
 );
 
 const ops = useOperations();
+const objects = useObjects();
 const editor = useEditorState();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
 const dropZoneRef = ref<HTMLDivElement>();
 const { isOverDropZone } = useDropZone(dropZoneRef, beginUpload);
 
-function open() {
-  console.log("open", fileChooserRef.value); // nocheckin fix double (triple?) open on manual click
-  fileChooserRef.value?.click();
+async function open() {
+  if (isFileUploaded.value) {
+    // open file (in new tab)
+    const presignedGet = await objects.getPresignedGet(props.modelValue?.id);
+    window.open(presignedGet, "_blank");
+  } else {
+    // open file chooser
+    fileChooserRef.value?.click();
+  }
 }
 
-function beginUpload(files: File[] | null) {
+async function beginUpload(files: File[] | null) {
   if (files == null || files.length == 0) {
     return;
   }
@@ -41,46 +49,12 @@ function beginUpload(files: File[] | null) {
   if (editor.currentProjectId == null) {
     throw new Error("no active project");
   }
-  upload(editor.currentProjectId, file);
-}
-
-function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): BasicObject {
-  return {
-    id: remoteObject.id,
-    name: remoteObject.name,
-    contentLength: remoteObject.contentLength,
-    contentType: remoteObject.contentType,
-    sha512: remoteObject.sha512,
-    status: status ?? remoteObject.status,
-  };
-}
-
-async function upload(projectId: string, file: File) {
-  // TODO @Cleanup: simplify and move to common object ops for re-use in other drop zones
   if (isFileUploaded.value) {
-    throw new Error("file is already uploaded");
+    throw new Error("file already uploaded");
   }
   preparingUpload.value = true;
-  emit("update:modelValue", null);
-  const ret = await ops.object.requestUpload(projectId, file);
+  await objects.upload(editor.currentProjectId, file, (val) => emit("update:modelValue", val));
   preparingUpload.value = false;
-  if (ret?.data?.requestUploadObject.__typename != "RemoteObject") {
-    return; // ops errors are auto-handled
-  }
-  const remoteObject = ret.data.requestUploadObject;
-  if (remoteObject.status == RemoteObjectStatus.Available) {
-    emit("update:modelValue", makeBasicObject(remoteObject));
-    return; // already uploaded
-  }
-  if (remoteObject.presignedPost == null) {
-    throw new Error("no presigned post on remote object");
-  }
-  await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
-  // emit uploading state
-  emit("update:modelValue", makeBasicObject(remoteObject, RemoteObjectStatus.Uploading));
-  await ops.object.notifyUploaded(remoteObject.id);
-  // emit uploaded state
-  emit("update:modelValue", makeBasicObject(remoteObject, RemoteObjectStatus.Available));
 }
 
 defineExpose({
@@ -109,8 +83,12 @@ defineExpose({
       @change="(e) => beginUpload(e.target?.files)"
     />
   </label>
-  <span v-else-if="isFileUploading">uploading...</span>
+  <span v-else-if="isFileUploading" class="text-gray-600">uploading...</span>
   <!-- Existing file -->
   <!-- TODO @Feature @UX: make file view openable and prettier -->
-  <span v-else>{{ modelValue?.name }}</span>
+  <span v-else class="group text-black hover:cursor-pointer" @click="open">
+    <DocumentArrowUpIcon class="inline-block h-4 w-4" />
+    <span v-if="modelValue" class="ml-1 underline-offset-4 group-hover:underline">{{ modelValue.name }}</span>
+    <span class="ml-2 text-xs text-gray-400" v-if="modelValue">{{ humanizeBytes(modelValue?.contentLength) }}</span>
+  </span>
 </template>
