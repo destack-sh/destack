@@ -1,7 +1,8 @@
-import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
+import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { useObjects } from "@/state/object";
 import { useOperations } from "@/state/operations";
-import { newStatementId } from "@/state/operations/statement";
+import { newDatasetRecordId, newStatementId, newTypeNodeId } from "@/state/operations/statement";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
 
@@ -184,10 +185,6 @@ export function useFileContext(): FileContext {
   return context;
 }
 
-export function useFileContextOptional(): FileContext | undefined {
-  return inject(FILE_CONTEXT) as FileContext | undefined;
-}
-
 // navigation
 
 export const NAVIGATION_CONTEXT = "__navigationContext__" as const;
@@ -210,8 +207,10 @@ export type NavigationContext = FileContext & {
   getNextSibling(statement: StatementHeader): StatementHeader | null;
   getLocalRoots(statements: StatementHeader[]): StatementHeader[];
   getDescendants(statement: StatementHeader): StatementHeader[];
-  getAboveCurGroup(statement: StatementHeader): StatementHeader[];
-  getBelowCurGroup(statement: StatementHeader): StatementHeader[];
+  getAboveCurGroup(statement: StatementHeader): StatementHeader | null;
+  getBelowCurGroup(statement: StatementHeader): StatementHeader | null;
+  getAbove(statement: StatementHeader): StatementHeader | null;
+  getBelow(statement: StatementHeader): StatementHeader | null;
 
   // indentation
   indent(statement: StatementHeader): void;
@@ -261,7 +260,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   // utils
 
-  function getLocation(statement: StatementHeader) {
+  function getLocation(statement: StatementHeader): { fileId: string; parentId?: string; orderKey: string } {
     return {
       fileId: file.value?.file?.id,
       parentId: statement.parent?.id,
@@ -269,21 +268,21 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     };
   }
 
-  function getSiblings(statement?: StatementHeader) {
+  function getSiblings(statement?: StatementHeader): StatementHeader[] {
     return statementsByParentId.value[statement?.parent?.id ?? ""] ?? [];
   }
 
-  function getPreviousSibling(statement: StatementHeader) {
+  function getPreviousSibling(statement: StatementHeader): StatementHeader | null {
     const siblings = getSiblings(statement);
     return siblings[siblings.findIndex((s) => s.id === statement.id) - 1];
   }
 
-  function getNextSibling(statement: StatementHeader) {
+  function getNextSibling(statement: StatementHeader): StatementHeader | null {
     const siblings = getSiblings(statement);
     return siblings[siblings.findIndex((s) => s.id === statement.id) + 1];
   }
 
-  function getLocalRoots(statements: StatementHeader[]) {
+  function getLocalRoots(statements: StatementHeader[]): StatementHeader[] {
     // Gets the local roots of a set of statements (ordered by position)
     // (it can happen that we first select a child, then expand to parent, we only want parent)
     let localRoots = statements.map((s) => s.id);
@@ -306,24 +305,32 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     return result.sort((a, b) => statementPositions.value[a.id] - statementPositions.value[b.id]);
   }
 
-  function getAboveCurGroup(statement: StatementHeader) {
+  function getAboveCurGroup(statement: StatementHeader): StatementHeader | null {
     // previous statement before this with depth <= this depth
     for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
       if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
         return statements.value[i];
       }
     }
-    return undefined;
+    return null;
   }
 
-  function getBelowCurGroup(statement: StatementHeader) {
+  function getBelowCurGroup(statement: StatementHeader): StatementHeader | null {
     // next statement after this with depth <= this depth
     for (let i = statementPositions.value[statement.id] + 1; i < statements.value.length; i++) {
       if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
         return statements.value[i];
       }
     }
-    return undefined;
+    return null;
+  }
+
+  function getAbove(statement: StatementHeader): StatementHeader | null {
+    return statements.value[statementPositions.value[statement.id] - 1];
+  }
+
+  function getBelow(statement: StatementHeader): StatementHeader | null {
+    return statements.value[statementPositions.value[statement.id] + 1];
   }
 
   // indentation
@@ -395,7 +402,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   async function moveUp(statement: StatementHeader) {
     // insert between above and above prev sibling (if any)
-    const above = statements.value[statementPositions.value[statement.id] - 1];
+    const above = getAbove(statement);
+    if (above == null) return;
     const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
     const abovePrevSibling = aboveSiblings
       .slice()
@@ -602,8 +610,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
       position: statementPositions.value[statement.value?.id],
       location: statement.value == null ? undefined : getLocation(statement.value),
-      above: statements.value[statementPositions.value[statement.value?.id] - 1],
-      below: statements.value[statementPositions.value[statement.value?.id] + 1],
+      above: statement.value == null ? undefined : getAbove(statement.value),
+      below: statement.value == null ? undefined : getBelow(statement.value),
       aboveCurGroup: statement.value == null ? undefined : getAboveCurGroup(statement.value),
       belowCurGroup: statement.value == null ? undefined : getBelowCurGroup(statement.value),
     } as CurrentNavigationContext;
@@ -615,11 +623,12 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       getSiblings,
       getPreviousSibling,
       getNextSibling,
-      getSelectedRoots,
+      getLocalRoots,
       getDescendants,
       getAboveCurGroup,
       getBelowCurGroup,
-      getLocalRoots,
+      getAbove,
+      getBelow,
 
       // indentation
       indent,
@@ -655,4 +664,88 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     delete navigationContexts.value[file.value?.file.id];
   });
   return context;
+}
+
+export function useNavigationContext(): Ref<NavigationContext> {
+  const context = inject(NAVIGATION_CONTEXT) as Ref<NavigationContext> | undefined;
+  if (context == null) {
+    throw new Error("File context not provided");
+  }
+  return context;
+}
+
+export function useMagicActions(statement: Ref<StatementHeader | null>) {
+  // "magic" because I don't know what to call these yet, they're not like the other statement actions (which are actual 'actions')
+  const nav = useNavigationContext();
+  const ops = useOperations();
+  const objects = useObjects();
+  const editor = useEditorState();
+
+  async function insertFilesAsRecords(column: string, orderKeys: string[], files: File[], as?: string) {
+    const uploads = [];
+    for (let i = 0; i < files.length; i++) {
+      const newRecordId = newDatasetRecordId();
+      const file = files[i];
+      const orderKey = orderKeys[i];
+      const remoteObject = await ops.object.prepareUpload(editor.currentProjectId as string, file);
+      const data = { [column]: remoteObject };
+      ops.symbol.createRecord(newRecordId, as ?? statement.value?.id, orderKey, data);
+      uploads.push(
+        objects.upload(editor.currentProjectId as string, file, (updatedObject) => {
+          const newData = { ...data, [column]: updatedObject };
+          ops.symbol.updateRecord(newRecordId, data, newData);
+        })
+      );
+    }
+    await Promise.all(uploads);
+  }
+
+  async function insertFilesAsDataset(position: "above" | "below", files: File[]) {
+    if (statement.value == null) return;
+
+    // get location above/below
+    const parentId = statement.value.parent?.id;
+    let orderKey;
+    if (position == "above") {
+      const above = nav.value.getAbove(statement.value as StatementHeader);
+      orderKey = generateKeyBetween(
+        above != null && above.parent?.id == parentId ? above?.orderKey : null,
+        statement.value.orderKey
+      );
+    } else {
+      const below = nav.value.getBelow(statement.value as StatementHeader);
+      orderKey = generateKeyBetween(
+        statement.value.orderKey,
+        below != null && below.parent?.id == parentId ? below?.orderKey : null
+      );
+    }
+
+    // create new dataset
+    const dataset = {
+      id: newStatementId(),
+      parentId: parentId,
+      orderKey: orderKey,
+      fileId: nav.value.file.id,
+      symbolType: SymbolType.Data,
+      name: "documents",
+    };
+    ops.statement.createDefinition(dataset);
+    // create 'content' column with file type
+    ops.statement.createTypeNode(dataset.id, {
+      statementId: dataset.id,
+      id: newTypeNodeId(),
+      name: "content",
+      tag: TypeTag.File,
+      orderKey: INTEGER_ZERO,
+    });
+
+    // insert files into dataset
+    const orderKeys = generateNKeysBetween(null, null, files.length);
+    await insertFilesAsRecords("content", orderKeys, files, dataset.id);
+  }
+
+  return {
+    insertFilesAsDataset,
+    insertFilesAsRecords,
+  };
 }

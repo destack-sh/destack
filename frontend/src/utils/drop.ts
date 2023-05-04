@@ -25,12 +25,12 @@ export function useRelativeDropZone(
     if (counter === 0) isOverDropZone.value = false;
   });
   useEventListener<DragEvent>(target, "drop", (event) => {
+    isOverDropZone.value = false;
     if (!enabled?.value) {
       return;
     }
     event.preventDefault();
     counter = 0;
-    isOverDropZone.value = false;
     const files = Array.from(event.dataTransfer?.files ?? []);
     onDrop?.(files.length === 0 ? null : files);
   });

@@ -1,4 +1,6 @@
 import { graphql } from "@/gql";
+import { RemoteObjectStatus } from "@/gql/graphql";
+import type { ObjectRecord } from "@/state/object";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -61,6 +63,17 @@ export function useObjectOps() {
     });
   }
 
+  async function prepareUpload(projectId: string, file: File): Promise<Omit<ObjectRecord, "id">> {
+    const sha512 = await computeSHA512(file);
+    return {
+      name: file.name,
+      contentType: file.type,
+      contentLength: file.size,
+      sha512,
+      status: RemoteObjectStatus.Prepared,
+    };
+  }
+
   async function requestUpload(projectId: string, file: File) {
     const sha512 = await computeSHA512(file);
     const { name, type, size } = file;
@@ -121,6 +134,7 @@ export function useObjectOps() {
 
   return {
     requestUpload,
+    prepareUpload,
     notifyUploaded,
     doUpload,
     getUrl,
