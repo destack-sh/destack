@@ -15,6 +15,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
+import { useRelativeDropZone as useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import {
   CheckCircleIcon,
@@ -229,9 +230,25 @@ function onClickContainer(e: MouseEvent) {
 
 function insertStatementBelow(e: MouseEvent) {
   onClickContainer(e);
-  actions.apply("statement.insertBelowCurrent");
+  statementActions.insertBelow.value.apply();
   e.preventDefault();
   e.stopPropagation();
+}
+
+// drag & drop
+const innerDrag = computed(() => rootCellRef.value?.innerDrag == true);
+const {
+  isOverDropZone: dragOver,
+  inTopHalf: dragInTopHalf,
+  inBottomHalf: dragInBottomHalf,
+} = useRelativeDropZone(
+  containerRef,
+  onDrop,
+  computed(() => !innerDrag.value)
+);
+
+function onDrop(files: File[] | null) {
+  console.log("drop it! statement", files);
 }
 
 // runtime
@@ -366,6 +383,8 @@ const inlineActions = computed(() => {
           !isCommentish,
         'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
           isCommentish,
+        'text-orange-500': dragOver && !isCommentish,
+        'text-gray-500': dragOver && isCommentish,
       }"
     >
       {{ lineNumberBase + 1 }}
@@ -393,8 +412,8 @@ const inlineActions = computed(() => {
       :class="{
         'focus:bg-orange-100': !isCommentish,
         'focus:bg-gray-100': isCommentish,
-        'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight),
-        'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight),
+        'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight || dragOver),
+        'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight || dragOver),
         'font-mono': editor.fontMono && !isComment,
         'text-gray-700': isCommented,
       }"
@@ -435,6 +454,15 @@ const inlineActions = computed(() => {
           :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
         />
       </template>
+      <!-- Statement drag & drop indicator (top/bottom) -->
+      <div
+        v-if="!readonly && dragOver && dragInTopHalf"
+        class="duration-50 absolute left-0 top-0 h-1 w-full bg-orange-300 transition-colors"
+      />
+      <div
+        v-if="!readonly && dragOver && dragInBottomHalf"
+        class="duration-50 absolute bottom-0 left-0 h-1 w-full bg-orange-300 transition-colors"
+      />
       <!-- Main cell -->
       <div
         class="relative px-2 py-1"
@@ -448,8 +476,8 @@ const inlineActions = computed(() => {
           v-if="rootCell.component == DeclarationCell"
           ref="rootCellRef"
           :is="rootCell.component"
-          @navigate-up="actions.apply('statement.moveFocusUp')"
-          @navigate-down="actions.apply('statement.moveFocusDown')"
+          @navigate-up="statementActions.moveFocusUp.value.apply"
+          @navigate-down="statementActions.moveFocusDown.value.apply"
         />
         <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
         <!-- Inline cell actions -->

@@ -327,7 +327,7 @@ const auth = useAuth();
             </button>
           </span>
         </span>
-        <!-- Other clients -->
+        <!-- Other clients presence -->
         <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="props.fileId" />
       </div>
       <!-- Add statement to start -->

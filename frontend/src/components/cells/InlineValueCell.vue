@@ -15,13 +15,16 @@ const props = defineProps<{
   type: SimpleType;
   readonly: boolean;
   immediate: boolean;
+  active: boolean;
   debounced?: boolean;
   slim?: boolean;
-  parentArray?: boolean; // hack to prevent recursion, doesn't work for nested arrays
+  parentArray?: boolean;
+  supportsDrop?: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: any): void;
+  (e: "dropFiles", p: "above" | "below", v: File[]): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -209,10 +212,10 @@ defineExpose({
           :readonly="true"
           :immediate="false"
           :value="value"
+          :active="active"
           parent-array
         />
       </div>
-      <span v-else-if="readValue == null && type.tag != TypeTag.Boolean">&nbsp;</span>
       <!-- Content preview -->
       <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}</span>
       <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
@@ -232,6 +235,9 @@ defineExpose({
         :modelValue="readValue"
         @update:modelValue="writeValue($event, true)"
         :readonly="readonly"
+        :active="active"
+        :supportsDrop="props.supportsDrop"
+        @dropFiles="emit('dropFiles', $event)"
       />
       <div
         v-else-if="type.tag == TypeTag.Struct"
@@ -244,6 +250,7 @@ defineExpose({
             :modelValue="readValue[field.name]"
             :placeholderValue="field.name"
             :readonly="true"
+            :active="active"
             :immediate="false"
           />
         </div>

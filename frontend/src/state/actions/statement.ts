@@ -49,7 +49,7 @@ function _provideStatementActions() {
 
 function _doProvideStatementActions(file: Ref<FileState | null>) {
   const editor = useEditorState();
-  const operations = useOperations();
+  const ops = useOperations();
 
   const statements = computed(() => file.value?.statements ?? []);
   const statementPositions = computed(() => {
@@ -271,7 +271,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       }
       const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
       const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
-      await operations.statement.move(statement.value.id, location.value, {
+      await ops.statement.move(statement.value.id, location.value, {
         fileId: file.value?.file.id,
         parentId: previousSibling.value?.id,
         orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
@@ -289,7 +289,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       const grandparent = statementsById.value[parent.parent?.id];
       const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
       const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
-      await operations.statement.move(statement.value.id, location.value, {
+      await ops.statement.move(statement.value.id, location.value, {
         fileId: file.value?.file.id,
         parentId: grandparent?.id,
         orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
@@ -318,7 +318,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         null,
         selectedRoots.length
       );
-      await operations.statement.batchMove(
+      await ops.statement.batchMove(
         ids,
         oldLocations,
         insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: previousSibling.id, orderKey: k }))
@@ -345,7 +345,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         parentNextSibling?.orderKey ?? null,
         selectedRoots.length
       );
-      await operations.statement.batchMove(
+      await ops.statement.batchMove(
         ids,
         oldLocations,
         insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: grandparent?.id, orderKey: k }))
@@ -372,7 +372,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         parentId: above.value?.parent?.id,
         orderKey,
       };
-      await operations.statement.move(statement.value.id, location.value, targetLocation);
+      await ops.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
   const moveCurrentDown = provideGlobalAction({
@@ -393,7 +393,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         parentId: belowCurGroup.value?.parent?.id,
         orderKey,
       };
-      await operations.statement.move(statement.value.id, location.value, targetLocation);
+      await ops.statement.move(statement.value.id, location.value, targetLocation);
     },
   });
   const moveSelectionUp = provideGlobalAction({
@@ -420,7 +420,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         parentId: above.parent?.id,
         orderKey: k,
       }));
-      await operations.statement.batchMove(ids, oldLocations, targetLocations);
+      await ops.statement.batchMove(ids, oldLocations, targetLocations);
     },
   });
   const moveSelectionDown = provideGlobalAction({
@@ -448,7 +448,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         parentId: belowCurGroup.parent?.id,
         orderKey: k,
       }));
-      await operations.statement.batchMove(ids, oldLocations, targetLocations);
+      await ops.statement.batchMove(ids, oldLocations, targetLocations);
     },
   });
 
@@ -522,7 +522,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       if (above.value) {
         editor.focusElement(above.value);
       }
-      await operations.statement.softDelete(current);
+      await ops.statement.softDelete(current);
     },
   });
   const deleteSelection = provideGlobalAction({
@@ -533,7 +533,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
     apply: async () => {
       // after delete focus next statement above
       editor.blurElement();
-      await operations.statement.batchSoftDelete(editor.selectedElementIds);
+      await ops.statement.batchSoftDelete(editor.selectedElementIds);
     },
   });
 
@@ -554,7 +554,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       if (above.value) {
         editor.focusElement(above.value, true);
       }
-      await operations.statement.softDelete(current);
+      await ops.statement.softDelete(current);
     },
   });
 
@@ -575,7 +575,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
   // optimistic insert that doesn't wait for the server response
   function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
-    operations.statement.create(newStatement.id, file.value?.file.id, parentId, orderKey);
+    ops.statement.create(newStatement.id, file.value?.file.id, parentId, orderKey);
     return newStatement;
   }
 
@@ -613,7 +613,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
       const top = selectedRoots[0];
       const previousSibling = getPreviousSibling(top);
-      operations.statement.create(
+      ops.statement.create(
         newStatementId(),
         file.value?.file.id,
         top.parent?.id ?? null,
@@ -653,7 +653,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
         statement.value.type != StatementType.Comment
     ),
     apply: async () => {
-      await operations.statement.comment(statement.value.id, !statement.value.commented);
+      await ops.statement.comment(statement.value.id, !statement.value.commented);
     },
   });
 
@@ -714,7 +714,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
       copy.value.apply();
       const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
       editor.blurElement();
-      await operations.statement.batchSoftDelete(selectedRoots.map((s) => s.id));
+      await ops.statement.batchSoftDelete(selectedRoots.map((s) => s.id));
     },
   });
   const paste = provideGlobalAction({
@@ -767,7 +767,7 @@ function _doProvideStatementActions(file: Ref<FileState | null>) {
           return orderKeys[childIndex];
         });
 
-        await operations.statement.batchPaste(
+        await ops.statement.batchPaste(
           sourceIds,
           sourceIds.map((id) => targetIds[id]),
           file.value?.file.id,
