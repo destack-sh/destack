@@ -198,11 +198,19 @@ export type CopiedStatement = {
   orderKey: string;
 };
 
+export type StatementLocation = {
+  fileId: string;
+  parentId: string | null;
+  orderKey: string;
+};
+
 export type NavigationContext = FileContext & {
   current: CurrentNavigationContext;
 
   // utils
-  getLocation(statement: StatementHeader): { fileId: string; parentId: string | null; orderKey: string };
+  getLocation(statement: StatementHeader): StatementLocation;
+  getLocationRightAbove(statement: StatementHeader): StatementLocation;
+  getLocationRightBelow(statement: StatementHeader): StatementLocation;
   getSiblings(statement: StatementHeader): StatementHeader[];
   getPreviousSibling(statement: StatementHeader): StatementHeader | null;
   getNextSibling(statement: StatementHeader): StatementHeader | null;
@@ -261,11 +269,39 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   // utils
 
-  function getLocation(statement: StatementHeader): { fileId: string; parentId?: string; orderKey: string } {
+  function getLocation(statement: StatementHeader): StatementLocation {
     return {
       fileId: file.value?.file?.id,
       parentId: statement.parent?.id,
       orderKey: statement?.orderKey ?? INTEGER_ZERO,
+    };
+  }
+
+  function getLocationRightAbove(statement: StatementHeader): StatementLocation {
+    const above = getAbove(statement as StatementHeader);
+    const statementParentId = statementsById.value[statement.id]?.parent?.id;
+    const orderKey = generateKeyBetween(
+      above != null && above.parent?.id == statementParentId ? above?.orderKey : null,
+      statement.orderKey
+    );
+    return {
+      fileId: file.value?.file?.id,
+      parentId: statement.parent?.id,
+      orderKey: orderKey,
+    };
+  }
+
+  function getLocationRightBelow(statement: StatementHeader): StatementLocation {
+    const below = getBelow(statement as StatementHeader);
+    const statementParentId = statementsById.value[statement.id]?.parent?.id;
+    const orderKey = generateKeyBetween(
+      statement.orderKey,
+      below != null && below.parent?.id == statementParentId ? below?.orderKey : null
+    );
+    return {
+      fileId: file.value?.file?.id,
+      parentId: statement.parent?.id,
+      orderKey: orderKey,
     };
   }
 
@@ -621,6 +657,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       ...file.value,
       // utils
       getLocation,
+      getLocationRightAbove,
+      getLocationRightBelow,
       getSiblings,
       getPreviousSibling,
       getNextSibling,
@@ -683,6 +721,10 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   const editor = useEditorState();
 
   async function insertFilesAsRecords(column: string, orderKeys: string[], files: File[], as?: string) {
+    /** Insert files as records into this statement */
+    if (!as && statement.value?.symbolType != SymbolType.Data) {
+      throw new Error("can only insert records into data statements");
+    }
     const uploads = [];
     for (let i = 0; i < files.length; i++) {
       const newRecordId = newDatasetRecordId();
@@ -702,30 +744,19 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   async function insertFilesAsDataset(position: "above" | "below", files: File[]) {
+    /** Insert files as a new dataset above/below this statement */
     if (statement.value == null) return;
 
     // get location above/below
-    const parentId = statement.value.parent?.id;
-    let orderKey;
-    if (position == "above") {
-      const above = nav.value.getAbove(statement.value as StatementHeader);
-      orderKey = generateKeyBetween(
-        above != null && above.parent?.id == parentId ? above?.orderKey : null,
-        statement.value.orderKey
-      );
-    } else {
-      const below = nav.value.getBelow(statement.value as StatementHeader);
-      orderKey = generateKeyBetween(
-        statement.value.orderKey,
-        below != null && below.parent?.id == parentId ? below?.orderKey : null
-      );
-    }
-
+    const location =
+      position == "above"
+        ? nav.value.getLocationRightAbove(statement.value)
+        : nav.value.getLocationRightBelow(statement.value);
     // create new dataset
     const dataset = {
       id: newStatementId(),
-      parentId: parentId,
-      orderKey: orderKey,
+      parentId: location.parentId,
+      orderKey: location.orderKey,
       fileId: nav.value.file.id,
       symbolType: SymbolType.Data,
       rootTypeTag: TypeTag.Struct,
