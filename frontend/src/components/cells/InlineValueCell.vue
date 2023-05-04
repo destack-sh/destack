@@ -103,10 +103,15 @@ function edit(event: KeyboardEvent | MouseEvent) {
   if (props.readonly) {
     return;
   }
+  // ignore if click and click is not on button
+  // (inner elements may also be clicked)
+  if (event instanceof MouseEvent && event.target != buttonRef.value) {
+    return;
+  }
   if (OBJECT_TYPETAGS.includes(props.type.tag)) {
     valueRef.value?.open();
     return;
-  } // don't prevent anything
+  } // don't prevent anything, need to open file chooser
   event.preventDefault();
   if (event instanceof KeyboardEvent) {
     // we want to propagate clicks to manage focus upstream

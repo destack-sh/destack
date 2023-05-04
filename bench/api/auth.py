@@ -201,22 +201,32 @@ field.filter_with_perms = filter_with_perms
 resolvers.filter_with_perms = filter_with_perms
 
 
+def normalize_to_project(obj) -> models.Project:
+    """Normalizes the given object to a project."""
+    # TODO @Performance: prefetch project or check condition entirely in SQL
+    if isinstance(obj, Connection):
+        return normalize_to_project(obj.edges[0].node)
+    elif isinstance(obj, Iterable):
+        return normalize_to_project(obj[0])
+    elif isinstance(obj, (models.SimpleTypeNode, models.DatasetRecord)):
+        obj = obj.statement.project_version.project
+    elif isinstance(obj, (models.File, models.Statement, models.Execution)):
+        obj = obj.project_version.project
+    elif isinstance(
+        obj,
+        (models.ProjectVersion, models.Deployment, models.EvaluationResult, models.RemoteObject),
+    ):
+        obj = obj.project
+    elif not isinstance(obj, models.Project):
+        raise ValueError(f"CanViewProject cannot be used on {obj}")
+    return obj
+
+
 def can_view_project(user: User, obj: Any) -> bool:
     """Whether the given user can view the project-related object."""
     if user.is_authenticated and user.is_staff:
         return True
-    # TODO @Performance: prefetch project or check condition entirely in SQL
-    # normalize to project instance
-    if isinstance(obj, (models.File, models.Statement, models.Execution)):
-        obj = obj.project_version.project
-    elif isinstance(obj, (models.ProjectVersion, models.Deployment, models.EvaluationResult)):
-        obj = obj.project
-    elif isinstance(obj, Connection):
-        return all(can_view_project(user, edge.node) for edge in obj.edges)
-    elif isinstance(obj, Iterable):
-        return all(can_view_project(user, item) for item in obj)
-    if not isinstance(obj, models.Project):
-        raise ValueError(f"CanViewProject cannot be used on {obj}")
+    obj = normalize_to_project(obj)
     # is public or user is owner or user is member (any level) of owning organization
     is_org_member = (
         obj.organization_id is not None
@@ -232,17 +242,7 @@ def can_write_project(user: User, obj: Any) -> bool:
         return True
     if user.is_anonymous:
         return False
-    # TODO @Performance: prefetch project or check condition entirely in SQL
-    #  (and @Cleanup: deduplicate across read/write and other access points)
-    # normalize to project instance
-    if isinstance(obj, (models.SimpleTypeNode, models.DatasetRecord)):
-        obj = obj.statement.project_version.project
-    elif isinstance(obj, (models.File, models.Statement, models.Execution)):
-        obj = obj.project_version.project
-    elif isinstance(obj, (models.ProjectVersion, models.Deployment, models.EvaluationResult)):
-        obj = obj.project
-    if not isinstance(obj, models.Project):
-        raise ValueError(f"can_write_project cannot be used on {obj}")
+    obj = normalize_to_project(obj)
     from bench.models import OrganizationMembershipLevel  # avoid circular import
 
     is_org_member = (

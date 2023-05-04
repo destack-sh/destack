@@ -12,10 +12,10 @@ from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.util import safe_mutation
 from bench.models.object import (
-    REMOTE_OBJECT_CONTENT_TYPES,
     REMOTE_OBJECT_MAX_SIZE,
     get_project_bucket_name,
     get_s3_client,
+    is_allowed_content_type,
 )
 
 logger = structlog.get_logger(__name__)
@@ -66,7 +66,7 @@ class ObjectMutation:
             raise ValidationError(
                 f"object too large: {input.content_length} >= {REMOTE_OBJECT_MAX_SIZE}"
             )
-        if input.content_type not in REMOTE_OBJECT_CONTENT_TYPES:
+        if not is_allowed_content_type(input.content_type):
             raise ValidationError(f"invalid content type: {input.content_type}")
         remote_object: RemoteObject = project.remote_objects.filter(sha512=input.sha512).first()
         if remote_object is not None:

@@ -17,8 +17,8 @@ REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
 REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 DOCUMENT_CONTENT_TYPES = {
     "text/plain",
-    "application/rtf",
     "text/rtf",
+    "application/rtf",
     "application/msword",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "application/vnd.ms-excel",
@@ -26,6 +26,20 @@ DOCUMENT_CONTENT_TYPES = {
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "application/pdf",
+    "application/epub+zip",
+    "application/zip",
+    "application/x-7z-compressed",
+    "application/x-rar-compressed",
+    "application/x-tar",
+    "application/gzip",
+    "application/x-bzip2",
+    "application/x-yaml",
+    "application/json",
+    "application/xml",
+    "application/x-latex",
+    "application/vnd.oasis.opendocument.text",
+    "application/vnd.oasis.opendocument.spreadsheet",
+    "application/vnd.oasis.opendocument.presentation",
 }
 IMAGE_CONTENT_TYPES = {
     "image/jpeg",
@@ -53,6 +67,16 @@ VIDEO_CONTENT_TYPES = {
     "video/webm",
 }
 REMOTE_OBJECT_CONTENT_TYPES = {*DOCUMENT_CONTENT_TYPES}  # only support documents for now
+
+
+def is_allowed_content_type(content_type: str) -> bool:
+    # any application/* and text/*
+    return (
+        content_type.startswith("text/")
+        or content_type.startswith("application/")
+        or content_type in REMOTE_OBJECT_CONTENT_TYPES
+    )
+
 
 logger = structlog.get_logger(__name__)
 

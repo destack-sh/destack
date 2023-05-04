@@ -3626,6 +3626,15 @@ export type MarkNotificationMutation = {
       });
 };
 
+export type RemoteObjectQueryVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RemoteObjectQuery = {
+  __typename?: "Query";
+  remoteObject?: { __typename?: "RemoteObject"; id: any; presignedGet?: string | null } | null;
+};
+
 export type UpsertClientMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   type: ClientType;
@@ -9090,6 +9099,55 @@ export const MarkNotificationDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MarkNotificationMutation, MarkNotificationMutationVariables>;
+export const RemoteObjectDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "remoteObject" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "remoteObject" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RemoteObject" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "presignedGet" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RemoteObjectQuery, RemoteObjectQueryVariables>;
 export const UpsertClientDocument = {
   kind: "Document",
   definitions: [
