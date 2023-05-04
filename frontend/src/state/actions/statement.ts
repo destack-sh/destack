@@ -1,11 +1,11 @@
-import { activeFileState, fileContexts, type FileContext } from "@/components/file";
+import { activeFileState, navigationContexts, type NavigationContext } from "@/components/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation, useSymbolOps } from "@/state/runtime";
-import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
+import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";
 
@@ -16,110 +16,23 @@ export function useStatementActions() {
 export const hostStatementActions = createSharedComposable(_provideStatementActions);
 
 function _provideStatementActions() {
-  const activeFileContext = computed(() => fileContexts.value[activeFileState.value?.file.id ?? ""]);
+  const activeFileContext = computed(() => navigationContexts.value[activeFileState.value?.file.id ?? ""]);
   return _doProvideStatementActions(activeFileContext);
 }
 
-function _doProvideStatementActions(file: Ref<FileContext | null>) {
+function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   const editor = useEditorState();
   const ops = useOperations();
 
   const statements = computed(() => file.value?.statements ?? []);
-  const depths = computed(() => file.value?.depths ?? []);
   const statementsById: Ref<Record<string, StatementHeader>> = computed(() => file.value?.statementsById ?? {});
   const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(
     () => file.value?.statementsByParentId ?? {}
   );
-  const statementPositions: Ref<Record<string, number>> = computed(() => file.value?.statementPositions ?? {});
-
-  function getLocation(statement: StatementHeader) {
-    return {
-      fileId: file.value?.file.id,
-      parentId: statement.parent?.id,
-      orderKey: statement?.orderKey ?? INTEGER_ZERO,
-    };
-  }
-
-  function getSiblings(statement?: StatementHeader) {
-    return statementsByParentId.value[statement?.parent?.id ?? ""];
-  }
-
-  function getPreviousSibling(statement: StatementHeader) {
-    const siblings = getSiblings(statement);
-    return siblings[siblings.findIndex((s) => s.id === statement.id) - 1];
-  }
-
-  function getNextSibling(statement: StatementHeader) {
-    const siblings = getSiblings(statement);
-    return siblings[siblings.findIndex((s) => s.id === statement.id) + 1];
-  }
-
-  function getSelectedRoots(): StatementHeader[] {
-    // Gets the in-selection roots of selected statements (ordered by position)
-    // (it can happen that we first select a child, then expand to parent, we only want parent)
-    let selectedRoots = editor.selectedElementIds.slice();
-    // trim statements whose parents are also selected
-    for (const id of editor.selectedElementIds) {
-      const children = statementsByParentId.value[id] ?? [];
-      selectedRoots = selectedRoots.filter((r) => !children.find((s) => s.id == r));
-    }
-    return selectedRoots
-      .sort((a, b) => statementPositions.value[a] - statementPositions.value[b])
-      .map((s) => statementsById.value[s]);
-  }
-
-  function getDescendants(statement: StatementHeader): StatementHeader[] {
-    const result: StatementHeader[] = [];
-    for (const child of statementsByParentId.value[statement.id] ?? []) {
-      result.push(child);
-      result.push(...getDescendants(child));
-    }
-    return result.sort((a, b) => statementPositions.value[a.id] - statementPositions.value[b.id]);
-  }
-
-  function getAboveCurGroup(statement: StatementHeader) {
-    // previous statement before this with depth <= this depth
-    for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
-      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
-        return statements.value[i];
-      }
-    }
-    return undefined;
-  }
-
-  function getBelowCurGroup(statement: StatementHeader) {
-    // next statement after this with depth <= this depth
-    for (let i = statementPositions.value[statement.id] + 1; i < statements.value.length; i++) {
-      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
-        return statements.value[i];
-      }
-    }
-    return undefined;
-  }
-
-  function getSelectionBottom(): StatementHeader | undefined {
-    if (editor.hasSelection) {
-      const selectedRoots = getSelectedRoots();
-      return selectedRoots[selectedRoots.length - 1];
-    } else if (statement.value != null) {
-      return statement.value;
-    } else {
-      return statements.value[statements.value.length - 1];
-    }
-  }
+  const cur = computed(() => file.value?.current);
 
   // actions for currently focused statement
-  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
-  const orderKey = computed(() => statement.value?.orderKey ?? INTEGER_ZERO);
-  const previousSibling = computed(() => getPreviousSibling(statement.value));
-  const children = computed(() => statementsByParentId.value[statement.value?.id ?? ""]);
-  const position = computed(() => statementPositions.value[statement.value?.id]);
-  const location = computed(() => getLocation(statement.value));
 
-  const above = computed(() => statements.value[position.value - 1]);
-  const below = computed(() => statements.value[position.value + 1]);
-  const aboveCurGroup = computed(() => getAboveCurGroup(statement.value));
-  const belowCurGroup = computed(() => getBelowCurGroup(statement.value));
   const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
 
   // move focus
@@ -130,14 +43,14 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     enabled: computed(() => navigatingFile.value),
     apply: () => {
       editor.clearSelection();
-      if (above.value != null) {
-        editor.focusElement(above.value, true);
-      } else if (statement.value == null && statements.value.length > 0) {
+      if (cur.value?.above != null) {
+        editor.focusElement(cur.value.above, true);
+      } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus last statement
         // note: I have disabled auto-focus last since it leads to some annoying behaviour,
         // particularly when you think something is focused but it's not this leads to jumping
         // editor.focusElement(statements.value[statements.value.length - 1], true);
-      } else if (statement.value != null) {
+      } else if (cur.value?.statement != null) {
         // navigate up from statements
         file.value?.navigateUp();
       }
@@ -150,17 +63,17 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     shortcuts: ["down"],
     apply: () => {
       editor.clearSelection();
-      if (below.value != null) {
-        editor.focusElement(below.value, true);
-      } else if (statement.value == null && statements.value.length > 0) {
+      if (cur.value?.below != null) {
+        editor.focusElement(cur.value?.below, true);
+      } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus first statement
         if (editor.hasSelection) {
-          const selectedRoots = getSelectedRoots();
-          editor.focusElement(selectedRoots[0]);
+          const selectedRoots = file.value?.getSelectedRoots();
+          editor.focusElement(selectedRoots?.[0] as StatementHeader);
         } else {
           editor.focusElement(statements.value[0], true);
         }
-      } else if (statement.value != null) {
+      } else if (cur.value?.statement != null) {
         // navigate down from statements
         file.value?.navigateDown();
       }
@@ -171,20 +84,22 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.moveFocusIn",
     label: "Move focus in",
     shortcuts: ["right"],
-    enabled: computed(() => navigatingFile.value && statement.value != null && children.value?.length > 0),
+    enabled: computed(() => navigatingFile.value && cur.value?.statement != null && cur.value?.children.length > 0),
     apply: () => {
       editor.clearSelection();
-      editor.focusElement(children.value[0], true);
+      editor.focusElement(cur.value?.children[0] as StatementHeader, true);
     },
   });
   const moveFocusOut = provideGlobalAction({
     id: "statement.moveFocusOut",
     label: "Move focus out",
     shortcuts: ["left"],
-    enabled: computed(() => navigatingFile.value && statement.value != null && statement.value.parent != null),
+    enabled: computed(
+      () => navigatingFile.value && cur.value?.statement != null && cur.value?.statement.parent != null
+    ),
     apply: () => {
       editor.clearSelection();
-      const parent = statementsById.value[statement.value.parent?.id];
+      const parent = statementsById.value[cur.value?.statement?.parent?.id];
       editor.focusElement(parent, true);
     },
   });
@@ -194,18 +109,18 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.editCurrent",
     label: "Edit statement",
     shortcuts: ["enter"],
-    enabled: computed(() => statement.value != null && navigatingFile.value),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value),
     apply: () => {
-      editor.editElement(statement.value);
+      editor.editElement(cur.value?.statement as StatementHeader);
     },
   });
   const stopEditing = provideGlobalAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing statement",
     shortcuts: ["escape"],
-    enabled: computed(() => statement.value != null && editor.editingElement && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && editor.editingElement && !editor.hasSelection),
     apply: () => {
-      editor.stopEditingElement(statement.value);
+      editor.stopEditingElement(cur.value?.statement as StatementHeader);
     },
   });
 
@@ -214,38 +129,21 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.indentCurrent",
     label: "Indent statement",
     shortcuts: ["tab"],
-    enabled: computed(() => statement.value != null && above.value != null && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null && !editor.hasSelection),
     // we can only indent if there is a sibling above
     apply: async () => {
-      // move to end of previous sibling's children
-      if (previousSibling.value == null) {
-        return;
-      }
-      const previousSiblingChildren = statementsByParentId.value[previousSibling.value.id] ?? [];
-      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
-      await ops.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.file.id,
-        parentId: previousSibling.value?.id,
-        orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
-      });
+      await file.value?.indent(cur.value?.statement as StatementHeader);
     },
   });
   const unindent = provideGlobalAction({
     id: "statement.unindentCurrent",
     label: "Unindent statement",
     shortcuts: ["shift+tab"],
-    enabled: computed(() => statement.value != null && statement.value.parent != null && !editor.hasSelection),
+    enabled: computed(
+      () => cur.value?.statement != null && cur.value?.statement.parent != null && !editor.hasSelection
+    ),
     apply: async () => {
-      // move to after parent in grandparent's children
-      const parent = statementsById.value[statement.value.parent?.id];
-      const grandparent = statementsById.value[parent.parent?.id];
-      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
-      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
-      await ops.statement.move(statement.value.id, location.value, {
-        fileId: file.value?.file.id,
-        parentId: grandparent?.id,
-        orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
-      });
+      await file.value?.unindent(cur.value?.statement as StatementHeader);
     },
   });
   const indentSelection = provideGlobalAction({
@@ -255,26 +153,8 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     enabled: computed(() => editor.hasSelection),
     apply: async () => {
       // indent selected roots in line with the topmost selected statement
-      const selectedRoots = getSelectedRoots();
-      const previousSibling = getPreviousSibling(selectedRoots[0]);
-      if (previousSibling == null) {
-        return;
-      }
-      const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
-      const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
-      // insert all selected roots in order after previous sibling's children
-      const ids = selectedRoots.map((r) => r.id);
-      const oldLocations = selectedRoots.map((s) => getLocation(s));
-      const insertOrderKeys = generateNKeysBetween(
-        previousSiblingChildrenLast?.orderKey ?? null,
-        null,
-        selectedRoots.length
-      );
-      await ops.statement.batchMove(
-        ids,
-        oldLocations,
-        insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: previousSibling.id, orderKey: k }))
-      );
+      const selectedRoots = file.value?.getSelectedRoots();
+      await file.value?.indentBatch(selectedRoots ?? []);
     },
   });
   const unindentSelection = provideGlobalAction({
@@ -284,24 +164,8 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     enabled: computed(() => editor.hasSelection),
     apply: async () => {
       // unindent selected roots in line with the topmost selected statement
-      const selectedRoots = getSelectedRoots();
-      const parent = statementsById.value[selectedRoots[0].parent?.id];
-      const grandparent = statementsById.value[parent.parent?.id];
-      const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
-      const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
-      // insert all selected roots in order after parent
-      const ids = selectedRoots.map((r) => r.id);
-      const oldLocations = selectedRoots.map((s) => getLocation(s));
-      const insertOrderKeys = generateNKeysBetween(
-        parent.orderKey,
-        parentNextSibling?.orderKey ?? null,
-        selectedRoots.length
-      );
-      await ops.statement.batchMove(
-        ids,
-        oldLocations,
-        insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: grandparent?.id, orderKey: k }))
-      );
+      const selectedRoots = file.value?.getSelectedRoots();
+      await file.value?.unindentBatch(selectedRoots ?? []);
     },
   });
 
@@ -310,42 +174,20 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => statement.value != null && above.value != null && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && file.value?.current.above != null && !editor.hasSelection),
     apply: async () => {
-      // insert between above and above prev sibling (if any)
-      const aboveSiblings = statementsByParentId.value[above.value.parent?.id ?? ""];
-      const abovePrevSibling = aboveSiblings
-        .slice()
-        .reverse()
-        .find((s) => s.orderKey < above.value.orderKey);
-      const orderKey = generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.value.orderKey);
-      const targetLocation = {
-        fileId: file.value?.file.id,
-        parentId: above.value?.parent?.id,
-        orderKey,
-      };
-      await ops.statement.move(statement.value.id, location.value, targetLocation);
+      await file.value?.moveUp(cur.value?.statement as StatementHeader);
     },
   });
   const moveCurrentDown = provideGlobalAction({
     id: "statement.moveCurrentDown",
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => statement.value != null && belowCurGroup.value != null && !editor.hasSelection),
+    enabled: computed(
+      () => cur.value?.statement != null && file.value?.current.belowCurGroup != null && !editor.hasSelection
+    ),
     apply: async () => {
-      if (belowCurGroup.value == null) return;
-      // insert between the next group below and its next sibling (if any)
-      const belowSiblings = statementsByParentId.value[belowCurGroup.value.parent?.id ?? ""];
-      const belowNextSibling = belowSiblings.find(
-        (s) => s.orderKey > (belowCurGroup.value as StatementHeader).orderKey
-      );
-      const orderKey = generateKeyBetween(belowCurGroup.value.orderKey ?? null, belowNextSibling?.orderKey ?? null);
-      const targetLocation = {
-        fileId: file.value?.file.id,
-        parentId: belowCurGroup.value?.parent?.id,
-        orderKey,
-      };
-      await ops.statement.move(statement.value.id, location.value, targetLocation);
+      await file.value?.moveDown(cur.value?.statement as StatementHeader);
     },
   });
   const moveSelectionUp = provideGlobalAction({
@@ -354,25 +196,7 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     shortcuts: ["alt+up", "meta+up"],
     enabled: computed(() => editor.hasSelection),
     apply: async () => {
-      // move selected roots in line with the topmost selected statement
-      // (insert between above and above prev sibling (if any))
-      const selectedRoots = getSelectedRoots();
-      const above = statements.value[statementPositions.value[selectedRoots[0].id] - 1];
-      if (above == null) return;
-      const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
-      const abovePrevSibling = aboveSiblings
-        .slice()
-        .reverse()
-        .find((s) => s.orderKey < above.orderKey);
-      const ids = selectedRoots.map((r) => r.id);
-      const oldLocations = selectedRoots.map((s) => getLocation(s));
-      const orderKeys = generateNKeysBetween(abovePrevSibling?.orderKey ?? null, above.orderKey, selectedRoots.length);
-      const targetLocations = orderKeys.map((k) => ({
-        fileId: file.value?.file.id,
-        parentId: above.parent?.id,
-        orderKey: k,
-      }));
-      await ops.statement.batchMove(ids, oldLocations, targetLocations);
+      await file.value?.moveBatchUp(file.value?.getSelectedRoots() ?? []);
     },
   });
   const moveSelectionDown = provideGlobalAction({
@@ -381,26 +205,7 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     shortcuts: ["alt+down", "meta+down"],
     enabled: computed(() => editor.hasSelection),
     apply: async () => {
-      // move selected roots in line with the bottommost selected statement
-      // (insert between the next group below and its next sibling (if any))
-      const selectedRoots = getSelectedRoots();
-      const belowCurGroup = getBelowCurGroup(selectedRoots[selectedRoots.length - 1]);
-      if (belowCurGroup == null) return;
-      const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
-      const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.orderKey);
-      const ids = selectedRoots.map((r) => r.id);
-      const oldLocations = selectedRoots.map((s) => getLocation(s));
-      const orderKeys = generateNKeysBetween(
-        belowCurGroup.orderKey,
-        belowNextSibling?.orderKey ?? null,
-        selectedRoots.length
-      );
-      const targetLocations = orderKeys.map((k) => ({
-        fileId: file.value?.file.id,
-        parentId: belowCurGroup.parent?.id,
-        orderKey: k,
-      }));
-      await ops.statement.batchMove(ids, oldLocations, targetLocations);
+      await file.value?.moveBatchDown(file.value?.getSelectedRoots() ?? []);
     },
   });
 
@@ -409,39 +214,39 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.expandSelectionUp",
     label: "Expand selection up",
     shortcuts: ["shift+up"],
-    enabled: computed(() => statement.value != null && above.value != null),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null),
     apply: () => {
       // remove self from selection if previous selected (last is current) is above
       // (that means we're expanding down)
       const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
-      if (prevSelectedPosition > -1 && prevSelectedPosition < position.value) {
-        editor.removeFromSelection(statement.value);
+      if (prevSelectedPosition > -1 && prevSelectedPosition < (cur.value?.position as number)) {
+        editor.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
-        editor.addToSelection(statement.value);
-        editor.addToSelection(aboveCurGroup.value as StatementHeader);
+        editor.addToSelection(cur.value?.statement as StatementHeader);
+        editor.addToSelection(cur.value?.aboveCurGroup as StatementHeader);
       }
       // then move focus up to previous sibling or parent
       // (if above != null, then aboveCurGroup must also be non null)
-      editor.focusElement(aboveCurGroup.value as StatementHeader, false);
+      editor.focusElement(cur.value?.aboveCurGroup as StatementHeader, false);
     },
   });
   const expandSelectionDown = provideGlobalAction({
     id: "statement.expandSelectionDown",
     label: "Expand selection down",
     shortcuts: ["shift+down"],
-    enabled: computed(() => statement.value != null && belowCurGroup.value != null),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.belowCurGroup != null),
     apply: () => {
       // remove self from selection if previous selected (last is current) is below
       // (that means we're expanding up)
       const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
-      if (prevSelectedPosition > -1 && prevSelectedPosition > position.value) {
-        editor.removeFromSelection(statement.value);
+      if (prevSelectedPosition > -1 && prevSelectedPosition > (cur.value?.position as number)) {
+        editor.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
-        editor.addToSelection(statement.value);
-        editor.addToSelection(belowCurGroup.value as StatementHeader);
+        editor.addToSelection(cur.value?.statement as StatementHeader);
+        editor.addToSelection(cur.value?.belowCurGroup as StatementHeader);
       }
       // then move focus down
-      editor.focusElement(belowCurGroup.value as StatementHeader, false);
+      editor.focusElement(cur.value?.belowCurGroup as StatementHeader, false);
     },
   });
   const cancelSelection = provideGlobalAction({
@@ -468,11 +273,11 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["backspace", "delete"],
-    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
-      const current = statement.value.id;
-      if (above.value) {
-        editor.focusElement(above.value);
+      const current = cur.value?.statement?.id;
+      if (cur.value?.above) {
+        editor.focusElement(cur.value?.above);
       }
       await ops.statement.softDelete(current);
     },
@@ -500,11 +305,11 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
-    enabled: computed(() => statement.value != null && above.value != null),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null),
     apply: async () => {
-      const current = statement.value.id;
-      if (above.value) {
-        editor.focusElement(above.value, true);
+      const current = cur.value?.statement?.id;
+      if (cur.value?.above) {
+        editor.focusElement(cur.value?.above, true);
       }
       await ops.statement.softDelete(current);
     },
@@ -516,10 +321,10 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.jumpToReference",
     label: "Jump to reference",
     shortcuts: ["ctrl+b", "meta+b"],
-    enabled: computed(() => statement.value != null && statement.value.reference != null),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.statement.reference != null),
     apply: () => {
-      if (statement.value.reference != null) {
-        focusSymbol(statement.value.reference);
+      if (cur.value?.statement?.reference != null) {
+        focusSymbol(cur.value?.statement.reference);
       }
     },
   });
@@ -560,28 +365,30 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.insertAboveCurrent",
     label: "Insert statement above",
     shortcuts: ["a"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
     apply: () => {
-      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
-      const top = selectedRoots[0];
-      const previousSibling = getPreviousSibling(top);
-      ops.statement.create(
-        newStatementId(),
-        file.value?.file.id,
-        top.parent?.id ?? null,
-        generateKeyBetween(previousSibling?.orderKey ?? null, orderKey.value)
-      );
-      // don't switch focus if inserting _before_ current
+      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
+      const top = selectedRoots?.[0];
+      if (top != null) {
+        const previousSibling = file.value?.getPreviousSibling(top);
+        ops.statement.create(
+          newStatementId(),
+          file.value?.file.id,
+          top.parent?.id ?? null,
+          generateKeyBetween(previousSibling?.orderKey ?? null, cur.value?.orderKey as string)
+        );
+        // don't switch focus if inserting _before_ current
+      }
     },
   });
   const insertBelow = provideGlobalAction({
     id: "statement.insertBelowCurrent",
     label: "Insert statement below",
     shortcuts: ["b", "shift+enter", "plus"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
     apply: () => {
-      const bottom = getSelectionBottom();
-      const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
+      const bottom = file.value?.getSelectionBottom();
+      const nextSibling = bottom != null ? file.value?.getNextSibling(bottom) : undefined;
       const newStatement = _insertOptimistic(
         bottom?.parent?.id ?? null,
         generateKeyBetween(bottom?.orderKey ?? null, nextSibling?.orderKey ?? null)
@@ -599,74 +406,40 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     shortcuts: ["t", "shift+t"],
     enabled: computed(
       () =>
-        statement.value != null &&
+        cur.value?.statement != null &&
         navigatingFile.value &&
-        statement.value.type != StatementType.Blank &&
-        statement.value.type != StatementType.Comment
+        cur.value?.statement.type != StatementType.Blank &&
+        cur.value?.statement.type != StatementType.Comment
     ),
     apply: async () => {
-      await ops.statement.comment(statement.value.id, !statement.value.commented);
+      await ops.statement.comment(cur.value?.statement?.id, !cur.value?.statement?.commented);
     },
   });
 
   // cut/copy/paste/duplicate
   // TODO @Cleanup: use custom mime type for copied statements
   //  Getting DOMException when trying, likely because the new clipboard API doesn't allow this yet.
-  const CLIPBOARD_CONTENT_TYPE = "text/plain";
-  type CopiedStatement = {
-    id: string;
-    parentId: string | null;
-    parentInCopy?: boolean;
-    orderKey: string;
-  };
+
   const copy = provideGlobalAction({
     id: "statement.copy",
     label: "Copy statements",
     shortcuts: ["ctrl+c", "meta+c"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
     apply: async () => {
-      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
-      const copiedStatements = []; // include selected roots and all descendants
-      for (const root of selectedRoots) {
-        // getDescendants is ordered already
-        copiedStatements.push(root);
-        copiedStatements.push(...getDescendants(root));
-      }
-      const copiedStatementsIds = new Set<string>();
-      copiedStatements.forEach((s) => copiedStatementsIds.add(s.id));
-      // write to clipboard as text/_bench-v0
-      const sourceStatements = copiedStatements.map(
-        (s) =>
-          ({
-            id: s.id,
-            parentId: s.parent?.id,
-            parentInCopy: s.parent == null ? undefined : copiedStatementsIds.has(s.parent?.id ?? ""),
-            orderKey: s.orderKey,
-          } as CopiedStatement)
-      );
-      const clipboardItem = [
-        new ClipboardItem({
-          [CLIPBOARD_CONTENT_TYPE]: new Blob([JSON.stringify(sourceStatements)], { type: CLIPBOARD_CONTENT_TYPE }),
-        }),
-      ];
-      try {
-        await navigator.clipboard.write(clipboardItem);
-        console.log("copied " + copiedStatements.length + " statements");
-      } catch (err) {
-        console.error("failed to copy statements", err);
-      }
+      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
+      file.value?.copy(selectedRoots as StatementHeader[]);
     },
   });
   const cut = provideGlobalAction({
     id: "statement.cut",
     label: "Cut statements",
     shortcuts: ["ctrl+x", "meta+x"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
     apply: async () => {
       copy.value.apply();
-      const selectedRoots = editor.hasSelection ? getSelectedRoots() : [statement.value];
+      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
       editor.blurElement();
-      await ops.statement.batchSoftDelete(selectedRoots.map((s) => s.id));
+      await ops.statement.batchSoftDelete(selectedRoots?.map((s) => s?.id) ?? []);
     },
   });
   const paste = provideGlobalAction({
@@ -675,77 +448,14 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     shortcuts: ["ctrl+v", "meta+v"],
     enabled: computed(() => navigatingFile.value),
     apply: async () => {
-      try {
-        const cliboardItems = await navigator.clipboard.read();
-        const clipboardDataStr = await (await cliboardItems[0].getType(CLIPBOARD_CONTENT_TYPE)).text();
-        const sourceStatements = JSON.parse(clipboardDataStr) as CopiedStatement[];
-
-        // insert at bottom of current selection or file (like in insertBelow, below bottom and its next sibling)
-        const bottom = getSelectionBottom();
-        const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
-        // project source ids and locations to target at insert point (with new ids)
-        const sourceIds = sourceStatements.map((s) => s.id);
-        const targetIds: Record<string, string> = {};
-        sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
-        const targetParentIds = sourceStatements.map((s) =>
-          s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
-        );
-        // order keys for root are between bottom and next sibling, all other orders are reset
-        const sourceStatementsByParentId: Record<string, string[]> = {};
-        sourceStatements.forEach((s) => {
-          // group children by parents
-          const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
-          if (sourceStatementsByParentId[parentId] == null) {
-            sourceStatementsByParentId[parentId] = [];
-          }
-          sourceStatementsByParentId[parentId].push(s.id);
-        });
-        const orderKeysByParentId: Record<string, string[]> = {}; // assign order keys by parent
-        Object.entries(sourceStatementsByParentId).forEach(([parentId, childIds]) => {
-          if (parentId == "") {
-            orderKeysByParentId[""] = generateNKeysBetween(
-              bottom?.orderKey ?? null,
-              nextSibling?.orderKey ?? null,
-              childIds.length
-            );
-          } else {
-            orderKeysByParentId[parentId] = generateNKeysBetween(null, null, childIds.length);
-          }
-        });
-        const targetOrderKeys: string[] = sourceStatements.map((s) => {
-          const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
-          const orderKeys = orderKeysByParentId[parentId];
-          const childIndex = sourceStatementsByParentId[parentId].indexOf(s.id);
-          return orderKeys[childIndex];
-        });
-
-        await ops.statement.batchPaste(
-          sourceIds,
-          sourceIds.map((id) => targetIds[id]),
-          file.value?.file.id,
-          targetParentIds,
-          targetOrderKeys
-        );
-        console.log("pasted " + sourceStatements.length + " statements");
-        // select the pasted stuff
-        if (editor.focusedElementId != null && sourceIds.includes(editor.focusedElementId)) {
-          editor.focusElement({ id: targetIds[editor.focusedElementId], __typename: "Statement" });
-        } else {
-          editor.blurElement();
-        }
-        editor.clearSelection();
-        Object.values(targetIds).forEach((targetId) => editor.addToSelection({ id: targetId }));
-      } catch (err) {
-        console.error("failed to parse clipboard data", err);
-        return;
-      }
+      await file.value?.paste(undefined, file.value?.getSelectionBottom() as StatementHeader);
     },
   });
   const duplicate = provideGlobalAction({
     id: "statement.duplicate",
     label: "Duplicate statements",
     shortcuts: ["ctrl+d", "meta+d"],
-    enabled: computed(() => (statement.value != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
     apply: async () => {
       await copy.value.apply();
       paste.value.apply();
@@ -758,27 +468,27 @@ function _doProvideStatementActions(file: Ref<FileContext | null>) {
     id: "statement.run",
     label: "Run current statement",
     shortcuts: ["r r"],
-    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
-      await symbolOps.openRun(statement.value);
+      await symbolOps.openRun(cur.value?.statement);
     },
   });
   const build = provideGlobalAction({
     id: "statement.build",
     label: "Build current statement",
     shortcuts: ["b b"],
-    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
-      await symbolOps.build(statement.value);
+      await symbolOps.build(cur.value?.statement);
     },
   });
   const evaluate = provideGlobalAction({
     id: "statement.evaluate",
     label: "Evaluate current statement",
     shortcuts: ["e e"],
-    enabled: computed(() => statement.value != null && navigatingFile.value && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
     apply: async () => {
-      await symbolOps.evaluate(statement.value);
+      await symbolOps.evaluate(cur.value?.statement);
     },
   });
 

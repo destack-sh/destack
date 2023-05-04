@@ -1,6 +1,8 @@
 import { StatementType, SymbolType, type StatementContentFragment } from "@/gql/graphql";
-import type { FileHeader, StatementHeader } from "@/state/editor";
-import { INTEGER_ZERO } from "@/utils/fractional";
+import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { useOperations } from "@/state/operations";
+import { newStatementId } from "@/state/operations/statement";
+import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
@@ -38,6 +40,7 @@ export type PositionedStatement = {
 // 'focused' set during moves or transition.
 export const activeFileState = ref<FileState | null>(null);
 export const fileContexts = ref<Record<string, FileContext>>({});
+export const navigationContexts = ref<Record<string, NavigationContext>>({});
 
 export function provideFileState(file: Ref<FileState | null>) {
   // set active file if focused
@@ -70,7 +73,7 @@ export function provideFileState(file: Ref<FileState | null>) {
     for (const statement of statements.value) {
       const parentId = statement.parent?.id ?? "";
       if (!result[parentId]) result[parentId] = [];
-      result[parentId].push(statement);
+      result[parentId].push(statement as StatementHeader);
     }
     return result;
   });
@@ -144,26 +147,33 @@ export function provideFileState(file: Ref<FileState | null>) {
   const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
 
   // provide context
-  const context = computed(
-    () =>
-      ({
-        ...file.value,
-        statements: statements.value,
-        statementsById: statementsById.value,
-        statementsByParentId: statementsByParentId.value,
-        statementPositions: statementPositions.value,
-        positionedStatements: positionedStatements.value,
-        depths: depths.value,
-      } as FileContext)
-  );
+  const context = computed(() => {
+    if (file.value == null) {
+      return null;
+    }
+    return {
+      ...file.value,
+      statements: statements.value,
+      statementsById: statementsById.value,
+      statementsByParentId: statementsByParentId.value,
+      statementPositions: statementPositions.value,
+      positionedStatements: positionedStatements.value,
+      depths: depths.value,
+    } as FileContext;
+  });
   provide(FILE_CONTEXT, context);
   watchEffect(() => {
-    fileContexts.value[file.value?.file?.id ?? ""] = context.value;
+    // we don't care if there's more than one since the state will be the same
+    // (this is a bit inefficient but not that important for now)
+    if (context.value != null) {
+      fileContexts.value[file.value?.file?.id ?? ""] = context.value;
+    }
   });
   onBeforeUnmount(() => {
     delete fileContexts.value[file.value?.file?.id ?? ""];
   });
-  return context;
+  // also provide navigation context
+  return provideNavigationContext(context);
 }
 
 export function useFileContext(): FileContext {
@@ -176,4 +186,473 @@ export function useFileContext(): FileContext {
 
 export function useFileContextOptional(): FileContext | undefined {
   return inject(FILE_CONTEXT) as FileContext | undefined;
+}
+
+// navigation
+
+export const NAVIGATION_CONTEXT = "__navigationContext__" as const;
+
+export const CLIPBOARD_CONTENT_TYPE = "text/plain";
+export type CopiedStatement = {
+  id: string;
+  parentId: string | null;
+  parentInCopy?: boolean;
+  orderKey: string;
+};
+
+export type NavigationContext = FileContext & {
+  current: CurrentNavigationContext;
+
+  // utils
+  getLocation(statement: StatementHeader): { fileId: string; parentId: string | null; orderKey: string };
+  getSiblings(statement: StatementHeader): StatementHeader[];
+  getPreviousSibling(statement: StatementHeader): StatementHeader | null;
+  getNextSibling(statement: StatementHeader): StatementHeader | null;
+  getLocalRoots(statements: StatementHeader[]): StatementHeader[];
+  getDescendants(statement: StatementHeader): StatementHeader[];
+  getAboveCurGroup(statement: StatementHeader): StatementHeader[];
+  getBelowCurGroup(statement: StatementHeader): StatementHeader[];
+
+  // indentation
+  indent(statement: StatementHeader): void;
+  unindent(statement: StatementHeader): void;
+  indentBatch(statements: StatementHeader[]): void;
+  unindentBatch(statements: StatementHeader[]): void;
+
+  // movement
+  moveUp(statement: StatementHeader): void;
+  moveDown(statement: StatementHeader): void;
+  moveBatchUp(statements: StatementHeader[]): void;
+  moveBatchDown(statements: StatementHeader[]): void;
+
+  // copy/paste
+  copy(statements: StatementHeader[]): void;
+  paste(statements?: CopiedStatement[], below?: StatementHeader): void;
+
+  // selection
+  getSelectedRoots(): StatementHeader[];
+  getSelectionBottom(): StatementHeader | null;
+};
+
+export type CurrentNavigationContext = {
+  statement: StatementHeader | null;
+  orderKey: string | null;
+  previousSibling: StatementHeader | null;
+  children: StatementHeader[];
+  position: number;
+  location: { fileId: string; parentId: string | null; orderKey: string };
+  above: StatementHeader | null;
+  below: StatementHeader | null;
+  aboveCurGroup: StatementHeader | null;
+  belowCurGroup: StatementHeader | null;
+};
+
+export function provideNavigationContext(file: Ref<FileContext | null>) {
+  const editor = useEditorState();
+  const ops = useOperations();
+
+  const statements = computed(() => file.value?.statements ?? []);
+  const depths = computed(() => file.value?.depths ?? []);
+  const statementsById: Ref<Record<string, StatementHeader>> = computed(() => file.value?.statementsById ?? {});
+  const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(
+    () => file.value?.statementsByParentId ?? {}
+  );
+  const statementPositions: Ref<Record<string, number>> = computed(() => file.value?.statementPositions ?? {});
+
+  // utils
+
+  function getLocation(statement: StatementHeader) {
+    return {
+      fileId: file.value?.file?.id,
+      parentId: statement.parent?.id,
+      orderKey: statement?.orderKey ?? INTEGER_ZERO,
+    };
+  }
+
+  function getSiblings(statement?: StatementHeader) {
+    return statementsByParentId.value[statement?.parent?.id ?? ""] ?? [];
+  }
+
+  function getPreviousSibling(statement: StatementHeader) {
+    const siblings = getSiblings(statement);
+    return siblings[siblings.findIndex((s) => s.id === statement.id) - 1];
+  }
+
+  function getNextSibling(statement: StatementHeader) {
+    const siblings = getSiblings(statement);
+    return siblings[siblings.findIndex((s) => s.id === statement.id) + 1];
+  }
+
+  function getLocalRoots(statements: StatementHeader[]) {
+    // Gets the local roots of a set of statements (ordered by position)
+    // (it can happen that we first select a child, then expand to parent, we only want parent)
+    let localRoots = statements.map((s) => s.id);
+    // trim statements whose parents are also selected
+    for (const statement of statements) {
+      const children = statementsByParentId.value[statement.id] ?? [];
+      localRoots = localRoots.filter((r) => !children.find((s) => s.id == r));
+    }
+    return localRoots
+      .sort((a, b) => statementPositions.value[a] - statementPositions.value[b])
+      .map((s) => statementsById.value[s]);
+  }
+
+  function getDescendants(statement: StatementHeader): StatementHeader[] {
+    const result: StatementHeader[] = [];
+    for (const child of statementsByParentId.value[statement.id] ?? []) {
+      result.push(child);
+      result.push(...getDescendants(child));
+    }
+    return result.sort((a, b) => statementPositions.value[a.id] - statementPositions.value[b.id]);
+  }
+
+  function getAboveCurGroup(statement: StatementHeader) {
+    // previous statement before this with depth <= this depth
+    for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
+      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
+        return statements.value[i];
+      }
+    }
+    return undefined;
+  }
+
+  function getBelowCurGroup(statement: StatementHeader) {
+    // next statement after this with depth <= this depth
+    for (let i = statementPositions.value[statement.id] + 1; i < statements.value.length; i++) {
+      if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
+        return statements.value[i];
+      }
+    }
+    return undefined;
+  }
+
+  // indentation
+
+  async function indent(statement: StatementHeader) {
+    const previousSibling = getPreviousSibling(statement);
+    if (previousSibling == null) {
+      return;
+    }
+    const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
+    const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
+    await ops.statement.move(statement.id, getLocation(statement), {
+      fileId: file.value?.file.id,
+      parentId: previousSibling.id,
+      orderKey: generateKeyBetween(previousSiblingChildrenLast?.orderKey ?? null, null),
+    });
+  }
+
+  async function unindent(statement: StatementHeader) {
+    // move to after parent in grandparent's children
+    const parent = statementsById.value[statement.parent?.id];
+    const grandparent = statementsById.value[parent.parent?.id];
+    const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
+    const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
+    await ops.statement.move(statement.id, getLocation(statement), {
+      fileId: file.value?.file.id,
+      parentId: grandparent?.id,
+      orderKey: generateKeyBetween(parent.orderKey, parentNextSibling?.orderKey ?? null),
+    });
+  }
+
+  async function indentBatch(statements: StatementHeader[]) {
+    const roots = getLocalRoots(statements);
+    const previousSibling = getPreviousSibling(roots[0]);
+    if (previousSibling == null) {
+      return;
+    }
+    const previousSiblingChildren = statementsByParentId.value[previousSibling.id] ?? [];
+    const previousSiblingChildrenLast = previousSiblingChildren.slice(-1)[0];
+    // insert all roots in order after previous sibling's children
+    const ids = roots.map((r) => r.id);
+    const oldLocations = roots.map((s) => getLocation(s));
+    const insertOrderKeys = generateNKeysBetween(previousSiblingChildrenLast?.orderKey ?? null, null, roots.length);
+    await ops.statement.batchMove(
+      ids,
+      oldLocations,
+      insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: previousSibling.id, orderKey: k }))
+    );
+  }
+
+  async function unindentBatch(statements: StatementHeader[]) {
+    const roots = getLocalRoots(statements);
+    const parent = statementsById.value[roots[0].parent?.id];
+    const grandparent = statementsById.value[parent.parent?.id];
+    const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
+    const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
+    // insert all roots in order after parent
+    const ids = roots.map((r) => r.id);
+    const oldLocations = roots.map((s) => getLocation(s));
+    const insertOrderKeys = generateNKeysBetween(parent.orderKey, parentNextSibling?.orderKey ?? null, roots.length);
+    await ops.statement.batchMove(
+      ids,
+      oldLocations,
+      insertOrderKeys.map((k) => ({ fileId: file.value?.file.id, parentId: grandparent?.id, orderKey: k }))
+    );
+  }
+
+  // movement
+
+  async function moveUp(statement: StatementHeader) {
+    // insert between above and above prev sibling (if any)
+    const above = statements.value[statementPositions.value[statement.id] - 1];
+    const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
+    const abovePrevSibling = aboveSiblings
+      .slice()
+      .reverse()
+      .find((s) => s.orderKey < above.orderKey);
+    const orderKey = generateKeyBetween(abovePrevSibling?.orderKey ?? null, above.orderKey);
+    const targetLocation = {
+      fileId: file.value?.file.id,
+      parentId: above?.parent?.id,
+      orderKey,
+    };
+    await ops.statement.move(statement.id, getLocation(statement), targetLocation);
+  }
+
+  async function moveDown(statement: StatementHeader) {
+    const belowCurGroup = getBelowCurGroup(statement);
+    if (belowCurGroup == null) return;
+    // insert between the next group below and its next sibling (if any)
+    const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
+    const belowNextSibling = belowSiblings.find((s) => s.orderKey > (belowCurGroup as StatementHeader).orderKey);
+    const orderKey = generateKeyBetween(belowCurGroup.orderKey ?? null, belowNextSibling?.orderKey ?? null);
+    const targetLocation = {
+      fileId: file.value?.file.id,
+      parentId: belowCurGroup?.parent?.id,
+      orderKey,
+    };
+    await ops.statement.move(statement.id, getLocation(statement), targetLocation);
+  }
+
+  async function moveBatchUp(statements: StatementHeader[]) {
+    // move selected roots in line with the topmost selected statement
+    // (insert between above and above prev sibling (if any))
+    const roots = getLocalRoots(statements);
+    const above = file.value?.statements[statementPositions.value[roots[0].id] - 1];
+    if (above == null) return;
+    const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
+    const abovePrevSibling = aboveSiblings
+      .slice()
+      .reverse()
+      .find((s) => s.orderKey < above.orderKey);
+    const ids = roots.map((r) => r.id);
+    const oldLocations = roots.map((s) => getLocation(s));
+    const orderKeys = generateNKeysBetween(abovePrevSibling?.orderKey ?? null, above.orderKey, roots.length);
+    const targetLocations = orderKeys.map((k) => ({
+      fileId: file.value?.file.id,
+      parentId: above.parent?.id,
+      orderKey: k,
+    }));
+    await ops.statement.batchMove(ids, oldLocations, targetLocations);
+  }
+
+  async function moveBatchDown(statements: StatementHeader[]) {
+    // move selected roots in line with the bottommost selected statement
+    // (insert between the next group below and its next sibling (if any))
+    const roots = getLocalRoots(statements);
+    const belowCurGroup = getBelowCurGroup(roots[roots.length - 1]);
+    if (belowCurGroup == null) return;
+    const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
+    const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.orderKey);
+    const ids = roots.map((r) => r.id);
+    const oldLocations = roots.map((s) => getLocation(s));
+    const orderKeys = generateNKeysBetween(belowCurGroup.orderKey, belowNextSibling?.orderKey ?? null, roots.length);
+    const targetLocations = orderKeys.map((k) => ({
+      fileId: file.value?.file.id,
+      parentId: belowCurGroup.parent?.id,
+      orderKey: k,
+    }));
+    await ops.statement.batchMove(ids, oldLocations, targetLocations);
+  }
+
+  // selection
+
+  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
+
+  function getSelectedRoots(): StatementHeader[] {
+    // Gets the in-selection roots of selected statements (ordered by position)
+    // (it can happen that we first select a child, then expand to parent, we only want parent)
+    return getLocalRoots(editor.selectedElementIds.map((s) => statementsById.value[s]).filter((s) => s != null));
+  }
+
+  function getSelectionBottom(): StatementHeader | undefined {
+    if (editor.hasSelection) {
+      const selectedRoots = getSelectedRoots();
+      return selectedRoots[selectedRoots.length - 1];
+    } else if (statement.value != null) {
+      return statement.value;
+    } else {
+      return statements.value[statements.value.length - 1];
+    }
+  }
+
+  // copy/paste
+
+  async function copy(statements: StatementHeader[]) {
+    const selectedRoots = getLocalRoots(statements);
+    const copiedStatements = []; // include selected roots and all descendants
+    for (const root of selectedRoots) {
+      // getDescendants is ordered already
+      copiedStatements.push(root);
+      copiedStatements.push(...getDescendants(root));
+    }
+    const copiedStatementsIds = new Set<string>();
+    copiedStatements.forEach((s) => copiedStatementsIds.add(s.id));
+    // write to clipboard as text/_bench-v0
+    const sourceStatements = copiedStatements.map(
+      (s) =>
+        ({
+          id: s.id,
+          parentId: s.parent?.id,
+          parentInCopy: s.parent == null ? undefined : copiedStatementsIds.has(s.parent?.id ?? ""),
+          orderKey: s.orderKey,
+        } as CopiedStatement)
+    );
+    const clipboardItem = [
+      new ClipboardItem({
+        [CLIPBOARD_CONTENT_TYPE]: new Blob([JSON.stringify(sourceStatements)], { type: CLIPBOARD_CONTENT_TYPE }),
+      }),
+    ];
+    try {
+      await navigator.clipboard.write(clipboardItem);
+      console.log("copied " + copiedStatements.length + " statements");
+    } catch (err) {
+      console.error("failed to copy statements", err); // TODO @UX: handle copy error properly
+    }
+  }
+
+  async function paste(sourceStatements?: CopiedStatement[], below?: StatementHeader | null) {
+    try {
+      if (sourceStatements == null) {
+        const cliboardItems = await navigator.clipboard.read();
+        const clipboardDataStr = await (await cliboardItems[0].getType(CLIPBOARD_CONTENT_TYPE)).text();
+        sourceStatements = JSON.parse(clipboardDataStr) as CopiedStatement[];
+      }
+
+      // insert at bottom of current selection or file (like in insertBelow, below bottom and its next sibling)
+      const bottom = below ?? getSelectionBottom();
+      const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
+      // project source ids and locations to target at insert point (with new ids)
+      const sourceIds = sourceStatements.map((s) => s.id);
+      const targetIds: Record<string, string> = {};
+      sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
+      const targetParentIds = sourceStatements.map((s) =>
+        s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
+      );
+      // order keys for root are between bottom and next sibling, all other orders are reset
+      const sourceStatementsByParentId: Record<string, string[]> = {};
+      sourceStatements.forEach((s) => {
+        // group children by parents
+        const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
+        if (sourceStatementsByParentId[parentId] == null) {
+          sourceStatementsByParentId[parentId] = [];
+        }
+        sourceStatementsByParentId[parentId].push(s.id);
+      });
+      const orderKeysByParentId: Record<string, string[]> = {}; // assign order keys by parent
+      Object.entries(sourceStatementsByParentId).forEach(([parentId, childIds]) => {
+        if (parentId == "") {
+          orderKeysByParentId[""] = generateNKeysBetween(
+            bottom?.orderKey ?? null,
+            nextSibling?.orderKey ?? null,
+            childIds.length
+          );
+        } else {
+          orderKeysByParentId[parentId] = generateNKeysBetween(null, null, childIds.length);
+        }
+      });
+      const targetOrderKeys: string[] = sourceStatements.map((s) => {
+        const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
+        const orderKeys = orderKeysByParentId[parentId];
+        const childIndex = sourceStatementsByParentId[parentId].indexOf(s.id);
+        return orderKeys[childIndex];
+      });
+
+      await ops.statement.batchPaste(
+        sourceIds,
+        sourceIds.map((id) => targetIds[id]),
+        file.value?.file.id,
+        targetParentIds,
+        targetOrderKeys
+      );
+      console.log("pasted " + sourceStatements.length + " statements");
+      // select the pasted stuff
+      if (editor.focusedElementId != null && sourceIds.includes(editor.focusedElementId)) {
+        editor.focusElement({ id: targetIds[editor.focusedElementId], __typename: "Statement" });
+      } else {
+        editor.blurElement();
+      }
+      editor.clearSelection();
+      Object.values(targetIds).forEach((targetId) => editor.addToSelection({ id: targetId }));
+    } catch (err) {
+      console.error("failed to parse clipboard data", err);
+      return;
+    }
+  }
+
+  const context = computed(() => {
+    if (file.value == null) return null;
+
+    // current
+    const current = {
+      statement: statementsById.value[editor.focusedElementId as string],
+      orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
+      previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
+      children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
+      position: statementPositions.value[statement.value?.id],
+      location: statement.value == null ? undefined : getLocation(statement.value),
+      above: statements.value[statementPositions.value[statement.value?.id] - 1],
+      below: statements.value[statementPositions.value[statement.value?.id] + 1],
+      aboveCurGroup: statement.value == null ? undefined : getAboveCurGroup(statement.value),
+      belowCurGroup: statement.value == null ? undefined : getBelowCurGroup(statement.value),
+    } as CurrentNavigationContext;
+
+    return {
+      ...file.value,
+      // utils
+      getLocation,
+      getSiblings,
+      getPreviousSibling,
+      getNextSibling,
+      getSelectedRoots,
+      getDescendants,
+      getAboveCurGroup,
+      getBelowCurGroup,
+      getLocalRoots,
+
+      // indentation
+      indent,
+      unindent,
+      indentBatch,
+      unindentBatch,
+
+      // movement
+      moveUp,
+      moveDown,
+      moveBatchUp,
+      moveBatchDown,
+
+      // copy/paste
+      copy,
+      paste,
+
+      // current
+      current,
+
+      // selection
+      getSelectionBottom,
+      getSelectedRoots,
+    } as NavigationContext;
+  });
+  provide(NAVIGATION_CONTEXT, context);
+  watchEffect(() => {
+    if (context.value != null) {
+      navigationContexts.value[file.value?.file.id] = context.value;
+    }
+  });
+  onBeforeUnmount(() => {
+    delete navigationContexts.value[file.value?.file.id];
+  });
+  return context;
 }
