@@ -143,8 +143,8 @@ function runtimeTypeOf(field: SimpleType) {
 }
 
 // drag & drop
-function onDropFiles(files: File[]) {
-  console.log("drop it! data", files);
+function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
+  console.log("drop it! data", recordId, column, position, files);
 }
 const position = useMouseInElement(gridRef);
 
@@ -248,7 +248,7 @@ defineExpose({
           immediate
           debounced
           :supports-drop="!context.readonly.value"
-          @drop-files="onDropFiles"
+          @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
           @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
           @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
