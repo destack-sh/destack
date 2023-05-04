@@ -254,6 +254,7 @@ export function useStatementOps() {
     symbolType: SymbolType;
     name?: string;
     description?: string;
+    rootTypeTag?: TypeTag;
   }) {
     return await operations.perform({
       type: "statement.create",
@@ -271,7 +272,7 @@ export function useStatementOps() {
           code: null,
           description: input.description ?? null,
           referenceId: null,
-          rootTypeTag: null,
+          rootTypeTag: input.rootTypeTag ?? null,
           commented: false,
           generated: false,
         });
