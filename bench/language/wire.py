@@ -335,7 +335,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
     if data.root_type_tag:
         type_nodes = [wmap_simple_type_node(t) for t in (data.type_nodes or [])]
     else:
-        type_nodes = None
+        type_nodes = []
 
     if data.symbol_type == SymbolType.TYPE:
         return language.TypeContent(

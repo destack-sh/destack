@@ -1,3 +1,4 @@
+import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useObjects } from "@/state/object";
@@ -727,7 +728,8 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       orderKey: orderKey,
       fileId: nav.value.file.id,
       symbolType: SymbolType.Data,
-      name: "documents",
+      rootTypeTag: TypeTag.Struct,
+      name: getRandomAdjective() + " documents",
     };
     ops.statement.createDefinition(dataset);
     // create 'content' column with file type

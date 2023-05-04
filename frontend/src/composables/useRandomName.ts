@@ -13,6 +13,10 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+export function getRandomAdjective() {
+  return getRandomElement(adjectives);
+}
+
 export function getRandomName() {
   const randomAdjective = getRandomElement(adjectives);
   const randomNoun = getRandomElement(animals);

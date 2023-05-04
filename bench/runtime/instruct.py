@@ -21,6 +21,7 @@ from bench.language.type import (
     SymbolType,
     Task,
     Type,
+    TypeContent,
     TypeNode,
     TypeTag,
 )
@@ -211,7 +212,7 @@ def map_instruction(
             instruction.children.append(tree.nodes[record.id])
 
     # track types and their sub-symbols
-    if isinstance(node, (TypeNode, Task, Code, Type, Dataset)):
+    if isinstance(node, TypeContent):
         for type_node in node.type_nodes:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.source_reference is not None:
