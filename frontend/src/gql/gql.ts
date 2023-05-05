@@ -206,6 +206,10 @@ const documents = {
     types.SoftDeleteRecordDocument,
   "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreRecordDocument,
+  "\n      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {\n        batchSoftDeleteRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.BatchSoftDeleteRecordDocument,
+  "\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.BatchRestoreRecordDocument,
   "\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.LogoutDocument,
   "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            id\n            username\n            slug\n            email\n            name\n            createdAt\n            updatedAt\n            completedSignup\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -828,6 +832,18 @@ export function graphql(
 export function graphql(
   source: "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {\n        batchSoftDeleteRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {\n        batchSoftDeleteRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -727,10 +727,20 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (!as && statement.value?.symbolType != SymbolType.Data) {
       throw new Error("can only insert records into data statements");
     }
-    const tx = openTransaction("insertFilesAsRecords");
+    const newRecordIds = files.map(() => newStatementId());
+    const tx = openTransaction({
+      name: "insertFilesAsRecords",
+      blockPartialUndo: true,
+      undo: async () => {
+        await ops.symbol.batchSoftDeleteRecord(newRecordIds);
+      },
+      redo: async () => {
+        await ops.symbol.batchRestoreRecord(newRecordIds);
+      },
+    });
     const uploads = [];
     for (let i = 0; i < files.length; i++) {
-      const newRecordId = newDatasetRecordId();
+      const newRecordId = newRecordIds[i];
       const file = files[i];
       const orderKey = orderKeys[i];
       const remoteObject = await ops.object.prepareUpload(editor.currentProjectId as string, file);
@@ -756,8 +766,6 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       position == "above"
         ? nav.value.getLocationRightAbove(statement.value)
         : nav.value.getLocationRightBelow(statement.value);
-    const tx = openTransaction("insertFilesAsDataset");
-    // create new dataset
     const dataset = {
       id: newStatementId(),
       parentId: location.parentId,
@@ -767,6 +775,18 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       rootTypeTag: TypeTag.Struct,
       name: getRandomAdjective() + " documents",
     };
+    const tx = openTransaction({
+      name: "insertFilesAsDataset",
+      blockPartialUndo: true,
+      undo: async () => {
+        await ops.statement.softDelete(null, dataset.id);
+      },
+      redo: async () => {
+        await ops.statement.restore(null, dataset.id);
+      },
+    });
+    // create new dataset
+    // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
     ops.statement.createDefinition(tx, dataset);
     // create 'content' column with file type
     ops.statement.createTypeNode(tx, dataset.id, {

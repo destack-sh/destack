@@ -20,13 +20,13 @@ const emit = defineEmits<{
   (e: "dropFiles", p: "above" | "below", v: File[]): void;
 }>();
 
-const preparingUpload = ref(false);
+const amUploading = ref(false);
 const isFileUploaded = computed(() => props.modelValue?.status == RemoteObjectStatus.Available);
 const isFileUploading = computed(
   () =>
     props.modelValue?.status == RemoteObjectStatus.Uploading ||
     props.modelValue?.status == RemoteObjectStatus.Prepared ||
-    preparingUpload.value
+    amUploading.value
 );
 
 const objects = useObjects();
@@ -54,6 +54,10 @@ function onDrop(files: File[] | null) {
   }
 }
 
+function clear() {
+  emit("update:modelValue", null);
+}
+
 async function open() {
   if (isFileUploaded.value) {
     // open file (in new tab)
@@ -75,10 +79,10 @@ async function beginUpload(file: File | null) {
   if (isFileUploaded.value) {
     throw new Error("file already uploaded");
   }
-  preparingUpload.value = true;
+  amUploading.value = true;
   emit("update:modelValue", null);
   await objects.upload(editor.currentProjectId, file, (val) => emit("update:modelValue", val));
-  preparingUpload.value = false;
+  amUploading.value = false;
 }
 
 defineExpose({
@@ -107,7 +111,19 @@ defineExpose({
       @change="(e) => beginUpload(e.target?.files?.[0])"
     />
   </label>
-  <span v-else-if="isFileUploading" class="text-gray-600">uploading...</span>
+  <!-- Currently uploading -->
+  <span v-else-if="isFileUploading" class="group flex flex-row items-center text-gray-600">
+    uploading...
+    <!-- Clear button (if someone else is uploading, may be stuck) -->
+    <button
+      v-if="!amUploading"
+      class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
+      @click.prevent="clear"
+      :class="active ? 'text-gray-300' : 'text-transparent'"
+    >
+      x
+    </button>
+  </span>
   <!-- Existing file -->
   <!-- TODO @Feature @UX: make file view openable and prettier -->
   <span
@@ -130,5 +146,13 @@ defineExpose({
     <DocumentArrowUpIcon class="inline-block h-4 w-4" />
     <span v-if="modelValue" class="ml-1 underline-offset-4 group-hover:underline">{{ modelValue.name }}</span>
     <span class="ml-2 text-xs text-gray-400" v-if="modelValue">{{ humanizeBytes(modelValue?.contentLength) }}</span>
+    <!-- Clear button -->
+    <button
+      class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
+      @click.prevent="clear"
+      :class="active ? 'text-gray-300' : 'text-transparent'"
+    >
+      x
+    </button>
   </span>
 </template>

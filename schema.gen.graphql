@@ -753,6 +753,9 @@ enum ModuleMutationType {
   DELETE_STATEMENT
   CREATE_TYPE_NODE
   UPDATE_TYPE_NODE
+  RENAME_TYPE_NODE
+  UPDATE_TYPE_NODE_DESCRIPTION
+  UPDATE_TYPE_NODE_TYPE
   MOVE_TYPE_NODE
   SOFT_DELETE_TYPE_NODE
   DELETE_TYPE_NODE
@@ -817,13 +820,18 @@ type Mutation {
   moveRecord(input: RecordMoveInput!): DatasetRecordOperationInfo!
   softDeleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
   deleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
-  restoreRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
+  restoreRecord(input: RecordRestoreInput!): DatasetRecordOperationInfo!
+  batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
+  batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   createTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo!
   updateTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo!
+  updateTypeNodeName(input: TypeNodeRenameInput!): SimpleTypeNodeOperationInfo!
+  updateTypeNodeDescription(input: TypeNodeUpdateDescriptionInput!): SimpleTypeNodeOperationInfo!
+  updateTypeNodeType(input: TypeNodeUpdateTypeInput!): SimpleTypeNodeOperationInfo!
   moveTypeNode(input: TypeNodeMoveInput!): SimpleTypeNodeOperationInfo!
   softDeleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo!
   deleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo!
-  restoreStatementTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo!
+  restoreStatementTypeNode(input: TypeNodeRestoreInput!): SimpleTypeNodeOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   updateFile(input: FileCreateInput!): FileOperationInfo!
   deleteFile(input: NodeInput!): FileOperationInfo!
@@ -1544,6 +1552,20 @@ type Query {
   ): ProjectConnection!
 }
 
+type RecordBatch {
+  records: [DatasetRecord!]!
+}
+
+union RecordBatchOperationInfo = RecordBatch | OperationInfo
+
+input RecordBatchRestoreInput {
+  ids: [GlobalID!]!
+}
+
+input RecordBatchSoftDeleteInput {
+  ids: [GlobalID!]!
+}
+
 input RecordCreateInput {
   id: GlobalID!
   statementId: GlobalID!
@@ -1558,6 +1580,10 @@ input RecordDeleteInput {
 input RecordMoveInput {
   id: GlobalID!
   orderKey: String!
+}
+
+input RecordRestoreInput {
+  id: GlobalID!
 }
 
 input RecordUpdateInput {
@@ -2015,11 +2041,35 @@ input TypeNodeMoveInput {
   orderKey: String!
 }
 
+input TypeNodeRenameInput {
+  id: GlobalID!
+  name: String = null
+}
+
+input TypeNodeRestoreInput {
+  id: GlobalID!
+}
+
+input TypeNodeUpdateDescriptionInput {
+  id: GlobalID!
+  description: String = null
+}
+
 input TypeNodeUpdateInput {
   id: GlobalID!
   name: String = null
   tag: TypeTag!
   description: String = null
+  isOutput: Boolean! = false
+  isNullable: Boolean! = false
+  isArray: Boolean! = false
+  value: JSON = null
+  referenceId: GlobalID = null
+}
+
+input TypeNodeUpdateTypeInput {
+  id: GlobalID!
+  tag: TypeTag!
   isOutput: Boolean! = false
   isNullable: Boolean! = false
   isArray: Boolean! = false

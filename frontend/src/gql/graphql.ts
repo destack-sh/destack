@@ -760,6 +760,7 @@ export enum ModuleMutationType {
   PasteStatement = "PASTE_STATEMENT",
   RenameFile = "RENAME_FILE",
   RenameStatement = "RENAME_STATEMENT",
+  RenameTypeNode = "RENAME_TYPE_NODE",
   RestoreFile = "RESTORE_FILE",
   RestoreRecord = "RESTORE_RECORD",
   RestoreStatement = "RESTORE_STATEMENT",
@@ -779,6 +780,8 @@ export enum ModuleMutationType {
   UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
   UpdateTypeNode = "UPDATE_TYPE_NODE",
+  UpdateTypeNodeDescription = "UPDATE_TYPE_NODE_DESCRIPTION",
+  UpdateTypeNodeType = "UPDATE_TYPE_NODE_TYPE",
 }
 
 export type Mutation = {
@@ -788,7 +791,9 @@ export type Mutation = {
   batchCommentStatement: StatementBatchOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
   batchPasteStatement: StatementBatchOperationInfo;
+  batchRestoreRecord: RecordBatchOperationInfo;
   batchRestoreStatement: StatementBatchOperationInfo;
+  batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   build: BuildStateOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
@@ -853,6 +858,9 @@ export type Mutation = {
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateTypeNode: SimpleTypeNodeOperationInfo;
+  updateTypeNodeDescription: SimpleTypeNodeOperationInfo;
+  updateTypeNodeName: SimpleTypeNodeOperationInfo;
+  updateTypeNodeType: SimpleTypeNodeOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -877,8 +885,16 @@ export type MutationBatchPasteStatementArgs = {
   input: StatementBatchPasteInput;
 };
 
+export type MutationBatchRestoreRecordArgs = {
+  input: RecordBatchRestoreInput;
+};
+
 export type MutationBatchRestoreStatementArgs = {
   input: StatementBatchRestoreInput;
+};
+
+export type MutationBatchSoftDeleteRecordArgs = {
+  input: RecordBatchSoftDeleteInput;
 };
 
 export type MutationBatchSoftDeleteStatementArgs = {
@@ -1018,7 +1034,7 @@ export type MutationRestoreFileArgs = {
 };
 
 export type MutationRestoreRecordArgs = {
-  input: RecordDeleteInput;
+  input: RecordRestoreInput;
 };
 
 export type MutationRestoreStatementArgs = {
@@ -1026,7 +1042,7 @@ export type MutationRestoreStatementArgs = {
 };
 
 export type MutationRestoreStatementTypeNodeArgs = {
-  input: TypeNodeDeleteInput;
+  input: TypeNodeRestoreInput;
 };
 
 export type MutationRevokeAccessTokenArgs = {
@@ -1123,6 +1139,18 @@ export type MutationUpdateStatementTextArgs = {
 
 export type MutationUpdateTypeNodeArgs = {
   input: TypeNodeUpdateInput;
+};
+
+export type MutationUpdateTypeNodeDescriptionArgs = {
+  input: TypeNodeUpdateDescriptionInput;
+};
+
+export type MutationUpdateTypeNodeNameArgs = {
+  input: TypeNodeRenameInput;
+};
+
+export type MutationUpdateTypeNodeTypeArgs = {
+  input: TypeNodeUpdateTypeInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1778,6 +1806,21 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type RecordBatch = {
+  __typename?: "RecordBatch";
+  records: Array<DatasetRecord>;
+};
+
+export type RecordBatchOperationInfo = OperationInfo | RecordBatch;
+
+export type RecordBatchRestoreInput = {
+  ids: Array<Scalars["GlobalID"]>;
+};
+
+export type RecordBatchSoftDeleteInput = {
+  ids: Array<Scalars["GlobalID"]>;
+};
+
 export type RecordCreateInput = {
   data: Scalars["JSON"];
   id: Scalars["GlobalID"];
@@ -1792,6 +1835,10 @@ export type RecordDeleteInput = {
 export type RecordMoveInput = {
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
+};
+
+export type RecordRestoreInput = {
+  id: Scalars["GlobalID"];
 };
 
 export type RecordUpdateInput = {
@@ -2303,6 +2350,20 @@ export type TypeNodeMoveInput = {
   orderKey: Scalars["String"];
 };
 
+export type TypeNodeRenameInput = {
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+};
+
+export type TypeNodeRestoreInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type TypeNodeUpdateDescriptionInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+};
+
 export type TypeNodeUpdateInput = {
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
@@ -2310,6 +2371,16 @@ export type TypeNodeUpdateInput = {
   isNullable?: Scalars["Boolean"];
   isOutput?: Scalars["Boolean"];
   name?: InputMaybe<Scalars["String"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type TypeNodeUpdateTypeInput = {
+  id: Scalars["GlobalID"];
+  isArray?: Scalars["Boolean"];
+  isNullable?: Scalars["Boolean"];
+  isOutput?: Scalars["Boolean"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
   value?: InputMaybe<Scalars["JSON"]>;
@@ -4503,6 +4574,32 @@ export type RestoreRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type BatchSoftDeleteRecordMutationVariables = Exact<{
+  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+}>;
+
+export type BatchSoftDeleteRecordMutation = {
+  __typename?: "Mutation";
+  batchSoftDeleteRecord:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }> };
+};
+
+export type BatchRestoreRecordMutationVariables = Exact<{
+  ids: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+}>;
+
+export type BatchRestoreRecordMutation = {
+  __typename?: "Mutation";
+  batchRestoreRecord:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }> };
 };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
@@ -13240,6 +13337,156 @@ export const RestoreRecordDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreRecordMutation, RestoreRecordMutationVariables>;
+export const BatchSoftDeleteRecordDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "batchSoftDeleteRecord" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "batchSoftDeleteRecord" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ids" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RecordBatch" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "records" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<BatchSoftDeleteRecordMutation, BatchSoftDeleteRecordMutationVariables>;
+export const BatchRestoreRecordDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "batchRestoreRecord" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+            },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "batchRestoreRecord" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ids" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ids" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RecordBatch" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "records" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<BatchRestoreRecordMutation, BatchRestoreRecordMutationVariables>;
 export const LogoutDocument = {
   kind: "Document",
   definitions: [
