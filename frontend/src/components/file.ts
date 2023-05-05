@@ -819,7 +819,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
     ops.statement.createDefinition(tx, dataset);
     // create 'content' column with file type
-    ops.statement.createTypeNode(tx, dataset.id, {
+    ops.symbol.createTypeNode(tx, dataset.id, {
       statementId: dataset.id,
       id: newTypeNodeId(),
       name: "content",

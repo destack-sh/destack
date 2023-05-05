@@ -221,7 +221,7 @@ export function useStatementContext() {
   // :EditableSyncDance
   // There is a bit of a delicate dance when syncing these properties since we want to
   // preserve the users local edits, but also want to sync from server/cache when not editing
-  // since that includes updates and redo/undo data while not editing.
+  // since that includes multiplayer updates and redo/undo data while not editing.
   // That's why we only save the properties while the user is editing, otherwise we would have
 
   function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
@@ -265,7 +265,7 @@ export function useStatementContext() {
   // one-way writes to backend (:Singleplayer)
 
   async function createTypeNode(typeNode: SimpleType) {
-    await ops.statement.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });
+    await ops.symbol.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });
   }
 
   async function updateTypeNode(typeNode: SimpleType, newTypeNode: SimpleType) {
@@ -284,7 +284,7 @@ export function useStatementContext() {
       isNullable: newTypeNode.isNullable,
       isOutput: newTypeNode.isOutput,
     };
-    await ops.statement.updateTypeNode(
+    await ops.symbol.updateTypeNode(
       null,
       makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
       makeTypeNodeUpdate(newTypeNode as SimpleTypeNode)
@@ -296,11 +296,7 @@ export function useStatementContext() {
     if (!oldTypeNode) {
       throw new Error("cannot delete type node that doesn't exist");
     }
-    await ops.statement.softDeleteTypeNode(
-      null,
-      statement.value.id,
-      makeTypeNodeInput(statement.value.id, oldTypeNode)
-    );
+    await ops.symbol.softDeleteTypeNode(null, statement.value.id, makeTypeNodeInput(statement.value.id, oldTypeNode));
   }
 
   return {
@@ -449,7 +445,6 @@ export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
 export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });
 
 export const PRIMITIVE_TYPES = [
-  TypeTag.Any,
   TypeTag.String,
   TypeTag.Boolean,
   TypeTag.Number,
