@@ -607,6 +607,7 @@ Proxy type to SimpleType to avoid overwriting source SimpleType references
 type InterpSimpleType implements Node & SimpleType {
   id: GlobalID!
   name: String
+  key: String!
   orderKey: String!
   tag: TypeTag!
   isOutput: Boolean!
@@ -762,6 +763,7 @@ enum ModuleMutationType {
   RESTORE_TYPE_NODE
   CREATE_RECORD
   UPDATE_RECORD
+  UPDATE_RECORD_PATH
   MOVE_RECORD
   SOFT_DELETE_RECORD
   DELETE_RECORD
@@ -817,6 +819,7 @@ type Mutation {
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
   createRecord(input: RecordCreateInput!): DatasetRecordOperationInfo!
   updateRecord(input: RecordUpdateInput!): DatasetRecordOperationInfo!
+  updateRecordPath(input: RecordUpdatePathInput!): DatasetRecordOperationInfo!
   moveRecord(input: RecordMoveInput!): DatasetRecordOperationInfo!
   softDeleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
   deleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
@@ -1591,6 +1594,12 @@ input RecordUpdateInput {
   data: JSON!
 }
 
+input RecordUpdatePathInput {
+  id: GlobalID!
+  path: String!
+  data: JSON = null
+}
+
 type RefMapping implements Node {
   id: GlobalID!
   kind: RefMappingKind!
@@ -1708,6 +1717,7 @@ union RunStateOperationInfo = RunState | OperationInfo
 interface SimpleType {
   id: GlobalID!
   name: String
+  key: String!
   orderKey: String!
   tag: TypeTag!
   isOutput: Boolean!
@@ -1721,6 +1731,7 @@ interface SimpleType {
 type SimpleTypeNode implements Node & SimpleType {
   id: GlobalID!
   name: String
+  key: String!
   orderKey: String!
   tag: TypeTag!
   isOutput: Boolean!
@@ -2020,6 +2031,7 @@ type Type {
 
 input TypeNodeCreateInput {
   id: GlobalID!
+  key: String!
   orderKey: String!
   statementId: GlobalID!
   name: String = null

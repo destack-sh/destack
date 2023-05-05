@@ -110,6 +110,7 @@ class SimplyTyped:
 class SimpleType:
     id: GlobalID
     name: Optional[str]
+    key: str
     order_key: str
     tag: TypeTag
     is_output: bool
@@ -128,6 +129,7 @@ class SimpleTypeNode(gql.Node, SimpleType):
     updated_at: auto
     deleted_at: auto
     name: auto
+    key: auto
     order_key: auto
     tag: TypeTag
     is_output: auto
@@ -653,6 +655,12 @@ class RecordUpdateInput(gql.NodeInput):
 
 
 @gql.input
+class RecordUpdatePathInput(gql.NodeInput):
+    path: str
+    data: Optional[JSON] = None
+
+
+@gql.input
 class RecordMoveInput(gql.NodeInput):
     order_key: str
 
@@ -695,6 +703,7 @@ class RecordBatch(ThingBatch):
 @gql.input
 class TypeNodeCreateInput:
     id: GlobalID
+    key: str
     order_key: str
     statement_id: GlobalID
     name: Optional[str] = None
@@ -819,6 +828,16 @@ class SymbolMutation:
         record.data = input.data
         return record
 
+    @project_mutation(MMT.UPDATE_RECORD_PATH)
+    def update_record_path(self, input: RecordUpdatePathInput) -> DatasetRecord | OperationInfo:
+        # update record data at the given path
+        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        if input.value is None:
+            del record.data[input.path]
+        else:
+            record.data[input.path] = input.value
+        return record
+
     @project_mutation(MMT.MOVE_RECORD)
     def move_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
@@ -869,6 +888,7 @@ class SymbolMutation:
         type_node = models.SimpleTypeNode(
             id=UUID(input.id.node_id),
             statement_id=UUID(input.statement_id.node_id),
+            key=input.key,
             order_key=input.order_key,
             name=input.name,
             description=input.description,

@@ -231,9 +231,10 @@ defineExpose({
           <td v-for="column in inputColumns" :key="column.type.id" class="px-3 py-3">
             <InlineValueCell
               :type="column.type"
-              :model-value="column.type.name == null ? execution.inputs : execution.inputs?.[column.type.name]"
+              :model-value="column.type.name == null ? execution.inputs : execution.inputs?.[column.type.key]"
               :readonly="true"
               :immediate="false"
+              :active="true"
             />
           </td>
           <!-- Outputs -->
@@ -241,9 +242,10 @@ defineExpose({
             <InlineValueCell
               v-if="execution.status != ExecutionStatus.Failed"
               :type="column.type"
-              :model-value="column.type.name == null ? execution.outputs : execution.outputs?.[column.type.name]"
+              :model-value="column.type.name == null ? execution.outputs : execution.outputs?.[column.type.key]"
               :readonly="true"
               :immediate="false"
+              :active="true"
             />
             <div v-else class="truncate text-red-600">
               {{ execution.error?.type }}

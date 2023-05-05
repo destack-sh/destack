@@ -4,11 +4,10 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { useMagicActions, useNavigationContext } from "@/components/file";
+import { useMagicActions } from "@/components/file";
 import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
-import { useEditorState, type StatementHeader } from "@/state/editor";
-import { useObjects } from "@/state/object";
+import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf } from "@/state/runtime";
@@ -121,12 +120,20 @@ function insertRecord(belowRecordId?: string) {
   nextTick(() => recordGrid.focus(-1, columnsInOrder.value[0]));
 }
 
-function writeRecordField(recordId: string, column: string, value: any) {
-  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
-  if (recordIdx < 0) throw new Error("record not found: " + recordId);
-  const record = context.records.value[recordIdx];
+function writeRecordField(recordId: string, key: string, value: any) {
+  const record = context.records.value.find((r) => r.id === recordId);
+  if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
-  const newData = { ...oldData, [column]: value };
+  const newData = { ...oldData, [key]: value };
+  ops.symbol.updateRecord(null, recordId, oldData, newData);
+}
+
+function deleteRecordField(recordId: string, key: string) {
+  const record = context.records.value.find((r) => r.id === recordId);
+  if (record == null) throw new Error("record not found: " + recordId);
+  const oldData = record?.data;
+  const newData = { ...oldData };
+  delete newData[key];
   ops.symbol.updateRecord(null, recordId, oldData, newData);
 }
 
@@ -148,7 +155,8 @@ function runtimeTypeOf(field: SimpleType) {
 // drag & drop
 const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
-  console.log("drop insert files into dataset", recordId, column, position, files);
+  const key = context.typeNodesByName.value?.[column]?.key;
+  console.log("drop insert files into dataset", recordId, column, key, position, files);
   const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
   const record = context.records.value[recordIdx];
   const above = context.records.value[recordIdx - 1];
@@ -159,7 +167,7 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
   } else {
     orderKeys = generateNKeysBetween(record.orderKey, below?.orderKey ?? null, files.length);
   }
-  await magic.insertFilesAsRecords(column, orderKeys, files);
+  await magic.insertFilesAsRecords(key, orderKeys, files);
 }
 const position = useMouseInElement(gridRef);
 
@@ -254,8 +262,8 @@ defineExpose({
       <template v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id">
         <InlineValueCell
           :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
-          :model-value="record.data?.[field.name as string]"
-          @update:model-value="(val) => writeRecordField(record.id, field.name as string, val)"
+          :model-value="record.data?.[field.key as string]"
+          @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
@@ -274,8 +282,8 @@ defineExpose({
         <!-- :EditableCellStyle -->
       </template>
     </template>
-    <!-- Insert button -->
   </div>
+  <!-- Insert button -->
   <button
     v-if="!context.readonly.value"
     tabindex="-1"

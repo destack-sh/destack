@@ -627,6 +627,7 @@ export type InterpSimpleType = Node &
     isArray: Scalars["Boolean"];
     isNullable: Scalars["Boolean"];
     isOutput: Scalars["Boolean"];
+    key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
@@ -772,6 +773,7 @@ export enum ModuleMutationType {
   UpdateFile = "UPDATE_FILE",
   UpdateGeneratedMappings = "UPDATE_GENERATED_MAPPINGS",
   UpdateRecord = "UPDATE_RECORD",
+  UpdateRecordPath = "UPDATE_RECORD_PATH",
   UpdateStatement = "UPDATE_STATEMENT",
   UpdateStatementCode = "UPDATE_STATEMENT_CODE",
   UpdateStatementDescription = "UPDATE_STATEMENT_DESCRIPTION",
@@ -850,6 +852,7 @@ export type Mutation = {
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
   updateRecord: DatasetRecordOperationInfo;
+  updateRecordPath: DatasetRecordOperationInfo;
   updateStatement: StatementOperationInfo;
   updateStatementCode: StatementOperationInfo;
   updateStatementDescription: StatementOperationInfo;
@@ -1107,6 +1110,10 @@ export type MutationUpdateProjectVisibilityArgs = {
 
 export type MutationUpdateRecordArgs = {
   input: RecordUpdateInput;
+};
+
+export type MutationUpdateRecordPathArgs = {
+  input: RecordUpdatePathInput;
 };
 
 export type MutationUpdateStatementArgs = {
@@ -1846,6 +1853,12 @@ export type RecordUpdateInput = {
   id: Scalars["GlobalID"];
 };
 
+export type RecordUpdatePathInput = {
+  data?: InputMaybe<Scalars["JSON"]>;
+  id: Scalars["GlobalID"];
+  path: Scalars["String"];
+};
+
 export type RefMapping = Node & {
   __typename?: "RefMapping";
   id: Scalars["GlobalID"];
@@ -1968,6 +1981,7 @@ export type SimpleType = {
   isArray: Scalars["Boolean"];
   isNullable: Scalars["Boolean"];
   isOutput: Scalars["Boolean"];
+  key: Scalars["String"];
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   reference?: Maybe<Statement>;
@@ -1985,6 +1999,7 @@ export type SimpleTypeNode = Node &
     isArray: Scalars["Boolean"];
     isNullable: Scalars["Boolean"];
     isOutput: Scalars["Boolean"];
+    key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     reference?: Maybe<Statement>;
@@ -2333,6 +2348,7 @@ export type TypeNodeCreateInput = {
   isArray?: Scalars["Boolean"];
   isNullable?: Scalars["Boolean"];
   isOutput?: Scalars["Boolean"];
+  key: Scalars["String"];
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
@@ -3549,6 +3565,7 @@ export type SimpleTypeNodeContentFragment = {
   deletedAt?: any | null;
   revision: number;
   name?: string | null;
+  key: string;
   tag: TypeTag;
   description?: string | null;
   value?: any | null;
@@ -4493,6 +4510,7 @@ export type CreateTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
+  key: Scalars["String"];
   orderKey: Scalars["String"];
   name: Scalars["String"];
   description?: InputMaybe<Scalars["String"]>;
@@ -4515,6 +4533,7 @@ export type CreateTypeNodeMutation = {
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
+        key: string;
         orderKey: string;
         revision: number;
         name?: string | null;
@@ -4754,6 +4773,7 @@ export type InterpSymbolContentFragment = {
     __typename?: "InterpSimpleType";
     id: any;
     name?: string | null;
+    key: string;
     tag: TypeTag;
     description?: string | null;
     value?: any | null;
@@ -5400,6 +5420,7 @@ export const SimpleTypeNodeContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
@@ -5608,6 +5629,7 @@ export const InterpSymbolContentFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
                 { kind: "Field", name: { kind: "Name", value: "value" } },
@@ -12989,6 +13011,11 @@ export const CreateTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
@@ -13058,6 +13085,11 @@ export const CreateTypeNodeDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "key" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "key" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "orderKey" },
                       value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
                     },
@@ -13113,6 +13145,7 @@ export const CreateTypeNodeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
                         kind: "Field",
