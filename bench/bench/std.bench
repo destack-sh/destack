@@ -1,11 +1,5 @@
 --- intrinsic ---
 # In-built simple types
 type Rating = number "0-5 stars"
-type Bytes = number "Number in bytes"
-
-type Document:
-"A text document"
-- name: string
-- format: string "File format"
-- size: Bytes "Total size in bytes"
-- content: file
+type Thumbs = boolean "yay or nay"
+type Bytes = number "number in bytes"

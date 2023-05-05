@@ -11,13 +11,20 @@ import {
   ModuleMutationType,
   type BatchSoftDeleteRecordMutation,
   type BatchRestoreRecordMutation,
+  type RestoreTypeNodeMutation,
+  type TypeNodeCreateInput,
+  type TypeNodeUpdateInput,
+  TypeTag,
+  type DeleteTypeNodeMutation,
+  type SoftDeleteTypeNodeMutation,
+  type UpdateTypeNodeMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
-  const operations = useOperationsStore();
+  const ops = useOperationsStore();
   const registry = new OpRegistry();
 
   // symbol content mutations
@@ -55,7 +62,7 @@ export function useSymbolContentOps() {
     oldDescription: string,
     newDescription: string
   ) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.updateDescription",
       do: async () => {
@@ -97,7 +104,7 @@ export function useSymbolContentOps() {
   );
 
   async function updateStatementCode(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.updateCode",
       do: async () => {
@@ -139,7 +146,7 @@ export function useSymbolContentOps() {
   );
 
   async function updateStatementText(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.updateText",
       do: async () => {
@@ -391,7 +398,7 @@ export function useSymbolContentOps() {
   );
 
   async function createRecord(tx: Transaction | null, id: string, statementId: string, orderKey: string, data: JSON) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.createRecord",
       do: async () => {
@@ -412,7 +419,7 @@ export function useSymbolContentOps() {
   }
 
   async function updateRecord(tx: Transaction | null, id: string, oldData: JSON, newData: JSON) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.updateRecord",
       do: async () => {
@@ -425,7 +432,7 @@ export function useSymbolContentOps() {
   }
 
   async function deleteRecord(tx: Transaction | null, id: string) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.deleteRecord",
       do: async () => {
@@ -435,7 +442,7 @@ export function useSymbolContentOps() {
   }
 
   async function softDeleteRecord(tx: Transaction | null, id: string) {
-    await operations.perform({
+    await ops.perform({
       tx,
       type: "statement.softDeleteRecord",
       do: async () => {
@@ -448,7 +455,7 @@ export function useSymbolContentOps() {
   }
 
   async function batchSoftDeleteRecord(ids: string[]) {
-    await operations.perform({
+    await ops.perform({
       type: "statement.batchSoftDeleteRecord",
       do: async () => {
         return await batchSoftDeleteRecordMut({ ids });
@@ -460,13 +467,353 @@ export function useSymbolContentOps() {
   }
 
   async function batchRestoreRecord(ids: string[]) {
-    await operations.perform({
+    await ops.perform({
       type: "statement.batchRestoreRecord",
       do: async () => {
         return await batchRestoreRecordMut({ ids });
       },
       undo: async () => {
         return await batchSoftDeleteRecordMut({ ids });
+      },
+    });
+  }
+
+  const { mutate: createTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.CreateTypeNode,
+    graphql(/* GraphQL */ `
+      mutation createTypeNode(
+        $id: GlobalID!
+        $statementId: GlobalID!
+        $tag: TypeTag!
+        $orderKey: String!
+        $name: String!
+        $description: String
+        $isOutput: Boolean!
+        $isArray: Boolean!
+        $isNullable: Boolean!
+        $value: JSON
+        $referenceId: GlobalID
+      ) {
+        createTypeNode(
+          input: {
+            id: $id
+            statementId: $statementId
+            tag: $tag
+            orderKey: $orderKey
+            name: $name
+            description: $description
+            isOutput: $isOutput
+            isArray: $isArray
+            isNullable: $isNullable
+            value: $value
+            referenceId: $referenceId
+          }
+        ) {
+          ... on SimpleTypeNode {
+            # should match SimpleTypeNodeContent fragment
+            id
+            createdAt
+            updatedAt
+            deletedAt
+            orderKey
+            statement {
+              id
+            }
+            revision
+            name
+            tag
+            description
+            value
+            reference {
+              id
+            }
+            isOutput
+            isArray
+            isNullable
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        tag: string;
+        orderKey: string;
+        statementId: string;
+        name: string;
+        description: string | null;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
+        value: any;
+        referenceId: string | null;
+      }) =>
+        ({
+          __typename: "Mutation",
+          createTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            statement: {
+              __typename: "Statement",
+              id: vars.statementId,
+            },
+            revision: PENDING_REVISION,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            tag: vars.tag,
+            name: vars.name,
+            description: vars.description ?? null,
+            value: vars.value,
+            orderKey: vars.orderKey,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            isOutput: vars.isOutput,
+            isArray: vars.isArray,
+            isNullable: vars.isNullable,
+          },
+        } as any),
+      update(cache, { data }) {
+        const createStatementTypeNode = data?.createTypeNode;
+        if (createStatementTypeNode?.__typename != "SimpleTypeNode") {
+          return; // error
+        }
+        // extend Statement.type_nodes with (ref to) new type node
+        cache.modify({
+          id: cache.identify(createStatementTypeNode.statement),
+          fields: {
+            typeNodes(existingTypeNodes = []) {
+              const newRef = cache.identify(createStatementTypeNode);
+              return [
+                ...existingTypeNodes.filter((t: any) => t.__ref != newRef), // remove old type node if exists
+                { __ref: newRef },
+              ];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
+  );
+
+  const { mutate: deleteTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.DeleteTypeNode,
+    graphql(/* GraphQL */ `
+      mutation deleteTypeNode($id: GlobalID!) {
+        deleteTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          deleteTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as DeleteTypeNodeMutation),
+    }
+  );
+
+  const { mutate: softDeleteTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteTypeNode,
+    graphql(/* GraphQL */ `
+      mutation softDeleteTypeNode($id: GlobalID!) {
+        softDeleteTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          softDeleteTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as SoftDeleteTypeNodeMutation),
+    }
+  );
+
+  const { mutate: restoreTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.RestoreTypeNode,
+    graphql(/* GraphQL */ `
+      mutation restoreTypeNode($id: GlobalID!) {
+        restoreStatementTypeNode(input: { id: $id }) {
+          ... on SimpleTypeNode {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          restoreStatementTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            deletedAt: null,
+          },
+        } as RestoreTypeNodeMutation),
+    }
+  );
+
+  function _toTypeNodeInput(input: TypeNodeCreateInput) {
+    return {
+      ...input,
+      // set optional values to null if not provided
+      description: input.description ?? null,
+      value: input.value ?? null,
+      referenceId: input.referenceId ?? null,
+      isArray: input.isArray ?? false,
+      isNullable: input.isNullable ?? false,
+      isOutput: input.isOutput ?? false,
+    } as TypeNodeCreateInput;
+  }
+
+  async function createTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
+      type: "symbol.createTypeNode",
+      do: async () => {
+        return await createTypeNodeMut(_toTypeNodeInput(typeNode));
+      },
+      undo: async () => {
+        return await softDeleteTypeNodeMut({ id: typeNode.id });
+      },
+      redo: async () => {
+        return await restoreTypeNodeMut({ id: typeNode.id });
+      },
+    });
+  }
+
+  async function deleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
+      type: "symbol.deleteTypeNode",
+      do: async () => {
+        return await deleteTypeNodeMut({ id: typeNode.id });
+      },
+    });
+  }
+
+  async function softDeleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+    await ops.perform({
+      tx,
+      type: "symbol.softDeleteTypeNode",
+      do: async () => {
+        return await softDeleteTypeNodeMut({ id: typeNode.id });
+      },
+      undo: async () => {
+        return await restoreTypeNodeMut({ id: typeNode.id });
+      },
+    });
+  }
+
+  const { mutate: updateTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.UpdateTypeNode,
+    graphql(/* GraphQL */ `
+      mutation updateTypeNode(
+        $id: GlobalID!
+        $tag: TypeTag!
+        $name: String
+        $description: String
+        $isOutput: Boolean!
+        $isArray: Boolean!
+        $isNullable: Boolean!
+        $value: JSON
+        $referenceId: GlobalID
+      ) {
+        updateTypeNode(
+          input: {
+            id: $id
+            tag: $tag
+            name: $name
+            description: $description
+            isOutput: $isOutput
+            isArray: $isArray
+            isNullable: $isNullable
+            value: $value
+            referenceId: $referenceId
+          }
+        ) {
+          ... on SimpleTypeNode {
+            id
+            tag
+            updatedAt
+            revision
+            name
+            description
+            isOutput
+            isArray
+            isNullable
+            value
+            reference {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        tag: TypeTag;
+        name: string | null;
+        description: string;
+        isOutput: boolean;
+        isArray: boolean;
+        isNullable: boolean;
+        value: any;
+        referenceId?: string;
+      }) => {
+        return {
+          updateTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            tag: vars.tag,
+            updatedAt: new Date().toISOString(),
+            revision: PENDING_REVISION,
+            name: vars.name,
+            description: vars.description,
+            isOutput: vars.isOutput,
+            isArray: vars.isArray,
+            isNullable: vars.isNullable,
+            value: vars.value,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+          },
+        } as UpdateTypeNodeMutation;
+      },
+    }
+  );
+
+  async function updateTypeNode(
+    tx: Transaction | null,
+    oldTypeNode: TypeNodeUpdateInput,
+    newTypeNode: TypeNodeUpdateInput
+  ) {
+    await ops.perform({
+      tx,
+      type: "symbol.updateTypeNode",
+      do: async () => {
+        return await updateTypeNodeMut(newTypeNode);
+      },
+      undo: async () => {
+        return await updateTypeNodeMut(oldTypeNode);
       },
     });
   }
@@ -482,5 +829,9 @@ export function useSymbolContentOps() {
     softDeleteRecord,
     batchSoftDeleteRecord,
     batchRestoreRecord,
+    createTypeNode,
+    updateTypeNode,
+    deleteTypeNode,
+    softDeleteTypeNode,
   };
 }
