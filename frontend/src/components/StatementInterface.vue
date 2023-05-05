@@ -15,10 +15,8 @@ import { useStatementActions } from "@/state/actions/statement";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useOperations } from "@/state/operations";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
-import { useRelativeDropZone as useRelativeDropZone } from "@/utils/drop";
-import { generateKeyBetween } from "@/utils/fractional";
+import { useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import {
   CheckCircleIcon,
@@ -81,7 +79,7 @@ const context: Ref<StatementContext> = computed(() => ({
 }));
 provide(STATEMENT_CONTEXT, context);
 const actions = useActions();
-const statementActions = useStatementActions();
+const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
 type Cell = {
   component: Component;
@@ -233,13 +231,12 @@ function onClickContainer(e: MouseEvent) {
 
 function insertStatementBelow(e: MouseEvent) {
   onClickContainer(e);
-  statementActions.insertBelow.value.apply();
+  magic.insertBelow(true);
   e.preventDefault();
   e.stopPropagation();
 }
 
 // drag & drop
-const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 const innerDrag = computed(() => (rootCellRef.value as any)?.innerDrag == true);
 const {
   isOverDropZone: dragOver,
@@ -331,7 +328,7 @@ const inlineActions = computed(() => {
       //  (This leads to a bug if you press duplicate on another statement, as it will fail or duplicate the current)
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
-      action: () => statementActions.duplicate.value.apply(),
+      action: () => magic.duplicate(),
     },
   ];
   if (statement.value.symbolType == SymbolType.Build || statement.value.symbolType == SymbolType.Task) {
@@ -482,8 +479,8 @@ const inlineActions = computed(() => {
           v-if="rootCell.component == DeclarationCell"
           ref="rootCellRef"
           :is="rootCell.component"
-          @navigate-up="statementActions.moveFocusUp.value.apply"
-          @navigate-down="statementActions.moveFocusDown.value.apply"
+          @navigate-up="magic.moveFocusUp"
+          @navigate-down="magic.moveFocusDown"
         />
         <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
         <!-- Inline cell actions -->

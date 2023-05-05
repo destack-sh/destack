@@ -22,7 +22,7 @@ export function useRelativeDropZone(
   useEventListener<DragEvent>(target, "dragleave", (event) => {
     event.preventDefault();
     counter -= 1;
-    if (counter === 0) isOverDropZone.value = false;
+    if (counter <= 0) isOverDropZone.value = false;
   });
   useEventListener<DragEvent>(target, "drop", (event) => {
     isOverDropZone.value = false;
