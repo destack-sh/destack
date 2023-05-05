@@ -757,7 +757,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (!as && statement.value?.symbolType != SymbolType.Data) {
       throw new Error("can only insert records into data statements");
     }
-    const newRecordIds = files.map(() => newStatementId());
+    const newRecordIds = files.map(() => newDatasetRecordId());
     const tx = openTransaction({
       name: "insertFilesAsRecords",
       blockPartialUndo: true,

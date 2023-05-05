@@ -672,7 +672,7 @@ class RecordBatchSoftDeleteInput(BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
-        return [RecordDeleteInput(id=i.node_id) for i in self.ids]
+        return [RecordDeleteInput(id=i) for i in self.ids]
 
 
 @gql.input
@@ -680,7 +680,7 @@ class RecordBatchRestoreInput(BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
-        return [RecordRestoreInput(id=i.node_id) for i in self.ids]
+        return [RecordRestoreInput(id=i) for i in self.ids]
 
 
 @gql.type
