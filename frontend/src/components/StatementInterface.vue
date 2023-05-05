@@ -322,15 +322,14 @@ const inlineActions = computed(() => {
   if (statement.value.type != StatementType.Definition) {
     return [];
   }
-  const inlineActions: InlineAction[] = [
-    {
-      // TODO @UX: statement actions should have functions for specific statement, not just the selected statement
-      //  (This leads to a bug if you press duplicate on another statement, as it will fail or duplicate the current)
+  const inlineActions: InlineAction[] = [];
+  if (!context.value.readonly) {
+    inlineActions.push({
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
       action: () => magic.duplicate(),
-    },
-  ];
+    });
+  }
   if (statement.value.symbolType == SymbolType.Build || statement.value.symbolType == SymbolType.Task) {
     inlineActions.push({
       label: "Build",

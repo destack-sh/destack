@@ -115,7 +115,7 @@ defineExpose({
     uploading...
     <!-- Clear button (if someone else is uploading, may be stuck) -->
     <button
-      v-if="!amUploading"
+      v-if="!amUploading && !readonly"
       class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
       @click.prevent.stop="clear"
       :class="active ? 'text-gray-300' : 'text-transparent'"
@@ -147,6 +147,7 @@ defineExpose({
     <span class="ml-2 text-xs text-gray-400" v-if="modelValue">{{ humanizeBytes(modelValue?.contentLength) }}</span>
     <!-- Clear button -->
     <button
+      v-if="!readonly"
       class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
       @click.prevent.stop="clear"
       :class="active ? 'text-gray-300' : 'text-transparent'"
