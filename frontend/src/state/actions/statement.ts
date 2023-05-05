@@ -330,7 +330,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   });
 
   // optimistic insert that doesn't wait for the server response
-  function _insertOptimistic(parentId: string | null, orderKey: string): { __typename: string; id: string } {
+  function _insertOptimisticBlank(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, file.value?.file.id, parentId, orderKey);
     return newStatement;
@@ -345,7 +345,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
-      const newStatement = _insertOptimistic(null, generateKeyBetween(null, firstRootKey));
+      const newStatement = _insertOptimisticBlank(null, generateKeyBetween(null, firstRootKey));
       editor.editElement(newStatement as StatementHeader);
     },
   });
@@ -357,7 +357,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
-      const newStatement = _insertOptimistic(null, generateKeyBetween(lastRootKey, null));
+      const newStatement = _insertOptimisticBlank(null, generateKeyBetween(lastRootKey, null));
       editor.editElement(newStatement as StatementHeader);
     },
   });
@@ -390,7 +390,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       const bottom = file.value?.getSelectionBottom();
       const nextSibling = bottom != null ? file.value?.getNextSibling(bottom) : undefined;
-      const newStatement = _insertOptimistic(
+      const newStatement = _insertOptimisticBlank(
         bottom?.parent?.id ?? null,
         generateKeyBetween(bottom?.orderKey ?? null, nextSibling?.orderKey ?? null)
       );

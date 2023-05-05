@@ -722,6 +722,36 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   const objects = useObjects();
   const editor = useEditorState();
 
+  async function insertBelow(focus?: boolean) {
+    if (statement.value == null) return;
+    const below = nav.value.getLocationRightBelow(statement.value as StatementHeader);
+    const newStatement = { __typename: "Statement", id: newStatementId() };
+    ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
+    if (focus) {
+      editor.editElement(newStatement as StatementHeader);
+    }
+  }
+
+  async function duplicate() {
+    if (statement.value == null) return;
+    nav.value.copy([statement.value as StatementHeader]);
+    nav.value.paste(undefined, statement.value as StatementHeader);
+  }
+
+  async function moveFocusUp() {
+    if (statement.value == null) return;
+    const above = nav.value.getAbove(statement.value);
+    if (above == null) return;
+    editor.focusElement(above);
+  }
+
+  async function moveFocusDown() {
+    if (statement.value == null) return;
+    const below = nav.value.getBelow(statement.value);
+    if (below == null) return;
+    editor.focusElement(below);
+  }
+
   async function insertFilesAsRecords(column: string, orderKeys: string[], files: File[], as?: string) {
     /** Insert files as records into this statement */
     if (!as && statement.value?.symbolType != SymbolType.Data) {
@@ -804,6 +834,10 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   return {
+    insertBelow,
+    duplicate,
+    moveFocusUp,
+    moveFocusDown,
     insertFilesAsDataset,
     insertFilesAsRecords,
   };

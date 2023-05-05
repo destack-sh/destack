@@ -2,7 +2,6 @@
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
-import { useOperations } from "@/state/operations";
 import { useRelativeDropZone } from "@/utils/drop";
 import { DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
 import { computed, ref } from "vue";
@@ -118,7 +117,7 @@ defineExpose({
     <button
       v-if="!amUploading"
       class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
-      @click.prevent="clear"
+      @click.prevent.stop="clear"
       :class="active ? 'text-gray-300' : 'text-transparent'"
     >
       x
@@ -149,7 +148,7 @@ defineExpose({
     <!-- Clear button -->
     <button
       class="ml-2 rounded-sm px-0.5 text-xs hover:bg-gray-200 group-hover:text-gray-700"
-      @click.prevent="clear"
+      @click.prevent.stop="clear"
       :class="active ? 'text-gray-300' : 'text-transparent'"
     >
       x
