@@ -332,26 +332,32 @@ class StatementBatchPasteInput:
     target_order_keys: list[str]
 
 
-@gql.type
-class StatementBatch(Iterable):
-    statements: list[Statement]
-
+class ThingBatch(Iterable):
     @property
     def things(self):
-        return self.statements
+        raise NotImplementedError
 
     # pretend to be an iterable for simpler perms checking
     # (doesn't need to know about the Batch type, which is
     #  required because we can't union list[Statement] | OperationInfo)
 
     def __getitem__(self, item):
-        return self.statements[item]
+        return self.things[item]
 
     def __len__(self):
-        return len(self.statements)
+        return len(self.things)
 
     def __iter__(self):
-        return iter(self.statements)
+        return iter(self.things)
+
+
+@gql.type
+class StatementBatch(ThingBatch):
+    statements: list[Statement]
+
+    @property
+    def things(self):
+        return self.statements
 
 
 @gql.type
@@ -657,6 +663,36 @@ class RecordDeleteInput(gql.NodeInput):
 
 
 @gql.input
+class RecordRestoreInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class RecordBatchSoftDeleteInput(BatchMutationInput):
+    ids: list[GlobalID]
+
+    def unbatch(self) -> list:
+        return [RecordDeleteInput(id=i.node_id) for i in self.ids]
+
+
+@gql.input
+class RecordBatchRestoreInput(BatchMutationInput):
+    ids: list[GlobalID]
+
+    def unbatch(self) -> list:
+        return [RecordRestoreInput(id=i.node_id) for i in self.ids]
+
+
+@gql.type
+class RecordBatch(ThingBatch):
+    records: list[DatasetRecord]
+
+    @property
+    def things(self):
+        return self.records
+
+
+@gql.input
 class TypeNodeCreateInput:
     id: GlobalID
     order_key: str
@@ -684,12 +720,37 @@ class TypeNodeUpdateInput(gql.NodeInput):
 
 
 @gql.input
+class TypeNodeRenameInput(gql.NodeInput):
+    name: Optional[str] = None
+
+
+@gql.input
+class TypeNodeUpdateDescriptionInput(gql.NodeInput):
+    description: Optional[str] = None
+
+
+@gql.input
+class TypeNodeUpdateTypeInput(gql.NodeInput):
+    tag: TypeTag
+    is_output: bool = False
+    is_nullable: bool = False
+    is_array: bool = False
+    value: Optional[JSON] = None
+    reference_id: Optional[GlobalID] = None
+
+
+@gql.input
 class TypeNodeMoveInput(gql.NodeInput):
     order_key: str
 
 
 @gql.input
 class TypeNodeDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class TypeNodeRestoreInput(gql.NodeInput):
     pass
 
 
@@ -777,11 +838,31 @@ class SymbolMutation:
         return record
 
     @project_mutation(MMT.RESTORE_RECORD)
-    def restore_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
+    def restore_record(self, input: RecordRestoreInput) -> DatasetRecord | OperationInfo:
         # use _base_manager since soft deleted records are not visible
         record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
+
+    @project_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
+    def batch_soft_delete_record(
+        self, input: RecordBatchSoftDeleteInput
+    ) -> RecordBatch | OperationInfo:
+        # imitate soft_delete_record but for a batch
+        record_ids = [UUID(i.node_id) for i in input.ids]
+        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        models.DatasetRecord.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
+        # use base manager since the records are now deleted
+        records = models.DatasetRecord._base_manager.filter(id__in=record_ids)
+        return RecordBatch(records=list(records))
+
+    @project_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
+    def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
+        # imitate restore_record but for a batch
+        record_ids = [UUID(i.node_id) for i in input.ids]
+        models.DatasetRecord._base_manager.filter(id__in=record_ids).update(deleted_at=None)
+        records = models.DatasetRecord.objects.filter(id__in=record_ids)
+        return RecordBatch(records=list(records))
 
     @project_mutation(MMT.CREATE_TYPE_NODE)
     def create_type_node(self, input: TypeNodeCreateInput) -> SimpleTypeNode | OperationInfo:
@@ -813,6 +894,33 @@ class SymbolMutation:
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
 
+    @project_mutation(MMT.RENAME_TYPE_NODE)
+    def update_type_node_name(self, input: TypeNodeRenameInput) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.name = input.name
+        return type_node
+
+    @project_mutation(MMT.UPDATE_TYPE_NODE_DESCRIPTION)
+    def update_type_node_description(
+        self, input: TypeNodeUpdateDescriptionInput
+    ) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.description = input.description
+        return type_node
+
+    @project_mutation(MMT.UPDATE_TYPE_NODE_TYPE)
+    def update_type_node_type(
+        self, input: TypeNodeUpdateTypeInput
+    ) -> SimpleTypeNode | OperationInfo:
+        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+        type_node.tag = input.tag
+        type_node.is_output = input.is_output
+        type_node.is_nullable = input.is_nullable
+        type_node.is_array = input.is_array
+        type_node.value = input.value
+        type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        return type_node
+
     @project_mutation(MMT.MOVE_TYPE_NODE)
     def move_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
@@ -834,7 +942,7 @@ class SymbolMutation:
 
     @project_mutation(MMT.RESTORE_TYPE_NODE)
     def restore_statement_type_node(
-        self, input: TypeNodeDeleteInput
+        self, input: TypeNodeRestoreInput
     ) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.restore()

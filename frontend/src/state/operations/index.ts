@@ -37,12 +37,17 @@ export type Transaction = {
   startedAt: DateTime;
   closedAt?: DateTime;
   operations: Operation<unknown>[];
+  blockPartialUndo?: boolean; // whether to block partial undo
+  undo?(): Promise<unknown>; // tx-level undo of all operations
+  redo?(): Promise<unknown>; // tx-level redo of all operations (both must be set if any)
 };
 
-export function openTransaction(name?: string): Transaction {
+export function openTransaction(
+  options?: Pick<Transaction, "name" | "blockPartialUndo" | "undo" | "redo">
+): Transaction {
   return {
+    ...options,
     id: Math.random().toString(16).substring(2, 8),
-    name,
     startedAt: DateTime.now(),
     operations: [],
   };
@@ -61,6 +66,12 @@ const STALE_TIME_SECONDS = 1;
 // keep reactive now (can't use useNow because it attaches to component)
 const now: Ref<DateTime> = ref(DateTime.now());
 setInterval(() => (now.value = DateTime.now()), 100);
+
+type StackState = {
+  id: string;
+  undoStack: Operation<unknown>[];
+  redoStack: Operation<unknown>[];
+};
 
 export const useOperationsStore = defineStore("operations", {
   state: () => ({
@@ -117,10 +128,23 @@ export const useOperationsStore = defineStore("operations", {
     canRedo(state): boolean {
       return state.redoStack.length > 0;
     },
+    stackState(state): StackState {
+      return {
+        id: Math.random().toString(16).substring(2, 8),
+        undoStack: state.undoStack.slice(),
+        redoStack: state.redoStack.slice(),
+      };
+    },
   },
   actions: {
     reset(): void {
       this.$reset();
+    },
+
+    restoreStackState(state: StackState): void {
+      console.log(`restore stack state ${state.id}`);
+      this.undoStack = state.undoStack;
+      this.redoStack = state.redoStack;
     },
 
     async _do<T>(operation: Operation<T>, mode: "do" | "redo" | "undo"): Promise<T | void | null> {
@@ -179,7 +203,7 @@ export const useOperationsStore = defineStore("operations", {
       }
       const ret = await this._do(operation, "do");
       if (!operation.stateless) {
-        console.log(`reset redo stack for ${operation.type} (id=${operation.id})`);
+        console.debug(`reset redo stack for ${operation.type} (id=${operation.id})`);
         this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
       }
       return ret as T | null; // cannot be void because it's not undo
@@ -190,23 +214,37 @@ export const useOperationsStore = defineStore("operations", {
       if (operation == null) {
         throw new Error("nothing to undo");
       }
+      if (operation.tx?.blockPartialUndo && operation.tx.closedAt == null) {
+        this.undoStack.push(operation); // re-add operation to undo stack
+        return; // ignore
+      }
       // TODO @Performance: collapse transaction operations that do the same thing (e.g. update record on same id)
       // TODO @Performance: batch transaction operations if length > 1
-      // undo operation and any other operations in the same transaction
-      let operationsToUndo;
-      if (operation.tx != null) {
-        // move all other tx ops from undo stack
-        operationsToUndo = [...this.undoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+      // TODO @Performance: do we really need to apply operations one be one in redo/undo?
+      // Probably, since we can't guarantee that the same server is used in sequence (or can we?).
+      if (operation.tx?.undo != null) {
+        // tx atomic undo
+        console.log(`undo tx ${operation.tx.id} (id=${operation.id})`);
+        const stacks = this.stackState;
+        await operation.tx.undo();
+        this.restoreStackState(stacks);
         this.undoStack = this.undoStack.filter((op) => op.tx?.id !== operation.tx?.id);
+        this.redoStack.push(...operation.tx.operations.reverse());
+      } else if (operation.tx != null) {
+        // tx multi undo
+        const operationsToUndo = [...this.undoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+        for (const op of operationsToUndo.reverse()) {
+          console.log(`undo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
+          await this._do(op, "undo");
+        }
+        this.undoStack = this.undoStack.filter((op) => op.tx?.id !== operation.tx?.id);
+        this.redoStack.push(...operationsToUndo.reverse());
       } else {
-        operationsToUndo = [operation];
+        // single operation undo
+        console.log(`undo ${operation.type} (id=${operation.id}, tx=<none>)`);
+        await this._do(operation, "undo");
+        this.redoStack.push(operation);
       }
-      // apply operations one by one in reverse order
-      for (const op of operationsToUndo.reverse()) {
-        console.log(`undo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
-        await this._do(op, "undo");
-      }
-      this.redoStack.push(...operationsToUndo.reverse());
     },
 
     async redo(): Promise<void> {
@@ -214,22 +252,32 @@ export const useOperationsStore = defineStore("operations", {
       if (operation == null) {
         throw new Error("nothing to redo");
       }
-      let operationsToRedo;
-      if (operation.tx != null) {
-        // move all other tx ops from redo stack
-        operationsToRedo = [...this.redoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+      if (operation.tx?.undo != null) {
+        // tx atomic redo
+        if (operation.tx.redo == null) {
+          throw new Error(`transaction ${operation.tx.id} has undo but no redo`);
+        }
+        console.log(`redo tx ${operation.tx.id} (id=${operation.id})`);
+        const stacks = this.stackState;
+        await operation.tx.redo();
+        this.restoreStackState(stacks);
+        this.undoStack.push(...operation.tx.operations);
+        this.redoStack = this.redoStack.filter((op) => op.tx?.id !== operation.tx?.id);
+      } else if (operation.tx != null) {
+        // tx multi redo
+        const operationsToRedo = [...this.redoStack.filter((op) => op.tx?.id === operation.tx?.id), operation];
+        for (const op of operationsToRedo) {
+          console.log(`redo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
+          await this._do(op, "redo");
+        }
+        this.undoStack.push(...operationsToRedo);
         this.redoStack = this.redoStack.filter((op) => op.tx?.id !== operation.tx?.id);
       } else {
-        operationsToRedo = [operation];
+        // single operation redo
+        console.log(`redo ${operation.type} (id=${operation.id}, tx=<none>)`);
+        await this._do(operation, "redo");
+        this.undoStack.push(operation);
       }
-      // apply operations one by one
-      // TODO @Performance: do we really need to apply operations one be one in redo/undo?
-      // Probably, since we can't guarantee that the same server is used in sequence (or can we?).
-      for (const op of operationsToRedo) {
-        console.log(`redo ${op.type} (id=${op.id}, tx=${op.tx?.id ?? "<none>"})`);
-        await this._do(op, "redo");
-      }
-      this.undoStack.push(...operationsToRedo);
     },
   },
 });

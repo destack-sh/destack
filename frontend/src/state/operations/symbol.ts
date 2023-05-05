@@ -9,9 +9,12 @@ import {
   type RestoreRecordMutation,
   type SoftDeleteRecordMutation,
   ModuleMutationType,
+  type BatchSoftDeleteRecordMutation,
+  type BatchRestoreRecordMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
+import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
   const operations = useOperationsStore();
@@ -329,6 +332,64 @@ export function useSymbolContentOps() {
     }
   );
 
+  const { mutate: batchSoftDeleteRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {
+        batchSoftDeleteRecord(input: { ids: $ids }) {
+          ... on RecordBatch {
+            records {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { ids: string[] }) =>
+        ({
+          batchSoftDeleteRecord: {
+            __typename: "RecordBatch",
+            records: vars.ids.map((id) => ({
+              __typename: "DatasetRecord",
+              id: id,
+              deletedAt: new Date().toISOString(),
+            })),
+          },
+        } as BatchSoftDeleteRecordMutation),
+    }
+  );
+
+  const { mutate: batchRestoreRecordMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation batchRestoreRecord($ids: [GlobalID!]!) {
+        batchRestoreRecord(input: { ids: $ids }) {
+          ... on RecordBatch {
+            records {
+              id
+              deletedAt
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { ids: string[] }) =>
+        ({
+          batchRestoreRecord: {
+            __typename: "RecordBatch",
+            records: vars.ids.map((id) => ({
+              __typename: "DatasetRecord",
+              id: id,
+              deletedAt: null,
+            })),
+          },
+        } as BatchRestoreRecordMutation),
+    }
+  );
+
   async function createRecord(tx: Transaction | null, id: string, statementId: string, orderKey: string, data: JSON) {
     await operations.perform({
       tx,
@@ -386,6 +447,30 @@ export function useSymbolContentOps() {
     });
   }
 
+  async function batchSoftDeleteRecord(ids: string[]) {
+    await operations.perform({
+      type: "statement.batchSoftDeleteRecord",
+      do: async () => {
+        return await batchSoftDeleteRecordMut({ ids });
+      },
+      undo: async () => {
+        return await batchRestoreRecordMut({ ids });
+      },
+    });
+  }
+
+  async function batchRestoreRecord(ids: string[]) {
+    await operations.perform({
+      type: "statement.batchRestoreRecord",
+      do: async () => {
+        return await batchRestoreRecordMut({ ids });
+      },
+      undo: async () => {
+        return await batchSoftDeleteRecordMut({ ids });
+      },
+    });
+  }
+
   return {
     registry,
     updateStatementDescription,
@@ -395,5 +480,7 @@ export function useSymbolContentOps() {
     updateRecord,
     deleteRecord,
     softDeleteRecord,
+    batchSoftDeleteRecord,
+    batchRestoreRecord,
   };
 }

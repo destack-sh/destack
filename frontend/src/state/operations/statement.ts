@@ -28,7 +28,6 @@ import {
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
-import type { TypeNode } from "graphql";
 import { v4 as uuidv4 } from "uuid";
 
 export function newStatementId(): string {
@@ -784,6 +783,19 @@ export function useStatementOps() {
     });
   }
 
+  async function restore(tx: Transaction | null, id: string) {
+    await ops.perform({
+      tx,
+      type: "statement.restore",
+      do: async () => {
+        return await restoreStatementMut({ id: id });
+      },
+      undo: async () => {
+        return await softDeleteStatementMut({ id: id });
+      },
+    });
+  }
+
   // TODO @Performance: make statement paste optimistic
   const { mutate: batchPasteMut } = useMutation(
     graphql(/* GraphQL */ `
@@ -1320,6 +1332,7 @@ export function useStatementOps() {
     rename,
     delete: delete_,
     softDelete: softDelete,
+    restore,
     batchSoftDelete: batchSoftDelete_,
     createTypeNode,
     updateTypeNode,
