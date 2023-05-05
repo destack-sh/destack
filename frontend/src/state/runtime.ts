@@ -35,6 +35,7 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
       # and using a shared fragment seems overkill
       id
       name
+      key
       tag
       description
       value

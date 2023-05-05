@@ -15,7 +15,7 @@ import { useOperations } from "@/state/operations";
 import { computed, inject, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
-import { newTypeNodeId } from "@/state/operations/statement";
+import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { contextOf } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
@@ -54,6 +54,15 @@ export function useStatementContext() {
       .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
   );
+  const typeNodesByName = computed(() => {
+    const typeNodesByName: Record<string, FragmentType<typeof SimpleTypeNodeType>> = {};
+    for (const typeNode of typeNodes.value) {
+      if (typeNode.name != null) {
+        typeNodesByName[typeNode.name] = typeNode;
+      }
+    }
+    return typeNodesByName;
+  });
   const records = computed(() =>
     statement.value.records.edges
       .map((n) => n.node)
@@ -313,6 +322,7 @@ export function useStatementContext() {
     typeRootTag: rootTypeTag,
     symbolSubtype,
     typeNodes,
+    typeNodesByName,
     records,
     // actions
     actions,
@@ -415,6 +425,7 @@ export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boole
 export function makeTypeNode(data: {
   name?: string | null;
   tag: TypeTag;
+  key?: string;
   orderKey?: string;
   value?: any;
   reference?: { id: string; name?: string };
@@ -426,6 +437,7 @@ export function makeTypeNode(data: {
     id: newTypeNodeId(),
     name: data.name ?? null,
     tag: data.tag,
+    key: data.key ?? newTypeNodeKey(),
     orderKey: data.orderKey ?? INTEGER_ZERO,
     value: data.value ?? null,
     reference: data.reference,

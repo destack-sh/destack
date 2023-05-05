@@ -485,6 +485,7 @@ export function useSymbolContentOps() {
         $id: GlobalID!
         $statementId: GlobalID!
         $tag: TypeTag!
+        $key: String!
         $orderKey: String!
         $name: String!
         $description: String
@@ -499,6 +500,7 @@ export function useSymbolContentOps() {
             id: $id
             statementId: $statementId
             tag: $tag
+            key: $key
             orderKey: $orderKey
             name: $name
             description: $description
@@ -515,6 +517,7 @@ export function useSymbolContentOps() {
             createdAt
             updatedAt
             deletedAt
+            key
             orderKey
             statement {
               id
@@ -539,6 +542,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: {
         id: string;
         tag: string;
+        key: string;
         orderKey: string;
         statementId: string;
         name: string;
@@ -564,6 +568,7 @@ export function useSymbolContentOps() {
             deletedAt: null,
             tag: vars.tag,
             name: vars.name,
+            key: vars.key,
             description: vars.description ?? null,
             value: vars.value,
             orderKey: vars.orderKey,

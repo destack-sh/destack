@@ -36,6 +36,13 @@ export function newTypeNodeId(): string {
   return btoa(`SimpleTypeNode:${nodeId}`);
 }
 
+const ALPHA_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+export function newTypeNodeKey(): string {
+  /* Generates an 8-character alphabetic random key :TypeNodeKeys */
+  return Array.from({ length: 8 }, () => ALPHA_CHARS.charAt(Math.floor(Math.random() * ALPHA_CHARS.length))).join("");
+}
+
 export function newDatasetRecordId(): string {
   /* Generates a new dataset record global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();

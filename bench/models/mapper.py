@@ -593,6 +593,7 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
         name=node.name,
         tag=node.tag,
         statement_id=node.statement_id,
+        key=node.key,
         order_key=node.order_key,
         description=node.description,
         is_output=node.is_output,
@@ -609,6 +610,7 @@ def wmap_simple_type_node(
     return models.SimpleTypeNode(
         id=node.id,
         statement_id=statement_id,
+        key=node.key,
         order_key=node.order_key,
         name=node.name,
         tag=node.tag,

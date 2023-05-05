@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextvars
-import copy
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
@@ -284,11 +283,13 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.queue", frame=frame)
 
     def code_enter(self, code: CodeInstance, args, kwargs):
-        inputs = {
-            **copy.deepcopy(kwargs),
-            **{f"__arg_{i}": (i, copy.deepcopy(arg)) for i, arg in args},
-        }
-        frame = self._create_frame(code=code, inputs=inputs)
+        # map args into kwargs
+        combined_kwargs = {}
+        for input_t, input in zip(code.inputs, args):
+            combined_kwargs[input_t.name] = input
+        frame = self._create_frame(
+            code=code, inputs=code.type.rekey(combined_kwargs, is_output=False)
+        )
         self.stacktrace.append(frame)
         self.tracker(frame)  # tracker may mutate/do other things, so log afterwards
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
@@ -296,7 +297,7 @@ class ExecutionTracer(Tracer):
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = copy.deepcopy(result)
+        frame.outputs = code.type.rekey(result, is_output=True)
         self.tracker(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 

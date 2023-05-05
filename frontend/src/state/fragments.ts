@@ -122,6 +122,7 @@ export const SimpleTypeNodeType = graphql(/* GraphQL */ `
     deletedAt
     revision
     name
+    key
     tag
     description
     value

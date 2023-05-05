@@ -31,6 +31,7 @@ class SimpleTypeNodeData:
     id: UUID
     revision: int
     name: Optional[str]
+    key: str
     tag: TypeTag
     statement_id: UUID
     order_key: str
@@ -405,6 +406,7 @@ def rmap_simple_type_node(
         id=node.id,
         revision=1,
         name=node.name,
+        key=node.key,
         statement_id=statement_id,
         tag=node.reference.tag if node.reference and impute_type_references else node.tag,
         description=node.description,
@@ -422,6 +424,7 @@ def wmap_simple_type_node(data: SimpleTypeNodeData) -> language.SimpleTypeNode:
     return language.SimpleTypeNode(
         id=data.id,
         name=data.name,
+        key=data.key,
         tag=data.tag,
         description=data.description,
         is_output=data.is_output,

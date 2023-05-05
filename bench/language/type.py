@@ -3,7 +3,9 @@ from __future__ import annotations
 import abc
 import copy
 import enum
+import random
 import re
+import string
 import typing
 import uuid
 from dataclasses import dataclass, field
@@ -517,6 +519,7 @@ class GeneratorContent:
 
 class TypeNode(abc.ABC):
     name: Optional[str]
+    key: Optional[str]
     tag: TypeTag
     is_output: bool
     is_nullable: bool
@@ -552,6 +555,28 @@ class TypeNode(abc.ABC):
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
         raise NotImplementedError
 
+    def unkey(self, data: Any, is_output: bool = None) -> Any:
+        """'Unkeys' data by replacing keys with the names of the type nodes."""
+        from bench.language.typer import unkey_value
+
+        return unkey_value(data, self, is_output=is_output)
+
+    def rekey(self, data: Any, is_output: bool = None) -> Any:
+        """'Keys' data by replacing names with the keys of the type nodes."""
+        from bench.language.typer import rekey_value
+
+        return rekey_value(data, self, is_output=is_output)
+
+
+# :TypeNodeKeys
+TYPE_NODE_KEY_LENGTH = 8
+
+
+def new_type_node_key() -> str:
+    """Gets a random alphabetic key as a persistent key for a type node."""
+    # (upper and lower case letters only)
+    return "".join(random.choices(string.ascii_letters, k=TYPE_NODE_KEY_LENGTH))
+
 
 @dataclass(repr=False)
 class SimpleTypeNode(TypeNode):
@@ -559,6 +584,7 @@ class SimpleTypeNode(TypeNode):
     tag: TypeTag
     order_key: str = INTEGER_ZERO
     id: UUID = field(default_factory=uuid.uuid4)
+    key: str = field(default_factory=new_type_node_key)
     description: Optional[str] = None
     is_output: bool = False
     is_array: bool = False
@@ -609,6 +635,7 @@ class TypeContent(SymbolContent, TypeNode):
     type_nodes: list[SimpleTypeNode] = field(default_factory=list)
     description: Optional[str] = None
     # not directly configurable for types
+    key = None
     is_output = False
     is_array = False
     is_nullable = False
@@ -731,14 +758,6 @@ class DatasetContent(TypeContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"] = "jsonl"
     records: list[Record] = field(default_factory=list)
     description: Optional[str] = None
-
-    def deepcopy(self) -> "DatasetContent":
-        return DatasetContent(
-            language=self.language,
-            records=copy.deepcopy(self.records),
-            type_node=self.type_node,
-            description=self.description,
-        )
 
     def __str__(self):
         return f"({len(self.records)})"

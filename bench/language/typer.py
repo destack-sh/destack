@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Union
 
-from bench.language.type import TypeNode, TypeTag
+from bench.language.type import PRIMITIVE_TYPES, TypeNode, TypeTag
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
@@ -33,7 +33,7 @@ def check_type(
     ignore_array: bool = False,
 ):
     """
-    Checks whether the given value has the expected type (deeply).
+    Checks whether the given value has the expected type (recursively).
     Raises TypeError if not at the first issue.
     """
 
@@ -102,3 +102,47 @@ def check_type(
 
     if not eager_error and _suberrors:
         on_invalid(value, expected, suberrors=_suberrors)
+
+
+def unkey_value(
+    value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = False
+) -> Any:
+    """Replaces all name 'keys' with the actual names (recursively)."""
+    if type.tag in PRIMITIVE_TYPES:
+        return value
+    elif type.tag != TypeTag.STRUCT:
+        raise TypeError(value, type, "expected struct")
+    if not isinstance(value, dict):
+        return value  # type error, but ignore here
+    if type.is_array and not ignore_array:
+        return [unkey_value(item, type, ignore_array=True) for item in value]
+    unkeyed = {}
+    for subtype in type.type_nodes:
+        if is_output is not None and subtype.is_output != is_output:
+            continue
+        if subtype.key not in value:
+            return value  # ignore if it doesn't exist
+        unkeyed[subtype.name] = unkey_value(value[subtype.key], subtype)
+    return unkeyed
+
+
+def rekey_value(
+    value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = True
+) -> Any:
+    """Replaces all actual names with the name 'keys' (recursively)."""
+    if type.tag in PRIMITIVE_TYPES:
+        return value
+    elif type.tag != TypeTag.STRUCT:
+        raise TypeError(value, type, "expected struct")
+    if not isinstance(value, dict):
+        return value  # type error, but ignore here
+    if type.is_array and not ignore_array:
+        return [rekey_value(item, type, ignore_array=True) for item in value]
+    keyed = {}
+    for subtype in type.type_nodes:
+        if is_output is not None and subtype.is_output != is_output:
+            continue
+        if subtype.name not in value:
+            return value
+        keyed[subtype.key] = rekey_value(value[subtype.name], subtype)
+    return keyed

@@ -11,6 +11,7 @@ from uuid import UUID, uuid5
 
 import PIL.Image
 
+from bench.language.mutate import ModuleMutation
 from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Build,
@@ -28,7 +29,6 @@ from bench.language.type import (
     XBlock,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.utils.record import RecordBatch
 from bench.utils.utils import required_field
 
 #
@@ -77,12 +77,17 @@ class TypeInstance(SymbolInstance, Type):
 
 
 @dataclass(repr=False)
+class RecordInstance(Record):
+    dataset: DatasetInstance = required_field()
+
+
+@dataclass(repr=False)
 class DatasetInstance(SymbolInstance, Dataset):
-    records_batch: RecordBatch = required_field()
+    pending_mutations: list[ModuleMutation] = field(default_factory=list)
 
     @property
-    def py_handle(self) -> RecordBatch:
-        return self.records_batch
+    def py_handle(self) -> list[Record]:
+        return self.records
 
 
 @dataclass(repr=False)

@@ -3,7 +3,7 @@ import { StatementType, SymbolType, type StatementContentFragment, TypeTag } fro
 import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newDatasetRecordId, newStatementId, newTypeNodeId } from "@/state/operations/statement";
+import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
 
@@ -752,7 +752,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     editor.focusElement(below);
   }
 
-  async function insertFilesAsRecords(column: string, orderKeys: string[], files: File[], as?: string) {
+  async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
     /** Insert files as records into this statement */
     if (!as && statement.value?.symbolType != SymbolType.Data) {
       throw new Error("can only insert records into data statements");
@@ -774,11 +774,11 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       const file = files[i];
       const orderKey = orderKeys[i];
       const remoteObject = await ops.object.prepareUpload(editor.currentProjectId as string, file);
-      const data = { [column]: remoteObject };
+      const data = { [key]: remoteObject };
       ops.symbol.createRecord(tx, newRecordId, as ?? statement.value?.id, orderKey, data);
       uploads.push(
         objects.upload(editor.currentProjectId as string, file, (updatedObject) => {
-          const newData = { ...data, [column]: updatedObject };
+          const newData = { ...data, [key]: updatedObject };
           ops.symbol.updateRecord(tx, newRecordId, data, newData);
         })
       );
@@ -819,9 +819,11 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
     ops.statement.createDefinition(tx, dataset);
     // create 'content' column with file type
+    const contentKey = newTypeNodeKey();
     ops.symbol.createTypeNode(tx, dataset.id, {
       statementId: dataset.id,
       id: newTypeNodeId(),
+      key: contentKey,
       name: "content",
       tag: TypeTag.File,
       orderKey: INTEGER_ZERO,
@@ -830,7 +832,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
     // insert files into dataset
     const orderKeys = generateNKeysBetween(null, null, files.length);
-    await insertFilesAsRecords("content", orderKeys, files, dataset.id);
+    await insertFilesAsRecords(contentKey, orderKeys, files, dataset.id);
   }
 
   return {

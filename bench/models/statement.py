@@ -12,7 +12,14 @@ from django.db.models.expressions import RawSQL
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.language.type import StatementModifier, StatementType, SymbolType, TypeTag
+from bench.language.type import (
+    TYPE_NODE_KEY_LENGTH,
+    StatementModifier,
+    StatementType,
+    SymbolType,
+    TypeTag,
+    new_type_node_key,
+)
 from bench.models.build import BuildSettings
 from bench.models.data import DatasetContentMixin, DatasetRecord
 from bench.models.evaluation import EvaluateSettings
@@ -45,6 +52,7 @@ class SimpleTypeNode(UUIDModel):
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
+    key = models.CharField(max_length=TYPE_NODE_KEY_LENGTH, default=new_type_node_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
     is_output = models.BooleanField(default=False)
@@ -53,11 +61,7 @@ class SimpleTypeNode(UUIDModel):
     description = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
     reference = models.ForeignKey(
-        "Statement",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="type_node_references+",
+        "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
 
     def __str__(self):
