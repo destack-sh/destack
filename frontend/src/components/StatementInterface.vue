@@ -6,7 +6,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
-import { useMagicActions } from "@/components/file";
+import { useMagicActions, useNavigationContext } from "@/components/file";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
@@ -36,6 +36,7 @@ const statement = computed(() => useFragment(StatementContentType, props.stateme
 const ancestors = computed(() => props.ancestors.map((s) => useFragment(StatementContentType, s)));
 
 const editor = useEditorState();
+const nav = useNavigationContext();
 
 const isFocused = computed(() => editor.focusedElementId == statement.value?.id);
 const isEditing = computed(() => isFocused.value && editor.editingElement);
@@ -173,9 +174,11 @@ watch(
   }
 );
 
-// cancel focus if clicked outside
+const altKeyState = useKeyModifier("Alt");
+const shiftKeyState = useKeyModifier("Shift");
+// cancel focus if clicked outside (unless alt/shift is pressed)
 onClickOutside(containerRef, () => {
-  if (isFocused.value) {
+  if (isFocused.value && !altKeyState.value && !shiftKeyState.value) {
     // We don't blur the root cell here because the focus is already elsewhere.
     editor.blurElement(statement.value as StatementHeader);
   }
@@ -183,7 +186,6 @@ onClickOutside(containerRef, () => {
 
 // if anything inside the container becomes focused (except the container), enable editing mode
 // (unless alt is pressed) :AltKeyEditing
-const altKeyState = useKeyModifier("Alt");
 whenever(inRootCellFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
@@ -204,6 +206,23 @@ function focusInEditor() {
 function onClickContainer(e: MouseEvent) {
   // ignore if alt was pressed :AltKeyEditing
   if (e.altKey) {
+    return;
+  }
+  // create selection to here if shift was pressed
+  if (e.shiftKey) {
+    const index = nav.value.statementPositions[statement.value.id];
+    const lastIndex = nav.value.statementPositions[editor.focusedElementId ?? ""];
+    console.log("select all statements between", index, lastIndex);
+    focusInEditor();
+    if (lastIndex != null) {
+      // select all statements between
+      for (let i = Math.min(index, lastIndex); i <= Math.max(index, lastIndex); i++) {
+        const statement = nav.value.statements[i];
+        if (statement != null) {
+          editor.addToSelection(statement);
+        }
+      }
+    }
     return;
   }
   if (!isFocused.value) {
@@ -366,10 +385,10 @@ const inlineActions = computed(() => {
     </button>
     <!-- Monaco-like line numbers on the left margin -->
     <span
-      v-if="editor.showLineNumbers"
       class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-75"
       :style="{ transform: 'translateX(' + -30 + 'px)' }"
       :class="{
+        'invisible group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
         'text-sm': editor.textSmall,
         'text-md': !editor.textSmall,
         'font-mono': editor.fontMono,

@@ -187,11 +187,14 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <DeclarationCell
-    ref="declarationRef"
-    @navigate-down="descriptionRef?.focus"
-    @navigate-right="descriptionRef?.focus"
-  />
+  <div class="flex flex-row">
+    <DeclarationCell
+      ref="declarationRef"
+      @navigate-down="descriptionRef?.focus"
+      @navigate-right="descriptionRef?.focus"
+    />
+    <span class="ml-1 inline-flex" :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'">table</span>
+  </div>
   <!-- Reference type -->
   <!-- TODO @Incomplete: set dataset type to type reference -->
   <!-- Description -->
