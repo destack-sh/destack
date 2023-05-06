@@ -200,7 +200,7 @@ export type CopiedStatement = {
 
 export type StatementLocation = {
   fileId: string;
-  parentId: string | null;
+  parentId?: string | null;
   orderKey: string;
 };
 
@@ -230,6 +230,7 @@ export type NavigationContext = FileContext & {
   // movement
   moveUp(statement: StatementHeader): void;
   moveDown(statement: StatementHeader): void;
+  moveTo(statement: StatementHeader, location: StatementLocation): void;
   moveBatchUp(statements: StatementHeader[]): void;
   moveBatchDown(statements: StatementHeader[]): void;
 
@@ -438,6 +439,10 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   // movement
+
+  async function moveTo(statement: StatementHeader, location: StatementLocation) {
+    await ops.statement.move(null, statement.id, getLocation(statement), location);
+  }
 
   async function moveUp(statement: StatementHeader) {
     // insert between above and above prev sibling (if any)
@@ -680,6 +685,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       // movement
       moveUp,
       moveDown,
+      moveTo,
       moveBatchUp,
       moveBatchDown,
 

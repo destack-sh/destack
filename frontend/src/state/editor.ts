@@ -227,7 +227,7 @@ export const useEditorState = defineStore("editor", {
       readonly: false,
       debug: false,
       showGenerated: true,
-      showLineNumbers: true,
+      showLineNumbers: false,
       showEditorGroupHeader: true,
       showGlobalHeader: true,
       showViewSelection: true,

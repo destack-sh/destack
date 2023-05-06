@@ -36,7 +36,7 @@ const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
   inBottomHalf: dragInBottomHalf,
-} = useRelativeDropZone(dropZoneRef, onDrop);
+} = useRelativeDropZone(dropZoneRef, ["File", "Record"], onDrop);
 
 function onDrop(files: File[] | null) {
   if (isFileUploaded.value && props.supportsDrop) {
