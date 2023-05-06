@@ -710,26 +710,17 @@ class LanguageWorker:
         # default generate job for unbound/misc generation tasks
         self.queue_generate(generator=None, reactive=True, cancel_running=True)
         if not self.interp.has_user_errors:
-            # all reactive stale builds and first timers (that weren't generated yet)
-            stale_tasks = [
-                task
-                for task in self.idx.symbols_of_type(language.Task)
-                if (self.is_stale(task.id) or task.generated_mappings == [])
-                and not task.is_generated
-                and task.is_minimally_specified
-            ]
-            for task in stale_tasks:
-                self.queue_generate(generator=task, reactive=True, cancel_running=True)
+            pass  # reactive task generation disabled for now
 
     @debounce(LINT_DEBOUNCE, max_wait=LINT_DEBOUNCE_MAX_WAIT)
     async def _trigger_reactive_lint(self) -> None:
-        """Triggers all reactive jobs for this module (as needed)"""
+        """Triggers all reactive lints for this module (as needed)"""
         self.log.debug("module.react.lint")
         self.queue_lint(cancel_running=True)
 
     @debounce(BUILD_DEBOUNCE, max_wait=BUILD_DEBOUNCE_MAX_WAIT)
     async def _trigger_reactive_build(self) -> None:
-        """Triggers all reactive jobs for this module (as needed)"""
+        """Triggers all reactive builds for this module (as needed)"""
         self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
         if not self.interp.has_user_errors:
             # all reactive stale builds and first timers (that weren't built yet)

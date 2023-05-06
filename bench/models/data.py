@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import pytz
+from django.contrib.postgres.indexes import GinIndex
 from django.db import connection, models, transaction
 from django.db.models import Count, F, Q
 
@@ -94,7 +95,7 @@ class DatasetRecord(UUIDModel):
     class Meta:
         ordering = ["order_key"]
         default_manager_name = "objects"
-        indexes = [models.Index(fields=["statement"])]
+        indexes = [models.Index(fields=["statement"]), GinIndex(fields=["data"])]
         constraints = [
             models.UniqueConstraint(
                 fields=["statement", "order_key"],

@@ -73,6 +73,7 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Check]: "check",
   [StatementModifier.With]: "with",
   [StatementModifier.Var]: "vary",
+  [StatementModifier.Local]: "local",
   [StatementModifier.Include]: "include",
   [StatementModifier.Magic]: "magic",
 };
@@ -94,6 +95,11 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Image]: "image",
   [TypeTag.Audio]: "audio",
   [TypeTag.Video]: "video",
+  [TypeTag.Json]: "json",
+  [TypeTag.Literal]: "literal",
+  [TypeTag.Struct]: "struct",
+  [TypeTag.Function]: "function",
+  [TypeTag.Union]: "union",
   [TypeTag.TypeReference]: "reference",
   [TypeTag.Enum]: "enum",
 };

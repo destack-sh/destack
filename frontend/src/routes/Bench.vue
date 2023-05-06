@@ -406,7 +406,7 @@ provideAction({
 
 // left click anywhere clears editor selection
 function clearSelectionIfLeftClick(e: MouseEvent) {
-  if (e.button == 0) {
+  if (e.button == 0 && !e.altKey && !e.shiftKey) {
     editor.clearSelection();
   }
 }
