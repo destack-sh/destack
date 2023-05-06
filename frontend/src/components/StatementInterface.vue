@@ -15,7 +15,7 @@ import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
-import { useRelativeDropZone } from "@/utils/drop";
+import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import { DocumentDuplicateIcon, PlayIcon, PlusIcon, SparklesIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
@@ -125,6 +125,7 @@ const rootCell: Ref<Cell> = computed(() => {
   };
 });
 
+const wrapperRef = ref<HTMLElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
 const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
@@ -254,14 +255,36 @@ const {
   inBottomHalf: dragInBottomHalf,
 } = useRelativeDropZone(
   containerRef,
+  ["Statement", "File"],
   onDrop,
   computed(() => !innerDrag.value)
 );
 
-async function onDrop(files: File[] | null) {
-  if (files == null) return;
-  console.log("drop insert files into new statement", files);
-  await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", files);
+function onDragStart(e: DragEvent) {
+  if (containerRef.value == null) return;
+  if (e.dataTransfer == null) throw new Error("no dataTransfer??");
+  setDragData(e, { type: "Statement", id: statement.value.id });
+  e.dataTransfer.setDragImage(containerRef.value, 0, 0);
+}
+
+async function onDrop(thing: File[] | { type: string; id: string } | null) {
+  if (thing == null) return;
+  if (Array.isArray(thing)) {
+    console.log("drop insert files into new statement", thing);
+    await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
+  } else if (thing?.type == "Statement") {
+    const targetStatement = nav.value.statementsById[thing.id];
+    if (thing.id == statement.value.id || targetStatement == null) {
+      return;
+    }
+    const dropLocation = dragInTopHalf.value
+      ? nav.value.getLocationRightAbove(statement.value as StatementHeader)
+      : nav.value.getLocationRightBelow(statement.value as StatementHeader);
+    console.log("drop move statement", thing, dropLocation);
+    await nav.value.moveTo(targetStatement as StatementHeader, dropLocation);
+  } else {
+    throw new Error("unexpected drop");
+  }
 }
 
 // runtime
@@ -298,7 +321,7 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
   });
 
   for (const buildEval of evaluations.getBuildEvaluations(statement.value.id)) {
-    const buildMetrics = buildEval.aggregatedMetrics;
+    const buildMetrics = buildEval?.aggregatedMetrics;
     const localMetrics = [
       {
         label: "Performance",
@@ -371,7 +394,12 @@ const inlineActions = computed(() => {
 </script>
 <template>
   <!-- Statement wrapper -->
-  <div class="group/statement relative w-full px-[50px]" @click="onClickContainer">
+  <div
+    class="group/statement relative w-full px-[50px]"
+    ref="wrapperRef"
+    @click="onClickContainer"
+    @dragstart="onDragStart"
+  >
     <!-- Add statement below button -->
     <button
       v-if="!context.readonly"
@@ -385,7 +413,7 @@ const inlineActions = computed(() => {
     </button>
     <!-- Monaco-like line numbers on the left margin -->
     <span
-      class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-75"
+      class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
       :style="{ transform: 'translateX(' + -30 + 'px)' }"
       :class="{
         'invisible group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
@@ -399,6 +427,8 @@ const inlineActions = computed(() => {
         'text-orange-500': dragOver && !isCommentish,
         'text-gray-500': dragOver && isCommentish,
       }"
+      @mousedown="wrapperRef?.setAttribute('draggable', 'true')"
+      @mouseup="wrapperRef?.setAttribute('draggable', 'false')"
     >
       {{ lineNumberBase + 1 }}
     </span>
