@@ -213,53 +213,51 @@ defineExpose({
     +description
   </button>
   <!-- Dataset type and records -->
-  <div
-    ref="gridRef"
-    class="-mx-1 grid min-w-fit"
-    :style="{
-      'grid-template-columns': `repeat(${columnsInOrder.length}, minmax(40px, 1fr))`,
-    }"
-  >
+  <table ref="gridRef" class="-mx-1 w-full table-fixed">
     <!-- Field types -->
-    <div
-      v-for="field in fieldTypeNodes"
-      :key="field?.id"
-      class="flex flex-row gap-1 border-b border-orange-900 border-opacity-[12%] p-1 focus-within:bg-orange-100"
-    >
-      <InlineValueCell
-        :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
-        immediate
-        debounced
-        :type="STRING_TYPE_NODE"
-        slim
-        :model-value="field.name"
-        :readonly="context.readonly.value"
-        :active="context.editing.value || context.focused.value"
-        @update:model-value="(val: any) => updateFieldName(field, val)"
-        class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-        @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
-        @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
-        @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
-        @navigate-down="typeGrid.navigateDown(field?.id, 'name')"
-        @keydown.delete.exact="isEditing || deleteField(field)"
-      />
-      <InlineTypeCell
-        :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
-        :type="field"
-        :readonly="context.readonly.value"
-        class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-        :model-value="field"
-        @update:model-value="(node: any) => updateFieldType(field, node)"
-        @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
-        @navigate-right="typeGrid.navigateRight(field?.id, 'type')"
-        @navigate-up="typeGrid.navigateUp(field?.id, 'type')"
-        @navigate-down="typeGrid.navigateDown(field?.id, 'type')"
-        @keydown.delete.exact="isEditing || deleteField(field)"
-      />
-    </div>
+    <tr class="border-b border-orange-900 border-opacity-[12%]">
+      <td v-for="field in fieldTypeNodes" :key="field?.id" class="">
+        <div class="flex flex-row gap-0.5 whitespace-nowrap p-1 focus-within:bg-orange-100">
+          <InlineValueCell
+            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
+            immediate
+            debounced
+            :type="STRING_TYPE_NODE"
+            slim
+            :model-value="field.name"
+            :readonly="context.readonly.value"
+            :active="context.editing.value || context.focused.value"
+            @update:model-value="(val: any) => updateFieldName(field, val)"
+            class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
+            @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
+            @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
+            @navigate-down="typeGrid.navigateDown(field?.id, 'name')"
+            @keydown.delete.exact="isEditing || deleteField(field)"
+          />
+          <InlineTypeCell
+            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
+            :type="field"
+            :readonly="context.readonly.value"
+            class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :model-value="field"
+            @update:model-value="(node: any) => updateFieldType(field, node)"
+            @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
+            @navigate-right="typeGrid.navigateRight(field?.id, 'type')"
+            @navigate-up="typeGrid.navigateUp(field?.id, 'type')"
+            @navigate-down="typeGrid.navigateDown(field?.id, 'type')"
+            @keydown.delete.exact="isEditing || deleteField(field)"
+          />
+        </div>
+      </td>
+    </tr>
     <!-- Records -->
-    <template v-for="record in context.records.value" :key="record.id">
-      <template v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id">
+    <tr
+      v-for="record in context.records.value"
+      :key="record.id"
+      class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
+    >
+      <td v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id" class="h-full">
         <InlineValueCell
           :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
           :model-value="record.data?.[field.key as string]"
@@ -277,13 +275,12 @@ defineExpose({
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
           @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="w-full self-start rounded-sm border border-b border-transparent border-b-orange-900 border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-          :class="field.id != fieldTypeNodes[0].id ? 'border-l border-l-orange-900' : ''"
+          class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
-      </template>
-    </template>
-  </div>
+      </td>
+    </tr>
+  </table>
   <!-- Insert button -->
   <button
     v-if="!context.readonly.value"
