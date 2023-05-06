@@ -21,6 +21,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
   (e: "escape"): void;
   (e: "enter"): void;
+  (e: "execute"): void;
 }>();
 
 const editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
@@ -155,8 +156,10 @@ function initMonaco(monaco: Monaco) {
     }
   });
 
-  // handle key events (delete if empty, navigate up/down if top/bottom)
+  // handle key events (delete if empty, navigate up/down if top/bottom, etc.)
   editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
+  editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
+  editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
   editor.value.onKeyDown((e) => {
     if (e.keyCode === monaco.KeyCode.Backspace) {
       if (editor.value?.getValue() === "") {

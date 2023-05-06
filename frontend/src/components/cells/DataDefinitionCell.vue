@@ -215,7 +215,7 @@ defineExpose({
   <!-- Dataset type and records -->
   <div
     ref="gridRef"
-    class="grid min-w-fit"
+    class="-mx-1 grid min-w-fit"
     :style="{
       'grid-template-columns': `repeat(${columnsInOrder.length}, minmax(40px, 1fr))`,
     }"
@@ -224,7 +224,7 @@ defineExpose({
     <div
       v-for="field in fieldTypeNodes"
       :key="field?.id"
-      class="flex flex-row gap-1 border-b border-orange-900 border-opacity-[12%] focus-within:bg-orange-100"
+      class="flex flex-row gap-1 border-b border-orange-900 border-opacity-[12%] p-1 focus-within:bg-orange-100"
     >
       <InlineValueCell
         :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
@@ -277,7 +277,8 @@ defineExpose({
           @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
           @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="w-full self-start rounded-sm border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          class="w-full self-start rounded-sm border border-b border-transparent border-b-orange-900 border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          :class="field.id != fieldTypeNodes[0].id ? 'border-l border-l-orange-900' : ''"
         />
         <!-- :EditableCellStyle -->
       </template>
@@ -288,7 +289,7 @@ defineExpose({
     v-if="!context.readonly.value"
     tabindex="-1"
     ref="addRecordRef"
-    class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+    class="mt-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
     @click="insertRecord()"
     @enter="insertRecord()"
     @keydown.up.exact="focusLastRecord"

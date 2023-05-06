@@ -154,6 +154,7 @@ defineExpose({
             @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
             :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
+            :active="context.focused.value || context.editing.value"
             immediate
             debounced
             :placeholder-value="context.editing.value ? '+' + column : null"
@@ -203,6 +204,7 @@ defineExpose({
             @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
             :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
+            :active="context.focused.value || context.editing.value"
             immediate
             debounced
             :placeholder-value="context.editing.value ? '+' + column : null"
@@ -224,7 +226,7 @@ defineExpose({
       </template>
       <!-- Add a member -->
       <button
-        v-show="!context.readonly.value"
+        v-if="!context.readonly.value"
         tabindex="-1"
         ref="addOutputRef"
         class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"

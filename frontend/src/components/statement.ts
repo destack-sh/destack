@@ -103,6 +103,7 @@ export function useStatementContext() {
 
   function tryDeleteLeft() {
     // should really be handled here :MissingStatementContext
+    // (this can actually be fixed now with navigation context)
     actions.apply("statement.deleteCurrentLeft");
   }
 
@@ -356,6 +357,7 @@ function makeTypeNodeInput(id: string, typeNode: SimpleType): TypeNodeCreateInpu
     statementId: id,
     id: typeNode.id,
     tag: typeNode.tag,
+    key: newTypeNodeKey(),
     orderKey: typeNode.orderKey,
     referenceId: typeNode.reference?.id ?? null,
     description: typeNode.description ?? null,

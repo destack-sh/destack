@@ -141,6 +141,7 @@ defineExpose({
         :type="STRING_TYPE_NODE"
         :readonly="context.readonly.value"
         :editing="false"
+        :active="context.editing.value || context.focused.value"
         immediate
         debounced
         slim
