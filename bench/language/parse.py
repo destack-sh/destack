@@ -1610,31 +1610,22 @@ def interp(
             for child in scope.proper_symbols:
                 if child.source.is_expect:
                     symbol.expectations.append(child)
-                else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Task):
             for child in scope.proper_symbols:
                 if child.source.is_expect:
                     symbol.expectations.append(child)
                 elif isinstance(child, (Task, Code)):
                     symbol.steps.append(child)
-                else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Expectation):
             for child in scope.proper_symbols:
                 if child.source.is_expect:
                     symbol.expectations.append(child)
-                else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
         elif isinstance(symbol, Build):
             for child in scope.proper_symbols:
                 if isinstance(child, Model):
                     symbol.models.append(child)
                 elif isinstance(child, Task):
                     symbol.tasks.append(child)
-                else:
-                    _error(ET.UNEXPECTED_STATEMENT, child.source)
-
             # add all tasks in module for autobuilds :AutobuildTasks
             if symbol.source is not None and symbol.source.file.path == "instructors":
                 for task in idx.symbols.values():
@@ -1652,11 +1643,6 @@ def interp(
                     symbol.tasks.append(child)
                 elif isinstance(child, Build):
                     symbol.builds.append(child)
-        else:
-            # default interp (expect no children)
-            if scope.proper_statements:
-                _error(ET.UNEXPECTED_CHILDREN, statement)
-                continue
 
     # add symbol context for those who need it
     for id, symbol in idx.symbols.items():

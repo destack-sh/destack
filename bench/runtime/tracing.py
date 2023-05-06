@@ -284,14 +284,14 @@ class ExecutionTracer(Tracer):
 
     def code_enter(self, code: CodeInstance, args, kwargs):
         # map args into kwargs
-        combined_kwargs = {}
+        combined_kwargs = {**kwargs}
         for input_t, input in zip(code.inputs, args):
             combined_kwargs[input_t.name] = input
         frame = self._create_frame(
             code=code, inputs=code.type.rekey(combined_kwargs, is_output=False)
         )
         self.stacktrace.append(frame)
-        self.tracker(frame)  # tracker may mutate/do other things, so log afterwards
+        self.tracker(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
