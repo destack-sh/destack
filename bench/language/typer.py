@@ -110,8 +110,8 @@ def unkey_value(
     """Replaces all name 'keys' with the actual names (recursively)."""
     if type.tag in PRIMITIVE_TYPES:
         return value
-    elif type.tag != TypeTag.STRUCT:
-        raise TypeError(value, type, "expected struct")
+    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, dict):
         return value  # type error, but ignore here
     if type.is_array and not ignore_array:
@@ -132,8 +132,8 @@ def rekey_value(
     """Replaces all actual names with the name 'keys' (recursively)."""
     if type.tag in PRIMITIVE_TYPES:
         return value
-    elif type.tag != TypeTag.STRUCT:
-        raise TypeError(value, type, "expected struct")
+    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, dict):
         return value  # type error, but ignore here
     if type.is_array and not ignore_array:
