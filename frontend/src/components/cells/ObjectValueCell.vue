@@ -125,10 +125,11 @@ defineExpose({
   </span>
   <!-- Existing file -->
   <!-- TODO @Feature @UX: make file view openable and prettier -->
+  <!-- TODO @Feature @UX: preview files, images, etc.! -->
   <span
     v-else
     ref="dropZoneRef"
-    class="group relative inline-block h-full w-full text-black hover:cursor-pointer"
+    class="text- black group relative inline-block h-full w-full hover:cursor-pointer"
     :class="{ 'bg-orange-100': dragOver && supportsDrop }"
     @click="open"
   >

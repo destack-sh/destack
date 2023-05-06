@@ -227,7 +227,7 @@ defineExpose({
         :checked="readValue"
         :disabled="props.readonly"
       />
-      <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}</span>
+      <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}&nbsp;</span>
       <ObjectValueCell
         ref="valueRef"
         v-else-if="OBJECT_TYPETAGS.includes(type.tag)"

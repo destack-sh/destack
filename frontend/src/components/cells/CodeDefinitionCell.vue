@@ -16,6 +16,7 @@ context.syncCode(
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
+const addingTypes = ref(false);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
@@ -35,8 +36,16 @@ defineExpose({
     @navigate-right="typeRef?.focus"
   />
   <!-- Inline type -->
+  <button
+    v-if="!addingTypes && !context.readonly.value && context.typeNodes.value.length == 0"
+    ref="typeRef"
+    class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+    @click="addingTypes = true"
+  >
+    +arguments
+  </button>
   <FunctionTypeCell
-    v-if="context.typeNodes.value.length > 0 || !context.readonly.value"
+    v-else-if="context.typeNodes.value.length > 0 || addingTypes"
     ref="typeRef"
     class="py-1"
     @navigate-up="context.navigateUp"
