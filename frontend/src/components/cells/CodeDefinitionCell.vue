@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
+import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import { computed, ref, type Ref } from "vue";
@@ -15,7 +15,7 @@ context.syncCode(
 );
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
-const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
@@ -35,9 +35,10 @@ defineExpose({
     @navigate-right="typeRef?.focus"
   />
   <!-- Inline type -->
-  <InlineFunctionTypeCell
+  <FunctionTypeCell
+    v-if="context.typeNodes.value.length > 0 || !context.readonly.value"
     ref="typeRef"
-    class="ml-3 inline-flex"
+    class="py-1"
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

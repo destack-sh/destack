@@ -48,7 +48,7 @@ const canRun = computed(
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition, StatementType.Redefinition],
-  symbolTypes: [SymbolType.Task],
+  symbolTypes: [SymbolType.Task, SymbolType.Code],
 });
 const query = ref("");
 // :ProperSymbolSearch
@@ -102,14 +102,15 @@ const evaluateMain = provideGlobalAction({
 });
 
 const mainActions = [
-  {
-    label: "Build",
-    icon: WrenchIcon,
-    enabled: canBuild,
-    stale: mainSymbolStale,
-    active: computed(() => buildRunning.value || ops.state.hasInflightLike({ types: ["runtime.build"] })),
-    action: () => buildMain.value.apply(),
-  },
+  // :BuildEvaluate disabled for now
+  // {
+  //   label: "Build",
+  //   icon: WrenchIcon,
+  //   enabled: canBuild,
+  //   stale: mainSymbolStale,
+  //   active: computed(() => buildRunning.value || ops.state.hasInflightLike({ types: ["runtime.build"] })),
+  //   action: () => buildMain.value.apply(),
+  // },
   {
     label: "Run",
     icon: PlayIcon,
@@ -117,22 +118,22 @@ const mainActions = [
     active: computed(() => ops.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
-  {
-    label: "Evaluate",
-    icon: CheckCircleIcon,
-    enabled: computed(() => evaluateMain.value.enabled),
-    active: computed(
-      () => evaluateRunning.value || ops.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
-    ),
-    stale: mainSymbolStale,
-    action: () => evaluateMain.value.apply(),
-  },
+  // {
+  //   label: "Evaluate",
+  //   icon: CheckCircleIcon,
+  //   enabled: computed(() => evaluateMain.value.enabled),
+  //   active: computed(
+  //     () => evaluateRunning.value || ops.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
+  //   ),
+  //   stale: mainSymbolStale,
+  //   action: () => evaluateMain.value.apply(),
+  // },
 ];
 </script>
 <template>
   <!-- Wrapper -->
   <div
-    class="flex flex-row items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 pr-2"
+    class="flex flex-row items-center space-x-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100"
     v-if="availableSymbols.length > 0"
   >
     <!-- Select main statement -->
@@ -145,7 +146,7 @@ const mainActions = [
       v-slot="{ open }"
     >
       <ListboxButton
-        class="flex w-fit max-w-fit flex-row items-center gap-1 whitespace-nowrap rounded-sm border-none py-1.5 pl-4 pr-2 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
+        class="flex w-fit max-w-fit flex-row items-center gap-1 whitespace-nowrap rounded-sm border-none py-1.5 pl-3 pr-0.5 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
         :class="{
           'font-mono tracking-tighter': editor.fontMono,
           'text-sm': editor.textSmall,
@@ -171,8 +172,8 @@ const mainActions = [
         >
           <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
           <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>
-          <!-- Deselect (null option) -->
-          <ListboxOption :key="null" :value="null" as="template" v-slot="{ active, selected }">
+          <!-- Deselect (null option) not needed because of disabled :BuildEvaluate -->
+          <!-- <ListboxOption :key="null" :value="null" as="template" v-slot="{ active, selected }">
             <li
               :class="[
                 'relative cursor-default select-none px-2 py-0.5',
@@ -181,10 +182,10 @@ const mainActions = [
               ]"
             >
               <div class="flex items-baseline justify-between">
-                <span class="truncate text-gray-500">[{{ runtime.name.value }}]</span>
+                <span class="text-gray-500 truncate">[{{ runtime.name.value }}]</span>
               </div>
             </li>
-          </ListboxOption>
+          </ListboxOption> -->
           <!-- Actual  options -->
           <ListboxOption
             v-for="stmt in filteredSymbols"

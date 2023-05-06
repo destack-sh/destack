@@ -217,8 +217,8 @@ defineExpose({
         />
       </div>
       <!-- Content preview -->
-      <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}</span>
-      <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}</span>
+      <span ref="valueRef" class="text-left" v-else-if="type.tag == TypeTag.String">{{ readValue }}&nbsp;</span>
+      <span ref="valueRef" class="text-right" v-else-if="type.tag == TypeTag.Number">{{ readValue }}&nbsp;</span>
       <input
         ref="valueRef"
         type="checkbox"
@@ -256,7 +256,7 @@ defineExpose({
         </div>
       </div>
       <!-- Can't render this type! -->
-      <span ref="valueRef" v-else class="">{{ readValue }}</span>
+      <span ref="valueRef" v-else class="">{{ readValue }}&nbsp;</span>
     </div>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div

@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
-import InlineFunctionTypeCell from "@/components/cells/InlineFunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { computed, ref, type Ref } from "vue";
@@ -22,7 +21,7 @@ context.syncDescription(
 );
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
-const typeRef: Ref<InstanceType<typeof InlineFunctionTypeCell> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
@@ -55,7 +54,7 @@ defineExpose({
     />
     <button
       tabindex="-1"
-      v-if="description.trim().length == 0"
+      v-if="description.trim().length == 0 && !context.readonly.value"
       @click="descriptionRef?.focus()"
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
@@ -63,7 +62,7 @@ defineExpose({
     </button>
     <!-- Inline type -->
     <FunctionTypeCell
-      v-if="isTyped"
+      v-if="isTyped && (context.typeNodes.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
       class="py-1"
       @navigate-up="context.navigateUp"
