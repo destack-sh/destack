@@ -2,7 +2,7 @@
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
 import type * as monaco from "monaco-editor";
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;

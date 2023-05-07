@@ -1,30 +1,23 @@
 <script lang="ts" setup>
-import MonacoEditor from "@/components/MonacoEditor.vue";
+import TiptapEditor from "@/components/TiptapEditor.vue";
 import { useStatementContext } from "@/components/statement";
-import { useEditorState } from "@/state/editor";
-import DOMPurify from "dompurify";
-import { marked } from "marked";
-import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
-import { useRouter } from "vue-router";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
-const monacoEditorRef = ref<InstanceType<typeof MonacoEditor> | null>(null);
-const renderedRef = ref<HTMLDivElement | null>(null);
+const editorRef = ref<InstanceType<typeof TiptapEditor> | null>(null);
 const content: Ref<string> = ref(context.statement.value.code ?? "");
 context.syncText(
   content,
-  computed(() => monacoEditorRef.value?.focused)
+  computed(() => editorRef.value?.focused)
 );
-
-const sanitizedHtml = computed(() => DOMPurify.sanitize(marked.parse(content.value || "")));
 
 function focus() {
   // focus the end of the content if we just updated it, which puts it in pending state
   // (likely due to a morph to comment where we want to keep editing smoothly)
   const focusEnd = context.statement.value.revision < 0;
   // not sure why we need both, but acquiring focus doesn't always succeed otherwise
-  monacoEditorRef.value?.focus(focusEnd);
-  nextTick(() => monacoEditorRef.value?.focus(focusEnd));
+  editorRef.value?.focus(focusEnd);
+  nextTick(() => editorRef.value?.focus(focusEnd));
 }
 
 // morph back to blank if it's empty for smooth back and forth
@@ -34,45 +27,14 @@ watch(content, () => {
   }
 });
 
-// handle clicks on links in rendered div
-const router = useRouter();
-watchEffect(() => {
-  if (renderedRef.value) {
-    renderedRef.value.querySelectorAll("a").forEach((a) => {
-      a.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (context.readonly.value || e.altKey) {
-          // don't start editing, actually go there :AltKeyEditing
-          // if it it's a bench site then open in this window
-          if (a.href.startsWith("http://127.0.0.1") || a.href.startsWith("https://bench.symbolx.com")) {
-            const url = new URL(a.href);
-            router.push(url.pathname);
-          } else {
-            // otherwise open external links in new window
-            window.open(a.href, "_blank");
-          }
-        } else {
-          // start editing
-          focus();
-        }
-      });
-    });
-  }
-});
-
-const editor = useEditorState();
-
 defineExpose({
   focus,
-  blur: () => monacoEditorRef.value?.blur(),
+  blur: () => editorRef.value?.blur(),
 });
 </script>
 <template>
-  <!-- Editing source markdown -->
-  <MonacoEditor
-    v-show="context.editing.value"
-    ref="monacoEditorRef"
+  <TiptapEditor
+    ref="editorRef"
     :model-value="content || ''"
     @update:model-value="content = $event"
     @navigateUp="context.navigateUp"
@@ -82,22 +44,6 @@ defineExpose({
     @delete-if-empty="context.deleteSelf"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    :line-number-offset="0"
-    :line-number-shift-px="context.xOffset.value + 20"
-    :style="{ marginLeft: -context.xOffset.value - 20 + 'px' }"
-    hide-line-numbers
-    language="markdown"
-  />
-  <!-- Show rendered markdown if not editing -->
-  <div
-    ref="renderedRef"
-    v-if="!context.editing.value"
-    class="prose mt-[-1px] prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-700"
-    :class="{
-      'text-sm': editor.textSmall,
-      'text-md': !editor.textSmall,
-      'font-mono': editor.fontMono,
-    }"
-    v-html="sanitizedHtml"
+    class="mt-[-1px]"
   />
 </template>
