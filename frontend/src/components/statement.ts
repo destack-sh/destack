@@ -33,6 +33,7 @@ export type StatementContext = {
   statement: FragmentType<typeof StatementContentType>;
   file: FragmentType<typeof FileHeaderType>;
   reference: InterpSymbol | { id: string; name: string } | null;
+  destroyed: boolean;
 };
 
 export function useStatementContext() {
@@ -234,12 +235,17 @@ export function useStatementContext() {
   // since that includes multiplayer updates and redo/undo data while not editing.
   // That's why we only save the properties while the user is editing, otherwise we would have
 
+  // We can only save if the statement wasn't deleted, and often the statement component owning the
+  // statement reference is destroyed before the deletedAt is set, so we also treat the context destroy as delete.
+  const isDeleted = computed(() => statement.value.deletedAt != null || context.value.destroyed);
+
   function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
     syncProperty({
       value: content,
       editing,
       read: () => (content.value = statement.value?.name ?? ""),
       write: () => ops.statement.rename(null, statement.value.id, statement.value.name ?? "", content.value),
+      enabled: computed(() => !isDeleted.value),
     });
   }
 
@@ -248,9 +254,12 @@ export function useStatementContext() {
       value: content,
       editing,
       read: () => (content.value = statement.value?.code ?? ""),
-      write: () => ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", content.value),
+      write: () => {
+        ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", content.value);
+      },
       debounceMs: 1000,
-      debounceMaxWait: 5000,
+      debounceMaxWait: 3000,
+      enabled: computed(() => !isDeleted.value),
     });
   }
 
@@ -269,6 +278,7 @@ export function useStatementContext() {
           statement.value.description ?? "",
           content.value
         ),
+      enabled: computed(() => !isDeleted.value),
     });
   }
 

@@ -1,8 +1,9 @@
 <script lang="ts" setup>
-import { useEditor, EditorContent, Extension } from "@tiptap/vue-3";
+import { useEditor, BubbleMenu, EditorContent, Extension } from "@tiptap/vue-3";
 import StarterKit from "@tiptap/starter-kit";
-import { defineExpose, defineProps, defineEmits, ref, watch, type Ref } from "vue";
+import { ref, watch, watchEffect, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
+import { BubbleMenu as BubbleMenuExt } from "@tiptap/extension-bubble-menu";
 
 const props = defineProps<{
   modelValue: string;
@@ -61,14 +62,35 @@ function onKeyDown(event: KeyboardEvent) {
   }
 }
 
-// TODO @Broken @UX: programmatically apply apperance classes to tiptap editor
 const appearance = useAppearance();
+function getEditorClass(): string {
+  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-700 w-full"];
+  if (appearance.fontMono) {
+    classes.push("font-mono");
+  }
+  if (appearance.textSmall) {
+    classes.push("text-sm");
+  } else {
+    classes.push("text-md");
+  }
+  return classes.join(" ");
+}
+
 const editor = useEditor({
   content: props.modelValue,
-  extensions: [StarterKit, shortcutsExtension],
+  extensions: [
+    StarterKit,
+    shortcutsExtension,
+    BubbleMenuExt.configure({
+      element: document.querySelector(".menu"),
+    }),
+  ],
+  parseOptions: {
+    preserveWhitespace: "full",
+  },
   editorProps: {
     attributes: {
-      class: "prose prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-700 w-full text-sm",
+      class: getEditorClass(),
     },
   },
   editable: !props.readonly,
@@ -81,6 +103,17 @@ const editor = useEditor({
   onBlur() {
     focused.value = false;
   },
+});
+
+// sync appearance changes into editor
+watchEffect(() => {
+  editor.value?.setOptions({
+    editorProps: {
+      attributes: {
+        class: getEditorClass(),
+      },
+    },
+  });
 });
 
 // sync modelValue into editor
@@ -108,7 +141,37 @@ defineExpose({
 });
 </script>
 <template>
-  <EditorContent :editor="editor" @keydown="onKeyDown" />
+  <div>
+    <BubbleMenu
+      :editor="editor"
+      :tippy-options="{ duration: 100 }"
+      v-if="editor"
+      class="z-20 flex flex-row gap-1 rounded-sm border border-orange-900 border-opacity-20 bg-white p-1"
+    >
+      <button
+        @click="editor.chain().focus().toggleBold().run()"
+        class="text-sm hover:bg-orange-100"
+        :class="{ 'font-bold text-gray-900': editor.isActive('bold'), 'text-gray-500': !editor.isActive('bold') }"
+      >
+        bold
+      </button>
+      <button
+        @click="editor.chain().focus().toggleItalic().run()"
+        class="text-sm hover:bg-orange-100"
+        :class="{ 'font-bold text-gray-900': editor.isActive('italic'), 'text-gray-500': !editor.isActive('italic') }"
+      >
+        italic
+      </button>
+      <button
+        @click="editor.chain().focus().toggleStrike().run()"
+        class="text-sm hover:bg-orange-100"
+        :class="{ 'font-bold text-gray-500': editor.isActive('strike'), 'text-gray-500': !editor.isActive('strike') }"
+      >
+        strike
+      </button>
+    </BubbleMenu>
+    <EditorContent :editor="editor" @keydown="onKeyDown" />
+  </div>
 </template>
 <style>
 .ProseMirror:focus {
