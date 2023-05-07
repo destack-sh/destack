@@ -32,7 +32,7 @@ const now = useTimeFromNow();
       </span>
       <!-- Profile info popover -->
       <div
-        class="invisible absolute right-0 z-10 mt-3 w-72 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover:visible"
+        class="invisible absolute right-0 z-10 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover:visible"
       >
         <div class="flex flex-row items-baseline justify-between">
           <span class="font-bold text-gray-900">
