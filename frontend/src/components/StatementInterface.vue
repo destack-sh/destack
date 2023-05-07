@@ -19,7 +19,17 @@ import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
 import { DocumentDuplicateIcon, PlayIcon, PlusIcon, SparklesIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, provide, ref, watch, type Component, type ComputedRef, type Ref } from "vue";
+import {
+  computed,
+  nextTick,
+  provide,
+  ref,
+  watch,
+  onBeforeUnmount,
+  type Component,
+  type ComputedRef,
+  type Ref,
+} from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -46,6 +56,8 @@ const isCommented = computed(() => statement.value?.commented || ancestors.value
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
+const lineNumber = computed(() => nav.value?.statementPositions[statement.value.id] + 1 ?? 0);
+const lineNumberDigits = computed(() => lineNumber.value.toString().length);
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
@@ -57,7 +69,11 @@ const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
 );
 
-// manage cells
+// provide context
+const destroyed = ref(false); // (useful for delete tracking if component had no time to update)
+onBeforeUnmount(() => {
+  destroyed.value = true;
+});
 const context: Ref<StatementContext> = computed(() => ({
   readonly: editor.readonly || props.readonly,
   focused: isFocused.value,
@@ -68,11 +84,13 @@ const context: Ref<StatementContext> = computed(() => ({
   statement: props.statement,
   reference: symbolOf(statement.value.reference?.id) ?? null,
   file: props.file,
+  destroyed: destroyed.value,
 }));
 provide(STATEMENT_CONTEXT, context);
 const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
+// manage cells
 type Cell = {
   component: Component;
   props?: any;
@@ -400,53 +418,6 @@ const inlineActions = computed(() => {
     @click="onClickContainer"
     @dragstart="onDragStart"
   >
-    <!-- Add statement below button -->
-    <button
-      v-if="!context.readonly"
-      class="invisible absolute top-0.5 rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:visible"
-      :style="{
-        left: highlightOffsetX + (highlightOffsetX != 0 ? 28 : 6) + 'px',
-      }"
-      @click="insertStatementBelow"
-    >
-      <PlusIcon class="h-4 w-4" />
-    </button>
-    <!-- Monaco-like line numbers on the left margin -->
-    <span
-      class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
-      :style="{ transform: 'translateX(' + -30 + 'px)' }"
-      :class="{
-        'invisible group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
-        'text-sm': editor.textSmall,
-        'text-md': !editor.textSmall,
-        'font-mono': editor.fontMono,
-        'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
-          !isCommentish,
-        'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
-          isCommentish,
-        'text-orange-500': dragOver && !isCommentish,
-        'text-gray-500': dragOver && isCommentish,
-      }"
-      @mousedown="wrapperRef?.setAttribute('draggable', 'true')"
-      @mouseup="wrapperRef?.setAttribute('draggable', 'false')"
-    >
-      {{ lineNumberBase + 1 }}
-    </span>
-    <!-- Left gutter indicators (beneath line numbers) -->
-    <div
-      v-if="statement.generated"
-      class="absolute top-[28px] select-none"
-      :style="{ transform: 'translateX(' + -19 + 'px)' }"
-    >
-      <SparklesIcon
-        class="h-4 w-4"
-        :class="{
-          'text-gray-200 group-focus-within/statement:text-gray-500 group-hover/statement:text-gray-500': isStale,
-          'text-orange-200 group-focus-within/statement:text-orange-500 group-hover/statement:text-orange-500':
-            !isStale,
-        }"
-      />
-    </div>
     <!-- Statement main -->
     <div
       tabindex="-1"
@@ -466,6 +437,54 @@ const inlineActions = computed(() => {
         width: `calc(100% - ${highlightOffsetX}px)`,
       }"
     >
+      <!-- Add statement below button -->
+      <!-- z-[5] to put it over the line numbers, which have a fixed width to make positioning easier (don't expect >99 statements/file) -->
+      <button
+        v-if="!context.readonly"
+        class="invisible absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:visible"
+        :style="{
+          transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
+        }"
+        @click="insertStatementBelow"
+      >
+        <PlusIcon class="h-4 w-4" />
+      </button>
+      <!-- Monaco-like line numbers on the left margin -->
+      <span
+        class="invisible absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
+        :style="{ transform: 'translateX(' + -30 + 'px)' }"
+        :class="{
+          ' group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
+          'text-sm': editor.textSmall,
+          'text-md': !editor.textSmall,
+          'font-mono': editor.fontMono,
+          'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
+            !isCommentish,
+          'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
+            isCommentish,
+          'text-orange-500': dragOver && !isCommentish,
+          'text-gray-500': dragOver && isCommentish,
+        }"
+        @mousedown="wrapperRef?.setAttribute('draggable', 'true')"
+        @mouseup="wrapperRef?.setAttribute('draggable', 'false')"
+      >
+        {{ lineNumberBase + 1 }}
+      </span>
+      <!-- Left gutter indicators (beneath line numbers) -->
+      <div
+        v-if="statement.generated"
+        class="absolute top-[28px] select-none"
+        :style="{ transform: 'translateX(' + -19 + 'px)' }"
+      >
+        <SparklesIcon
+          class="h-4 w-4"
+          :class="{
+            'text-gray-200 group-focus-within/statement:text-gray-500 group-hover/statement:text-gray-500': isStale,
+            'text-orange-200 group-focus-within/statement:text-orange-500 group-hover/statement:text-orange-500':
+              !isStale,
+          }"
+        />
+      </div>
       <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />

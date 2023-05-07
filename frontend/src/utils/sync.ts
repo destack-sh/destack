@@ -11,9 +11,13 @@ export function syncProperty<T>(property: {
   write: () => void;
   debounceMs?: number;
   debounceMaxWait?: number;
+  enabled?: Ref<boolean>;
 }) {
   const pendingSave = ref(false);
   function _saveProperty() {
+    if (property.enabled?.value === false) {
+      return;
+    }
     property.write();
     pendingSave.value = false;
   }
