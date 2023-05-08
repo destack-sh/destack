@@ -89,7 +89,7 @@ deprecated==1.2.13
     # via opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
-django==4.2
+django==4.2.1
     # via
     #   -r requirements.in
     #   channels
