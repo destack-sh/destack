@@ -219,7 +219,7 @@ export function useStatementOps() {
     tx: Transaction | null,
     id: string,
     fileId: string,
-    parentId: string | null,
+    parentId: string | undefined | null,
     orderKey: string
   ) {
     return await ops.perform({
@@ -229,7 +229,7 @@ export function useStatementOps() {
         return await createStatementMut({
           id,
           fileId,
-          parentId,
+          parentId: parentId ?? null,
           orderKey,
           type: StatementType.Blank,
           modifier: null,
@@ -258,7 +258,7 @@ export function useStatementOps() {
     input: {
       id: string;
       fileId: string;
-      parentId: string | null;
+      parentId: string | undefined | null;
       orderKey: string;
       symbolType: SymbolType;
       name?: string;
@@ -273,7 +273,7 @@ export function useStatementOps() {
         return await createStatementMut({
           id: input.id,
           fileId: input.fileId,
-          parentId: input.parentId,
+          parentId: input.parentId ?? null,
           orderKey: input.orderKey,
           type: StatementType.Definition,
           modifier: null,

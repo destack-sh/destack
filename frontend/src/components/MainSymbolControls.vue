@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useFragment } from "@/gql";
 import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol, BuildScope } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
+import { SimpleTypeNodeType } from "@/state/fragments";
 import { useJobs } from "@/state/jobs";
 import { useOperations } from "@/state/operations";
 import { fileOf, isSymbolStale, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
@@ -79,14 +81,20 @@ const buildMain = provideGlobalAction({
   },
 });
 
+// can run inline if has no non-default inputs :InlineRun
+const hasNoInputs = computed(() => mainSymbol.value?.typeNodes?.filter((n) => !n.isOutput).length == 0);
 const runMain = provideGlobalAction({
   id: "symbol.runMain",
-  label: computed(() => "Run " + mainSymbol.value?.name),
+  label: computed(() => "Run " + mainSymbol.value?.name + (hasNoInputs.value ? "" : "...")),
   shortcuts: ["f9"],
   enabled: canRun,
   apply: async () => {
     if (mainSymbol.value == null) return;
-    await symbolOps.openRun(mainSymbol.value);
+    if (hasNoInputs.value) {
+      await symbolOps.run(mainSymbol.value);
+    } else {
+      await symbolOps.openRun(mainSymbol.value);
+    }
   },
 });
 

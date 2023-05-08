@@ -13,7 +13,7 @@ import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
-import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { FileHeaderType, SimpleTypeNodeType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
@@ -143,8 +143,8 @@ const rootCell: Ref<Cell> = computed(() => {
   };
 });
 
-const wrapperRef = ref<HTMLElement | null>(null);
 const containerRef = ref<HTMLElement | null>(null);
+const innerWrapperRef = ref<HTMLElement | null>(null);
 const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: containerFocused } = useFocus(containerRef);
@@ -278,11 +278,13 @@ const {
   computed(() => !innerDrag.value)
 );
 
+// TODO @Broken @UX: drag & drop doesn't work while holding shift, which means we can't move selections
+//  (also would need to include other elements (incl. descendants) in drag image)
 function onDragStart(e: DragEvent) {
-  if (containerRef.value == null) return;
+  if (innerWrapperRef.value == null) return;
   if (e.dataTransfer == null) throw new Error("no dataTransfer??");
   setDragData(e, { type: "Statement", id: statement.value.id });
-  e.dataTransfer.setDragImage(containerRef.value, 0, 0);
+  e.dataTransfer.setDragImage(innerWrapperRef.value, 0, 0);
 }
 
 async function onDrop(thing: File[] | { type: string; id: string } | null) {
@@ -292,7 +294,12 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
     await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
   } else if (thing?.type == "Statement") {
     const targetStatement = nav.value.statementsById[thing.id];
-    if (thing.id == statement.value.id || targetStatement == null) {
+    if (
+      thing.id == statement.value.id ||
+      targetStatement == null ||
+      nav.value.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
+      nav.value.isDescendantOf(statement.value as StatementHeader, targetStatement)
+    ) {
       return;
     }
     const dropLocation = dragInTopHalf.value
@@ -363,6 +370,10 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
 });
 
 // symbol ops (inline)
+// can run inline if has no non-default inputs :InlineRun
+const hasNoInputs = computed(
+  () => statement.value.typeNodes?.map((n) => useFragment(SimpleTypeNodeType, n)).filter((n) => !n.isOutput).length == 0
+);
 type InlineAction = {
   label: string;
   icon: any;
@@ -389,9 +400,22 @@ const inlineActions = computed(() => {
   //     action: () => symbolOps.build(statement.value, BuildScope.Reactive),
   //   });
   // }
-  if (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) {
+  if (
+    (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) &&
+    hasNoInputs.value
+  ) {
     inlineActions.push({
       label: "Run",
+      icon: PlayIcon,
+      action: () => symbolOps.run(statement.value),
+    });
+  }
+  if (
+    (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) &&
+    !hasNoInputs.value
+  ) {
+    inlineActions.push({
+      label: "Run...",
       icon: PlayIcon,
       action: () => symbolOps.openRun(statement.value),
     });
@@ -412,16 +436,12 @@ const inlineActions = computed(() => {
 </script>
 <template>
   <!-- Statement wrapper -->
-  <div
-    class="group/statement relative w-full px-[50px]"
-    ref="wrapperRef"
-    @click="onClickContainer"
-    @dragstart="onDragStart"
-  >
+  <div class="group/statement relative w-full px-[50px]" @click="onClickContainer">
     <!-- Statement main -->
     <div
       tabindex="-1"
       ref="containerRef"
+      @dragstart="onDragStart"
       class="relative min-h-[30px] w-full outline-none transition duration-75 focus:outline-none"
       :class="{
         'focus:bg-orange-100': !isCommentish,
@@ -465,8 +485,8 @@ const inlineActions = computed(() => {
           'text-orange-500': dragOver && !isCommentish,
           'text-gray-500': dragOver && isCommentish,
         }"
-        @mousedown="wrapperRef?.setAttribute('draggable', 'true')"
-        @mouseup="wrapperRef?.setAttribute('draggable', 'false')"
+        @mousedown="containerRef?.setAttribute('draggable', 'true')"
+        @mouseup="containerRef?.setAttribute('draggable', 'false')"
       >
         {{ lineNumberBase + 1 }}
       </span>
@@ -527,6 +547,7 @@ const inlineActions = computed(() => {
       />
       <!-- Main cell -->
       <div
+        ref="innerWrapperRef"
         class="relative px-2 py-1"
         :class="{
           'text-sm': editor.textSmall,
