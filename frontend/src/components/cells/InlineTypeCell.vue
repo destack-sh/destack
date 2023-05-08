@@ -151,7 +151,7 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="valueRef"
-      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-orange-600 bg-orange-100 p-1 outline-none ring-0 hover:bg-orange-100 focus:border-orange-600 focus:underline focus:ring-0"
+      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
       :class="{
         'font-mono': editor.fontMono,
         'text-sm placeholder:text-sm': editor.textSmall,
@@ -166,7 +166,7 @@ defineExpose({
     />
     <ComboboxOptions
       ref="optionsRef"
-      class="absolute z-20 mt-8 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+      class="absolute z-20 mt-8 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
       static
       v-show="editing"
       :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"

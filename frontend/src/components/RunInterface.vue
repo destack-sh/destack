@@ -183,19 +183,18 @@ const outputColumns = computed(() =>
           <button
             class="rounded-sm rounded-r-none border border-orange-900 border-opacity-[15%] px-2 py-1 hover:cursor-pointer"
             :class="{ 'bg-orange-100': !batchMode }"
-            @click="batchMode = false"
           >
             Single
           </button>
-          <button
+          <!-- <button
             class="rounded-sm rounded-l-none border border-orange-900 border-opacity-[15%] px-2 py-1 hover:cursor-pointer"
             :class="{ 'rounded-r-none border-r-0 bg-orange-100': batchMode }"
             @click="batchMode = true"
           >
             Batch
-          </button>
+          </button> -->
           <!-- Batch source select (if batch mode) -->
-          <ReferenceComboCell
+          <!-- <ReferenceComboCell
             v-if="batchMode"
             class="rounded-sm rounded-l-none border border-orange-900 border-opacity-[15%] bg-orange-100 py-1 pr-2 hover:cursor-pointer"
             :class="{ 'rounded-l-none border-l-0': batchMode }"
@@ -204,7 +203,7 @@ const outputColumns = computed(() =>
             @set-reference="batchSourceDataset = $event ?? undefined"
             :available-symbols="availableDatasets"
             @navigate-down="argumentsGrid.focus(0, 'value')"
-          />
+          /> -->
           <!-- Builds -->
           <span
             class="ml-3 flex items-center gap-0.5 border border-orange-900 border-opacity-[15%] bg-orange-100 px-2 py-1"

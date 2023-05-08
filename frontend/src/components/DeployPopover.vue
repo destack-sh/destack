@@ -93,7 +93,7 @@ function archiveDeployment() {
 
 const endpoints = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Task, SymbolType.Runconfig],
+  symbolTypes: [SymbolType.Task, SymbolType.Code, SymbolType.Runconfig],
 });
 const deployedEndpoints = computed(() => endpoints.value); // not configurable yet
 

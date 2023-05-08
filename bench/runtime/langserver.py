@@ -45,10 +45,12 @@ from bench.msg.messages import (
     RepInterpPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
+    RepWriteModulePayload,
     ReqBuildPayload,
     ReqInterpPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
+    ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
 from bench.runtime.build import (
@@ -117,7 +119,7 @@ class ModuleDB:
         if module_id in self._cached_modules:
             return self._cached_modules[module_id]
         project_version = await ProjectVersion.objects.aget(id=module_id)
-        module = await sync_to_async(read_module)(project_version, exclude_non_semantic=True)
+        module = await sync_to_async(read_module)(project_version, exclude_non_semantic=False)
         if self.cache_committed and project_version.committed:
             self._cached_modules[module_id] = module, project_version.id
         return module, project_version.project_id
@@ -146,6 +148,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
+            await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
@@ -207,6 +210,20 @@ class LanguageServer:
         logger.debug("module.read", msg=msg)
         module, project_id = await self.module_db.get_module(msg.p.module_id)
         await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
+
+    @message_handler
+    async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
+        logger.debug("module.write", msg=msg)
+        # TODO @Security: check if msg origin has write access to module
+        worker = await self._get_ready_worker(msg.p.module_id)
+        try:
+            await worker.write_module(msg.p.mutations, origin=msg.p.origin)
+            success = True
+        except Exception as e:
+            sentry_capture_if_enabled(e)
+            logger.error("write_module.failed", msg=msg, exc_info=True)
+            success = False
+        await msg.reply(RepWriteModulePayload(success=success))
 
     @message_handler
     async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):
@@ -655,11 +672,14 @@ class LanguageWorker:
         self._queue_job(job)
         return job
 
-    async def write_module(self, mutator: ModuleMutator):
-        mutations = mutator.mutations
+    async def write_module(
+        self, mutations: list[ModuleMutation] | ModuleMutator, origin: ClientOrigin = None
+    ):
+        if isinstance(mutations, ModuleMutator):
+            mutations = mutations.mutations
         await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
-        self.on_module_changed(mutator)
-        origin = ClientOrigin("worker", self.worker_id, None)
+        self.on_module_changed(mutations)
+        origin = origin or ClientOrigin("worker", self.worker_id, None)
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(

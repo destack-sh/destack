@@ -205,7 +205,7 @@ class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
     build_id: Optional[GlobalID] = None
-    arguments: JSON
+    arguments: Optional[JSON] = None
     trace: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
     block: bool = True
     timeout_seconds: Optional[int] = None
@@ -247,8 +247,9 @@ class RuntimeMutation:
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         # TODO @Auth: should run be a guest-level permission for projects?
-        await sync_to_async(check_can_write_project)(info, project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version)
         # :SingleOwnedDeployment
         deployment_id = (
             await models.Deployment.objects.filter(

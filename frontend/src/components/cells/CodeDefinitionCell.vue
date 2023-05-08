@@ -79,4 +79,5 @@ defineExpose({
   >
     +code
   </button>
+  <!-- Last output/error (if any) -->
 </template>
