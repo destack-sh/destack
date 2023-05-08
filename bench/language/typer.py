@@ -115,6 +115,8 @@ def unkey_value(
     """Replaces all name 'keys' with the actual names (recursively)."""
     if type.tag in PRIMITIVE_TYPES:
         return value
+    elif type.tag == TypeTag.ENUM:
+        return value  # maybe key later?
     elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, dict):
@@ -126,7 +128,7 @@ def unkey_value(
         if is_output is not None and subtype.is_output != is_output:
             continue
         if subtype.key not in value:
-            return value  # ignore if it doesn't exist
+            continue  # ignore if it doesn't exist
         unkeyed[subtype.name] = unkey_value(value[subtype.key], subtype)
     return unkeyed
 
@@ -136,6 +138,8 @@ def rekey_value(
 ) -> Any:
     """Replaces all actual names with the name 'keys' (recursively)."""
     if type.tag in PRIMITIVE_TYPES:
+        return value
+    elif type.tag == TypeTag.ENUM:
         return value
     elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")

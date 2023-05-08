@@ -1646,29 +1646,20 @@ def interp(
 
     # add symbol context for those who need it
     for id, symbol in idx.symbols.items():
-        needs_context = symbol.symbol_type == SymbolType.CODE
-        if not needs_context:
+        if not isinstance(symbol, Code):
+            # only code has context for now
             continue
 
-        # build required context by traversing the scope tree upwards
+        # assemble required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
         while current_scope is not None:
             for child in current_scope.proper_symbols:
-                if symbol_mentions_symbol(symbol, child) and child.name not in symbol.context:
+                if child.ident_name in symbol.code and child.ident_name not in symbol.context:
                     symbol.context[child.name] = child
             current_scope = current_scope.parent
 
     idx.interpreted = True
     return idx
-
-
-def symbol_mentions_symbol(symbol: InterpSymbol, other: InterpSymbol) -> bool:
-    """Return whether the given symbol mentions the other symbol."""
-    # TODO @Robustness: use :WeakReferences instead of symbol mentions
-    if isinstance(symbol, Code) and symbol.code is not None:
-        return other.name in symbol.code
-    else:
-        return False
 
 
 def get_reference_as_path(

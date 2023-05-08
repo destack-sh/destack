@@ -29,7 +29,7 @@ from more_itertools import first
 
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
-from bench.utils.utils import required_field
+from bench.utils.utils import required_field, to_pyidentifier
 
 
 @dataclass(repr=False)
@@ -437,6 +437,10 @@ class InterpSymbol:
         return self.__class__(**kwargs)
 
     @property
+    def ident_name(self) -> str:
+        return to_pyidentifier(self.name)
+
+    @property
     def is_definition(self) -> bool:
         return self.definition is not None and self.definition.id == self.id
 
@@ -756,6 +760,15 @@ class Record:
 
     def __repr__(self):
         return f"<Record {self}>"
+
+    def __getitem__(self, item: str):
+        try:
+            return self.data[item]
+        except KeyError:
+            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
+
+    def __getattr__(self, item):
+        return self[item]
 
 
 @dataclass(repr=False)
