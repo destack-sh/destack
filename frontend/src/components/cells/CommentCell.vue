@@ -22,7 +22,7 @@ function focus() {
 
 // morph back to blank if it's empty for smooth back and forth
 watch(content, () => {
-  if (content.value.trim().length == 0) {
+  if (content.value.trim() == "<p></p>") {
     context.morphToBlank();
   }
 });

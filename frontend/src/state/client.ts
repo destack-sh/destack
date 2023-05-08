@@ -4,7 +4,7 @@ import { useAuth } from "@/state/auth";
 import { useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
-import { wrapValueRefs } from "@/utils/functools";
+import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { createSharedComposable, useDebounceFn } from "@vueuse/core";
@@ -92,8 +92,8 @@ function getOrCreateClientId(): string {
 
 function _useClient(presenceIntervalMs = 15000) {
   const editor = useEditorState();
-  const projectId = toRef(editor, "currentProjectId");
-  const projectVersionId = toRef(editor, "currentProjectVersionId");
+  const projectId = toValueRef(toRef(editor, "currentProjectId"));
+  const projectVersionId = toValueRef(toRef(editor, "currentProjectVersionId"));
   const auth = useAuth();
   const ops = useOperations();
 
@@ -130,8 +130,10 @@ function _useClient(presenceIntervalMs = 15000) {
   const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 500, { maxWait: 2500 });
 
   // upsert client info if logged in
+  const focusedFileId = toValueRef(toRef(editor, "focusedFileId"));
+  const focusedElementId = toValueRef(toRef(editor, "focusedElementId"));
   watch(
-    () => [auth.loggedIn.value, projectId.value, projectVersionId.value, editor.focusedFileId, editor.focusedElementId],
+    () => [auth.loggedIn.value, projectId.value, projectVersionId.value, focusedFileId.value, focusedElementId.value],
     async () => {
       if (auth.loggedIn.value) {
         await _upsertInfoDebounced();
