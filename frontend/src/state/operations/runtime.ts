@@ -62,7 +62,16 @@ export function useRuntimeOps() {
             output
             success
             error
-            errorDetails
+            errorDetails {
+              type
+              message
+              traceback {
+                line
+                filename
+                lineno
+                name
+              }
+            }
           }
         }
       }

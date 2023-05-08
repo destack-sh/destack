@@ -190,6 +190,7 @@ def pub_project_mutation(
 def track_project_mutation(
     type: MMT, project_version: ProjectVersion, things, batch: bool, info: Info
 ):
+    """Tracks a project mutation for Posthog analytics."""
     user = cast(models.User, info.context.request.scope["user"]._wrapped)
     if user.is_anonymous:
         return

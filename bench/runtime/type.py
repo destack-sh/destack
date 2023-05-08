@@ -119,6 +119,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     CodeInstance: SymbolType.CODE,
 }
 
+
 #
 # Object
 #
@@ -222,12 +223,36 @@ class Inference:
 
 
 @dataclass(slots=True)
-class ErrorData:
+class PyFrameData:
+    filename: str
+    lineno: int
+    name: str
+    locals: dict[str, Any] = None
+    line: str = None
+
+    @staticmethod
+    def from_traceback(frame: traceback.FrameSummary):
+        return PyFrameData(
+            filename=frame.filename,
+            lineno=frame.lineno,
+            name=frame.name,
+            locals=frame.locals,
+            line=frame.line,
+        )
+
+    @staticmethod
+    def from_stack(stack: traceback.StackSummary) -> list[PyFrameData]:
+        return [PyFrameData.from_traceback(frame) for frame in stack]
+
+
+@dataclass(slots=True)
+class RunErrorData:
     """Wire-able representation of an exception."""
 
     type: str
     message: str
-    traceback: list[str]
+    symbol: Optional[str]
+    traceback: list[PyFrameData]
 
 
 @dataclass(slots=True)
@@ -248,7 +273,7 @@ class ExecutionFrameData:
     cached_duration: Optional[float]
     inputs: dict[str, Any]
     outputs: Optional[Any]
-    error: Optional[ErrorData]
+    error: Optional[RunErrorData]
     queue_position: Optional[int]
     # additional context data not in ExecutionFrame
     project_id: UUID
@@ -270,12 +295,14 @@ class ExecutionFrameData:
         trigger_id: Optional[UUID] = None,
     ) -> ExecutionFrameData:
         if frame.error:
-            error_data = ErrorData(
+            stack_summary = traceback.StackSummary.extract(
+                traceback.walk_tb(frame.error.__traceback__)
+            )
+            error_data = RunErrorData(
                 type=type(frame.error).__name__,
+                symbol=str(frame.code),
                 message=str(frame.error),
-                traceback=traceback.format_exception(
-                    type(frame.error), frame.error, frame.error.__traceback__
-                ),
+                traceback=PyFrameData.from_stack(stack_summary),
             )
         else:
             error_data = None

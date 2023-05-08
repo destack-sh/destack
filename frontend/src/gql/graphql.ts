@@ -587,6 +587,27 @@ export type FileRenameInput = {
   path: Scalars["String"];
 };
 
+export type GeneratedMapping = Node & {
+  __typename?: "GeneratedMapping";
+  id: Scalars["GlobalID"];
+  sourceId?: Maybe<Scalars["GlobalID"]>;
+  sourceRevision?: Maybe<Scalars["Int"]>;
+  statement: Statement;
+  targetId?: Maybe<Scalars["GlobalID"]>;
+  targetRevision?: Maybe<Scalars["Int"]>;
+};
+
+export type GeneratedMappingFilter = {
+  typeIn?: InputMaybe<Array<GeneratedMappingType>>;
+};
+
+export enum GeneratedMappingType {
+  Record = "RECORD",
+  Statement = "STATEMENT",
+  TypeNode = "TYPE_NODE",
+  Xblock = "XBLOCK",
+}
+
 export type InterpError = {
   __typename?: "InterpError";
   message: Scalars["String"];
@@ -1647,6 +1668,14 @@ export enum ProjectVisibility {
   SourcePrivate = "SOURCE_PRIVATE",
 }
 
+export type PyFrame = {
+  __typename?: "PyFrame";
+  filename: Scalars["String"];
+  line: Scalars["String"];
+  lineno: Scalars["Int"];
+  name: Scalars["String"];
+};
+
 export type Query = {
   __typename?: "Query";
   buildCandidates: BuildCandidateConnection;
@@ -1944,6 +1973,15 @@ export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
+/** Wire-able representation of an exception. */
+export type RunError = {
+  __typename?: "RunError";
+  message: Scalars["String"];
+  symbol?: Maybe<Scalars["String"]>;
+  traceback: Array<PyFrame>;
+  type: Scalars["String"];
+};
+
 export enum RunErrorType {
   InternalError = "INTERNAL_ERROR",
   InvalidRunconfig = "INVALID_RUNCONFIG",
@@ -1966,7 +2004,7 @@ export type RunState = {
   __typename?: "RunState";
   buildId?: Maybe<Scalars["GlobalID"]>;
   error?: Maybe<RunErrorType>;
-  errorDetails?: Maybe<Scalars["JSON"]>;
+  errorDetails?: Maybe<RunError>;
   output?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: Maybe<Scalars["GlobalID"]>;
@@ -2038,6 +2076,7 @@ export type Statement = Node &
     evaluationResults: Array<EvaluationResult>;
     file: File;
     generated: Scalars["Boolean"];
+    generatedMappings: Array<GeneratedMapping>;
     id: Scalars["GlobalID"];
     lang?: Maybe<Scalars["String"]>;
     modifier?: Maybe<StatementModifier>;
@@ -2048,7 +2087,6 @@ export type Statement = Node &
     records: DatasetRecordConnection;
     reference?: Maybe<Statement>;
     referenceProjectVersion?: Maybe<ProjectVersion>;
-    referencedBy: StatementConnection;
     revision: Scalars["Int"];
     rootTypeTag?: Maybe<TypeTag>;
     symbolType?: Maybe<SymbolType>;
@@ -2058,17 +2096,14 @@ export type Statement = Node &
     xblocks: Array<XBlock>;
   };
 
+export type StatementGeneratedMappingsArgs = {
+  filters?: InputMaybe<GeneratedMappingFilter>;
+};
+
 export type StatementRecordsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<DatasetRecordFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-};
-
-export type StatementReferencedByArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -2121,17 +2156,6 @@ export type StatementCommentedInput = {
   id: Scalars["GlobalID"];
 };
 
-/** A connection to a list of items. */
-export type StatementConnection = {
-  __typename?: "StatementConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<StatementEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
 /** Creates a blank statement */
 export type StatementCreateBlankInput = {
   fileId: Scalars["GlobalID"];
@@ -2161,15 +2185,6 @@ export type StatementCreateInput = {
 
 export type StatementDeleteInput = {
   id: Scalars["GlobalID"];
-};
-
-/** An edge in a connection. */
-export type StatementEdge = {
-  __typename?: "StatementEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Statement;
 };
 
 export type StatementFilter = {
@@ -2334,12 +2349,6 @@ export type SystemInfo = {
   __typename?: "SystemInfo";
   gitCommit: Scalars["String"];
   version: Scalars["String"];
-};
-
-export type Type = {
-  __typename?: "Type";
-  btl: Scalars["String"];
-  description?: Maybe<Scalars["String"]>;
 };
 
 export type TypeNodeCreateInput = {
@@ -3553,10 +3562,6 @@ export type StatementHeaderFragment = {
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
-export type TypeContentFragment = { __typename?: "Type"; description?: string | null } & {
-  " $fragmentName"?: "TypeContentFragment";
-};
-
 export type SimpleTypeNodeContentFragment = {
   __typename?: "SimpleTypeNode";
   id: any;
@@ -4056,7 +4061,12 @@ export type RunMutation = {
         output?: any | null;
         success: boolean;
         error?: RunErrorType | null;
-        errorDetails?: any | null;
+        errorDetails?: {
+          __typename?: "RunError";
+          type: string;
+          message: string;
+          traceback: Array<{ __typename?: "PyFrame"; line: string; filename: string; lineno: number; name: string }>;
+        } | null;
       };
 };
 
@@ -5390,20 +5400,6 @@ export const StatementHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementHeaderFragment, unknown>;
-export const TypeContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "TypeContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Type" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [{ kind: "Field", name: { kind: "Name", value: "description" } }],
-      },
-    },
-  ],
-} as unknown as DocumentNode<TypeContentFragment, unknown>;
 export const SimpleTypeNodeContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -10794,7 +10790,30 @@ export const RunDocument = {
                       { kind: "Field", name: { kind: "Name", value: "output" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
                       { kind: "Field", name: { kind: "Name", value: "error" } },
-                      { kind: "Field", name: { kind: "Name", value: "errorDetails" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "errorDetails" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "type" } },
+                            { kind: "Field", name: { kind: "Name", value: "message" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "traceback" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "line" } },
+                                  { kind: "Field", name: { kind: "Name", value: "filename" } },
+                                  { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
                     ],
                   },
                 },

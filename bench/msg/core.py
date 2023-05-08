@@ -245,6 +245,7 @@ def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type=type, topic=topic, payload=payload, sent_at=datetime.utcnow())
+    _serialize_message(message)  # check that message is serializable for debugging
     return message
 
 
@@ -273,9 +274,14 @@ async def process_soon_queue():
         raise RuntimeError("process_soon_queue already started")
     _soon_queue = janus.Queue()
     while True:
-        message = await _soon_queue.async_q.get()
-        log.debug("publish_soon", message=message)
-        await do_publish(message, message.topic)
+        try:
+            message = await _soon_queue.async_q.get()
+            log.debug("publish_soon", message=message)
+            await do_publish(message, message.topic)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            log.exception("publish_soon_error", exc_info=True, e=e)
 
 
 class NSubscription(Generic[PayloadT]):

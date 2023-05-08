@@ -9,7 +9,13 @@ from uuid import UUID
 
 from bench.language import mutate, wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import (
+    BuildScope,
+    EvaluationResultData,
+    ExecutionFrameData,
+    JobData,
+    RunErrorData,
+)
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
@@ -163,7 +169,7 @@ class RunErrorType(enum.StrEnum):
 class RepRunPayload:
     execution_id: Optional[UUID] = None
     error: Optional[RunErrorType] = None
-    error_details: Optional[typing.Any] = None
+    error_details: Optional[RunErrorData] = None
     output: Optional[typing.Any] = None
 
 

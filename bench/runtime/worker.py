@@ -32,7 +32,7 @@ from bench.runtime.tracing import (
     pub_tracker_ctx,
     worker_ctx,
 )
-from bench.runtime.type import CodeInstance, TaskInstance, WorkerType
+from bench.runtime.type import CodeInstance, RunErrorData, TaskInstance, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -53,7 +53,7 @@ class RunJob:
     runnable: TaskInstance | CodeInstance = None
     arguments: dict[str, LiteralValue] = None
     error: RunError | None = None
-    error_details: dict[str, Any] = None
+    error_details: RunErrorData = None
     output: LiteralValue | None = None
     ctx: Optional[ExecutionTrackerContext] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
@@ -182,7 +182,9 @@ class ModuleWorker:
             return None, ret
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
-            details = dict(type=e.type.name, symbol=str(e.symbol), message=str(e.cause))
+            details = RunErrorData(
+                type=e.type.name, symbol=str(e.symbol), message=str(e.cause), traceback=e.traceback
+            )
             return RunErrorType.RUNTIME_ERROR, details
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
