@@ -141,7 +141,7 @@ dj-database-url==1.0.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
-django==4.2
+django==4.2.1
     # via
     #   -c requirements.txt
     #   -r requirements.in
