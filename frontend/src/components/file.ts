@@ -200,7 +200,7 @@ export type CopiedStatement = {
 
 export type StatementLocation = {
   fileId: string;
-  parentId?: string | null;
+  parentId?: string | undefined;
   orderKey: string;
 };
 
@@ -220,6 +220,7 @@ export type NavigationContext = FileContext & {
   getBelowCurGroup(statement: StatementHeader): StatementHeader | null;
   getAbove(statement: StatementHeader): StatementHeader | null;
   getBelow(statement: StatementHeader): StatementHeader | null;
+  isDescendantOf(statement: StatementHeader, ancestor: StatementHeader): boolean;
 
   // indentation
   indent(statement: StatementHeader): void;
@@ -369,6 +370,10 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   function getBelow(statement: StatementHeader): StatementHeader | null {
     return statements.value[statementPositions.value[statement.id] + 1];
+  }
+
+  function isDescendantOf(statement: StatementHeader, ancestor: StatementHeader): boolean {
+    return getDescendants(ancestor).find((s) => s.id == statement.id) != null;
   }
 
   // indentation
@@ -675,6 +680,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       getBelowCurGroup,
       getAbove,
       getBelow,
+      isDescendantOf,
 
       // indentation
       indent,

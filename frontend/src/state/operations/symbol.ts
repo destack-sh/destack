@@ -18,6 +18,7 @@ import {
   type DeleteTypeNodeMutation,
   type SoftDeleteTypeNodeMutation,
   type UpdateTypeNodeMutation,
+  type Scalars,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -397,7 +398,13 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function createRecord(tx: Transaction | null, id: string, statementId: string, orderKey: string, data: JSON) {
+  async function createRecord(
+    tx: Transaction | null,
+    id: string,
+    statementId: string,
+    orderKey: string,
+    data: Scalars["JSON"]
+  ) {
     await ops.perform({
       tx,
       type: "statement.createRecord",
@@ -418,7 +425,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function updateRecord(tx: Transaction | null, id: string, oldData: JSON, newData: JSON) {
+  async function updateRecord(tx: Transaction | null, id: string, oldData: Scalars["JSON"], newData: Scalars["JSON"]) {
     await ops.perform({
       tx,
       type: "statement.updateRecord",
