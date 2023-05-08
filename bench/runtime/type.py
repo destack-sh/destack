@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import json
+import sys
 import traceback
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -29,7 +30,7 @@ from bench.language.type import (
     XBlock,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.utils.utils import required_field
+from bench.utils.utils import required_field, to_pyidentifier_multi
 
 #
 # Instances
@@ -100,9 +101,17 @@ class ModelInstance(SymbolInstance, Model):
 
 
 @dataclass(repr=False)
+class CodeTransformation:
+    original_code: str
+    transformed_code: str
+    method_name: str
+    start_offset: int
+
+
+@dataclass(repr=False)
 class CodeInstance(SymbolInstance, Code):
     task: Optional[TaskInstance] = None
-    transformed_code: str = required_field()
+    transform: Optional[CodeTransformation] = None
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
     is_async: bool = required_field()
 
@@ -244,6 +253,32 @@ class PyFrameData:
     def from_stack(stack: traceback.StackSummary) -> list[PyFrameData]:
         return [PyFrameData.from_traceback(frame) for frame in stack]
 
+    @staticmethod
+    def clean(stack: list[PyFrameData], from_code: CodeInstance) -> list[PyFrameData]:
+        transform = from_code.transform
+        found_start = False
+        cleaned_stack = []
+        for frame in stack:
+            if not found_start:
+                # TODO @Robustness: clean stacks for nested code calls
+                # impute bench source info into instantiated code callables
+                if transform.method_name in frame.name:
+                    if from_code.source is not None:
+                        frame.filename = to_pyidentifier_multi(
+                            from_code.source.file.path, from_code.source.name
+                        )
+                    frame.name = from_code.name
+                    frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
+                    frame.lineno = frame.lineno - transform.start_offset
+                    found_start = True
+            if found_start:
+                # trim file path for python modules
+                python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+                if python_version in frame.filename:
+                    frame.filename = frame.filename.split(python_version)[-1][1:]  # skip slash
+                cleaned_stack.append(frame)
+        return cleaned_stack
+
 
 @dataclass(slots=True)
 class RunErrorData:
@@ -295,14 +330,17 @@ class ExecutionFrameData:
         trigger_id: Optional[UUID] = None,
     ) -> ExecutionFrameData:
         if frame.error:
+            if frame.code is None:
+                raise ValueError(f"error outside code: {frame}")
             stack_summary = traceback.StackSummary.extract(
                 traceback.walk_tb(frame.error.__traceback__)
             )
+            stack = PyFrameData.from_stack(stack_summary)
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.code),
                 message=str(frame.error),
-                traceback=PyFrameData.from_stack(stack_summary),
+                traceback=PyFrameData.clean(stack, frame.code),
             )
         else:
             error_data = None

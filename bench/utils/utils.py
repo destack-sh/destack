@@ -72,6 +72,10 @@ def to_pyidentifier(name: str) -> str:
     return re.sub(r"\W|^(?=\d)", "_", name)
 
 
+def to_pyidentifier_multi(*parts: str) -> str:
+    return ".".join(to_pyidentifier(part) for part in parts)
+
+
 def sentry_capture_if_enabled(e: Exception) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:

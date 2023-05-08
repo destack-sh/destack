@@ -52,6 +52,7 @@ from bench.runtime.type import (
     AsyncCodeCallable,
     BuildMap,
     CodeInstance,
+    CodeTransformation,
     DatasetInstance,
     Inference,
     Modality,
@@ -113,17 +114,12 @@ class RunError(Exception):
         self.cause = cause
         super().__init__(self.type.description)
 
-    @property
-    def traceback(self) -> Optional[list[PyFrameData]]:
+    def get_traceback(self, from_code: CodeInstance) -> Optional[list[PyFrameData]]:
         if self.cause is None:
             return None
-        elif isinstance(self.cause, RunError):
-            return self.cause.traceback
-        else:
-            stack_summary = traceback.StackSummary.extract(
-                traceback.walk_tb(self.cause.__traceback__)
-            )
-            return PyFrameData.from_stack(stack_summary)
+        stack_summary = traceback.StackSummary.extract(traceback.walk_tb(self.cause.__traceback__))
+        stack = PyFrameData.from_stack(stack_summary)
+        return PyFrameData.clean(stack, from_code)
 
 
 class SyncCodeProxy:
@@ -355,7 +351,7 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
 def _instantiate_code_callable(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
-) -> tuple[str | None, SyncCodeCallable | AsyncCodeCallable]:
+) -> tuple[CodeTransformation, SyncCodeCallable | AsyncCodeCallable]:
     """
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
@@ -393,6 +389,7 @@ def _instantiate_code_callable(
         **source_context,
     }
 
+    start_offset = 1  # for method signature
     if code.language == "python":
         python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
@@ -407,6 +404,7 @@ def _instantiate_code_callable(
     # if we have xblocks, add line to copy them to top of method
     if code.xblocks:
         python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
+        start_offset += 1
 
     # create python function from python code
     input_keys = [i.name for i in code.inputs]
@@ -421,7 +419,13 @@ def _instantiate_code_callable(
         # shouldn't error unless it's a python parse issue since we're just defining a function
         raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
 
-    return python_code, callable
+    transform = CodeTransformation(
+        original_code=code,
+        transformed_code=code_str,
+        start_offset=start_offset,
+        method_name=func_name,
+    )
+    return transform, callable
 
 
 @dataclass
@@ -493,11 +497,11 @@ def instantiate(
         implementation_instance.task = task
         return task
     elif isinstance(symbol, Code):
-        code_str, code_callable = _instantiate_code_callable(symbol, instantiated_context)
+        transform, code_callable = _instantiate_code_callable(symbol, instantiated_context)
         code_instance = CodeInstance(
             **symbol.__dict__,
             build=build,
-            transformed_code=code_str,
+            transform=transform,
             code_callable=code_callable,
             is_async=inspect.iscoroutinefunction(code_callable),
         )
