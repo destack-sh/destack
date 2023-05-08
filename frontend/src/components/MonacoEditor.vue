@@ -166,11 +166,15 @@ function initMonaco(monaco: Monaco) {
         emit("deleteIfEmpty");
       }
     } else if (e.keyCode === monaco.KeyCode.UpArrow) {
-      if (editor.value?.getPosition()?.lineNumber === 1) {
+      if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1) {
         emit("navigateUp");
       }
     } else if (e.keyCode === monaco.KeyCode.DownArrow) {
-      if (editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()) {
+      if (
+        !e.shiftKey &&
+        !e.altKey &&
+        editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()
+      ) {
         emit("navigateDown");
       }
     } else if (e.keyCode === monaco.KeyCode.Escape) {

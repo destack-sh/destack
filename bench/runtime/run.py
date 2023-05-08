@@ -33,6 +33,7 @@ from bench.language.type import (
     InterpSymbol,
     LiteralValue,
     Model,
+    Record,
     Task,
     Type,
     TypeNode,
@@ -66,8 +67,7 @@ from bench.runtime.type import (
 )
 from bench.runtime.x import X_BUILTINS
 from bench.utils.cache import redis
-from bench.utils.func import describe_type
-from bench.utils.record import RecordList
+from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 logger = structlog.stdlib.get_logger(__name__)
@@ -445,6 +445,28 @@ def _instantiate_model_inference(model: Model) -> ModelInference:
     return impl
 
 
+def _instantiate_py_value(value: Any, type: TypeNode) -> Any:
+    return value
+
+
+def _instantiate_dataset(dataset: Dataset, build: Build) -> DatasetInstance:
+    py_type = instantiate_py_type(dataset.type)
+
+    # map record data into proper python types
+    records = []
+    for record in dataset.records:
+        py_record_data = {}
+        # unkey into real names
+        raw_data = dataset.type.unkey(record.data)
+        for key, value in raw_data.items():
+            py_field = to_pyidentifier(key)
+            py_value = _instantiate_py_value(value, py_type[py_field])
+            py_record_data[py_field] = py_value
+        records.append(Record(id=record.id, order_key=record.order_key, data=py_record_data))
+
+    return DatasetInstance(**dict_minus(dataset.__dict__, "records"), records=records, build=build)
+
+
 DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
 DEFAULT_PROXY = Proxy(
     tracer=DEFAULT_TRACER,
@@ -513,10 +535,7 @@ def instantiate(
         model_instance = ModelInstance(**symbol.__dict__, inference=inference, build=build)
         return proxy.proxy_model(model_instance)
     elif isinstance(symbol, Dataset):
-        records_data = [r.data for r in symbol.records]
-        return DatasetInstance(
-            **symbol.__dict__, build=build, records_batch=RecordList(records_data)
-        )
+        return _instantiate_dataset(symbol, build)
     elif isinstance(symbol, Type):
         py_type = instantiate_py_type(symbol)
         return TypeInstance(**symbol.__dict__, build=build, py_type=py_type)
