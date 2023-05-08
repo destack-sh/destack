@@ -183,7 +183,10 @@ class ModuleWorker:
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
             details = RunErrorData(
-                type=e.type.name, symbol=str(e.symbol), message=str(e.cause), traceback=e.traceback
+                type=e.type.name,
+                symbol=str(e.symbol),
+                message=str(e.cause),
+                traceback=e.get_traceback(runnable),
             )
             return RunErrorType.RUNTIME_ERROR, details
         except Exception as e:

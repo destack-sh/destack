@@ -110,7 +110,10 @@ defineExpose({
     :class="lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600'"
     :key="lastExecution?.id"
   >
-    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase() }}:
+    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase()
+    }}<template v-if="lastExecution.status != ExecutionStatus.Queued && lastExecution.status != ExecutionStatus.Running"
+      >:
+    </template>
     <span class="font-bold">{{ lastExecution.error?.message }}</span>
     <ul class="flex flex-col">
       <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col">
