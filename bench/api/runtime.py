@@ -31,6 +31,7 @@ from bench.msg.messages import (
     ReqInterpPayload,
     ReqRunPayload,
 )
+from bench.runtime.type import PyFrameData, RunErrorData
 
 logger = structlog.get_logger(__name__)
 
@@ -215,6 +216,43 @@ ModuleRunErrorType = gql.enum(messages.RunErrorType)
 
 
 @gql.type
+class PyFrame:
+    filename: str
+    lineno: int
+    name: str
+    line: str = None
+
+
+def rmap_py_frame(frame: PyFrameData) -> PyFrame:
+    return PyFrame(
+        filename=frame.filename,
+        lineno=frame.lineno,
+        name=frame.name,
+        line=frame.line,
+    )
+
+
+@gql.type
+class RunError:
+    """Wire-able representation of an exception."""
+
+    type: str
+    message: str
+    symbol: Optional[str]
+    traceback: list[PyFrame]
+
+
+def rmap_run_error(error: RunErrorData) -> RunError:
+    traceback = [rmap_py_frame(frame) for frame in error.traceback] if error.traceback else None
+    return RunError(
+        type=error.type,
+        message=error.message,
+        symbol=error.symbol,
+        traceback=traceback,
+    )
+
+
+@gql.type
 class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
@@ -222,7 +260,7 @@ class RunState:
     output: Optional[JSON]
     success: bool
     error: Optional[ModuleRunErrorType]
-    error_details: Optional[JSON]
+    error_details: Optional[RunError]
 
 
 @gql.type
@@ -299,7 +337,7 @@ class RuntimeMutation:
             output=output,
             success=success,
             error=error,
-            error_details=error_details,
+            error_details=rmap_run_error(error_details) if error_details else None,
         )
 
 

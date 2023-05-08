@@ -35,7 +35,7 @@ from bench.api.project import (
 )
 from bench.api.runtime import InterpSubscription, RuntimeMutation
 from bench.api.sentry import SentryPerformanceExtension
-from bench.api.statement import StatementMutation, SymbolMutation, Type
+from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
 from bench.models import OwnerSlug
@@ -215,6 +215,4 @@ schema = SentryCaptureSchema(
     Mutation,
     Subscription,
     extensions=extensions,
-    # add interface implementation types explicitly
-    types=[Type],
 )

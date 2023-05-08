@@ -7,6 +7,7 @@ import inspect
 import json
 import pathlib
 import textwrap
+import traceback
 import typing
 from asyncio import iscoroutinefunction
 from collections import OrderedDict
@@ -25,7 +26,6 @@ import pytz
 import structlog
 from more_itertools import first, last
 
-from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
@@ -57,6 +57,7 @@ from bench.runtime.type import (
     Modality,
     ModelInference,
     ModelInstance,
+    PyFrameData,
     SymbolInstance,
     SyncCodeCallable,
     TaskInstance,
@@ -112,10 +113,20 @@ class RunError(Exception):
         self.cause = cause
         super().__init__(self.type.description)
 
+    @property
+    def traceback(self) -> Optional[list[PyFrameData]]:
+        if self.cause is None:
+            return None
+        elif isinstance(self.cause, RunError):
+            return self.cause.traceback
+        else:
+            stack_summary = traceback.StackSummary.extract(
+                traceback.walk_tb(self.cause.__traceback__)
+            )
+            return PyFrameData.from_stack(stack_summary)
+
 
 class SyncCodeProxy:
-    """A worker-side proxy for code tracing."""
-
     def __init__(self, code: CodeInstance, raw_callable: SyncCodeCallable, tracer: Tracer):
         self.code = code
         self.raw_callable = raw_callable
@@ -137,8 +148,6 @@ class SyncCodeProxy:
 
 
 class AsyncCodeProxy:
-    """A worker-side proxy for code tracing."""
-
     def __init__(self, code: CodeInstance, raw_callable: AsyncCodeCallable, tracer: Tracer):
         self.code = code
         self.raw_callable = raw_callable
@@ -407,7 +416,7 @@ def _instantiate_code_callable(
     indented_code = textwrap.indent(python_code, " " * 4)
     code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
     try:
-        callable = _execute_code(code_str, locals)[func_name]
+        callable = _do_execute_arbitrary_code(code_str, locals)[func_name]
     except Exception as e:
         # shouldn't error unless it's a python parse issue since we're just defining a function
         raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
@@ -540,27 +549,14 @@ async def run(
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
-def _execute_code(code: str, globals: dict[str, Any]) -> dict:
+def _do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
     # remember the globals we started with, do not modify originals
     globals_local = {**globals}
     globals_local_keys_initial = {*globals_local.keys()}
-    _do_execute(code, globals_local)
+    exec(code, globals_local)
     new_globals = {
         k: v
         for k, v in globals_local.items()
         if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
     }
     return new_globals
-
-
-def _do_execute(code: str, globals: dict):
-    exec(code, globals)
-
-
-def map_runnable(
-    idx: ModuleIndex,
-    runconfig_id: Optional[UUID],
-    runnable_id: Optional[UUID],
-    build_id: Optional[UUID],
-):
-    pass

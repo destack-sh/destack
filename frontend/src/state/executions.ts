@@ -1,8 +1,10 @@
 import { graphql, useFragment } from "@/gql";
+import { useEditorState } from "@/state/editor";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, type Ref } from "vue";
+import { createSharedComposable } from "@vueuse/core";
+import { computed, ref, type Ref } from "vue";
 
 export const ExecutionContentType = graphql(/* GraphQL */ `
   fragment ExecutionContent on Execution {
@@ -177,3 +179,22 @@ export function useExecutions(
     ),
   };
 }
+
+function _useModuleExecutions() {
+  const editor = useEditorState();
+  const projectId = computed(() => editor.currentProjectId);
+  const projectVersionId = computed(() => editor.currentProjectVersionId);
+  return useExecutions(
+    {
+      projectId,
+      projectVersionId,
+      includeAncestorVersions: ref(false),
+      buildIds: ref(null),
+      taskIds: ref(null),
+      codeIds: ref(null),
+    },
+    { root: true, live: true }
+  );
+}
+
+export const useModuleExecutions = createSharedComposable(_useModuleExecutions);

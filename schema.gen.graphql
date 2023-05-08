@@ -572,6 +572,26 @@ input FileRenameInput {
   path: String!
 }
 
+type GeneratedMapping implements Node {
+  id: GlobalID!
+  statement: Statement!
+  sourceId: GlobalID
+  sourceRevision: Int
+  targetId: GlobalID
+  targetRevision: Int
+}
+
+input GeneratedMappingFilter {
+  typeIn: [GeneratedMappingType!] = null
+}
+
+enum GeneratedMappingType {
+  STATEMENT
+  RECORD
+  XBLOCK
+  TYPE_NODE
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -1384,6 +1404,13 @@ enum ProjectVisibility {
   PRIVATE
 }
 
+type PyFrame {
+  filename: String!
+  lineno: Int!
+  name: String!
+  line: String!
+}
+
 type Query {
   executions(
     """Returns the items in the list that come before the specified cursor."""
@@ -1684,6 +1711,14 @@ input RestoreInput {
   projectVersionId: GlobalID!
 }
 
+"""Wire-able representation of an exception."""
+type RunError {
+  type: String!
+  message: String!
+  symbol: String
+  traceback: [PyFrame!]!
+}
+
 enum RunErrorType {
   INTERNAL_ERROR
   NOT_READY
@@ -1709,7 +1744,7 @@ type RunState {
   output: JSON
   success: Boolean!
   error: RunErrorType
-  errorDetails: JSON
+  errorDetails: RunError
 }
 
 union RunStateOperationInfo = RunState | OperationInfo
@@ -1779,20 +1814,8 @@ type Statement implements Node & SimplyTyped {
   descendants: [Statement!]!
   orderKey: String!
   reference: Statement
-  referencedBy(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): StatementConnection!
   symbolType: SymbolType
+  generatedMappings(filters: GeneratedMappingFilter): [GeneratedMapping!]!
   lang: String
   code: String
   xblocks(filters: XBlockFilter): [XBlock!]!
@@ -1857,18 +1880,6 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
-"""A connection to a list of items."""
-type StatementConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [StatementEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
 """Creates a blank statement"""
 input StatementCreateBlankInput {
   id: GlobalID = null
@@ -1898,15 +1909,6 @@ input StatementCreateInput {
 
 input StatementDeleteInput {
   id: GlobalID!
-}
-
-"""An edge in a connection."""
-type StatementEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Statement!
 }
 
 input StatementFilter {
@@ -2022,11 +2024,6 @@ enum SymbolType {
 type SystemInfo {
   version: String!
   gitCommit: String!
-}
-
-type Type {
-  description: String
-  btl: String!
 }
 
 input TypeNodeCreateInput {

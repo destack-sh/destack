@@ -3,16 +3,39 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
-import { computed, ref, type Ref } from "vue";
+import { useTimeFromNow } from "@/composables/useNow";
+import { useEditorState } from "@/state/editor";
+import { useExecutions } from "@/state/executions";
+import { computed, toRef, ref, type Ref } from "vue";
+import { useSymbolOps } from "@/state/runtime";
+import { ExecutionStatus, ExecutionTriggerType, type SimpleType } from "@/gql/graphql";
 
 const context = useStatementContext();
 
+const symbolOps = useSymbolOps();
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 context.syncCode(
   code,
   computed(() => monacoRef.value?.focused)
 );
+
+const now = useTimeFromNow();
+
+// TODO @Broken @Performance @UX: load inline code executions more sensibly
+const editor = useEditorState();
+const executions = useExecutions(
+  {
+    projectId: toRef(editor, "currentProjectId"),
+    projectVersionId: toRef(editor, "currentProjectVersionId"),
+    codeIds: ref([context.statement.value.id]),
+    buildIds: ref(null),
+    includeAncestorVersions: ref(false),
+    taskIds: ref(null),
+  },
+  { root: true, limit: 3, live: true }
+);
+const lastExecution = computed(() => executions.executions.value[0]);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
@@ -67,10 +90,11 @@ defineExpose({
     @navigate-left="typeRef?.focus"
     @escape="context.escape"
     @enter="context.insertBelow"
+    @execute="symbolOps.run(context.statement.value)"
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1 my-1 rounded-sm bg-gray-50 p-1"
+    class="-mx-1 mt-1 rounded-sm bg-gray-100 px-1 pb-1.5 pt-1"
   />
   <button
     v-if="code.trim().length == 0"
@@ -80,4 +104,20 @@ defineExpose({
     +code
   </button>
   <!-- Last output/error (if any) -->
+  <div
+    v-if="lastExecution && lastExecution.status != ExecutionStatus.Completed"
+    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 bg-gray-100 px-1 py-1.5 font-mono"
+    :class="lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600'"
+    :key="lastExecution?.id"
+  >
+    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase() }}:
+    <span class="font-bold">{{ lastExecution.error?.message }}</span>
+    <ul class="flex flex-col">
+      <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col">
+        <span> {{ frame.filename }}:{{ frame.lineno }} {{ frame.name }} </span>
+        <span class="ml-2"> > {{ frame.line }} </span>
+      </li>
+    </ul>
+    <span class="absolute right-2 top-0"> ({{ now.getTimeFromNowString(lastExecution.updatedAt) }})</span>
+  </div>
 </template>

@@ -108,12 +108,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const TypeContentType = graphql(/* GraphQL */ `
-  fragment TypeContent on Type {
-    description
-  }
-`);
-
 export const SimpleTypeNodeType = graphql(/* GraphQL */ `
   fragment SimpleTypeNodeContent on SimpleTypeNode {
     id
