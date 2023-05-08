@@ -1978,7 +1978,7 @@ export type RunError = {
   __typename?: "RunError";
   message: Scalars["String"];
   symbol?: Maybe<Scalars["String"]>;
-  traceback: Array<PyFrame>;
+  traceback?: Maybe<Array<PyFrame>>;
   type: Scalars["String"];
 };
 
@@ -4065,7 +4065,13 @@ export type RunMutation = {
           __typename?: "RunError";
           type: string;
           message: string;
-          traceback: Array<{ __typename?: "PyFrame"; line: string; filename: string; lineno: number; name: string }>;
+          traceback?: Array<{
+            __typename?: "PyFrame";
+            line: string;
+            filename: string;
+            lineno: number;
+            name: string;
+          }> | null;
         } | null;
       };
 };

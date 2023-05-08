@@ -31,6 +31,7 @@ def check_type(
     eager_error: bool = True,
     on_invalid=on_invalid_raise,
     ignore_array: bool = False,
+    is_output: bool = None,
 ):
     """
     Checks whether the given value has the expected type (recursively).
@@ -74,10 +75,14 @@ def check_type(
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
         _check(any(member.value == value for member in expected.type_nodes), "expected enum member")
-    elif expected.tag == TypeTag.STRUCT:
+    elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
+        if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
+            value = value or {}  # None is allowed for empty outputs
         _check(isinstance(value, dict), "expected struct")
         if isinstance(value, dict):  # _check may not be eager
             for subtype in expected.type_nodes:
+                if is_output is not None and subtype.is_output != is_output:
+                    continue
                 alt_name = to_pyidentifier(subtype.name)
                 subvalue = value.get(subtype.name, value.get(alt_name))
                 check_type(
