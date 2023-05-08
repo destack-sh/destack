@@ -11,50 +11,12 @@ import {
   type FileEditor,
   type RunEditor,
 } from "@/state/editor";
-import { useScroll, watchDebounced } from "@vueuse/core";
-import { computed, onMounted, provide, ref, watchEffect } from "vue";
+import { computed, provide, ref } from "vue";
 
 const editorState = useEditorState();
 const props = defineProps<{ editor: Editor }>();
 const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
 const focused = computed(() => editorState.focusedEditorId == props.editor.id);
-
-const { x, y, isScrolling } = useScroll(computed(() => containerRef.value?.$el));
-const hasScrolledManually = ref(false);
-
-// if user scrolls manually, do not restore scroll position
-watchEffect(() => {
-  if (isScrolling.value) {
-    hasScrolledManually.value = true;
-  }
-});
-// remember scroll position
-watchDebounced(
-  () => ({ x: x.value, y: y.value }),
-  (scroll) => {
-    editorState?.setEditorScroll(props.editor, scroll);
-  },
-  { debounce: 200, maxWait: 1000 }
-);
-// restore scroll position once after mount
-function restoreScroll() {
-  try {
-    const scroll = props.editor.scroll;
-    if (scroll && !hasScrolledManually.value) {
-      x.value = scroll.x;
-      y.value = scroll.y;
-      console.log(`restored scroll in editor ${props.editor.id} to ${scroll.x}, ${scroll.y}`);
-    }
-  } catch (e) {
-    // TODO @Robustness: fix scroll restoration
-    console.warn("unable to restore scroll", e);
-  }
-}
-onMounted(() => {
-  // wait a bit to make sure the container is rendered
-  // TODO @UX: fire scroll restore on some readiness signal (from child interfaces?)
-  setTimeout(restoreScroll, 1000);
-});
 
 // generic editor interface state
 const editorInterfaceState: EditorInterfaceState = {
