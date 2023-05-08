@@ -1716,7 +1716,7 @@ type RunError {
   type: String!
   message: String!
   symbol: String
-  traceback: [PyFrame!]!
+  traceback: [PyFrame!]
 }
 
 enum RunErrorType {

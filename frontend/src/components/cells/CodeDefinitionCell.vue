@@ -118,9 +118,9 @@ defineExpose({
     <ul class="flex flex-col">
       <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col">
         <span> {{ frame.filename }}:{{ frame.lineno }} {{ frame.name }} </span>
-        <span class="ml-2"> > {{ frame.line }} </span>
+        <span class="ml-2" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
       </li>
     </ul>
-    <span class="absolute right-2 top-0"> ({{ now.getTimeFromNowString(lastExecution.updatedAt) }})</span>
+    <span class="absolute right-2 top-1.5"> ({{ now.getTimeFromNowString(lastExecution.updatedAt) }})</span>
   </div>
 </template>

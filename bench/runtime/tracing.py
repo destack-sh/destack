@@ -445,19 +445,15 @@ class ValidationTracer(Tracer):
 
     def code_enter(self, code: CodeInstance, args, kwargs):
         try:
-            # check args
-            for i, value in enumerate(args):
-                value_type = code.type_node.input.type_nodes[i]
-                check_type(value, value_type, eager_error=self.eager_validation)
-            # check kwargs
-            for name, value in kwargs.items():
-                value_type = code.type_node.input.child(name)
-                check_type(value, value_type, eager_error=self.eager_validation)
+            combined_kwargs = {**kwargs}
+            for input_t, input in zip(code.inputs, args):
+                combined_kwargs[input_t.name] = input
+            check_type(combined_kwargs, code, is_output=False)
         except (KeyError, ValueError, TypeError) as e:
             raise ValidationError(f"invalid arguments for {code.name}: {e}", e)
 
     def code_exit(self, code: CodeInstance, args, kwargs, result):
         try:
-            check_type(result, code.type_node.output)
+            check_type(result, code, is_output=True)
         except TypeError as e:
             raise ValidationError(f"invalid return value for {code.name}: {e}", e)

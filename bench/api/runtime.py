@@ -239,7 +239,7 @@ class RunError:
     type: str
     message: str
     symbol: Optional[str]
-    traceback: list[PyFrame]
+    traceback: Optional[list[PyFrame]]
 
 
 def rmap_run_error(error: RunErrorData) -> RunError:
