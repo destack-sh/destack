@@ -260,7 +260,7 @@ defineExpose({
     </div>
     <!-- Editable content (overlay) :EditableCellStyle -->
     <div
-      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit flex-row items-baseline border border-solid border-orange-600 bg-orange-100 p-1"
+      class="absolute -left-0.5 -top-0.5 z-20 flex w-fit min-w-full flex-row items-baseline border border-solid border-orange-900 border-opacity-[12%] bg-orange-100 p-1.5 shadow-md"
       ref="editableContainerRef"
       v-if="editing"
       @click.prevent="emit('edit')"
@@ -309,7 +309,7 @@ defineExpose({
       <Combobox
         v-else-if="type.tag == TypeTag.Enum"
         as="div"
-        class="flex flex-col"
+        class="flex w-full flex-col"
         :model-value="enumMembers.find((n) => n.value == value)"
         @update:model-value="(val: SimpleType) => (writeValue(val?.value, true), confirm())"
       >

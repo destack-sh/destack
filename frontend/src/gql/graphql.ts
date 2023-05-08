@@ -1953,7 +1953,7 @@ export enum RunErrorType {
 }
 
 export type RunInput = {
-  arguments: Scalars["JSON"];
+  arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
   buildId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -4039,7 +4039,7 @@ export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
-  arguments: Scalars["JSON"];
+  arguments?: InputMaybe<Scalars["JSON"]>;
   block?: InputMaybe<Scalars["Boolean"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 }>;
@@ -10719,7 +10719,7 @@ export const RunDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
         {
           kind: "VariableDefinition",

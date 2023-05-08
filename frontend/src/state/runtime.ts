@@ -367,17 +367,29 @@ export function useSymbolOps() {
     }
   }
 
+  async function run(symbol: { id: string; name?: string | null }) {
+    const ret = await ops.runtime.run(symbol.id);
+    if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
+      notifications.show({
+        type: "run.fail",
+        kind: "error",
+        message: "Run failed",
+        description: `Failed to run ${symbol.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+      });
+    }
+  }
+
   async function openRun(symbol: { id: string; name?: string | null; symbolType: SymbolType }) {
     // TODO @Feature: support immediate run (for programs? all tasks?, i.e. don't just open run editor)
     const runEditor = editor.openRun(symbol as any);
     editor.focusEditor(runEditor);
   }
 
-  async function evaluate(symbol: { id: string; name?: string | null }) {
+  async function openEvaluate(symbol: { id: string; name?: string | null }) {
     // TODO @Feature: support manual & spot evaluation (i.e. don't just open evaluate editor)
     const evaluateEditor = editor.openEvaluate(symbol as any);
     editor.focusEditor(evaluateEditor);
   }
 
-  return { build, openRun, evaluate };
+  return { build, run, openRun, openEvaluate };
 }

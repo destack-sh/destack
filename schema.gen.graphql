@@ -1696,7 +1696,7 @@ input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
   buildId: GlobalID = null
-  arguments: JSON!
+  arguments: JSON = null
   trace: ExecutionTracingLevel! = ALL_FRAMES_WITH_DATA
   block: Boolean! = true
   timeoutSeconds: Int = null

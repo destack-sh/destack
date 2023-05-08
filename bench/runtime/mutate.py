@@ -158,7 +158,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
     elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
         internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
     elif mutation.type == MMT.RESTORE_FILE:
-        file_data = mapper.rmap_file_nested(thing, exclude_non_semantic=True)
+        file_data = mapper.rmap_file_nested(thing, exclude_non_semantic=False)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create(file_data).mutations
     elif mutation.type == MMT.RESTORE_STATEMENT:

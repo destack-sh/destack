@@ -704,7 +704,12 @@ class Capability(InterpSymbol, CapabilityContent):
 
 
 @dataclass(repr=False)
-class TaskContent(TypeContent, GeneratorContent):
+class ReactiveSettings:
+    reactive: bool = False
+
+
+@dataclass(repr=False)
+class TaskContent(TypeContent, GeneratorContent, ReactiveSettings):
     description: str = ""
     root_type_tag = TypeTag.FUNCTION
 
@@ -846,7 +851,7 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
 
 
 @dataclass(repr=False)
-class CodeContent(TypeContent, GeneratorContent):
+class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
     description: Optional[str] = None
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
@@ -901,9 +906,8 @@ class Runconfig(InterpSymbol, RunconfigContent):
 
 
 @dataclass(repr=False)
-class BuildSettings:
+class BuildSettings(ReactiveSettings):
     weights: dict[str, int] = field(default_factory=dict)
-    reactive: bool = False
 
 
 @dataclass(repr=False)
@@ -936,9 +940,8 @@ class Build(InterpSymbol, BuildContent):
 
 
 @dataclass(repr=False)
-class EvaluateSettings:
+class EvaluateSettings(ReactiveSettings):
     weights: dict[str, float] = field(default_factory=dict)
-    reactive: bool = False
 
 
 @dataclass(repr=False)

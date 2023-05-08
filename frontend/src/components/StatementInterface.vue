@@ -471,10 +471,10 @@ const inlineActions = computed(() => {
       </button>
       <!-- Monaco-like line numbers on the left margin -->
       <span
-        class="invisible absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
+        class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
         :class="{
-          ' group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
+          'invisible group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
           'font-mono': editor.fontMono,
@@ -567,7 +567,7 @@ const inlineActions = computed(() => {
         <span
           v-if="inlineActions.length > 0"
           :class="[isFocused ? '' : 'invisible']"
-          class="absolute right-0 top-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
+          class="absolute right-2 top-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
         >
           <button
             v-for="action in inlineActions"

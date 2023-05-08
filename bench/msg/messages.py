@@ -39,6 +39,7 @@ class NMessageType(StrEnum):
     WORKER_HEARTBEAT = "worker.heartbeat"
     REQUEST_READ_MODULE = "module.read"
     REPLY_READ_MODULE = "module.read.rep"
+    REQUEST_WRITE_MODULE = "module.write"
     REPLY_WRITE_MODULE = "module.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
@@ -60,6 +61,7 @@ class NMessageType(StrEnum):
 REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
+    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_BUILD: NMessageType.REPLY_BUILD,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
@@ -219,6 +221,18 @@ class ReqReadModulePayload:
 class RepReadModulePayload:
     module: wire.ModuleData
     project_id: UUID
+
+
+@payload(NMessageType.REQUEST_WRITE_MODULE)
+class ReqWriteModulePayload:
+    module_id: UUID
+    mutations: list[mutate.ModuleMutation]
+    client: ClientOrigin
+
+
+@payload(NMessageType.REPLY_WRITE_MODULE)
+class RepWriteModulePayload:
+    success: bool
 
 
 @payload(NMessageType.REQUEST_INTERP)

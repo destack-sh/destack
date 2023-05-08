@@ -41,7 +41,7 @@ export function useRuntimeOps() {
         $projectVersionId: GlobalID!
         $runnableId: GlobalID
         $buildId: GlobalID
-        $arguments: JSON!
+        $arguments: JSON
         $block: Boolean
         $timeoutSeconds: Int
       ) {
