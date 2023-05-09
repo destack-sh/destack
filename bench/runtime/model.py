@@ -1,7 +1,5 @@
 import os
-import typing
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
 
 import anthropic
 import openai
@@ -20,19 +18,6 @@ from bench.runtime.type import (
 
 logger = structlog.get_logger(__name__)
 
-
-@dataclass(repr=False)
-class InferenceContext:
-    model: Model
-    user_opaque_id: Optional[str] = None
-    streaming_callback: Optional[Callable[[XBlock], None]] = None
-
-    @property
-    def streaming(self) -> bool:
-        return self.streaming_callback is not None
-
-
-InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
 
 endpoints: dict[(str, Modality), InferenceEndpoint] = {}
 

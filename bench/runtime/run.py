@@ -2,90 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import enum
-import hashlib
-import inspect
-import json
-import pathlib
-import textwrap
 import traceback
 import typing
-from asyncio import iscoroutinefunction
-from collections import OrderedDict
-from dataclasses import asdict, dataclass
-from datetime import datetime
-from itertools import chain
-from json import JSONDecodeError
-from random import Random
-from typing import Any, Optional
-from uuid import UUID, uuid4
+from typing import Optional
 
-import numpy
-import PIL.Image
-import pydub
-import pytz
 import structlog
-from more_itertools import first, last
 
-from bench.language.type import (
-    Build,
-    Code,
-    Dataset,
-    InterpSymbol,
-    LiteralValue,
-    Model,
-    Record,
-    Task,
-    Type,
-    TypeNode,
-    TypeTag,
-    XBlock,
-)
-from bench.runtime.model import InferenceContext, InferenceEndpoint, get_endpoints
-from bench.runtime.tracing import (
-    ExecutionTracer,
-    MultiTracer,
-    PubExecutionTracker,
-    Tracer,
-    ValidationTracer,
-    tracer_boundary,
-)
-from bench.runtime.type import (
-    AsyncCodeCallable,
-    BuildMap,
-    CodeInstance,
-    CodeTransformation,
-    DatasetInstance,
-    Inference,
-    Modality,
-    ModelInference,
-    ModelInstance,
-    PyFrameData,
-    SymbolInstance,
-    SyncCodeCallable,
-    TaskInstance,
-    TypeInstance,
-)
-from bench.runtime.x import X_BUILTINS
-from bench.utils.cache import redis
-from bench.utils.func import describe_type, dict_minus
+from bench.language.type import InterpSymbol, LiteralValue
+from bench.runtime.instance import AsyncCodeInstance, SyncCodeInstance
+from bench.runtime.tracing import Tracer, tracer_boundary
+from bench.runtime.type import CodeInstance, PyFrameData
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 logger = structlog.stdlib.get_logger(__name__)
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
-
-STATIC_BUILTINS = {
-    # primitive type builtins
-    "string": str,
-    "number": float,
-    "null": None,
-    "boolean": bool,
-    "image": PIL.Image.Image,
-    "audio": pydub.AudioSegment,
-    # functional builtins
-    "first": first,
-    "last": last,
-    "chain": chain,
-}
 
 
 class RunErrorType(enum.Enum):
@@ -122,140 +52,6 @@ class RunError(Exception):
         return PyFrameData.clean(stack, from_code)
 
 
-class SyncCodeProxy:
-    def __init__(self, code: CodeInstance, raw_callable: SyncCodeCallable, tracer: Tracer):
-        self.code = code
-        self.raw_callable = raw_callable
-        self.tracer = tracer
-
-    def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
-        try:
-            self.tracer.code_enter(self.code, args, kwargs)
-            log.debug("code.enter")
-            result = self.raw_callable(*args, **kwargs)
-            self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.exit", result=describe_type(result))
-            return result
-        except Exception as exception:
-            self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
-            raise
-
-
-class AsyncCodeProxy:
-    def __init__(self, code: CodeInstance, raw_callable: AsyncCodeCallable, tracer: Tracer):
-        self.code = code
-        self.raw_callable = raw_callable
-        self.tracer = tracer
-
-    async def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
-        try:
-            self.tracer.code_enter(self.code, args, kwargs)
-            log.debug("code.enter")
-            result = await self.raw_callable(*args, **kwargs)
-            self.tracer.code_exit(self.code, args, kwargs, result)
-            log.debug("code.exit", result=describe_type(result))
-            return result
-        except Exception as exception:
-            self.tracer.code_exception(self.code, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
-            raise
-
-
-INFERENCE_CACHE_EXPIRY = get_from_env(
-    "INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int
-)  # 1 month
-
-
-class InferenceProxy:
-    """A worker-side proxy for tracing (and caching) a specific inference endpoint."""
-
-    def __init__(
-        self,
-        ctx: InferenceContext,
-        modality: Modality,
-        endpoint: InferenceEndpoint,
-        tracer: Tracer,
-        cache_inferences: bool,
-        timeout: int,
-        retries: int,
-    ):
-        if retries < 0:
-            raise ValueError("retries must be >= 0")
-        self.ctx = ctx
-        self.modality = modality
-        self.endpoint = endpoint
-        self.tracer = tracer
-        self.cache_inferences = cache_inferences
-        self.timeout = timeout
-        self.retries = retries
-
-    # insecure hash is fine here, it's just for caching
-    # noinspection InsecureHash
-    async def __call__(self, blocks: list[XBlock], settings: Any) -> Any:
-        # make hash key
-        block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
-        blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
-        settings_hash = hashlib.sha256(
-            json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
-        ).hexdigest()
-        cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{settings_hash}:{blocks_hash}"
-
-        log = logger.bind(
-            modality=self.modality,
-            ctx=self.ctx,
-            blocks=len(blocks),
-            cache_key=cache_key,
-            cache_inferences=self.cache_inferences,
-        )
-
-        if self.cache_inferences:
-            # TODO @Performance: use leases to cooperatively inference endpoints
-            cached_inference = await redis.get(cache_key)
-            if cached_inference is not None:
-                try:
-                    inference = Inference.from_json_str(cached_inference)
-                    log.debug("inference.cache.hit", ret=describe_type(inference.result))
-                    self.tracer.inference_cached(self.ctx, blocks, settings, inference)
-                    return inference.result
-                except (ValueError, TypeError, JSONDecodeError):
-                    log.warning("inference.cache.error", excinfo=True)
-                    # ignore and continue, will be overwritten
-
-        remaining_attempts = self.retries + 1
-        while remaining_attempts > 0:
-            remaining_attempts -= 1
-            try:
-                generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.tracer.inference_enter(self.ctx, blocks, settings)
-                log.debug("inference.enter")
-                result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
-                self.tracer.inference_exit(self.ctx, blocks, settings, result)
-                log.debug("inference.exit", ret=describe_type(result))
-                if self.cache_inferences:
-                    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-                    inference = Inference(
-                        generated_at=generated_at,
-                        duration=(now - generated_at).total_seconds(),
-                        # ret is assumed to be JSON-serializable
-                        # (may not be true when we get to images, but this will error obviously enough)
-                        result=result,
-                    )
-                    await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
-                return result
-            except TimeoutError as exception:
-                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
-                log.debug("inference.exception", excinfo=True)
-                if remaining_attempts <= 0:
-                    raise
-            except Exception as exception:
-                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
-                log.debug("inference.exception", excinfo=True)
-                raise
-
-
 class Proxy:
     """A worker-side proxy for wrapping symbol access."""
 
@@ -270,14 +66,6 @@ class Proxy:
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
-
-    def proxy_code(self, code: CodeInstance) -> CodeInstance:
-        code_proxy_cls = (
-            AsyncCodeProxy if iscoroutinefunction(code.code_callable) else SyncCodeProxy
-        )
-        code_proxy = code_proxy_cls(code, code.code_callable, self.tracer)
-        code.code_callable = code_proxy
-        return code
 
     def proxy_model(self, model: ModelInstance) -> ModelInstance:
         # proxy every available modality endpoint (i.e. method) on the model
@@ -301,262 +89,24 @@ class Proxy:
         return model
 
 
-def unwrap(value: SymbolInstance):
-    return value.py_handle
-
-
-def unwrap_args(self, arguments: dict[str, Any]) -> dict[str, Any]:
-    return {name: self.unwrap(value) for name, value in arguments.items()}
-
-
-def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
-    # :PrimitiveTypeMap
-    if node.tag == TypeTag.STRING:
-        return str
-    elif node.tag == TypeTag.NUMBER:
-        return float
-    elif node.tag == TypeTag.NULL:
-        return type(None)
-    elif node.tag == TypeTag.BOOLEAN:
-        return bool
-    elif node.tag == TypeTag.IMAGE:
-        return PIL.Image.Image
-    elif node.tag == TypeTag.AUDIO:
-        return pydub.AudioSegment
-    elif node.tag == TypeTag.EMBEDDING:
-        return numpy.ndarray
-    elif node.tag == TypeTag.FILE:
-        return pathlib.Path  # not sure what to return for double types (with remote blobs)
-    elif node.tag == TypeTag.UNION:
-        return typing.Union[tuple(instantiate_py_type(child) for child in node.type_nodes)]
-    elif node.tag == TypeTag.STRUCT:
-        return typing.TypedDict(
-            node.name,
-            {node.name: instantiate_py_type(node) for node in node.type_nodes},
-        )
-    elif node.tag == TypeTag.ENUM:
-        # create 'fake' enum with the given constants pointing to themselves
-        # assumes enums are value enums (not type union enums)
-        members = {to_pyidentifier(child.name): child.name for child in node.type_nodes}
-        enum_name = node.name or "_anon_" + uuid4().hex
-        return enum.StrEnum(enum_name, members)
-    elif node.tag == TypeTag.LITERAL:
-        return node.value
-    elif node.tag == TypeTag.ANY:
-        return Any
-    else:
-        raise ValueError(f"unexpected type node: {node}")
-
-
-def _instantiate_code_callable(
-    code: Code,
-    context: OrderedDict[str, SymbolInstance],
-) -> tuple[CodeTransformation, SyncCodeCallable | AsyncCodeCallable]:
-    """
-    Instantiates code into a Python callable in the context.
-    If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
-    """
-    unwrapped_context = {name: unwrap(value) for name, value in context.items()}
-
-    # inline all possible context variables
-    # collect transformed invalid identifiers
-    inlined_context = {
-        to_pyidentifier(name): value
-        for name, value in unwrapped_context.items()
-        if not name.isidentifier()
-    }
-    # overwrite with valid identifiers
-    # TODO @Linting: check for indirect identifier collisions like this (e.g. 'a b' and 'a_b')
-    inlined_context.update(
-        {name: value for name, value in unwrapped_context.items() if name.isidentifier()}
-    )
-
-    source_context = (
-        {
-            "__statement__": code.source,
-            "__file__": code.source.file,
-            "__module__": code.source.file.module,
-        }
-        if code.source
-        else {}
-    )
-    dynamic_context = {
-        "source_context": context,
-        "context": unwrapped_context,
-        "_xblocks": code.xblocks,
-        **inlined_context,
-        "random": Random(code.id.hex.encode()),
-        **source_context,
-    }
-
-    start_offset = 1  # for method signature
-    if code.language == "python":
-        python_code = code.code or "pass"
-        locals = {**STATIC_BUILTINS, **dynamic_context}
-        is_async = "await " in python_code  # TODO @Robustness: detect async python code properly
-    elif code.language == "x":
-        python_code = code.code or "pass"
-        locals = {**STATIC_BUILTINS, **X_BUILTINS, **dynamic_context}
-        is_async = True
-    else:
-        raise ValueError(f"unknown code language: {code}")
-
-    # if we have xblocks, add line to copy them to top of method
-    if code.xblocks:
-        python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
-        start_offset += 1
-
-    # create python function from python code
-    input_keys = [i.name for i in code.inputs]
-    func_name = f"_{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
-    async_str = "async " if is_async else ""
-    func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
-    indented_code = textwrap.indent(python_code, " " * 4)
-    code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
-    try:
-        callable = _do_execute_arbitrary_code(code_str, locals)[func_name]
-    except Exception as e:
-        # shouldn't error unless it's a python parse issue since we're just defining a function
-        raise RunError(RunErrorType.PARSE, code.source, cause=e) from e
-
-    transform = CodeTransformation(
-        original_code=code,
-        transformed_code=code_str,
-        start_offset=start_offset,
-        method_name=func_name,
-    )
-    return transform, callable
-
-
-@dataclass
-class ModelInferenceImpl(ModelInference):
-    ctx: InferenceContext
-
-
-def _instantiate_model_inference(model: Model) -> ModelInference:
-    ctx = InferenceContext(model=model, user_opaque_id=model.id.hex, streaming_callback=None)
-    impl = ModelInferenceImpl(ctx)
-    endpoints = list(get_endpoints(model))
-    if not endpoints:
-        raise RuntimeError(f"no endpoints found for model: {model}")
-    for modality, endpoint_cls in endpoints:
-        endpoint = getattr(endpoint_cls(ctx), modality)
-        setattr(impl, modality, endpoint)
-    return impl
-
-
-def _instantiate_py_value(value: Any, type: TypeNode) -> Any:
-    return value
-
-
-def _instantiate_dataset(dataset: Dataset, build: Build) -> DatasetInstance:
-    py_type = instantiate_py_type(dataset.type)
-
-    # map record data into proper python types
-    records = []
-    for record in dataset.records:
-        py_record_data = {}
-        # unkey into real names
-        raw_data = dataset.type.unkey(record.data)
-        for key, value in raw_data.items():
-            py_field = to_pyidentifier(key)
-            py_value = _instantiate_py_value(value, py_type[py_field])
-            py_record_data[py_field] = py_value
-        records.append(Record(id=record.id, order_key=record.order_key, data=py_record_data))
-
-    return DatasetInstance(**dict_minus(dataset.__dict__, "records"), records=records, build=build)
-
-
-DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
-DEFAULT_PROXY = Proxy(
-    tracer=DEFAULT_TRACER,
-    cache_inferences=True,
-    inference_timeout=15,
-    inference_retries=2,
-)
-
-
-def instantiate(
-    symbol: InterpSymbol,
-    build: Optional[Build] = None,
-    buildmap: Optional[BuildMap] = None,
-    refmap: dict[UUID, SymbolInstance] = None,
-    proxy: Proxy | None = None,
-) -> InterpSymbol:
-    """Instantiate a symbol in a build with all relevant context recursively."""
-    if symbol.abstract:
-        raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
-    buildmap = buildmap or (lambda s: None)
-    refmap = refmap or {}
-    proxy = proxy or DEFAULT_PROXY
-    # instantiate context (preserving order)
-    instantiated_context = OrderedDict()
-    for name, value in symbol.context.items():
-        if symbol is value:
-            # self-reference is not supported for now
-            # mainly because it would require either
-            #  1) allowing invalid/mock initial instance state (and populate that later)
-            #  2) tracking and somehow swapping the reference after it is actually created
-            continue
-        instantiated_context[name] = instantiate(
-            value, build=build, refmap=refmap, buildmap=buildmap, proxy=proxy
-        )
-
-    if isinstance(symbol, Task):
-        if buildmap is None:
-            raise ValueError(f"cannot instantiate task without build: {symbol}")
-        implementation = buildmap(symbol)
-        if implementation is None:
-            raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
-        implementation_instance = instantiate(
-            implementation, build=build, buildmap=buildmap, proxy=proxy
-        )
-        task = TaskInstance(
-            **symbol.__dict__,
-            build=build,
-            implementation=typing.cast(CodeInstance, implementation_instance),
-        )
-        implementation_instance.task = task
-        return task
-    elif isinstance(symbol, Code):
-        transform, code_callable = _instantiate_code_callable(symbol, instantiated_context)
-        code_instance = CodeInstance(
-            **symbol.__dict__,
-            build=build,
-            transform=transform,
-            code_callable=code_callable,
-            is_async=inspect.iscoroutinefunction(code_callable),
-        )
-        # TODO @Broken: set task on code instance if instantiated directly
-        #  Likely will require breaking circles with a refmap.
-        return proxy.proxy_code(code_instance)
-    elif isinstance(symbol, Model):
-        inference = _instantiate_model_inference(symbol)
-        model_instance = ModelInstance(**symbol.__dict__, inference=inference, build=build)
-        return proxy.proxy_model(model_instance)
-    elif isinstance(symbol, Dataset):
-        return _instantiate_dataset(symbol, build)
-    elif isinstance(symbol, Type):
-        py_type = instantiate_py_type(symbol)
-        return TypeInstance(**symbol.__dict__, build=build, py_type=py_type)
-    else:
-        raise ValueError(f"cannot instantiate {symbol} in {build}")
-
-
-def run_sync(code: CodeInstance, arguments: dict[str, LiteralValue] | None = None) -> LiteralValue:
+def run_sync(
+    code: SyncCodeInstance, arguments: dict[str, LiteralValue] | None = None
+) -> LiteralValue:
     """Runs the code instance synchronously. Not to be used in production."""
     arguments = arguments or {}
     try:
         if code.is_async:
             raise RuntimeError(f"cannot run async code synchronously: {code}")
         with tracer_boundary():
-            return code.py_handle(**arguments)
+            return code(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
 
 async def run(
-    code: CodeInstance, arguments: dict[str, LiteralValue] | None = None, is_trusted: bool = False
+    code: AsyncCodeInstance | SyncCodeInstance,
+    arguments: dict[str, LiteralValue] | None = None,
+    is_trusted: bool = False,
 ) -> LiteralValue:
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
         raise RunError(RunErrorType.UNTRUSTED, code)
@@ -565,21 +115,8 @@ async def run(
     try:
         with tracer_boundary():
             if code.is_async:
-                return await code.py_handle(**arguments)
+                return await code(**arguments)
             else:
-                return await asyncio.to_thread(code.py_handle, **arguments)
+                return await asyncio.to_thread(code, **arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
-
-
-def _do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
-    # remember the globals we started with, do not modify originals
-    globals_local = {**globals}
-    globals_local_keys_initial = {*globals_local.keys()}
-    exec(code, globals_local)
-    new_globals = {
-        k: v
-        for k, v in globals_local.items()
-        if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
-    }
-    return new_globals

@@ -1655,7 +1655,7 @@ def interp(
         while current_scope is not None:
             for child in current_scope.proper_symbols:
                 if child.ident_name in symbol.code and child.ident_name not in symbol.context:
-                    symbol.context[child.name] = child
+                    symbol.context[child.ident_name] = child
             current_scope = current_scope.parent
 
     idx.interpreted = True

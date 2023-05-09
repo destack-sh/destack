@@ -1,19 +1,14 @@
 from __future__ import annotations
 
 import enum
-import json
 import sys
 import traceback
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Callable, Coroutine, Optional
+from typing import Any, Optional
 from uuid import UUID, uuid5
 
-import PIL.Image
-
-from bench.language.mutate import ModuleMutation
-from bench.language.parse import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
@@ -21,113 +16,13 @@ from bench.language.type import (
     InterpSymbol,
     LiteralValue,
     Model,
-    Module,
     Record,
-    SymbolType,
     Task,
-    Type,
     TypeNode,
-    XBlock,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.utils.utils import required_field, to_pyidentifier_multi
-
-#
-# Instances
-#
-
-AsyncCodeCallable = Callable[..., Coroutine]
-SyncCodeCallable = Callable[..., Any]
-
-
-@dataclass(repr=False)
-class ModuleInstance:
-    module: Module
-    index: ModuleIndex
-
-
-@dataclass(repr=False)
-class SymbolInstance:
-    build: Optional[Build] = None
-
-    @property
-    def symbol_type(self):
-        return SYMBOL_TYPE_BY_INSTANCE_CLASS[self.__class__]
-
-    @property
-    def py_handle(self) -> Any:
-        raise NotImplementedError
-
-
-@dataclass(repr=False)
-class TaskInstance(SymbolInstance, Task):
-    implementation: CodeInstance = required_field()
-
-    @property
-    def py_handle(self) -> Any:
-        return self.implementation.py_handle
-
-
-@dataclass(repr=False)
-class TypeInstance(SymbolInstance, Type):
-    py_type: Any = required_field()
-
-    @property
-    def py_handle(self) -> Any:
-        return self.py_type
-
-
-@dataclass(repr=False)
-class RecordInstance(Record):
-    dataset: DatasetInstance = required_field()
-
-
-@dataclass(repr=False)
-class DatasetInstance(SymbolInstance, Dataset):
-    pending_mutations: list[ModuleMutation] = field(default_factory=list)
-
-    @property
-    def py_handle(self) -> list[Record]:
-        return self.records
-
-
-@dataclass(repr=False)
-class ModelInstance(SymbolInstance, Model):
-    inference: ModelInference = required_field()
-
-    @property
-    def py_handle(self):
-        return self.inference
-
-
-@dataclass(repr=False)
-class CodeTransformation:
-    original_code: str
-    transformed_code: str
-    method_name: str
-    start_offset: int
-
-
-@dataclass(repr=False)
-class CodeInstance(SymbolInstance, Code):
-    task: Optional[TaskInstance] = None
-    transform: Optional[CodeTransformation] = None
-    code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
-    is_async: bool = required_field()
-
-    @property
-    def py_handle(self) -> SyncCodeCallable | AsyncCodeCallable:
-        return self.code_callable
-
-
-SYMBOL_TYPE_BY_INSTANCE_CLASS = {
-    TaskInstance: SymbolType.TASK,
-    TypeInstance: SymbolType.TYPE,
-    DatasetInstance: SymbolType.DATA,
-    ModelInstance: SymbolType.MODEL,
-    CodeInstance: SymbolType.CODE,
-}
-
+from bench.runtime.instance import CodeInstance
+from bench.utils.utils import to_pyidentifier_multi
 
 #
 # Object
@@ -203,32 +98,6 @@ class ExecutionFrame:
 
     def __repr__(self):
         return f"<ExecutionFrame {self}>"
-
-
-@dataclass(slots=True)
-class Inference:
-    """The cached inference struct"""
-
-    generated_at: datetime
-    duration: float
-    result: Any
-
-    def to_json_str(self) -> str:
-        inference_json = {
-            "generated_at": self.generated_at.isoformat(),
-            "duration": self.duration,
-            "result": self.result,
-        }
-        return json.dumps(inference_json)
-
-    @classmethod
-    def from_json_str(cls, json_str: str):
-        data = json.loads(json_str)
-        return cls(
-            generated_at=datetime.fromisoformat(data["generated_at"]),
-            duration=data["duration"],
-            result=data["result"],
-        )
 
 
 @dataclass(slots=True)
@@ -617,101 +486,6 @@ class EvaluationResultData:
                 results_data[child_id].parent_id = result.id
 
         return list(results_data.values())
-
-
-#
-# Model inference
-#
-
-# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib.
-# For now, we just use internal dataclasses. :TypeSafeSettings
-
-
-class IncapableError(NotImplementedError):
-    pass
-
-
-class Modality(enum.StrEnum):
-    """Core modality capabilities of a model."""
-
-    GenerateText = "generate_text"  # any -> text
-    GenerateImage = "generate_image"  # any -> image
-    GenerateAudio = "generate_audio"  # any -> audio
-    Embed = "embed"  # any -> embedding
-    Struct = "struct"  # any -> struct(ture prediction)
-
-
-@dataclass
-class TextGenerationSettings:
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    stop: Optional[list[str]] = field(default_factory=list)
-    logit_bias: Optional[dict[str, float]] = field(default_factory=dict)
-
-
-@dataclass
-class ImageGenerationSettings:
-    seed: int
-    steps: int
-    width: int
-    height: int
-    cfg_scale: float
-
-
-@dataclass
-class AudioGenerationSettings:
-    pass
-
-
-@dataclass
-class EmbeddingSettings:
-    pass
-
-
-@dataclass
-class StructSettings:
-    pass
-
-
-SETTINGS_CLS_BY_MODALITY = {
-    Modality.GenerateText: TextGenerationSettings,
-    Modality.GenerateImage: ImageGenerationSettings,
-    Modality.GenerateAudio: AudioGenerationSettings,
-    Modality.Embed: EmbeddingSettings,
-}
-
-
-class ModelInference:
-    """Generic model with an endpoint for each core modality."""
-
-    async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
-        raise IncapableError()
-
-    async def generate_image(
-        self, input: list[XBlock], settings: ImageGenerationSettings
-    ) -> PIL.Image:
-        raise IncapableError()
-
-    async def generate_audio(self, input: list[XBlock], settings: AudioGenerationSettings) -> bytes:
-        raise IncapableError()
-
-    async def embed(self, input: list[XBlock], settings: EmbeddingSettings) -> list[float]:
-        raise IncapableError()
-
-    async def struct(self, input: list[XBlock], settings: StructSettings) -> Any:
-        raise IncapableError()
-
-
-BASE_SETTINGS_BY_MODALITY = {
-    Modality.GenerateText: TextGenerationSettings,
-    Modality.GenerateImage: ImageGenerationSettings,
-    Modality.GenerateAudio: AudioGenerationSettings,
-    Modality.Embed: EmbeddingSettings,
-    Modality.Struct: StructSettings,
-}
-
-BuildMap = Callable[[InterpSymbol], Optional[InterpSymbol]]
 
 
 #
