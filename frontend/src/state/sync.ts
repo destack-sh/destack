@@ -29,7 +29,7 @@ type MutationOp = {
   updateCache?: MutationUpdaterFunction<any, any, any, any>;
 };
 
-function applyOp(client: ApolloClient<any>, op: MutationOp, vars: any, revision: number | null) {
+function applyOpLocally(client: ApolloClient<any>, op: MutationOp, vars: any, revision: number | null) {
   /* Apply the mutation operation */
 
   // first, get the expected response for the input vars
@@ -173,7 +173,7 @@ function useSyncedOps() {
       throw new Error(`cannt apply unknown: ${mutation.type}`);
     }
     console.debug("apply sync mutation", mutation);
-    applyOp(client, registeredOp, mutation.input, mutation.revision as number | null);
+    applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
   return { applyMutation };

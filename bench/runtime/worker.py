@@ -13,17 +13,20 @@ from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
+    ClientOrigin,
     ModuleInternalChangedPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     RepRunPayload,
+    RepWriteModulePayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
     ReqRunPayload,
+    ReqWriteModulePayload,
     RunErrorType,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.instance import CodeInstance, Session, TaskInstance, instantiate
+from bench.runtime.instance import CodeInstance, Session, SessionMode, TaskInstance, instantiate
 from bench.runtime.interp import InterpModule, LanguageInterpreter
 from bench.runtime.run import RunError, run
 from bench.runtime.tracing import (
@@ -94,6 +97,19 @@ class ModuleWorker:
         new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
         self.interp = await self.interpreter.interp(new_source)
 
+    async def do_write(self, mutations: list[ModuleMutation]) -> bool:
+        self.log.debug("module.write")
+        new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
+        self.interp = await self.interpreter.interp(new_source)
+        rep: NMessage[RepWriteModulePayload] = await request(
+            NMessageType.REQUEST_WRITE_MODULE,
+            ReqWriteModulePayload(
+                module_id=self.module_id, mutations=mutations, client=self.master.client
+            ),
+            RepWriteModulePayload,
+        )
+        return rep.p.success
+
     def queue_run(
         self,
         *,
@@ -127,7 +143,7 @@ class ModuleWorker:
 
         # instantiate
         try:
-            session = Session(self.idx)
+            session = Session(idx=self.idx, mode=SessionMode.WRITE_GLOBAL, write=self.do_write)
             runnable_instance = instantiate(
                 runnable,
                 session=session,
@@ -274,6 +290,10 @@ class SandboxedWorker:
     @property
     def default_tracing_level(self) -> ExecutionTracingLevel:
         return ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
+
+    @property
+    def client(self):
+        return ClientOrigin(type="worker", id=self.worker_id, nonce=None)
 
     async def run(self):
         await nc_init.wait()

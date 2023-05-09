@@ -774,6 +774,12 @@ class Record:
     def __getattr__(self, item):
         return self[item]
 
+    def __setattr__(self, key, value):
+        if key in ["order_key", "data", "id", "dataset"]:  # see RecordInstance
+            super().__setattr__(key, value)
+        else:
+            self[key] = value
+
 
 @dataclass(repr=False)
 class DatasetContent(TypeContent):

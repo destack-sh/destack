@@ -113,13 +113,13 @@ defineExpose({
     >
       <span
         v-if="lastExecution?.updatedAt"
-        :class="lastExecution?.status == ExecutionStatus.Completed ? 'text-gray-400' : 'text-red-600'"
+        :class="lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600'"
       >
         {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
       >
       <span
         v-if="EXECUTION_TERMINAL_STATES.includes(lastExecution?.status)"
-        :class="lastExecution?.status == ExecutionStatus.Completed ? 'text-gray-400' : 'text-red-600'"
+        :class="lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600'"
       >
         {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
       </span>
@@ -184,9 +184,9 @@ defineExpose({
         <span>
           <a class="underline underline-offset-4">{{ frame.filename }}:{{ frame.lineno }}</a> {{ frame.name }}
         </span>
-        <span class="ml-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
+        <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
         <!-- Locals -->
-        <span class="ml-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2" v-if="frame.locals">
+        <span class="mx-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2" v-if="frame.locals">
           <template v-for="key in Object.keys(frame.locals)" :key="key">
             <span>{{ key }}</span>
             <span class="col-span-3 w-full">{{ frame.locals[key] }}</span>

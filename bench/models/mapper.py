@@ -17,13 +17,7 @@ from django.db import transaction
 
 from bench import language, models
 from bench.language import wire
-from bench.language.mutate import (
-    MMK,
-    MMT,
-    NON_SEMANTIC_STATEMENT_TYPES,
-    ModuleMutation,
-    MutationBundle,
-)
+from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
@@ -312,9 +306,14 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
             for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]
         )
         models.GeneratedMapping.objects.bulk_create(mappings)
+    if mut[MMT.UPDATE_RECORD]:
+        records = [wmap_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
+        models.DatasetRecord.objects.bulk_update(records, ["order_key", "revision", "data"])
     # :WriteModuleUpdates
-    if len(mut[MMK.UPDATE]) > len(mut[MMT.UPDATE_GENERATED_MAPPINGS]):
-        raise NotImplementedError(f"updates not supported yet: {mut[MMK.UPDATE]}")
+    if mut[MMT.UPDATE_STATEMENT]:
+        raise NotImplementedError(f"statement updates not implemented: {mut[MMT.UPDATE_STATEMENT]}")
+    if mut[MMT.UPDATE_TYPE_NODE]:
+        raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_TYPE_NODE]}")
 
 
 def write_files(

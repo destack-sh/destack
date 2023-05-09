@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Collection, Mapping
 
 
 def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
@@ -25,7 +25,7 @@ def unproxy_value(value: Any) -> Any:
         return value
 
 
-class ProxyDict:
+class ProxyDict(Mapping):
     """Proxy a dict, calling onread/onwrite when a key is accessed."""
 
     def __init__(self, inner: dict, onread: Callable[[str], None], onwrite: Callable[[str], None]):
@@ -50,13 +50,13 @@ class ProxyDict:
         return self._inner[key]
 
     def __setitem__(self, key: str, value: Any) -> None:
-        self._onwrite(key)
         value = proxy_value(value, _curry_path(self._onread, key), _curry_path(self._onwrite, key))
         self._inner[key] = value
+        self._onwrite(key)
 
     def __delitem__(self, key: str) -> None:
-        self._onwrite(key)
         del self._inner[key]
+        self._onwrite(key)
 
     def __contains__(self, key: str) -> bool:
         self._onread(key)
@@ -73,13 +73,13 @@ class ProxyDict:
     # for typed dicts
 
     def __setattr__(self, item, value):
-        if item.startswith("_"):
+        if item in ("_inner", "_onread", "_onwrite"):
             return super().__setattr__(item, value)
+        super().__setattr__(self._inner, item, value)
         self._onwrite(item)
-        return super().__setattr__(self._inner, item, value)
 
 
-class ProxyList:
+class ProxyList(Collection):
     """Proxy a list, calling onread and onwrite when a key is accessed."""
 
     def __init__(self, inner: list, onread: Callable[[str], None], onwrite: Callable[[str], None]):
@@ -104,18 +104,18 @@ class ProxyList:
         return iter(self._inner)
 
     def append(self, value: Any) -> None:
-        self._onwrite("")
         i = len(self._inner)
         value = proxy_value(
             value, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
         )
         self._inner.append(value)
+        self._onwrite("")
 
     def extend(self, value: Any) -> None:
-        self._onwrite("")
         for v in value:
             i = len(self._inner)
             v = proxy_value(
                 v, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
             )
             self._inner.append(v)
+        self._onwrite("")
