@@ -13,10 +13,12 @@ import pytz
 import structlog
 
 from bench.language import Model, XBlock
-from bench.runtime.tracing import Tracer
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
+
+if typing.TYPE_CHECKING:
+    from bench.runtime.tracing import Tracer
 
 logger = structlog.get_logger(__name__)
 
@@ -118,12 +120,6 @@ INFERENCE_CACHE_EXPIRY = get_from_env(
 )  # 1 month
 
 
-@dataclass(repr=False)
-class InferenceContext:
-    model: Model
-    user_opaque_id: Optional[str] = None
-
-
 @dataclass(slots=True)
 class Inference:
     """The cached inference struct"""
@@ -158,17 +154,17 @@ class InferenceProxy:
 
     def __init__(
         self,
-        ctx: InferenceContext,
+        model: Model,
         modality: Modality,
         endpoint: InferenceEndpoint,
-        tracer: Tracer,
+        tracer: "Tracer",
         cache_inferences: bool,
         timeout: int,
         retries: int,
     ):
         if retries < 0:
             raise ValueError("retries must be >= 0")
-        self.ctx = ctx
+        self.model = model
         self.modality = modality
         self.endpoint = endpoint
         self.tracer = tracer
@@ -185,11 +181,11 @@ class InferenceProxy:
         settings_hash = hashlib.sha256(
             json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
         ).hexdigest()
-        cache_key = f"inference.{self.ctx.model.fqn}.{self.modality}:{settings_hash}:{blocks_hash}"
+        cache_key = f"inference.{self.model.fqn}.{self.modality}:{settings_hash}:{blocks_hash}"
 
         log = logger.bind(
+            model=self.model.fqn,
             modality=self.modality,
-            ctx=self.ctx,
             blocks=len(blocks),
             cache_key=cache_key,
             cache_inferences=self.cache_inferences,
@@ -202,7 +198,7 @@ class InferenceProxy:
                 try:
                     inference = Inference.from_json_str(cached_inference)
                     log.debug("inference.cache.hit", ret=describe_type(inference.result))
-                    self.tracer.inference_cached(self.ctx, blocks, settings, inference)
+                    self.tracer.inference_cached(self.model, blocks, settings, inference)
                     return inference.result
                 except (ValueError, TypeError, JSONDecodeError):
                     log.warning("inference.cache.error", excinfo=True)
@@ -213,10 +209,10 @@ class InferenceProxy:
             remaining_attempts -= 1
             try:
                 generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.tracer.inference_enter(self.ctx, blocks, settings)
+                self.tracer.inference_enter(self.model, blocks, settings)
                 log.debug("inference.enter")
                 result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
-                self.tracer.inference_exit(self.ctx, blocks, settings, result)
+                self.tracer.inference_exit(self.model, blocks, settings, result)
                 log.debug("inference.exit", ret=describe_type(result))
                 if self.cache_inferences:
                     now = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -230,11 +226,11 @@ class InferenceProxy:
                     await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
                 return result
             except TimeoutError as exception:
-                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
+                self.tracer.inference_exception(self.model, blocks, settings, exception)
                 log.debug("inference.exception", excinfo=True)
                 if remaining_attempts <= 0:
                     raise
             except Exception as exception:
-                self.tracer.inference_exception(self.ctx, blocks, settings, exception)
+                self.tracer.inference_exception(self.model, blocks, settings, exception)
                 log.debug("inference.exception", excinfo=True)
                 raise

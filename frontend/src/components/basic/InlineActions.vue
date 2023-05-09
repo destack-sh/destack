@@ -34,8 +34,8 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
     <button
       v-for="action in inlineActions"
       :key="action.label"
-      class="p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-800"
-      :class="action.active ? 'animate-spin cursor-not-allowed' : ''"
+      class="p-0.5 text-gray-500 hover:text-gray-800"
+      :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
       @click.prevent.stop="action.action"
       :disabled="action.disabled || action.active"
     >

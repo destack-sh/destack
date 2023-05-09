@@ -6,7 +6,7 @@ import traceback
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 from uuid import UUID, uuid5
 
 from bench.language.type import (
@@ -17,12 +17,15 @@ from bench.language.type import (
     LiteralValue,
     Model,
     Record,
+    SymbolType,
     Task,
     TypeNode,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.runtime.instance import CodeInstance
 from bench.utils.utils import to_pyidentifier_multi
+
+if TYPE_CHECKING:
+    from bench.runtime.instance import CodeInstance
 
 #
 # Object
@@ -123,15 +126,31 @@ class PyFrameData:
         return [PyFrameData.from_traceback(frame) for frame in stack]
 
     @staticmethod
-    def clean(stack: list[PyFrameData], from_code: CodeInstance) -> list[PyFrameData]:
+    def clean(stack: list[PyFrameData], from_code: "CodeInstance") -> list[PyFrameData]:
+        from bench.runtime.instance import CodeInstance
+
+        session = from_code.session
+        code_instances = [
+            cast(CodeInstance, instance)
+            for instance in session.instances.values()
+            if instance.symbol_type == SymbolType.CODE
+        ]
+        code_instances_by_method_name: dict[str, CodeInstance] = {
+            instance.transform.method_name: instance for instance in code_instances
+        }
+
         transform = from_code.transform
         found_start = False
         cleaned_stack = []
         for frame in stack:
             if not found_start:
-                # TODO @Robustness: clean stacks for nested code calls
                 # impute bench source info into instantiated code callables
-                if transform.method_name in frame.name:
+                code = code_instances_by_method_name.get(frame.name)
+                if code is not None:
+                    if code == from_code:
+                        found_start = True
+                    elif not found_start:
+                        continue  # ignore
                     if from_code.source is not None:
                         frame.filename = to_pyidentifier_multi(
                             from_code.source.file.path, from_code.source.name
@@ -139,7 +158,10 @@ class PyFrameData:
                     frame.name = from_code.name
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset
-                    found_start = True
+                    frame.locals = frame.locals or {}
+                    for ident, var in code.context.items():
+                        if ident not in frame.locals:
+                            frame.locals[ident] = repr(session.instances[var.id])
             if found_start:
                 # trim file path for python modules
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
@@ -202,7 +224,7 @@ class ExecutionFrameData:
             if frame.code is None:
                 raise ValueError(f"error outside code: {frame}")
             stack_summary = traceback.StackSummary.extract(
-                traceback.walk_tb(frame.error.__traceback__)
+                traceback.walk_tb(frame.error.__traceback__), capture_locals=True
             )
             stack = PyFrameData.from_stack(stack_summary)
             error_data = RunErrorData(

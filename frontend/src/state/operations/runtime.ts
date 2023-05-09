@@ -79,13 +79,14 @@ export function useRuntimeOps() {
   );
 
   async function run(
-    runnableId?: string,
+    runnableId: string,
     buildId?: string,
     arguments_?: Record<string, any>,
     options?: { block?: boolean; timeoutSeconds?: number }
   ) {
     return await ops.perform({
       type: "runtime.run",
+      key: runnableId,
       stateless: true,
       do: async () => {
         return await runMut({

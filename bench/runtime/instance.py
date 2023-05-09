@@ -3,15 +3,15 @@
 #
 import asyncio
 import enum
-import inspect
 import itertools
 import textwrap
 import typing
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from datetime import datetime
 from random import Random
 from typing import Any, Callable, Coroutine, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import numpy
 import structlog
@@ -22,18 +22,16 @@ from bench.language import (
     Code,
     Dataset,
     Model,
-    Module,
     ModuleIndex,
     Record,
     SymbolType,
     Task,
 )
 from bench.language.mutate import ModuleMutation
-from bench.language.type import InterpSymbol, Type, TypeNode, TypeTag
+from bench.language.type import InterpSymbol, LiteralValue, Type, TypeNode, TypeTag
 from bench.language.typer import map_value
-from bench.runtime.inference import InferenceContext, ModelInference
+from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
-from bench.runtime.run import Proxy
 from bench.runtime.tracing import (
     ExecutionTracer,
     MultiTracer,
@@ -41,26 +39,101 @@ from bench.runtime.tracing import (
     Tracer,
     ValidationTracer,
 )
-from bench.runtime.utils import do_execute_arbitrary_code
+from bench.runtime.unsecure import do_execute_arbitrary_code
 from bench.runtime.x import X_BUILTINS
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
+DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
+
+
+class SessionMode(enum.StrEnum):
+    READ_ONLY = "ro"
+    WRITE_LOCAL = "wl"
+    WRITE_GLOBAL = "w"
+
+
+class Session:
+    """A managed context for running code in a module (may mutate)."""
+
+    def __init__(
+        self,
+        idx: ModuleIndex,
+        instances: list["SymbolInstance"] = None,
+        cache_inferences: bool = True,
+        tracer: Tracer = DEFAULT_TRACER,
+        inference_timeout: int = 20,
+        inference_retries: int = 3,
+        mode: SessionMode = SessionMode.READ_ONLY,
+    ):
+        self.id = uuid4()
+        self.idx = idx
+        self.module = idx.module
+        self.opened_at: Optional[datetime] = None
+        self.closed_at: Optional[datetime] = None
+        self.tracer = tracer
+        self.cache_inferences = cache_inferences
+        self.inference_timeout = inference_timeout
+        self.inference_retries = inference_retries
+        self.mode = mode
+        self.pending_mutations: list[ModuleMutation] = []
+        self.instances: dict[UUID, SymbolInstance] = {
+            symbol.id: symbol for symbol in (instances or [])
+        }
+
+    def __str__(self):
+        status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
+        return (
+            f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.pending_mutations)})"
+        )
+
+    def __repr__(self):
+        return f"<Session {self}>"
+
+    def add(self, symbol: "SymbolInstance") -> None:
+        self.instances[symbol.id] = symbol
+
+    def can_write(self, symbol: InterpSymbol):
+        if self.mode == SessionMode.READ_ONLY:
+            return False
+        elif self.mode == SessionMode.WRITE_LOCAL:
+            return symbol.is_local
+        elif self.mode == SessionMode.WRITE_GLOBAL:
+            return True
+        else:
+            raise RuntimeError(f"unknown session mode {self.mode}")
+
+    def open(self):
+        if self.opened_at is not None:
+            raise RuntimeError(f"session already opened {self}")
+        self.opened_at = datetime.now()
+
+    async def aflush(self):
+        if not self.pending_mutations:
+            return
+        raise NotImplementedError
+
+    async def aclose(self):
+        if self.closed_at is not None:
+            raise RuntimeError(f"session already closed {self}")
+        self.closed_at = datetime.now()
+        await self.aflush()
+
+
 AsyncCodeCallable = Callable[..., Coroutine]
 SyncCodeCallable = Callable[..., Any]
 
 
 @dataclass(repr=False)
-class ModuleInstance:
-    module: Module
-    index: ModuleIndex
-
-
-@dataclass(repr=False)
 class SymbolInstance:
+    session: Session = required_field()
     build: Optional[Build] = None
+
+    def __post_init__(self):
+        # could grab session from contextvar here for in-session created instances
+        self.session.add(self)
 
     @property
     def symbol_type(self):
@@ -76,6 +149,16 @@ class TaskInstance(SymbolInstance, Task):
 class TypeInstance(SymbolInstance, Type):
     py_type: Any = required_field()
 
+    # mimic python type behavior
+    def __instancecheck__(self, instance):
+        return isinstance(instance, self.py_type)
+
+    def __subclasscheck__(self, subclass):
+        return issubclass(subclass, self.py_type)
+
+    def __call__(self, *args, **kwargs):
+        return self.py_type(*args, **kwargs)
+
 
 @dataclass(repr=False)
 class RecordInstance(Record):
@@ -84,15 +167,23 @@ class RecordInstance(Record):
 
 @dataclass(repr=False)
 class DatasetInstance(SymbolInstance, Dataset):
-    pending_mutations: list[ModuleMutation] = field(default_factory=list)
-
     def __getitem__(self, item: int):
         return self.records[item]
 
+    def __iter__(self):
+        return iter(self.records)
+
 
 @dataclass(repr=False)
-class ModelInstance(SymbolInstance, Model):
+class ModelInstance(SymbolInstance, Model, ModelInference):
     inference: "ModelInference" = required_field()
+
+    # forward inference methods
+    def __getattr__(self, item):
+        if item in Modality:
+            return getattr(self.inference, item)
+        else:
+            raise AttributeError(item)
 
 
 @dataclass(repr=False)
@@ -154,6 +245,8 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     DatasetInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
+    SyncCodeInstance: SymbolType.CODE,
+    AsyncCodeInstance: SymbolType.CODE,
 }
 
 
@@ -192,8 +285,52 @@ class ObjectProxy:
         }
 
 
+def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+    # :PrimitiveTypeMap
+    if node.tag == TypeTag.STRING:
+        return str
+    elif node.tag == TypeTag.NUMBER:
+        return float
+    elif node.tag == TypeTag.NULL:
+        return type(None)
+    elif node.tag == TypeTag.BOOLEAN:
+        return bool
+    elif node.tag == TypeTag.IMAGE:
+        return ObjectProxy
+    elif node.tag == TypeTag.AUDIO:
+        return ObjectProxy
+    elif node.tag == TypeTag.FILE:
+        return ObjectProxy
+    elif node.tag == TypeTag.EMBEDDING:
+        return numpy.ndarray
+    elif node.tag == TypeTag.UNION:
+        return typing.Union[tuple(instantiate_py_type(child) for child in node.type_nodes)]
+    elif node.tag == TypeTag.STRUCT:
+        return typing.TypedDict(
+            node.name,
+            {node.name: instantiate_py_type(node) for node in node.type_nodes},
+        )
+    elif node.tag == TypeTag.ENUM:
+        # create 'fake' enum with the given constants pointing to themselves
+        # assumes enums are value enums (not type union enums)
+        members = {to_pyidentifier(child.name): child.name for child in node.type_nodes}
+        enum_name = node.name or "_anon_" + uuid4().hex
+        return enum.StrEnum(enum_name, members)
+    elif node.tag == TypeTag.LITERAL:
+        return node.value
+    elif node.tag == TypeTag.ANY:
+        return Any
+    else:
+        raise ValueError(f"unexpected type node: {node}")
+
+
+def instantiate_type(type: Type, build: Build, session: Session) -> TypeInstance:
+    py_type = instantiate_py_type(type)
+    return TypeInstance(**type.__dict__, build=build, py_type=py_type, session=session)
+
+
 def _instantiate_py_value(value: Any, type: TypeNode) -> Any:
-    if type.tag == TypeTag.FILE:
+    if type.tag in TypeTag.FILE:
         try:
             return ObjectProxy.from_dict(value)
         except (ValueError, TypeError):
@@ -205,20 +342,23 @@ def instantiate_py_value(value: Any, type: TypeNode) -> Any:
     return map_value(value, type, map_v=_instantiate_py_value)
 
 
-def instantiate_dataset(dataset: Dataset, build: Build) -> DatasetInstance:
+def instantiate_dataset(dataset: Dataset, build: Build, session: Session) -> DatasetInstance:
     # map record data into proper python types
     records = []
-    for record in dataset.records:
+    for raw_record in dataset.records:
         py_record_data = {}
         # unkey into real names
-        raw_data = dataset.type.unkey(record.data)
+        raw_data = dataset.type.unkey(raw_record.data)
         for key, value in raw_data.items():
             py_field = to_pyidentifier(key)
             py_value = instantiate_py_value(value, dataset.type[key])
             py_record_data[py_field] = py_value
-        records.append(Record(id=record.id, order_key=record.order_key, data=py_record_data))
+        record = Record(id=raw_record.id, order_key=raw_record.order_key, data=py_record_data)
+        records.append(record)
 
-    return DatasetInstance(**dict_minus(dataset.__dict__, "records"), records=records, build=build)
+    return DatasetInstance(
+        **dict_minus(dataset.__dict__, "records"), records=records, build=build, session=session
+    )
 
 
 STATIC_BUILTINS = {
@@ -242,13 +382,15 @@ STATIC_BUILTINS = {
 }
 
 
-def instantiate_code_callable(
+def instantiate_code(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
-) -> tuple[CodeTransformation, SyncCodeCallable | AsyncCodeCallable]:
+    build: Optional[Build],
+    session: Session,
+) -> CodeInstance:
     """
     Instantiates code into a Python callable in the context.
-    If the code is a dynamic prompt (BPL), the callable will be wrapped and use the proxy for contexts.
+    If the code is a dynamic prompt (BPL), the callable will be wrapped and use the session for contexts.
     """
     # inline all possible context variables
     inlined_context = {to_pyidentifier(name): value for name, value in context.items()}
@@ -262,7 +404,7 @@ def instantiate_code_callable(
         else {}
     )
     dynamic_context = {
-        "source_context": context,
+        "session": session,
         "context": inlined_context,
         "_xblocks": code.xblocks,
         **inlined_context,
@@ -306,48 +448,48 @@ def instantiate_code_callable(
         start_offset=start_offset,
         method_name=func_name,
     )
-    return transform, callable
+    code_cls = AsyncCodeInstance if is_async else SyncCodeInstance
+    return code_cls(
+        **code.__dict__,
+        build=build,
+        transform=transform,
+        code_callable=callable,
+        is_async=is_async,
+        tracer=session.tracer,
+        session=session,
+    )
 
 
-@dataclass
-class ModelInferenceImpl(ModelInference):
-    ctx: InferenceContext
-
-
-def instantiate_model_inference(model: Model) -> ModelInference:
-    ctx = InferenceContext(model=model, user_opaque_id=model.id.hex, streaming_callback=None)
-    impl = ModelInferenceImpl(ctx)
+def instantiate_model(model: Model, session: Session) -> ModelInstance:
+    inference = ModelInference()
     endpoints = list(get_endpoints(model))
     if not endpoints:
         raise RuntimeError(f"no endpoints found for model: {model}")
     for modality, endpoint_cls in endpoints:
-        endpoint = getattr(endpoint_cls(ctx), modality)
-        setattr(impl, modality, endpoint)
-    return impl
-
-
-DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
-DEFAULT_PROXY = Proxy(
-    tracer=DEFAULT_TRACER,
-    cache_inferences=True,
-    inference_timeout=15,
-    inference_retries=2,
-)
+        endpoint = getattr(endpoint_cls(model), modality)
+        endpoint_proxy = InferenceProxy(
+            model=model,
+            modality=modality,
+            endpoint=endpoint,
+            tracer=session.tracer,
+            cache_inferences=session.cache_inferences,
+            timeout=session.inference_timeout,
+            retries=session.inference_retries,
+        )
+        setattr(inference, modality, endpoint_proxy)
+    return ModelInstance(**model.__dict__, inference=inference, build=None, session=session)
 
 
 def instantiate(
     symbol: InterpSymbol,
+    session: Session,
     build: Optional[Build] = None,
     buildmap: Optional["BuildMap"] = None,
-    refmap: dict[UUID, SymbolInstance] = None,
-    proxy: Proxy | None = None,
-) -> InterpSymbol:
-    """Instantiate a symbol in a build with all relevant context recursively."""
+) -> SymbolInstance:
+    """Instantiate a symbol in a build recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     buildmap = buildmap or (lambda s: None)
-    refmap = refmap or {}
-    proxy = proxy or DEFAULT_PROXY
     # instantiate context (preserving order)
     instantiated_context = OrderedDict()
     for name, value in symbol.context.items():
@@ -358,7 +500,7 @@ def instantiate(
             #  2) tracking and somehow swapping the reference after it is actually created
             continue
         instantiated_context[name] = instantiate(
-            value, build=build, refmap=refmap, buildmap=buildmap, proxy=proxy
+            value, build=build, buildmap=buildmap, session=session
         )
 
     if isinstance(symbol, Task):
@@ -368,7 +510,7 @@ def instantiate(
         if implementation is None:
             raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
         implementation_instance = instantiate(
-            implementation, build=build, buildmap=buildmap, proxy=proxy
+            implementation, build=build, buildmap=buildmap, session=session
         )
         task = TaskInstance(
             **symbol.__dict__,
@@ -378,26 +520,13 @@ def instantiate(
         implementation_instance.task = task
         return task
     elif isinstance(symbol, Code):
-        transform, code_callable = instantiate_code_callable(symbol, instantiated_context)
-        code_instance = CodeInstance(
-            **symbol.__dict__,
-            build=build,
-            transform=transform,
-            code_callable=code_callable,
-            is_async=inspect.iscoroutinefunction(code_callable),
-        )
-        # TODO @Broken: set task on code instance if instantiated directly
-        #  Likely will require breaking circles with a refmap.
-        return proxy.proxy_code(code_instance)
+        return instantiate_code(symbol, instantiated_context, build, session)
     elif isinstance(symbol, Model):
-        inference = instantiate_model_inference(symbol)
-        model_instance = ModelInstance(**symbol.__dict__, inference=inference, build=build)
-        return proxy.proxy_model(model_instance)
+        return instantiate_model(symbol, session)
     elif isinstance(symbol, Dataset):
-        return instantiate_dataset(symbol, build)
+        return instantiate_dataset(symbol, build, session)
     elif isinstance(symbol, Type):
-        py_type = instantiate_py_type(symbol)
-        return TypeInstance(**symbol.__dict__, build=build, py_type=py_type)
+        return instantiate_type(symbol, build, session)
     else:
         raise ValueError(f"cannot instantiate {symbol} in {build}")
 
