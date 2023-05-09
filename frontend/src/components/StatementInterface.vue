@@ -319,7 +319,11 @@ const isStale = isSymbolStale(statement);
 const evaluations = useCurrentEvaluations();
 
 const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
-  if (statement.value.type != StatementType.Definition || statement.value.symbolType == SymbolType.Build) {
+  if (
+    !editor.inlineMetrics ||
+    statement.value.type != StatementType.Definition ||
+    statement.value.symbolType == SymbolType.Build
+  ) {
     return null;
   }
   const globalMetrics = evaluations.getGlobalEvaluation(statement.value.id)?.aggregatedMetrics;
@@ -368,71 +372,6 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
 
   return metricSets;
 });
-
-// symbol ops (inline)
-// can run inline if has no non-default inputs :InlineRun
-const hasNoInputs = computed(
-  () => statement.value.typeNodes?.map((n) => useFragment(SimpleTypeNodeType, n)).filter((n) => !n.isOutput).length == 0
-);
-type InlineAction = {
-  label: string;
-  icon: any;
-  action: () => void;
-};
-const symbolOps = useSymbolOps();
-const inlineActions = computed(() => {
-  if (statement.value.type != StatementType.Definition) {
-    return [];
-  }
-  const inlineActions: InlineAction[] = [];
-  if (!context.value.readonly) {
-    inlineActions.push({
-      label: "Duplicate",
-      icon: DocumentDuplicateIcon,
-      action: () => magic.duplicate(),
-    });
-  }
-  // :BuildEvaluate disabled for now
-  // if (statement.value.symbolType == SymbolType.Build || statement.value.symbolType == SymbolType.Task) {
-  //   inlineActions.push({
-  //     label: "Build",
-  //     icon: WrenchIcon,
-  //     action: () => symbolOps.build(statement.value, BuildScope.Reactive),
-  //   });
-  // }
-  if (
-    (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) &&
-    hasNoInputs.value
-  ) {
-    inlineActions.push({
-      label: "Run",
-      icon: PlayIcon,
-      action: () => symbolOps.run(statement.value),
-    });
-  }
-  if (
-    (statement.value.symbolType == SymbolType.Task || statement.value.symbolType == SymbolType.Code) &&
-    !hasNoInputs.value
-  ) {
-    inlineActions.push({
-      label: "Run...",
-      icon: PlayIcon,
-      action: () => symbolOps.openRun(statement.value),
-    });
-  }
-  // if (
-  //   statement.value.symbolType == SymbolType.Task ||
-  //   statement.value.symbolType == SymbolType.Expectation ||
-  //   statement.value.symbolType == SymbolType.Build
-  // ) {
-  //   inlineActions.push({
-  //     label: "Evaluate",
-  //     icon: CheckCircleIcon,
-  //     action: () => symbolOps.evaluate(statement.value),
-  //   });
-  // }
-  return inlineActions;
-});
 </script>
 <template>
   <!-- Statement wrapper -->
@@ -442,7 +381,7 @@ const inlineActions = computed(() => {
       tabindex="-1"
       ref="containerRef"
       @dragstart="onDragStart"
-      class="relative min-h-[30px] w-full outline-none transition duration-75 focus:outline-none"
+      class="relative min-h-[30px] w-full outline-none transition duration-150 focus:outline-none"
       :class="{
         'focus:bg-orange-100': !isCommentish,
         'focus:bg-gray-100': isCommentish,
@@ -461,7 +400,8 @@ const inlineActions = computed(() => {
       <!-- z-[5] to put it over the line numbers, which have a fixed width to make positioning easier (don't expect >99 statements/file) -->
       <button
         v-if="!context.readonly"
-        class="invisible absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:visible"
+        class="absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+        :class="isFocused ? 'opacity-100' : 'opacity-0'"
         :style="{
           transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
         }"
@@ -471,10 +411,11 @@ const inlineActions = computed(() => {
       </button>
       <!-- Monaco-like line numbers on the left margin -->
       <span
-        class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-75"
+        class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-150"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
         :class="{
-          'invisible group-focus-within/statement:visible group-hover/statement:visible': !editor.showLineNumbers,
+          'opacity-0 group-focus-within/statement:opacity-100 group-hover/statement:opacity-100':
+            !editor.showLineNumbers,
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
           'font-mono': editor.fontMono,
@@ -511,39 +452,27 @@ const inlineActions = computed(() => {
       <!-- Statement focus indicator (left side if not editing) -->
       <!-- (the z-[5] puts it in front of the statement focus border) -->
       <div
-        class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition-colors duration-75"
+        class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition duration-150"
         :class="{
           'group-focus-within/statement:bg-orange-200 group-hover/statement:bg-orange-300': !isCommentish,
           'group-focus-within/statement:bg-gray-200 group-hover/statement:bg-gray-300': isCommentish,
         }"
       />
       <!-- Statement focus indicator (all around if editing) -->
-      <template v-if="isEditing">
-        <div
-          class="duration-50 absolute left-0 top-0 h-0.5 w-full transition-colors"
-          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-        />
-        <div
-          class="duration-50 absolute bottom-0 left-0 h-0.5 w-full transition-colors"
-          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-        />
-        <div
-          class="duration-50 absolute left-0 top-0 h-full w-0.5 transition-colors"
-          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-        />
-        <div
-          class="duration-50 absolute right-0 top-0 h-full w-0.5 transition-colors"
-          :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'"
-        />
-      </template>
+      <div :class="isEditing ? 'opacity-100' : 'opacity-0'" class="transition duration-150">
+        <div class="absolute left-0 top-0 h-0.5 w-full" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
+        <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
+        <div class="absolute left-0 top-0 h-full w-0.5" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
+        <div class="absolute right-0 top-0 h-full w-0.5" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
+      </div>
       <!-- Statement drag & drop indicator (top/bottom) -->
       <div
-        v-if="!readonly && dragOver && dragInTopHalf"
-        class="duration-50 absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition-colors"
+        class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+        :class="!readonly && dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
       />
       <div
-        v-if="!readonly && dragOver && dragInBottomHalf"
-        class="duration-50 absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition-colors"
+        class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+        :class="!readonly && dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
       <!-- Main cell -->
       <div
@@ -563,21 +492,6 @@ const inlineActions = computed(() => {
           @navigate-down="magic.moveFocusDown"
         />
         <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
-        <!-- Inline cell actions -->
-        <span
-          v-if="inlineActions.length > 0"
-          :class="[isFocused ? '' : 'invisible']"
-          class="absolute right-2 top-0 flex flex-row items-center gap-1 p-1 group-hover/statement:visible"
-        >
-          <button
-            v-for="action in inlineActions"
-            :key="action.label"
-            class="p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-800"
-            @click.prevent.stop="action.action"
-          >
-            <component :is="action.icon" class="h-4 w-4" />
-          </button>
-        </span>
       </div>
       <!-- Gutter indicators on the right margin -->
       <div

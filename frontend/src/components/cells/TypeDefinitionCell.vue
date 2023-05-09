@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
@@ -141,11 +142,15 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <div class="flex flex-wrap items-baseline">
+  <div class="flex items-center justify-between">
     <DeclarationCell
       ref="declarationRef"
       @navigate-down="descriptionRef?.focus()"
       @navigate-right="descriptionRef?.focus()"
+    />
+    <InlineActions
+      class="transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
     />
   </div>
   <!-- Description -->

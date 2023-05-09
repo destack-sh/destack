@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
@@ -14,6 +15,7 @@ import { symbolOf } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
@@ -171,6 +173,17 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
 }
 const position = useMouseInElement(gridRef);
 
+const extraActions = computed(() => {
+  const inlineActions: InlineAction[] = [
+    {
+      label: "Add record",
+      icon: PlusIcon,
+      action: () => insertRecord(),
+    },
+  ];
+  return inlineActions;
+});
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -187,13 +200,20 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <div class="flex flex-row">
-    <DeclarationCell
-      ref="declarationRef"
-      @navigate-down="descriptionRef?.focus"
-      @navigate-right="descriptionRef?.focus"
+  <div class="flex flex-row justify-between">
+    <div class="flex flex-row">
+      <DeclarationCell
+        ref="declarationRef"
+        @navigate-down="descriptionRef?.focus"
+        @navigate-right="descriptionRef?.focus"
+      />
+      <span class="ml-1 inline-flex" :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'">table</span>
+    </div>
+    <InlineActions
+      class="transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
+      :extraActions="extraActions"
     />
-    <span class="ml-1 inline-flex" :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'">table</span>
   </div>
   <!-- Reference type -->
   <!-- TODO @Incomplete: set dataset type to type reference -->

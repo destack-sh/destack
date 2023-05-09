@@ -36,6 +36,14 @@ export type StatementContext = {
   destroyed: boolean;
 };
 
+export type InlineAction = {
+  label: string;
+  icon: any;
+  action: () => void;
+  active?: boolean;
+  disabled?: boolean;
+};
+
 export function useStatementContext() {
   const context = inject<Ref<StatementContext>>(STATEMENT_CONTEXT);
   if (context == null) {
@@ -319,6 +327,7 @@ export function useStatementContext() {
     await ops.symbol.softDeleteTypeNode(null, statement.value.id, makeTypeNodeInput(statement.value.id, oldTypeNode));
   }
 
+  // basic inline actions
   return {
     // state
     statement,
