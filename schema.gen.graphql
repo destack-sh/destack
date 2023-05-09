@@ -1409,6 +1409,7 @@ type PyFrame {
   lineno: Int!
   name: String!
   line: String!
+  locals: JSON
 }
 
 type Query {

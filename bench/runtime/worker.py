@@ -24,15 +24,16 @@ from bench.msg.messages import (
     WorkerHeartbeatPayload,
 )
 from bench.runtime.build import BuildCandidate
+from bench.runtime.instance import CodeInstance, Session, TaskInstance, instantiate
 from bench.runtime.interp import InterpModule, LanguageInterpreter
-from bench.runtime.run import DEFAULT_TRACER, RunError, instantiate, run
+from bench.runtime.run import RunError, run
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
     pub_tracker_ctx,
     worker_ctx,
 )
-from bench.runtime.type import CodeInstance, RunErrorData, TaskInstance, WorkerType
+from bench.runtime.type import RunErrorData, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -127,9 +128,10 @@ class ModuleWorker:
 
         # instantiate
         try:
-            # TODO @Performance: share/cache run instances across runs
+            session = Session(self.idx)
             runnable_instance = instantiate(
                 runnable,
+                session=session,
                 build=build,
                 buildmap=lambda source: self.idx.get_symbol_by_id(build.get_target(source.id)),
             )
@@ -158,10 +160,8 @@ class ModuleWorker:
         else:
             code_instance = runnable_instance
         # notify tracer about queue enter
-        # there are nicer ways to do this, but essentially we need access to the
-        # current root tracer, which defaults to DEFAULT_TRACER
         run_ctx_token = pub_tracker_ctx.set(job.ctx)
-        DEFAULT_TRACER.queue_enter(code_instance, arguments, qpos)
+        session.tracer.queue_enter(code_instance, arguments, qpos)
         pub_tracker_ctx.reset(run_ctx_token)
         return job
 
@@ -251,7 +251,7 @@ class ModuleWorker:
                 # keep the queue running?
             except Exception as e:
                 sentry_enabled = sentry_capture_if_enabled(e)
-                job.error = str(e)
+                job.error = RunErrorType.RUNTIME_ERROR
                 self.log.exception("run.failed", job=job, sentry_enabled=sentry_enabled)
             finally:
                 job.terminated.set()

@@ -221,6 +221,7 @@ class PyFrame:
     lineno: int
     name: str
     line: str = None
+    locals: Optional[JSON] = None
 
 
 def rmap_py_frame(frame: PyFrameData) -> PyFrame:
@@ -229,6 +230,7 @@ def rmap_py_frame(frame: PyFrameData) -> PyFrame:
         lineno=frame.lineno,
         name=frame.name,
         line=frame.line,
+        locals=frame.locals,
     )
 
 

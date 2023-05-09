@@ -28,7 +28,7 @@ from django.db import models
 from more_itertools import first
 
 from bench.utils.fractional import INTEGER_ZERO
-from bench.utils.func import dict_minus
+from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
 
@@ -449,6 +449,10 @@ class InterpSymbol:
         return self.definition.source.fqn if self.definition.source else None
 
     @property
+    def is_local(self) -> bool:
+        return self.modifier == StatementModifier.LOCAL
+
+    @property
     def is_root(self):
         return self.source is None or self.source.parent is None
 
@@ -753,10 +757,7 @@ class Record:
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __str__(self):
-        data_type = (
-            ",".join(self.data.keys()) if isinstance(self.data, dict) else type(self.data).__name__
-        )
-        return f"{self.order_key} {data_type}"
+        return f"{self.order_key} {describe_type(self.data)}"
 
     def __repr__(self):
         return f"<Record {self}>"
@@ -766,6 +767,9 @@ class Record:
             return self.data[item]
         except KeyError:
             raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
+
+    def __setitem__(self, key, value):
+        self.data[key] = value
 
     def __getattr__(self, item):
         return self[item]

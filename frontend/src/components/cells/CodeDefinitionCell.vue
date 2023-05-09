@@ -13,9 +13,11 @@ import InlineActions from "@/components/basic/InlineActions.vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
 import { formatDurationSeconds } from "@/composables/useNow";
+import { useOperations } from "@/state/operations";
 
 const context = useStatementContext();
 
+const ops = useOperations();
 const symbolOps = useSymbolOps();
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
@@ -45,12 +47,17 @@ const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(nul
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 const addingTypes = ref(false);
 
+const executionActive = computed(
+  () =>
+    ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
+    (lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status))
+);
 const extraActions = computed(() => {
   const inlineActions: InlineAction[] = [
     {
       label: "Run",
       icon: PlayIcon,
-      active: lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status),
+      active: executionActive.value,
       action: () => symbolOps.run(context.statement.value),
     },
   ];
@@ -89,7 +96,7 @@ defineExpose({
     </div>
     <div
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
-      :class="context.focused.value ? '' : 'opacity-0'"
+      :class="context.focused.value || executionActive ? '' : 'opacity-0'"
     >
       <span
         v-if="EXECUTION_TERMINAL_STATES.includes(lastExecution?.status)"
@@ -152,9 +159,19 @@ defineExpose({
     </template>
     <span class="font-bold">{{ lastExecution.error?.message }}</span>
     <ul class="flex flex-col">
-      <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col">
-        <span> {{ frame.filename }}:{{ frame.lineno }} {{ frame.name }} </span>
-        <span class="ml-2" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
+      <!-- Error traceback -->
+      <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col gap-1">
+        <span>
+          <a class="underline underline-offset-4">{{ frame.filename }}:{{ frame.lineno }}</a> {{ frame.name }}
+        </span>
+        <span class="ml-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
+        <!-- Locals -->
+        <span class="ml-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2" v-if="frame.locals">
+          <template v-for="key in Object.keys(frame.locals)" :key="key">
+            <span>{{ key }}</span>
+            <span class="col-span-3 w-full">{{ frame.locals[key] }}</span>
+          </template>
+        </span>
       </li>
     </ul>
     <span class="absolute right-2 top-1.5"> ({{ now.getTimeFromNowString(lastExecution.updatedAt) }})</span>

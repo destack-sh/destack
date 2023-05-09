@@ -17,9 +17,12 @@ from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload
-from bench.runtime.model import InferenceContext
-from bench.runtime.type import CodeInstance, ExecutionFrame, ExecutionFrameData, Inference
+from bench.runtime.type import ExecutionFrame, ExecutionFrameData
 from bench.utils.uuidt import UUIDT
+
+if typing.TYPE_CHECKING:
+    from bench.runtime.inference import Inference
+    from bench.runtime.instance import CodeInstance
 
 logger = structlog.get_logger(__name__)
 
@@ -42,21 +45,19 @@ class Tracer:
     def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
         pass
 
-    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
+    def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
         pass
 
-    def inference_exit(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
-    ):
+    def inference_exit(self, model: Model, blocks: list[XBlock], settings: Any, result: Any):
         pass
 
     def inference_exception(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
+        self, model: Model, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         pass
 
     def inference_cached(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
+        self, model: Model, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         pass
 
@@ -112,32 +113,30 @@ class MultiTracer(Tracer):
                 logger.exception("trace.code.exception", exc_info=True, tracer=tracer)
                 raise e
 
-    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
+    def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
         for tracer in self.tracers:
-            tracer.inference_enter(ctx, blocks, settings)
+            tracer.inference_enter(model, blocks, settings)
 
-    def inference_exit(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
-    ):
+    def inference_exit(self, model: Model, blocks: list[XBlock], settings: Any, result: Any):
         for tracer in reversed(self.tracers):
-            tracer.inference_exit(ctx, blocks, settings, result)
+            tracer.inference_exit(model, blocks, settings, result)
 
     def inference_exception(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
+        self, model: Model, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         for tracer in reversed(self.tracers):
             try:
-                tracer.inference_exception(ctx, blocks, settings, exception)
+                tracer.inference_exception(model, blocks, settings, exception)
             except Exception as e:
                 # internal error in tracer, very bad
                 logger.exception("trace.inference.exception", exc_info=True, tracer=tracer)
                 raise e
 
     def inference_cached(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
+        self, model: Model, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         for tracer in self.tracers:
-            tracer.inference_cached(ctx, blocks, settings, inference)
+            tracer.inference_cached(model, blocks, settings, inference)
 
 
 def push_context_tracers(*tracers: Tracer):
@@ -308,25 +307,23 @@ class ExecutionTracer(Tracer):
         self.tracker(frame)
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_enter(self, ctx: InferenceContext, blocks: list[XBlock], settings: Any):
-        frame = self._create_frame(model=ctx.model)
+    def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
+        frame = self._create_frame(model=model)
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_exit(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, result: Any
-    ):
+    def inference_exit(self, model: Model, blocks: list[XBlock], settings: Any, result: Any):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.tracker(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_cached(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, inference: Inference
+        self, model: Model, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         # track a complete frame, don't add to stacktrace
-        frame = self._create_frame(model=ctx.model, trace=True)
+        frame = self._create_frame(model=model, trace=True)
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = inference.generated_at
         frame.cached_duration = inference.duration
@@ -336,7 +333,7 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.inference.cached", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_exception(
-        self, ctx: InferenceContext, blocks: list[XBlock], settings: Any, exception: Exception
+        self, model: Model, blocks: list[XBlock], settings: Any, exception: Exception
     ):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)

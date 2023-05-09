@@ -1673,6 +1673,7 @@ export type PyFrame = {
   filename: Scalars["String"];
   line: Scalars["String"];
   lineno: Scalars["Int"];
+  locals?: Maybe<Scalars["JSON"]>;
   name: Scalars["String"];
 };
 

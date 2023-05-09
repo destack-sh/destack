@@ -719,7 +719,7 @@ class LanguageWorker:
         if not self.interp.committed:
             create_wrapped_task(self._trigger_reactive_generate())
             create_wrapped_task(self._trigger_reactive_lint())
-            create_wrapped_task(self._trigger_reactive_build())
+            # create_wrapped_task(self._trigger_reactive_build()) :BuildEvaluate
         # notify clients
         payload = make_full_change_payload(self, InterpChangedPayload)
         await publish(NMessageType.INTERP_CHANGED, payload)

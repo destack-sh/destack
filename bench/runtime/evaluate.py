@@ -25,6 +25,8 @@ from bench.language.type import (
     make_func_type,
     make_struct_type,
 )
+from bench.runtime.inference import Modality, TextGenerationSettings
+from bench.runtime.instance import TaskInstance, instantiate
 from bench.runtime.instruct import (
     Instruction,
     InstructionOp,
@@ -33,7 +35,7 @@ from bench.runtime.instruct import (
     instruction_tree_from_module,
     instruction_tree_from_symbol,
 )
-from bench.runtime.run import instantiate, run
+from bench.runtime.run import run
 from bench.runtime.tracing import in_memory_traces, tracer_blocker
 from bench.runtime.type import (
     EvaluationKind,
@@ -41,9 +43,6 @@ from bench.runtime.type import (
     EvaluationPlan,
     EvaluationResult,
     EvaluationScope,
-    Modality,
-    TaskInstance,
-    TextGenerationSettings,
 )
 from bench.utils.func import dict_minus
 

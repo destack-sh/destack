@@ -8,9 +8,10 @@ import pydub
 import structlog
 
 from bench.language.type import Model, XBlock, XSource
-from bench.runtime.type import (
+from bench.runtime.inference import (
     ImageGenerationSettings,
     IncapableError,
+    InferenceEndpoint,
     Modality,
     ModelInference,
     TextGenerationSettings,
@@ -52,7 +53,7 @@ def get_endpoints(model: Model) -> list[tuple[Modality, InferenceEndpoint]]:
 
 @endpoint(["openai.std.text.gpt-4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
 class OpenAIChatCompletion(ModelInference):
-    ctx: InferenceContext
+    model: Model
     role_map = {
         XSource.System: "system",
         XSource.Developer: "assistant",
@@ -67,7 +68,7 @@ class OpenAIChatCompletion(ModelInference):
     ) -> str:
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
         response = await openai.ChatCompletion.acreate(
-            model=self.ctx.model.external_name,
+            model=self.model.external_name,
             messages=messages,
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
@@ -83,7 +84,7 @@ class OpenAIChatCompletion(ModelInference):
     ["openai.std.text.text-davinci-003", "openai.std.text.text-ada-001"], Modality.GenerateText
 )
 class OpenAITextCompletion(ModelInference):
-    ctx: InferenceContext
+    model: Model
     role_map = {
         XSource.System: "System",
         XSource.Developer: "Developer",
@@ -99,7 +100,7 @@ class OpenAITextCompletion(ModelInference):
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
         prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages) + "\n\nAssistant:"
         response = await openai.Completion.acreate(
-            model=self.ctx.model.external_name,
+            model=self.model.external_name,
             prompt=prompt,
             max_tokens=settings.max_tokens,
             temperature=settings.temperature,
@@ -113,17 +114,17 @@ class OpenAITextCompletion(ModelInference):
 
 @endpoint(["openai.std.text.text-ada-001"], Modality.Embed)
 class OpenAITextEmbedding(ModelInference):
-    ctx: InferenceContext
+    model: Model
 
     async def embed(self, input: list[XBlock[str]], settings: None) -> list[float]:
         prompt = "\n\n".join(x.value for x in input)
-        rep = await openai.Embedding.acreate(prompt, model=self.ctx.model.external_name)
+        rep = await openai.Embedding.acreate(prompt, model=self.model.external_name)
         return rep["data"][0]["embedding"]
 
 
 @endpoint(["openai.std.audio.whisper"], Modality.GenerateText)
 class OpenAIAudioTranscription(ModelInference):
-    ctx: InferenceContext
+    model: Model
 
     async def generate_text(
         self,
@@ -135,7 +136,7 @@ class OpenAIAudioTranscription(ModelInference):
 
 @endpoint(["anthropic.std.text.claude", "anthropic.std.text.claude-instant"], Modality.GenerateText)
 class AnthropicTextCompletion(ModelInference):
-    ctx: InferenceContext
+    model: Model
     role_map = {
         XSource.System: "Human",
         XSource.Developer: "Human",
@@ -165,7 +166,7 @@ class AnthropicTextCompletion(ModelInference):
         )
         rep = await self.client.acompletion(
             prompt=prompt,
-            model=self.ctx.model.external_name,
+            model=self.model.external_name,
             stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
             temperature=settings.temperature,
             max_tokens_to_sample=settings.max_tokens,
@@ -176,7 +177,7 @@ class AnthropicTextCompletion(ModelInference):
 
 @endpoint(["stabilityai.std.image.stable-diffusion"], Modality.GenerateImage)
 class StabilityAIImageGeneration(ModelInference):
-    ctx: InferenceContext
+    model: Model
 
     async def generate_image(
         self,

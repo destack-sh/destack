@@ -25,9 +25,10 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.runtime.run import instantiate, run
+from bench.runtime.inference import Modality, TextGenerationSettings
+from bench.runtime.instance import instantiate
+from bench.runtime.run import run
 from bench.runtime.tracing import tracer_blocker
-from bench.runtime.type import Modality, TextGenerationSettings
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)

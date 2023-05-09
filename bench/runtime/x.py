@@ -19,7 +19,7 @@ from bench.language.type import (
     XSource,
 )
 from bench.language.typer import check_type
-from bench.runtime.type import (
+from bench.runtime.inference import (
     BASE_SETTINGS_BY_MODALITY,
     EmbeddingSettings,
     ImageGenerationSettings,

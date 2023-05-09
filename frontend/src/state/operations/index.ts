@@ -14,7 +14,6 @@ import { createSharedComposable } from "@vueuse/shared";
 import { DateTime } from "luxon";
 import { defineStore } from "pinia";
 import { ref, type Ref } from "vue";
-import { v4 as uuidv4 } from "uuid";
 
 /** A single atomic(ish) operation (usually against the DB) */
 export type Operation<T> = {
