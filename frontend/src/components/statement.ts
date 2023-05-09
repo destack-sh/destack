@@ -248,7 +248,7 @@ export function useStatementContext() {
   const isDeleted = computed(() => statement.value.deletedAt != null || context.value.destroyed);
 
   function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    syncProperty({
+    return syncProperty({
       value: content,
       editing,
       read: () => (content.value = statement.value?.name ?? ""),
@@ -258,7 +258,7 @@ export function useStatementContext() {
   }
 
   function syncCode(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    syncProperty({
+    return syncProperty({
       value: content,
       editing,
       read: () => (content.value = statement.value?.code ?? ""),
@@ -275,7 +275,7 @@ export function useStatementContext() {
   const syncText = syncCode;
 
   function syncDescription(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    syncProperty({
+    return syncProperty({
       value: content,
       editing,
       read: () => (content.value = statement.value?.description ?? ""),

@@ -40,4 +40,13 @@ export function syncProperty<T>(property: {
       property.read();
     }
   });
+
+  return {
+    writeNow: _saveProperty,
+    flushNow: () => {
+      if (pendingSave.value) {
+        _saveProperty();
+      }
+    },
+  };
 }

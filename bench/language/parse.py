@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import csv
 import enum
 import json
@@ -1516,6 +1517,9 @@ def interp(
     idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
 ) -> ModuleIndex:
     """Interpret the module's statements as symbols (populating the module's symbol tables)."""
+    if idx.interpreted:
+        raise RuntimeError(f"module already interpreted: {idx}")
+
     if on_error == "raise":
         on_error = raise_error
 
@@ -1652,14 +1656,76 @@ def interp(
 
         # assemble required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
+        # should also handle in-code imports of other files and modules here
+        code_references = parse_code_ext_references(symbol.code)
         while current_scope is not None:
             for child in current_scope.proper_symbols:
-                if child.ident_name in symbol.code and child.ident_name not in symbol.context:
+                if child.ident_name in code_references and child.ident_name not in symbol.context:
                     symbol.context[child.ident_name] = child
             current_scope = current_scope.parent
 
     idx.interpreted = True
     return idx
+
+
+def parse_code_ext_references(code: str) -> list[str]:
+    """Extracts the references made to external symbols in the given code."""
+
+    # TODO @Architecture @Cleanup: robustify code parsing and also use for LSP stuff
+
+    class ReferenceExtractor(ast.NodeVisitor):
+        def __init__(self):
+            self.references = set()
+            self.local_variables = set()
+            self.imports = set()
+
+        def visit_Import(self, node):
+            for alias in node.names:
+                self.imports.add(alias.name.split(".")[0])
+            self.generic_visit(node)
+
+        def visit_ImportFrom(self, node):
+            for alias in node.names:
+                self.imports.add(alias.name)
+            self.generic_visit(node)
+
+        def visit_FunctionDef(self, node):
+            self.local_variables.add(node.name)
+            self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node):
+            self.local_variables.add(node.name)
+            self.generic_visit(node)
+
+        def visit_Assign(self, node):
+            if isinstance(node.targets[0], ast.Name):
+                self.local_variables.add(node.targets[0].id)
+            self.generic_visit(node)
+
+        def visit_Name(self, node):
+            if node.id not in self.local_variables and node.id not in self.imports:
+                self.references.add(node.id)
+            self.generic_visit(node)
+
+        def visit_For(self, node):
+            if isinstance(node.target, ast.Name):
+                self.local_variables.add(node.target.id)
+            self.generic_visit(node)
+
+        def visit_With(self, node):
+            for item in node.items:
+                if isinstance(item.optional_vars, ast.Name):
+                    self.local_variables.add(item.optional_vars.id)
+            self.generic_visit(node)
+
+    try:
+        tree = ast.parse(code)
+        extractor = ReferenceExtractor()
+        extractor.visit(tree)
+    except SyntaxError:
+        return []  # ignore here
+
+    return list(extractor.references)
 
 
 def get_reference_as_path(
