@@ -80,7 +80,7 @@ _SCOPE_TO_TYPE_NAME = {
     MMS.FILE: "File",
     MMS.STATEMENT: "Statement",
     MMS.TYPE_NODE: "TypeNode",
-    MMS.RECORD: "Record",
+    MMS.RECORD: "DatasetRecord",
     MMS.XBLOCK: "XBlock",
 }
 

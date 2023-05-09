@@ -217,7 +217,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has write access to module
         worker = await self._get_ready_worker(msg.p.module_id)
         try:
-            await worker.write_module(msg.p.mutations, origin=msg.p.origin)
+            await worker.write_module(msg.p.mutations, origin=msg.p.client)
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)

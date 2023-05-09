@@ -14,6 +14,7 @@ from bench.runtime.type import (
     EvaluationResultData,
     ExecutionFrameData,
     JobData,
+    RemoteObjectData,
     RunErrorData,
 )
 
@@ -47,6 +48,10 @@ class NMessageType(StrEnum):
     REPLY_READ_MODULE = "module.read.rep"
     REQUEST_WRITE_MODULE = "module.write"
     REPLY_WRITE_MODULE = "module.write.rep"
+    REQUEST_READ_OBJECT = "object.read"
+    REPLY_READ_OBJECT = "object.read.rep"
+    REQUEST_WRITE_OBJECT = "object.write"
+    REPLY_WRITE_OBJECT = "object.write.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
     JOB_SAVED = "job.saved"
@@ -239,6 +244,27 @@ class ReqWriteModulePayload:
 @payload(NMessageType.REPLY_WRITE_MODULE)
 class RepWriteModulePayload:
     success: bool
+
+
+@payload(NMessageType.REQUEST_READ_OBJECT)
+class ReqReadObjectPayload:
+    module_id: UUID
+    object_ids: list[UUID]
+
+
+@payload(NMessageType.REPLY_READ_OBJECT)
+class RepReadObjectPayload:
+    get_urls: list[str]
+
+
+@payload(NMessageType.REQUEST_WRITE_OBJECT)
+class ReqWriteObjectPayload:
+    objects: [RemoteObjectData]
+
+
+@payload(NMessageType.REPLY_WRITE_OBJECT)
+class RepWriteObjectPayload:
+    post_urls: list[str]
 
 
 @payload(NMessageType.REQUEST_INTERP)

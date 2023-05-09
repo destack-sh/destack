@@ -31,7 +31,7 @@ from bench.language import (
 )
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import InterpSymbol, LiteralValue, Type, TypeNode, TypeTag
-from bench.language.typer import map_value
+from bench.language.typer import map_value, rekey_value
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -123,6 +123,10 @@ class Session:
             del self.instances[symbol.id]
             # TODO @Feature @Robustness: track delete / remove relevant mutations (if open)
 
+    def check_can_write(self, symbol: InterpSymbol):
+        if not self.can_write(symbol):
+            raise RuntimeError(f"cannot write {symbol} in {self}")
+
     def can_write(self, symbol: InterpSymbol):
         if self.mode == SessionMode.READ_ONLY:
             return False
@@ -132,11 +136,6 @@ class Session:
             return True
         else:
             raise RuntimeError(f"unknown session mode {self.mode}")
-
-    def track(self, mutation: ModuleMutation):
-        if not self.is_open:
-            raise RuntimeError(f"cannot mutate closed session {self}")
-        self.mutator.mutations.append(mutation)
 
     def open(self):
         if self.opened_at is not None:
@@ -226,17 +225,21 @@ class RecordInstance(Record):
         self.data = proxy_value(
             self.data,
             onread=lambda k: None,
-            onwrite=lambda k: self._on_update(),
+            onwrite=lambda k: self._notify_update(),
         )
 
-    def _on_update(self):
+    def _notify_update(self):
+        self.dataset.session.check_can_write(self.dataset)
+        raw_data = unproxy_value(self.data)
+        raw_data = strip_value(raw_data, self.type)
+        raw_data = rekey_value(raw_data, self.type)
         self.dataset.session.mut.update(
             wire.RecordData(
                 id=self.id,
                 revision=1,
                 order_key=self.order_key,
                 statement_id=self.dataset.id,
-                data=unproxy_value(self.data),
+                data=raw_data,
             )
         )
 
@@ -248,17 +251,18 @@ class RecordInstance(Record):
 @dataclass(repr=False)
 class DatasetInstance(SymbolInstance, Dataset):
     def clear(self):
+        self.session.check_can_write(self)
         # should really be truncate operation
-        self.session.mut.delete_many(*self.records)
+        for record in self.records:
+            self.session.mut.delete(
+                wire.RecordData(
+                    id=record.id,
+                    statement_id=record.dataset.id,
+                    order_key=record.order_key,
+                    revision=1,
+                )
+            )
         self.records = []
-
-    def append(self, record: RecordInstance):
-        self.session.mut.create(wire.rmap_record(record))
-        self.records.append(record)
-
-    def extend(self, records: list[RecordInstance]):
-        self.session.mut.create_many(*(wire.rmap_record(r) for r in records))
-        self.records.extend(records)
 
     def __iter__(self):
         return iter(self.records)
@@ -422,7 +426,7 @@ def instantiate_type(type: Type, build: Build, session: Session) -> TypeInstance
 
 
 def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
-    if type.tag in TypeTag.FILE:
+    if type.tag == TypeTag.FILE:
         try:
             return ObjectProxy.from_dict(value)
         except (ValueError, TypeError):
@@ -432,8 +436,21 @@ def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
     return value
 
 
+def _strip_py_value_inner(value: Any, type: TypeInstance) -> Any:
+    if type.tag == TypeTag.FILE:
+        try:
+            return value.to_dict()
+        except (ValueError, TypeError):
+            return None  # raise? (but should be type error earlier}
+    return value
+
+
 def instantiate_py_value(value, type: TypeInstance) -> Any:
     return map_value(value, type, map_v=_instantiate_py_value_inner)
+
+
+def strip_value(value, type: TypeNode) -> Any:
+    return map_value(value, type, map_v=_strip_py_value_inner)
 
 
 # TODO @Feature: what's the counter-part to instantiate record data?

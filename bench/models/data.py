@@ -4,8 +4,8 @@ from datetime import datetime
 
 import pytz
 from django.contrib.postgres.indexes import GinIndex
-from django.db import connection, models, transaction
-from django.db.models import Count, F, Q
+from django.db import models
+from django.db.models import Q
 
 from bench.models.utils import UUIDModel
 
@@ -14,49 +14,6 @@ class DatasetContentMixin:
     """Dataset content of JSON records."""
 
     records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
-
-    def get_record(self, index: int) -> DatasetRecord:
-        return DatasetRecord.objects.get(dataset=self, index=index)
-
-    def append_record(self, record: dict):
-        self.records.create(index=Count(F("records")), data=record)
-
-    def extend_records(self, records: list[dict]):
-        db_records = []
-        # create db_records with incrementing index
-        for i, record in enumerate(records):
-            db_records.append(
-                DatasetRecord(statement=self, index=Count(F("records")) + 1, data=record)
-            )
-        DatasetRecord.objects.bulk_create(db_records)
-
-    @transaction.atomic
-    def set_records(self, records: list[dict]):
-        self.clear_records()
-        self.extend_records(records)
-
-    def update_record(self, index: int, record: dict):
-        with transaction.atomic():
-            db_record = self.get_record(index)
-            db_record.data = record
-            db_record.save()
-
-    def delete_record(self, index: int):
-        with transaction.atomic():
-            db_record = self.get_record(index)
-            db_record.delete()
-            # update the index of all records indices after the deleted one
-            # when we finally switch to fractional indices, this will be easier and faster
-            with connection.cursor() as cursor:
-                cursor.execute(
-                    "update bench_datasetrecord"
-                    " set index = index - 1"
-                    " where dataset_id = %s and index > %s",
-                    [self.id, index],
-                )
-
-    def clear_records(self):
-        DatasetRecord.objects.filter(dataset=self).delete()
 
 
 class DatasetRecordManager(models.Manager["DatasetRecord"]):
