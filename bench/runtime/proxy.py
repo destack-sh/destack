@@ -1,0 +1,121 @@
+from typing import Any, Callable
+
+
+def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
+    return lambda path: onfn(f"{key}.{path}")
+
+
+def proxy_value(value: Any, onread: Callable[[str], None], onwrite: Callable[[str], None]) -> Any:
+    """Recursively proxy the given value, calling onread/onwrite when a key is accessed."""
+    if isinstance(value, dict):
+        return ProxyDict(value, onread, onwrite)
+    elif isinstance(value, list):
+        return ProxyList(value, onread, onwrite)
+    else:
+        return value
+
+
+def unproxy_value(value: Any) -> Any:
+    """Recursively unproxy the given value."""
+    if isinstance(value, ProxyDict):
+        return {key: unproxy_value(value) for key, value in value.items()}
+    elif isinstance(value, ProxyList):
+        return [unproxy_value(value) for value in value]
+    else:
+        return value
+
+
+class ProxyDict:
+    """Proxy a dict, calling onread/onwrite when a key is accessed."""
+
+    def __init__(self, inner: dict, onread: Callable[[str], None], onwrite: Callable[[str], None]):
+        self._inner = inner
+        self._onread = onread
+        self._onwrite = onwrite
+
+    def items(self):
+        self._onread("")
+        return self._inner.items()
+
+    def keys(self):
+        self._onread("")
+        return self._inner.keys()
+
+    def values(self):
+        self._onread("")
+        return self._inner.values()
+
+    def __getitem__(self, key: str) -> Any:
+        self._onread(key)
+        return self._inner[key]
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        self._onwrite(key)
+        value = proxy_value(value, _curry_path(self._onread, key), _curry_path(self._onwrite, key))
+        self._inner[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        self._onwrite(key)
+        del self._inner[key]
+
+    def __contains__(self, key: str) -> bool:
+        self._onread(key)
+        return key in self._inner
+
+    def __len__(self):
+        self._onread("")
+        return len(self._inner)
+
+    def __iter__(self):
+        self._onread("")
+        return iter(self._inner)
+
+    # for typed dicts
+
+    def __setattr__(self, item, value):
+        if item.startswith("_"):
+            return super().__setattr__(item, value)
+        self._onwrite(item)
+        return super().__setattr__(self._inner, item, value)
+
+
+class ProxyList:
+    """Proxy a list, calling onread and onwrite when a key is accessed."""
+
+    def __init__(self, inner: list, onread: Callable[[str], None], onwrite: Callable[[str], None]):
+        self._inner = inner
+        self._onread = onread
+        self._onwrite = onwrite
+
+    def __delitem__(self, key: int) -> None:
+        self._onwrite(str(key))
+        del self._inner[key]
+
+    def __contains__(self, key: int) -> bool:
+        self._onread(str(key))
+        return key in self._inner
+
+    def __len__(self):
+        self._onread("")
+        return len(self._inner)
+
+    def __iter__(self):
+        self._onread("")
+        return iter(self._inner)
+
+    def append(self, value: Any) -> None:
+        self._onwrite("")
+        i = len(self._inner)
+        value = proxy_value(
+            value, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
+        )
+        self._inner.append(value)
+
+    def extend(self, value: Any) -> None:
+        self._onwrite("")
+        for v in value:
+            i = len(self._inner)
+            v = proxy_value(
+                v, _curry_path(self._onread, str(i)), _curry_path(self._onwrite, str(i))
+            )
+            self._inner.append(v)
