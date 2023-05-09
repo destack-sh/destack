@@ -340,7 +340,6 @@ class SandboxedWorker:
         worker.provide_context()
         if msg.p.client.id != worker.master.worker_id:
             await worker.do_interp_on_change(msg.p.mutations)
-            # module worker will trigger any follow-ups
 
     @message_handler
     async def request_module_run(self, msg: NMessage[ReqRunPayload]):

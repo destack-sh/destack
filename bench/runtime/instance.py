@@ -2,6 +2,7 @@
 # Instances
 #
 import asyncio
+import contextvars
 import enum
 import itertools
 import textwrap
@@ -26,12 +27,14 @@ from bench.language import (
     Record,
     SymbolType,
     Task,
+    wire,
 )
-from bench.language.mutate import ModuleMutation
+from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import InterpSymbol, LiteralValue, Type, TypeNode, TypeTag
 from bench.language.typer import map_value
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
+from bench.runtime.proxy import proxy_value, unproxy_value
 from bench.runtime.tracing import (
     ExecutionTracer,
     MultiTracer,
@@ -53,6 +56,12 @@ class SessionMode(enum.StrEnum):
     READ_ONLY = "ro"
     WRITE_LOCAL = "wl"
     WRITE_GLOBAL = "w"
+    WRITE_ONLY = "wo"
+
+
+active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
+    "active_session", default=None
+)
 
 
 class Session:
@@ -67,7 +76,10 @@ class Session:
         inference_timeout: int = 20,
         inference_retries: int = 3,
         mode: SessionMode = SessionMode.READ_ONLY,
+        write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
     ):
+        if mode != SessionMode.READ_ONLY and write is None:
+            raise ValueError("write must be provided for non-readonly sessions")
         self.id = uuid4()
         self.idx = idx
         self.module = idx.module
@@ -78,7 +90,8 @@ class Session:
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.mode = mode
-        self.pending_mutations: list[ModuleMutation] = []
+        self.write = write
+        self.mutator = ModuleMutator(idx)
         self.instances: dict[UUID, SymbolInstance] = {
             symbol.id: symbol for symbol in (instances or [])
         }
@@ -86,14 +99,29 @@ class Session:
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
         return (
-            f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.pending_mutations)})"
+            f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.mutator.mutations)})"
         )
 
     def __repr__(self):
         return f"<Session {self}>"
 
-    def add(self, symbol: "SymbolInstance") -> None:
+    @property
+    def mut(self) -> ModuleMutator:
+        return self.mutator
+
+    @property
+    def is_open(self) -> bool:
+        return self.opened_at is not None and self.closed_at is None
+
+    def add(self, symbol: "SymbolInstance", new: bool) -> None:
         self.instances[symbol.id] = symbol
+        if new:
+            raise NotImplementedError("can't handle in-session create yet")
+
+    def remove(self, symbol: "SymbolInstance") -> None:
+        if symbol.id in self.instances:
+            del self.instances[symbol.id]
+            # TODO @Feature @Robustness: track delete / remove relevant mutations (if open)
 
     def can_write(self, symbol: InterpSymbol):
         if self.mode == SessionMode.READ_ONLY:
@@ -105,15 +133,26 @@ class Session:
         else:
             raise RuntimeError(f"unknown session mode {self.mode}")
 
+    def track(self, mutation: ModuleMutation):
+        if not self.is_open:
+            raise RuntimeError(f"cannot mutate closed session {self}")
+        self.mutator.mutations.append(mutation)
+
     def open(self):
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
         self.opened_at = datetime.now()
+        active_session.set(self)
 
     async def aflush(self):
-        if not self.pending_mutations:
+        if not self.mutator.mutations:
             return
-        raise NotImplementedError
+        if self.mode == SessionMode.READ_ONLY:
+            raise RuntimeError(f"cannot mutate read-only session {self}")
+        success = await self.write(self.mutator.mutations)
+        if not success:
+            raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
+        self.mutator.reset()
 
     async def aclose(self):
         if self.closed_at is not None:
@@ -128,12 +167,31 @@ SyncCodeCallable = Callable[..., Any]
 
 @dataclass(repr=False)
 class SymbolInstance:
-    session: Session = required_field()
+    id: UUID = required_field()
+    session: Session = None
     build: Optional[Build] = None
+    mode: Optional[SessionMode] = None
 
     def __post_init__(self):
-        # could grab session from contextvar here for in-session created instances
-        self.session.add(self)
+        if self.session is None:
+            self.session = active_session.get()
+            # we pass in session on instantiate, so this must be new
+            self.session.add(self, new=True)
+        else:
+            self.session.add(self, new=False)
+
+    def __del__(self):
+        if self.session is not None:
+            self.session.remove(self)
+
+    def in_mode(self, mode: SessionMode | str) -> "SymbolInstance":
+        """Applies a read/write mode to _this_ symbol instance."""
+        if self.mode is not None and self.mode != mode:
+            raise RuntimeError(f"symbol {self} already in mode {self.mode}")
+        if isinstance(mode, str):
+            mode = SessionMode(mode)
+        self.mode = mode
+        return self
 
     @property
     def symbol_type(self):
@@ -164,11 +222,43 @@ class TypeInstance(SymbolInstance, Type):
 class RecordInstance(Record):
     dataset: "DatasetInstance" = required_field()
 
+    def __post_init__(self):
+        self.data = proxy_value(
+            self.data,
+            onread=lambda k: None,
+            onwrite=lambda k: self._on_update(),
+        )
+
+    def _on_update(self):
+        self.dataset.session.mut.update(
+            wire.RecordData(
+                id=self.id,
+                revision=1,
+                order_key=self.order_key,
+                statement_id=self.dataset.id,
+                data=unproxy_value(self.data),
+            )
+        )
+
+    @property
+    def type(self):
+        return self.dataset.type
+
 
 @dataclass(repr=False)
 class DatasetInstance(SymbolInstance, Dataset):
-    def __getitem__(self, item: int):
-        return self.records[item]
+    def clear(self):
+        # should really be truncate operation
+        self.session.mut.delete_many(*self.records)
+        self.records = []
+
+    def append(self, record: RecordInstance):
+        self.session.mut.create(wire.rmap_record(record))
+        self.records.append(record)
+
+    def extend(self, records: list[RecordInstance]):
+        self.session.mut.create_many(*(wire.rmap_record(r) for r in records))
+        self.records.extend(records)
 
     def __iter__(self):
         return iter(self.records)
@@ -286,6 +376,7 @@ class ObjectProxy:
 
 
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+    """Create the Python-native type for the given type node."""
     # :PrimitiveTypeMap
     if node.tag == TypeTag.STRING:
         return str
@@ -325,26 +416,34 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
 
 
 def instantiate_type(type: Type, build: Build, session: Session) -> TypeInstance:
+    """Instrument and instantiate a type for use."""
     py_type = instantiate_py_type(type)
     return TypeInstance(**type.__dict__, build=build, py_type=py_type, session=session)
 
 
-def _instantiate_py_value(value: Any, type: TypeNode) -> Any:
+def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
     if type.tag in TypeTag.FILE:
         try:
             return ObjectProxy.from_dict(value)
         except (ValueError, TypeError):
             return value
+    elif type.tag == TypeTag.STRUCT:
+        return type(**value)
     return value
 
 
-def instantiate_py_value(value: Any, type: TypeNode) -> Any:
-    return map_value(value, type, map_v=_instantiate_py_value)
+def instantiate_py_value(value, type: TypeInstance) -> Any:
+    return map_value(value, type, map_v=_instantiate_py_value_inner)
+
+
+# TODO @Feature: what's the counter-part to instantiate record data?
 
 
 def instantiate_dataset(dataset: Dataset, build: Build, session: Session) -> DatasetInstance:
-    # map record data into proper python types
-    records = []
+    """Instrument and instantiate a dataset for use."""
+    instance = DatasetInstance(
+        **dict_minus(dataset.__dict__, "records"), records=[], build=build, session=session
+    )
     for raw_record in dataset.records:
         py_record_data = {}
         # unkey into real names
@@ -353,12 +452,11 @@ def instantiate_dataset(dataset: Dataset, build: Build, session: Session) -> Dat
             py_field = to_pyidentifier(key)
             py_value = instantiate_py_value(value, dataset.type[key])
             py_record_data[py_field] = py_value
-        record = Record(id=raw_record.id, order_key=raw_record.order_key, data=py_record_data)
-        records.append(record)
-
-    return DatasetInstance(
-        **dict_minus(dataset.__dict__, "records"), records=records, build=build, session=session
-    )
+        record = RecordInstance(
+            id=raw_record.id, order_key=raw_record.order_key, data=py_record_data, dataset=instance
+        )
+        instance.records.append(record)
+    return instance
 
 
 STATIC_BUILTINS = {

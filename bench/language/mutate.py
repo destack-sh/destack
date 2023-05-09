@@ -269,6 +269,10 @@ class ModuleMutator:
     def __repr__(self):
         return f"<Mutator {self}>"
 
+    def reset(self):
+        self.mutations = []
+        self._created_statements = {}
+
     def do(
         self,
         type: MMT,
