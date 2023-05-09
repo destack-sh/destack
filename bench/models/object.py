@@ -81,6 +81,7 @@ def is_allowed_content_type(content_type: str) -> bool:
 logger = structlog.get_logger(__name__)
 
 
+# :RemoteObjectType
 class RemoteObjectStatus(models.TextChoices):
     PREPARED = "prepared"
     UPLOADING = "uploading"

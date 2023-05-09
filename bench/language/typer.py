@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any, Callable, Union
 
 from bench.language.type import PRIMITIVE_TYPES, TypeNode, TypeTag
 from bench.utils.utils import to_pyidentifier
@@ -109,49 +109,61 @@ def check_type(
         on_invalid(value, expected, suberrors=_suberrors)
 
 
+def map_value(
+    value: Any,
+    type: TypeNode,
+    map_v: Callable[[Any, TypeNode], Any] = None,
+    map_k: Callable[[TypeNode], tuple[str, str]] = None,
+    is_output: bool = None,
+    ignore_array: bool = False,
+):
+    """Walks the value and reassembles with new keys and values."""
+    map_v = map_v or (lambda v, t: v)
+    map_k = map_k or (lambda t: (t.name, t.name))
+    # communicate via yield/send
+    if type.tag in PRIMITIVE_TYPES:
+        return map_v(value, type)
+    elif type.tag == TypeTag.ENUM:
+        return map_v(value, type)
+    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise TypeError(value, type, "expected struct-like")
+    if not isinstance(value, dict):
+        return value
+    if type.is_array and not ignore_array:
+        return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+    mapped = {}
+    for subtype in type.type_nodes:
+        if is_output is not None and subtype.is_output != is_output:
+            continue
+        source_k, target_k = map_k(subtype)
+        if source_k not in value:
+            continue  # ignore missing keys
+        new_value = map_value(value[source_k], subtype, map_v, map_k)
+        mapped[target_k] = new_value
+    return mapped
+
+
 def unkey_value(
     value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = False
 ) -> Any:
     """Replaces all name 'keys' with the actual names (recursively)."""
-    if type.tag in PRIMITIVE_TYPES:
-        return value
-    elif type.tag == TypeTag.ENUM:
-        return value  # maybe key later?
-    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
-        raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, dict):
-        return value  # type error, but ignore here
-    if type.is_array and not ignore_array:
-        return [unkey_value(item, type, ignore_array=True) for item in value]
-    unkeyed = {}
-    for subtype in type.type_nodes:
-        if is_output is not None and subtype.is_output != is_output:
-            continue
-        if subtype.key not in value:
-            continue  # ignore if it doesn't exist
-        unkeyed[subtype.name] = unkey_value(value[subtype.key], subtype)
-    return unkeyed
+    return map_value(
+        value,
+        type,
+        map_k=lambda t: (t.key, t.name),
+        is_output=is_output,
+        ignore_array=ignore_array,
+    )
 
 
 def rekey_value(
     value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = True
 ) -> Any:
     """Replaces all actual names with the name 'keys' (recursively)."""
-    if type.tag in PRIMITIVE_TYPES:
-        return value
-    elif type.tag == TypeTag.ENUM:
-        return value
-    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
-        raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, dict):
-        return value  # type error, but ignore here
-    if type.is_array and not ignore_array:
-        return [rekey_value(item, type, ignore_array=True) for item in value]
-    keyed = {}
-    for subtype in type.type_nodes:
-        if is_output is not None and subtype.is_output != is_output:
-            continue
-        if subtype.name not in value:
-            return value
-        keyed[subtype.key] = rekey_value(value[subtype.name], subtype)
-    return keyed
+    return map_value(
+        value,
+        type,
+        map_k=lambda t: (t.name, t.key),
+        is_output=is_output,
+        ignore_array=ignore_array,
+    )

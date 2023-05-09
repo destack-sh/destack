@@ -5,6 +5,7 @@ import { useApolloClient } from "@vue/apollo-composable";
 
 export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
 
+// :RemoteObjectType
 export type ObjectRecord = Pick<RemoteObject, "id" | "status" | "name" | "contentType" | "contentLength" | "sha512">;
 
 function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
