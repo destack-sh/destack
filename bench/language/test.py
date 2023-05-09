@@ -9,7 +9,13 @@ import pytest
 
 from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import ErrorType, ParseError, SemanticError, parse_string
+from bench.language.parse import (
+    ErrorType,
+    ParseError,
+    SemanticError,
+    parse_code_ext_references,
+    parse_string,
+)
 from bench.language.reconstruct import render
 from bench.language.type import Code, Task, Type
 
@@ -131,3 +137,27 @@ task test :: (a: string, b: string "input 1") -> (x: string "output 1", y: strin
         assert task_type[name].tag == tag
         assert task_type[name].description == descr
         assert task_type[name].is_output == is_output
+
+
+def test_extract_code_references():
+    refs = parse_code_ext_references(
+        """
+import asyncio
+await asyncio.sleep("ban")
+for doc in some_documents:
+    doc["name"] = doc.file.name
+    doc["title"] = doc.file.name # should error on set
+    """
+    )
+    assert refs == ["some_documents"]
+
+
+def test_extract_code_references_shadowed():
+    refs = parse_code_ext_references(
+        """
+some_documents = []
+for doc in some_documents:
+    pass
+    """
+    )
+    assert refs == []

@@ -156,36 +156,42 @@ function initMonaco(monaco: Monaco) {
     }
   });
 
-  // handle key events (delete if empty, navigate up/down if top/bottom, etc.)
-  editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
-  editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
-  editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
-  editor.value.addCommand(monaco.KeyCode.Escape, () => {
-    emit("escape");
-    document.activeElement?.blur();
-  });
-  editor.value.onKeyDown((e) => {
-    if (e.keyCode === monaco.KeyCode.Backspace) {
-      if (editor.value?.getValue() === "") {
-        emit("deleteIfEmpty");
+  function handleCommands() {
+    if (editor.value == null) return;
+
+    // handle key events (delete if empty, navigate up/down if top/bottom, etc.)
+    editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
+    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
+    editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
+    editor.value.addCommand(monaco.KeyCode.Escape, () => {
+      emit("escape");
+      document.activeElement?.blur();
+    });
+    editor.value.onKeyDown((e) => {
+      if (e.keyCode === monaco.KeyCode.Backspace) {
+        if (editor.value?.getValue() === "") {
+          emit("deleteIfEmpty");
+        }
+      } else if (e.keyCode === monaco.KeyCode.UpArrow) {
+        if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1) {
+          emit("navigateUp");
+        }
+      } else if (e.keyCode === monaco.KeyCode.DownArrow) {
+        if (
+          !e.shiftKey &&
+          !e.altKey &&
+          editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()
+        ) {
+          emit("navigateDown");
+        }
       }
-    } else if (e.keyCode === monaco.KeyCode.UpArrow) {
-      if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1) {
-        emit("navigateUp");
-      }
-    } else if (e.keyCode === monaco.KeyCode.DownArrow) {
-      if (
-        !e.shiftKey &&
-        !e.altKey &&
-        editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()
-      ) {
-        emit("navigateDown");
-      }
-    }
-  });
+    });
+  }
 
   // update focused when editor is focused/defocused
   editor.value.onDidFocusEditorWidget(() => {
+    handleCommands(); // always re-register to ensure this runs last
+    // see https://github.com/microsoft/monaco-editor/issues/2947
     focused.value = true;
   });
   editor.value.onDidBlurEditorWidget(() => {

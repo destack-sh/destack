@@ -23,7 +23,6 @@ from bench.msg.messages import (
     RunErrorType,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.build import BuildCandidate
 from bench.runtime.instance import CodeInstance, Session, TaskInstance, instantiate
 from bench.runtime.interp import InterpModule, LanguageInterpreter
 from bench.runtime.run import RunError, run
@@ -391,30 +390,3 @@ class SandboxedWorker:
         logger.info("stop", worker_id=self.worker_id)
         await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
-
-
-class Sandbox:
-    # TODO @Broken @Security: ship build_candidate data to sandbox :SandboxBuilds
-    def __init__(self, build_candidate: BuildCandidate, module_id: UUID, job_id: UUID):
-        self.module_id = module_id
-        self.job_id = job_id
-        self.build_candidate = build_candidate
-
-    async def run(
-        self, code: CodeInstance, arguments: dict[str, LiteralValue] | None = None
-    ) -> dict[str, LiteralValue]:
-        req = ReqRunPayload(
-            module_id=self.module_id,
-            runnable=code.fqn,
-            runnable_type="code",
-            build=self.build_candidate.build,
-            arguments=arguments,
-            block=True,
-            tracing_level=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA,
-            trigger_type=ExecutionTriggerType.JOB,
-            trigger_id=self.job_id,
-        )
-        rep: NMessage[RepRunPayload] = await request(NMessageType.REQUEST_RUN, req, RepRunPayload)
-        if rep.p.error is not None:
-            raise RunError(rep.p.error, code)
-        return rep.p.output

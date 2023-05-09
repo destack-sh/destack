@@ -21,7 +21,7 @@ const ops = useOperations();
 const symbolOps = useSymbolOps();
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
-context.syncCode(
+const codeSync = context.syncCode(
   code,
   computed(() => monacoRef.value?.focused)
 );
@@ -46,9 +46,11 @@ const lastExecution = computed(() => executions.executions.value[0]);
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 const addingTypes = ref(false);
+const preparingRun = ref(false);
 
 const executionActive = computed(
   () =>
+    preparingRun.value ||
     ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
     (lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status))
 );
@@ -58,11 +60,22 @@ const extraActions = computed(() => {
       label: "Run",
       icon: PlayIcon,
       active: executionActive.value,
-      action: () => symbolOps.run(context.statement.value),
+      action: async () => await run(),
     },
   ];
   return inlineActions;
 });
+
+async function run() {
+  preparingRun.value = true; // for immediate feedback if flush takes more than few ms
+  try {
+    await codeSync.flushNow(); // flush any pending changes to the code (debounced)
+  } finally {
+    preparingRun.value = false;
+  }
+  // TODO @UX: ensure that executed code is exact same as in editor
+  await symbolOps.run(context.statement.value);
+}
 
 defineExpose({
   focus: () => declarationRef.value?.focus(),
@@ -99,10 +112,16 @@ defineExpose({
       :class="context.focused.value || executionActive ? '' : 'opacity-0'"
     >
       <span
+        v-if="lastExecution?.updatedAt"
+        :class="lastExecution?.status == ExecutionStatus.Completed ? 'text-gray-400' : 'text-red-600'"
+      >
+        {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
+      >
+      <span
         v-if="EXECUTION_TERMINAL_STATES.includes(lastExecution?.status)"
         :class="lastExecution?.status == ExecutionStatus.Completed ? 'text-gray-400' : 'text-red-600'"
       >
-        {{ lastExecution?.status.toLowerCase() }} in {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
+        {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
       </span>
       <InlineActions :extraActions="extraActions" />
     </div>
@@ -129,7 +148,7 @@ defineExpose({
     @navigate-left="typeRef?.focus"
     @escape="context.escape"
     @enter="context.insertBelow"
-    @execute="symbolOps.run(context.statement.value)"
+    @execute="run"
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
@@ -145,7 +164,7 @@ defineExpose({
   </button>
   <!-- Last output/error (if any) -->
   <div
-    v-if="lastExecution && lastExecution.status != ExecutionStatus.Completed"
+    v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed"
     class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition-colors duration-75"
     :class="[
       context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
@@ -153,14 +172,15 @@ defineExpose({
     ]"
     :key="lastExecution?.id"
   >
-    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase()
-    }}<template v-if="lastExecution.status != ExecutionStatus.Queued && lastExecution.status != ExecutionStatus.Running"
-      >:
-    </template>
+    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase() }}:
     <span class="font-bold">{{ lastExecution.error?.message }}</span>
-    <ul class="flex flex-col">
+    <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
-      <li v-for="(frame, i) of lastExecution.error?.traceback" :key="i" class="flex flex-col gap-1">
+      <li
+        v-for="(frame, i) of lastExecution.error?.traceback"
+        :key="i"
+        class="flex max-w-full flex-col overflow-hidden py-0.5 hover:bg-red-100"
+      >
         <span>
           <a class="underline underline-offset-4">{{ frame.filename }}:{{ frame.lineno }}</a> {{ frame.name }}
         </span>
@@ -174,6 +194,5 @@ defineExpose({
         </span>
       </li>
     </ul>
-    <span class="absolute right-2 top-1.5"> ({{ now.getTimeFromNowString(lastExecution.updatedAt) }})</span>
   </div>
 </template>
