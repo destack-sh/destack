@@ -1,10 +1,13 @@
 import { graphql, useFragment } from "@/gql";
+import { ExecutionStatus } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
+
+export const EXECUTION_TERMINAL_STATES = [ExecutionStatus.Aborted, ExecutionStatus.Failed, ExecutionStatus.Completed];
 
 export const ExecutionContentType = graphql(/* GraphQL */ `
   fragment ExecutionContent on Execution {

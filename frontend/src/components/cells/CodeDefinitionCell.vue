@@ -2,13 +2,17 @@
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { useStatementContext } from "@/components/statement";
+import { useStatementContext, type InlineAction } from "@/components/statement";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useEditorState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { useSymbolOps } from "@/state/runtime";
-import { ExecutionStatus, ExecutionTriggerType, type SimpleType } from "@/gql/graphql";
+import { ExecutionStatus } from "@/gql/graphql";
+import InlineActions from "@/components/basic/InlineActions.vue";
+import { PlayIcon } from "@heroicons/vue/24/outline";
+import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
+import { formatDurationSeconds } from "@/composables/useNow";
 
 const context = useStatementContext();
 
@@ -41,6 +45,18 @@ const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(nul
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 const addingTypes = ref(false);
 
+const extraActions = computed(() => {
+  const inlineActions: InlineAction[] = [
+    {
+      label: "Run",
+      icon: PlayIcon,
+      active: lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status),
+      action: () => symbolOps.run(context.statement.value),
+    },
+  ];
+  return inlineActions;
+});
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -52,22 +68,38 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <DeclarationCell
-    ref="declarationRef"
-    class="inline-flex"
-    @navigate-down="monacoRef?.focus"
-    @navigate-right="typeRef?.focus"
-  />
-  <!-- Inline type -->
-  <button
-    v-if="!context.readonly.value && context.typeNodes.value.length == 0"
-    ref="typeRef"
-    class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm hover:bg-orange-100 hover:text-gray-700"
-    :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'"
-    @click="addingTypes = !addingTypes"
-  >
-    {{ addingTypes ? "-arguments" : "+arguments" }}
-  </button>
+  <div class="flex flex-row items-center justify-between">
+    <div>
+      <DeclarationCell
+        ref="declarationRef"
+        class="inline-flex"
+        @navigate-down="monacoRef?.focus"
+        @navigate-right="typeRef?.focus"
+      />
+      <!-- Inline type -->
+      <button
+        v-if="!context.readonly.value && context.typeNodes.value.length == 0"
+        ref="typeRef"
+        class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm hover:bg-orange-100 hover:text-gray-700"
+        :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'"
+        @click="addingTypes = !addingTypes"
+      >
+        {{ addingTypes ? "-arguments" : "+arguments" }}
+      </button>
+    </div>
+    <div
+      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
+    >
+      <span
+        v-if="EXECUTION_TERMINAL_STATES.includes(lastExecution?.status)"
+        :class="lastExecution?.status == ExecutionStatus.Completed ? 'text-gray-400' : 'text-red-600'"
+      >
+        {{ lastExecution?.status.toLowerCase() }} in {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
+      </span>
+      <InlineActions :extraActions="extraActions" />
+    </div>
+  </div>
   <FunctionTypeCell
     v-if="context.typeNodes.value.length > 0 || addingTypes"
     ref="typeRef"
@@ -94,7 +126,8 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1 mt-1 rounded-sm bg-gray-100 px-1 pb-1.5 pt-1"
+    class="-mx-1 mt-1 rounded-sm px-1 pb-1.5 pt-1 transition-colors duration-75"
+    :class="context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100'"
   />
   <button
     v-if="code.trim().length == 0"
@@ -106,8 +139,11 @@ defineExpose({
   <!-- Last output/error (if any) -->
   <div
     v-if="lastExecution && lastExecution.status != ExecutionStatus.Completed"
-    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 bg-gray-100 px-1 py-1.5 font-mono"
-    :class="lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600'"
+    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition-colors duration-75"
+    :class="[
+      context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
+      lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600',
+    ]"
     :key="lastExecution?.id"
   >
     {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase()

@@ -160,6 +160,10 @@ function initMonaco(monaco: Monaco) {
   editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
   editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
   editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
+  editor.value.addCommand(monaco.KeyCode.Escape, () => {
+    emit("escape");
+    document.activeElement?.blur();
+  });
   editor.value.onKeyDown((e) => {
     if (e.keyCode === monaco.KeyCode.Backspace) {
       if (editor.value?.getValue() === "") {
@@ -177,10 +181,6 @@ function initMonaco(monaco: Monaco) {
       ) {
         emit("navigateDown");
       }
-    } else if (e.keyCode === monaco.KeyCode.Escape) {
-      emit("escape");
-      // blur editor
-      document.activeElement?.blur();
     }
   });
 

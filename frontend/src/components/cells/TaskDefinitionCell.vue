@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext } from "@/components/statement";
+import { useStatementContext, type InlineAction } from "@/components/statement";
 import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
@@ -23,6 +24,11 @@ context.syncDescription(
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
+const extraActions = computed(() => {
+  const inlineActions: InlineAction[] = [];
+  return inlineActions;
+});
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -34,12 +40,19 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <DeclarationCell
-    ref="declarationRef"
-    class="inline-flex"
-    @navigate-down="descriptionRef?.focus"
-    @navigate-right="typeRef?.focus"
-  />
+  <div class="flex flex-row justify-between">
+    <DeclarationCell
+      ref="declarationRef"
+      class="inline-flex"
+      @navigate-down="descriptionRef?.focus"
+      @navigate-right="typeRef?.focus"
+    />
+    <InlineActions
+      class="transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
+      :extraActions="extraActions"
+    />
+  </div>
   <!-- Description -->
   <div>
     <EditableSpan
