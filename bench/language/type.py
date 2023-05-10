@@ -785,6 +785,10 @@ class Record:
     def __repr__(self):
         return f"<Record {self}>"
 
+    @property
+    def keys(self):
+        return self.data.keys
+
     def __getitem__(self, item: str):
         try:
             return self.data[item]
