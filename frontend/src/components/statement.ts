@@ -72,12 +72,6 @@ export function useStatementContext() {
     }
     return typeNodesByName;
   });
-  const records = computed(() =>
-    statement.value.records.edges
-      .map((n) => n.node)
-      .filter((n) => n.deletedAt == null)
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
-  );
 
   const symbolSubtype: Ref<string | null> = computed(() => {
     if (
@@ -343,7 +337,6 @@ export function useStatementContext() {
     symbolSubtype,
     typeNodes,
     typeNodesByName,
-    records,
     // actions
     actions,
     navigateUp,

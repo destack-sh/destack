@@ -16,7 +16,11 @@ import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
+import { graphql } from "@/gql";
+import { ArrowDownIcon, ArrowPathIcon } from "@heroicons/vue/24/outline";
 
+const PAGE_SIZE = 10;
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -29,10 +33,72 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
+const {
+  loading,
+  result: currentRecords,
+  fetchMore,
+} = useQuery(
+  graphql(/* GraphQL */ `
+    query records($statementId: GlobalID!, $after: String, $first: Int) {
+      statement(id: $statementId) {
+        id
+        records(filters: { isVisible: true }, after: $after, first: $first) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
+          edges {
+            cursor
+            node {
+              id
+              revision
+              createdAt
+              updatedAt
+              deletedAt
+              orderKey
+              data
+            }
+          }
+        }
+      }
+    }
+  `),
+  {
+    statementId: computed(() => context.statement.value.id),
+    after: null,
+    first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+  }
+);
+const records = computed(
+  () =>
+    currentRecords.value?.statement?.records.edges
+      .slice(0, -1)
+      .map((e) => e.node)
+      .filter((n) => n.deletedAt == null)
+      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+);
+const pageInfo = computed(() => currentRecords.value?.statement?.records.pageInfo);
+const lastRecord = computed(() => currentRecords.value?.statement?.records.edges?.slice(-1)[0]?.node);
+
+function loadMore() {
+  if (!pageInfo.value?.hasNextPage) {
+    return;
+  }
+  fetchMore({
+    variables: {
+      after: currentRecords.value?.statement?.records.edges.slice(-1)[0]?.cursor,
+      first: PAGE_SIZE,
+    },
+  });
+}
+
 const fieldTypeNodes = computed(() => context.typeNodes.value?.map((n) => n as SimpleType) ?? []);
 const lastField = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
 const columnsInOrder: Ref<string[]> = computed(() => fieldTypeNodes.value?.map((n) => n.name ?? "") ?? []);
-const recordsLength = computed(() => context.records.value?.length ?? 0);
+
 const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTypeCell>>(
   computed(() => ["name", "type"]),
   fieldTypeNodes,
@@ -41,7 +107,7 @@ const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTy
     gridNavigateDown: focusFirstRecord,
   }
 );
-const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, context.records, {
+const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, records, {
   gridNavigateUp: () => {
     if (typeGrid.refs.value.length > 0) {
       typeGrid.focus(-1, "name");
@@ -112,10 +178,9 @@ function deleteField(node: SimpleType) {
 function insertRecord(belowRecordId?: string) {
   let orderKey;
   if (belowRecordId == null) {
-    const lastRecord = context.records.value?.[recordsLength.value - 1];
-    orderKey = generateKeyBetween(lastRecord?.orderKey ?? null, null);
+    orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, null);
   } else {
-    const record = context.records.value?.find((r) => r.id === belowRecordId);
+    const record = records.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
   ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
@@ -123,7 +188,7 @@ function insertRecord(belowRecordId?: string) {
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
-  const record = context.records.value.find((r) => r.id === recordId);
+  const record = records.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData, [key]: value };
@@ -131,7 +196,7 @@ function writeRecordField(recordId: string, key: string, value: any) {
 }
 
 function deleteRecordField(recordId: string, key: string) {
-  const record = context.records.value.find((r) => r.id === recordId);
+  const record = records.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData };
@@ -140,7 +205,7 @@ function deleteRecordField(recordId: string, key: string) {
 }
 
 function deleteRecord(recordId: string) {
-  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
+  const recordIdx = records.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, recordId);
   // move focus up
@@ -159,10 +224,10 @@ const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
   const key = context.typeNodesByName.value?.[column]?.key;
   console.log("drop insert files into dataset", recordId, column, key, position, files);
-  const recordIdx = context.records.value.findIndex((r) => r.id === recordId);
-  const record = context.records.value[recordIdx];
-  const above = context.records.value[recordIdx - 1];
-  const below = context.records.value[recordIdx + 1];
+  const recordIdx = records.value.findIndex((r) => r.id === recordId);
+  const record = records.value[recordIdx];
+  const above = records.value[recordIdx - 1];
+  const below = records.value[recordIdx + 1];
   let orderKeys;
   if (position == "above") {
     orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey, files.length);
@@ -276,7 +341,7 @@ defineExpose({
     </tr>
     <!-- Records -->
     <tr
-      v-for="record in context.records.value"
+      v-for="record in records"
       :key="record.id"
       class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
     >
@@ -304,33 +369,51 @@ defineExpose({
       </td>
     </tr>
   </table>
-  <!-- Insert button -->
-  <button
-    v-if="!context.readonly.value"
-    tabindex="-1"
-    ref="addRecordRef"
-    class="mt-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-    @click="insertRecord()"
-    @enter="insertRecord()"
-    @keydown.up.exact="focusLastRecord"
-    @keydown.right.exact="addFieldRef?.focus"
-    @keydown.down.exact="context.navigateDown"
-  >
-    +record
-  </button>
-  <!-- Add field button -->
-  <button
-    v-if="!context.readonly.value"
-    tabindex="-1"
-    ref="addFieldRef"
-    class="ml-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-    @click="insertField()"
-    @enter="insertField()"
-    @keydown.up.exact="focusLastRecord"
-    @keydown.left.exact="addRecordRef?.focus"
-    @keydown.down.exact="context.navigateDown"
-  >
-    +field
-  </button>
-  <!-- TODO @Incomplete: dataset record editing -->
+  <!-- Load more -->
+  <div class="my-1 flex flex-row gap-2">
+    <button
+      v-if="pageInfo?.hasNextPage"
+      @click="loadMore()"
+      :disabled="loading"
+      ref="loadMoreRef"
+      class="flex w-fit select-none flex-row items-center rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+    >
+      <template v-if="loading">
+        <ArrowPathIcon class="mr-0.5 h-3 w-3" :class="loading ? 'animate-spin' : ''" />
+        loading
+      </template>
+      <template v-else>
+        <ArrowDownIcon class="h-3 w-3" />
+        load {{ PAGE_SIZE }} more
+      </template>
+    </button>
+    <!-- Insert button -->
+    <button
+      v-if="!context.readonly.value"
+      tabindex="-1"
+      ref="addRecordRef"
+      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      @click="insertRecord()"
+      @enter="insertRecord()"
+      @keydown.up.exact="focusLastRecord"
+      @keydown.right.exact="addFieldRef?.focus"
+      @keydown.down.exact="context.navigateDown"
+    >
+      +record
+    </button>
+    <!-- Add field button -->
+    <button
+      v-if="!context.readonly.value"
+      tabindex="-1"
+      ref="addFieldRef"
+      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      @click="insertField()"
+      @enter="insertField()"
+      @keydown.up.exact="focusLastRecord"
+      @keydown.left.exact="addRecordRef?.focus"
+      @keydown.down.exact="context.navigateDown"
+    >
+      +field
+    </button>
+  </div>
 </template>
