@@ -36,10 +36,17 @@ const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
   inBottomHalf: dragInBottomHalf,
-} = useRelativeDropZone(dropZoneRef, ["File", "Record"], onDrop);
+} = useRelativeDropZone(
+  dropZoneRef,
+  ["File", "Record"],
+  onDrop,
+  computed(() => !props.readonly)
+);
 
-function onDrop(files: File[] | null) {
-  if (isFileUploaded.value && props.supportsDrop) {
+function onDrop(files: File[] | { type: string; id: string } | null) {
+  if (!Array.isArray(files)) {
+    return; // ignore
+  } else if (isFileUploaded.value && props.supportsDrop) {
     // drop above or below
     if (files != null && files.length > 0) {
       emit("dropFiles", dragInTopHalf.value ? "above" : "below", files);
@@ -103,6 +110,7 @@ defineExpose({
     <span :class="active || dragOver ? '' : 'invisible group-hover:visible'">file</span>
     <span class="ml-1" v-if="dragOver">(drop to upload)</span>
     <input
+      :disabled="props.readonly"
       ref="fileChooserRef"
       id="fileChooser"
       type="file"
