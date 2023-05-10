@@ -250,7 +250,12 @@ const auth = useAuth();
         <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="props.fileId" />
       </div>
       <!-- Add statement to start -->
-      <StatementAddArea class="mx-auto max-w-[900px]" @click="editor.readonly || insertStatementStart()" />
+      <StatementAddArea
+        class="mx-auto max-w-[900px]"
+        position="start"
+        @click="editor.readonly || insertStatementStart()"
+        v-if="statements?.length > 0"
+      />
       <!-- File's statements -->
       <div
         v-for="positioned in context?.positionedStatements"
@@ -272,6 +277,7 @@ const auth = useAuth();
       <!-- Add statement to end -->
       <StatementAddArea
         class="mx-auto max-w-[900px] flex-1 pb-60"
+        position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />
     </div>
