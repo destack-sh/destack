@@ -211,6 +211,8 @@ export type NavigationContext = FileContext & {
   getLocation(statement: StatementHeader): StatementLocation;
   getLocationRightAbove(statement: StatementHeader): StatementLocation;
   getLocationRightBelow(statement: StatementHeader): StatementLocation;
+  getLocationStart(): StatementLocation;
+  getLocationEnd(): StatementLocation;
   getSiblings(statement: StatementHeader): StatementHeader[];
   getPreviousSibling(statement: StatementHeader): StatementHeader | null;
   getNextSibling(statement: StatementHeader): StatementHeader | null;
@@ -304,6 +306,26 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       fileId: file.value?.file?.id,
       parentId: statement.parent?.id,
       orderKey: orderKey,
+    };
+  }
+
+  function getLocationStart(): StatementLocation {
+    const roots = statementsByParentId.value[""] ?? [];
+    const orderKey = roots[0]?.orderKey ?? INTEGER_ZERO;
+    return {
+      fileId: file.value?.file?.id,
+      parentId: undefined,
+      orderKey: generateKeyBetween(null, orderKey),
+    };
+  }
+
+  function getLocationEnd(): StatementLocation {
+    const roots = statementsByParentId.value[""] ?? [];
+    const orderKey = roots.slice(-1)[0]?.orderKey ?? INTEGER_ZERO;
+    return {
+      fileId: file.value?.file?.id,
+      parentId: undefined,
+      orderKey: generateKeyBetween(orderKey, null),
     };
   }
 
@@ -671,6 +693,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       getLocation,
       getLocationRightAbove,
       getLocationRightBelow,
+      getLocationStart,
+      getLocationEnd,
       getSiblings,
       getPreviousSibling,
       getNextSibling,
@@ -799,15 +823,18 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     closeTransaction(tx);
   }
 
-  async function insertFilesAsDataset(position: "above" | "below", files: File[]) {
+  async function insertFilesAsDataset(location: "above" | "below" | StatementLocation, files: File[]) {
     /** Insert files as a new dataset above/below this statement */
-    if (statement.value == null) return;
-
     // get location above/below
-    const location =
-      position == "above"
-        ? nav.value.getLocationRightAbove(statement.value)
-        : nav.value.getLocationRightBelow(statement.value);
+    if (location == "above" || location == "below") {
+      if (statement.value == null) {
+        throw new Error(`statement must be set if using relative location`);
+      }
+      location =
+        location == "above"
+          ? nav.value.getLocationRightAbove(statement.value)
+          : nav.value.getLocationRightBelow(statement.value);
+    }
     const dataset = {
       id: newStatementId(),
       parentId: location.parentId,
