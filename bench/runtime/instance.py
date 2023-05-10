@@ -30,8 +30,16 @@ from bench.language import (
     wire,
 )
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.type import InterpSymbol, LiteralValue, Type, TypeNode, TypeTag
-from bench.language.typer import map_value, rekey_value
+from bench.language.type import (
+    InterpSymbol,
+    LiteralValue,
+    RemoteObject,
+    RemoteObjectStatus,
+    Type,
+    TypeNode,
+    TypeTag,
+)
+from bench.language.typer import check_type, map_value, rekey_value
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -44,6 +52,7 @@ from bench.runtime.tracing import (
 )
 from bench.runtime.unsecure import do_execute_arbitrary_code
 from bench.runtime.x import X_BUILTINS
+from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
@@ -225,23 +234,32 @@ class RecordInstance(Record):
         self.data = proxy_value(
             self.data,
             onread=lambda k: None,
-            onwrite=lambda k: self._notify_update(),
+            onwrite=lambda k: self._notify_update(k),
         )
 
-    def _notify_update(self):
-        self.dataset.session.check_can_write(self.dataset)
-        raw_data = unproxy_value(self.data)
-        raw_data = strip_value(raw_data, self.type)
-        raw_data = rekey_value(raw_data, self.type)
-        self.dataset.session.mut.update(
-            wire.RecordData(
-                id=self.id,
-                revision=1,
-                order_key=self.order_key,
-                statement_id=self.dataset.id,
-                data=raw_data,
-            )
+    def _to_wire(self, include_data: bool = True) -> wire.RecordData:
+        if include_data:
+            raw_data = strip_value(self.data, self.type)
+            raw_data = rekey_value(raw_data, self.type)
+        else:
+            raw_data = None
+        return wire.RecordData(
+            id=self.id,
+            revision=1,
+            order_key=self.order_key,
+            statement_id=self.dataset.id,
+            data=raw_data,
         )
+
+    def _notify_update(self, key: Optional[str]):
+        if key is None or key == "":
+            check_type(self.data, self.type)
+        elif key not in self.type:
+            raise ValueError(f"'{key}' not present in {self.type}")
+        else:
+            check_type(self.data.get(key), self.type[key])
+        self.dataset.session.check_can_write(self.dataset)
+        self.dataset.session.mut.update(self._to_wire())
 
     @property
     def type(self):
@@ -254,15 +272,50 @@ class DatasetInstance(SymbolInstance, Dataset):
         self.session.check_can_write(self)
         # should really be truncate operation
         for record in self.records:
-            self.session.mut.delete(
-                wire.RecordData(
-                    id=record.id,
-                    statement_id=record.dataset.id,
-                    order_key=record.order_key,
-                    revision=1,
-                )
-            )
+            self.session.mut.delete(record._to_wire(include_data=False))
         self.records = []
+
+    def append(self, record: Record = None, **data):
+        if record is not None:
+            if data:
+                raise ValueError("cannot pass both record and data")
+            data = record.data
+        data = unproxy_value(data)  # remove source proxy if any
+        check_type(data, self.type)
+        self.session.check_can_write(self)
+        # insert
+        last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
+        record = RecordInstance(
+            id=uuid4(),
+            dataset=self,
+            order_key=generate_key_between(last_ok, None),
+            data=data,
+        )
+        self.records.append(record)
+        self.session.mut.create(record._to_wire())
+
+    def extend(self, records: typing.Iterable[Record | dict]):
+        datas = [  # remove source proxy if any
+            unproxy_value(record.data) if isinstance(record, Record) else unproxy_value(record)
+            for record in records
+        ]
+        for data in datas:
+            check_type(data, self.type)
+        self.session.check_can_write(self)
+        # insert
+        last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
+        oks = generate_n_keys_between(last_ok, None, len(datas))
+        records = [
+            RecordInstance(
+                id=uuid4(),
+                dataset=self,
+                order_key=ok,
+                data=data,
+            )
+            for ok, data in zip(oks, datas)
+        ]
+        self.records.extend(records)
+        self.session.mut.create_many(*(record._to_wire() for record in records))
 
     def __iter__(self):
         return iter(self.records)
@@ -344,33 +397,25 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
 }
 
 
-# :RemoteObjectType
-class ObjectStatus(enum.StrEnum):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
-
-
-@dataclass(repr=False)
-class ObjectProxy:
-    sha512: str
-    content_length: int
-    content_type: str
-    name: str
-    status: ObjectStatus
+@dataclass(repr=False, slots=True)
+class RemoteObjectInstance(RemoteObject):
+    def __getitem__(self, item):
+        return self.to_dict()[item]
 
     @staticmethod
     def from_dict(value: dict):
-        return ObjectProxy(
+        return RemoteObjectInstance(
+            id=UUID(value["id"]),
             sha512=value["sha512"],
             content_length=value["contentLength"],
             content_type=value["contentType"],
             name=value["name"],
-            status=ObjectStatus[value["status"]],
+            status=RemoteObjectStatus[value["status"]],
         )
 
     def to_dict(self) -> dict:
         return {
+            "id": str(self.id),
             "sha512": self.sha512,
             "contentLength": self.content_length,
             "contentType": self.content_type,
@@ -391,11 +436,11 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     elif node.tag == TypeTag.BOOLEAN:
         return bool
     elif node.tag == TypeTag.IMAGE:
-        return ObjectProxy
+        return RemoteObject
     elif node.tag == TypeTag.AUDIO:
-        return ObjectProxy
+        return RemoteObject
     elif node.tag == TypeTag.FILE:
-        return ObjectProxy
+        return RemoteObject
     elif node.tag == TypeTag.EMBEDDING:
         return numpy.ndarray
     elif node.tag == TypeTag.UNION:
@@ -428,8 +473,8 @@ def instantiate_type(type: Type, build: Build, session: Session) -> TypeInstance
 def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
     if type.tag == TypeTag.FILE:
         try:
-            return ObjectProxy.from_dict(value)
-        except (ValueError, TypeError):
+            return RemoteObjectInstance.from_dict(value)
+        except (KeyError, ValueError, TypeError):
             return value
     elif type.tag == TypeTag.STRUCT:
         return type(**value)
@@ -440,7 +485,7 @@ def _strip_py_value_inner(value: Any, type: TypeInstance) -> Any:
     if type.tag == TypeTag.FILE:
         try:
             return value.to_dict()
-        except (ValueError, TypeError):
+        except (KeyError, ValueError, TypeError):
             return None  # raise? (but should be type error earlier}
     return value
 
@@ -481,10 +526,10 @@ STATIC_BUILTINS = {
     "string": str,
     "text": str,
     "number": float,
-    "file": ObjectProxy,
+    "file": RemoteObject,
     "boolean": bool,
-    "image": ObjectProxy,
-    "audio": ObjectProxy,
+    "image": RemoteObject,
+    "audio": RemoteObject,
     # library builtins
     "numpy": numpy,
     "asyncio": asyncio,

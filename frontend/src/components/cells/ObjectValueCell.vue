@@ -55,7 +55,7 @@ function onDrop(files: File[] | { type: string; id: string } | null) {
     // upload into here
     beginUpload(files[0]);
     if (files.length > 1 && props.supportsDrop) {
-      emit("dropFiles", "below", files);
+      emit("dropFiles", "below", files.slice(1));
     }
   }
 }

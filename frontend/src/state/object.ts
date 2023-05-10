@@ -8,9 +8,19 @@ export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, Type
 // :RemoteObjectType
 export type ObjectRecord = Pick<RemoteObject, "id" | "status" | "name" | "contentType" | "contentLength" | "sha512">;
 
+export function toObjectDataId(id: string) {
+  /* From btoa encoded RemoteObject:uuid to uuid */
+  return atob(id).split(":")[1];
+}
+
+export function toRemoteObjectId(id: string) {
+  /* From uuid to btoa encoded RemoteObject:uuid */
+  return btoa(`RemoteObject:${id}`);
+}
+
 function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
   return {
-    id: remoteObject.id,
+    id: toObjectDataId(remoteObject.id),
     name: remoteObject.name,
     contentLength: remoteObject.contentLength,
     contentType: remoteObject.contentType,
@@ -68,7 +78,7 @@ export function useObjects() {
           }
         }
       `),
-      variables: { id: objectId },
+      variables: { id: toRemoteObjectId(objectId) },
     });
     if (ret.data.remoteObject?.__typename != "RemoteObject") {
       throw new Error("could not get remote object");

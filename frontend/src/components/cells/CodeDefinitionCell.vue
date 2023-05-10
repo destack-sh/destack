@@ -112,14 +112,18 @@ defineExpose({
       :class="context.focused.value || executionActive ? '' : 'opacity-0'"
     >
       <span
-        v-if="lastExecution?.updatedAt"
-        :class="lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600'"
+        :class="[
+          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          lastExecution?.updatedAt ? 'opacity-100' : 'opacity-0',
+        ]"
       >
         {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
       >
       <span
-        v-if="EXECUTION_TERMINAL_STATES.includes(lastExecution?.status)"
-        :class="lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600'"
+        :class="[
+          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          EXECUTION_TERMINAL_STATES.includes(lastExecution?.status) ? 'opacity-100' : 'opacity-0',
+        ]"
       >
         {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
       </span>
@@ -165,7 +169,7 @@ defineExpose({
   <!-- Last output/error (if any) -->
   <div
     v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed"
-    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition-colors duration-75"
+    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
     :class="[
       context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
       lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600',
