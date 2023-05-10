@@ -503,6 +503,31 @@ class MutationBundle:
         self._cache[type] = mutations
         return mutations
 
+    def collapse(self) -> list[ModuleMutation]:
+        """
+        Collapse simple mutations into fewer semantically identical mutations.
+
+        Reduces:
+         1. Successive updates to same object to the last update
+         2. Successive deletes of same object to the last delete
+         3. Delete after create to nothing (not implemented yet)
+        """
+        if not self.simple:
+            raise ValueError(f"cannot collapse complex mutations: {self}")
+
+        reduced_inverse = []
+        seen_ops: set[tuple[MMT, UUID]] = set()
+
+        for mutation in reversed(self.mutations):
+            key = (mutation.type, mutation.data.id)
+            if key in seen_ops:
+                continue
+            seen_ops.add(key)
+            reduced_inverse.append(mutation)
+
+        reduced = list(reversed(reduced_inverse))
+        return reduced
+
 
 NON_SEMANTIC_MUTATION_TYPES = {
     MMT.COMMIT,
