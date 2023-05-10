@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Union
+from typing import Any, Callable, Collection, Mapping, Union
 
-from bench.language.type import PRIMITIVE_TYPES, TypeNode, TypeTag
+from bench.language.type import PRIMITIVE_TYPES, RemoteObject, TypeNode, TypeTag
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
@@ -56,8 +56,8 @@ def check_type(
                 _on_invalid_collect(value, expected, message)
 
     if expected.is_array and not ignore_array:
-        _check(isinstance(value, list), "expected array")
-        if isinstance(value, list):  # _check may not be eager
+        _check(isinstance(value, Collection), "expected array")
+        if isinstance(value, Collection):  # _check may not be eager
             for item in value:
                 check_type(
                     item,
@@ -78,8 +78,8 @@ def check_type(
     elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
-        _check(isinstance(value, dict), "expected struct")
-        if isinstance(value, dict):  # _check may not be eager
+        _check(isinstance(value, Mapping), "expected struct")
+        if isinstance(value, Mapping):  # _check may not be eager
             for subtype in expected.type_nodes:
                 if is_output is not None and subtype.is_output != is_output:
                     continue
@@ -88,6 +88,8 @@ def check_type(
                 check_type(
                     subvalue, subtype, eager_error=eager_error, on_invalid=_on_invalid_collect
                 )
+    elif expected.tag in (TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO, TypeTag.VIDEO):
+        _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:
         for subtype in expected.type_nodes:
             try:
@@ -127,8 +129,8 @@ def map_value(
         return map_v(value, type)
     elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, dict):
-        return value
+    if not isinstance(value, Mapping):
+        return value  # type error, ignore here
     if type.is_array and not ignore_array:
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     mapped = {}

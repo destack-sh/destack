@@ -1555,6 +1555,7 @@ def interp(
         if isinstance(source_content, (DatasetContent, TaskContent, CodeContent)):
             # for typed symbols we need to create a type symbol as well
             type_symbol = Type(
+                name=statement.name,
                 abstract=abstract,
                 source=statement,
                 tag=source_content.tag,

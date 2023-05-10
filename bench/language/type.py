@@ -546,7 +546,13 @@ class TypeNode(abc.ABC):
         return [child for child in self.type_nodes if child.is_output]
 
     def __getitem__(self, item: str) -> "TypeNode":
-        return first(child for child in self.type_nodes if child.name == item)
+        node = first((child for child in self.type_nodes if child.name == item), None)
+        if node is None:
+            raise KeyError(item)
+        return node
+
+    def __contains__(self, item):
+        return any(child for child in self.type_nodes if child.name == item)
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
@@ -748,6 +754,23 @@ class ExpectationContent(SymbolContent):
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
     expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+
+
+# :RemoteObjectType
+class RemoteObjectStatus(enum.StrEnum):
+    PREPARED = "prepared"
+    UPLOADING = "uploading"
+    AVAILABLE = "available"
+
+
+@dataclass(repr=False, slots=True)
+class RemoteObject:
+    id: UUID
+    sha512: str
+    content_length: int
+    content_type: str
+    name: str
+    status: RemoteObjectStatus
 
 
 @dataclass(repr=False)

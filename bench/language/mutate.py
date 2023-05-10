@@ -510,7 +510,9 @@ class MutationBundle:
         Reduces:
          1. Successive updates to same object to the last update
          2. Successive deletes of same object to the last delete
-         3. Delete after create to nothing (not implemented yet)
+         Not implemented yet:
+         3. Delete after create to nothing
+         4. Create then updated merged into a single create
         """
         if not self.simple:
             raise ValueError(f"cannot collapse complex mutations: {self}")
