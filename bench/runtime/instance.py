@@ -148,7 +148,7 @@ class Session:
             return
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
-        success = await self.write(self.mutator.mutations)
+        success = await self.write(self.mutator.bundle().collapse())
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
         self.mutator.reset()

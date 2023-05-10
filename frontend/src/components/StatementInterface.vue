@@ -414,8 +414,8 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
         class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-150"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
         :class="{
-          'opacity-0 group-focus-within/statement:opacity-100 group-hover/statement:opacity-100':
-            !editor.showLineNumbers,
+          'opacity-0': !isFocused && !editor.showLineNumbers,
+          'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
           'font-mono': editor.fontMono,
