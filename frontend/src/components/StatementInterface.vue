@@ -275,7 +275,7 @@ const {
   containerRef,
   ["Statement", "File"],
   onDrop,
-  computed(() => !innerDrag.value)
+  computed(() => !innerDrag.value && !props.readonly)
 );
 
 // TODO @Broken @UX: drag & drop doesn't work while holding shift, which means we can't move selections
@@ -411,7 +411,7 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
       </button>
       <!-- Monaco-like line numbers on the left margin -->
       <span
-        class="absolute top-[3px] w-6 cursor-grab select-none text-right not-italic transition duration-150"
+        class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-150"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
         :class="{
           'opacity-0': !isFocused && !editor.showLineNumbers,
@@ -425,9 +425,10 @@ const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
             isCommentish,
           'text-orange-500': dragOver && !isCommentish,
           'text-gray-500': dragOver && isCommentish,
+          'cursor-grab': !context.readonly,
         }"
-        @mousedown="containerRef?.setAttribute('draggable', 'true')"
-        @mouseup="containerRef?.setAttribute('draggable', 'false')"
+        @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
+        @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
       >
         {{ lineNumberBase + 1 }}
       </span>
