@@ -15,6 +15,7 @@ import {
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
   TypeTag,
+  type TruncateRecordsMutation,
   type DeleteTypeNodeMutation,
   type SoftDeleteTypeNodeMutation,
   type UpdateTypeNodeMutation,
@@ -208,21 +209,24 @@ export function useSymbolContentOps() {
         // extend relevant records views with the new record
         const newEdge = {
           __typename: "DatasetRecordEdge",
-          cursor: btoa(`arrayconnection:0`),
+          cursor: btoa(`arrayconnection:0`), // TODO @Broken: compute actual cursor value
           node: { __ref: cache.identify(createStatementRecord?.createRecord) },
         };
         cache.modify({
           id: cache.identify(createStatementRecord?.createRecord.statement),
           fields: {
-            records(existingRecords = { totalCount: 0, edges: [] }) {
+            records(existingRecords = { totalCount: 0, edges: [] }, details) {
               const alreadyExists = existingRecords.edges.some((e: any) => e.node.__ref == newEdge.node.__ref);
               if (alreadyExists) {
-                // ignore if already exists
+                /* TODO @Broken: filter outer records not in page */
                 return existingRecords;
               } else {
                 return {
+                  ...existingRecords,
                   totalCount: existingRecords.totalCount + 1,
-                  edges: [...existingRecords.edges, newEdge],
+                  edges: [...existingRecords.edges, newEdge].sort((a: any, b: any) =>
+                    a.orderKey < b.orderKey ? -1 : 1
+                  ),
                 };
               }
             },
@@ -398,6 +402,49 @@ export function useSymbolContentOps() {
     }
   );
 
+  const { mutate: truncateRecordsMut } = registry.useMutation(
+    ModuleMutationType.TruncateRecords,
+    graphql(/* GraphQL */ `
+      mutation truncateRecords($id: GlobalID!) {
+        truncateRecords(input: { id: $id }) {
+          ... on Statement {
+            id
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          truncateRecords: {
+            __typename: "Statement",
+            id: vars.id,
+          },
+        } as TruncateRecordsMutation),
+      update(cache, { data: truncateRecords }) {
+        // wipe all records from the cache
+        cache.modify({
+          id: cache.identify(truncateRecords?.truncateRecords),
+          fields: {
+            records() {
+              return {
+                totalCount: 0,
+                pageInfo: {
+                  hasNextPage: false,
+                  hasPreviousPage: false,
+                  startCursor: null,
+                  endCursor: null,
+                },
+                edges: [],
+              };
+            },
+          },
+        });
+      },
+    }
+  );
+
   async function createRecord(
     tx: Transaction | null,
     id: string,
@@ -481,6 +528,15 @@ export function useSymbolContentOps() {
       },
       undo: async () => {
         return await batchSoftDeleteRecordMut({ ids });
+      },
+    });
+  }
+
+  async function truncateRecords(statementId: string) {
+    await ops.perform({
+      type: "statement.truncateRecords",
+      do: async () => {
+        return await truncateRecordsMut({ id: statementId });
       },
     });
   }
@@ -841,6 +897,7 @@ export function useSymbolContentOps() {
     softDeleteRecord,
     batchSoftDeleteRecord,
     batchRestoreRecord,
+    truncateRecords,
     createTypeNode,
     updateTypeNode,
     deleteTypeNode,

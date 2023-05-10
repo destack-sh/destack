@@ -209,6 +209,9 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
         dataset_ids = [m.data.id for m in mut[MMT.DELETE_RECORD]]
         models.DatasetRecord.objects.filter(id__in=dataset_ids).delete()
+    if mut[MMT.TRUNCATE_RECORDS]:
+        statement_ids = [m.statement_id for m in mut[MMT.TRUNCATE_RECORDS]]
+        models.DatasetRecord.objects.filter(statement_id__in=statement_ids).delete()
     if mut[MMT.DELETE_TYPE_NODE]:  # batch delete since no dependent models
         type_node_ids = [m.data.id for m in mut[MMT.DELETE_TYPE_NODE]]
         models.SimpleTypeNode.objects.filter(id__in=type_node_ids).delete()
