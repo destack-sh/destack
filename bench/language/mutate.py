@@ -65,6 +65,7 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_TYPE_NODE = "DELETE_TYPE_NODE"
     RESTORE_TYPE_NODE = "RESTORE_TYPE_NODE"
     # Records
+    TRUNCATE_RECORDS = "TRUNCATE_RECORDS"
     CREATE_RECORD = "CREATE_RECORD"
     UPDATE_RECORD = "UPDATE_RECORD"
     UPDATE_RECORD_PATH = "UPDATE_RECORD_PATH"
@@ -121,7 +122,8 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.DELETE_RECORD,
     ModuleMutationType.CREATE_XBLOCK,
     ModuleMutationType.DELETE_XBLOCK,
-    # Update generated mappings is a weird exception, it's internal, but technically not simple
+    # other not directly CRUD
+    ModuleMutationType.TRUNCATE_RECORDS,
     ModuleMutationType.UPDATE_GENERATED_MAPPINGS,
 }
 
@@ -167,6 +169,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.SOFT_DELETE_TYPE_NODE: (MMK.DELETE, MMS.TYPE_NODE),
     MMT.RESTORE_TYPE_NODE: (MMK.CREATE, MMS.TYPE_NODE),
     # Records
+    MMT.TRUNCATE_RECORDS: (MMK.DELETE, MMS.STATEMENT),
     MMT.CREATE_RECORD: (MMK.CREATE, MMS.RECORD),
     MMT.UPDATE_RECORD: (MMK.UPDATE, MMS.RECORD),
     MMT.UPDATE_RECORD_PATH: (MMK.UPDATE, MMS.RECORD),
@@ -316,6 +319,12 @@ class ModuleMutator:
         self.do(MMT.UPDATE_GENERATED_MAPPINGS, statement)
         return self
 
+    def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
+        """Truncates all records of the given statement."""
+        statement = self.idx.statements[statement_id]
+        self.do(MMT.TRUNCATE_RECORDS, wire.rmap_statement(statement))
+        return self
+
     def create_many(self, *objs: MutableData) -> "ModuleMutator":
         for obj in objs:
             self.create(obj)
@@ -412,6 +421,9 @@ class ModuleMutator:
                 ]
             if statement.records:
                 statement.records = [r for r in statement.records if r.id not in deleted_records]
+        for m in mut[MMT.TRUNCATE_RECORDS]:
+            statement = statements[m.statement_id]
+            statement.records = []
         for m in mut[MMT.DELETE_STATEMENT]:
             if m.statement_id in statements:  # statement may be non-semantic
                 del statements[m.statement_id]

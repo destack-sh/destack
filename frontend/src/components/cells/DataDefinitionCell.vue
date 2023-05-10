@@ -72,16 +72,18 @@ const {
     first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
 );
+const pageInfo = computed(() => currentRecords.value?.statement?.records.pageInfo);
 const records = computed(
   () =>
     currentRecords.value?.statement?.records.edges
-      .slice(0, -1)
+      .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node)
       .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
 );
-const pageInfo = computed(() => currentRecords.value?.statement?.records.pageInfo);
-const lastRecord = computed(() => currentRecords.value?.statement?.records.edges?.slice(-1)[0]?.node);
+const firstRecord = computed(() => records.value?.[0]);
+const lastRecord = computed(() => records.value?.[records.value.length - 1]);
+const overfetchedRecord = computed(() => currentRecords.value?.statement?.records.edges?.slice(PAGE_SIZE)[0]?.node);
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) {
@@ -178,7 +180,15 @@ function deleteField(node: SimpleType) {
 function insertRecord(belowRecordId?: string) {
   let orderKey;
   if (belowRecordId == null) {
-    orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, null);
+    if (overfetchedRecord.value == null) {
+      // end of dataset
+      console.debug("insert record at end of dataset", lastRecord.value);
+      orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, null);
+    } else {
+      // end of page but not end of dataset
+      console.debug("insert record at end of page", lastRecord.value, overfetchedRecord.value);
+      orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, overfetchedRecord.value?.orderKey ?? null);
+    }
   } else {
     const record = records.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);

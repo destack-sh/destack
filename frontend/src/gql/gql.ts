@@ -201,6 +201,8 @@ const documents = {
     types.BatchSoftDeleteRecordDocument,
   "\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.BatchRestoreRecordDocument,
+  "\n      mutation truncateRecords($id: GlobalID!) {\n        truncateRecords(input: { id: $id }) {\n          ... on Statement {\n            id\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.TruncateRecordsDocument,
   "\n      mutation createTypeNode(\n        $id: GlobalID!\n        $statementId: GlobalID!\n        $tag: TypeTag!\n        $key: String!\n        $orderKey: String!\n        $name: String!\n        $description: String\n        $isOutput: Boolean!\n        $isArray: Boolean!\n        $isNullable: Boolean!\n        $value: JSON\n        $referenceId: GlobalID\n      ) {\n        createTypeNode(\n          input: {\n            id: $id\n            statementId: $statementId\n            tag: $tag\n            key: $key\n            orderKey: $orderKey\n            name: $name\n            description: $description\n            isOutput: $isOutput\n            isArray: $isArray\n            isNullable: $isNullable\n            value: $value\n            referenceId: $referenceId\n          }\n        ) {\n          ... on SimpleTypeNode {\n            # should match SimpleTypeNodeContent fragment\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            key\n            orderKey\n            statement {\n              id\n            }\n            revision\n            name\n            tag\n            description\n            value\n            reference {\n              id\n            }\n            isOutput\n            isArray\n            isNullable\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateTypeNodeDocument,
   "\n      mutation deleteTypeNode($id: GlobalID!) {\n        deleteTypeNode(input: { id: $id }) {\n          ... on SimpleTypeNode {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -815,6 +817,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation batchRestoreRecord($ids: [GlobalID!]!) {\n        batchRestoreRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation truncateRecords($id: GlobalID!) {\n        truncateRecords(input: { id: $id }) {\n          ... on Statement {\n            id\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation truncateRecords($id: GlobalID!) {\n        truncateRecords(input: { id: $id }) {\n          ... on Statement {\n            id\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

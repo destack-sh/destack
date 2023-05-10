@@ -271,8 +271,7 @@ class DatasetInstance(SymbolInstance, Dataset):
     def clear(self):
         self.session.check_can_write(self)
         # should really be truncate operation
-        for record in self.records:
-            self.session.mut.delete(record._to_wire(include_data=False))
+        self.session.mut.truncate_records(self.id)
         self.records = []
 
     def append(self, record: Record = None, **data):

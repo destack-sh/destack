@@ -781,6 +781,7 @@ enum ModuleMutationType {
   SOFT_DELETE_TYPE_NODE
   DELETE_TYPE_NODE
   RESTORE_TYPE_NODE
+  TRUNCATE_RECORDS
   CREATE_RECORD
   UPDATE_RECORD
   UPDATE_RECORD_PATH
@@ -846,6 +847,7 @@ type Mutation {
   restoreRecord(input: RecordRestoreInput!): DatasetRecordOperationInfo!
   batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
   batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
+  truncateRecords(input: RecordTruncateInput!): StatementOperationInfo!
   createTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo!
   updateTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo!
   updateTypeNodeName(input: TypeNodeRenameInput!): SimpleTypeNodeOperationInfo!
@@ -1618,6 +1620,10 @@ input RecordMoveInput {
 }
 
 input RecordRestoreInput {
+  id: GlobalID!
+}
+
+input RecordTruncateInput {
   id: GlobalID!
 }
 

@@ -704,6 +704,11 @@ class RecordBatchRestoreInput(BatchMutationInput):
         return [RecordRestoreInput(id=i) for i in self.ids]
 
 
+@gql.input
+class RecordTruncateInput(gql.NodeInput):
+    pass
+
+
 @gql.type
 class RecordBatch(ThingBatch):
     records: list[DatasetRecord]
@@ -895,6 +900,12 @@ class SymbolMutation:
         models.DatasetRecord._base_manager.filter(id__in=record_ids).update(deleted_at=None)
         records = models.DatasetRecord.objects.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
+
+    @project_mutation(MMT.TRUNCATE_RECORDS)
+    def truncate_records(self, input: RecordTruncateInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        models.DatasetRecord.objects.filter(statement=statement).delete()
+        return statement
 
     @project_mutation(MMT.CREATE_TYPE_NODE)
     def create_type_node(self, input: TypeNodeCreateInput) -> SimpleTypeNode | OperationInfo:

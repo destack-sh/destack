@@ -791,6 +791,7 @@ export enum ModuleMutationType {
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
   SoftDeleteTypeNode = "SOFT_DELETE_TYPE_NODE",
+  TruncateRecords = "TRUNCATE_RECORDS",
   UpdateFile = "UPDATE_FILE",
   UpdateGeneratedMappings = "UPDATE_GENERATED_MAPPINGS",
   UpdateRecord = "UPDATE_RECORD",
@@ -864,6 +865,7 @@ export type Mutation = {
   softDeleteRecord: DatasetRecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   softDeleteTypeNode: SimpleTypeNodeOperationInfo;
+  truncateRecords: StatementOperationInfo;
   updateDeployment: DeploymentOperationInfo;
   updateFile: FileOperationInfo;
   updateOrganization: OrganizationOperationInfo;
@@ -1099,6 +1101,10 @@ export type MutationSoftDeleteStatementArgs = {
 
 export type MutationSoftDeleteTypeNodeArgs = {
   input: TypeNodeDeleteInput;
+};
+
+export type MutationTruncateRecordsArgs = {
+  input: RecordTruncateInput;
 };
 
 export type MutationUpdateDeploymentArgs = {
@@ -1880,6 +1886,10 @@ export type RecordMoveInput = {
 };
 
 export type RecordRestoreInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type RecordTruncateInput = {
   id: Scalars["GlobalID"];
 };
 
@@ -4548,6 +4558,19 @@ export type BatchRestoreRecordMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "RecordBatch"; records: Array<{ __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }> };
+};
+
+export type TruncateRecordsMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type TruncateRecordsMutation = {
+  __typename?: "Mutation";
+  truncateRecords:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Statement"; id: any };
 };
 
 export type CreateTypeNodeMutationVariables = Exact<{
@@ -13112,6 +13135,63 @@ export const BatchRestoreRecordDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<BatchRestoreRecordMutation, BatchRestoreRecordMutationVariables>;
+export const TruncateRecordsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "truncateRecords" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "truncateRecords" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<TruncateRecordsMutation, TruncateRecordsMutationVariables>;
 export const CreateTypeNodeDocument = {
   kind: "Document",
   definitions: [
