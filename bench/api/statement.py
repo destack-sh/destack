@@ -36,7 +36,7 @@ class DatasetRecordFilter:
     is_visible: Optional[bool] = True
 
     def filter(self, queryset):
-        if self.is_visible is not UNSET and self.is_visible is not None:
+        if self.is_visible is not None:
             queryset = queryset.filter(deleted_at__isnull=self.is_visible)
         return queryset
 

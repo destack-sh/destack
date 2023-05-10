@@ -205,7 +205,7 @@ export function useSymbolContentOps() {
         if (createStatementRecord?.createRecord.__typename != "DatasetRecord") {
           return; // error
         }
-        // extend Statement.records with the new record
+        // extend relevant records views with the new record
         const newEdge = {
           __typename: "DatasetRecordEdge",
           cursor: btoa(`arrayconnection:0`),

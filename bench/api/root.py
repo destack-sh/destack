@@ -1,11 +1,12 @@
 import os
 import typing
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, Annotated, List, Optional, Union
 
 import strawberry
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
+from strawberry import lazy
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry.types import ExecutionContext, Info
 from strawberry_django_plus import gql
@@ -41,6 +42,9 @@ from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, Us
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
+
+if TYPE_CHECKING:
+    from bench.api.statement import Statement
 
 PyType = typing.Type
 
@@ -147,6 +151,9 @@ class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery, ClientQuery):
         resolver=get_project_version_by_tag, directives=[CanViewProject()]
     )
     file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
+    statement: Optional[Annotated["Statement", lazy(".statement")]] = gql.relay.node(
+        directives=[CanViewProject()]
+    )
     remote_object: Optional[RemoteObject] = gql.relay.node(directives=[CanViewProject()])
     featured_projects: gql.relay.Connection[Project] = gql.django.connection(
         resolver=get_featured_projects

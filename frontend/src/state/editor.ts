@@ -431,7 +431,7 @@ export const useEditorState = defineStore("editor", {
       this.focusedViewId = null;
       if (this.focusedEditor?.id == editor.id) return;
 
-      console.log(`focus editor ${editor.path} in group ${editor.groupId}`);
+      console.debug(`focus editor ${editor.path} in group ${editor.groupId}`);
       if (!editor.groupId) {
         throw new Error("editor must be in a group: " + editor.path);
       }
@@ -447,7 +447,7 @@ export const useEditorState = defineStore("editor", {
 
     focusElement(element: { id: string; __typename: string } | StatementHeader | FileHeader, retainEditing = false) {
       if (this.focusedElementId == element.id) return;
-      console.log(`focus element ${element.id}`);
+      console.debug(`focus element ${element.id}`);
       this.focusedElementId = element.id;
       this.focusedElementType = element.__typename || null;
       this.editingElement = this.editingElement && retainEditing;
@@ -457,7 +457,7 @@ export const useEditorState = defineStore("editor", {
       if (this.focusedElementId != element.id || !this.editingElement) {
         this.focusElement(element);
         this.editingElement = true;
-        console.log(`edit element ${element.id}`);
+        console.debug(`edit element ${element.id}`);
       }
     },
 
@@ -465,7 +465,7 @@ export const useEditorState = defineStore("editor", {
       if (!element || element.id == this.focusedElementId) {
         this.editingElement = false;
       }
-      console.log(`stop editing element ${element?.id}`);
+      console.debug(`stop editing element ${element?.id}`);
     },
 
     blurElement(element?: StatementHeader | FileHeader) {
@@ -479,22 +479,22 @@ export const useEditorState = defineStore("editor", {
     addToSelection(element: { id: string }): void {
       if (this.selectedElementIds.find((e) => e == element.id)) return;
       this.selectedElementIds.push(element.id);
-      console.log("add to selection", element.id, this.selectedElementIds.length);
+      console.debug("add to selection", element.id, this.selectedElementIds.length);
     },
 
     removeFromSelection(element: { id: string }): void {
       this.selectedElementIds = this.selectedElementIds.filter((id) => id != element.id);
-      console.log("remove from selection", element.id, this.selectedElementIds.length);
+      console.debug("remove from selection", element.id, this.selectedElementIds.length);
     },
 
     clearSelection(): void {
       if (this.selectedElementIds.length == 0) return;
-      console.log("clear selection");
+      console.debug("clear selection");
       this.selectedElementIds = [];
     },
 
     setMainSymbol(symbol?: { id: string }): void {
-      console.log("set main symbol", symbol?.id);
+      console.debug("set main symbol", symbol?.id);
       this.mainSymbolId = symbol?.id ?? null;
       this.mainSymbolUnset = this.mainSymbolId == null;
     },
@@ -532,7 +532,7 @@ export const useEditorState = defineStore("editor", {
           editorRef = (editor as RunEditor).symbolId;
         }
         if (editorRef != null && !targetRefs.includes(editorRef)) {
-          console.log(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
+          console.debug(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
           this.closeEditor(editor);
         }
       }

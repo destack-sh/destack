@@ -161,19 +161,5 @@ export const StatementContentType = graphql(/* GraphQL */ `
     typeNodes(filters: { isVisible: true }) {
       ...SimpleTypeNodeContent
     }
-    records(filters: { isVisible: true }) {
-      totalCount
-      edges {
-        node {
-          id
-          createdAt
-          updatedAt
-          deletedAt
-          revision
-          orderKey
-          data
-        }
-      }
-    }
   }
 `);

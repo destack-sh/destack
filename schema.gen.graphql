@@ -1564,6 +1564,10 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): File @canViewProject(atRoot: true)
+  statement(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Statement @canViewProject(atRoot: true)
   remoteObject(
     """The ID of the object."""
     id: GlobalID!
