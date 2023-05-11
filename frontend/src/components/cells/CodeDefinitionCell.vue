@@ -67,6 +67,9 @@ const extraActions = computed(() => {
 });
 
 async function run() {
+  if (executionActive.value) {
+    return; // already running
+  }
   preparingRun.value = true; // for immediate feedback if flush takes more than few ms
   try {
     await codeSync.flushNow(); // flush any pending changes to the code (debounced)

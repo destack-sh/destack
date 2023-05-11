@@ -4,6 +4,7 @@ const useIncoming = {
   merge: (existing: any, incoming: any) => incoming,
 };
 
+const filteredRelayPagination = relayStylePagination(["filters"]);
 export const TYPE_POLICIES = {
   User: {
     fields: {
@@ -20,7 +21,18 @@ export const TYPE_POLICIES = {
   Statement: {
     fields: {
       typeNodes: useIncoming,
-      records: relayStylePagination(["filters"]),
+      records: {
+        // proxy read/merge for filtered relay pagination to also store args for cache.modify
+        read(existing: any, options: any) {
+          return filteredRelayPagination.read?.(existing?.value, options);
+        },
+        merge(existing: any, incoming: any, options: any) {
+          return {
+            value: filteredRelayPagination.merge?.(existing?.value, incoming, options),
+            args: options.args,
+          };
+        },
+      },
     },
   },
   InterpSymbol: {

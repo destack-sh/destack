@@ -232,13 +232,26 @@ export function useSymbolContentOps() {
         cache.modify({
           id: cache.identify(data?.createRecord.statement),
           fields: {
-            records(existingRecords = { totalCount: 0, edges: [] }) {
-              if (existingRecords.edges.some((e: any) => e.node.__ref == newEdge.node.__ref)) {
-                return existingRecords;
+            records({ value: existing, args }) {
+              if (!existing) {
+                existing = {
+                  edges: [],
+                  totalCount: 0,
+                  pageInfo: {
+                    hasPreviousPage: false,
+                    hasNextPage: false,
+                    startCursor: "",
+                    endCursor: "",
+                  },
+                };
+              }
+              console.log("modify", existing, args);
+              if (existing.edges.some((e: any) => e.node.__ref == newEdge.node.__ref)) {
+                return { value: existing, args };
               }
               // TODO @Broken: filter out records outside of the current page (if synced from elsewhere)
               // retain order key order
-              const newEdges = [...existingRecords.edges, newEdge].sort((a: any, b: any) => {
+              const newEdges = [...existing.edges, newEdge].sort((a: any, b: any) => {
                 return readOrderKey(a.node.__ref) < readOrderKey(b.node.__ref) ? -1 : 1;
               });
               // compute cursor based on surrounding edges
@@ -259,11 +272,16 @@ export function useSymbolContentOps() {
                 ...newEdge,
                 cursor: btoa(`arrayconnection:` + cursorIndex), // see strawberry graphql connection internals
               };
-              return {
-                ...existingRecords,
-                totalCount: existingRecords.totalCount + 1,
-                edges: newEdges,
+              const merged = {
+                value: {
+                  ...existing,
+                  totalCount: existing.totalCount + 1,
+                  edges: newEdges,
+                },
+                args,
               };
+              console.log(merged);
+              return merged;
             },
           },
           optimistic: true,
@@ -457,21 +475,24 @@ export function useSymbolContentOps() {
             id: vars.id,
           },
         } as TruncateRecordsMutation),
-      update(cache, { data: truncateRecords }) {
+      update(cache, { data }) {
         // wipe all records from the cache
         cache.modify({
-          id: cache.identify(truncateRecords?.truncateRecords),
+          id: cache.identify(data?.truncateRecords),
           fields: {
-            records() {
+            records({ args }) {
               return {
-                totalCount: 0,
-                pageInfo: {
-                  hasNextPage: false,
-                  hasPreviousPage: false,
-                  startCursor: null,
-                  endCursor: null,
+                value: {
+                  totalCount: 0,
+                  pageInfo: {
+                    hasNextPage: false,
+                    hasPreviousPage: false,
+                    startCursor: null,
+                    endCursor: null,
+                  },
+                  edges: [],
                 },
-                edges: [],
+                args,
               };
             },
           },
