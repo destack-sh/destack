@@ -176,13 +176,13 @@ def pub_project_mutation(
     project_version_id = mutations[0].project_version_id
     publish_soon(
         NMessageType.MODULE_CHANGED,
-        ModuleChangedPayload(module_id=project_version_id, client=origin, mutations=mutations),
+        ModuleChangedPayload(module_id=project_version_id, origins=[origin], mutations=mutations),
     )
     if internal_mutations:
         publish_soon(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=project_version_id, client=origin, mutations=internal_mutations
+                module_id=project_version_id, origins=[origin], mutations=internal_mutations
             ),
         )
 

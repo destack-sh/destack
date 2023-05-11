@@ -358,7 +358,7 @@ class AsyncCodeInstance(CodeInstance):
     is_async = True
 
     async def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
+        log = logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
@@ -376,7 +376,7 @@ class SyncCodeInstance(CodeInstance):
     is_async = False
 
     def __call__(self, *args, **kwargs):
-        log = logger.bind(code=self.code, args=len(args), kwargs=describe_type(kwargs))
+        log = logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")

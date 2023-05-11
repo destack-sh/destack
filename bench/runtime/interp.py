@@ -147,6 +147,7 @@ def interp_module(
     )
     interp(module_idx, on_error=collector)
     errors = [e.to_error() for e in collector.errors]
+    logger.debug("module.interp.done", module=module_idx)
 
     return InterpModule(
         module_idx=module_idx, errors=errors, dependencies=dependencies, committed=source.committed

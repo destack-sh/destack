@@ -217,7 +217,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has write access to module
         worker = await self._get_ready_worker(msg.p.module_id)
         try:
-            await worker.write_module(msg.p.mutations, origin=msg.p.client)
+            await worker.write_module(msg.p.mutations, origins=(msg.p.client,))
             logger.debug("module.write.done", msg=msg)
             success = True
         except Exception as e:
@@ -257,7 +257,7 @@ class LanguageServer:
 
     @message_handler
     async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]) -> None:
-        if msg.p.client.id == self.id:
+        if msg.p.has_origin(self.id):
             return  # ignore own changes
         # update language worker
         if msg.p.module_id in self.lang_workers:
@@ -594,6 +594,10 @@ class LanguageWorker:
         self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
 
     @property
+    def client(self) -> ClientOrigin:
+        return ClientOrigin("worker", self.worker_id, None)
+
+    @property
     def module_id(self) -> UUID:
         return self.project_version.id
 
@@ -662,7 +666,7 @@ class LanguageWorker:
 
     def _cancel_jobs_like(self, predicate: Callable[[Job], bool]):
         for job in self.jobs_queue._queue:
-            if predicate(job) and job.status == JobStatus.Queued:
+            if predicate(job) and job.status != JobStatus.Queued:
                 asyncio.create_task(job.cancel())
         # mark pending jobs cancelled in queue
         for prio, job in self.jobs_queue._queue:
@@ -684,27 +688,26 @@ class LanguageWorker:
         return job
 
     async def write_module(
-        self, mutations: list[ModuleMutation] | ModuleMutator, origin: ClientOrigin = None
+        self, mutations: list[ModuleMutation] | ModuleMutator, origins: tuple[ClientOrigin] = None
     ):
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
         await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
         self.on_module_changed(mutations)
-        origin = origin or ClientOrigin("worker", self.worker_id, None)
+        origins = (*(origins or ()), self.client)
+        public_mutations = list(chain.from_iterable(map_mutation_to_public(m) for m in mutations))
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=self.module_id, client=origin, mutations=mutations
+                module_id=self.module_id, origins=origins, mutations=mutations
             ),
         )
-        public_mutations = list(chain.from_iterable(map_mutation_to_public(m) for m in mutations))
-        if public_mutations:
-            await publish(
-                NMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(
-                    module_id=self.module_id, client=origin, mutations=public_mutations
-                ),
-            )
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                module_id=self.module_id, origins=origins, mutations=public_mutations
+            ),
+        )
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""

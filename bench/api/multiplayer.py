@@ -86,18 +86,18 @@ class ModuleSubscription:
         log.info("module.listen")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
-            if client_id == change.p.client.id and client_nonce == change.p.client.nonce:
+            if client_id is not None and change.p.has_origin(client_id, client_nonce):
                 continue  # skip self
 
             log.debug(
                 "module.update",
                 id=change.id,
-                origin_type=change.p.client.type,
-                origin_id=change.p.client.id,
+                origin_type=change.p.origin.type,
+                origin_id=change.p.origin.id,
             )
             client_id = (
-                to_global_id("Client", change.p.client.id)
-                if change.p.client.type == "user"
+                to_global_id("Client", change.p.origin.id)
+                if change.p.origin.type == "user"
                 else None
             )
             yield ModuleChange(

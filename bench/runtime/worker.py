@@ -36,7 +36,7 @@ from bench.runtime.tracing import (
     pub_tracker_ctx,
     worker_ctx,
 )
-from bench.runtime.type import ExecutionFrame, ExecutionFrameData, RunErrorData, WorkerType
+from bench.runtime.type import ExecutionFrame, ExecutionFrameData, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -99,13 +99,16 @@ class ModuleWorker:
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
         new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
-        self.interp = await self.interpreter.interp(new_source)
-        rep: NMessage[RepWriteModulePayload] = await request(
-            NMessageType.REQUEST_WRITE_MODULE,
-            ReqWriteModulePayload(
-                module_id=self.module_id, mutations=mutations, client=self.master.client
+        # interp and write in parallel
+        self.interp, rep = await asyncio.gather(
+            self.interpreter.interp(new_source),
+            request(
+                NMessageType.REQUEST_WRITE_MODULE,
+                ReqWriteModulePayload(
+                    module_id=self.module_id, mutations=mutations, client=self.master.client
+                ),
+                RepWriteModulePayload,
             ),
-            RepWriteModulePayload,
         )
         return rep.p.success
 
@@ -184,7 +187,7 @@ class ModuleWorker:
         runnable: CodeInstance,
         arguments: dict[str, LiteralValue],
         ctx: ExecutionTrackerContext,
-    ) -> ExecutionFrame:
+    ) -> Optional[RunErrorType]:
         run_ctx_token = pub_tracker_ctx.set(ctx)
         try:
             if isinstance(runnable, TaskInstance):
@@ -192,21 +195,15 @@ class ModuleWorker:
             else:
                 code_instance = runnable
             self.log.info("module.run", code_instance=code_instance)
-            ret = await run(code_instance, arguments)
-            return None, ret
+            await run(code_instance, arguments)
+            return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
-            details = RunErrorData(
-                type=e.type.name,
-                symbol=str(e.symbol),
-                message=str(e.cause),
-                traceback=e.get_traceback(runnable),
-            )
-            return RunErrorType.RUNTIME_ERROR, details
+            return RunErrorType.RUNTIME_ERROR
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
-            return RunErrorType.INTERNAL_ERROR, None
+            return RunErrorType.INTERNAL_ERROR
         finally:
             pub_tracker_ctx.reset(run_ctx_token)
 
@@ -352,9 +349,9 @@ class SandboxedWorker:
         if msg.p.module_id not in self.workers:
             # ignore if we don't have a worker for this module
             return
-        worker = await self._get_ready_worker(msg.p.module_id)
-        worker.provide_context()
-        if msg.p.client.id != worker.master.worker_id:
+        if not msg.p.has_origin(self.client.id):
+            worker = await self._get_ready_worker(msg.p.module_id)
+            worker.provide_context()
             await worker.do_interp_on_change(msg.p.mutations)
 
     @message_handler
