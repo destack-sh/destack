@@ -597,9 +597,12 @@ def instantiate_code(
     code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
     try:
         callable = do_execute_arbitrary_code(code_str, locals)[func_name]
-    except Exception as e:
-        # shouldn't error unless it's a python parse issue since we're just defining a function
-        raise ValueError("") from e
+    except SyntaxError as e:
+        # raise error in code when called for proper reporting
+        raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {e.args[1][3]!r})"
+        indented_raise = textwrap.indent(raise_str, " " * 4)
+        code_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
+        callable = do_execute_arbitrary_code(code_str, locals)[func_name]
 
     transform = CodeTransformation(
         original_code=code,

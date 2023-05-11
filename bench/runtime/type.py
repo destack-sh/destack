@@ -227,11 +227,12 @@ class ExecutionFrameData:
                 traceback.walk_tb(frame.error.__traceback__), capture_locals=True
             )
             stack = PyFrameData.from_stack(stack_summary)
+            stack = PyFrameData.clean(stack, frame.code)
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.code),
                 message=str(frame.error),
-                traceback=PyFrameData.clean(stack, frame.code),
+                traceback=stack,
             )
         else:
             error_data = None

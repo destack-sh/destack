@@ -190,7 +190,10 @@ defineExpose({
         </span>
         <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
         <!-- Locals -->
-        <span class="mx-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2" v-if="frame.locals">
+        <span
+          v-if="Object.keys(frame.locals).length > 0"
+          class="mx-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2"
+        >
           <template v-for="key in Object.keys(frame.locals)" :key="key">
             <span>{{ key }}</span>
             <span class="col-span-3 w-full">{{ frame.locals[key] }}</span>
