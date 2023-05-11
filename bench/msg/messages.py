@@ -101,22 +101,37 @@ class BatchablePayload(abc.ABC):
         raise NotImplementedError
 
 
+@dataclass
+class OriginPayload:
+    origins: list[ClientOrigin]
+
+    @property
+    def origin(self):
+        return self.origins[0]
+
+    def has_origin(self, id: UUID | str, nonce: Optional[UUID | str] = None) -> bool:
+        id = id if isinstance(id, UUID) else UUID(id)
+        if nonce is None:
+            return any(c.id == id for c in self.origins)
+        else:
+            nonce = nonce if isinstance(nonce, UUID) else UUID(nonce)
+            return any(c.id == id and c.nonce == nonce for c in self.origins)
+
+
 @payload(NMessageType.CLIENT_CHANGED)
 class ClientChangedPayload:
     client: ClientOrigin
 
 
 @payload(NMessageType.MODULE_CHANGED)
-class ModuleChangedPayload:
+class ModuleChangedPayload(OriginPayload):
     module_id: UUID
-    client: ClientOrigin
     mutations: list[mutate.ModuleMutation]
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
-class ModuleInternalChangedPayload:
+class ModuleInternalChangedPayload(OriginPayload):
     module_id: UUID
-    client: ClientOrigin
     mutations: list[mutate.ModuleMutation]
 
 

@@ -5,6 +5,7 @@ import type { StatementHeader } from "@/state/editor";
 import { DocumentDuplicateIcon, ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "vue";
 import type { InlineAction } from "@/components/statement";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   extraActions?: InlineAction[];
@@ -39,7 +40,9 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       @click.prevent.stop="action.action"
       :disabled="action.disabled || action.active"
     >
-      <component :is="action.active ? ArrowPathIcon : action.icon" class="h-4 w-4" />
+      <FadeTransition name="fade" mode="out-in">
+        <component :is="action.active ? ArrowPathIcon : action.icon" class="h-4 w-4" />
+      </FadeTransition>
     </button>
     <slot name="after" />
   </span>
