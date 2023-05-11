@@ -343,13 +343,14 @@ class StatementManager(models.Manager["Statement"]):
            WITH RECURSIVE descendants(id, parent_id) AS (
                SELECT id, parent_id
                FROM bench_statement
-               WHERE id = ANY(%s)
+               WHERE id = ANY(%s) AND deleted_at IS NOT NULL
                UNION ALL
                SELECT bench_statement.id, bench_statement.parent_id
                FROM bench_statement
                INNER JOIN descendants ON descendants.id = bench_statement.parent_id
+                WHERE bench_statement.deleted_at IS NOT NULL
            )
-           SELECT id
+           SELECT DISTINCT id
            FROM descendants
         """
         return Statement._base_manager.filter(id__in=RawSQL(query, (statement_ids,)))
