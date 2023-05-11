@@ -309,8 +309,8 @@ defineExpose({
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
-      <span v-if="fetchedRecords?.statement?.records.totalCount" class="text-gray-400">
-        {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount) }}
+      <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0" class="text-gray-400">
+        {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
       </span>
       <InlineActions :extraActions="extraActions" />
     </div>
