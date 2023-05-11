@@ -4105,6 +4105,8 @@ export type RunMutation = {
           status: ExecutionStatus;
           startedAt?: any | null;
           terminatedAt?: any | null;
+          createdAt: any;
+          updatedAt: any;
           duration?: number | null;
           cachedGeneratedAt?: any | null;
           cachedDuration?: number | null;
@@ -10973,6 +10975,8 @@ export const RunDocument = {
                             { kind: "Field", name: { kind: "Name", value: "status" } },
                             { kind: "Field", name: { kind: "Name", value: "startedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "duration" } },
                             { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },

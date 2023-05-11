@@ -99,9 +99,9 @@ class JobSubscription:
         log.info("jobs.listen")
         while True:
             msg: NMessage[JobSavedPayload] = await jobs_sub.next_msg()
-            job = msg.p.job
-            if type_in and job.type not in type_in:
-                continue
-            job = mapper.rmap_job(job)
-            log.debug("jobs.update", job=job)
-            yield job
+            for job in msg.p.jobs:
+                if type_in and job.type not in type_in:
+                    continue
+                job = mapper.rmap_job(job)
+                log.debug("jobs.update", job=job)
+                yield job

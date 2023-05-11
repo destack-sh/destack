@@ -13,6 +13,7 @@ import {
   type InlineAction,
   type SimpleType,
 } from "@/components/statement";
+import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementHeader } from "@/state/editor";
@@ -304,11 +305,15 @@ defineExpose({
       />
       <span class="ml-1 inline-flex" :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'">table</span>
     </div>
-    <InlineActions
-      class="transition duration-150 group-hover/statement:opacity-100"
+    <div
+      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
-      :extraActions="extraActions"
-    />
+    >
+      <span v-if="fetchedRecords?.statement?.records.totalCount" class="text-gray-400">
+        {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount) }}
+      </span>
+      <InlineActions :extraActions="extraActions" />
+    </div>
   </div>
   <!-- Reference type -->
   <!-- TODO @Incomplete: set dataset type to type reference -->

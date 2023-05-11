@@ -65,6 +65,8 @@ export function useRuntimeOps() {
               status
               startedAt
               terminatedAt
+              createdAt
+              updatedAt
               duration
               cachedGeneratedAt
               cachedDuration
