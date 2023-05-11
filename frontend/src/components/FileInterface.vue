@@ -49,7 +49,7 @@ const isOtherVersion = computed(
     fileHeader.value != null &&
     fileHeader.value?.projectVersion?.id != editor.currentProjectVersionId
 );
-const { getTimeFromNowString } = useTimeFromNow(fileHeader.value?.deletedAt);
+const now = useTimeFromNow(fileHeader.value?.deletedAt);
 const statements = computed(() => {
   return (
     file.value?.file?.statements
@@ -171,9 +171,8 @@ const auth = useAuth();
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
       <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
-        <div class="text-sm font-bold text-white">This file is in Trash.</div>
-        <div class="text-center text-sm text-white">
-          {{ fileHeader.path }} was deleted ({{ getTimeFromNowString(fileHeader.deletedAt) }}).
+        <div class="text-sm font-bold text-white">
+          This file is in trash (was deleted {{ now.getTimeFromNowLongString(fileHeader.deletedAt) }}).
         </div>
         <button
           class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
