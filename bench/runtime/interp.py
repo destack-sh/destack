@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import dataclass
+from functools import partial
 from itertools import chain
 from typing import Awaitable, Callable, Optional, cast
 from uuid import UUID
@@ -79,7 +80,9 @@ class LanguageInterpreter:
         dependencies = await asyncio.gather(
             *[self.interp_requirement_rec(req.id) for req in requirements]
         )
-        interp = interp_module(source, [m.module_idx for m in dependencies])
+        interp = await asyncio.get_event_loop().run_in_executor(
+            None, partial(interp_module, source, [m.module_idx for m in dependencies])
+        )
         if interp.errors:
             # not good, but we can still try to use the module?
             logger.warn("module.requirement.failed", interp=interp)

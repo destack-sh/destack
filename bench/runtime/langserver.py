@@ -2,6 +2,7 @@ import asyncio
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from functools import partial
 from itertools import chain
 from typing import Callable, ClassVar, Deque, Optional
 from uuid import UUID
@@ -709,16 +710,15 @@ class LanguageWorker:
             ),
         )
 
-    async def do_interp(self, new_source: wire.ModuleData) -> None:
-        """Interprets the new module source, fetching deps and firing reactivity jobs"""
-        requirements = get_requirements(new_source)
-        dependencies = await self.interpreter.interp_requirements(requirements)
-
+    def _do_interp_sync(self, new_source: wire.ModuleData, dependencies) -> None:
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
         self.revmap = RevisionMap.from_module(self.source)
+        logger.debug("module.interp.stale", module_id=self.module_id)
         self.stale_symbols = get_stale_symbols(self.revmap, self.interp.module_idx)
+        logger.debug("module.interp.treehash", module_id=self.module_id)
         self.module_hash = tree_from_module(self.revmap, self.idx).stable_hash()
+        logger.debug("module.interp.wire", module_id=self.module_id)
         if self.interp.module_idx:
             self.wire_module = wire.rmap_module(
                 self.interp.module_idx.module, impute_type_references=True
@@ -729,6 +729,15 @@ class LanguageWorker:
         self.wire_dependencies = {
             m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
         }
+
+    async def do_interp(self, new_source: wire.ModuleData) -> None:
+        """Interprets the new module source, fetching deps and firing reactivity jobs"""
+        requirements = get_requirements(new_source)
+        dependencies = await self.interpreter.interp_requirements(requirements)
+        await asyncio.get_event_loop().run_in_executor(
+            None, partial(self._do_interp_sync, new_source, dependencies)
+        )
+
         # reactively trigger (debounced) reactors
         if not self.interp.committed:
             create_wrapped_task(self._trigger_reactive_generate())

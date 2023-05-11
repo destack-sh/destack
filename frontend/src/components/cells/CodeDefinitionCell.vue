@@ -123,19 +123,19 @@ defineExpose({
       <span
         :class="[
           lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
-          lastExecution?.updatedAt ? 'opacity-100' : 'opacity-0',
-        ]"
-      >
-        {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
-      >
-      <span
-        :class="[
-          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
           EXECUTION_TERMINAL_STATES.includes(lastExecution?.status) ? 'opacity-100' : 'opacity-0',
         ]"
       >
         {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
       </span>
+      <span
+        :class="[
+          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          lastExecution?.updatedAt ? 'opacity-100' : 'opacity-0',
+        ]"
+      >
+        {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
+      >
       <InlineActions :extraActions="extraActions" />
     </div>
   </div>
