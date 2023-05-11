@@ -6,7 +6,13 @@ import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
-import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import {
+  makeTypeNode,
+  STRING_TYPE_NODE,
+  useStatementContext,
+  type InlineAction,
+  type SimpleType,
+} from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
@@ -15,7 +21,7 @@ import { symbolOf } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { ArrowDownLeftIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { graphql } from "@/gql";
 import { ArrowDownIcon, ArrowPathIcon } from "@heroicons/vue/24/outline";
@@ -35,7 +41,8 @@ const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const {
   loading,
-  result: currentRecords,
+  result: fetchedRecords,
+  refetch,
   fetchMore,
 } = useQuery(
   graphql(/* GraphQL */ `
@@ -72,18 +79,19 @@ const {
     first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
 );
-const pageInfo = computed(() => currentRecords.value?.statement?.records.pageInfo);
-const records = computed(
+const pageInfo = computed(() => fetchedRecords.value?.statement?.records.pageInfo);
+const recordsInView = computed(
   () =>
-    currentRecords.value?.statement?.records.edges
+    fetchedRecords.value?.statement?.records.edges
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node)
       .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
 );
-const firstRecord = computed(() => records.value?.[0]);
-const lastRecord = computed(() => records.value?.[records.value.length - 1]);
-const overfetchedRecord = computed(() => currentRecords.value?.statement?.records.edges?.slice(PAGE_SIZE)[0]?.node);
+const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
+const overfetchedRecord = computed(() =>
+  pageInfo.value?.hasNextPage ? fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.node : null
+);
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) {
@@ -91,8 +99,8 @@ function loadMore() {
   }
   fetchMore({
     variables: {
-      after: currentRecords.value?.statement?.records.edges.slice(-1)[0]?.cursor,
-      first: PAGE_SIZE,
+      after: fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.cursor,
+      first: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
 }
@@ -109,7 +117,7 @@ const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTy
     gridNavigateDown: focusFirstRecord,
   }
 );
-const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, records, {
+const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, recordsInView, {
   gridNavigateUp: () => {
     if (typeGrid.refs.value.length > 0) {
       typeGrid.focus(-1, "name");
@@ -182,15 +190,18 @@ function insertRecord(belowRecordId?: string) {
   if (belowRecordId == null) {
     if (overfetchedRecord.value == null) {
       // end of dataset
-      console.debug("insert record at end of dataset", lastRecord.value);
-      orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, null);
+      console.debug("insert record at end of dataset", lastRecordInView.value);
+      orderKey = generateKeyBetween(lastRecordInView.value?.orderKey ?? null, null);
     } else {
       // end of page but not end of dataset
-      console.debug("insert record at end of page", lastRecord.value, overfetchedRecord.value);
-      orderKey = generateKeyBetween(lastRecord.value?.orderKey ?? null, overfetchedRecord.value?.orderKey ?? null);
+      console.debug("insert record at end of page", lastRecordInView.value, overfetchedRecord.value);
+      orderKey = generateKeyBetween(
+        lastRecordInView.value?.orderKey ?? null,
+        overfetchedRecord.value?.orderKey ?? null
+      );
     }
   } else {
-    const record = records.value?.find((r) => r.id === belowRecordId);
+    const record = recordsInView.value?.find((r) => r.id === belowRecordId);
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
   ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
@@ -198,7 +209,7 @@ function insertRecord(belowRecordId?: string) {
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
-  const record = records.value.find((r) => r.id === recordId);
+  const record = recordsInView.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData, [key]: value };
@@ -206,7 +217,7 @@ function writeRecordField(recordId: string, key: string, value: any) {
 }
 
 function deleteRecordField(recordId: string, key: string) {
-  const record = records.value.find((r) => r.id === recordId);
+  const record = recordsInView.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData };
@@ -215,7 +226,7 @@ function deleteRecordField(recordId: string, key: string) {
 }
 
 function deleteRecord(recordId: string) {
-  const recordIdx = records.value.findIndex((r) => r.id === recordId);
+  const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, recordId);
   // move focus up
@@ -234,10 +245,10 @@ const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
   const key = context.typeNodesByName.value?.[column]?.key;
   console.log("drop insert files into dataset", recordId, column, key, position, files);
-  const recordIdx = records.value.findIndex((r) => r.id === recordId);
-  const record = records.value[recordIdx];
-  const above = records.value[recordIdx - 1];
-  const below = records.value[recordIdx + 1];
+  const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
+  const record = recordsInView.value[recordIdx];
+  const above = recordsInView.value[recordIdx - 1];
+  const below = recordsInView.value[recordIdx + 1];
   let orderKeys;
   if (position == "above") {
     orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey, files.length);
@@ -251,9 +262,15 @@ const position = useMouseInElement(gridRef);
 const extraActions = computed(() => {
   const inlineActions: InlineAction[] = [
     {
+      label: "Reload view",
+      icon: ArrowPathIcon,
+      active: loading.value,
+      action: refetch,
+    },
+    {
       label: "Add record",
       icon: PlusIcon,
-      action: () => insertRecord(),
+      action: insertRecord,
     },
   ];
   return inlineActions;
@@ -351,7 +368,7 @@ defineExpose({
     </tr>
     <!-- Records -->
     <tr
-      v-for="record in records"
+      v-for="record in recordsInView"
       :key="record.id"
       class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
     >

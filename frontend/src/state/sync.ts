@@ -49,7 +49,7 @@ function applyOpLocally(client: ApolloClient<any>, op: MutationOp, vars: any, re
   });
   // update cache if needed
   if (op.updateCache != null) {
-    op.updateCache(client.cache, { data: { [op.name]: mutatedThing } }, {});
+    op.updateCache(client.cache, { data: { [op.name]: mutatedThing, synced: true } }, {});
   }
 }
 
@@ -85,7 +85,7 @@ export class OpRegistry {
   ): UseMutationReturn<TResult, TVariables> {
     /* Registers a mutation for multiplayer  */
 
-    const operationName = document.definitions[0].name.value;
+    const operationName = document.definitions[0].name.value; // fails if op could not be parsed, but this is usually obvious
     const mutationString = print(document);
 
     // get the string between '... on' and '...OperationInfoContent'

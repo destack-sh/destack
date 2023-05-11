@@ -189,6 +189,8 @@ const documents = {
     types.UpdateStatementTextDocument,
   "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateRecordDocument,
+  "\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            ":
+    types._OrderKeyFragmentDoc,
   "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on DatasetRecord {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateRecordDocument,
   "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -781,6 +783,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            "
+): typeof documents["\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

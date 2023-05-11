@@ -1,6 +1,14 @@
 {
   "extends": "@vue/tsconfig/tsconfig.web.json",
-  "include": ["env.d.ts", "package.json", "frontend/src/**/*", "frontend/src/**/*.vue", "codegen.ts", "codegen.ts"],
+  "include": [
+    "env.d.ts",
+    "package.json",
+    "frontend/src/**/*",
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.vue",
+    "codegen.ts",
+    "codegen.ts"
+  ],
   "exclude": ["frontend/src/**/__tests__/*"],
   "compilerOptions": {
     "resolveJsonModule": true,
