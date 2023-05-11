@@ -53,7 +53,7 @@ const editableContainerRef: Ref<HTMLDivElement | null> = ref(null);
 const comboboxButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
 
 const readValue = computed(() => {
-  if (!editing.value && !props.modelValue && props.placeholderValue) {
+  if (!editing.value && props.modelValue == null && props.placeholderValue) {
     return props.placeholderValue;
   } else {
     return props.modelValue;

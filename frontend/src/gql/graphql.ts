@@ -4481,6 +4481,10 @@ export type CreateRecordMutation = {
       });
 };
 
+export type _OrderKeyFragment = { __typename?: "DatasetRecord"; orderKey: string } & {
+  " $fragmentName"?: "_OrderKeyFragment";
+};
+
 export type UpdateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   data: Scalars["JSON"];
@@ -5603,6 +5607,20 @@ export const JobContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<JobContentFragment, unknown>;
+export const _OrderKeyFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "_orderKey" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "orderKey" } }],
+      },
+    },
+  ],
+} as unknown as DocumentNode<_OrderKeyFragment, unknown>;
 export const InterpSymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [

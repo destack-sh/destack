@@ -23,6 +23,7 @@ import {
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
+import { ArrowDownCircleIcon, ArrowDownIcon } from "@heroicons/vue/24/outline";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
@@ -202,33 +203,67 @@ export function useSymbolContentOps() {
             data: vars.data,
           },
         } as CreateRecordMutation),
-      update(cache, { data: createStatementRecord }) {
-        if (createStatementRecord?.createRecord.__typename != "DatasetRecord") {
+      update(cache, { data }) {
+        if (data?.createRecord.__typename != "DatasetRecord") {
           return; // error
         }
+
+        function readOrderKey(recordRef: any): string {
+          const record = cache.readFragment({
+            id: recordRef,
+            fragment: graphql(/* GraphQL */ `
+              fragment _orderKey on DatasetRecord {
+                orderKey
+              }
+            `),
+          });
+          if (record == null) {
+            throw new Error("record not in cache: " + recordRef);
+          }
+          return record.orderKey;
+        }
+
         // extend relevant records views with the new record
         const newEdge = {
           __typename: "DatasetRecordEdge",
-          cursor: btoa(`arrayconnection:0`), // TODO @Broken: compute actual cursor value
-          node: { __ref: cache.identify(createStatementRecord?.createRecord) },
+          // cursor is set below
+          node: { __ref: cache.identify(data?.createRecord) },
         };
         cache.modify({
-          id: cache.identify(createStatementRecord?.createRecord.statement),
+          id: cache.identify(data?.createRecord.statement),
           fields: {
-            records(existingRecords = { totalCount: 0, edges: [] }, details) {
-              const alreadyExists = existingRecords.edges.some((e: any) => e.node.__ref == newEdge.node.__ref);
-              if (alreadyExists) {
-                /* TODO @Broken: filter outer records not in page */
+            records(existingRecords = { totalCount: 0, edges: [] }) {
+              if (existingRecords.edges.some((e: any) => e.node.__ref == newEdge.node.__ref)) {
                 return existingRecords;
-              } else {
-                return {
-                  ...existingRecords,
-                  totalCount: existingRecords.totalCount + 1,
-                  edges: [...existingRecords.edges, newEdge].sort((a: any, b: any) =>
-                    a.orderKey < b.orderKey ? -1 : 1
-                  ),
-                };
               }
+              // TODO @Broken: filter out records outside of the current page (if synced from elsewhere)
+              // retain order key order
+              const newEdges = [...existingRecords.edges, newEdge].sort((a: any, b: any) => {
+                return readOrderKey(a.node.__ref) < readOrderKey(b.node.__ref) ? -1 : 1;
+              });
+              // compute cursor based on surrounding edges
+              const inPageIndex = newEdges.findIndex((e: any) => e.node.__ref == newEdge.node.__ref);
+              let cursorIndex;
+              if (inPageIndex > 0) {
+                const beforeCursor = newEdges[inPageIndex - 1].cursor;
+                const beforeIndex = atob(beforeCursor).split(":")[1];
+                cursorIndex = parseInt(beforeIndex) + 1;
+              } else if (inPageIndex < newEdges.length - 1) {
+                const afterCursor = newEdges[inPageIndex + 1].cursor;
+                const afterIndex = atob(afterCursor).split(":")[1];
+                cursorIndex = parseInt(afterIndex) - 1;
+              } else {
+                cursorIndex = 0;
+              }
+              newEdges[inPageIndex] = {
+                ...newEdge,
+                cursor: btoa(`arrayconnection:` + cursorIndex), // see strawberry graphql connection internals
+              };
+              return {
+                ...existingRecords,
+                totalCount: existingRecords.totalCount + 1,
+                edges: newEdges,
+              };
             },
           },
           optimistic: true,
