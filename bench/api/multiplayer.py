@@ -95,13 +95,13 @@ class ModuleSubscription:
                 origin_type=change.p.origin.type,
                 origin_id=change.p.origin.id,
             )
-            client_id = (
+            origin_id = (
                 to_global_id("Client", change.p.origin.id)
                 if change.p.origin.type == "user"
                 else None
             )
             yield ModuleChange(
                 id=change.id,
-                client_id=client_id,
+                client_id=origin_id,
                 mutations=[rmap_mutation(m) for m in change.p.mutations],
             )
