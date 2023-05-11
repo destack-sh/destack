@@ -772,6 +772,12 @@ class RemoteObject:
     name: str
     status: RemoteObjectStatus
 
+    def __str__(self):
+        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
+
+    def __repr__(self):
+        return f"<RemoteObject {self}>"
+
 
 @dataclass(repr=False)
 class Record:

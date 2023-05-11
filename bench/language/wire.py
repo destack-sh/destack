@@ -85,6 +85,15 @@ class XBlockData:
 
 
 @dataclass(repr=False, slots=True)
+class RemoteObjectData:
+    id: UUID
+    sha512: str
+    content_length: int
+    content_type: str
+    name: Optional[str]
+
+
+@dataclass(repr=False, slots=True)
 class ModuleData:
     id: UUID
     name: str
@@ -477,6 +486,26 @@ def rmap_xblock(statement_id: UUID, xblock: language.XBlockContent) -> XBlockDat
         path=xblock.path,
         description=xblock.description,
         revision=1,
+    )
+
+
+def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:
+    return RemoteObjectData(
+        id=object.id,
+        name=object.name,
+        sha512=object.sha512,
+        content_type=object.content_type,
+        content_length=object.content_length,
+    )
+
+
+def wmap_remote_object(object: RemoteObjectData) -> language.RemoteObject:
+    return language.RemoteObject(
+        id=object.id,
+        name=object.name,
+        sha512=object.sha512,
+        content_type=object.content_type,
+        content_length=object.content_length,
     )
 
 
