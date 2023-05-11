@@ -13,18 +13,17 @@ import {
   type InlineAction,
   type SimpleType,
 } from "@/components/statement";
+import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { ArrowDownIcon, ArrowPathIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
-import { ArrowDownLeftIcon, PlusIcon } from "@heroicons/vue/24/outline";
-import { useQuery } from "@vue/apollo-composable";
-import { graphql } from "@/gql";
-import { ArrowDownIcon, ArrowPathIcon } from "@heroicons/vue/24/outline";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -36,6 +35,7 @@ context.syncDescription(
   computed(() => descriptionRef.value?.focused)
 );
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
+const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 
@@ -125,7 +125,7 @@ const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell
       descriptionRef.value?.focus();
     }
   },
-  gridNavigateDown: () => addRecordRef.value?.focus(),
+  gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
 });
 const isEditing = computed(
   () => typeGrid.refs.value.find((n) => n.editing) || recordGrid.refs.value.find((n) => n.editing)
@@ -202,6 +202,9 @@ function insertRecord(belowRecordId?: string) {
     }
   } else {
     const record = recordsInView.value?.find((r) => r.id === belowRecordId);
+    if (record == null) {
+      throw new Error("record not found: " + belowRecordId);
+    }
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
   ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
@@ -265,12 +268,12 @@ const extraActions = computed(() => {
       label: "Reload view",
       icon: ArrowPathIcon,
       active: loading.value,
-      action: refetch,
+      action: () => refetch(),
     },
     {
       label: "Add record",
       icon: PlusIcon,
-      action: insertRecord,
+      action: () => insertRecord(),
     },
   ];
   return inlineActions;
@@ -401,6 +404,9 @@ defineExpose({
     <button
       v-if="pageInfo?.hasNextPage"
       @click="loadMore()"
+      @keydown.up.exact="focusLastRecord"
+      @keydown.right.exact="addRecordRef?.focus"
+      @keydown.down.exact="context.navigateDown"
       :disabled="loading"
       ref="loadMoreRef"
       class="flex w-fit select-none flex-row items-center rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
@@ -424,6 +430,7 @@ defineExpose({
       @enter="insertRecord()"
       @keydown.up.exact="focusLastRecord"
       @keydown.right.exact="addFieldRef?.focus"
+      @keydown.left.exact="loadMoreRef?.focus"
       @keydown.down.exact="context.navigateDown"
     >
       +record
