@@ -286,7 +286,7 @@ export function useSymbolContentOps() {
               return {
                 value: {
                   ...existing,
-                  totalCount: existing.totalCount + 1,
+                  totalCount: -1, // unknown
                   edges: newEdges,
                 },
                 args,
