@@ -27,9 +27,6 @@ export const EvaluationResultContentType = graphql(/* GraphQL */ `
     statement {
       id
     }
-    record {
-      id
-    }
     typeNode {
       id
     }

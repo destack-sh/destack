@@ -14,7 +14,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models, runtime
 from bench.api.auth import check_can_view_project_by_id, check_can_write_project
-from bench.api.execution import ExecutionTriggerType
+from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.api.util import asafe_mutation, asafe_subscription
 from bench.language import wire
@@ -31,7 +31,6 @@ from bench.msg.messages import (
     ReqInterpPayload,
     ReqRunPayload,
 )
-from bench.runtime.type import PyFrameData, RunErrorData
 
 logger = structlog.get_logger(__name__)
 
@@ -216,53 +215,12 @@ ModuleRunErrorType = gql.enum(messages.RunErrorType)
 
 
 @gql.type
-class PyFrame:
-    filename: str
-    lineno: int
-    name: str
-    line: str = None
-    locals: Optional[JSON] = None
-
-
-def rmap_py_frame(frame: PyFrameData) -> PyFrame:
-    return PyFrame(
-        filename=frame.filename,
-        lineno=frame.lineno,
-        name=frame.name,
-        line=frame.line,
-        locals=frame.locals,
-    )
-
-
-@gql.type
-class RunError:
-    """Wire-able representation of an exception."""
-
-    type: str
-    message: str
-    symbol: Optional[str]
-    traceback: Optional[list[PyFrame]]
-
-
-def rmap_run_error(error: RunErrorData) -> RunError:
-    traceback = [rmap_py_frame(frame) for frame in error.traceback] if error.traceback else None
-    return RunError(
-        type=error.type,
-        message=error.message,
-        symbol=error.symbol,
-        traceback=traceback,
-    )
-
-
-@gql.type
 class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
     build_id: Optional[GlobalID]
-    output: Optional[JSON]
     success: bool
-    error: Optional[ModuleRunErrorType]
-    error_details: Optional[RunError]
+    execution: Optional[Execution]
 
 
 @gql.type
@@ -314,21 +272,17 @@ class RuntimeMutation:
             trigger_id=user.id,
         )
         try:
-            rep = await request(
+            rep: NMessage[RepRunPayload] = await request(
                 NMessageType.REQUEST_RUN,
                 run,
-                RepRunPayload,
+                reply_t=RepRunPayload,
                 timeout=input.timeout_seconds,
             )
             success = rep.p.error is None
-            output = rep.p.output
             error = rep.p.error
-            error_details = rep.p.error_details
         except TimeoutError:
             success = False
-            output = None
             error = ModuleRunErrorType.TIMEOUT
-            error_details = None
         posthog.capture(
             str(user.id), "run", {"project_version_id": str(project_version_id), "error": error}
         )
@@ -336,10 +290,8 @@ class RuntimeMutation:
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             build_id=input.build_id,
-            output=output,
             success=success,
-            error=error,
-            error_details=rmap_run_error(error_details) if error_details else None,
+            execution=mapper.rmap_execution_frame(rep.p.execution),
         )
 
 

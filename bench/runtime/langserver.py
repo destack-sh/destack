@@ -29,7 +29,7 @@ from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.job import PENDING_JOB_STATUSES, JobStatus, JobType
 from bench.models.mapper import read_module, write_mutations
 from bench.msg import NMessage
-from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
+from bench.msg.core import handle_reply, message_handler, nc_init, publish, publish_soon, subscribe
 from bench.msg.messages import (
     BuildErrorType,
     ClientOrigin,
@@ -218,6 +218,7 @@ class LanguageServer:
         worker = await self._get_ready_worker(msg.p.module_id)
         try:
             await worker.write_module(msg.p.mutations, origin=msg.p.client)
+            logger.debug("module.write.done", msg=msg)
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
@@ -389,6 +390,7 @@ class Job:
     terminated_at: Optional[datetime] = None
     task: Optional[asyncio.Task] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
+    _created: bool = False
 
     def __str__(self):
         return f"{self.type} {self.id} ({self._content_str}, {self.status})"
@@ -420,14 +422,23 @@ class Job:
             terminated_at=self.terminated_at,
         )
 
+    @property
+    def worth_saving(self) -> bool:
+        return self.type in [JobType.GENERATE, JobType.BUILD, JobType.EVALUATE]
+
     async def save_and_notify(self):
-        await models.Job.objects.abulk_create(
-            [mapper.rmap_job(self.to_data())],
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=["status", "started_at", "terminated_at"],
-        )
-        await publish(
+        if not self.worth_saving:
+            return
+        if not self._created:
+            await mapper.rmap_job(self.to_data()).asave()
+            self._created = True
+        else:
+            await models.Job.objects.filter(id=self.id).aupdate(
+                status=self.status,
+                started_at=self.started_at,
+                terminated_at=self.terminated_at,
+            )
+        publish_soon(
             NMessageType.JOB_SAVED,
             JobSavedPayload(module_id=self.worker_ctx.module_id, job=self.to_data()),
         )
@@ -718,7 +729,7 @@ class LanguageWorker:
         # reactively trigger (debounced) reactors
         if not self.interp.committed:
             create_wrapped_task(self._trigger_reactive_generate())
-            create_wrapped_task(self._trigger_reactive_lint())
+            # create_wrapped_task(self._trigger_reactive_lint()) :BuildEvaluate
             # create_wrapped_task(self._trigger_reactive_build()) :BuildEvaluate
         # notify clients
         payload = make_full_change_payload(self, InterpChangedPayload)

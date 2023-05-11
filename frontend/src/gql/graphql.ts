@@ -454,6 +454,7 @@ export type Execution = Node & {
   descendants: Array<Execution>;
   duration?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
+  errorNice?: Maybe<RunError>;
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;
   model?: Maybe<Statement>;
@@ -1998,14 +1999,6 @@ export type RunError = {
   type: Scalars["String"];
 };
 
-export enum RunErrorType {
-  InternalError = "INTERNAL_ERROR",
-  InvalidRunconfig = "INVALID_RUNCONFIG",
-  NotReady = "NOT_READY",
-  RuntimeError = "RUNTIME_ERROR",
-  Timeout = "TIMEOUT",
-}
-
 export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
@@ -2019,9 +2012,7 @@ export type RunInput = {
 export type RunState = {
   __typename?: "RunState";
   buildId?: Maybe<Scalars["GlobalID"]>;
-  error?: Maybe<RunErrorType>;
-  errorDetails?: Maybe<RunError>;
-  output?: Maybe<Scalars["JSON"]>;
+  execution?: Maybe<Execution>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
@@ -3410,7 +3401,6 @@ export type EvaluationResultContentFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any };
   build?: { __typename?: "Statement"; id: any } | null;
   statement?: { __typename?: "Statement"; id: any } | null;
-  record?: { __typename?: "DatasetRecord"; id: any } | null;
   typeNode?: { __typename?: "SimpleTypeNode"; id: any } | null;
 } & { " $fragmentName"?: "EvaluationResultContentFragment" };
 
@@ -3470,13 +3460,25 @@ export type ExecutionContentFragment = {
   triggerType: ExecutionTriggerType;
   inputs?: any | null;
   outputs?: any | null;
-  error?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   deployment?: { __typename?: "Deployment"; id: any } | null;
   user?: { __typename?: "User"; id: any; slug: string } | null;
   accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
   root?: { __typename?: "Execution"; id: any } | null;
   parent?: { __typename?: "Execution"; id: any } | null;
+  errorNice?: {
+    __typename?: "RunError";
+    type: string;
+    message: string;
+    traceback?: Array<{
+      __typename?: "PyFrame";
+      line: string;
+      filename: string;
+      lineno: number;
+      name: string;
+      locals?: any | null;
+    }> | null;
+  } | null;
   build?: { __typename?: "Statement"; id: any; name?: string | null } | null;
   task?: { __typename?: "Statement"; id: any; name?: string | null } | null;
   code?: { __typename?: "Statement"; id: any; name?: string | null } | null;
@@ -4096,20 +4098,29 @@ export type RunMutation = {
         projectVersionId: any;
         runnableId?: any | null;
         buildId?: any | null;
-        output?: any | null;
         success: boolean;
-        error?: RunErrorType | null;
-        errorDetails?: {
-          __typename?: "RunError";
-          type: string;
-          message: string;
-          traceback?: Array<{
-            __typename?: "PyFrame";
-            line: string;
-            filename: string;
-            lineno: number;
-            name: string;
-          }> | null;
+        execution?: {
+          __typename?: "Execution";
+          id: any;
+          status: ExecutionStatus;
+          startedAt?: any | null;
+          terminatedAt?: any | null;
+          duration?: number | null;
+          cachedGeneratedAt?: any | null;
+          cachedDuration?: number | null;
+          errorNice?: {
+            __typename?: "RunError";
+            type: string;
+            message: string;
+            traceback?: Array<{
+              __typename?: "PyFrame";
+              line: string;
+              filename: string;
+              lineno: number;
+              name: string;
+              locals?: any | null;
+            }> | null;
+          } | null;
         } | null;
       };
 };
@@ -5089,14 +5100,6 @@ export const EvaluationResultContentFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "record" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
             name: { kind: "Name", value: "typeNode" },
             selectionSet: {
               kind: "SelectionSet",
@@ -5189,7 +5192,31 @@ export const ExecutionContentFragmentDoc = {
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
           { kind: "Field", name: { kind: "Name", value: "outputs" } },
-          { kind: "Field", name: { kind: "Name", value: "error" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "errorNice" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "traceback" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "line" } },
+                      { kind: "Field", name: { kind: "Name", value: "filename" } },
+                      { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "locals" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "build" },
@@ -10935,27 +10962,42 @@ export const RunDocument = {
                       { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
                       { kind: "Field", name: { kind: "Name", value: "runnableId" } },
                       { kind: "Field", name: { kind: "Name", value: "buildId" } },
-                      { kind: "Field", name: { kind: "Name", value: "output" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
-                      { kind: "Field", name: { kind: "Name", value: "error" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "errorDetails" },
+                        name: { kind: "Name", value: "execution" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
-                            { kind: "Field", name: { kind: "Name", value: "message" } },
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "status" } },
+                            { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "duration" } },
+                            { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
                             {
                               kind: "Field",
-                              name: { kind: "Name", value: "traceback" },
+                              name: { kind: "Name", value: "errorNice" },
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "line" } },
-                                  { kind: "Field", name: { kind: "Name", value: "filename" } },
-                                  { kind: "Field", name: { kind: "Name", value: "lineno" } },
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "message" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "traceback" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "line" } },
+                                        { kind: "Field", name: { kind: "Name", value: "filename" } },
+                                        { kind: "Field", name: { kind: "Name", value: "lineno" } },
+                                        { kind: "Field", name: { kind: "Name", value: "name" } },
+                                        { kind: "Field", name: { kind: "Name", value: "locals" } },
+                                      ],
+                                    },
+                                  },
                                 ],
                               },
                             },

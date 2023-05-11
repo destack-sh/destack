@@ -8,7 +8,7 @@ import { useEditorState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { useSymbolOps } from "@/state/runtime";
-import { ExecutionStatus } from "@/gql/graphql";
+import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import InlineActions from "@/components/basic/InlineActions.vue";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
@@ -41,7 +41,9 @@ const executions = useExecutions(
   },
   { root: true, limit: 3, live: true }
 );
-const lastExecution = computed(() => executions.executions.value[0]);
+
+const lastExecutionLocal: Ref<Execution | null> = ref(null); // triggered in this client session
+const lastExecution = computed(() => lastExecutionLocal.value ?? executions.executions.value[0]);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
@@ -77,7 +79,10 @@ async function run() {
     preparingRun.value = false;
   }
   // TODO @UX: ensure that executed code is exact same as in editor
-  await symbolOps.run(context.statement.value);
+  const ret = await symbolOps.run(context.statement.value);
+  if (ret?.data?.run.__typename == "RunState") {
+    lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
+  }
 }
 
 defineExpose({
@@ -90,8 +95,8 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- Declaration -->
   <div class="flex flex-row items-center justify-between">
+    <!-- Declaration -->
     <div>
       <DeclarationCell
         ref="declarationRef"
@@ -110,6 +115,7 @@ defineExpose({
         {{ addingTypes ? "-arguments" : "+arguments" }}
       </button>
     </div>
+    <!-- Meta info & controls -->
     <div
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || executionActive ? '' : 'opacity-0'"
@@ -163,7 +169,7 @@ defineExpose({
     :class="context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100'"
   />
   <button
-    v-if="code.trim().length == 0"
+    v-if="code.length == 0"
     class="absolute bottom-3 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
     @click="monacoRef?.focus()"
   >
@@ -180,11 +186,11 @@ defineExpose({
     :key="lastExecution?.id"
   >
     {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase() }}:
-    <span class="font-bold">{{ lastExecution.error?.message }}</span>
+    <span class="font-bold">{{ lastExecution.errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
       <li
-        v-for="(frame, i) of lastExecution.error?.traceback"
+        v-for="(frame, i) of lastExecution.errorNice?.traceback"
         :key="i"
         class="flex max-w-full flex-col overflow-hidden py-0.5 hover:bg-red-100"
       >

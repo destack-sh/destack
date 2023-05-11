@@ -151,22 +151,27 @@ class Session:
             raise RuntimeError(f"session already opened {self}")
         self.opened_at = datetime.now()
         active_session.set(self)
+        logger.debug("session.open", session=self)
 
     async def aflush(self):
         if not self.mutator.mutations:
             return
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
+        logger.debug("session.flush", session=self, mutator=self.mutator)
         success = await self.write(self.mutator.bundle().collapse())
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
         self.mutator.reset()
+        logger.debug("session.flush.done", session=self)
 
     async def aclose(self):
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
         await self.aflush()
+        active_session.set(None)
+        logger.debug("session.close", session=self)
 
 
 AsyncCodeCallable = Callable[..., Coroutine]

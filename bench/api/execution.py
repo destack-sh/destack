@@ -5,6 +5,7 @@ import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
 from strawberry import auto, lazy
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
@@ -30,6 +31,45 @@ ExecutionStatus = gql.enum(models.ExecutionStatus)
 ExecutionTriggerType = gql.enum(models.ExecutionTriggerType)
 
 
+@gql.type
+class PyFrame:
+    filename: str
+    lineno: int
+    name: str
+    line: str = None
+    locals: Optional[JSON] = None
+
+    def from_dict(self, data: dict) -> "PyFrame":
+        return PyFrame(**dict)
+
+
+@gql.type
+class RunError:
+    """Wire-able representation of an exception."""
+
+    type: str
+    message: str
+    symbol: Optional[str]
+    traceback: Optional[list[PyFrame]]
+
+    @staticmethod
+    def from_dict(data: dict) -> "RunError":
+        if data["traceback"]:
+            traceback = [PyFrame(**frame) for frame in data["traceback"]]
+        else:
+            traceback = None
+        return RunError(
+            type=data["type"], message=data["message"], symbol=data["symbol"], traceback=traceback
+        )
+
+
+def get_error_nice(root: "Execution") -> Optional[RunError]:
+    if root.error:
+        return RunError.from_dict(data=root.error)
+    else:
+        return None
+
+
 @gql.django.type(models.Execution)
 class Execution(gql.Node):
     project: Annotated["Project", lazy(".project")]
@@ -46,6 +86,7 @@ class Execution(gql.Node):
     inputs: auto
     outputs: auto
     error: auto
+    error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
     root: Optional["Execution"]
     parent: Optional["Execution"]
     descendants: list["Execution"]

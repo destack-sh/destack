@@ -232,6 +232,7 @@ export function useSymbolContentOps() {
         cache.modify({
           id: cache.identify(data?.createRecord.statement),
           fields: {
+            //  :StatementRecordsView
             records({ value: existing, args }) {
               if (!existing) {
                 existing = {
@@ -245,17 +246,27 @@ export function useSymbolContentOps() {
                   },
                 };
               }
-              console.log("modify", existing, args);
               if (existing.edges.some((e: any) => e.node.__ref == newEdge.node.__ref)) {
                 return { value: existing, args };
               }
-              // TODO @Broken: filter out records outside of the current page (if synced from elsewhere)
+
               // retain order key order
               const newEdges = [...existing.edges, newEdge].sort((a: any, b: any) => {
                 return readOrderKey(a.node.__ref) < readOrderKey(b.node.__ref) ? -1 : 1;
               });
               // compute cursor based on surrounding edges
               const inPageIndex = newEdges.findIndex((e: any) => e.node.__ref == newEdge.node.__ref);
+
+              // filter out records outside of the current page (if synced from elsewhere)
+              if ((data as any).synced && inPageIndex >= args.first) {
+                // if synced, don't add the record if it's outside the current page
+                const pageInfo = {
+                  ...existing.pageInfo,
+                  hasNextPage: true,
+                };
+                return { value: { ...existing, pageInfo }, args };
+              }
+
               let cursorIndex;
               if (inPageIndex > 0) {
                 const beforeCursor = newEdges[inPageIndex - 1].cursor;
@@ -272,7 +283,7 @@ export function useSymbolContentOps() {
                 ...newEdge,
                 cursor: btoa(`arrayconnection:` + cursorIndex), // see strawberry graphql connection internals
               };
-              const merged = {
+              return {
                 value: {
                   ...existing,
                   totalCount: existing.totalCount + 1,
@@ -280,8 +291,6 @@ export function useSymbolContentOps() {
                 },
                 args,
               };
-              console.log(merged);
-              return merged;
             },
           },
           optimistic: true,
@@ -477,6 +486,7 @@ export function useSymbolContentOps() {
         } as TruncateRecordsMutation),
       update(cache, { data }) {
         // wipe all records from the cache
+        // :StatementRecordsView
         cache.modify({
           id: cache.identify(data?.truncateRecords),
           fields: {

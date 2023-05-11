@@ -449,6 +449,7 @@ type Execution implements Node {
   inputs: JSON
   outputs: JSON
   error: JSON
+  errorNice: RunError
   root: Execution
   parent: Execution
   descendants: [Execution!]!
@@ -1730,14 +1731,6 @@ type RunError {
   traceback: [PyFrame!]
 }
 
-enum RunErrorType {
-  INTERNAL_ERROR
-  NOT_READY
-  INVALID_RUNCONFIG
-  TIMEOUT
-  RUNTIME_ERROR
-}
-
 input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
@@ -1752,10 +1745,8 @@ type RunState {
   projectVersionId: GlobalID!
   runnableId: GlobalID
   buildId: GlobalID
-  output: JSON
   success: Boolean!
-  error: RunErrorType
-  errorDetails: RunError
+  execution: Execution
 }
 
 union RunStateOperationInfo = RunState | OperationInfo
