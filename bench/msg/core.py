@@ -4,6 +4,8 @@ import json
 import os
 import typing
 import uuid
+from asyncio import Queue, create_task
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from functools import wraps
@@ -19,6 +21,10 @@ from nats.aio.subscription import Subscription
 from bench.msg.messages import (
     REGISTERED_MESSAGE_PAYLOADS,
     REPLY_BY_REQUEST_TYPE,
+    EvaluationSavedPayload,
+    ExecutionChangedPayload,
+    ExecutionSavedPayload,
+    JobSavedPayload,
     NMessageType,
     to_topic,
 )
@@ -257,31 +263,96 @@ async def do_publish(message: NMessage, topic: str):
     await nc.publish(topic, serialized.encode("utf-8"))
 
 
-_soon_queue: janus.Queue[NMessage] | None = None
+_soon_queue_unbatched: janus.Queue[NMessage] | None = None
+_soon_queue_batched: list[tuple[str, NMessage]] | None = None
+_soon_queue_batch_lock: asyncio.Lock | None = None
+
+
+def get_batch_key(message: NMessage) -> str | None:
+    if isinstance(
+        message.payload,
+        (ExecutionChangedPayload, ExecutionSavedPayload, EvaluationSavedPayload, JobSavedPayload),
+    ):
+        return f"{message.type.value}:{message.p.module_id}"
+    else:
+        return None
+
+
+def batch(messages: list[tuple[str, NMessage]]) -> list[NMessage]:
+    # aggregate by batch key
+    messages_by_key = defaultdict(list)
+    for batch_key, message in messages:
+        messages_by_key[batch_key].append(message)
+    # actually batch them
+    batched_messages = []
+    for batchable_messages in messages_by_key.values():
+        if len(batchable_messages) == 1:
+            batched_messages.append(batchable_messages[0])
+        else:
+            payload_cls = type(batchable_messages[0].payload)
+            batchable_messages[0].payload = payload_cls.batch(
+                list(b.payload for b in batchable_messages)
+            )
+            batched_messages.append(batchable_messages[0])
+    return batched_messages
 
 
 def publish_soon(type: NMessageType, payload: Any, *, topic: str = None) -> None:
-    global _soon_queue
-    if _soon_queue is None:
+    global _soon_queue_unbatched
+    global _soon_queue_batched
+    if _soon_queue_batched is None:
         raise RuntimeError("publish_soon called before process_soon_queue started")
     message = prepare_publish(type, payload, topic)
-    _soon_queue.sync_q.put_nowait(message)
+    batch_key = get_batch_key(message)
+    if batch_key is None:
+        _soon_queue_unbatched.sync_q.put_nowait(message)
+    else:
+        _soon_queue_batched.append((batch_key, message))
 
 
-async def process_soon_queue():
-    global _soon_queue
-    if _soon_queue is not None:
-        raise RuntimeError("process_soon_queue already started")
-    _soon_queue = janus.Queue()
+async def _process_soon_queue_unbatched(q: Queue[NMessage]):
     while True:
         try:
-            message = await _soon_queue.async_q.get()
+            message = await q.get()
             log.debug("publish_soon", message=message)
             await do_publish(message, message.topic)
         except asyncio.CancelledError:
             break
         except Exception as e:
             log.exception("publish_soon_error", exc_info=True, e=e)
+
+
+async def _process_soon_queue_batched(q: list[tuple[str, NMessage]], flush_interval: float):
+    while True:
+        await asyncio.sleep(flush_interval)
+        if not q:
+            continue
+        log.debug("publish_soon_flush", queue=len(q))
+        batched_messages = batch(list(q))
+        q.clear()
+        for message in batched_messages:
+            try:
+                log.debug("publish_soon_flush", message=message)
+                await do_publish(message, message.topic)
+            except Exception as e:
+                log.exception("publish_soon_error", exc_info=True, e=e)
+
+
+async def process_soon_queue():
+    global _soon_queue_unbatched
+    global _soon_queue_batched
+    global _soon_queue_batch_lock
+    if _soon_queue_batched is not None:
+        raise RuntimeError("process_soon_queue already started")
+
+    _soon_queue_unbatched = janus.Queue()
+    _soon_queue_batched = []
+    _soon_queue_batch_lock = asyncio.Lock()
+
+    await asyncio.gather(
+        create_task(_process_soon_queue_unbatched(_soon_queue_unbatched.async_q)),
+        create_task(_process_soon_queue_batched(_soon_queue_batched, flush_interval=0.5)),
+    )
 
 
 class NSubscription(Generic[PayloadT]):

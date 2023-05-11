@@ -440,7 +440,7 @@ class Job:
             )
         publish_soon(
             NMessageType.JOB_SAVED,
-            JobSavedPayload(module_id=self.worker_ctx.module_id, job=self.to_data()),
+            JobSavedPayload(module_id=self.worker_ctx.module_id, jobs=[self.to_data()]),
         )
 
     async def cancel(self):
@@ -1156,7 +1156,11 @@ class DbBuildTracker(BuildTracker):
 
 def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
     model_executions: list[Execution] = []
-    for frame in frames:
+    seen_ids = set()  # dedup by id, keep last (assumes chronological order)
+    for frame in reversed(frames):
+        if frame.id in seen_ids:
+            continue
+        seen_ids.add(frame.id)
         execution = mapper.rmap_execution_frame(frame)
         model_executions.append(execution)
 

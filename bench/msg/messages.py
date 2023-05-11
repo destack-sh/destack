@@ -1,9 +1,11 @@
 # increment when making backwards-incompatible changes to messages
+import abc
 import enum
 import typing
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from itertools import chain
 from typing import Optional, cast
 from uuid import UUID
 
@@ -90,6 +92,13 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 ClientOrigin = typing.NamedTuple(
     "ClientOrigin", [("type", str), ("id", UUID), ("nonce", Optional[UUID])]
 )
+
+
+class BatchablePayload(abc.ABC):
+    @staticmethod
+    @abc.abstractmethod
+    def batch(messages: list["BatchablePayload"]) -> "BatchablePayload":
+        raise NotImplementedError
 
 
 @payload(NMessageType.CLIENT_CHANGED)
@@ -197,27 +206,47 @@ class RepGeneratePayload:
 
 
 @payload(NMessageType.EXECUTION_CHANGED)
-class ExecutionChangedPayload:
+class ExecutionChangedPayload(BatchablePayload):
     module_id: UUID
     frames: list[ExecutionFrameData]
+
+    @staticmethod
+    def batch(messages: list["ExecutionChangedPayload"]) -> "ExecutionChangedPayload":
+        frames = list(chain.from_iterable(m.frames for m in messages))
+        return ExecutionChangedPayload(module_id=messages[0].module_id, frames=frames)
 
 
 @payload(NMessageType.EXECUTION_SAVED)
-class ExecutionSavedPayload:
+class ExecutionSavedPayload(BatchablePayload):
     module_id: UUID
     frames: list[ExecutionFrameData]
 
+    @staticmethod
+    def batch(messages: list["ExecutionSavedPayload"]) -> "ExecutionSavedPayload":
+        frames = list(chain.from_iterable(m.frames for m in messages))
+        return ExecutionSavedPayload(module_id=messages[0].module_id, frames=frames)
+
 
 @payload(NMessageType.EVALUATION_SAVED)
-class EvaluationSavedPayload:
+class EvaluationSavedPayload(BatchablePayload):
     module_id: UUID
     evaluations: list[EvaluationResultData]
 
+    @staticmethod
+    def batch(messages: list["EvaluationSavedPayload"]) -> "EvaluationSavedPayload":
+        evaluations = list(chain.from_iterable(m.evaluations for m in messages))
+        return EvaluationSavedPayload(module_id=messages[0].module_id, evaluations=evaluations)
+
 
 @payload(NMessageType.JOB_SAVED)
-class JobSavedPayload:
+class JobSavedPayload(BatchablePayload):
     module_id: UUID
-    job: JobData
+    jobs: list[JobData]
+
+    @staticmethod
+    def batch(messages: list["JobSavedPayload"]) -> "JobSavedPayload":
+        jobs = list(chain.from_iterable(m.jobs for m in messages))
+        return JobSavedPayload(module_id=messages[0].module_id, jobs=jobs)
 
 
 @payload(NMessageType.REQUEST_READ_MODULE)
