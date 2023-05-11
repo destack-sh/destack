@@ -44,7 +44,17 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     }
     inputs
     outputs
-    error
+    errorNice {
+      type
+      message
+      traceback {
+        line
+        filename
+        lineno
+        name
+        locals
+      }
+    }
     build {
       id
       name

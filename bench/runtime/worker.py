@@ -32,10 +32,11 @@ from bench.runtime.run import RunError, run
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
+    in_memory_traces,
     pub_tracker_ctx,
     worker_ctx,
 )
-from bench.runtime.type import RunErrorData, WorkerType
+from bench.runtime.type import ExecutionFrame, ExecutionFrameData, RunErrorData, WorkerType
 from bench.utils.func import wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -55,9 +56,7 @@ class RunJob:
     cancelled: bool = False
     runnable: TaskInstance | CodeInstance = None
     arguments: dict[str, LiteralValue] = None
-    error: RunError | None = None
-    error_details: RunErrorData = None
-    output: LiteralValue | None = None
+    execution: Optional[ExecutionFrame] = None
     ctx: Optional[ExecutionTrackerContext] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
@@ -185,7 +184,7 @@ class ModuleWorker:
         runnable: CodeInstance,
         arguments: dict[str, LiteralValue],
         ctx: ExecutionTrackerContext,
-    ):
+    ) -> ExecutionFrame:
         run_ctx_token = pub_tracker_ctx.set(ctx)
         try:
             if isinstance(runnable, TaskInstance):
@@ -254,12 +253,9 @@ class ModuleWorker:
             job_context_token = pub_tracker_ctx.set(job_context)
             try:
                 self.log.debug("run", job=job)
-                error, ret = await self.do_run(job.runnable, job.arguments, job.ctx)
-                if error is None:
-                    job.output = ret
-                else:
-                    job.error = error
-                    job.error_details = ret
+                with in_memory_traces() as traces:
+                    await self.do_run(job.runnable, job.arguments, job.ctx)
+                    job.execution = traces.frames[0]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)
@@ -375,15 +371,24 @@ class SandboxedWorker:
             trigger_id=msg.p.trigger_id,
         )
         if isinstance(run_job, RunErrorType):
-            await msg.reply(RepRunPayload(None, run_job, None, None))
+            await msg.reply(RepRunPayload(error=run_job))
         else:
             if msg.p.block:
                 await run_job.terminated.wait()
+                execution = ExecutionFrameData.from_frame(
+                    run_job.execution,
+                    project_id=worker.project_id,
+                    tracing_level=msg.p.tracing_level,
+                    deployment_id=worker.deployment_id,
+                    worker_id=self.worker_id,
+                    trigger_type=msg.p.trigger_type,
+                    trigger_id=msg.p.trigger_id,
+                )
+            else:
+                execution = None
             rep = RepRunPayload(
-                execution_id=run_job.id,
-                error=run_job.error,
-                error_details=run_job.error_details,
-                output=run_job.output,
+                error=None,
+                execution=execution,
             )
             await msg.reply(rep)
 

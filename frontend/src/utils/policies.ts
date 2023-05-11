@@ -22,7 +22,10 @@ export const TYPE_POLICIES = {
     fields: {
       typeNodes: useIncoming,
       records: {
-        // proxy read/merge for filtered relay pagination to also store args for cache.modify
+        // proxy read/merge for filtered relay pagination to also store args for cache.modify  :StatementRecordsView
+        // we need the arguments (filters & pagination args) to modify the cache properly
+        // see https://github.com/apollographql/apollo-client/issues/6394#issuecomment-656193666 for the approach
+        // and https://www.apollographql.com/docs/react/caching/cache-interaction/#using-cachemodify
         read(existing: any, options: any) {
           return filteredRelayPagination.read?.(existing?.value, options);
         },

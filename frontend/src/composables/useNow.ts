@@ -79,8 +79,8 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, opt
 }
 
 export function formatDurationSeconds(diffMs: number, options?: { millis?: boolean }): string {
-  if (diffMs < 1) {
-    return "<1ms";
+  if (diffMs < 10) {
+    return "<0.01s";
   } else if (diffMs < 100 && !options?.millis) {
     return "<0.1s";
   } else if (diffMs < 10000 && options?.millis) {

@@ -377,6 +377,7 @@ export function useSymbolOps() {
         description: `Failed to run ${symbol.name}: ${ret?.data?.run?.error ?? "rejected"}`,
       });
     }
+    return ret;
   }
 
   async function openRun(symbol: { id: string; name?: string | null; symbolType: SymbolType }) {

@@ -401,11 +401,14 @@ class PubExecutionTracker:
 
 
 class InMemoryExecutionTracker:
-    def __init__(self):
+    def __init__(self, root_only: bool = False):
         self.tracer = ExecutionTracer(self)
         self.frames: list[ExecutionFrame] = []
+        self.root_only = root_only
 
     def __call__(self, frame: ExecutionFrame):
+        if self.root_only and frame.root is not None:
+            return
         if not any(f.id == frame.id for f in self.frames):
             self.frames.append(frame)
 

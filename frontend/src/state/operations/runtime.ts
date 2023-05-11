@@ -59,17 +59,25 @@ export function useRuntimeOps() {
             projectVersionId
             runnableId
             buildId
-            output
             success
-            error
-            errorDetails {
-              type
-              message
-              traceback {
-                line
-                filename
-                lineno
-                name
+            execution {
+              id
+              status
+              startedAt
+              terminatedAt
+              duration
+              cachedGeneratedAt
+              cachedDuration
+              errorNice {
+                type
+                message
+                traceback {
+                  line
+                  filename
+                  lineno
+                  name
+                  locals
+                }
               }
             }
           }

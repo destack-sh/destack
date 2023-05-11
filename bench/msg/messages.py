@@ -15,7 +15,6 @@ from bench.runtime.type import (
     ExecutionFrameData,
     JobData,
     RemoteObjectData,
-    RunErrorData,
 )
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -172,10 +171,8 @@ class RunErrorType(enum.StrEnum):
 
 @payload(NMessageType.REPLY_RUN)
 class RepRunPayload:
-    execution_id: Optional[UUID] = None
     error: Optional[RunErrorType] = None
-    error_details: Optional[RunErrorData] = None
-    output: Optional[typing.Any] = None
+    execution: Optional[ExecutionFrameData] = None
 
 
 @payload(NMessageType.REQUEST_GENERATE)
