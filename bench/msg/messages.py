@@ -10,14 +10,8 @@ from typing import Optional, cast
 from uuid import UUID
 
 from bench.language import mutate, wire
-from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
-from bench.runtime.type import (
-    BuildScope,
-    EvaluationResultData,
-    ExecutionFrameData,
-    JobData,
-    RemoteObjectData,
-)
+from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, RemoteObjectData
+from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
@@ -74,6 +68,8 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
+    NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
+    NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
     NMessageType.REQUEST_BUILD: NMessageType.REPLY_BUILD,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
@@ -289,13 +285,12 @@ class RepWriteModulePayload:
 
 @payload(NMessageType.REQUEST_READ_OBJECT)
 class ReqReadObjectPayload:
-    module_id: UUID
-    object_ids: list[UUID]
+    objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.REPLY_READ_OBJECT)
 class RepReadObjectPayload:
-    get_urls: list[str]
+    get_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.REQUEST_WRITE_OBJECT)
@@ -305,7 +300,7 @@ class ReqWriteObjectPayload:
 
 @payload(NMessageType.REPLY_WRITE_OBJECT)
 class RepWriteObjectPayload:
-    post_urls: list[str]
+    post_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.REQUEST_INTERP)

@@ -45,11 +45,13 @@ from bench.msg.messages import (
     RepBuildPayload,
     RepInterpPayload,
     RepReadModulePayload,
+    RepReadObjectPayload,
     RepRegisterWorkerPayload,
     RepWriteModulePayload,
     ReqBuildPayload,
     ReqInterpPayload,
     ReqReadModulePayload,
+    ReqReadObjectPayload,
     ReqRegisterWorkerPayload,
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
@@ -152,6 +154,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
+            await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
         ]
@@ -226,6 +229,25 @@ class LanguageServer:
             logger.error("write_module.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
+
+    @message_handler
+    async def read_object(self, msg: NMessage[ReqReadObjectPayload]) -> None:
+        logger.debug("object.read", msg=msg)
+        # TODO @Security: check if msg origin has read access to object
+        get_urls: list[str | None] = []
+        async for model_obj in models.RemoteObject.objects.filter(
+            id__in=(obj.id for obj in msg.p.objects)
+        ):
+            model_obj: models.RemoteObject
+            obj_data = msg.p.objects[len(get_urls)]
+            if obj_data.sha512 != model_obj.sha512:
+                logger.warning(
+                    "object.read.sha512_mismatch", msg=msg, obj=model_obj, obj_data=obj_data
+                )
+                get_urls.append(None)
+            else:
+                get_urls.append(model_obj.presigned_get)
+        await msg.reply(RepReadObjectPayload(get_urls=get_urls))
 
     @message_handler
     async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):

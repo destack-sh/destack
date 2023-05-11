@@ -27,21 +27,6 @@ from bench.utils.utils import to_pyidentifier_multi
 if TYPE_CHECKING:
     from bench.runtime.instance import CodeInstance
 
-#
-# Object
-#
-
-
-@dataclass(repr=False, slots=True)
-class RemoteObjectData:
-    id: UUID
-    module_id: UUID
-    sha512: str
-    content_length: int
-    content_type: str
-    content: Optional[bytes]
-    name: Optional[str]
-
 
 #
 # Executions

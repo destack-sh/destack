@@ -14,6 +14,7 @@ from random import Random
 from typing import Any, Callable, Coroutine, Optional
 from uuid import UUID, uuid4
 
+import aiohttp
 import numpy
 import structlog
 from more_itertools import first, last
@@ -40,6 +41,9 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, map_value, rekey_value
+from bench.msg import NMessageType
+from bench.msg.core import NMessage, request
+from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -403,8 +407,36 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
 
 @dataclass(repr=False, slots=True)
 class RemoteObjectInstance(RemoteObject):
+    """A proxy to a remotely stored object behaving like a Python file on demand."""
+
     def __getitem__(self, item):
         return self.to_dict()[item]
+
+    async def aread(self, timeout: float = 3):
+        if self.status != RemoteObjectStatus.AVAILABLE:
+            raise ValueError(f"unable to read {self}")
+        # get GET url to access file
+        rep: NMessage[RepReadObjectPayload] = await request(
+            NMessageType.REQUEST_READ_OBJECT,
+            ReqReadObjectPayload(objects=[wire.rmap_remote_object(self)]),
+            reply_t=RepReadObjectPayload,
+            timeout=timeout,
+        )
+        get_url = rep.p.get_urls[0]
+        if get_url is None:
+            raise ValueError(f"unable to get {self}")
+        # download file from url
+        async with aiohttp.ClientSession() as session:
+            async with session.get(get_url) as response:
+                if response.status != 200:
+                    raise ValueError(f"unable to download {self}")
+                return await response.read()
+
+    def read(self):
+        return asyncio.get_event_loop().run_until_complete(self.aread())
+
+    def readlines(self):
+        return self.read().decode().splitlines()
 
     @staticmethod
     def from_dict(value: dict):
