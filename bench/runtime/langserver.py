@@ -10,7 +10,6 @@ from uuid import UUID
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
-from more_itertools import first
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
@@ -18,11 +17,7 @@ from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import (
     Build,
     BuildSettings,
-    EvaluateSettings,
-    GeneratedMapping,
-    GeneratedMappingType,
     InterpSymbol,
-    TypeTag,
 )
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
@@ -32,7 +27,6 @@ from bench.models.mapper import read_module, write_mutations
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, publish_soon, subscribe
 from bench.msg.messages import (
-    BuildErrorType,
     ClientOrigin,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
@@ -42,13 +36,11 @@ from bench.msg.messages import (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
-    RepBuildPayload,
     RepInterpPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
     RepRegisterWorkerPayload,
     RepWriteModulePayload,
-    ReqBuildPayload,
     ReqInterpPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
@@ -56,30 +48,20 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.build import (
-    BuildCandidate,
-    BuildResult,
-    BuildTracker,
-    build,
-    get_build_files_for,
-    get_builds_for,
-)
-from bench.runtime.evaluate import lint, plan_evaluate_task
+from bench.runtime.evaluate import lint
 from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
     ModuleFetcher,
-    get_file,
     get_or_create_file,
     get_requirements,
     interp_module,
 )
-from bench.runtime.map import map_to_file, map_to_statement
+from bench.runtime.map import map_to_file
 from bench.runtime.mutate import map_mutation_to_public
 from bench.runtime.reactivity import (
     RevisionMap,
     get_stale_symbols,
-    tracked_tree_from_symbol,
     tree_from_module,
 )
 from bench.runtime.tracing import (
@@ -89,16 +71,13 @@ from bench.runtime.tracing import (
     worker_ctx,
 )
 from bench.runtime.type import (
-    BuildScope,
     EvaluationMetric,
-    EvaluationPlan,
     EvaluationResult,
     EvaluationResultData,
     ExecutionFrameData,
     JobData,
 )
 from bench.utils.cache import redis
-from bench.utils.fractional import INTEGER_MINUS_ONE
 from bench.utils.func import debounce, wrap_task
 from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -153,7 +132,6 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
-            await handle_reply(NMessageType.REQUEST_BUILD, self.request_module_build),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
@@ -255,18 +233,6 @@ class LanguageServer:
         worker = await self._get_ready_worker(msg.p.module_id)
         payload = make_full_change_payload(worker, RepInterpPayload)
         await msg.reply(payload)
-
-    @message_handler
-    async def request_module_build(self, msg: NMessage[ReqBuildPayload]):
-        logger.debug("module.build", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
-        builds = worker.get_builds(msg.p.buildable_id, msg.p.scope)
-        if isinstance(builds, BuildErrorType):
-            error = builds
-        else:
-            build_job = worker.queue_build(builds, reactive=False, cancel_running=True)
-            error = build_job if isinstance(build_job, BuildErrorType) else None
-        await msg.reply(RepBuildPayload(error=error))
 
     @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
@@ -384,8 +350,10 @@ GENERATE_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_GENERATE_DEBOUNCE", 5, type_c
 GENERATE_DEBOUNCE_MAX_WAIT = get_from_env(
     "RUNTIME_REACTIVE_GENERATE_DEBOUNCE_MAX_WAIT", 20, type_cast=float
 )
-LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 2, type_cast=float)
-LINT_DEBOUNCE_MAX_WAIT = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 5, type_cast=float)
+LINT_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_LINT_DEBOUNCE", 3, type_cast=float)
+LINT_DEBOUNCE_MAX_WAIT = get_from_env(
+    "RUNTIME_REACTIVE_LINT_DEBOUNCE_MAX_WAIT", 10, type_cast=float
+)
 BUILD_DEBOUNCE = get_from_env("RUNTIME_REACTIVE_BUILD_DEBOUNCE", 5, type_cast=float)
 BUILD_DEBOUNCE_MAX_WAIT = get_from_env(
     "RUNTIME_REACTIVE_BUILD_DEBOUNCE_MAX_WAIT", 20, type_cast=float
@@ -519,28 +487,11 @@ class GenerateJob(Job):
         return [self.generator.id] if self.generator else []
 
 
-@dataclass(repr=False, slots=True)
-class BuildJob(Job):
-    type: ClassVar[JobType] = JobType.BUILD
-    builds: list[Build] = None
-    revmap: RevisionMap = None
-    build_results: list[BuildResult] = None
-
-    @property
-    def success(self) -> bool:
-        return self.build_results is not None
-
-    @property
-    def _content_str(self):
-        return ", ".join(str(b) for b in self.builds) if self.builds else "<blank>"
-
-    @property
-    def _content_symbols(self) -> list[UUID]:
-        return [b.id for b in self.builds] if self.builds else []
-
-
 def get_default_builds(interp):
-    """Creates the default starter builds for a project."""
+    """
+    Creates the default starter builds for a project.
+    Note that these aren't used right now :BuildEvaluate
+    """
     gpt35 = interp.symbol("openai.std.text.gpt-3-5-turbo")
     davinci3 = interp.symbol("openai.std.text.text-davinci-003")
     claude_instant = interp.symbol("anthropic.std.text.claude-instant")
@@ -549,9 +500,8 @@ def get_default_builds(interp):
         Build(
             name="balanced",
             comment="As all things should be.",
-            settings=BuildSettings(reactive=True),
-            evaluate_settings=EvaluateSettings(
-                reactive=True,
+            settings=BuildSettings(
+                reactive=False,
                 weights={EvaluationMetric.Performance: 0.5, EvaluationMetric.Speed: 0.5},
             ),
             models=[gpt35, claude_instant],
@@ -559,8 +509,7 @@ def get_default_builds(interp):
         Build(
             name="fast",
             comment="Speedy and economic.",
-            settings=BuildSettings(reactive=False),
-            evaluate_settings=EvaluateSettings(
+            settings=BuildSettings(
                 reactive=False,
                 weights={EvaluationMetric.Performance: 0.2, EvaluationMetric.Speed: 0.8},
             ),
@@ -569,8 +518,7 @@ def get_default_builds(interp):
         Build(
             name="accurate",
             comment="The best at any cost.",
-            settings=BuildSettings(reactive=False),
-            evaluate_settings=EvaluateSettings(
+            settings=BuildSettings(
                 reactive=False,
                 weights={EvaluationMetric.Performance: 0.8, EvaluationMetric.Speed: 0.2},
             ),
@@ -754,20 +702,20 @@ class LanguageWorker:
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
+        prev_hash = self.module_hash
         requirements = get_requirements(new_source)
         dependencies = await self.interpreter.interp_requirements(requirements)
         await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
-
-        # reactively trigger (debounced) reactors
-        if not self.interp.committed:
-            create_wrapped_task(self._trigger_reactive_generate())
-            # create_wrapped_task(self._trigger_reactive_lint()) :BuildEvaluate
-            # create_wrapped_task(self._trigger_reactive_build()) :BuildEvaluate
-        # notify clients
-        payload = make_full_change_payload(self, InterpChangedPayload)
-        await publish(NMessageType.INTERP_CHANGED, payload)
+        if prev_hash != self.module_hash:
+            # reactively trigger (debounced) reactors
+            if not self.interp.committed:
+                create_wrapped_task(self._trigger_reactive_generate())
+                # create_wrapped_task(self._trigger_reactive_lint()) (disabled for now)
+            # notify clients
+            payload = make_full_change_payload(self, InterpChangedPayload)
+            await publish(NMessageType.INTERP_CHANGED, payload)
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _trigger_reactive_generate(self) -> None:
@@ -782,19 +730,6 @@ class LanguageWorker:
         """Triggers all reactive lints for this module (as needed)"""
         self.log.debug("module.react.lint")
         self.queue_lint(cancel_running=True)
-
-    @debounce(BUILD_DEBOUNCE, max_wait=BUILD_DEBOUNCE_MAX_WAIT)
-    async def _trigger_reactive_build(self) -> None:
-        """Triggers all reactive builds for this module (as needed)"""
-        self.log.debug("module.react.build", stale_symbols=self.stale_symbols)
-        if not self.interp.has_user_errors:
-            # all reactive stale builds and first timers (that weren't built yet)
-            stale_builds = [
-                b
-                for b in self.idx.symbols_of_type(language.Build)
-                if b.settings.reactive and (self.is_stale(b.id) or b.generated_mappings == [])
-            ]
-            self.queue_build(builds=stale_builds, reactive=True, cancel_running=True)
 
     def queue_lint(self, cancel_running: bool) -> LintJob:
         job = LintJob(worker_ctx=self.worker_ctx, reactive=False, module_hash=self.module_hash)
@@ -828,8 +763,6 @@ class LanguageWorker:
     async def do_generate(self, generator: Optional[InterpSymbol], revmap: RevisionMap) -> bool:
         if generator is None:
             await self._do_generate_autobuilds()
-        elif isinstance(generator, language.Task):
-            await self._do_generate_task_evaluation(generator, revmap)
         else:
             raise NotImplementedError(f"unexpected generator type: {generator}")
         return True
@@ -843,159 +776,6 @@ class LanguageWorker:
             default_builds = get_default_builds(self.interp)
             autobuild_file = map_to_file(default_builds, [], autobuild_file)
             await self.write_module(self.mutate().create(wire.rmap_file(autobuild_file)))
-
-    async def _do_generate_task_evaluation(self, task: language.Task, revmap: RevisionMap):
-        # run evaluation plan generator
-        # TODO @UX: configure n_samples properly
-        plan = await plan_evaluate_task(task=task, n_samples=2, eval_model=self.instruct_model)
-
-        # upsert generated dataset, generated mappings and evaluation plan
-        gen_dataset = plan.datasets[0]
-        existing_gen_dataset: Optional[language.Dataset] = first(task.generated_expectations, None)
-        if existing_gen_dataset is not None:
-            gen_dataset.id = existing_gen_dataset.id
-            order_key = existing_gen_dataset.source.order_key
-        else:
-            order_key = INTEGER_MINUS_ONE
-
-        # map all task dependencies into generated mapping (excl. generated dataset)
-        # (the state here is still the _last_ state, since we haven't written the new dataset yet)
-        task_tree = tracked_tree_from_symbol(task, filter=lambda s: s.id != gen_dataset.id)
-        task_mappings: list[GeneratedMapping] = [
-            GeneratedMapping(
-                type=GeneratedMappingType.STATEMENT,
-                target_id=gen_dataset.id,
-                target_revision=revmap.get(gen_dataset.id) + 1,
-            )
-        ]
-        for node in task_tree:
-            dependency = GeneratedMapping(
-                type=GeneratedMappingType(node.type.value),
-                source_id=node.id,
-                source_revision=revmap[node.id],
-            )
-            task_mappings.append(dependency)
-
-        gen_dataset_statement = map_to_statement(task.source.file, gen_dataset, order_key)
-        gen_dataset_statement.parent = task
-        gen_dataset_statement.modifier = language.StatementModifier.LIKE
-
-        mut = self.mutate()
-        # TODO @Cleanup @UX: dataset delete/create should be update :WriteModuleUpdates
-        if existing_gen_dataset:
-            mut.delete(wire.rmap_statement(existing_gen_dataset.source))
-        mut.create(wire.rmap_statement(gen_dataset_statement)).map(task.id, task_mappings)
-        await self.write_module(mut)
-
-        # upsert evaluation plan (this is all rather inefficient)
-        model_task = await models.Statement.objects.aget(id=task.id)
-        model_task.evaluation_plan, _ = await models.EvaluationPlan.objects.aget_or_create(
-            id=plan.id
-        )
-        await model_task.evaluation_plan.datasets.aset([d.id for d in plan.datasets])
-        await model_task.asave()
-
-    def get_builds(
-        self, buildable_id: UUID, scope: BuildScope
-    ) -> list[language.Build] | BuildErrorType:
-        buildable = self.interp.module_idx.symbol_by_id(buildable_id)
-        if isinstance(buildable, language.Task):
-            builds = get_builds_for(buildable, self.interp.module_idx)
-            if scope == BuildScope.REACTIVE:
-                builds = [b for b in builds if b.settings.reactive]
-            if not builds:
-                return BuildErrorType.INVALID_BUILDABLE
-            if buildable.type.output.tag == TypeTag.NULL:
-                return BuildErrorType.INVALID_BUILDABLE
-        elif isinstance(buildable, language.Build):
-            builds = [buildable]
-        else:
-            return BuildErrorType.INVALID_BUILDABLE
-        return builds
-
-    def queue_build(
-        self, builds: list[language.Build], reactive: bool, cancel_running: bool
-    ) -> BuildJob | BuildErrorType:
-        # get the builds to run
-        if not self.interpreted or self.interp.has_user_errors:
-            return BuildErrorType.NOT_READY
-        if self.interp.committed:
-            return BuildErrorType.COMMITTED
-        tasks = list(chain.from_iterable(b.tasks for b in builds))
-        if not tasks:
-            return BuildErrorType.INVALID_BUILDABLE
-
-        job = BuildJob(
-            revmap=self.revmap,
-            worker_ctx=self.worker_ctx,
-            builds=builds,
-            module_hash=self.module_hash,
-            reactive=reactive,
-        )
-        if cancel_running:
-            self._cancel_jobs_like(lambda j: isinstance(j, BuildJob) and j.builds == builds)
-        self._queue_job(job)
-        return job
-
-    async def do_build(
-        self,
-        revmap: RevisionMap,
-        builds: list[language.Build],
-        job_id: UUID,
-    ) -> list[BuildResult]:
-        if not builds:
-            return []
-
-        # assemble evaluation plans by task from DB
-        # TODO @Robustness @Architecture: read evaluation plans with module state?
-        #  (and other non-language state?)
-        tasks = []
-        for task in chain.from_iterable(b.tasks for b in builds):
-            if task not in tasks:
-                tasks.append(task)
-        model_tasks = models.Statement.objects.filter(
-            id__in=[t.id for t in tasks]
-        ).prefetch_related("evaluation_plan__datasets")
-        evals: dict[UUID, EvaluationPlan] = {}
-        async for model_task in model_tasks:  # can't use enumerate here...
-            task = self.idx.symbols[model_task.id]
-            datasets = [
-                self.idx.symbols[dataset.id]
-                for dataset in model_task.evaluation_plan.datasets.all()  # safe because prefetch
-                if dataset.id in self.idx.symbols
-            ]
-            evals[task.id] = EvaluationPlan(
-                system=task, eval_model=self.instruct_model, datasets=datasets
-            )
-
-        # launch builds
-        build_processes = [
-            wrap_task(
-                build(b, self.instruct_model, evals, DbBuildTracker(self, job_id)),
-                f"build_{b.id}",
-            )
-            for b in builds
-        ]
-        build_results = await asyncio.gather(*build_processes, return_exceptions=False)
-
-        mutator = self.mutate()
-        old_build_files = (
-            wire.rmap_file(f)
-            for f in chain.from_iterable(get_build_files_for(b, self.idx) for b in builds)
-        )
-        mutator.delete_many(*old_build_files)
-        for build_result in build_results:
-            build_file = build_result.to_file(self.idx.module)
-            old_build_file = get_file(self.idx, build_file.path)
-            if old_build_file:
-                mutator.delete(wire.rmap_file(old_build_file))
-            mutator.create(wire.rmap_file(build_file))
-            mutator.map(
-                build_result.build.id,
-                [revmap.map_mapping(m) for m in build_result.generated_mappings],
-            )
-        await self.write_module(mutator)
-        return build_results
 
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)
@@ -1026,9 +806,6 @@ class LanguageWorker:
                 elif isinstance(job, GenerateJob):
                     job.task = create_task(self.do_generate(job.generator, job.revmap))
                     job.success = await job.task
-                elif isinstance(job, BuildJob):
-                    job.task = create_task(self.do_build(job.revmap, job.builds, job.id))
-                    job.build_results = await job.task
                 else:
                     raise RuntimeError(f"unexpected job type: {job}")
                 self.log.info("module.job.completed", job=job)
@@ -1046,46 +823,6 @@ class LanguageWorker:
                 await job.save_and_notify()
                 self.jobs_queue.task_done()
                 self.completed_jobs.appendleft(job)
-
-    async def write_build_candidates(
-        self, candidates: list[BuildCandidate], delete_others: bool, job_id: UUID
-    ) -> None:
-        if delete_others:
-            # delete candidates associated with builds not in the list
-            build_ids = {c.ctx.build.id for c in candidates}
-            candidates_ids = {c.id for c in candidates}
-            for build_candidate in models.BuildCandidate.objects.filter(
-                build_id__in=build_ids
-            ).exclude(id__in=candidates_ids):
-                build_candidate.delete()
-
-        model_candidates: list[models.BuildCandidate] = [
-            models.BuildCandidate(
-                id=candidate.id,
-                project_id=self.project_id,
-                project_version_id=self.module_id,
-                job_id=job_id,
-                status=candidate.status,
-                name=candidate.name,
-                build_id=candidate.ctx.build.id,
-                order_key=candidate.order_key,
-            )
-            for candidate in candidates
-        ]
-        # upsert candidates (by id)
-        await models.BuildCandidate.objects.abulk_create(
-            model_candidates,
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=[
-                "updated_at",
-                "status",
-                "job_id",
-                "evaluation_id",
-                "file_id",
-                "order_key",
-            ],
-        )
 
     async def write_evaluation_results(self, results: list[EvaluationResult], job_id: UUID) -> None:
         """Writes (upserts) the given evaluation results"""
@@ -1147,45 +884,6 @@ def make_change_payload(
 
 def make_full_change_payload(worker: LanguageWorker, cls):
     return make_change_payload(worker, cls, include_module=True, include_dependencies=True)
-
-
-class DbBuildTracker(BuildTracker):
-    def __init__(self, worker: "LanguageWorker", job_id: UUID):
-        self.worker = worker
-        self.job_id = job_id
-        self.seen_evaluation_ids: set[int] = set()
-
-    def candidates_planned(self, candidates: list[BuildCandidate]):
-        write = self.worker.write_build_candidates(
-            candidates, job_id=self.job_id, delete_others=False
-        )
-        create_wrapped_task(write)
-        # TODO @Robustness: async candidates_planned creates race condition with evaluation save
-
-    def candidates_built(self, candidates: list[BuildCandidate]):
-        write = self.worker.write_build_candidates(
-            candidates, job_id=self.job_id, delete_others=False
-        )
-        create_wrapped_task(write)
-
-    async def _write_evaluated(self, candidates: list[BuildCandidate]):
-        # candidates are only evaluated once, but other candidates may be updated depending
-        # on another candidates' evaluation (e.g. to update it from won to abandoned)
-        # this is a bit hacky but the flow will change soon enough
-        new_evaluations = [
-            candidate.evaluation
-            for candidate in candidates
-            if id(candidate.evaluation) not in self.seen_evaluation_ids
-        ]
-        self.seen_evaluation_ids.update(id(evaluation) for evaluation in new_evaluations)
-        if new_evaluations:
-            await self.worker.write_evaluation_results(new_evaluations, job_id=self.job_id)
-        await self.worker.write_build_candidates(
-            candidates, job_id=self.job_id, delete_others=False
-        )
-
-    def candidates_evaluated(self, candidates: list[BuildCandidate]):
-        create_wrapped_task(self._write_evaluated(candidates))
 
 
 def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:

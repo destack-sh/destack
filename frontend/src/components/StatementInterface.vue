@@ -316,62 +316,69 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
-const evaluations = useCurrentEvaluations();
 
-const metricSets: ComputedRef<MetricSet[] | null> = computed(() => {
-  if (
-    !editor.inlineMetrics ||
-    statement.value.type != StatementType.Definition ||
-    statement.value.symbolType == SymbolType.Build
-  ) {
-    return null;
-  }
-  const globalMetrics = evaluations.getGlobalEvaluation(statement.value.id)?.aggregatedMetrics;
-  const metricSets = [];
-  if (globalMetrics == null) {
-    return null;
-  }
+let metricSets: Ref<MetricSet[] | null>;
+if (editor.inlineMetrics) {
+  const evaluations = useCurrentEvaluations();
+  metricSets = computed(() => {
+    if (
+      !editor.inlineMetrics ||
+      statement.value.type != StatementType.Definition ||
+      statement.value.symbolType == SymbolType.Build
+    ) {
+      return null;
+    }
+    const globalMetrics = evaluations.getGlobalEvaluation(statement.value.id)?.aggregatedMetrics;
+    const metricSets: MetricSet[] = [];
+    if (globalMetrics == null) {
+      return null;
+    }
 
-  // global
-  metricSets.push({
-    label: "Global",
-    metrics: [
-      {
-        label: "Clarity",
-        value: toPercent(globalMetrics?.clarity),
-        bars: toBars(globalMetrics?.clarity, "clarity"),
-      },
-      {
-        label: "Difficulty",
-        value: toFixed(globalMetrics?.difficulty),
-        bars: toBars(globalMetrics?.difficulty, "difficulty"),
-      },
-    ],
-  });
-
-  for (const buildEval of evaluations.getBuildEvaluations(statement.value.id)) {
-    const buildMetrics = buildEval?.aggregatedMetrics;
-    const localMetrics = [
-      {
-        label: "Performance",
-        value: buildMetrics?.performance,
-        bars: toBars(buildMetrics?.performance, "performance"),
-      },
-      {
-        label: "Speed",
-        value: buildMetrics?.speed,
-        bars: toBars(buildMetrics?.speed, "speed"),
-        unavailable: statement.value.symbolType != SymbolType.Task,
-      },
-    ];
+    // global
     metricSets.push({
-      label: "claude",
-      metrics: localMetrics,
+      label: "Global",
+      description: "",
+      metrics: [
+        {
+          label: "Clarity",
+          value: toPercent(globalMetrics?.clarity),
+          bars: toBars(globalMetrics?.clarity, "clarity"),
+          description: "",
+        },
+        {
+          label: "Difficulty",
+          value: toFixed(globalMetrics?.difficulty),
+          bars: toBars(globalMetrics?.difficulty, "difficulty"),
+          description: "",
+        },
+      ],
     });
-  }
 
-  return metricSets;
-});
+    for (const buildEval of evaluations.getBuildEvaluations(statement.value.id)) {
+      const buildMetrics = buildEval?.aggregatedMetrics;
+      const localMetrics = [
+        {
+          label: "Performance",
+          value: buildMetrics?.performance,
+          bars: toBars(buildMetrics?.performance, "performance"),
+        },
+        {
+          label: "Speed",
+          value: buildMetrics?.speed,
+          bars: toBars(buildMetrics?.speed, "speed"),
+          unavailable: statement.value.symbolType != SymbolType.Task,
+        },
+      ];
+      metricSets.push({
+        label: "claude",
+        metrics: localMetrics,
+      });
+    }
+    return metricSets;
+  });
+} else {
+  metricSets = ref<MetricSet[] | null>(null);
+}
 </script>
 <template>
   <!-- Statement wrapper -->

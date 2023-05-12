@@ -8,7 +8,7 @@ import structlog
 from bench import language
 from bench.language import wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, SymbolType
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType, Build
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
@@ -37,7 +37,7 @@ from bench.runtime.tracing import (
     worker_ctx,
 )
 from bench.runtime.type import ExecutionFrame, ExecutionFrameData, WorkerType
-from bench.utils.func import wrap_task
+from bench.utils.func import wrap_task, describe_type
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
@@ -54,6 +54,7 @@ def create_wrapped_task(coro, task_id: str = None):
 class RunJob:
     priority: int = 1
     cancelled: bool = False
+    default_build: Build = None
     runnable: TaskInstance | CodeInstance = None
     arguments: dict[str, LiteralValue] = None
     execution: Optional[ExecutionFrame] = None
@@ -117,7 +118,6 @@ class ModuleWorker:
         *,
         runnable: str | UUID,
         runnable_type: str | None,
-        build: str | UUID,
         arguments: dict[str, Any],
         tracing_level: ExecutionTracingLevel,
         trigger_type: ExecutionTriggerType,
@@ -133,12 +133,6 @@ class ModuleWorker:
             else:
                 runnable_type = None
             runnable = self.idx.symbol(runnable, symbol_t=runnable_type)
-            if build:
-                build = self.idx.symbol(
-                    build,
-                    Build,
-                    filter=lambda b: any(t.definition.id == runnable.id for t in b.tasks),
-                )
         except (TypeError, KeyError) as e:
             self.log.exception("module.run.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG
@@ -146,12 +140,7 @@ class ModuleWorker:
         # instantiate
         try:
             session = Session(idx=self.idx, mode=SessionMode.WRITE_GLOBAL, write=self.do_write)
-            runnable_instance = instantiate(
-                runnable,
-                session=session,
-                build=build,
-                buildmap=lambda source: self.idx.get_symbol_by_id(build.get_target(source.id)),
-            )
+            runnable_instance = instantiate(runnable, session=session)
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
         except Exception as e:
@@ -184,18 +173,14 @@ class ModuleWorker:
 
     async def do_run(
         self,
-        runnable: CodeInstance,
+        runnable: CodeInstance | TaskInstance,
         arguments: dict[str, LiteralValue],
         ctx: ExecutionTrackerContext,
     ) -> Optional[RunErrorType]:
         run_ctx_token = pub_tracker_ctx.set(ctx)
         try:
-            if isinstance(runnable, TaskInstance):
-                code_instance = runnable.implementation
-            else:
-                code_instance = runnable
-            self.log.info("module.run", code_instance=code_instance)
-            await run(code_instance, arguments)
+            self.log.info("module.run", runnable=runnable, arguments=describe_type(arguments))
+            await run(runnable, arguments)
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
@@ -361,7 +346,6 @@ class SandboxedWorker:
         run_job = worker.queue_run(
             runnable=msg.p.runnable,
             runnable_type=msg.p.runnable_type,
-            build=msg.p.build,
             arguments=msg.p.arguments,
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,

@@ -22,7 +22,6 @@ from bench.language.type import (
 )
 from bench.models.build import BuildSettings
 from bench.models.data import DatasetContentMixin, DatasetRecord
-from bench.models.evaluation import EvaluateSettings
 from bench.models.generated import GeneratedContentMixin, GeneratedMapping
 from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
@@ -198,7 +197,6 @@ class StatementManager(models.Manager["Statement"]):
         new_records: dict[UUID, DatasetRecord] = {}
         new_xblocks: dict[UUID, XBlock] = {}
         new_build_settings: list[BuildSettings] = []
-        new_evaluate_settings: list[EvaluateSettings] = []
         new_gen_mappings: list[GeneratedMapping] = []
 
         def _copy_statement(statement: Statement) -> Statement:
@@ -252,17 +250,6 @@ class StatementManager(models.Manager["Statement"]):
                     statement.build_settings_id = build_settings.id  # update manually
                     new_build_settings.append(build_settings)
 
-                # copy evaluate settings
-                if (
-                    statement.symbol_type == SymbolType.EVALUATE
-                    or statement.symbol_type == SymbolType.BUILD  # :BuildEvaluationSettings
-                ):
-                    evaluate_settings = statement.evaluate_settings
-                    evaluate_settings.id = uuid4()
-                    evaluate_settings._state.adding = True
-                    statement.evaluate_settings_id = evaluate_settings.id  # update manually
-                    new_evaluate_settings.append(evaluate_settings)
-
                 # copy generated mappings
                 if copy_generate_info and statement.symbol_type in (
                     SymbolType.BUILD,
@@ -312,7 +299,6 @@ class StatementManager(models.Manager["Statement"]):
 
         # create referenced statements relations (FKs in statements)
         BuildSettings.objects.bulk_create(new_build_settings)
-        EvaluateSettings.objects.bulk_create(new_evaluate_settings)
 
         # create statements BFS, starting at roots that are _within_ selection (may not be actual roots)
         for new_statements_batch in walk_children_bfs_batched(list(statements), "parent_id"):
@@ -409,12 +395,6 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
     build_settings = models.OneToOneField(
         "BuildSettings", on_delete=models.RESTRICT, null=True, blank=True
-    )
-    evaluate_settings = models.OneToOneField(
-        "EvaluateSettings", on_delete=models.RESTRICT, null=True, blank=True
-    )
-    evaluation_plan = models.OneToOneField(
-        "EvaluationPlan", on_delete=models.RESTRICT, null=True, blank=True
     )
 
     def __str__(self):

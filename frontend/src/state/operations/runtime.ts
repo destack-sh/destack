@@ -8,33 +8,6 @@ export function useRuntimeOps() {
   const editor = useEditorState();
   const ops = useOperationsStore();
 
-  const { mutate: buildMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation build($projectVersionId: GlobalID!, $scope: BuildScope!, $buildableId: GlobalID) {
-        build(input: { projectVersionId: $projectVersionId, scope: $scope, buildableId: $buildableId }) {
-          ... on BuildState {
-            projectVersionId
-            success
-          }
-        }
-      }
-    `)
-  );
-
-  async function build(scope: BuildScope, buildableId?: string) {
-    return await ops.perform({
-      type: "runtime.build",
-      stateless: true,
-      do: async () => {
-        return await buildMut({
-          projectVersionId: editor.currentProjectVersionId,
-          scope,
-          buildableId,
-        });
-      },
-    });
-  }
-
   const { mutate: runMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation run(

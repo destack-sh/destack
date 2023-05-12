@@ -10,9 +10,7 @@ from .deployment import (
     WorkerType,
 )
 from .evaluation import (
-    EvaluateSettings,
     EvaluationKind,
-    EvaluationPlan,
     EvaluationResult,
     EvaluationScope,
 )
@@ -56,9 +54,7 @@ __all__ = [
     "Deployment",
     "DeploymentStatus",
     "DeploymentType",
-    "EvaluateSettings",
     "EvaluationKind",
-    "EvaluationPlan",
     "EvaluationResult",
     "EvaluationScope",
     "Execution",

@@ -83,6 +83,7 @@ async def run(
     # transform keys to valid python identifiers
     arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
+        await code.session.prepare()
         code.session.open()
         with tracer_boundary():
             if code.is_async:

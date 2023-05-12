@@ -20,7 +20,6 @@ from bench.language.type import (
     DatasetContent,
     ExpectationContent,
     RequirementContent,
-    RunconfigContent,
     SimpleTypeNode,
     StatementPath,
     StatementType,
@@ -193,7 +192,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return f"{render_description(content.description)}\n{rendered_type}"
         else:
             return rendered_type
-    elif isinstance(content, (BuildContent, RunconfigContent, RequirementContent)):
+    elif isinstance(content, (BuildContent, RequirementContent)):
         return None
     else:
         raise ValueError(f"unexpected symbol content type: {type(content)} {content}")

@@ -9,6 +9,7 @@ class BuildSettings(UUIDModel):
     """Typed settings for a build statement."""
 
     reactive = models.BooleanField(default=False)
+    weights = models.JSONField(default=dict)
 
 
 class BuildCandidateStatus(models.TextChoices):
