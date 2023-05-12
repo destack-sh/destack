@@ -4,7 +4,6 @@ from dataclasses import dataclass
 import anthropic
 import openai
 import PIL.Image
-import pydub
 import structlog
 
 from bench.language.type import Model, XBlock, XSource
@@ -125,13 +124,6 @@ class OpenAITextEmbedding(ModelInference):
 @endpoint(["openai.std.audio.whisper"], Modality.GenerateText)
 class OpenAIAudioTranscription(ModelInference):
     model: Model
-
-    async def generate_text(
-        self,
-        input: list[XBlock[pydub.AudioSegment | str]],
-        settings: None,
-    ) -> str:
-        raise IncapableError()
 
 
 @endpoint(["anthropic.std.text.claude", "anthropic.std.text.claude-instant"], Modality.GenerateText)

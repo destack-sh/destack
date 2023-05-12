@@ -89,22 +89,26 @@ SETTINGS_CLS_BY_MODALITY = {
 class ModelInference:
     """Generic model with an endpoint for each core modality."""
 
+    def incapable_error(self, method):
+        modality = Modality(method.__name__)
+        return IncapableError(f"{self} is incapable of modality {modality}")
+
     async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
-        raise IncapableError()
+        raise self.incapable_error(self.generate_text)
 
     async def generate_image(
         self, input: list[XBlock], settings: ImageGenerationSettings
     ) -> PIL.Image:
-        raise IncapableError()
+        raise self.incapable_error(self.generate_image)
 
     async def generate_audio(self, input: list[XBlock], settings: AudioGenerationSettings) -> bytes:
-        raise IncapableError()
+        raise self.incapable_error(self.generate_audio)
 
     async def embed(self, input: list[XBlock], settings: EmbeddingSettings) -> list[float]:
-        raise IncapableError()
+        raise self.incapable_error(self.embed)
 
     async def struct(self, input: list[XBlock], settings: StructSettings) -> Any:
-        raise IncapableError()
+        raise self.incapable_error(self.struct)
 
 
 BASE_SETTINGS_BY_MODALITY = {

@@ -87,6 +87,9 @@ class ExecutionFrame:
         return f"<ExecutionFrame {self}>"
 
 
+SKIPPED_PYTHON_MODULES = {"bench/runtime/instance.py"}
+
+
 @dataclass(slots=True)
 class PyFrameData:
     filename: str
@@ -114,19 +117,18 @@ class PyFrameData:
         from bench.runtime.instance import CodeInstance
 
         session = from_code.session
-        code_instances = [
-            cast(CodeInstance, instance)
+        code_instances_by_method_name: dict[str, CodeInstance] = {
+            instance.transform.method_name: cast(CodeInstance, instance)
             for instance in session.instances.values()
             if instance.symbol_type == SymbolType.CODE
-        ]
-        code_instances_by_method_name: dict[str, CodeInstance] = {
-            instance.transform.method_name: instance for instance in code_instances
         }
 
         transform = from_code.transform
         found_start = False
         cleaned_stack = []
         for frame in stack:
+            if any(module in frame.filename for module in SKIPPED_PYTHON_MODULES):
+                continue
             if not found_start:
                 # impute bench source info into instantiated code callables
                 code = code_instances_by_method_name.get(frame.name)
@@ -215,7 +217,7 @@ class ExecutionFrameData:
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.code),
-                message=str(frame.error),
+                message=f"{type(frame.error).__name__}: {frame.error}",
                 traceback=stack,
             )
         else:
@@ -355,7 +357,6 @@ class EvaluationResult:
     system: Optional[InterpSymbol | TypeNode | Record] = None
     build: Optional[Build] = None
     build_candidate: Optional[Any] = None  # can't refer to BuildCandidate here
-    plan: Optional[EvaluationPlan] = None
     children: list["EvaluationResult"] = field(default_factory=list)
 
     def __str__(self):

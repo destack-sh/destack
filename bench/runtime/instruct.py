@@ -16,6 +16,7 @@ from bench.language.type import (
     Expectation,
     InterpSymbol,
     Record,
+    SimpleTypeNode,
     StatementModifier,
     SymbolType,
     Task,
@@ -158,7 +159,7 @@ def map_instruction(
     if op is None:
         # if not explicitly given, figure out instruction type from symbol
         # yeah this kind of feels like it should be in the symbol/language, see :InstructionOps
-        if isinstance(node, TypeNode):
+        if isinstance(node, SimpleTypeNode):
             op = InstructionOp.TypeDefinition
         elif node.symbol_type == SymbolType.BUILD:
             op = InstructionOp.BuildDefinition
@@ -220,7 +221,7 @@ def map_instruction(
             _map_child(type_node)
 
     # context symbols
-    if isinstance(node, InterpSymbol):
+    if isinstance(node, Code):
         for context_symbol in node.context.values():
             _map_child(context_symbol)
 
@@ -318,7 +319,7 @@ class SampleFabricateRandom(SampleSource):
         return target_dataset
 
 
-def fabricate_value(type: TypeNode, skip_array: bool = False) -> Any:
+def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = None) -> Any:
     """Synthesizes a value of the given type with fake fields."""
     if type.is_array and not skip_array:
         return [fabricate_value(type.type_nodes[0], skip_array=True)]
@@ -333,7 +334,11 @@ def fabricate_value(type: TypeNode, skip_array: bool = False) -> Any:
             return None
         return type.type_nodes[0].value
     elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
-        return {subtype.name: fabricate_value(subtype) for subtype in type.type_nodes}
+        return {
+            subtype.name: fabricate_value(subtype)
+            for subtype in type.type_nodes
+            if is_output is None or subtype.is_output == is_output
+        }
     elif type.tag == TypeTag.UNION:
         return fabricate_value(type.type_nodes[0])
     elif type.tag == TypeTag.NULL:

@@ -45,7 +45,7 @@ from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
 from bench.runtime.build import build_task_implementation
-from bench.runtime.inference import InferenceProxy, Modality, ModelInference
+from bench.runtime.inference import InferenceProxy, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
 from bench.runtime.tracing import (
@@ -108,9 +108,11 @@ class Session:
         self.inference_retries = inference_retries
         self.mode = mode
         self.write = write
+
         self.mutator = ModuleMutator(idx)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+        self._cached_implementations: dict[Any, AsyncCodeInstance] = {}
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -158,7 +160,7 @@ class Session:
         logger.debug("session.prepare", session=self)
         # prepare default implementations for tasks
         if self.default_build is not None:
-            for instance in self.instances.values():
+            for instance in list(self.instances.values()):  # copy to avoid concurrent modification
                 if isinstance(instance, TaskInstance):
                     await self.get_implementation(instance, build=self.default_build)
 
@@ -177,10 +179,12 @@ class Session:
         else:
             if self.default_build is None:
                 raise RuntimeError(f"no build specified for {task} (no default in {self})")
-        # TODO @Broken: cache implementations, add to session module, add proper context
-        implementation = await build_task_implementation(task, build.models[0])
-        implementation_instance = instantiate_code(implementation, context={}, session=self)
-        return implementation_instance
+            build = self.default_build
+        cache_key = (task.id, build.id)
+        if cache_key not in self._cached_implementations:
+            implementation = await build_task_implementation(task, build.models[0])
+            self._cached_implementations[cache_key] = instantiate(implementation, session=self)
+        return self._cached_implementations[cache_key]
 
     def open(self):
         """Opens the session to access and modification."""
@@ -226,6 +230,8 @@ class SymbolInstance:
     def __post_init__(self):
         if self.session is None:
             self.session = active_session.get()
+            if self.session is None:
+                raise RuntimeError(f"no active session for {self}")
             # we pass in session on instantiate, so this must be new
             self.session.add(self, new=True)
         else:
@@ -370,12 +376,12 @@ class DatasetInstance(SymbolInstance, Dataset):
 
 
 @dataclass(repr=False)
-class ModelInstance(SymbolInstance, Model, ModelInference):
+class ModelInstance(SymbolInstance, Model):
     inference: "ModelInference" = required_field()
 
     # forward inference methods
-    def __getattr__(self, item):
-        if item in Modality:
+    def __getattr__(self, item: str):
+        if item in self.inference.__dict__:
             return getattr(self.inference, item)
         else:
             raise AttributeError(item)
@@ -624,7 +630,7 @@ STATIC_BUILTINS = {
 
 def instantiate_code(
     code: Code,
-    context: OrderedDict[str, SymbolInstance],
+    context: dict[str, InterpSymbol],
     session: Session,
 ) -> SyncCodeInstance | AsyncCodeInstance:
     """
@@ -632,7 +638,6 @@ def instantiate_code(
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the session for contexts.
     """
     # inline all possible context variables
-    inlined_context = {to_pyidentifier(name): value for name, value in context.items()}
     source_context = (
         {
             "__statement__": code.source,
@@ -644,9 +649,9 @@ def instantiate_code(
     )
     dynamic_context = {
         "session": session,
-        "context": inlined_context,
+        "context": {s.name: s for s in context.values()},
         "_xblocks": code.xblocks,
-        **inlined_context,
+        **context,
         "random": Random(code.id.hex.encode()),
         **source_context,
     }
@@ -728,7 +733,7 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     if isinstance(symbol, Task):
-        return TaskInstance(**symbol.__dict__)
+        return TaskInstance(**symbol.__dict__, session=session)
     elif isinstance(symbol, Code):
         # instantiate context (preserving order)
         instantiated_context = OrderedDict()
