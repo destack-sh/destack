@@ -474,24 +474,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       await symbolOps.openRun(cur.value?.statement);
     },
   });
-  const build = provideGlobalAction({
-    id: "statement.build",
-    label: "Build current statement",
-    shortcuts: ["b b"],
-    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
-    apply: async () => {
-      await symbolOps.build(cur.value?.statement);
-    },
-  });
-  const evaluate = provideGlobalAction({
-    id: "statement.evaluate",
-    label: "Evaluate current statement",
-    shortcuts: ["e e"],
-    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
-    apply: async () => {
-      await symbolOps.evaluate(cur.value?.statement);
-    },
-  });
 
   return {
     indent,
@@ -526,7 +508,5 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     paste,
     duplicate,
     run,
-    build,
-    evaluate,
   };
 }

@@ -128,32 +128,13 @@ export enum BuildCandidateStatus {
   Planned = "Planned",
 }
 
-export type BuildInput = {
-  buildableId?: InputMaybe<Scalars["GlobalID"]>;
-  projectVersionId: Scalars["GlobalID"];
-  scope: BuildScope;
-};
-
-export enum BuildScope {
-  All = "ALL",
-  Reactive = "REACTIVE",
-  Selected = "SELECTED",
-}
-
 export type BuildSettings = Node & {
   __typename?: "BuildSettings";
   id: Scalars["GlobalID"];
   reactive: Scalars["Boolean"];
   statement?: Maybe<Statement>;
+  weights: Scalars["JSON"];
 };
-
-export type BuildState = {
-  __typename?: "BuildState";
-  projectVersionId: Scalars["GlobalID"];
-  success: Scalars["Boolean"];
-};
-
-export type BuildStateOperationInfo = BuildState | OperationInfo;
 
 export type Client = Node & {
   __typename?: "Client";
@@ -384,14 +365,6 @@ export enum ErrorType {
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
   UnknownToken = "UNKNOWN_TOKEN",
 }
-
-export type EvaluateSettings = Node & {
-  __typename?: "EvaluateSettings";
-  id: Scalars["GlobalID"];
-  reactive: Scalars["Boolean"];
-  statement?: Maybe<Statement>;
-  weights: Scalars["JSON"];
-};
 
 export enum EvaluationKind {
   Evaluation = "EVALUATION",
@@ -820,7 +793,6 @@ export type Mutation = {
   batchRestoreStatement: StatementBatchOperationInfo;
   batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
-  build: BuildStateOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
   closeClient: ClientOperationInfo;
   commentStatement: StatementOperationInfo;
@@ -926,10 +898,6 @@ export type MutationBatchSoftDeleteRecordArgs = {
 
 export type MutationBatchSoftDeleteStatementArgs = {
   input: StatementBatchSoftDeleteInput;
-};
-
-export type MutationBuildArgs = {
-  input: BuildInput;
 };
 
 export type MutationCancelOrganizationInviteArgs = {
@@ -2011,7 +1979,7 @@ export type RunInput = {
 
 export type RunState = {
   __typename?: "RunState";
-  buildId?: Maybe<Scalars["GlobalID"]>;
+  defaultBuildId?: Maybe<Scalars["GlobalID"]>;
   execution?: Maybe<Execution>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: Maybe<Scalars["GlobalID"]>;
@@ -2079,7 +2047,6 @@ export type Statement = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     descendants: Array<Statement>;
     description?: Maybe<Scalars["String"]>;
-    evaluateSettings?: Maybe<EvaluateSettings>;
     evaluationResults: Array<EvaluationResult>;
     file: File;
     generated: Scalars["Boolean"];
@@ -2337,17 +2304,15 @@ export type SubscriptionModuleChangedArgs = {
 
 /** The type of symbol content. */
 export enum SymbolType {
+  Agent = "AGENT",
   Block = "BLOCK",
   Build = "BUILD",
   Capability = "CAPABILITY",
   Code = "CODE",
   Data = "DATA",
-  Evaluate = "EVALUATE",
   Expectation = "EXPECTATION",
   Model = "MODEL",
-  Program = "PROGRAM",
   Requirement = "REQUIREMENT",
-  Runconfig = "RUNCONFIG",
   Task = "TASK",
   Type = "TYPE",
 }
@@ -2813,8 +2778,7 @@ export type AutobuildFileContentByIdQuery = {
       description?: string | null;
       commented: boolean;
       parent?: { __typename?: "Statement"; id: any } | null;
-      buildSettings?: { __typename?: "BuildSettings"; id: any; reactive: boolean } | null;
-      evaluateSettings?: { __typename?: "EvaluateSettings"; id: any; weights: any } | null;
+      buildSettings?: { __typename?: "BuildSettings"; id: any; reactive: boolean; weights: any } | null;
     }>;
   } | null;
 };
@@ -4069,17 +4033,6 @@ export type UpdateProjectNameMutation = {
     | { __typename?: "Project"; id: any; name: string };
 };
 
-export type BuildMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  scope: BuildScope;
-  buildableId?: InputMaybe<Scalars["GlobalID"]>;
-}>;
-
-export type BuildMutation = {
-  __typename?: "Mutation";
-  build: { __typename?: "BuildState"; projectVersionId: any; success: boolean } | { __typename?: "OperationInfo" };
-};
-
 export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
@@ -4097,7 +4050,6 @@ export type RunMutation = {
         __typename?: "RunState";
         projectVersionId: any;
         runnableId?: any | null;
-        buildId?: any | null;
         success: boolean;
         execution?: {
           __typename?: "Execution";
@@ -6699,16 +6651,6 @@ export const AutobuildFileContentByIdDocument = {
                           selections: [
                             { kind: "Field", name: { kind: "Name", value: "id" } },
                             { kind: "Field", name: { kind: "Name", value: "reactive" } },
-                          ],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "evaluateSettings" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
                             { kind: "Field", name: { kind: "Name", value: "weights" } },
                           ],
                         },
@@ -10788,84 +10730,6 @@ export const UpdateProjectNameDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateProjectNameMutation, UpdateProjectNameMutationVariables>;
-export const BuildDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "build" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scope" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "BuildScope" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "build" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "projectVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "scope" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "scope" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "buildableId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "buildableId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "BuildState" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
-                      { kind: "Field", name: { kind: "Name", value: "success" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<BuildMutation, BuildMutationVariables>;
 export const RunDocument = {
   kind: "Document",
   definitions: [
@@ -10963,7 +10827,6 @@ export const RunDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
                       { kind: "Field", name: { kind: "Name", value: "runnableId" } },
-                      { kind: "Field", name: { kind: "Name", value: "buildId" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
                       {
                         kind: "Field",

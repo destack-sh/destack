@@ -120,6 +120,7 @@ type BuildSettings implements Node {
   id: GlobalID!
   statement: Statement
   reactive: Boolean!
+  weights: JSON!
 }
 
 type Client implements Node {
@@ -1986,12 +1987,10 @@ enum SymbolType {
   EXPECTATION
   CODE
   MODEL
-  PROGRAM
+  AGENT
   DATA
   REQUIREMENT
   BUILD
-  EVALUATE
-  RUNCONFIG
   BLOCK
 }
 

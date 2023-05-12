@@ -42,8 +42,8 @@ from bench.language.type import (
 )
 from bench.language.typer import check_type, map_value, rekey_value
 from bench.msg import NMessageType
-from bench.msg.core import request, NMessage
-from bench.msg.messages import ReqReadObjectPayload, RepReadObjectPayload
+from bench.msg.core import NMessage, request
+from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
 from bench.runtime.build import build_task_implementation
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
@@ -177,6 +177,7 @@ class Session:
         else:
             if self.default_build is None:
                 raise RuntimeError(f"no build specified for {task} (no default in {self})")
+        # TODO @Broken: cache implementations, add to session module, add proper context
         implementation = await build_task_implementation(task, build.models[0])
         implementation_instance = instantiate_code(implementation, context={}, session=self)
         return implementation_instance
@@ -220,7 +221,6 @@ SyncCodeCallable = Callable[..., Any]
 class SymbolInstance:
     id: UUID = required_field()
     session: Session = None
-    build: Optional[Build] = None
     mode: Optional[SessionMode] = None
 
     def __post_init__(self):
@@ -275,6 +275,8 @@ class TypeInstance(SymbolInstance, Type):
 
 @dataclass(repr=False)
 class RecordInstance(Record):
+    # TODO @Performance: mark & collect dirty on session flush for records/datasets
+    #  Currently we just write the whole record on any change, which is ughh.
     dataset: "DatasetInstance" = required_field()
 
     def __post_init__(self):
@@ -579,10 +581,10 @@ def strip_value(value, type: TypeNode) -> Any:
 # TODO @Feature: what's the counter-part to instantiate record data?
 
 
-def instantiate_dataset(dataset: Dataset, build: Build, session: Session) -> DatasetInstance:
+def instantiate_dataset(dataset: Dataset, session: Session) -> DatasetInstance:
     """Instrument and instantiate a dataset for use."""
     instance = DatasetInstance(
-        **dict_minus(dataset.__dict__, "records"), records=[], build=build, session=session
+        **dict_minus(dataset.__dict__, "records"), records=[], session=session
     )
     for raw_record in dataset.records:
         py_record_data = {}
@@ -716,11 +718,13 @@ def instantiate_model(model: Model, session: Session) -> ModelInstance:
             retries=session.inference_retries,
         )
         setattr(inference, modality, endpoint_proxy)
-    return ModelInstance(**model.__dict__, inference=inference, build=None, session=session)
+    return ModelInstance(**model.__dict__, inference=inference, session=session)
 
 
 def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
-    """Instantiate a symbol in a build recursively."""
+    """Instantiate a symbol in a session (incl. any references recursively)."""
+    if symbol.id in session.instances:
+        return session.instances[symbol.id]
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     if isinstance(symbol, Task):

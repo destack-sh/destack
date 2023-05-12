@@ -254,7 +254,7 @@ class ExecutionTracer(Tracer):
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=worker_ctx.get().module_id,
-            build=code.build if code else parent.build if parent else None,
+            build=code.session.default_build if code else parent.build if parent else None,
             task=code.task if code else None,
             code=code,
             model=model,

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
-import { BuildScope, SymbolType, type ProjectVersion } from "@/gql/graphql";
+import { SymbolType, type ProjectVersion } from "@/gql/graphql";
 import { useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { WrenchIcon } from "@heroicons/vue/24/outline";
@@ -34,9 +34,6 @@ const { result: autobuildFileResult } = useQuery(
           buildSettings {
             id
             reactive
-          }
-          evaluateSettings {
-            id
             weights
           }
         }
@@ -67,7 +64,7 @@ function getModelsFor(build: { id: string }) {
 }
 
 function toggleReactive(build: { id: string; buildSettings: { reactive: boolean } }) {
-  throw new Error("TODO @Incomplete: not implemented");
+  throw new Error("@Incomplete: not implemented");
 }
 
 const HIGHLIGHTED_METRICS = ["performance", "speed"];
@@ -106,9 +103,9 @@ const HIGHLIGHTED_METRICS = ["performance", "speed"];
           </h4>
           <!-- Basic controls -->
           <span class="flex flex-row items-center">
-            <button class="text-gray-400 hover:text-gray-800" @click="symbolOps.build(build, BuildScope.Selected)">
+            <!-- <button class="text-gray-400 hover:text-gray-800" @click="symbolOps.build(build, BuildScope.Selected)">
               <WrenchIcon class="-mb-1 h-4 w-4" />
-            </button>
+            </button> -->
           </span>
         </span>
         <p class="text-gray-500">{{ build.description }}</p>
@@ -123,7 +120,7 @@ const HIGHLIGHTED_METRICS = ["performance", "speed"];
             <!-- blue on gray line with value of metric in build settings as percentage -->
             <div class="relative h-0.5 w-full rounded-sm bg-gray-300">
               <div
-                :style="{ width: `${build.evaluateSettings?.weights[metric] * 100}%` }"
+                :style="{ width: `${build.buildSettings?.weights[metric] * 100}%` }"
                 class="absolute h-0.5 rounded-sm bg-orange-600"
               />
             </div>

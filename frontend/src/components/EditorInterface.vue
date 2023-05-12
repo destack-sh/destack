@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import EvaluateInterface from "@/components/EvaluateInterface.vue";
 import FileInterface from "@/components/FileInterface.vue";
 import RunInterface from "@/components/RunInterface.vue";
 import RunsInterface from "@/components/RunsInterface.vue";
@@ -53,14 +52,6 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     @close="editorState.closeEditor(editor)"
   />
   <RunsInterface v-else-if="editor.type == 'runs'" :focused="focused" @close="editorState.closeEditor(editor)" />
-  <EvaluateInterface
-    v-else-if="editor.type == 'evaluate'"
-    :focused="focused"
-    :editorId="editor.id"
-    :symbolId="(editor as RunEditor).symbolId"
-    :symbolType="(editor as RunEditor).symbolType"
-    @close="editorState.closeEditor(editor)"
-  />
   <div v-else class="h-full w-full text-center">
     <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
   </div>

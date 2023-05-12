@@ -421,7 +421,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
         SymbolType.TASK,
         SymbolType.CODE,
         SymbolType.BUILD,
-        SymbolType.EVALUATE,
     ):
         data.generated_mappings = [
             rmap_generated_mapping(m) for m in statement.generated_mappings.all()
