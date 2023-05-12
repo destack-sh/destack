@@ -4,3 +4,16 @@
 #  `python -m piptools compile requirements.in requirements-worker.in --output-file requirements-worker.txt`
 # Then - optionally - update your installed packages:
 #  `python -m piptools sync requirements-worker.txt`
+
+# shared with main
+aiohttp==3.8.3
+anthropic==0.2.5
+cachetools==5.2.0
+more-itertools==9.0.0
+numpy==1.24.3
+openai==0.27.2
+pandas==2.0.1
+# worker specific
+langchain==0.0.166
+textract==1.6.5
+unstructured==0.6.5
