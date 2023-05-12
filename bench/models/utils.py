@@ -2,7 +2,7 @@ import json
 import uuid
 from collections import defaultdict, deque
 from itertools import chain
-from typing import Any, Deque, Iterator, Type, TypeVar
+from typing import Any, Collection, Deque, Iterator, Type, TypeVar
 
 from django.core.validators import RegexValidator
 from django.db import models
@@ -55,7 +55,7 @@ def is_jsonable(value: Any) -> bool:
 T = TypeVar("T")
 
 
-def walk_children_bfs_qs(objects: list[T], child_attr: str) -> Iterator[T]:
+def walk_children_bfs_qs(objects: Collection[T], child_attr: str) -> Iterator[T]:
     """
     Walk all children of an object in breadth-first order using a children attribute.
     """
@@ -68,7 +68,7 @@ def walk_children_bfs_qs(objects: list[T], child_attr: str) -> Iterator[T]:
         queue.extend(children)
 
 
-def walk_children_bfs_batched(objects: list[T], parent_id_attr: str) -> Iterator[T]:
+def walk_children_bfs_batched(objects: Collection[T], parent_id_attr: str) -> Iterator[T]:
     """
     Walk all children of an object in breadth-first order
     by building the tree in-memory with the parent attribute.

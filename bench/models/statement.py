@@ -199,9 +199,8 @@ class StatementManager(models.Manager["Statement"]):
         new_build_settings: list[BuildSettings] = []
         new_gen_mappings: list[GeneratedMapping] = []
 
-        def _copy_statement(statement: Statement) -> Statement:
-            """Copies a single statement and its contents (without saving)"""
-            # copy statement contents/relations
+        # copy statements
+        for statement in statements:
             if statement.type == StatementType.DEFINITION:
                 # the relations are saved below after statement creation
                 # copy type nodes
@@ -268,20 +267,21 @@ class StatementManager(models.Manager["Statement"]):
                         mapping.source_revision = 0
                         mapping.target_revision = 0
                         new_gen_mappings.append(mapping)
-
-                # copy? task evaluation plan
-                if statement.symbol_type == SymbolType.TASK:
-                    statement.evaluation_plan_id = None
-
             # copy statement
             # automatically copies all non-relational columns
             old_id = statement.id
             old_revision = statement.revision
             statement.id = target_statement_ids[old_id]
             statement._state.adding = True
-            statement.parent_id = target_parent_ids.get(
-                statement.id, target_statement_ids.get(statement.parent_id)
-            )
+            if statement.parent_id is not None:
+                if statement.parent_id not in target_statement_ids:
+                    # this shouldn't happen but sometimes does and I don't know why yet
+                    logger.warning("statement_lost_parent", statement=statement)
+                    continue
+                statement.parent_id = target_parent_ids.get(
+                    statement.id,
+                    target_statement_ids[statement.parent_id],
+                )
             statement.order_key = target_order_keys.get(statement.id, statement.order_key)
             statement.deleted_at = None  # restore in copy if it was deleted
             statement.revision = 0  # reset revision
@@ -291,17 +291,12 @@ class StatementManager(models.Manager["Statement"]):
             statement.reference = None
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
-            return statement
-
-        # copy statements
-        for statement in statements:
-            _copy_statement(statement)
 
         # create referenced statements relations (FKs in statements)
         BuildSettings.objects.bulk_create(new_build_settings)
 
         # create statements BFS, starting at roots that are _within_ selection (may not be actual roots)
-        for new_statements_batch in walk_children_bfs_batched(list(statements), "parent_id"):
+        for new_statements_batch in walk_children_bfs_batched(new_statements.values(), "parent_id"):
             Statement.objects.bulk_create(new_statements_batch)
 
         # re-assign references (can't be part of bfs walk)
