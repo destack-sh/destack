@@ -34,8 +34,6 @@ from bench.language.type import (
     Module,
     Record,
     RequirementContent,
-    Runconfig,
-    RunconfigContent,
     SimpleTypeNode,
     SourceFile,
     Statement,
@@ -649,10 +647,6 @@ def _parse_definition_content(
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
         return BuildContent(generated_mappings=[])
-    # we don't parse SymbolType.REQUIREMENT here because it looks different, see below
-    elif symbol_type.value == SymbolType.RUNCONFIG:
-        tokens.eat_separator(":")
-        return RunconfigContent()
 
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
@@ -1640,21 +1634,12 @@ def interp(
                         and task.source.file.module.id == symbol.source.file.module.id
                     ):
                         symbol.tasks.append(task)
-        elif isinstance(symbol, Runconfig):
-            for child in scope.proper_symbols:
-                if isinstance(child, Code):
-                    symbol.codes.append(child)
-                elif isinstance(child, Task):
-                    symbol.tasks.append(child)
-                elif isinstance(child, Build):
-                    symbol.builds.append(child)
 
     # add symbol context for those who need it
     for id, symbol in idx.symbols.items():
         if not isinstance(symbol, Code):
             # only code has context for now
             continue
-
         # assemble required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
         # should also handle in-code imports of other files and modules here

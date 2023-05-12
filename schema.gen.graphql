@@ -116,30 +116,11 @@ enum BuildCandidateStatus {
   Cancelled
 }
 
-input BuildInput {
-  projectVersionId: GlobalID!
-  scope: BuildScope!
-  buildableId: GlobalID = null
-}
-
-enum BuildScope {
-  SELECTED
-  REACTIVE
-  ALL
-}
-
 type BuildSettings implements Node {
   id: GlobalID!
   statement: Statement
   reactive: Boolean!
 }
-
-type BuildState {
-  projectVersionId: GlobalID!
-  success: Boolean!
-}
-
-union BuildStateOperationInfo = BuildState | OperationInfo
 
 type Client implements Node {
   id: GlobalID!
@@ -371,13 +352,6 @@ enum ErrorType {
   BUILD_MISSING_MODEL
   BUILD_MISSING_TASK
   CIRCULAR_ANCESTRY
-}
-
-type EvaluateSettings implements Node {
-  id: GlobalID!
-  statement: Statement
-  weights: JSON!
-  reactive: Boolean!
 }
 
 enum EvaluationKind {
@@ -869,7 +843,6 @@ type Mutation {
   addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
-  build(input: BuildInput!): BuildStateOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
   requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
   notifyUploadedObject(input: NotifyUploadedObjectInput!): RemoteObjectOperationInfo!
@@ -1744,7 +1717,7 @@ input RunInput {
 type RunState {
   projectVersionId: GlobalID!
   runnableId: GlobalID
-  buildId: GlobalID
+  defaultBuildId: GlobalID
   success: Boolean!
   execution: Execution
 }
@@ -1839,7 +1812,6 @@ type Statement implements Node & SimplyTyped {
   ): DatasetRecordConnection!
   buildSettings: BuildSettings
   buildCandidates: [BuildCandidate!]!
-  evaluateSettings: EvaluateSettings
   evaluationResults: [EvaluationResult!]!
 }
 

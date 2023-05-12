@@ -949,29 +949,13 @@ class Requirement(InterpSymbol, RequirementContent):
 
 
 @dataclass(repr=False)
-class RunconfigContent(SymbolContent):
-    def __str__(self):
-        return ""
-
-
-@dataclass(repr=False)
-class Runconfig(InterpSymbol, RunconfigContent):
-    codes: list[Code] = field(default_factory=list)
-    tasks: list[Task] = field(default_factory=list)
-    builds: list[Build] = field(default_factory=list)
-
-
-@dataclass(repr=False)
 class BuildSettings(ReactiveSettings):
-    weights: dict[str, int] = field(default_factory=dict)
+    weights: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(repr=False)
 class BuildContent(SymbolContent, GeneratorContent):
     settings: BuildSettings = required_field()
-    # TODO @Cleanup: build evaluate settings should be Build.evaluation :BuildEvaluationSettings
-    #  But we don't have evaluate as a separate statement in the editor right now.
-    evaluate_settings: EvaluateSettings = required_field()
     comment: Optional[str] = None  # like description but non-semantic
 
     @property
@@ -993,24 +977,7 @@ class Build(InterpSymbol, BuildContent):
     generated_mappings: list[GeneratedMapping] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
-
-
-@dataclass(repr=False)
-class EvaluateSettings(ReactiveSettings):
     weights: dict[str, float] = field(default_factory=dict)
-
-
-@dataclass(repr=False)
-class EvaluateContent(SymbolContent):
-    settings: EvaluateSettings
-    comment: Optional[str] = None  # like description but non-semantic
-    # As noted above, evaluation results are stored elsewhere with other runtime data.
-
-
-@dataclass(repr=False)
-class Evaluate(InterpSymbol, EvaluateContent):
-    tasks: list[Task] = field(default_factory=list)
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -1033,9 +1000,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,
-    SymbolType.RUNCONFIG: Runconfig,
     SymbolType.BUILD: Build,
-    SymbolType.EVALUATE: Evaluate,
     SymbolType.BLOCK: Block,
 }
 SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {

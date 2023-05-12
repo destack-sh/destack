@@ -12,7 +12,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language, models, runtime
+from bench import language, models
 from bench.api.auth import check_can_view_project_by_id, check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
@@ -24,10 +24,8 @@ from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request, subscribe
 from bench.msg.messages import (
     InterpChangedPayload,
-    RepBuildPayload,
     RepInterpPayload,
     RepRunPayload,
-    ReqBuildPayload,
     ReqInterpPayload,
     ReqRunPayload,
 )
@@ -181,22 +179,6 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     return errors
 
 
-BuildScope = gql.enum(runtime.type.BuildScope)
-
-
-@gql.input
-class BuildInput:
-    project_version_id: GlobalID
-    scope: BuildScope
-    buildable_id: Optional[GlobalID] = None
-
-
-@gql.type
-class BuildState:
-    project_version_id: GlobalID
-    success: bool
-
-
 ExecutionTracingLevel = gql.enum(wire.ExecutionTracingLevel)
 
 
@@ -218,29 +200,13 @@ ModuleRunErrorType = gql.enum(messages.RunErrorType)
 class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
-    build_id: Optional[GlobalID]
+    default_build_id: Optional[GlobalID]
     success: bool
     execution: Optional[Execution]
 
 
 @gql.type
 class RuntimeMutation:
-    @asafe_mutation
-    async def build(self, info: Info, input: BuildInput) -> BuildState | OperationInfo:
-        project_version_id = UUID(input.project_version_id.node_id)
-        await sync_to_async(check_can_write_project)(info, project_version_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
-        posthog.capture(str(user.id), "build", {"project_version_id": str(project_version_id)})
-
-        req = ReqBuildPayload(
-            module_id=project_version_id, scope=input.scope, buildable_id=input.buildable_id.node_id
-        )
-        rep = await request(NMessageType.REQUEST_BUILD, req, RepBuildPayload)
-        return BuildState(
-            project_version_id=input.project_version_id,
-            success=rep.p.error is None,
-        )
-
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
@@ -263,7 +229,7 @@ class RuntimeMutation:
             module_id=project_version_id,
             runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
             runnable_type=None,
-            build=UUID(input.build_id.node_id) if input.build_id else None,
+            default_build_id=UUID(input.build_id.node_id) if input.build_id else None,
             arguments=input.arguments,
             block=input.block,
             tracing_level=input.trace,

@@ -23,14 +23,6 @@ from bench.msg.messages import EvaluationSavedPayload
 
 logger = structlog.get_logger(__name__)
 
-
-@gql.django.type(models.EvaluateSettings)
-class EvaluateSettings(gql.Node):
-    statement: Optional[Annotated["Statement", lazy(".statement")]]
-    weights: JSON
-    reactive: bool
-
-
 EvaluationKind = gql.enum(models.EvaluationKind)
 EvaluationScope = gql.enum(models.EvaluationScope)
 
@@ -50,14 +42,6 @@ class EvaluationResult(gql.Node):
     type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
     self_metrics: Optional[JSON]
     aggregated_metrics: JSON
-
-
-@gql.django.type(models.EvaluationPlan)
-class EvaluationPlan(gql.Node):
-    created_at: auto
-    updated_at: auto
-    system: Annotated["Statement", lazy(".statement")]
-    datasets: list[Annotated["Statement", lazy(".statement")]]
 
 
 async def _expand_filters(

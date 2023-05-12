@@ -9,7 +9,6 @@ from bench.language import ErrorType
 from bench.language.parse import get_reference_as_path
 from bench.language.type import (
     BuildSettings,
-    EvaluateSettings,
     GeneratedMapping,
     StatementModifier,
     StatementPath,
@@ -161,7 +160,6 @@ class StatementData:
     records: Optional[list[RecordData]] = None
     generated_mappings: Optional[list[GeneratedMapping]] = None
     build_settings: Optional[BuildSettings] = None
-    evaluate_settings: Optional[EvaluateSettings] = None
     reference_module: Optional[ModuleReference] = None
 
     @property
@@ -330,14 +328,11 @@ def rmap_symbol(
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
         data.build_settings = content.settings
-        data.evaluate_settings = content.evaluate_settings  # :BuildEvaluationSettings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
             data.reference_module = ModuleReference(
                 content.module_name, content.version, id=content.module_id
             )
-    elif isinstance(content, language.RunconfigContent):
-        pass
 
 
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
@@ -393,7 +388,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             comment=data.description,
             generated_mappings=data.generated_mappings,
             settings=data.build_settings,
-            evaluate_settings=data.evaluate_settings,  # :BuildEvaluationSettings
         )
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
@@ -401,8 +395,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             version=data.reference_module.version if data.reference_module else None,
             module_id=data.reference_module.id if data.reference_module else None,
         )
-    elif data.symbol_type == SymbolType.RUNCONFIG:
-        return language.RunconfigContent()
     else:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 

@@ -12,7 +12,6 @@ from uuid import UUID, uuid5
 from bench.language.type import (
     Build,
     Code,
-    Dataset,
     InterpSymbol,
     LiteralValue,
     Model,
@@ -345,27 +344,6 @@ class EvaluationScope(enum.StrEnum):
     INSTRUCTION = "node"
     BUILD = "build"
     MODULE = "module"
-
-
-@dataclass(repr=False, slots=True)
-class EvaluationPlan:
-    system: Task
-    eval_model: Optional[Model] = None
-    datasets: list[Dataset] = field(default_factory=list)
-    id: UUID = field(init=False)
-
-    def __post_init__(self):
-        self.id = uuid5(self.system_id, f"evaluation_plan:{self.system_id}")
-
-    def __str__(self):
-        return f"evals for {self.system}"
-
-    def __repr__(self):
-        return f"<EvaluationPlan {str(self)}>"
-
-    @property
-    def system_id(self) -> UUID:
-        return self.system.id
 
 
 @dataclass(repr=False, slots=True)

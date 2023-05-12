@@ -42,8 +42,9 @@ from bench.language.type import (
 )
 from bench.language.typer import check_type, map_value, rekey_value
 from bench.msg import NMessageType
-from bench.msg.core import NMessage, request
-from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
+from bench.msg.core import request, NMessage
+from bench.msg.messages import ReqReadObjectPayload, RepReadObjectPayload
+from bench.runtime.build import build_task_implementation
 from bench.runtime.inference import InferenceProxy, Modality, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -84,6 +85,7 @@ class Session:
         self,
         idx: ModuleIndex,
         instances: list["SymbolInstance"] = None,
+        default_build: Build = None,
         cache_inferences: bool = True,
         tracer: Tracer = DEFAULT_TRACER,
         inference_timeout: int = 20,
@@ -96,8 +98,10 @@ class Session:
         self.id = uuid4()
         self.idx = idx
         self.module = idx.module
-        self.opened_at: Optional[datetime] = None
-        self.closed_at: Optional[datetime] = None
+        self.instances: dict[UUID, SymbolInstance] = {
+            symbol.id: symbol for symbol in (instances or [])
+        }
+        self.default_build = default_build
         self.tracer = tracer
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -105,9 +109,8 @@ class Session:
         self.mode = mode
         self.write = write
         self.mutator = ModuleMutator(idx)
-        self.instances: dict[UUID, SymbolInstance] = {
-            symbol.id: symbol for symbol in (instances or [])
-        }
+        self.opened_at: Optional[datetime] = None
+        self.closed_at: Optional[datetime] = None
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -150,7 +153,36 @@ class Session:
         else:
             raise RuntimeError(f"unknown session mode {self.mode}")
 
+    async def prepare(self):
+        """Prepares instances in the session for execution."""
+        logger.debug("session.prepare", session=self)
+        # prepare default implementations for tasks
+        if self.default_build is not None:
+            for instance in self.instances.values():
+                if isinstance(instance, TaskInstance):
+                    await self.get_implementation(instance, build=self.default_build)
+
+    async def get_implementation(
+        self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
+    ) -> "AsyncCodeInstance":
+        """Gets or builds an implementation for a task."""
+        if build is not None:
+            if isinstance(build, str):
+                build = self.idx.symbol(build, symbol_t=Build)
+        elif model is not None:
+            if isinstance(model, str):
+                model = self.idx.symbol(model, symbol_t=Model)
+            # TODO @Feature: find or make build for model
+            raise NotImplementedError("model key for task implementation not yet supported")
+        else:
+            if self.default_build is None:
+                raise RuntimeError(f"no build specified for {task} (no default in {self})")
+        implementation = await build_task_implementation(task, build.models[0])
+        implementation_instance = instantiate_code(implementation, context={}, session=self)
+        return implementation_instance
+
     def open(self):
+        """Opens the session to access and modification."""
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
         self.opened_at = datetime.now()
@@ -158,6 +190,7 @@ class Session:
         logger.debug("session.open", session=self)
 
     async def aflush(self):
+        """Flushes all module mutations to the underlying store."""
         if not self.mutator.mutations:
             return
         if self.mode == SessionMode.READ_ONLY:
@@ -170,6 +203,7 @@ class Session:
         logger.debug("session.flush.done", session=self)
 
     async def aclose(self):
+        """Closes the session, flushing any mutations and preventing further access."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
@@ -217,7 +251,11 @@ class SymbolInstance:
 
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
-    implementation: "CodeInstance" = required_field()
+    is_async = True
+
+    async def __call__(self, *args, build: Build | str = None, model: Model | str = None, **kwargs):
+        implementation = await self.session.get_implementation(self, build=build, model=model)
+        return await implementation(*args, **kwargs)
 
 
 @dataclass(repr=False)
@@ -433,7 +471,11 @@ class RemoteObjectInstance(RemoteObject):
                 return await response.read()
 
     def read(self):
+        # TODO @Broken: fix sync/async run code intermingling
         return asyncio.get_event_loop().run_until_complete(self.aread())
+
+    def readtext(self):
+        return self.read().decode()
 
     def readlines(self):
         return self.read().decode().splitlines()
@@ -581,9 +623,8 @@ STATIC_BUILTINS = {
 def instantiate_code(
     code: Code,
     context: OrderedDict[str, SymbolInstance],
-    build: Optional[Build],
     session: Session,
-) -> CodeInstance:
+) -> SyncCodeInstance | AsyncCodeInstance:
     """
     Instantiates code into a Python callable in the context.
     If the code is a dynamic prompt (BPL), the callable will be wrapped and use the session for contexts.
@@ -650,7 +691,6 @@ def instantiate_code(
     code_cls = AsyncCodeInstance if is_async else SyncCodeInstance
     return code_cls(
         **code.__dict__,
-        build=build,
         transform=transform,
         code_callable=callable,
         is_async=is_async,
@@ -679,55 +719,32 @@ def instantiate_model(model: Model, session: Session) -> ModelInstance:
     return ModelInstance(**model.__dict__, inference=inference, build=None, session=session)
 
 
-def instantiate(
-    symbol: InterpSymbol,
-    session: Session,
-    build: Optional[Build] = None,
-    buildmap: Optional["BuildMap"] = None,
-) -> SymbolInstance:
+def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
     """Instantiate a symbol in a build recursively."""
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
-    buildmap = buildmap or (lambda s: None)
-    # instantiate context (preserving order)
-    instantiated_context = OrderedDict()
-    for name, value in symbol.context.items():
-        if symbol is value:
-            # self-reference is not supported for now
-            # mainly because it would require either
-            #  1) allowing invalid/mock initial instance state (and populate that later)
-            #  2) tracking and somehow swapping the reference after it is actually created
-            continue
-        instantiated_context[name] = instantiate(
-            value, build=build, buildmap=buildmap, session=session
-        )
-
     if isinstance(symbol, Task):
-        if buildmap is None:
-            raise ValueError(f"cannot instantiate task without build: {symbol}")
-        implementation = buildmap(symbol)
-        if implementation is None:
-            raise ValueError(f"cannot instantiate task in {build} without target: {symbol}")
-        implementation_instance = instantiate(
-            implementation, build=build, buildmap=buildmap, session=session
-        )
-        task = TaskInstance(
-            **symbol.__dict__,
-            build=build,
-            implementation=typing.cast(CodeInstance, implementation_instance),
-        )
-        implementation_instance.task = task
-        return task
+        return TaskInstance(**symbol.__dict__)
     elif isinstance(symbol, Code):
-        return instantiate_code(symbol, instantiated_context, build, session)
+        # instantiate context (preserving order)
+        instantiated_context = OrderedDict()
+        for name, value in symbol.context.items():
+            if symbol is value:
+                # self-reference is not supported for now
+                # mainly because it would require either
+                #  1) allowing invalid/mock initial instance state (and populate that later)
+                #  2) tracking and somehow swapping the reference after it is actually created
+                continue
+            instantiated_context[name] = instantiate(value, session=session)
+        return instantiate_code(symbol, instantiated_context, session)
     elif isinstance(symbol, Model):
         return instantiate_model(symbol, session)
     elif isinstance(symbol, Dataset):
-        return instantiate_dataset(symbol, build, session)
+        return instantiate_dataset(symbol, session)
     elif isinstance(symbol, Type):
-        return instantiate_type(symbol, build, session)
+        return instantiate_type(symbol, session)
     else:
-        raise ValueError(f"cannot instantiate {symbol} in {build}")
+        raise ValueError(f"cannot instantiate {symbol} in {session}")
 
 
 BuildMap = Callable[[InterpSymbol], Optional[InterpSymbol]]

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ClientsPopover from "@/components/basic/ClientsPopover.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
@@ -10,14 +11,12 @@ import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import FeedbackPopover from "@/components/FeedbackPopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
-import MainMetrics from "@/components/MainMetrics.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import NotificationArea from "@/components/notifications/NotificationArea.vue";
-import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
-import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ViewInstruction from "@/components/panels/ViewInstruction.vue";
+import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
 import SharePopover from "@/components/SharePopover.vue";
@@ -25,6 +24,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
+import { useAuth } from "@/state/auth";
 import {
   useEditorMigrations,
   useEditorPersistence,
@@ -36,6 +36,7 @@ import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/s
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentInterpModule, useVisibleErrors } from "@/state/runtime";
+import { useModuleSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
@@ -71,9 +72,6 @@ import {
   type Ref,
 } from "vue";
 import { useRouter } from "vue-router";
-import { useModuleSync } from "@/state/sync";
-import ClientsPopover from "@/components/basic/ClientsPopover.vue";
-import { useAuth } from "@/state/auth";
 
 const props = defineProps<{
   owner: string;
@@ -93,7 +91,7 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
   { id: "history", label: "History", icon: ClockIcon, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "instruction", label: "Instruction", icon: AdjustmentsHorizontalIcon, enabled: true },
+  { id: "instruction", label: "Instruction", icon: AdjustmentsHorizontalIcon, enabled: false },
   { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
   { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
 ]);
@@ -602,14 +600,7 @@ onBeforeUnmount(() => {
 
       <!-- Center: main metrics -->
       <template v-slot:center>
-        <FadeTransition>
-          <MainMetrics
-            v-if="project != null && versionToViewId != null"
-            :project-id="project.id"
-            :project-version-id="versionToViewId"
-            class="px-4"
-          />
-        </FadeTransition>
+        <!-- No metrics right now :BuildEvaluate -->
       </template>
 
       <!-- Right side: controls & profile -->

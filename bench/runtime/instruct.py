@@ -15,7 +15,6 @@ from bench.language.type import (
     Dataset,
     Expectation,
     InterpSymbol,
-    Model,
     Record,
     StatementModifier,
     SymbolType,
@@ -25,10 +24,6 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.runtime.inference import Modality, TextGenerationSettings
-from bench.runtime.instance import instantiate
-from bench.runtime.run import run
-from bench.runtime.tracing import tracer_blocker
 from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
@@ -320,82 +315,6 @@ class SampleFabricateRandom(SampleSource):
         target_dataset = anonymous_dataset(self.type, self.count)
         for i in range(self.count):
             target_dataset.records[i].data = fabricate_value(self.type)
-        return target_dataset
-
-
-@source
-class SampleGenerateWithModel(SampleSource):
-    """Generates a dataset of the given type using a model"""
-
-    task: Task
-    type: Type
-    model: Model
-    count: int
-    seed: int
-
-    async def __call__(self) -> Dataset:
-        from bench.runtime.build import (  # prevent circular import
-            TaskPlan,
-            XEmitOutput,
-            XEmitSettings,
-            XEmitSystem,
-            XEmitTask,
-            XEmitTypeExplanation,
-            XEmitTypeSample,
-            do_build_task_plan,
-        )
-
-        # manually build the task plan (later this will be in symbolx/bench (?))
-        output_type = self.type.deepcopy(keep_id=False)
-        output_type.name = "output"
-        generation_task_type = Type(
-            name="generate examples",
-            tag=TypeTag.FUNCTION,
-            children=[
-                TypeNode(
-                    name="input",
-                    tag=TypeTag.STRUCT,
-                    children=[TypeNode(name="count", tag=TypeTag.NUMBER)],
-                ),
-                TypeNode(name="output", tag=TypeTag.ARRAY, children=[output_type]),
-            ],
-        )
-        generation_task = Task(
-            name="generate examples",
-            type=generation_task_type,
-            type_node=generation_task_type,
-            description=f"Generate diverse, useful and instructive examples "
-            f' for the task "{self.task.name}: {self.task.description}".\n'
-            "The examples should illustrate realistic and likely use cases of the task.",
-        )
-        plan = TaskPlan(task=generation_task, model=self.model, modality=Modality.GenerateText)
-        plan.emit(
-            XEmitSystem(),
-            XEmitTask(task=generation_task),
-            XEmitTypeExplanation(
-                type=self.type, type_label="Output", include_descriptions=True, recursive=True
-            ),
-            XEmitTypeSample(
-                type=generation_task_type.output, type_label="Output (1 JSON array element)"
-            ),
-            # TODO @Build: tune model sample generation settings (and adapt to model context size)
-            XEmitSettings(TextGenerationSettings(temperature=0.9, max_tokens=2048, top_p=1.0)),
-            XEmitOutput(type_label=f"Output samples ({self.count} JSON array elements)"),
-        )
-        implementation = await do_build_task_plan(plan)
-        implementation.context[self.model.name] = self.model
-
-        with tracer_blocker():
-            generated_samples = await run(
-                instantiate(implementation), {"count": self.count}, is_trusted=True
-            )
-        target_dataset = anonymous_dataset(self.type, len(generated_samples))
-        if len(generated_samples) < self.count:
-            raise RuntimeError(
-                f"expected {self.count} samples, got {len(generated_samples)} samples"
-            )
-        for i, sample in enumerate(generated_samples[: self.count]):
-            target_dataset.records[i].data = sample
         return target_dataset
 
 

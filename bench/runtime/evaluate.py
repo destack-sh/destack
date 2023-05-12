@@ -2,49 +2,29 @@ import asyncio
 import enum
 import uuid
 from collections import defaultdict
-from itertools import chain
-from typing import Any, Optional, cast
+from typing import cast
 
 import structlog
-from more_itertools import first
 
 from bench.language import ModuleIndex
 from bench.language.type import (
-    Build,
     Code,
     Dataset,
-    InterpSymbol,
-    Model,
-    Record,
     Task,
     Type,
-    TypeNode,
     TypeTag,
-    XKind,
-    flatten_func_type,
-    make_func_type,
-    make_struct_type,
 )
-from bench.runtime.inference import Modality, TextGenerationSettings
-from bench.runtime.instance import TaskInstance, instantiate
 from bench.runtime.instruct import (
     Instruction,
     InstructionOp,
-    SampleFabricateRandom,
-    anonymous_dataset,
     instruction_tree_from_module,
-    instruction_tree_from_symbol,
 )
-from bench.runtime.run import run
-from bench.runtime.tracing import in_memory_traces, tracer_blocker
 from bench.runtime.type import (
     EvaluationKind,
     EvaluationMetric,
-    EvaluationPlan,
     EvaluationResult,
     EvaluationScope,
 )
-from bench.utils.func import dict_minus
 
 logger = structlog.get_logger(__name__)
 
@@ -187,254 +167,6 @@ def aggregate_metrics_by_system(evaluations: list[EvaluationResult]) -> list[Eva
         )
         aggregated.append(evaluation)
     return aggregated
-
-
-async def plan_evaluate_task(
-    task: TaskInstance,
-    n_samples: int,
-    eval_model: Model,
-) -> EvaluationPlan:
-    # TODO @Broken: replace fabricated with real samples
-    samples = await SampleFabricateRandom(type=flatten_func_type(task.type), count=n_samples)()
-    # samples = await SampleGenerateWithModel(
-    #     task=task, type=flatten_func_type(task.type), model=eval_model, count=n_samples, seed=1337
-    # )()
-    samples.name = "magic " + task.name + " samples"
-    plan = EvaluationPlan(
-        system=task,
-        eval_model=eval_model,
-        datasets=[samples],
-    )
-    return plan
-
-
-async def evaluate_task(
-    task: TaskInstance,
-    eval: EvaluationPlan,
-    build: Build,
-    build_candidate: Optional[Any] = None,
-) -> EvaluationResult:
-    """Evaluates a task implementation against the instructions."""
-    log = logger.bind(task=task, build=build, build_candidate=build_candidate)
-    task_instruction, _ = instruction_tree_from_symbol(task)
-
-    # generate samples to test
-    all_samples: list[Record] = list(
-        chain.from_iterable(dataset.records for dataset in eval.datasets)
-    )
-    output_keys = {output.name for output in task.type.outputs}
-
-    with in_memory_traces() as traces:
-        runs = (
-            # TODO @Security: don't trust task implementation (ship to sandbox) :SandboxBuilds
-            #  For now this is fine because we generate the implementation, but when
-            #  we get to :TaskSteps we'll need to ship the build (candidate) data to the sandbox.
-            run(task.implementation, dict_minus(sample.data, output_keys), is_trusted=True)
-            for sample in all_samples
-        )
-        results = await asyncio.gather(*runs, return_exceptions=True)
-    outputs = anonymous_dataset(task.type, len(results))
-    n_successful_runs = 0
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            log.warning("evaluate.run.failed", result=result)
-            continue
-        outputs.records[i].data = result
-        n_successful_runs += 1
-
-    # evaluate samples against the instructions
-    evalable_instructions = [
-        instruction
-        for instruction in task_instruction.walk()
-        if instruction.op in (InstructionOp.ExpectationDefinition, InstructionOp.TaskDefinition)
-        or (
-            instruction.op == InstructionOp.TypeDefinition
-            and instruction.node.description is not None
-        )
-    ]
-    evals = (
-        evaluate_output(
-            input_type=task.type,
-            input=dict_minus(input.data, output_keys),
-            output_type=task.type,
-            output=output.data,
-            instructions=evalable_instructions,
-            eval_model=eval.eval_model,
-            build=build,
-            build_candidate=build_candidate,
-        )
-        for input, output in zip(all_samples, outputs.records)
-        if len(output.data) > 0
-    )
-    evals = await asyncio.gather(*evals)
-    instruction_evaluations = list(chain(*evals))
-    # group instruction evaluations by evaluated node
-    instruction_evaluations = aggregate_metrics_by_system(instruction_evaluations)
-    instruction_metrics = aggregate_metrics(instruction_evaluations)
-
-    # technically tokens_count is #characters
-    tokens_count = sum(len(x) for x in task.implementation.xblocks if x.kind != XKind.Settings)
-    average_run_duration = sum(r.duration_with_cache for r in traces.roots) / (
-        len(traces.roots) or 1
-    )
-    performance_metrics = {
-        # for type validity we assume that unsuccessful run == type error
-        EvaluationMetric.TypeValidity: n_successful_runs / (len(all_samples) or 1),
-        EvaluationMetric.AverageRunDuration: average_run_duration,
-        EvaluationMetric.InstructionSatisfaction: instruction_metrics.get(
-            EvaluationMetric.InstructionSatisfaction, 0
-        ),
-        EvaluationMetric.FeedbackCorrelation: 1.0,
-    }
-
-    metrics = {
-        # only 1 always for now :TaskGrouping
-        EvaluationMetric.InferencesCount: 1,
-        EvaluationMetric.TokensCount: tokens_count,
-        **performance_metrics,
-    }
-    metrics.update(get_summary_metrics(metrics))
-    # filter out the task self evaluation
-    self_evaluation = first((e for e in instruction_evaluations if e.system.id == task.id), None)
-    return EvaluationResult(
-        kind=EvaluationKind.EVALUATION,
-        scope=EvaluationScope.INSTRUCTION,
-        system=task,
-        build=build,
-        build_candidate=build_candidate,
-        plan=eval,
-        self_metrics=self_evaluation.aggregated_metrics if self_evaluation else None,
-        aggregated_metrics=metrics,
-        children=[e for e in instruction_evaluations if e.system.id != task.id],
-    )
-
-
-async def evaluate_output(
-    input_type: Type,
-    input: Any,
-    output_type: Type,
-    output: Any,
-    instructions: list[Instruction],
-    eval_model: Model,
-    build: Optional[Build],
-    build_candidate: Optional[Any],
-) -> list[EvaluationResult]:
-    from bench.runtime.build import (
-        TaskPlan,
-        XEmitInput,
-        XEmitOutput,
-        XEmitSettings,
-        XEmitTask,
-        XEmitTypeExplanation,
-        XEmitTypeSample,
-        do_build_task_plan,
-    )
-
-    evals_type = make_struct_type(
-        Type(name="id", tag=TypeTag.NUMBER),
-        Type(
-            name="reasoning",
-            tag=TypeTag.STRING,
-            description="Assess if the corresponding instruction was satisfied exactly as specified.",
-        ),
-        Type(
-            name="satisfied",
-            tag=TypeTag.BOOLEAN,
-            description="Whether the instruction was followed exactly. If unclear, set to false.",
-        ),
-        name="Evaluation",
-        is_array=True,
-    )
-    instructions_type = make_struct_type(
-        Type(name="description", tag=TypeTag.STRING),
-        Type(name="id", tag=TypeTag.NUMBER),
-        name="instructions",
-        tag=TypeTag.STRUCT,
-        is_array=True,
-    )
-    eval_task_type = make_func_type(
-        input_types=[
-            instructions_type,
-            Type(
-                name="sample",
-                tag=TypeTag.STRUCT,
-                children=[*input_type.inputs, *output_type.type_nodes],
-            ),
-        ],
-        output_types=[evals_type],
-    )
-    eval_task = Task(
-        name="evaluate output",
-        description="Assess whether the generated output followed the instructions."
-        " Set satisfied if the corresponding instruction was followed (in format, style, content, etc.)."
-        " If the instruction doesn't ask for follow-ups, the output must not contain one.",
-        type=eval_task_type,
-        type_node=eval_task_type,
-    )
-    plan = TaskPlan(task=eval_task, model=eval_model, modality=Modality.GenerateText)
-    sample_evaluation = {
-        "id": 0,
-        "reasoning": "output contained unexpected response",
-        "satisfied": False,
-    }
-    plan.emit(
-        XEmitTask(task=eval_task),
-        # TODO @Build: tune model eval generation settings (and adapt to model context size)
-        XEmitTypeExplanation(
-            type=eval_task_type,
-            type_label="Evaluation",
-            include_descriptions=True,
-            recursive=True,
-        ),
-        XEmitInput(),
-        XEmitTypeSample(
-            type=eval_task_type.outputs[0], type_label="Evaluations", value=[sample_evaluation]
-        ),
-        XEmitSettings(TextGenerationSettings(temperature=0.3, max_tokens=2048, top_p=1.0)),
-        XEmitOutput(type_label="Evaluations (one for each instruction)"),
-    )
-    implementation = await do_build_task_plan(plan)
-    implementation.context[eval_model.name] = eval_model
-
-    sample = {**input, "_output": output}
-    simplified_instructions = []
-    for i, instruction in enumerate(instructions):
-        if not isinstance(instruction.node, (InterpSymbol, TypeNode)):
-            raise RuntimeError(f"unexpected instruction node type: {instruction}")
-        name = instruction.node.name or ""
-        description = instruction.node.description or ""
-        if not name and not description:
-            raise RuntimeError(f"instruction has no name or description: {instruction}")
-        description = f"{name}: {description}"
-        if isinstance(instruction.node, TypeNode):
-            description = description + f" (on {instruction.node.name})"
-        simplified_instructions.append({"description": description, "id": i})
-
-    # TODO @Robustness @UX: should we really block tracers for internal inferences?
-    #  The original reason for putting this here was a JS/Apollo-side issue with the
-    #  'sample' value (not the key, no idea why, but it errored). Then I realized we probably
-    #  shouldn't expose this anyway, so that patched the issue.
-    with tracer_blocker():
-        evals = await run(
-            instantiate(implementation),
-            {"instructions": simplified_instructions, "sample": sample},
-            is_trusted=True,
-        )
-
-    results = []
-    for instruction, eval in zip(instructions, evals):
-        metrics = {EvaluationMetric.InstructionSatisfaction: 1.0 if eval["satisfied"] else 0.0}
-        result = EvaluationResult(
-            kind=EvaluationKind.EVALUATION,
-            scope=EvaluationScope.INSTRUCTION,
-            system=instruction.node,
-            build=build,
-            build_candidate=build_candidate,
-            self_metrics=metrics,
-            aggregated_metrics=metrics,
-        )
-        results.append(result)
-    return results
 
 
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:

@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bench.language import mutate, wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, RemoteObjectData
-from bench.runtime.type import BuildScope, EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
@@ -53,12 +53,8 @@ class NMessageType(StrEnum):
     EVALUATION_SAVED = "evaluation.saved"
 
     # API <-> Worker
-    REQUEST_BUILD = "build"
-    REPLY_BUILD = "build.rep"
     REQUEST_RUN = "run"
     REPLY_RUN = "run.rep"
-    REQUEST_GENERATE = "generate"
-    REPLY_GENERATE = "generate.rep"
     REQUEST_INTERP = "interp.get"
     REPLY_INTERP = "interp.get.rep"
     INTERP_CHANGED = "interp.changed"
@@ -70,7 +66,6 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
-    NMessageType.REQUEST_BUILD: NMessageType.REPLY_BUILD,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
 }
@@ -149,22 +144,10 @@ class WorkerHeartbeatPayload:
     worker_id: UUID
 
 
-@payload(NMessageType.REQUEST_BUILD)
-class ReqBuildPayload:
-    module_id: UUID
-    scope: BuildScope
-    buildable_id: Optional[UUID]
-
-
 class BuildErrorType(enum.StrEnum):
     NOT_READY = "not_ready"
     INVALID_BUILDABLE = "invalid_buildable"
     COMMITTED = "committed"
-
-
-@payload(NMessageType.REPLY_BUILD)
-class RepBuildPayload:
-    error: Optional[BuildErrorType] = None
 
 
 @payload(NMessageType.REQUEST_RUN)
@@ -173,7 +156,7 @@ class ReqRunPayload:
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
-    build: Optional[UUID | str]
+    default_build_id: Optional[UUID]
     arguments: dict[str, typing.Any]
     block: bool
     tracing_level: ExecutionTracingLevel
@@ -193,27 +176,6 @@ class RunErrorType(enum.StrEnum):
 class RepRunPayload:
     error: Optional[RunErrorType] = None
     execution: Optional[ExecutionFrameData] = None
-
-
-@payload(NMessageType.REQUEST_GENERATE)
-class ReqGeneratePayload:
-    module_id: UUID
-    generatable: Optional[UUID | str]
-
-
-class GenerateErrorType(enum.StrEnum):
-    INTERNAL_ERROR = "internal_error"
-    NOT_READY = "not_ready"
-    INVALID_GENERATABLE = "invalid_generatable"
-    TIMEOUT = "timeout"
-    RUNTIME_ERROR = "runtime_error"
-
-
-@payload(NMessageType.REPLY_GENERATE)
-class RepGeneratePayload:
-    output: Optional[typing.Any] = None
-    error: Optional[GenerateErrorType] = None
-    error_details: Optional[typing.Any] = None
 
 
 @payload(NMessageType.EXECUTION_CHANGED)

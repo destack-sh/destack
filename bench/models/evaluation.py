@@ -5,21 +5,6 @@ from django_choices_field import TextChoicesField
 from bench.models.utils import UUIDModel
 
 
-class EvaluateSettings(UUIDModel):
-    """Typed settings for an evaluate statement."""
-
-    weights = models.JSONField()
-    reactive = models.BooleanField()
-
-
-class EvaluationPlan(UUIDModel):
-    """The plan for executing an evaluation."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    datasets = models.ManyToManyField("Statement", related_name="+")
-
-
 class EvaluationKind(models.TextChoices):
     EVALUATION = "evaluation"
     LINT = "lint"
