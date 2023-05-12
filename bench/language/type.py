@@ -418,7 +418,6 @@ class InterpSymbol:
     modifier: Optional[StatementModifier] = None
     reference: Optional[InterpSymbol] = None
     definition: Optional[InterpSymbol] = None
-    context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
     source: Optional[Statement] = None
 
     def to_ref(self) -> InterpSymbol:
@@ -918,6 +917,7 @@ class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
     type: Type = required_field()
+    context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
 
 
 @dataclass(repr=False)

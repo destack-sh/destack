@@ -252,12 +252,13 @@ class RuntimeMutation:
         posthog.capture(
             str(user.id), "run", {"project_version_id": str(project_version_id), "error": error}
         )
+        execution = mapper.rmap_execution_frame(rep.p.execution) if rep.p.execution else None
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             default_build_id=input.build_id,
             success=success,
-            execution=mapper.rmap_execution_frame(rep.p.execution),
+            execution=execution,
         )
 
 

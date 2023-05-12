@@ -8,7 +8,7 @@ import structlog
 from bench import language
 from bench.language import wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType, Build
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, Build, LiteralValue, SymbolType
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
@@ -37,7 +37,7 @@ from bench.runtime.tracing import (
     worker_ctx,
 )
 from bench.runtime.type import ExecutionFrame, ExecutionFrameData, WorkerType
-from bench.utils.func import wrap_task, describe_type
+from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
@@ -58,6 +58,7 @@ class RunJob:
     runnable: TaskInstance | CodeInstance = None
     arguments: dict[str, LiteralValue] = None
     execution: Optional[ExecutionFrame] = None
+    error: Optional[RunError] = None
     ctx: Optional[ExecutionTrackerContext] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
@@ -139,7 +140,13 @@ class ModuleWorker:
 
         # instantiate
         try:
-            session = Session(idx=self.idx, mode=SessionMode.WRITE_GLOBAL, write=self.do_write)
+            default_build = self.idx.get_symbol("balanced", symbol_t=Build)
+            session = Session(
+                idx=self.idx,
+                mode=SessionMode.WRITE_GLOBAL,
+                write=self.do_write,
+                default_build=default_build,
+            )
             runnable_instance = instantiate(runnable, session=session)
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
                 raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
@@ -368,7 +375,7 @@ class SandboxedWorker:
             else:
                 execution = None
             rep = RepRunPayload(
-                error=None,
+                error=run_job.error,
                 execution=execution,
             )
             await msg.reply(rep)

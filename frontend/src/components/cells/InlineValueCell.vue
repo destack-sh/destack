@@ -191,7 +191,7 @@ defineExpose({
       @keydown.backspace.exact="editing || emitPrevent($event, 'deleteLeft')"
       @keydown.delete.exact="editing || emitPrevent($event, 'deleteSelf')"
       @focus.stop.prevent="emit('focus', $event)"
-      class="mousetrap-no-tab relative h-full w-full text-left outline-none"
+      class="mousetrap-no-tab relative h-full max-h-28 w-full overflow-y-hidden text-left outline-none"
       :class="{
         'font-mono': editor.fontMono,
         'text-sm': editor.textSmall,

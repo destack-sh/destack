@@ -40,7 +40,7 @@ class PyFrame:
     locals: Optional[JSON] = None
 
     def from_dict(self, data: dict) -> "PyFrame":
-        return PyFrame(**dict)
+        return PyFrame(**data)
 
 
 @gql.type

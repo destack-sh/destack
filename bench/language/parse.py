@@ -613,8 +613,10 @@ def _parse_definition_content(
         lang = literal.value_extras.get("lang")
         if lang is None:
             raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
-        if lang not in ("python", "x"):
+        if lang not in ("python", "py", "x"):
             raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
+        if lang == "py":
+            lang = "python"
         code_text = _strip_literal_indent(literal.value, tokens.indent_level)
         return CodeContent(
             description=description,
@@ -1635,10 +1637,9 @@ def interp(
                     ):
                         symbol.tasks.append(task)
 
-    # add symbol context for those who need it
+    # add symbol context to code
     for id, symbol in idx.symbols.items():
         if not isinstance(symbol, Code):
-            # only code has context for now
             continue
         # assemble required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
@@ -1646,7 +1647,7 @@ def interp(
         code_references = parse_code_ext_references(symbol.code)
         while current_scope is not None:
             for child in current_scope.proper_symbols:
-                if child.ident_name in code_references and child.ident_name not in symbol.context:
+                if child.ident_name in code_references and child.name not in symbol.context:
                     symbol.context[child.ident_name] = child
             current_scope = current_scope.parent
 

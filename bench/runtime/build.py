@@ -157,7 +157,7 @@ async def build_task_implementation(task: Task, model: Model) -> Code:
     plan.emit(
         # TODO @Broken: adjust & tune generation settings
         XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-        XEmitOutput(type_label=f"Output for task {task.name}"),
+        XEmitOutput(type=task.type, type_label=f"Output for task {task.name}"),
     )
 
     return await build_task_plan(plan)
@@ -334,20 +334,24 @@ class XEmitInput(XEmit):
 class XEmitOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
+    type: Type
     type_label: str = "Output"
     path: str = ""
 
-    # TODO @Incomplete: support proper jsonpath for xblocks?
     @staticmethod
     def parse_output(output: XBlock):
         import json
         import re
 
-        # escape the output if needed (handles trivial model confusions)
+        # escape/try to parse the output if needed (handles trivial model confusions)
         value = output.value.strip()
-        if not value.startswith("{") and not value.startswith("[") and not value.startswith('"'):
-            value = value.replace("\n", "\\n")
-            value = f'"{value}"'
+        if not value.startswith("{"):
+            # sometimes the model prefixes the output with some explanation, find the { ... }
+            value = re.compile(r"\{.*?}", re.DOTALL).search(value)
+            if value:
+                value = value.group(0)
+            else:
+                raise ValueError(f"model generated invalid X output: {output.value}")
 
         # escape strings with multiline content
         # these aren't technically valid JSON, but they're very useful for models
@@ -364,11 +368,12 @@ class XEmitOutput(XEmit):
                 ret = ret[output.path]
             return ret
         except Exception as e:
-            raise ValueError(f"invalid X output: {e}") from e
+            raise ValueError(f"model generated invalid X output: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
+        output_keys = ", ".join(t.name for t in self.type.outputs)
         output_request = xstatic(
-            f"{self.type_label}\n(JSON object, nothing else, start with {{)",
+            f"{self.type_label} - JSON object with keys [{output_keys}], start with {{",
             XSource.System,
         )
         output = xoutput(None, path=self.path)

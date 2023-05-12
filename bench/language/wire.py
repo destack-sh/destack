@@ -61,7 +61,7 @@ class RecordData:
         return f"{self.statement_id}:{self.order_key} {describe_type(self.data)}"
 
     def __repr__(self):
-        return f"<Record {str(self)}>"
+        return f"<{self.__class__.__name__} {str(self)}>"
 
 
 @dataclass(repr=False, slots=True)

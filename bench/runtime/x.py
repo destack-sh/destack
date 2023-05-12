@@ -151,6 +151,7 @@ class XBuilder:
             self.append(xblock)
 
     def to_symbol(self) -> Code:
+        # TODO @Cleanup @Architecture: build X code instances on demand to avoid stupid strings
         order_keys = generate_n_keys_between(None, None, len(self.xblocks))
         # assign order keys
         for xblock, order_key in zip(self.xblocks, order_keys):
@@ -212,13 +213,15 @@ class XBuilder:
             *output_handler_calls,
         )
         x_source = "\n".join(x_source)
-        return xcode(
+        code = xcode(
             x_source,
             name=self.name,
             type=self.type.deepcopy(keep_id=False, keep_reference=True),
             xblocks=self.xblocks,
             language="x",
         )
+        code.context[self.model.ident_name] = self.model.definition
+        return code
 
 
 class DataBuilder:

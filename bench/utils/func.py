@@ -106,7 +106,9 @@ def describe_type(obj: Any) -> str:
     """
     Summarize the names (if available) and types of arguments.
     """
-    if isinstance(obj, Mapping):
+    if isinstance(obj, str):
+        return f"str({len(obj)})"
+    elif isinstance(obj, Mapping):
         return ", ".join(f"{name}={type(value).__name__}" for name, value in obj.items())
     elif isinstance(obj, Collection):
         return ", ".join(type(value).__name__ for value in obj)
