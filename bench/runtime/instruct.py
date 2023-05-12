@@ -180,7 +180,7 @@ def map_instruction(
                 op = InstructionOp.CheckCode
             else:
                 op = InstructionOp.CodeDefinition
-        elif node.symbol_type in (SymbolType.MODEL, SymbolType.REQUIREMENT, SymbolType.RUNCONFIG):
+        elif node.symbol_type in (SymbolType.MODEL, SymbolType.REQUIREMENT):
             op = InstructionOp.Pseudo
         else:
             raise ValueError(f"unexpected symbol {node}")

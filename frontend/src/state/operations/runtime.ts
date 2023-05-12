@@ -1,5 +1,4 @@
 import { graphql } from "@/gql";
-import type { BuildScope } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
@@ -31,7 +30,6 @@ export function useRuntimeOps() {
           ... on RunState {
             projectVersionId
             runnableId
-            buildId
             success
             execution {
               id
@@ -85,7 +83,6 @@ export function useRuntimeOps() {
   }
 
   return {
-    build,
     run,
   };
 }

@@ -1,16 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { useFragment } from "@/gql";
-import { JobStatus, JobType, StatementType, SymbolType, type InterpSymbol, BuildScope } from "@/gql/graphql";
+import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
-import { SimpleTypeNodeType } from "@/state/fragments";
-import { useJobs } from "@/state/jobs";
 import { useOperations } from "@/state/operations";
-import { fileOf, isSymbolStale, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
+import { fileOf, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { CheckCircleIcon, ChevronDownIcon, PlayIcon, WrenchIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, toRef, watchEffect } from "vue";
+import { ChevronDownIcon, PlayIcon } from "@heroicons/vue/24/outline";
+import { computed, ref, watchEffect } from "vue";
 
 const props = defineProps<{
   projectId: string;
@@ -21,29 +18,9 @@ const props = defineProps<{
 const ops = useOperations();
 const editor = useEditorState();
 const runtime = useCurrentInterpModule();
-const { jobs: activeJobs } = useJobs(
-  {
-    projectId: toRef(props, "projectId"),
-    projectVersionId: toRef(props, "projectVersionId"),
-    statusIn: ref([JobStatus.Running]),
-  },
-  { live: true }
-);
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
 
-const mainSymbolStale = isSymbolStale(mainSymbol);
-const buildRunning = computed(() => activeJobs.value?.find((job) => job.type == JobType.Build) != null);
-const evaluateRunning = computed(() => activeJobs.value?.find((job) => job.type == JobType.Evaluate) != null);
-
-const canBuild = computed(
-  () =>
-    !buildRunning.value &&
-    runtime.connected &&
-    (mainSymbol.value?.symbolType == SymbolType.Task ||
-      mainSymbol.value?.symbolType == SymbolType.Build ||
-      mainSymbol.value?.symbolType == SymbolType.Runconfig)
-);
 const canRun = computed(
   () => mainSymbol.value?.symbolType == SymbolType.Task || mainSymbol.value?.symbolType == SymbolType.Code
 );
@@ -70,16 +47,6 @@ watchEffect(() => {
 });
 
 const symbolOps = useSymbolOps();
-const buildMain = provideGlobalAction({
-  id: "symbol.buildMain",
-  label: computed(() => "Build " + mainSymbol.value?.name),
-  shortcuts: ["f8"],
-  enabled: canBuild,
-  apply: async () => {
-    if (mainSymbol.value == null) return;
-    await symbolOps.build(mainSymbol.value, BuildScope.Reactive);
-  },
-});
 
 // can run inline if has no non-default inputs :InlineRun
 const hasNoInputs = computed(() => mainSymbol.value?.typeNodes?.filter((n) => !n.isOutput).length == 0);
@@ -98,27 +65,7 @@ const runMain = provideGlobalAction({
   },
 });
 
-const evaluateMain = provideGlobalAction({
-  id: "symbol.evaluateMain",
-  label: computed(() => "Evaluate " + mainSymbol.value?.name),
-  shortcuts: ["f10"],
-  enabled: computed(() => true),
-  apply: async () => {
-    if (mainSymbol.value == null) return;
-    await symbolOps.evaluate(mainSymbol.value);
-  },
-});
-
 const mainActions = [
-  // :BuildEvaluate disabled for now
-  // {
-  //   label: "Build",
-  //   icon: WrenchIcon,
-  //   enabled: canBuild,
-  //   stale: mainSymbolStale,
-  //   active: computed(() => buildRunning.value || ops.state.hasInflightLike({ types: ["runtime.build"] })),
-  //   action: () => buildMain.value.apply(),
-  // },
   {
     label: "Run",
     icon: PlayIcon,
@@ -126,16 +73,6 @@ const mainActions = [
     active: computed(() => ops.state.hasInflightLike({ types: ["runtime.run"] })),
     action: () => runMain.value.apply(),
   },
-  // {
-  //   label: "Evaluate",
-  //   icon: CheckCircleIcon,
-  //   enabled: computed(() => evaluateMain.value.enabled),
-  //   active: computed(
-  //     () => evaluateRunning.value || ops.state.hasInflightLike({ types: ["runtime.build", "runtime.evaluate"] })
-  //   ),
-  //   stale: mainSymbolStale,
-  //   action: () => evaluateMain.value.apply(),
-  // },
 ];
 </script>
 <template>
@@ -180,20 +117,6 @@ const mainActions = [
         >
           <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
           <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>
-          <!-- Deselect (null option) not needed because of disabled :BuildEvaluate -->
-          <!-- <ListboxOption :key="null" :value="null" as="template" v-slot="{ active, selected }">
-            <li
-              :class="[
-                'relative cursor-default select-none px-2 py-0.5',
-                active ? 'bg-orange-600 text-white' : 'text-gray-900',
-                selected && !active ? 'text-orange-600' : '',
-              ]"
-            >
-              <div class="flex items-baseline justify-between">
-                <span class="text-gray-500 truncate">[{{ runtime.name.value }}]</span>
-              </div>
-            </li>
-          </ListboxOption> -->
           <!-- Actual  options -->
           <ListboxOption
             v-for="stmt in filteredSymbols"

@@ -315,8 +315,6 @@ defineExpose({
       <InlineActions :extraActions="extraActions" />
     </div>
   </div>
-  <!-- Reference type -->
-  <!-- TODO @Incomplete: set dataset type to type reference -->
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"

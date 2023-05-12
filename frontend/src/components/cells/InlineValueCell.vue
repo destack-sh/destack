@@ -106,9 +106,9 @@ function edit(event: KeyboardEvent | MouseEvent) {
   if (props.readonly) {
     return;
   }
-  // ignore if click and click is not on button
+  // ignore if click and click is on a different button
   // (inner elements may also be clicked)
-  if (event instanceof MouseEvent && event.target != buttonRef.value) {
+  if (event instanceof MouseEvent && event.target != buttonRef.value && event.target instanceof HTMLButtonElement) {
     return;
   }
   if (OBJECT_TYPETAGS.includes(props.type.tag)) {

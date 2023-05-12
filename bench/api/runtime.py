@@ -255,7 +255,7 @@ class RuntimeMutation:
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
-            build_id=input.build_id,
+            default_build_id=input.build_id,
             success=success,
             execution=mapper.rmap_execution_frame(rep.p.execution),
         )

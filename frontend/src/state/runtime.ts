@@ -6,7 +6,6 @@ import {
   type InterpFile,
   type InterpModule,
   type InterpSymbol,
-  BuildScope,
 } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
@@ -355,18 +354,6 @@ export function useSymbolOps() {
   const notifications = useNotifications();
   const editor = useEditorState();
 
-  async function build(symbol: { id: string; name?: string | null }, scope: BuildScope) {
-    const ret = await ops.runtime.build(scope, symbol.id);
-    if (ret?.data?.build.__typename != "BuildState" || !ret.data.build.success) {
-      notifications.show({
-        type: "build.fail",
-        kind: "error",
-        message: "Build failed",
-        description: `Build failed for ${symbol.name}`,
-      });
-    }
-  }
-
   async function run(symbol: { id: string; name?: string | null }) {
     const ret = await ops.runtime.run(symbol.id);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
@@ -386,11 +373,5 @@ export function useSymbolOps() {
     editor.focusEditor(runEditor);
   }
 
-  async function openEvaluate(symbol: { id: string; name?: string | null }) {
-    // TODO @Feature: support manual & spot evaluation (i.e. don't just open evaluate editor)
-    const evaluateEditor = editor.openEvaluate(symbol as any);
-    editor.focusEditor(evaluateEditor);
-  }
-
-  return { build, run, openRun, openEvaluate };
+  return { run, openRun };
 }

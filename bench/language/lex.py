@@ -31,7 +31,6 @@ KEYWORDS = {
     "data": SymbolType.DATA,
     "import": StatementType.IMPORT,
     "require": SymbolType.REQUIREMENT,
-    "run": SymbolType.RUNCONFIG,
     "build": SymbolType.BUILD,
     # ValueType
     "string": TypeTag.STRING,

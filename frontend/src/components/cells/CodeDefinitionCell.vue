@@ -95,7 +95,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row items-center justify-between">
+  <div class="flex flex-row justify-between">
     <!-- Declaration -->
     <div>
       <DeclarationCell

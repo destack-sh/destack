@@ -178,12 +178,10 @@ class SymbolType(models.TextChoices):
     EXPECTATION = "expect"
     CODE = "code"
     MODEL = "model"
-    PROGRAM = "program"
+    AGENT = "agent"
     DATA = "data"
     REQUIREMENT = "require"
     BUILD = "build"
-    EVALUATE = "evaluate"
-    RUNCONFIG = "run"
     BLOCK = "block"
 
 
@@ -995,7 +993,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.CAPABILITY: Capability,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
-    SymbolType.PROGRAM: Program,
+    SymbolType.AGENT: Program,
     SymbolType.DATA: Dataset,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,

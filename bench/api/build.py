@@ -21,6 +21,7 @@ BuildCandidateStatus = gql.enum(models.BuildCandidateStatus)
 class BuildSettings(gql.Node):
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     reactive: bool
+    weights: auto
 
 
 @gql.django.type(models.BuildCandidate)
