@@ -123,6 +123,18 @@ type BuildSettings implements Node {
   weights: JSON!
 }
 
+input CancelRunInput {
+  projectVersionId: GlobalID!
+  executionId: GlobalID!
+}
+
+type CancelRunPayload {
+  success: Boolean!
+  execution: Execution
+}
+
+union CancelRunPayloadOperationInfo = CancelRunPayload | OperationInfo
+
 type Client implements Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -845,6 +857,7 @@ type Mutation {
   removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   run(input: RunInput!): RunStateOperationInfo!
+  cancelRun(input: CancelRunInput!): CancelRunPayloadOperationInfo!
   requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
   notifyUploadedObject(input: NotifyUploadedObjectInput!): RemoteObjectOperationInfo!
   deleteObject(input: DeleteObjectInput!): RemoteObjectOperationInfo!
@@ -1709,6 +1722,7 @@ input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
   buildId: GlobalID = null
+  executionId: GlobalID = null
   arguments: JSON = null
   trace: ExecutionTracingLevel! = ALL_FRAMES_WITH_DATA
   block: Boolean! = true
@@ -1720,6 +1734,7 @@ type RunState {
   runnableId: GlobalID
   defaultBuildId: GlobalID
   success: Boolean!
+  executionId: GlobalID
   execution: Execution
 }
 

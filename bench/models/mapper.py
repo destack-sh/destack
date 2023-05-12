@@ -22,7 +22,7 @@ from bench.language.parse import index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
 from bench.models.project import Project, ProjectVersion
-from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -690,6 +690,34 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         trigger_type=frame.trigger_type,
         user_id=user_id,
         access_token_id=access_token_id,
+    )
+
+
+def wmap_execution_frame(frame: models.Execution) -> ExecutionFrameData:
+    return ExecutionFrameData(
+        id=frame.id,
+        project_id=frame.project_id,
+        module_id=frame.project_version_id,
+        root_id=frame.root_id,
+        parent_id=frame.parent_id,
+        build_id=frame.build_id,
+        task_id=frame.task_id,
+        code_id=frame.code_id,
+        model_id=frame.model_id,
+        entered_at=frame.started_at,
+        exited_at=frame.terminated_at,
+        cached_generated_at=frame.cached_generated_at,
+        cached_duration=frame.cached_duration,
+        queue_position=None,
+        inputs=frame.inputs,
+        outputs=frame.outputs,
+        error=RunErrorData.from_dict(frame.error) if frame.error else None,
+        # additional context
+        tracing_level=frame.tracing_level,
+        deployment_id=frame.deployment_id,
+        worker_id=frame.worker_id,
+        trigger_type=frame.trigger_type,
+        trigger_id=frame.user_id or frame.access_token_id,
     )
 
 

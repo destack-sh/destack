@@ -275,7 +275,7 @@ class StatementManager(models.Manager["Statement"]):
             statement._state.adding = True
             if statement.parent_id is not None:
                 if statement.parent_id not in target_statement_ids:
-                    # this shouldn't happen but sometimes does and I don't know why yet
+                    # TODO @Robustness: ensure orphaned statements are impossible
                     logger.warning("statement_lost_parent", statement=statement)
                     continue
                 statement.parent_id = target_parent_ids.get(

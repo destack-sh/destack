@@ -136,6 +136,19 @@ export type BuildSettings = Node & {
   weights: Scalars["JSON"];
 };
 
+export type CancelRunInput = {
+  executionId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type CancelRunPayload = {
+  __typename?: "CancelRunPayload";
+  execution?: Maybe<Execution>;
+  success: Scalars["Boolean"];
+};
+
+export type CancelRunPayloadOperationInfo = CancelRunPayload | OperationInfo;
+
 export type Client = Node & {
   __typename?: "Client";
   active: Scalars["Boolean"];
@@ -794,6 +807,7 @@ export type Mutation = {
   batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
+  cancelRun: CancelRunPayloadOperationInfo;
   closeClient: ClientOperationInfo;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
@@ -902,6 +916,10 @@ export type MutationBatchSoftDeleteStatementArgs = {
 
 export type MutationCancelOrganizationInviteArgs = {
   id: Scalars["GlobalID"];
+};
+
+export type MutationCancelRunArgs = {
+  input: CancelRunInput;
 };
 
 export type MutationCommentStatementArgs = {
@@ -1971,6 +1989,7 @@ export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
   buildId?: InputMaybe<Scalars["GlobalID"]>;
+  executionId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
@@ -1981,6 +2000,7 @@ export type RunState = {
   __typename?: "RunState";
   defaultBuildId?: Maybe<Scalars["GlobalID"]>;
   execution?: Maybe<Execution>;
+  executionId?: Maybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   runnableId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
@@ -4037,6 +4057,7 @@ export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   buildId?: InputMaybe<Scalars["GlobalID"]>;
+  executionId?: InputMaybe<Scalars["GlobalID"]>;
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: InputMaybe<Scalars["Boolean"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
@@ -4077,6 +4098,35 @@ export type RunMutation = {
           } | null;
         } | null;
       };
+};
+
+export type CancelMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  executionId: Scalars["GlobalID"];
+}>;
+
+export type CancelMutation = {
+  __typename?: "Mutation";
+  cancelRun:
+    | {
+        __typename?: "CancelRunPayload";
+        success: boolean;
+        execution?: {
+          __typename?: "Execution";
+          id: any;
+          status: ExecutionStatus;
+          startedAt?: any | null;
+          terminatedAt?: any | null;
+          createdAt: any;
+          updatedAt: any;
+          duration?: number | null;
+          cachedGeneratedAt?: any | null;
+          cachedDuration?: number | null;
+        } | null;
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type CreateStatementMutationVariables = Exact<{
@@ -10755,6 +10805,11 @@ export const RunDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
@@ -10796,6 +10851,11 @@ export const RunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "buildId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "executionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
                     },
                     {
                       kind: "ObjectField",
@@ -10882,6 +10942,93 @@ export const RunDocument = {
     },
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
+export const CancelDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "cancel" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "cancelRun" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "executionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CancelRunPayload" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "success" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "execution" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "status" } },
+                            { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "duration" } },
+                            { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CancelMutation, CancelMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [

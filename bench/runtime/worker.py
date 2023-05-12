@@ -14,11 +14,14 @@ from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
     ClientOrigin,
+    ExecutionMarkedDeadPayload,
     ModuleInternalChangedPayload,
+    RepCancelRunPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
     RepRunPayload,
     RepWriteModulePayload,
+    ReqCancelRunPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
     ReqRunPayload,
@@ -42,6 +45,7 @@ from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
 WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_cast=int)
+WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
 
 logger = structlog.get_logger(__name__)
 
@@ -63,22 +67,32 @@ class RunJob:
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
 
+    def __str__(self):
+        return f"{self.id} {self.runnable}"
+
+    def __repr__(self):
+        return f"<RunJob {self}>"
+
 
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
-    def __init__(self, module_id: UUID, master: "SandboxedWorker", deployment_id: UUID):
+    def __init__(
+        self, module_id: UUID, master: "SandboxedWorker", deployment_id: UUID, timeout: float
+    ):
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires langserver fetch)
         # TODO @Broken: track module worker deployment id, make Execution.deployment non-nullable
         self.deployment_id: UUID = deployment_id
+        self.timeout = timeout
         self.ctx: Optional[WorkerContext] = None
         self.ready = asyncio.Event()
 
         self.interpreter = LanguageInterpreter(master.fetch)
         self.interp: InterpModule | None = None
-        self.run_jobs: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
+        self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
+        self.pending_runs: dict[UUID, asyncio.Task] = {}
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
     @property
@@ -123,6 +137,7 @@ class ModuleWorker:
         tracing_level: ExecutionTracingLevel,
         trigger_type: ExecutionTriggerType,
         trigger_id: Optional[UUID],
+        execution_id: Optional[UUID],
     ) -> RunJob | RunErrorType:
         if not self.interpreted:
             return RunErrorType.NOT_READY
@@ -154,8 +169,9 @@ class ModuleWorker:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG
 
-        root_id = UUIDT()
+        root_id = execution_id or UUIDT()
         job = RunJob(
+            id=root_id,
             runnable=runnable_instance,
             arguments=arguments,
             ctx=ExecutionTrackerContext(
@@ -165,8 +181,8 @@ class ModuleWorker:
                 root_id=root_id,
             ),
         )
-        self.run_jobs.put_nowait((job.priority, job))
-        qpos = self.run_jobs.qsize()
+        self.queue.put_nowait((job.priority, job))
+        qpos = self.queue.qsize()
         # emit queued status immediately
         if isinstance(runnable_instance, TaskInstance):
             code_instance = runnable_instance.implementation
@@ -180,14 +196,20 @@ class ModuleWorker:
 
     async def do_run(
         self,
+        id: UUID,
         runnable: CodeInstance | TaskInstance,
         arguments: dict[str, LiteralValue],
         ctx: ExecutionTrackerContext,
+        timeout: float,
     ) -> Optional[RunErrorType]:
         run_ctx_token = pub_tracker_ctx.set(ctx)
         try:
-            self.log.info("module.run", runnable=runnable, arguments=describe_type(arguments))
-            await run(runnable, arguments)
+            self.log.info(
+                "module.run", runnable=runnable, arguments=describe_type(arguments), timeout=timeout
+            )
+            task = asyncio.create_task(run(runnable, arguments))
+            self.pending_runs[id] = task
+            await asyncio.wait_for(task, timeout=timeout)
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
@@ -198,6 +220,23 @@ class ModuleWorker:
             return RunErrorType.INTERNAL_ERROR
         finally:
             pub_tracker_ctx.reset(run_ctx_token)
+            if id in self.pending_runs:
+                del self.pending_runs[id]
+
+    async def cancel_run(self, execution_id: UUID) -> bool:
+        if execution_id in self.pending_runs:
+            self.pending_runs[execution_id].cancel()
+            return True
+        # maybe check if it's in the queue?
+        for job in self.queue._queue:
+            if job.id == execution_id:
+                job.cancelled = True
+        # mark it as dead for everyone
+        await publish(
+            NMessageType.EXECUTION_MARKED_DEAD,
+            ExecutionMarkedDeadPayload(self.module_id, execution_id),
+        )
+        return False
 
     def provide_context(self):
         """Sets the worker context var."""
@@ -230,7 +269,7 @@ class ModuleWorker:
 
         # process run tasks ad infinitum
         while True:
-            _, job = await self.run_jobs.get()
+            _, job = await self.queue.get()
             if job.cancelled:
                 continue
 
@@ -243,7 +282,9 @@ class ModuleWorker:
             try:
                 self.log.debug("run", job=job)
                 with in_memory_traces() as traces:
-                    await self.do_run(job.runnable, job.arguments, job.ctx)
+                    await self.do_run(
+                        job.id, job.runnable, job.arguments, job.ctx, timeout=self.timeout
+                    )
                     job.execution = traces.frames[0]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
@@ -256,7 +297,7 @@ class ModuleWorker:
             finally:
                 job.terminated.set()
                 pub_tracker_ctx.reset(job_context_token)
-                self.run_jobs.task_done()
+                self.queue.task_done()
 
 
 class SandboxedWorker:
@@ -299,7 +340,8 @@ class SandboxedWorker:
             raise RuntimeError("failed to register worker")
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
-            await handle_reply(NMessageType.REQUEST_RUN, self.request_module_run),
+            await handle_reply(NMessageType.REQUEST_RUN, self.request_run),
+            await handle_reply(NMessageType.REQUEST_CANCEL_RUN, self.request_cancel),
         ]
         self.tasks = [
             create_wrapped_task(self.send_heartbeats(interval_seconds=WORKER_HEARTBEAT_INTERVAL))
@@ -325,7 +367,7 @@ class SandboxedWorker:
         if module_id not in self.workers:
             # start module worker if not already started
             # TODO @Broken: assign workers to deployments
-            worker = ModuleWorker(module_id, self, self.deployment_id)
+            worker = ModuleWorker(module_id, self, self.deployment_id, timeout=WORKER_RUN_TIMEOUT)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]
@@ -347,7 +389,7 @@ class SandboxedWorker:
             await worker.do_interp_on_change(msg.p.mutations)
 
     @message_handler
-    async def request_module_run(self, msg: NMessage[ReqRunPayload]):
+    async def request_run(self, msg: NMessage[ReqRunPayload]):
         worker = await self._get_ready_worker(msg.p.module_id)
         worker.provide_context()
         run_job = worker.queue_run(
@@ -357,12 +399,14 @@ class SandboxedWorker:
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
+            execution_id=msg.p.execution_id,
         )
-        if isinstance(run_job, RunErrorType):
+        if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepRunPayload(error=run_job))
         else:
             if msg.p.block:
                 await run_job.terminated.wait()
+            if run_job.execution is not None:  # may be cancelled
                 execution = ExecutionFrameData.from_frame(
                     run_job.execution,
                     project_id=worker.project_id,
@@ -377,8 +421,15 @@ class SandboxedWorker:
             rep = RepRunPayload(
                 error=run_job.error,
                 execution=execution,
+                execution_id=run_job.id,
             )
             await msg.reply(rep)
+
+    @message_handler
+    async def request_cancel(self, msg: NMessage[ReqCancelRunPayload]):
+        worker = await self._get_ready_worker(msg.p.module_id)
+        success = await worker.cancel_run(msg.p.execution_id)
+        await msg.reply(RepCancelRunPayload(success=success))
 
     async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
         """Gets a modules wire data"""

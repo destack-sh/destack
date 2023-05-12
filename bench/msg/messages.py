@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from itertools import chain
-from typing import Optional, cast
+from typing import Optional
 from uuid import UUID
 
 from bench.language import mutate, wire
@@ -51,10 +51,13 @@ class NMessageType(StrEnum):
     EXECUTION_SAVED = "execution.saved"
     JOB_SAVED = "job.saved"
     EVALUATION_SAVED = "evaluation.saved"
+    EXECUTION_MARKED_DEAD = "execution.marked_dead"
 
     # API <-> Worker
     REQUEST_RUN = "run"
     REPLY_RUN = "run.rep"
+    REQUEST_CANCEL_RUN = "run.cancel"
+    REPLY_CANCEL_RUN = "run.cancel.rep"
     REQUEST_INTERP = "interp.get"
     REPLY_INTERP = "interp.get.rep"
     INTERP_CHANGED = "interp.changed"
@@ -67,6 +70,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
+    NMessageType.REQUEST_CANCEL_RUN: NMessageType.REPLY_CANCEL_RUN,
     NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
@@ -162,6 +166,7 @@ class ReqRunPayload:
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
     trigger_id: Optional[UUID]
+    execution_id: Optional[UUID]
 
 
 class RunErrorType(enum.StrEnum):
@@ -175,7 +180,25 @@ class RunErrorType(enum.StrEnum):
 @payload(NMessageType.REPLY_RUN)
 class RepRunPayload:
     error: Optional[RunErrorType] = None
+    execution_id: Optional[UUID] = None
     execution: Optional[ExecutionFrameData] = None
+
+
+@payload(NMessageType.REQUEST_CANCEL_RUN)
+class ReqCancelRunPayload:
+    module_id: UUID
+    execution_id: UUID
+
+
+@payload(NMessageType.REPLY_CANCEL_RUN)
+class RepCancelRunPayload:
+    success: bool
+
+
+@payload(NMessageType.EXECUTION_MARKED_DEAD)
+class ExecutionMarkedDeadPayload:
+    module_id: UUID
+    execution_id: UUID
 
 
 @payload(NMessageType.EXECUTION_CHANGED)
@@ -308,27 +331,19 @@ def to_topic(
     Gets the default topic for a message type and payload.
     :NATSTopics
     """
-    # note: this seems a tad repetitive, maybe cleanup somehow (sacrifice type safety?)
-    if message_type == NMessageType.MODULE_CHANGED:
-        payload = cast(ModuleChangedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.MODULE_INTERNAL_CHANGED:
-        payload = cast(ModuleInternalChangedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.INTERP_CHANGED:
-        payload = cast(InterpChangedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.EXECUTION_CHANGED:
-        payload = cast(ExecutionChangedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.EXECUTION_SAVED:
-        payload = cast(ExecutionSavedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.JOB_SAVED:
-        payload = cast(JobSavedPayload, payload)
-        return f"{message_type}.{payload.module_id}"
-    elif message_type == NMessageType.EVALUATION_SAVED:
-        payload = cast(EvaluationSavedPayload, payload)
+    if isinstance(
+        payload,
+        (
+            ModuleChangedPayload,
+            ModuleInternalChangedPayload,
+            InterpChangedPayload,
+            ExecutionChangedPayload,
+            ExecutionSavedPayload,
+            JobSavedPayload,
+            EvaluationSavedPayload,
+            ExecutionMarkedDeadPayload,
+        ),
+    ):
         return f"{message_type}.{payload.module_id}"
 
     return message_type

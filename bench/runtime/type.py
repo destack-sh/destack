@@ -166,6 +166,17 @@ class RunErrorData:
     symbol: Optional[str]
     traceback: list[PyFrameData]
 
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "RunErrorData":
+        return RunErrorData(
+            type=data["type"],
+            message=data["message"],
+            symbol=data.get("symbol"),
+            traceback=[PyFrameData(**frame) for frame in data["traceback"]]
+            if data.get("traceback")
+            else [],
+        )
+
 
 @dataclass(slots=True)
 class ExecutionFrameData:

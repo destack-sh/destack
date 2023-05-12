@@ -16,6 +16,7 @@ import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, isRef, ref, watch, type Ref } from "vue";
+import { v4 as uuidv4 } from "uuid";
 
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
@@ -349,13 +350,18 @@ export function useSymbolNavigation() {
   return { focusSymbol };
 }
 
+export function newExecutionId(): string {
+  /* Generates a new statement global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`Execution:${nodeId}`);
+}
+
 export function useSymbolOps() {
   const ops = useOperations();
   const notifications = useNotifications();
-  const editor = useEditorState();
 
-  async function run(symbol: { id: string; name?: string | null }) {
-    const ret = await ops.runtime.run(symbol.id);
+  async function run(symbol: { id: string; name?: string | null }, executionId?: string) {
+    const ret = await ops.runtime.run(symbol.id, undefined, executionId);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",
@@ -367,11 +373,18 @@ export function useSymbolOps() {
     return ret;
   }
 
-  async function openRun(symbol: { id: string; name?: string | null; symbolType: SymbolType }) {
-    // TODO @Feature: support immediate run (for programs? all tasks?, i.e. don't just open run editor)
-    const runEditor = editor.openRun(symbol as any);
-    editor.focusEditor(runEditor);
+  async function cancel(executionId: string) {
+    const ret = await ops.runtime.cancel(executionId);
+    if (ret?.data?.cancelRun.__typename != "CancelRunPayload" || !ret.data.cancelRun.success) {
+      notifications.show({
+        type: "run.fail",
+        kind: "error",
+        message: "Run failed",
+        description: `Failed to cancel run`,
+      });
+    }
+    return ret;
   }
 
-  return { run, openRun };
+  return { run, cancel };
 }

@@ -7,10 +7,10 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { useEditorState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
-import { useSymbolOps } from "@/state/runtime";
+import { newExecutionId, useSymbolOps } from "@/state/runtime";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import InlineActions from "@/components/basic/InlineActions.vue";
-import { PlayIcon } from "@heroicons/vue/24/outline";
+import { NoSymbolIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
 import { formatDurationSeconds } from "@/composables/useNow";
 import { useOperations } from "@/state/operations";
@@ -43,11 +43,14 @@ const executions = useExecutions(
 );
 
 const lastExecutionLocal: Ref<Execution | null> = ref(null); // triggered in this client session
+const lastExecutionLocalId: Ref<string | null> = ref(null); // same but optimistic id
 const lastExecution = computed(() => lastExecutionLocal.value ?? executions.executions.value[0]);
+const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecution.value?.id ?? null);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 const addingTypes = ref(false);
+const hideOutput = ref(false);
 const preparingRun = ref(false);
 
 const executionActive = computed(
@@ -65,6 +68,23 @@ const extraActions = computed(() => {
       action: async () => await run(),
     },
   ];
+  if (executionActive.value) {
+    inlineActions.push({
+      label: "Cancel",
+      icon: StopIcon,
+      action: async () => await cancel(),
+    });
+  } else {
+    inlineActions.push({
+      label: "Clear",
+      icon: NoSymbolIcon,
+      action: async () => {
+        // TODO @Feature: clear execution for real?
+        hideOutput.value = true;
+      },
+    });
+  }
+
   return inlineActions;
 });
 
@@ -72,6 +92,8 @@ async function run() {
   if (executionActive.value) {
     return; // already running
   }
+  lastExecutionLocalId.value = newExecutionId();
+  hideOutput.value = false;
   preparingRun.value = true; // for immediate feedback if flush takes more than few ms
   try {
     await codeSync.flushNow(); // flush any pending changes to the code (debounced)
@@ -79,10 +101,19 @@ async function run() {
     preparingRun.value = false;
   }
   // TODO @UX: ensure that executed code is exact same as in editor
-  const ret = await symbolOps.run(context.statement.value);
+  const ret = await symbolOps.run(context.statement.value, lastExecutionLocalId.value);
   if (ret?.data?.run.__typename == "RunState") {
     lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
   }
+}
+
+async function cancel() {
+  if (lastExecutionId.value == null) {
+    return;
+  }
+  lastExecutionLocal.value = null;
+  lastExecutionLocalId.value = null;
+  await symbolOps.cancel(lastExecutionId.value);
 }
 
 defineExpose({
@@ -177,7 +208,7 @@ defineExpose({
   </button>
   <!-- Last output/error (if any) -->
   <div
-    v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed"
+    v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
     :class="[
       context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',

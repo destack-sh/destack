@@ -16,7 +16,7 @@ from bench import language, models
 from bench.api.auth import check_can_view_project_by_id, check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
-from bench.api.util import asafe_mutation, asafe_subscription
+from bench.api.util import asafe_mutation, asafe_subscription, to_uuid
 from bench.language import wire
 from bench.language.type import StatementModifier
 from bench.models import mapper
@@ -24,8 +24,10 @@ from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request, subscribe
 from bench.msg.messages import (
     InterpChangedPayload,
+    RepCancelRunPayload,
     RepInterpPayload,
     RepRunPayload,
+    ReqCancelRunPayload,
     ReqInterpPayload,
     ReqRunPayload,
 )
@@ -187,6 +189,7 @@ class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
     build_id: Optional[GlobalID] = None
+    execution_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
     trace: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
     block: bool = True
@@ -201,6 +204,19 @@ class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
     default_build_id: Optional[GlobalID]
+    success: bool
+    execution_id: Optional[GlobalID]
+    execution: Optional[Execution]
+
+
+@gql.input
+class CancelRunInput:
+    project_version_id: GlobalID
+    execution_id: GlobalID
+
+
+@gql.type
+class CancelRunPayload:
     success: bool
     execution: Optional[Execution]
 
@@ -227,15 +243,16 @@ class RuntimeMutation:
 
         run = ReqRunPayload(
             module_id=project_version_id,
-            runnable=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+            runnable=to_uuid(input.runnable_id),
             runnable_type=None,
-            default_build_id=UUID(input.build_id.node_id) if input.build_id else None,
+            default_build_id=to_uuid(input.build_id),
             arguments=input.arguments,
             block=input.block,
             tracing_level=input.trace,
             deployment_id=deployment_id,
             trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
             trigger_id=user.id,
+            execution_id=to_uuid(input.execution_id),
         )
         try:
             rep: NMessage[RepRunPayload] = await request(
@@ -250,7 +267,9 @@ class RuntimeMutation:
             success = False
             error = ModuleRunErrorType.TIMEOUT
         posthog.capture(
-            str(user.id), "run", {"project_version_id": str(project_version_id), "error": error}
+            str(user.id),
+            "run",
+            {"project_version_id": str(project_version_id), "success": success, "error": error},
         )
         execution = mapper.rmap_execution_frame(rep.p.execution) if rep.p.execution else None
         return RunState(
@@ -259,7 +278,36 @@ class RuntimeMutation:
             default_build_id=input.build_id,
             success=success,
             execution=execution,
+            execution_id=rep.p.execution_id,
         )
+
+    @asafe_mutation
+    async def cancel_run(
+        self, info: Info, input: CancelRunInput
+    ) -> CancelRunPayload | OperationInfo:
+        project_version_id = UUID(input.project_version_id.node_id)
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version)
+        cancel = ReqCancelRunPayload(
+            module_id=project_version_id,
+            execution_id=to_uuid(input.execution_id),
+        )
+        try:
+            rep: NMessage[RepCancelRunPayload] = await request(
+                NMessageType.REQUEST_CANCEL_RUN,
+                cancel,
+                reply_t=RepCancelRunPayload,
+            )
+            success = rep.p.success
+        except TimeoutError:
+            success = False
+        posthog.capture(
+            str(user.id),
+            "cancel_run",
+            {"project_version_id": str(project_version_id), "success": success},
+        )
+        return CancelRunPayload(success=success, execution=None)
 
 
 @gql.type

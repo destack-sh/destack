@@ -14,11 +14,7 @@ from asgiref.sync import sync_to_async
 from bench import language, models
 from bench.language import ModuleIndex, wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.type import (
-    Build,
-    BuildSettings,
-    InterpSymbol,
-)
+from bench.language.type import Build, BuildSettings, InterpSymbol
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
@@ -30,6 +26,7 @@ from bench.msg.messages import (
     ClientOrigin,
     EvaluationSavedPayload,
     ExecutionChangedPayload,
+    ExecutionMarkedDeadPayload,
     ExecutionSavedPayload,
     InterpChangedPayload,
     JobSavedPayload,
@@ -59,11 +56,7 @@ from bench.runtime.interp import (
 )
 from bench.runtime.map import map_to_file
 from bench.runtime.mutate import map_mutation_to_public
-from bench.runtime.reactivity import (
-    RevisionMap,
-    get_stale_symbols,
-    tree_from_module,
-)
+from bench.runtime.reactivity import RevisionMap, get_stale_symbols, tree_from_module
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
@@ -134,6 +127,9 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
+            await subscribe(
+                f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
+            ),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
         ]
         self.tasks = [
@@ -243,6 +239,26 @@ class LanguageServer:
                 NMessageType.EXECUTION_SAVED,
                 ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
             )
+
+    @message_handler
+    async def execution_marked_dead(self, msg: NMessage[ExecutionMarkedDeadPayload]) -> None:
+        execution = await models.Execution.objects.filter(id=msg.p.execution_id).afirst()
+        if execution is None:
+            logger.warning(
+                "execution_marked_dead.not_found", msg=msg, execution_id=msg.p.execution_id
+            )
+            return
+        if execution.terminated_at is not None:
+            return
+        execution.status = models.ExecutionStatus.Aborted
+        execution.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        await execution.asave()
+        await publish(
+            NMessageType.EXECUTION_SAVED,
+            ExecutionSavedPayload(
+                module_id=msg.p.module_id, frames=[mapper.wmap_execution_frame(execution)]
+            ),
+        )
 
     @message_handler
     async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]) -> None:

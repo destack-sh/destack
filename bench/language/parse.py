@@ -1644,7 +1644,7 @@ def interp(
         # assemble required context by traversing the scope tree upwards
         current_scope = idx.scopes[id].parent
         # should also handle in-code imports of other files and modules here
-        code_references = parse_code_ext_references(symbol.code)
+        code_references = parse_code_ext_references(symbol.code or "pass")
         while current_scope is not None:
             for child in current_scope.proper_symbols:
                 if child.ident_name in code_references and child.name not in symbol.context:
