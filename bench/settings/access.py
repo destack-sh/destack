@@ -14,3 +14,5 @@ CORS_ALLOWED_ORIGINS: list[str] = get_list(os.getenv("CORS_ALLOWED_ORIGINS"))
 ACCESS_TOKEN_PREFIX = get_from_env("ACCESS_TOKEN_PREFIX", default="x-")
 ACCESS_TOKEN_DIGEST_LENGTH = int(get_from_env("ACCESS_TOKEN_DIGEST_LENGTH", default=128))
 ACCESS_TOKEN_KEY_LENGTH = int(get_from_env("ACCESS_TOKEN_KEY_LENGTH", default=6))
+
+ENCRYPT_BENCH_S3_BUCKETS = get_from_env("ENCRYPT_BENCH_S3_BUCKETS", default=False, type_cast=bool)

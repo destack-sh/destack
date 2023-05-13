@@ -316,6 +316,10 @@ class Statement(Generic[SymbolContentT]):
         return f"{self.file.module.name}.{self.file.path.replace('/', '.')}.{self.name}"
 
     @property
+    def ident(self) -> str:
+        return to_pyidentifier(self.name)
+
+    @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent else None
 
@@ -425,7 +429,7 @@ class InterpSymbol:
         return self.__class__(**kwargs)
 
     @property
-    def ident_name(self) -> str:
+    def ident(self) -> str:
         return to_pyidentifier(self.name)
 
     @property
@@ -894,14 +898,22 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
         return f"<XBlockContent {str(self)}>"
 
 
+@dataclass(slots=True)
+class CodeParse:
+    references: dict[str, "StatementPath"] = field(default_factory=dict)
+    is_async: bool = False
+    fake_line_numbers: list[int] = field(default_factory=list)
+
+
 @dataclass(repr=False)
 class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
     description: Optional[str] = None
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
     xblocks: Optional[list[XBlockContent]] = field(default_factory=list)
-    is_natively_async: bool = None
-    references: dict[str, Statement] = None
+    # parsed/resolved data
+    parse: Optional[CodeParse] = None
+    references: dict[str, Statement] = field(default_factory=dict)
 
     def __str__(self):
         return f"code={len(self.code)}"

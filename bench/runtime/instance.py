@@ -547,10 +547,10 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         raise ValueError(f"unexpected type node: {node}")
 
 
-def instantiate_type(type: Type, build: Build, session: Session) -> TypeInstance:
+def instantiate_type(type: Type, session: Session) -> TypeInstance:
     """Instrument and instantiate a type for use."""
     py_type = instantiate_py_type(type)
-    return TypeInstance(**type.__dict__, build=build, py_type=py_type, session=session)
+    return TypeInstance(**type.__dict__, py_type=py_type, session=session)
 
 
 def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
@@ -624,6 +624,13 @@ STATIC_BUILTINS = {
     "chain": itertools.chain,
 }
 
+DYNAMIC_BUILTINS = {
+    "session",
+    "context",
+    "_xblocks",
+    "random",
+}
+
 
 def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCodeInstance:
     """Instantiates code into a Python callable in the context of the session."""
@@ -634,7 +641,7 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
     }
     dynamic_context = {
         "session": session,
-        "context": {s.name: s for s in symbol_context.values()},  # by source name
+        "context": {symbol.name: symbol for symbol in symbol_context.values()},  # by name
         "_xblocks": code.xblocks,
         **symbol_context,  # inlined
         "random": Random(code.id.hex.encode()),
@@ -655,29 +662,35 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
         python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
         start_offset += 1
 
+    # stub fake lines
+    python_code_lines = python_code.splitlines()
+    for i in code.parse.fake_line_numbers:
+        python_code_lines[i] = "pass # " + python_code_lines[i]
+    python_code = "\n".join(python_code_lines)
+
     # create python function from python code
     input_keys = [i.name for i in code.inputs]
     func_name = f"{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
-    async_str = "async " if code.is_natively_async else ""
+    async_str = "async " if code.parse.is_async else ""
     func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
-    code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
     try:
-        callable = do_execute_arbitrary_code(code_str, locals)[func_name]
+        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
+        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
     except SyntaxError as e:
         # raise error in code when called for proper reporting
         raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {e.args[1][3]!r})"
         indented_raise = textwrap.indent(raise_str, " " * 4)
-        code_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
-        callable = do_execute_arbitrary_code(code_str, locals)[func_name]
+        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
+        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
 
     transform = CodeTransformation(
-        original_code=code,
-        transformed_code=code_str,
+        original_code=code.code,
+        transformed_code=method_str,
         start_offset=start_offset,
         method_name=func_name,
     )
-    code_cls = AsyncCodeInstance if code.is_natively_async else SyncCodeInstance
+    code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance
     return code_cls(
         **code.__dict__,
         transform=transform,

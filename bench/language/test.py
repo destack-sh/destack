@@ -171,7 +171,6 @@ from x.notion.sdk import Client as NotionClient
 from .x.cooking import Recipe, Ingredient, notion_recipes
 print(bananas)
 """,
-        local_module_path="flotothemoon.sandbox",
     )
     assert analysis.references == {
         "EntityType": StatementPath("symbolx.std.nlp", "EntityType"),

@@ -18,7 +18,7 @@ from django.db import transaction
 from bench import language, models
 from bench.language import wire
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
-from bench.language.parse import index_module
+from bench.language.parse import LookupBy, index_module
 from bench.language.type import StatementPath, StatementType, SymbolType
 from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
 from bench.models.project import Project, ProjectVersion
@@ -27,7 +27,7 @@ from bench.utils.fractional import generate_n_keys_between
 
 
 def lookup_in_db_module(
-    requirement: language.RequirementContent, path: StatementPath
+    requirement: language.RequirementContent, path: StatementPath, by: LookupBy
 ) -> language.Scope:
     """
     Lookup a module in the DB.
@@ -40,7 +40,7 @@ def lookup_in_db_module(
     wire_module: wire.ModuleData = read_module(version)
     module = wire.wmap_module(wire_module)
     idx = index_module(module)
-    return idx.get_scope(path)
+    return idx.get_scope(path, by=by)
 
 
 def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:

@@ -10,7 +10,7 @@ from more_itertools import first
 
 from bench import language
 from bench.language import wire
-from bench.language.parse import REFERENCE_REGEX, ErrorCollector, interp, resolve, sort
+from bench.language.parse import REFERENCE_REGEX, ErrorCollector, LookupBy, interp, resolve, sort
 from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import ModuleReference
 from bench.utils.func import wrap_task
@@ -120,7 +120,7 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
     def lookup(
-        requirement: language.RequirementContent, path: StatementPath | UUID
+        requirement: language.RequirementContent, path: StatementPath | UUID, by: LookupBy
     ) -> language.Scope | None:
         if isinstance(path, UUID):  # lookup in any dependency
             for idx in dependencies:
@@ -132,7 +132,7 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
             idx: language.ModuleIndex = dependencies_by_name.get(requirement.module_name)
             if not idx:
                 return None
-            return idx.get_scope(path)
+            return idx.get_scope(path, by=by)
 
     return lookup
 
