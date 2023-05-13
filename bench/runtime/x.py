@@ -26,6 +26,7 @@ from bench.runtime.inference import (
     Modality,
     TextGenerationSettings,
 )
+from bench.runtime.lsp import parse_code
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import get_method_source, to_pyidentifier
 
@@ -220,7 +221,8 @@ class XBuilder:
             xblocks=self.xblocks,
             language="x",
         )
-        code.context[self.model.ident_name] = self.model.definition
+        code.parse = parse_code(code.code)
+        code.context[self.model.ident] = self.model.definition
         return code
 
 

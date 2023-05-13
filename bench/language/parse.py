@@ -98,8 +98,13 @@ def lookup_in_error(*args, **kwargs):
     raise NotImplementedError("external module lookup disabled")
 
 
+class LookupBy(enum.StrEnum):
+    Name = "name"
+    PyIdent = "py_ident"
+
+
 LookupFunc = Callable[
-    [RequirementContent | None, StatementPath | UUID], typing.Union["Scope", None]
+    [RequirementContent | None, StatementPath | UUID, LookupBy], typing.Union["Scope", None]
 ]
 
 
@@ -1040,23 +1045,44 @@ class Scope:
     statement: Statement | None
     statements: OrderedDict[str, Statement] = field(default_factory=OrderedDict)
     symbols: OrderedDict[str, InterpSymbol] = field(default_factory=OrderedDict)
+    names_by_identifier: dict[str, str] = field(default_factory=dict)
 
     def __str__(self):
         return f"{self.name} ({'file' if self.statement is None else 'statement'})"
 
     def __repr__(self):
-        return f"<Scope {self.name}>"
+        return f"<Scope {self}>"
+
+    def add_statement(self, statement: Statement):
+        """Adds a statement to this scope (ignoring duplicates)."""
+        self.statements[statement.name] = statement
+        self.names_by_identifier[statement.ident] = statement.name
+
+    def add_symbol(self, symbol: SymbolT):
+        """Adds a symbol to this scope (ignoring duplicates)."""
+        self.symbols[symbol.name] = symbol
+        self.names_by_identifier[symbol.ident] = symbol.name
 
     @property
     def module_id(self):
         return self.file.module.id
 
-    def lookup_statement(self, name: str, exclude: Statement | None = None) -> Statement | None:
+    def lookup_statement(
+        self, name: str, by: LookupBy, exclude: Statement | None = None
+    ) -> Statement | None:
         """Lookup the statement recursively in this scope and its parents."""
-        if name in self.statements and self.statements[name] is not exclude:
-            return self.statements[name]
+        if by == LookupBy.Name:
+            if name in self.statements and self.statements[name] is not exclude:
+                return self.statements[name]
+        elif by == LookupBy.PyIdent:
+            if name in self.names_by_identifier:
+                name = self.names_by_identifier[name]
+                if name in self.statements and self.statements[name] is not exclude:
+                    return self.statements[name]
+        else:
+            raise ValueError(f"unexpected lookup type: {by}")
         if self.parent is not None:
-            return self.parent.lookup_statement(name, exclude=exclude)
+            return self.parent.lookup_statement(name, by=by, exclude=exclude)
         return None
 
     @property
@@ -1087,6 +1113,7 @@ class ModuleIndex:
     interpreted: bool = False
     scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
     scopes_by_name: OrderedDict[str, Scope] = field(default_factory=OrderedDict)
+    scopes_by_ident: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
     symbols: dict[UUID, InterpSymbol] = field(default_factory=OrderedDict)
 
     def __str__(self):
@@ -1109,7 +1136,7 @@ class ModuleIndex:
         if scope.statement is not None:
             self.statements[scope.statement.id] = scope.statement
 
-    def get_statement(self, path: StatementPath | str) -> Statement | None:
+    def get_statement(self, path: StatementPath | str, by: LookupBy) -> Statement | None:
         if isinstance(path, str):
             path = parse_statement_path(path)
         scope = self.scopes_by_name.get(path.path[1:])  # skip initial dot
@@ -1117,10 +1144,8 @@ class ModuleIndex:
             return None
         return scope.statements.get(path.name)
 
-    def get_scope(self, path: StatementPath | str) -> Scope | None:
-        if isinstance(path, str):
-            path = parse_statement_path(path)
-        statement = self.get_statement(path)
+    def get_scope(self, path: StatementPath | str, by: LookupBy) -> Scope | None:
+        statement = self.get_statement(path, by=by)
         if statement is None:
             return None
         return self.scopes.get(statement.id)
@@ -1211,7 +1236,7 @@ def sort(module: Module):
     for file in module.files:
         # per parent (incl. root = None) sort by order key
         sorted_statements = []
-        statements_by_parent_id = defaultdict(list)
+        statements_by_parent_id: dict[UUID | None, list[Statement]] = defaultdict(list)
         for statement in file.statements:
             statements_by_parent_id[statement.parent_id].append(statement)
 
@@ -1266,22 +1291,20 @@ def resolve(
     # (parse here because it's unclear where else to put code parsing in the pipeline,
     #  as other references are already 'pre-parsed' in preparse or when loaded from data)
     for statement in statements:
-        if isinstance(statement.content, CodeContent):
-            analysis = parse_code(statement.content.code, module.name)
-            if analysis is None:
-                continue  # parse error, ignore?
-            statement.content.is_natively_async = analysis.is_async
-            statement.content.references = {}
-            for key, reference in analysis.references.items():
+        code = statement.content
+        if isinstance(code, CodeContent):
+            code.parse = parse_code(code.code)
+            for key, reference in code.parse.references.items():
                 reference = resolve_statement_reference(
                     reference=reference,
                     idx=idx,
                     lookup_in_module=lookup_in_module,
                     for_statement=statement,
-                    on_error=ignore_error,
+                    on_error=on_error,  # not sure?
+                    by=LookupBy.PyIdent,
                 )
                 if reference is not None:
-                    statement.content.references[key] = reference
+                    code.references[key] = reference
 
     return idx
 
@@ -1321,45 +1344,32 @@ def resolve_statement_reference(
     for_statement: Statement,
     on_error: Callable[[SemanticError], None],
     symbol_type: SymbolType | None = None,
+    by: LookupBy = LookupBy.Name,
 ) -> Statement | None:
-    def _error(_t: ET, cause: Exception | None = None, **error_args):
+    def _error(_t: ET, cause: Exception | None = None, **error_args) -> None:
         on_error(SemanticError(_t, for_statement, cause, **error_args))
 
     if reference is None:
-        _error(ET.MISSING_REFERENCE)
-        return
-
-    if isinstance(reference, UUID):
+        return _error(ET.MISSING_REFERENCE)
+    elif isinstance(reference, UUID):
         # resolve by id
         resolved_scope = idx.scopes.get(reference)
         if resolved_scope is None:
-            resolved_scope = lookup_in_module(None, reference)
+            resolved_scope = lookup_in_module(None, reference, by)
         if resolved_scope is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
-            return
+            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
         idx.import_scope(resolved_scope)
-
-    # normalize path to resolve file-local references (with .)
-    # :StatementReferencePath
-    elif reference.path == ".":
-        # resolve relative to this statement
+    elif reference.path == ".":  # normalize relative :StatementReferencePath
         statement_scope = idx.scopes[for_statement.id]
-        resolved = statement_scope.lookup_statement(reference.name, exclude=for_statement)
+        resolved = statement_scope.lookup_statement(reference.name, exclude=for_statement, by=by)
         if resolved is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
-            return
+            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
         resolved_scope = idx.scopes[resolved.id]
-
-    elif reference.path.startswith("."):
-        # resolve by "absolute" path in local module
-        resolved_scope = idx.get_scope(reference)
+    elif reference.path.startswith("."):  # normalize local :StatementReferencePath
+        resolved_scope = idx.get_scope(reference, by=by)
         if resolved_scope is None:
-            _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
-            return
-
-    else:
-        # resolve by absolute path in external module
-
+            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
+    else:  # resolve by absolute path in external module
         # get source requirement for external module
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference.path)
         if source is None:  # (should be caught in parse)
@@ -1367,34 +1377,28 @@ def resolve_statement_reference(
         requirement_name = f"{source.group('module_owner')}.{source.group('module_name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
-            _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
-            return
-
+            return _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
         # localize path to required module
         localized_path = StatementPath("." + source.group("path"), reference.name)
         try:  # use module lookup to resolve
-            resolved_scope = lookup_in_module(requirement, localized_path)
+            resolved_scope = lookup_in_module(requirement, localized_path, by=by)
         except Exception as e:
-            _error(ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement)
-            return
+            return _error(
+                ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement
+            )
         if resolved_scope is None:
-            _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
-            return
-
+            return _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
         # import resolved scope (and contents) into index
         idx.import_scope(resolved_scope)
 
     # check if the reference has the correct type
     if symbol_type is not None and resolved_scope.statement.symbol_type != symbol_type:
-        _error(
+        return _error(
             ET.REFERENCE_TYPE_MISMATCH,
             type=symbol_type,
             resolved=resolved_scope.statement,
         )
-        return
-
-    # resolved successfully
-    return resolved_scope.statement
+    return resolved_scope.statement  # successfully resolved
 
 
 def index_module(
@@ -1480,7 +1484,7 @@ def index_module(
         statements.sort(key=lambda s: s.order_key)
         for statement in statements:
             scope = idx.scopes[statement.id]
-            scope.parent.statements[statement.name] = statement
+            scope.parent.add_statement(statement)
 
     # collect requirements
     for statement in idx.statements.values():
@@ -1591,7 +1595,7 @@ def interp(
             # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
             symbol = symbol_cls(**base_symbol.__dict__, **source_content.deepcopy().__dict__)  # type: ignore
 
-        scope.parent.symbols[symbol.name] = symbol
+        scope.parent.add_symbol(symbol)
         idx.symbols[statement.id] = symbol
 
     # set symbol reference and definition sites

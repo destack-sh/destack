@@ -1,18 +1,11 @@
 import ast
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bench.language.type import StatementPath
+    from bench.language.type import CodeParse
 
 
-@dataclass(slots=True)
-class ParsedCode:
-    references: dict[str, "StatementPath"]
-    is_async: bool
-
-
-def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
+def parse_code(code: str | None) -> "CodeParse":
     """
     Extracts references and other info for Bench from the Python code.
 
@@ -35,7 +28,11 @@ def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
     -> 'c' is an external reference to ("x.flotothemoon.test.a", "b")
     -> 'apple' is an external reference to ("<module>.local", "apple").
     """
-    from bench.language.type import StatementPath
+    from bench.language.type import CodeParse, StatementPath
+    from bench.runtime.instance import DYNAMIC_BUILTINS, STATIC_BUILTINS
+
+    if code is None:
+        return CodeParse()
 
     # TODO @Architecture @Cleanup: robustify code parsing and also use for LSP stuff
 
@@ -46,6 +43,7 @@ def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
             self.imports = set()
             self.is_async = False
             self.codelines = code.splitlines()
+            self.x_import_lines: list[int] = []
 
         def visit_Import(self, node):
             for alias in node.names:
@@ -60,8 +58,10 @@ def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
                 module = sourceline[node.col_offset : node.end_col_offset].split(" ")[1]
                 if module.startswith("x."):
                     reference = module.split(".", maxsplit=1)[1]
+                    self.x_import_lines.append(node.lineno - 1)
                 elif module.startswith(".x."):
                     reference = "." + module.split(".", maxsplit=2)[2]
+                    self.x_import_lines.append(node.lineno - 1)
                 else:
                     reference = None
                 if reference is not None:
@@ -96,6 +96,8 @@ def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
                 node.id not in self.local_variables
                 and node.id not in self.imports
                 and node.id not in PYTHON_BUILTINS
+                and node.id not in STATIC_BUILTINS
+                and node.id not in DYNAMIC_BUILTINS
             ):
                 self.references[node.id] = StatementPath(".", node.id)
             self.generic_visit(node)
@@ -127,11 +129,15 @@ def parse_code(code: str, local_module_path: str = None) -> ParsedCode | None:
         extractor = ReferenceExtractor()
         extractor.visit(tree)
     except SyntaxError:
-        return None
+        return CodeParse()
 
     # remove references to builtins
 
-    return ParsedCode(references=extractor.references, is_async=extractor.is_async)
+    return CodeParse(
+        references=extractor.references,
+        is_async=extractor.is_async,
+        fake_line_numbers=extractor.x_import_lines,
+    )
 
 
 PYTHON_BUILTINS = {

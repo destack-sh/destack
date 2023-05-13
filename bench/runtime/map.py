@@ -20,47 +20,19 @@ from bench.utils.fractional import generate_n_keys_between
 logger = structlog.get_logger(__name__)
 
 
-def map_to_file(
-    symbols: list[InterpSymbol],
-    weak_references: list[InterpSymbol] | None = None,
-    file: File | None = None,
-) -> File:
+def map_to_file(symbols: list[InterpSymbol], file: File | None = None) -> File:
     """Map high-level interpreted symbols back to lower level statements."""
-    weak_references = weak_references or []
     if file is None:
         file = File(module=Module(name="<generated>"), path="<generated>")
         start_ok = None
     else:
         start_ok = max((s.order_key for s in file.statements if s.parent is None), default=None)
-
-    order_keys = generate_n_keys_between(start_ok, None, len(weak_references) + len(symbols))
-
-    # render weak references :WeakReferences
-    for order_key, symbol in zip(order_keys, weak_references):
-        if symbol.source is None:
-            raise RuntimeError(f"weak reference {symbol} has no source")
-        statement = Statement(
-            type=StatementType.IMPORT,
-            symbol_type=symbol.symbol_type,
-            modifier=symbol.modifier,
-            name=symbol.name,
-            # point directly to underling definition, won't work with :Variables
-            reference=symbol.source.underlying_definition,
-            content=None,
-            file=file,
-            parent=None,
-            order_key=order_key,
-            generated=True,
-        )
-        file.statements.append(statement)
-
-    # render symbols themselves
-    for order_key, symbol in zip(order_keys[len(weak_references) :], symbols):
+    order_keys = generate_n_keys_between(start_ok, None, len(symbols))
+    for order_key, symbol in zip(order_keys, symbols):
         statement = map_to_statement(file, symbol, order_key)
         children = _map_statement_children(symbol, statement)
         file.statements.append(statement)
         file.statements.extend(children)
-
     return file
 
 
@@ -174,5 +146,4 @@ def map_build_content(build: Build) -> BuildContent:
         comment=build.comment,
         generated_mappings=build.generated_mappings,
         settings=build.settings,
-        evaluate_settings=build.evaluate_settings,  # :BuildEvaluationSettings
     )

@@ -379,7 +379,7 @@ export function useSymbolOps() {
       notifications.show({
         type: "run.fail",
         kind: "error",
-        message: "Run failed",
+        message: "Unable to cancel",
         description: `Failed to cancel run`,
       });
     }

@@ -790,7 +790,7 @@ class LanguageWorker:
         if created:
             # gpt4 = self.interp.symbol("openai.std.text.gpt-4")
             default_builds = get_default_builds(self.interp)
-            autobuild_file = map_to_file(default_builds, [], autobuild_file)
+            autobuild_file = map_to_file(default_builds, autobuild_file)
             await self.write_module(self.mutate().create(wire.rmap_file(autobuild_file)))
 
     async def run(self) -> None:
