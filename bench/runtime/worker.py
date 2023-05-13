@@ -232,6 +232,7 @@ class ModuleWorker:
             if job.id == execution_id:
                 job.cancelled = True
         # mark it as dead for everyone
+        # (just in case it's still bugging around in some frontend)
         await publish(
             NMessageType.EXECUTION_MARKED_DEAD,
             ExecutionMarkedDeadPayload(self.module_id, execution_id),

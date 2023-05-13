@@ -7,7 +7,6 @@ import enum
 import itertools
 import textwrap
 import typing
-from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import datetime
 from random import Random
@@ -400,7 +399,6 @@ class CodeInstance(SymbolInstance, Code):
     task: Optional[TaskInstance] = None
     transform: Optional[CodeTransformation] = None
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
-    is_async: bool = required_field()
     tracer: Tracer = required_field()
 
 
@@ -478,9 +476,8 @@ class RemoteObjectInstance(RemoteObject):
                     raise ValueError(f"unable to download {self}")
                 return await response.read()
 
-    def read(self):
-        # TODO @Broken: fix sync/async run code intermingling
-        return asyncio.get_event_loop().run_until_complete(self.aread())
+    def read(self, timeout: float = 3):
+        return asyncio.run(self.aread(timeout))
 
     def readtext(self):
         return self.read().decode()
@@ -628,43 +625,28 @@ STATIC_BUILTINS = {
 }
 
 
-def instantiate_code(
-    code: Code,
-    context: dict[str, InterpSymbol],
-    session: Session,
-) -> SyncCodeInstance | AsyncCodeInstance:
-    """
-    Instantiates code into a Python callable in the context.
-    If the code is a dynamic prompt (BPL), the callable will be wrapped and use the session for contexts.
-    """
-    # inline all possible context variables
-    source_context = (
-        {
-            "__statement__": code.source,
-            "__file__": code.source.file,
-            "__module__": code.source.file.module,
-        }
-        if code.source
-        else {}
-    )
+def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCodeInstance:
+    """Instantiates code into a Python callable in the context of the session."""
+
+    # instantiate context (preserving scoping)
+    symbol_context: dict[str, InterpSymbol] = {
+        name: instantiate(child, session=session) for name, child in code.context.items()
+    }
     dynamic_context = {
         "session": session,
-        "context": {s.name: s for s in context.values()},
+        "context": {s.name: s for s in symbol_context.values()},  # by source name
         "_xblocks": code.xblocks,
-        **context,
+        **symbol_context,  # inlined
         "random": Random(code.id.hex.encode()),
-        **source_context,
     }
 
     start_offset = 1  # for method signature
     if code.language == "python":
         python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
-        is_async = "await " in python_code  # TODO @Robustness: detect async python code properly
     elif code.language == "x":
         python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **X_BUILTINS, **dynamic_context}
-        is_async = True
     else:
         raise ValueError(f"unknown code language: {code}")
 
@@ -676,7 +658,7 @@ def instantiate_code(
     # create python function from python code
     input_keys = [i.name for i in code.inputs]
     func_name = f"{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
-    async_str = "async " if is_async else ""
+    async_str = "async " if code.is_natively_async else ""
     func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
     code_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
@@ -695,18 +677,18 @@ def instantiate_code(
         start_offset=start_offset,
         method_name=func_name,
     )
-    code_cls = AsyncCodeInstance if is_async else SyncCodeInstance
+    code_cls = AsyncCodeInstance if code.is_natively_async else SyncCodeInstance
     return code_cls(
         **code.__dict__,
         transform=transform,
         code_callable=callable,
-        is_async=is_async,
         tracer=session.tracer,
         session=session,
     )
 
 
 def instantiate_model(model: Model, session: Session) -> ModelInstance:
+    """Instantiates the model inference endpoints for the session."""
     inference = ModelInference()
     endpoints = list(get_endpoints(model))
     if not endpoints:
@@ -735,17 +717,7 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
     if isinstance(symbol, Task):
         return TaskInstance(**symbol.__dict__, session=session)
     elif isinstance(symbol, Code):
-        # instantiate context (preserving order)
-        instantiated_context = OrderedDict()
-        for name, value in symbol.context.items():
-            if symbol is value:
-                # self-reference is not supported for now
-                # mainly because it would require either
-                #  1) allowing invalid/mock initial instance state (and populate that later)
-                #  2) tracking and somehow swapping the reference after it is actually created
-                continue
-            instantiated_context[name] = instantiate(value, session=session)
-        return instantiate_code(symbol, instantiated_context, session)
+        return instantiate_code(symbol, session)
     elif isinstance(symbol, Model):
         return instantiate_model(symbol, session)
     elif isinstance(symbol, Dataset):

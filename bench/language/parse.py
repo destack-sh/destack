@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 import csv
 import enum
 import json
@@ -52,6 +51,7 @@ from bench.language.type import (
     TypeTag,
     parse_statement_path,
 )
+from bench.runtime.lsp import parse_code
 from bench.utils.fractional import (
     INTEGER_ZERO,
     generate_key_between,
@@ -1262,6 +1262,27 @@ def resolve(
                 statement, statement.content, lookup_in_module, idx, on_error
             )
 
+    # parse and resolve code references
+    # (parse here because it's unclear where else to put code parsing in the pipeline,
+    #  as other references are already 'pre-parsed' in preparse or when loaded from data)
+    for statement in statements:
+        if isinstance(statement.content, CodeContent):
+            analysis = parse_code(statement.content.code, module.name)
+            if analysis is None:
+                continue  # parse error, ignore?
+            statement.content.is_natively_async = analysis.is_async
+            statement.content.references = {}
+            for key, reference in analysis.references.items():
+                reference = resolve_statement_reference(
+                    reference=reference,
+                    idx=idx,
+                    lookup_in_module=lookup_in_module,
+                    for_statement=statement,
+                    on_error=ignore_error,
+                )
+                if reference is not None:
+                    statement.content.references[key] = reference
+
     return idx
 
 
@@ -1298,8 +1319,8 @@ def resolve_statement_reference(
     idx: ModuleIndex,
     lookup_in_module: LookupFunc,
     for_statement: Statement,
-    symbol_type: SymbolType,
     on_error: Callable[[SemanticError], None],
+    symbol_type: SymbolType | None = None,
 ) -> Statement | None:
     def _error(_t: ET, cause: Exception | None = None, **error_args):
         on_error(SemanticError(_t, for_statement, cause, **error_args))
@@ -1364,7 +1385,7 @@ def resolve_statement_reference(
         idx.import_scope(resolved_scope)
 
     # check if the reference has the correct type
-    if resolved_scope.statement.symbol_type != symbol_type:
+    if symbol_type is not None and resolved_scope.statement.symbol_type != symbol_type:
         _error(
             ET.REFERENCE_TYPE_MISMATCH,
             type=symbol_type,
@@ -1529,7 +1550,7 @@ def interp(
             continue
         statement = scope.statement
 
-        # TODO @Incomplete: implement abstraction/variable templating :Variables
+        # TODO @Feature: implement abstraction/variable templating :Variables
         abstract = False
         if scope.parameters or scope.arguments:
             _error(ET.UNEXPECTED_PARAMETERS, statement)
@@ -1599,7 +1620,7 @@ def interp(
             interp_type_node_rec(scope.statement.content, idx)
 
     # interp symbol contents using related symbols
-    # this should probably set/work with :InstructionOps
+    # this should probably set/work with :InstructionOps?
     for id, symbol in idx.symbols.items():
         statement = idx.statements[id]
         if statement.type == StatementType.DEFINITION:
@@ -1617,6 +1638,10 @@ def interp(
                     symbol.expectations.append(child)
                 elif isinstance(child, (Task, Code)):
                     symbol.steps.append(child)
+        elif isinstance(symbol, Code):
+            # replace code references with symbols
+            for key, reference in symbol.references.items():
+                symbol.context[key] = idx.symbols[reference.id]
         elif isinstance(symbol, Expectation):
             for child in scope.proper_symbols:
                 if child.source.is_expect:
@@ -1637,82 +1662,8 @@ def interp(
                     ):
                         symbol.tasks.append(task)
 
-    # add symbol context to code
-    for id, symbol in idx.symbols.items():
-        if not isinstance(symbol, Code):
-            continue
-        # assemble required context by traversing the scope tree upwards
-        current_scope = idx.scopes[id].parent
-        # should also handle in-code imports of other files and modules here
-        code_references = parse_code_ext_references(symbol.code or "pass")
-        while current_scope is not None:
-            for child in current_scope.proper_symbols:
-                if child.ident_name in code_references and child.name not in symbol.context:
-                    symbol.context[child.ident_name] = child
-            current_scope = current_scope.parent
-
     idx.interpreted = True
     return idx
-
-
-def parse_code_ext_references(code: str) -> list[str]:
-    """Extracts the references made to external symbols in the given code."""
-
-    # TODO @Architecture @Cleanup: robustify code parsing and also use for LSP stuff
-
-    class ReferenceExtractor(ast.NodeVisitor):
-        def __init__(self):
-            self.references = set()
-            self.local_variables = set()
-            self.imports = set()
-
-        def visit_Import(self, node):
-            for alias in node.names:
-                self.imports.add(alias.name.split(".")[0])
-            self.generic_visit(node)
-
-        def visit_ImportFrom(self, node):
-            for alias in node.names:
-                self.imports.add(alias.name)
-            self.generic_visit(node)
-
-        def visit_FunctionDef(self, node):
-            self.local_variables.add(node.name)
-            self.generic_visit(node)
-
-        def visit_AsyncFunctionDef(self, node):
-            self.local_variables.add(node.name)
-            self.generic_visit(node)
-
-        def visit_Assign(self, node):
-            if isinstance(node.targets[0], ast.Name):
-                self.local_variables.add(node.targets[0].id)
-            self.generic_visit(node)
-
-        def visit_Name(self, node):
-            if node.id not in self.local_variables and node.id not in self.imports:
-                self.references.add(node.id)
-            self.generic_visit(node)
-
-        def visit_For(self, node):
-            if isinstance(node.target, ast.Name):
-                self.local_variables.add(node.target.id)
-            self.generic_visit(node)
-
-        def visit_With(self, node):
-            for item in node.items:
-                if isinstance(item.optional_vars, ast.Name):
-                    self.local_variables.add(item.optional_vars.id)
-            self.generic_visit(node)
-
-    try:
-        tree = ast.parse(code)
-        extractor = ReferenceExtractor()
-        extractor.visit(tree)
-    except SyntaxError:
-        return []  # ignore here
-
-    return list(extractor.references)
 
 
 def get_reference_as_path(

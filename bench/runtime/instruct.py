@@ -220,7 +220,7 @@ def map_instruction(
                 type_node = type_node.reference
             _map_child(type_node)
 
-    # context symbols
+    # context
     if isinstance(node, Code):
         for context_symbol in node.context.values():
             _map_child(context_symbol)

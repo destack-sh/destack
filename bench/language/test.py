@@ -9,15 +9,9 @@ import pytest
 
 from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import (
-    ErrorType,
-    ParseError,
-    SemanticError,
-    parse_code_ext_references,
-    parse_string,
-)
+from bench.language.parse import ErrorType, ParseError, SemanticError, parse_code, parse_string
 from bench.language.reconstruct import render
-from bench.language.type import Code, Task, Type
+from bench.language.type import Code, StatementPath, Task, Type
 
 # all  files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -140,24 +134,51 @@ task test :: (a: string, b: string "input 1") -> (x: string "output 1", y: strin
 
 
 def test_extract_code_references():
-    refs = parse_code_ext_references(
+    analysis = parse_code(
         """
 import asyncio
 await asyncio.sleep("ban")
 for doc in some_documents:
     doc["name"] = doc.file.name
-    doc["title"] = doc.file.name # should error on set
+    doc["title"] = doc.file.name
     """
     )
-    assert refs == ["some_documents"]
+    assert analysis.references == {
+        "some_documents": StatementPath(".", "some_documents"),
+    }
+    assert analysis.is_async
 
 
 def test_extract_code_references_shadowed():
-    refs = parse_code_ext_references(
+    analysis = parse_code(
         """
+import numpy as np
+import pandas
 some_documents = []
-for doc in some_documents:
+for doc in iter(some_documents):
     pass
     """
     )
-    assert refs == []
+    assert len(analysis.references) == 0
+    assert not analysis.is_async
+
+
+def test_extract_code_references_imported():
+    analysis = parse_code(
+        """
+from x.symbolx.std.nlp import EntityType
+from x.notion.sdk import Client as NotionClient
+from .x.cooking import Recipe, Ingredient, notion_recipes
+print(bananas)
+""",
+        local_module_path="flotothemoon.sandbox",
+    )
+    assert analysis.references == {
+        "EntityType": StatementPath("symbolx.std.nlp", "EntityType"),
+        "NotionClient": StatementPath("notion.sdk", "Client"),
+        "Recipe": StatementPath(".cooking", "Recipe"),
+        "Ingredient": StatementPath(".cooking", "Ingredient"),
+        "notion_recipes": StatementPath(".cooking", "notion_recipes"),
+        "bananas": StatementPath(".", "bananas"),
+    }
+    assert not analysis.is_async

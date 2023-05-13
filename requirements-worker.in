@@ -8,6 +8,7 @@
 # shared with main
 aiohttp==3.8.3
 anthropic==0.2.5
+asgiref==3.6.0
 cachetools==5.2.0
 more-itertools==9.0.0
 numpy==1.24.3
@@ -16,4 +17,4 @@ pandas==2.0.1
 # worker specific
 langchain==0.0.166
 textract==1.6.5
-unstructured==0.6.5
+unstructured==0.6.5#
