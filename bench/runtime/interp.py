@@ -145,15 +145,13 @@ def interp_module(
     module = wire.wmap_module(source)
     collector = ErrorCollector()
     sort(module)  # for nicer debugging and automatically sorted module index
-    module_idx = resolve(
-        module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector
-    )
-    interp(module_idx, on_error=collector)
+    idx = resolve(module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector)
+    interp(idx, on_error=collector)
     errors = [e.to_error() for e in collector.errors]
-    logger.debug("module.interp.done", module=module_idx)
+    logger.debug("module.interp.done", module=idx)
 
     return InterpModule(
-        module_idx=module_idx, errors=errors, dependencies=dependencies, committed=source.committed
+        module_idx=idx, errors=errors, dependencies=dependencies, committed=source.committed
     )
 
 

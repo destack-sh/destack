@@ -80,7 +80,7 @@ const extraActions = computed(() => {
       icon: NoSymbolIcon,
       action: async () => {
         // TODO @Feature: clear execution for real?
-        hideOutput.value = true;
+        hideOutput.value = !hideOutput.value;
       },
     });
   }

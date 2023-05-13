@@ -10,16 +10,7 @@ import typing
 import uuid
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import (
-    Any,
-    Generic,
-    Literal,
-    NamedTuple,
-    Optional,
-    OrderedDict,
-    TypeVar,
-    Union,
-)
+from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 from uuid import UUID
 
 import PIL.Image
@@ -909,6 +900,8 @@ class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
     xblocks: Optional[list[XBlockContent]] = field(default_factory=list)
+    is_natively_async: bool = None
+    references: dict[str, Statement] = None
 
     def __str__(self):
         return f"code={len(self.code)}"
@@ -917,7 +910,11 @@ class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
     type: Type = required_field()
-    context: OrderedDict[str, "InterpSymbol"] = field(default_factory=OrderedDict)
+    context: dict[str, InterpSymbol] = field(default_factory=dict)
+
+    @property
+    def is_inlinable(self) -> bool:
+        return len(self.inputs) == 0
 
 
 @dataclass(repr=False)
