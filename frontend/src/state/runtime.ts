@@ -374,16 +374,7 @@ export function useSymbolOps() {
   }
 
   async function cancel(executionId: string) {
-    const ret = await ops.runtime.cancel(executionId);
-    if (ret?.data?.cancelRun.__typename != "CancelRunPayload" || !ret.data.cancelRun.success) {
-      notifications.show({
-        type: "run.fail",
-        kind: "error",
-        message: "Unable to cancel",
-        description: `Failed to cancel run`,
-      });
-    }
-    return ret;
+    return await ops.runtime.cancel(executionId);
   }
 
   return { run, cancel };

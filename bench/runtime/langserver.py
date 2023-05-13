@@ -221,6 +221,7 @@ class LanguageServer:
                 get_urls.append(None)
             else:
                 get_urls.append(model_obj.presigned_get)
+        logger.debug("object.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
         await msg.reply(RepReadObjectPayload(get_urls=get_urls))
 
     @message_handler
