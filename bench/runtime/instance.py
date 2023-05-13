@@ -7,6 +7,7 @@ import enum
 import itertools
 import textwrap
 import typing
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from random import Random
@@ -16,6 +17,7 @@ from uuid import UUID, uuid4
 import aiohttp
 import numpy
 import structlog
+from asgiref.sync import async_to_sync, sync_to_async
 from more_itertools import first, last
 
 from bench.language import (
@@ -91,6 +93,7 @@ class Session:
         inference_retries: int = 3,
         mode: SessionMode = SessionMode.READ_ONLY,
         write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
+        executor: ThreadPoolExecutor = None,
     ):
         if mode != SessionMode.READ_ONLY and write is None:
             raise ValueError("write must be provided for non-readonly sessions")
@@ -107,6 +110,7 @@ class Session:
         self.inference_retries = inference_retries
         self.mode = mode
         self.write = write
+        self.executor = executor or ThreadPoolExecutor(max_workers=1)
 
         self.mutator = ModuleMutator(idx)
         self.opened_at: Optional[datetime] = None
@@ -255,15 +259,6 @@ class SymbolInstance:
 
 
 @dataclass(repr=False)
-class TaskInstance(SymbolInstance, Task):
-    is_async = True
-
-    async def __call__(self, *args, build: Build | str = None, model: Model | str = None, **kwargs):
-        implementation = await self.session.get_implementation(self, build=build, model=model)
-        return await implementation(*args, **kwargs)
-
-
-@dataclass(repr=False)
 class TypeInstance(SymbolInstance, Type):
     py_type: Any = required_field()
 
@@ -387,6 +382,26 @@ class ModelInstance(SymbolInstance, Model):
 
 
 @dataclass(repr=False)
+class TaskInstance(SymbolInstance, Task):
+    is_async = True
+
+    async def __call__(self, *args, build: Build | str = None, model: Model | str = None, **kwargs):
+        implementation = await self.session.get_implementation(self, build=build, model=model)
+        return await implementation(*args, **kwargs)
+
+    def to_sync(self) -> "SyncTaskInstance":
+        return SyncTaskInstance(**dict_minus(self.__dict__, ["is_async"]))
+
+
+@dataclass(repr=False)
+class SyncTaskInstance(TaskInstance):
+    is_async = False
+
+    def __call__(self, *args, build: Build | str = None, model: Model | str = None, **kwargs):
+        return async_to_sync(super().__call__)(*args, build=build, model=model, **kwargs)
+
+
+@dataclass(repr=False)
 class CodeTransformation:
     original_code: str
     transformed_code: str
@@ -402,6 +417,7 @@ class CodeInstance(SymbolInstance, Code):
     tracer: Tracer = required_field()
 
 
+@dataclass(repr=False)
 class AsyncCodeInstance(CodeInstance):
     is_async = True
 
@@ -419,7 +435,14 @@ class AsyncCodeInstance(CodeInstance):
             log.debug("code.exception", excinfo=True)
             raise
 
+    def to_sync(self) -> "SyncCodeInstance":
+        return SyncCodeInstance(
+            **dict_minus(self.__dict__, "code_callable"),
+            code_callable=async_to_sync(self.code_callable),
+        )
 
+
+@dataclass(repr=False)
 class SyncCodeInstance(CodeInstance):
     is_async = False
 
@@ -437,9 +460,18 @@ class SyncCodeInstance(CodeInstance):
             log.debug("code.exception", excinfo=True)
             raise
 
+    def to_async(self) -> "AsyncCodeInstance":
+        return AsyncCodeInstance(
+            **dict_minus(self.__dict__, "code_callable"),
+            code_callable=sync_to_async(
+                self.code_callable, thread_sensitive=False, executor=self.session.executor
+            ),
+        )
+
 
 SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TaskInstance: SymbolType.TASK,
+    SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
     DatasetInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
@@ -456,7 +488,8 @@ class RemoteObjectInstance(RemoteObject):
     def __getitem__(self, item):
         return self.to_dict()[item]
 
-    async def aread(self, timeout: float = 3):
+    async def aread(self, timeout: float = 1) -> bytes:
+        """Read the object from the remote storage."""
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         # get GET url to access file
@@ -476,13 +509,20 @@ class RemoteObjectInstance(RemoteObject):
                     raise ValueError(f"unable to download {self}")
                 return await response.read()
 
-    def read(self, timeout: float = 3):
-        return asyncio.run(self.aread(timeout))
+    async def areadtext(self) -> str:
+        return (await self.aread()).decode()
 
-    def readtext(self):
+    async def areadlines(self) -> list[str]:
+        return (await self.aread()).decode().splitlines()
+
+    def read(self, timeout: float = 1) -> bytes:
+        """Read the object from the remote storage."""
+        return async_to_sync(self.aread)(timeout=timeout)
+
+    def readtext(self) -> str:
         return self.read().decode()
 
-    def readlines(self):
+    def readlines(self) -> list[str]:
         return self.read().decode().splitlines()
 
     @staticmethod
@@ -639,6 +679,13 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
     symbol_context: dict[str, InterpSymbol] = {
         name: instantiate(child, session=session) for name, child in code.context.items()
     }
+
+    if not code.parse.is_async:
+        # replace any async functions with sync versions
+        for key, symbol in symbol_context.items():
+            if isinstance(symbol, (CodeInstance, TaskInstance)) and symbol.is_async:
+                symbol_context[key] = symbol.to_sync()
+
     dynamic_context = {
         "session": session,
         "context": {symbol.name: symbol for symbol in symbol_context.values()},  # by name

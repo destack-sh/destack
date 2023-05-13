@@ -1,4 +1,5 @@
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any, Optional
 from uuid import UUID
@@ -93,6 +94,7 @@ class ModuleWorker:
         self.interp: InterpModule | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
 
     @property
@@ -161,6 +163,7 @@ class ModuleWorker:
                 mode=SessionMode.WRITE_GLOBAL,
                 write=self.do_write,
                 default_build=default_build,
+                executor=self.executor,
             )
             runnable_instance = instantiate(runnable, session=session)
             if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):

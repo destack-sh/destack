@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import enum
 import traceback
 import typing
@@ -86,10 +85,9 @@ async def run(
         await code.session.prepare()
         code.session.open()
         with tracer_boundary():
-            if code.is_async:
-                ret = await code(**arguments)
-            else:
-                ret = await asyncio.to_thread(code, **arguments)
+            if not code.is_async:
+                code = code.to_async()
+            ret = await code(**arguments)
         await code.session.aclose()
         return ret
     except Exception as e:

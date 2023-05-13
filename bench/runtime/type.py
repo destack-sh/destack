@@ -146,7 +146,7 @@ class PyFrameData:
                     frame.lineno = frame.lineno - transform.start_offset
                     frame.locals = frame.locals or {}
                     for ident, var in code.context.items():
-                        if ident not in frame.locals:
+                        if ident not in frame.locals and var.id in session.instances:
                             frame.locals[ident] = repr(session.instances[var.id])
             if found_start:
                 # trim file path for python modules
