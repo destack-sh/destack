@@ -11,25 +11,16 @@ import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
+import { getClientColor, useCurrentClients } from "@/state/client";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { useCurrentEvaluations } from "@/state/evaluations";
-import { FileHeaderType, SimpleTypeNodeType, StatementContentType } from "@/state/fragments";
-import { isSymbolStale, localErrorsOf, symbolOf, useSymbolOps } from "@/state/runtime";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
-import { DocumentDuplicateIcon, PlayIcon, PlusIcon, SparklesIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, SparklesIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import {
-  computed,
-  nextTick,
-  provide,
-  ref,
-  watch,
-  onBeforeUnmount,
-  type Component,
-  type ComputedRef,
-  type Ref,
-} from "vue";
+import { computed, nextTick, onBeforeUnmount, provide, ref, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -379,6 +370,13 @@ if (editor.inlineMetrics) {
 } else {
   metricSets = ref<MetricSet[] | null>(null);
 }
+
+// connected clients / multiplayer
+// TODO @Performance: don't update & render clients per statement (ideally per file?)
+const clients = useCurrentClients();
+const filteredClients = computed(() =>
+  clients.activeClientsWithoutSelf.value.filter((c) => c.statement?.id == statement.value.id)
+);
 </script>
 <template>
   <!-- Statement wrapper -->
@@ -403,20 +401,8 @@ if (editor.inlineMetrics) {
         width: `calc(100% - ${highlightOffsetX}px)`,
       }"
     >
-      <!-- Add statement below button -->
-      <!-- z-[5] to put it over the line numbers, which have a fixed width to make positioning easier (don't expect >99 statements/file) -->
-      <button
-        v-if="!context.readonly"
-        class="absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-        :class="isFocused ? 'opacity-100' : 'opacity-0'"
-        :style="{
-          transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
-        }"
-        @click="insertStatementBelow"
-      >
-        <PlusIcon class="h-4 w-4" />
-      </button>
-      <!-- Monaco-like line numbers on the left margin -->
+      <!-- Left gutter -->
+      <!-- Monaco-like line number (also drag handle) -->
       <span
         class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-150"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
@@ -439,20 +425,31 @@ if (editor.inlineMetrics) {
       >
         {{ lineNumberBase + 1 }}
       </span>
-      <!-- Left gutter indicators (beneath line numbers) -->
-      <div
-        v-if="statement.generated"
-        class="absolute top-[28px] select-none"
-        :style="{ transform: 'translateX(' + -19 + 'px)' }"
+      <!-- Add statement below button -->
+      <!-- z-[5] to put it over the line numbers, which have a fixed width to make positioning easier (don't expect >99 statements/file) -->
+      <button
+        v-if="!context.readonly"
+        class="absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+        :class="isFocused ? 'opacity-100' : 'opacity-0'"
+        :style="{
+          transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
+        }"
+        @click="insertStatementBelow"
       >
-        <SparklesIcon
-          class="h-4 w-4"
-          :class="{
-            'text-gray-200 group-focus-within/statement:text-gray-500 group-hover/statement:text-gray-500': isStale,
-            'text-orange-200 group-focus-within/statement:text-orange-500 group-hover/statement:text-orange-500':
-              !isStale,
+        <PlusIcon class="h-4 w-4" />
+      </button>
+      <!-- Other connected clients -->
+      <div class="absolute -left-16 top-[3px] z-10 flex flex-row gap-0.5 text-xs">
+        <div
+          v-for="client in filteredClients"
+          :key="client.id"
+          class="rounded-sm px-1 py-0.5 text-gray-700"
+          :style="{
+            backgroundColor: getClientColor(client.id),
           }"
-        />
+        >
+          {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+        </div>
       </div>
       <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
@@ -544,9 +541,8 @@ if (editor.inlineMetrics) {
           >
             <XCircleIcon class="h-5 w-5" />
           </button>
-          <!-- Warnings -->
+          <!-- Warnings (don't exist yet) -->
         </div>
-        <!-- don't exist yet -->
       </div>
     </div>
     <!-- Debug info -->
