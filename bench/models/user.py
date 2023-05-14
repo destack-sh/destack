@@ -1,5 +1,7 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
+from uuid import UUID
 
 import pytz
 from django.contrib.auth.base_user import BaseUserManager
@@ -197,6 +199,65 @@ class Client(UUIDModel):
         return f"<Client {self}>"
 
     objects = ClientManager()
+
+
+@dataclass(repr=False, slots=True)  # not sure where to put this?
+class ClientData:
+    id: UUID
+    created_at: datetime
+    last_seen_at: datetime
+    closed_at: Optional[datetime]
+    user_id: UUID
+    type: ClientType
+    device_name: Optional[str]
+    browser_name: Optional[str]
+    project_id: Optional[UUID]
+    project_version_id: Optional[UUID]
+    file_id: Optional[UUID]
+    statement_id: Optional[UUID]
+    type_node_id: Optional[UUID]
+    record_id: Optional[UUID]
+    path: Optional[str]
+
+
+def rmap_client(client: Client) -> ClientData:
+    return ClientData(
+        id=client.id,
+        created_at=client.created_at,
+        last_seen_at=client.last_seen_at,
+        closed_at=client.closed_at,
+        user_id=client.user_id,
+        type=client.type,
+        device_name=client.device_name,
+        browser_name=client.browser_name,
+        project_id=client.project_id,
+        project_version_id=client.project_version_id,
+        file_id=client.file_id,
+        statement_id=client.statement_id,
+        type_node_id=client.type_node_id,
+        record_id=client.record_id,
+        path=client.path,
+    )
+
+
+def wmap_client(client_data: ClientData) -> Client:
+    return Client(
+        id=client_data.id,
+        created_at=client_data.created_at,
+        last_seen_at=client_data.last_seen_at,
+        closed_at=client_data.closed_at,
+        user_id=client_data.user_id,
+        type=client_data.type,
+        device_name=client_data.device_name,
+        browser_name=client_data.browser_name,
+        project_id=client_data.project_id,
+        project_version_id=client_data.project_version_id,
+        file_id=client_data.file_id,
+        statement_id=client_data.statement_id,
+        type_node_id=client_data.type_node_id,
+        record_id=client_data.record_id,
+        path=client_data.path,
+    )
 
 
 class Lock(UUIDModel):

@@ -21,7 +21,12 @@ from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_c
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.util import asafe_subscription, safe_mutation, to_uuid
-from bench.models.user import CLIENT_ACTIVE_TIMEOUT_SECONDS, CLIENT_PRESENT_TIMEOUT_SECONDS
+from bench.models.user import (
+    CLIENT_ACTIVE_TIMEOUT_SECONDS,
+    CLIENT_PRESENT_TIMEOUT_SECONDS,
+    rmap_client,
+    wmap_client,
+)
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, publish_soon, subscribe
 from bench.msg.messages import ClientChangedPayload, ClientOrigin
@@ -301,7 +306,10 @@ def _publish_client_changed(client: models.Client, info: Info):
     #  (and status changes should contain the entire data, so no reads are required after initial)
     client_nonce = info.context.request.headers.get("x-client-nonce")
     origin = ClientOrigin("user", client.id, client_nonce)
-    publish_soon(NMessageType.CLIENT_CHANGED, ClientChangedPayload(client=origin))
+    client_data = rmap_client(client)
+    publish_soon(
+        NMessageType.CLIENT_CHANGED, ClientChangedPayload(origin=origin, client=client_data)
+    )
 
 
 @gql.type
@@ -383,15 +391,16 @@ class ClientSubscription:
         while True:
             change: NMessage[ClientChangedPayload] = await change_sub.next_msg()
             if (
-                change.payload.client.id == client_id
-                and change.payload.client.nonce == client_nonce
+                change.payload.origin.id == client_id
+                and change.payload.origin.nonce == client_nonce
             ):
                 continue  # skip self
 
-            client = await models.Client.objects.aget(id=change.payload.client.id)
+            client = wmap_client(change.payload.client)
             if project_id and client.project_id != project_id:
                 continue
             if project_version_id and client.project_version_id != project_version_id:
                 continue
             log.debug("clients.update", client=client.id)
+            # TODO @Performance: don't request relation info in clients (prevent DB lookup)
             yield client

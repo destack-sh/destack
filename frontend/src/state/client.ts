@@ -127,7 +127,7 @@ function _useClient(presenceIntervalMs = 15000) {
     );
   }
 
-  const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 500, { maxWait: 2500 });
+  const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 250, { maxWait: 1000 });
 
   // upsert client info if logged in
   const focusedFileId = toValueRef(toRef(editor, "focusedFileId"));

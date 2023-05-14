@@ -11,6 +11,7 @@ from uuid import UUID
 
 from bench.language import mutate, wire
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, RemoteObjectData
+from bench.models.user import ClientData
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -115,7 +116,8 @@ class OriginPayload:
 
 @payload(NMessageType.CLIENT_CHANGED)
 class ClientChangedPayload:
-    client: ClientOrigin
+    origin: ClientOrigin
+    client: ClientData
 
 
 @payload(NMessageType.MODULE_CHANGED)
