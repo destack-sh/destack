@@ -8,7 +8,7 @@ import re
 import string
 import typing
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from functools import cached_property
 from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 from uuid import UUID
@@ -538,6 +538,10 @@ class TypeNode(abc.ABC):
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
 
     @property
+    def ident(self):
+        return to_pyidentifier(self.name)
+
+    @property
     def inputs(self) -> list["TypeNode"]:
         return [child for child in self.type_nodes if not child.flags & TypeFlag.IsOutput]
 
@@ -546,13 +550,15 @@ class TypeNode(abc.ABC):
         return [child for child in self.type_nodes if child.flags & TypeFlag.IsOutput]
 
     def __getitem__(self, item: str) -> "TypeNode":
-        node = first((child for child in self.type_nodes if child.name == item), None)
+        node = first(
+            (child for child in self.type_nodes if child.name == item or child.ident == item), None
+        )
         if node is None:
             raise KeyError(item)
         return node
 
     def __contains__(self, item):
-        return any(child for child in self.type_nodes if child.name == item)
+        return any(child for child in self.type_nodes if child.name == item or child.ident == item)
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:
@@ -569,17 +575,17 @@ class TypeNode(abc.ABC):
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
         raise NotImplementedError
 
-    def unkey(self, data: Any, is_output: bool = None) -> Any:
+    def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
         """'Unkeys' data by replacing keys with the names of the type nodes."""
         from bench.language.typer import unkey_value
 
-        return unkey_value(data, self, is_output=is_output)
+        return unkey_value(data, self, is_output=is_output, to_ident=to_ident)
 
-    def rekey(self, data: Any, is_output: bool = None) -> Any:
+    def rekey(self, data: Any, is_output: bool = None, via_ident: bool = False) -> Any:
         """'Keys' data by replacing names with the keys of the type nodes."""
         from bench.language.typer import rekey_value
 
-        return rekey_value(data, self, is_output=is_output)
+        return rekey_value(data, self, is_output=is_output, from_ident=via_ident)
 
 
 # :TypeNodeKeys
@@ -803,10 +809,14 @@ class Record:
         return self[item]
 
     def __setattr__(self, key, value):
-        if key in ["order_key", "data", "id", "session", "owner"]:  # see RecordInstance
+        if key in RECORD_FIELD_KEYS:  # see RecordInstance
             super().__setattr__(key, value)
         else:
             self[key] = value
+
+
+RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
+RECORD_INSTANCE_FIELD_KEYS = {"type", "session", "owner"}  # :RecordInstanceFieldKeys
 
 
 @dataclass(repr=False)

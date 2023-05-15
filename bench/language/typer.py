@@ -146,26 +146,54 @@ def map_value(
 
 
 def unkey_value(
-    value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = False
+    value: Any,
+    type: TypeNode,
+    is_output: bool = None,
+    ignore_array: bool = False,
+    to_ident: bool = False,
 ) -> Any:
     """Replaces all name 'keys' with the actual names (recursively)."""
+    if to_ident:
+
+        def map_k(t: TypeNode):
+            return t.key, t.ident
+
+    else:
+
+        def map_k(t: TypeNode):
+            return t.key, t.name
+
     return map_value(
         value,
         type,
-        map_k=lambda t: (t.key, t.name),
+        map_k=map_k,
         is_output=is_output,
         ignore_array=ignore_array,
     )
 
 
 def rekey_value(
-    value: Any, type: TypeNode, is_output: bool = None, ignore_array: bool = True
+    value: Any,
+    type: TypeNode,
+    is_output: bool = None,
+    ignore_array: bool = True,
+    from_ident: bool = False,
 ) -> Any:
     """Replaces all actual names with the name 'keys' (recursively)."""
+    if from_ident:
+
+        def map_k(t: TypeNode):
+            return t.ident, t.key
+
+    else:
+
+        def map_k(t: TypeNode):
+            return t.name, t.key
+
     return map_value(
         value,
         type,
-        map_k=lambda t: (t.name, t.key),
+        map_k=map_k,
         is_output=is_output,
         ignore_array=ignore_array,
     )
