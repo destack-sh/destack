@@ -19,7 +19,7 @@ from bench import language, models
 from bench.language import wire
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.parse import LookupBy, index_module
-from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
 from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData, RunErrorData
@@ -391,6 +391,7 @@ def rmap_statement(
         type=statement.type,
         modifier=statement.modifier,
         root_type_tag=statement.root_type_tag,
+        root_type_flags=statement.root_type_flags,
         name=name,
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
@@ -412,6 +413,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.provider = statement.provider
     data.external_name = statement.external_name
     data.root_type_tag = statement.root_type_tag
+    data.root_type_flags = statement.root_type_flags
     if not flat:
         data.type_nodes = [
             rmap_simple_type_node(node)
@@ -426,7 +428,15 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
             rmap_generated_mapping(m) for m in statement.generated_mappings.all()
         ]
     if statement.symbol_type == SymbolType.DATA and not flat:
-        data.records = [rmap_record(record) for record in statement.records.filter(deleted_at=None)]
+        if (statement.root_type_flags or 0) & TypeFlag.IsArray:
+            data.records = [
+                rmap_record(record) for record in statement.records.filter(deleted_at=None)
+            ]
+        else:  # single value
+            data.records = []
+            record = statement.records.filter(deleted_at=None).order_by("order_key").first()
+            if record is not None:
+                data.records.append(rmap_record(record))
     if statement.symbol_type == SymbolType.CODE and not flat:
         data.xblocks = rmap_xblocks(statement.xblocks.all())
     if statement.symbol_type == SymbolType.BUILD:

@@ -17,7 +17,7 @@ from bench.language.type import (
     BuildContent,
     CapabilityContent,
     CodeContent,
-    DatasetContent,
+    DataContent,
     ExpectationContent,
     RequirementContent,
     SimpleTypeNode,
@@ -119,7 +119,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             type_str = render_type_func(cast(CodeContent, statement.content), statement)
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATA:
-            content = cast(DatasetContent, statement.content)
+            content = cast(DataContent, statement.content)
             type_str = render_type_struct(content.type_nodes, statement, ", ")
             postfix = f" :: ({type_str}):"
         else:
@@ -156,7 +156,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return f"{render_description(content.description)}\n{rendered_code}"
         else:
             return rendered_code
-    elif isinstance(content, DatasetContent):
+    elif isinstance(content, DataContent):
         records_data = [record.data for record in content.records]
         if content.language == "jsonl":
             records_as_jsonl = "\n".join(json.dumps(data) for data in records_data)

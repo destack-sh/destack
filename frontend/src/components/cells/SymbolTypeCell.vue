@@ -6,6 +6,6 @@ const context = useStatementContext();
 </script>
 <template>
   <span class="text-orange-600" :contenteditable="false">
-    {{ SYMBOL_TYPE_KEYWORD[context.statement.value.symbolType] }}
+    {{ context.symbolSubtype.value ?? SYMBOL_TYPE_KEYWORD[context.statement.value.symbolType] }}
   </span>
 </template>

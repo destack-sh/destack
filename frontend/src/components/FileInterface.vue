@@ -84,6 +84,16 @@ async function insertStatementStart() {
   actions.apply("statement.insertStart");
 }
 
+async function insertOrFocusStatementStart() {
+  if (fileHeader.value == null) return;
+  editor.focusFile(fileHeader.value);
+  if (context.value?.positionedStatements.length == 0) {
+    insertStatementStart();
+  } else {
+    editor.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
+  }
+}
+
 async function insertOrFocusStatementEnd() {
   if (fileHeader.value == null) return;
   editor.focusFile(fileHeader.value);
@@ -126,7 +136,7 @@ function goToContent() {
   if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
-    insertOrFocusStatementEnd();
+    insertOrFocusStatementStart();
   }
 }
 

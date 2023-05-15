@@ -2076,6 +2076,7 @@ export type Statement = Node &
     reference?: Maybe<Statement>;
     referenceProjectVersion?: Maybe<ProjectVersion>;
     revision: Scalars["Int"];
+    rootTypeFlags?: Maybe<Scalars["Int"]>;
     rootTypeTag?: Maybe<TypeTag>;
     symbolType?: Maybe<SymbolType>;
     type: StatementType;
@@ -2166,6 +2167,7 @@ export type StatementCreateInput = {
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
@@ -2195,6 +2197,7 @@ export type StatementMorphInput = {
   id: Scalars["GlobalID"];
   lang?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
@@ -3626,6 +3629,7 @@ export type StatementContentFragment = {
   code?: string | null;
   description?: string | null;
   rootTypeTag?: TypeTag | null;
+  rootTypeFlags?: number | null;
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
@@ -4129,6 +4133,7 @@ export type CreateStatementMutationVariables = Exact<{
   description?: InputMaybe<Scalars["String"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   commented?: InputMaybe<Scalars["Boolean"]>;
   generated?: InputMaybe<Scalars["Boolean"]>;
 }>;
@@ -4157,6 +4162,7 @@ export type CreateStatementMutation = {
         code?: string | null;
         description?: string | null;
         rootTypeTag?: TypeTag | null;
+        rootTypeFlags?: number | null;
         file: { __typename?: "File"; id: any };
         parent?: { __typename?: "Statement"; id: any } | null;
         reference?: { __typename?: "Statement"; id: any } | null;
@@ -4176,6 +4182,7 @@ export type MorphStatementMutationVariables = Exact<{
   symbolType?: InputMaybe<SymbolType>;
   name?: InputMaybe<Scalars["String"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   lang?: InputMaybe<Scalars["String"]>;
 }>;
 
@@ -4193,6 +4200,7 @@ export type MorphStatementMutation = {
         symbolType?: SymbolType | null;
         name?: string | null;
         rootTypeTag?: TypeTag | null;
+        rootTypeFlags?: number | null;
         lang?: string | null;
       };
 };
@@ -5553,6 +5561,7 @@ export const StatementContentFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+          { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "typeNodes" },
@@ -11076,6 +11085,11 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "commented" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
@@ -11160,6 +11174,11 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeFlags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
@@ -11234,6 +11253,7 @@ export const CreateStatementDocument = {
                         },
                       },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "typeNodes" },
@@ -11349,6 +11369,11 @@ export const MorphStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -11393,6 +11418,11 @@ export const MorphStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeFlags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "lang" },
                       value: { kind: "Variable", name: { kind: "Name", value: "lang" } },
                     },
@@ -11415,6 +11445,7 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "symbolType" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
                       { kind: "Field", name: { kind: "Name", value: "lang" } },
                     ],
                   },

@@ -7,8 +7,8 @@ import structlog
 from bench.language import (
     Code,
     CodeContent,
-    Dataset,
-    DatasetContent,
+    Data,
+    DataContent,
     File,
     Module,
     Statement,
@@ -38,7 +38,7 @@ def map_to_file(symbols: list[InterpSymbol], file: File | None = None) -> File:
 
 def map_to_statement(file: File, symbol: InterpSymbol, order_key: str) -> Statement:
     """Map a single symbol to a statement."""
-    if isinstance(symbol, Dataset):
+    if isinstance(symbol, Data):
         content = map_dataset_content(symbol)
     elif isinstance(symbol, Code):
         content = map_code_content(symbol)
@@ -70,7 +70,7 @@ def _map_statement_children(symbol: InterpSymbol, statement: Statement) -> list[
             child = _make_ref_or_def(child_symbol, ok, statement)
             children.append(child)
         return children
-    elif isinstance(symbol, (Code, Dataset)):
+    elif isinstance(symbol, (Code, Data)):
         return []
     else:
         raise RuntimeError(f"unexpected symbol {symbol}")
@@ -120,8 +120,8 @@ def _make_definition(symbol: InterpSymbol, order_key: str, parent: Statement):
     return child
 
 
-def map_dataset_content(dataset: Dataset) -> DatasetContent:
-    return DatasetContent(
+def map_dataset_content(dataset: Data) -> DataContent:
+    return DataContent(
         description=dataset.description,
         language=dataset.language,
         tag=dataset.tag,

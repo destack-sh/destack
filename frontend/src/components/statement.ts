@@ -74,13 +74,20 @@ export function useStatementContext() {
   });
 
   const symbolSubtype: Ref<string | null> = computed(() => {
-    if (
-      (statement.value.type == StatementType.Definition ||
-        (statement.value.type == StatementType.Blank && statement.value.symbolType == SymbolType.Type)) &&
-      rootTypeTag.value == TypeTag.Enum
-    ) {
-      return "choice";
+    if (statement.value.symbolType == SymbolType.Type) {
+      if (statement.value.rootTypeTag == TypeTag.Enum) {
+        return "choice";
+      } else {
+        return "struct";
+      }
+    } else if (statement.value.symbolType == SymbolType.Data) {
+      if ((statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray) {
+        return "table";
+      } else {
+        return "value";
+      }
     }
+
     return null;
   });
 
@@ -142,16 +149,23 @@ export function useStatementContext() {
     await Promise.all([morphType, updateCode]);
   }
 
-  async function morphToDefinition(symbolType: SymbolType | null, name: string) {
-    if (statement.value.type != StatementType.Blank || symbolType == null) {
+  async function morphToDefinition(config: {
+    symbolType: SymbolType | null;
+    name?: string;
+    rootTypeFlags?: number;
+    rootTypeTag?: TypeTag;
+  }) {
+    if (statement.value.type != StatementType.Blank || config.symbolType == null) {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
-    const defaults = getDefaultSymbolDefinition(symbolType);
+    const defaults = getDefaultSymbolDefinition(config.symbolType);
     let newTypeTag;
-    if (rootTypeTag.value == null) {
+    if (config.rootTypeTag) {
+      newTypeTag = config.rootTypeTag;
+    } else if (rootTypeTag.value == null) {
       newTypeTag = defaults.rootTypeTag;
     } else {
-      newTypeTag = isTypeTagCompatible(rootTypeTag.value, symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
+      newTypeTag = isTypeTagCompatible(rootTypeTag.value, config.symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
     }
     await ops.statement.morph(
       null,
@@ -161,14 +175,16 @@ export function useStatementContext() {
         symbolType: statement.value.symbolType ?? undefined,
         name: undefined,
         lang: statement.value.lang ?? undefined,
-        rootTypeTag: statement.value.rootTypeTag,
+        rootTypeTag: statement.value.rootTypeTag ?? undefined,
+        rootTypeFlags: statement.value.rootTypeFlags ?? undefined,
       },
       {
         type: StatementType.Definition,
-        symbolType,
-        name,
-        lang: defaults.language,
+        symbolType: config?.symbolType,
+        name: config.name,
+        lang: config.rootTypeTag ?? defaults.language,
         rootTypeTag: newTypeTag,
+        rootTypeFlags: config.rootTypeFlags,
       }
     );
   }

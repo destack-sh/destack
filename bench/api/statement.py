@@ -171,6 +171,7 @@ class Statement(gql.Node, SimplyTyped):
     # symbol contents
     generated_mappings: list[GeneratedMapping] = gql.django.field(filters=GeneratedMappingFilter)
     root_type_tag: Optional[TypeTag]
+    root_type_flags: Optional[int]
     type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)
     lang: auto
     code: auto
@@ -221,6 +222,7 @@ class StatementCreateInput:
     modifier: Optional[StatementModifier] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
+    root_type_flags: Optional[int] = None
     symbol_type: Optional[SymbolType] = None
     reference_id: Optional[GlobalID] = None
     description: Optional[str] = None
@@ -239,6 +241,7 @@ class StatementMorphInput(gql.NodeInput):
     symbol_type: Optional[SymbolType] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
+    root_type_flags: Optional[int] = None
     lang: Optional[str] = None
 
 
@@ -405,6 +408,7 @@ class StatementMutation:
             commented=input.commented,
             modifier=input.modifier,
             root_type_tag=input.root_type_tag,
+            root_type_flags=input.root_type_flags,
             symbol_type=input.symbol_type,
             reference_id=input.reference_id.node_id if input.reference_id else None,
             description=input.description,
@@ -426,6 +430,7 @@ class StatementMutation:
         statement.commented = input.commented
         statement.modifier = input.modifier
         statement.root_type_tag = input.root_type_tag
+        statement.root_type_flags = input.root_type_flags
         statement.symbol_type = input.symbol_type
         statement.reference_id = input.reference_id.node_id if input.reference_id else None
         statement.description = input.description
@@ -453,6 +458,7 @@ class StatementMutation:
         statement.symbol_type = input.symbol_type
         statement.name = input.name
         statement.root_type_tag = input.root_type_tag
+        statement.root_type_flags = input.root_type_flags
         statement.lang = input.lang
         return statement
 

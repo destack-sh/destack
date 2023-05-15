@@ -8,7 +8,7 @@ from bench.language import XBlock
 from bench.language.type import (
     EMPTY_FUNC_TYPE,
     Code,
-    Dataset,
+    Data,
     LiteralValue,
     Model,
     Record,
@@ -247,10 +247,10 @@ class DataBuilder:
                 if not ignore_type_errors:
                     raise e
 
-    def to_symbol(self) -> Dataset:
+    def to_symbol(self) -> Data:
         order_keys = generate_n_keys_between(None, None, len(self.records))
         records = [Record(order_key=ok, data=d) for ok, d in zip(order_keys, self.records)]
-        dataset = Dataset(
+        dataset = Data(
             name=self.name,
             type_node=self.type,
             type=self.type.deepcopy(keep_id=False, keep_reference=True),

@@ -12,7 +12,7 @@ from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
-    Dataset,
+    Data,
     Expectation,
     InterpSymbol,
     Record,
@@ -30,7 +30,7 @@ from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
 
-Expect = Union[Task, Code, Dataset, Expectation]
+Expect = Union[Task, Code, Data, Expectation]
 
 
 # TODO @Architecture: merge instruction ops & nodes into lang/parse? :InstructionOps
@@ -201,7 +201,7 @@ def map_instruction(
         for model in node.models:
             _map_child(model, tree)
 
-    if isinstance(node, Dataset):
+    if isinstance(node, Data):
         for record in node.records:
             # this will have to change later, see :NaiveTreeTracking
             tree.nodes[record.id] = Instruction(
@@ -265,10 +265,10 @@ def source(func):
     return dataclass(repr=False, slots=True)(func)
 
 
-def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
+def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
     order_keys = generate_n_keys_between(None, None, n_records)
     records = [Record(order_key=order_key, data={}) for order_key in order_keys]
-    return Dataset(
+    return Data(
         name="",
         type=type,
         tag=type.tag,
@@ -281,7 +281,7 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
 
 @source
 class SampleSource:
-    async def __call__(self) -> Dataset:
+    async def __call__(self) -> Data:
         raise NotImplementedError
 
 
@@ -289,11 +289,11 @@ class SampleSource:
 class SampleDatasetRandom(SampleSource):
     """Samples the given dataset"""
 
-    source_dataset: Dataset
+    source_dataset: Data
     count: int
     seed: int
 
-    async def __call__(self) -> Dataset:
+    async def __call__(self) -> Data:
         rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
         n_records = len(self.source_dataset.records)
@@ -313,7 +313,7 @@ class SampleFabricateRandom(SampleSource):
     type: Type
     count: int
 
-    async def __call__(self) -> Dataset:
+    async def __call__(self) -> Data:
         target_dataset = anonymous_dataset(self.type, self.count)
         for i in range(self.count):
             target_dataset.records[i].data = fabricate_value(self.type)

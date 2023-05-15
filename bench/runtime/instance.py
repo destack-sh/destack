@@ -23,7 +23,7 @@ from more_itertools import first, last
 from bench.language import (
     Build,
     Code,
-    Dataset,
+    Data,
     Model,
     ModuleIndex,
     Record,
@@ -277,7 +277,7 @@ class TypeInstance(SymbolInstance, Type):
 class RecordInstance(Record):
     # TODO @Performance: mark & collect dirty on session flush for records/datasets
     #  Currently we just write the whole record on any change, which is ughh.
-    dataset: "DatasetInstance" = required_field()
+    dataset: "DataTableInstance" = required_field()
 
     def __post_init__(self):
         self.data = proxy_value(
@@ -316,7 +316,7 @@ class RecordInstance(Record):
 
 
 @dataclass(repr=False)
-class DatasetInstance(SymbolInstance, Dataset):
+class DataTableInstance(SymbolInstance, Data):
     def clear(self):
         self.session.check_can_write(self)
         # should really be truncate operation
@@ -473,7 +473,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TaskInstance: SymbolType.TASK,
     SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
-    DatasetInstance: SymbolType.DATA,
+    DataTableInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
     SyncCodeInstance: SymbolType.CODE,
@@ -624,9 +624,9 @@ def strip_value(value, type: TypeNode) -> Any:
 # TODO @Feature: what's the counter-part to instantiate record data?
 
 
-def instantiate_dataset(dataset: Dataset, session: Session) -> DatasetInstance:
+def instantiate_dataset(dataset: Data, session: Session) -> DataTableInstance:
     """Instrument and instantiate a dataset for use."""
-    instance = DatasetInstance(
+    instance = DataTableInstance(
         **dict_minus(dataset.__dict__, "records"), records=[], session=session
     )
     for raw_record in dataset.records:
@@ -780,7 +780,7 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
         return instantiate_code(symbol, session)
     elif isinstance(symbol, Model):
         return instantiate_model(symbol, session)
-    elif isinstance(symbol, Dataset):
+    elif isinstance(symbol, Data):
         return instantiate_dataset(symbol, session)
     elif isinstance(symbol, Type):
         return instantiate_type(symbol, session)

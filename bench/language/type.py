@@ -644,9 +644,9 @@ class TypeContent(SymbolContent, TypeNode):
     tag: TypeTag = required_field()
     type_nodes: list[SimpleTypeNode] = field(default_factory=list)
     description: Optional[str] = None
+    flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types
     key = None
-    flags = TypeFlag(0)
     value = None
     reference = None
 
@@ -665,6 +665,7 @@ class TypeContent(SymbolContent, TypeNode):
         return TypeContent(
             name=self.name,
             tag=self.tag,
+            flags=self.flags,
             description=self.description,
             type_nodes=type_nodes,
         )
@@ -672,7 +673,7 @@ class TypeContent(SymbolContent, TypeNode):
 
 @dataclass(repr=False)
 class Type(InterpSymbol, TypeContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
 
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "Type":
         type_nodes = [
@@ -706,7 +707,7 @@ class CapabilityContent(SymbolContent):
 
 @dataclass(repr=False)
 class Capability(InterpSymbol, CapabilityContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
     capabilities: list[Capability] = field(default_factory=list)
 
@@ -725,7 +726,7 @@ class TaskContent(TypeContent, GeneratorContent, ReactiveSettings):
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
     type: Type = required_field()
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
 
     @property
@@ -747,7 +748,7 @@ class ExpectationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
 
 
 # :RemoteObjectType
@@ -809,7 +810,7 @@ class Record:
 
 
 @dataclass(repr=False)
-class DatasetContent(TypeContent):
+class DataContent(TypeContent):
     language: Literal["csv"] | Literal["json"] | Literal["jsonl"] = "jsonl"
     records: list[Record] = field(default_factory=list)
     description: Optional[str] = None
@@ -822,7 +823,7 @@ class DatasetContent(TypeContent):
 
 
 @dataclass(repr=False)
-class Dataset(InterpSymbol, DatasetContent):
+class Data(InterpSymbol, DataContent):
     type: Type = required_field()
 
 
@@ -1005,7 +1006,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
     SymbolType.AGENT: Program,
-    SymbolType.DATA: Dataset,
+    SymbolType.DATA: Data,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,

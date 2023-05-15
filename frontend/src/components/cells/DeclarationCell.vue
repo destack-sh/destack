@@ -125,10 +125,6 @@ defineExpose({
     >
       +name
     </button>
-    <!-- Indicate specific kind of type definition (e.g. choice if a type) -->
-    <span class="ml-1 text-orange-600" :contenteditable="false" v-if="context.symbolSubtype.value != null">
-      {{ context.symbolSubtype.value }}
-    </span>
     <!-- Error underline for declaration if unlocated -->
     <div
       v-if="localErrors != null && localErrors.length > 0"

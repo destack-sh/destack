@@ -149,6 +149,7 @@ class StatementData:
     generated: bool
     # symbol contents
     root_type_tag: Optional[TypeTag] = None
+    root_type_flags: Optional[TypeFlag] = None
     type_nodes: Union[list[SimpleTypeNodeData], None] = None
     description: Optional[str] = None
     lang: Optional[str] = None
@@ -320,7 +321,7 @@ def rmap_symbol(
         data.external_name = content.external_name
     elif isinstance(content, language.CapabilityContent):
         data.description = content.description
-    elif isinstance(content, language.DatasetContent):
+    elif isinstance(content, language.DataContent):
         data.lang = content.language
         data.description = content.description
         data.records = [rmap_record(data.id, r) for r in content.records]
@@ -375,11 +376,12 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
     elif data.symbol_type == SymbolType.CAPABILITY:
         return language.CapabilityContent(description=data.description)
     elif data.symbol_type == SymbolType.DATA:
-        return language.DatasetContent(
+        return language.DataContent(
             description=data.description,
             language=data.lang,
             tag=data.root_type_tag,
             type_nodes=type_nodes,
+            flags=data.root_type_flags,
             records=[wmap_record(r) for r in (data.records or [])],
         )
     elif data.symbol_type == SymbolType.BUILD:
