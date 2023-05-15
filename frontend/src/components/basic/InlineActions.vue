@@ -35,7 +35,7 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
     <button
       v-for="action in inlineActions"
       :key="action.label"
-      class="p-0.5 text-gray-500 hover:text-gray-800"
+      class="group relative p-0.5 text-gray-500 hover:text-gray-800"
       :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
       @click.prevent.stop="action.action"
       :disabled="action.disabled || action.active"
@@ -43,6 +43,11 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       <FadeTransition name="fade" mode="out-in">
         <component :is="action.active ? ArrowPathIcon : action.icon" class="h-4 w-4" />
       </FadeTransition>
+      <span
+        class="absolute -left-3 top-6 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
+      >
+        {{ action.label }}
+      </span>
     </button>
     <slot name="after" />
   </span>

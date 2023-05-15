@@ -24,6 +24,7 @@ const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
 const members = computed(() => context.typeNodes.value ?? []);
 const membersLength = computed(() => members.value?.length ?? 0);
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
+const addingDescription = ref(false);
 
 // dynamic member refs for names, values & descriptions for each member
 type ColumnType = "name" | "value" | "type" | "description";
@@ -37,7 +38,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
   }
 });
 const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, members, {
-  gridNavigateUp,
+  gridNavigateUp: focusDescriptionFromBottom,
   gridNavigateDown,
 });
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
@@ -106,6 +107,22 @@ function deleteMember(memberId: string) {
   grid.focus(memberIdx - 1, "name"); // move focus above
 }
 
+function focusDescriptionFromTop() {
+  if (description.value?.length > 0 || addingDescription.value) {
+    descriptionRef.value?.focus();
+  } else {
+    focusFirstIfExists();
+  }
+}
+
+function focusDescriptionFromBottom() {
+  if (description.value?.length > 0 || addingDescription.value) {
+    descriptionRef.value?.focus();
+  } else {
+    declarationRef.value?.focus();
+  }
+}
+
 function focusFirstIfExists() {
   if (membersLength.value == 0) {
     addMemberRef.value?.focus();
@@ -118,12 +135,8 @@ function focusLast() {
   if (membersLength.value > 0) {
     grid.focus(membersLength.value - 1, columnsInOrder.value[0]);
   } else {
-    descriptionRef.value?.focus();
+    focusDescriptionFromBottom();
   }
-}
-
-function gridNavigateUp() {
-  descriptionRef.value?.focus();
 }
 
 function gridNavigateDown() {
@@ -143,11 +156,20 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex items-center justify-between">
-    <DeclarationCell
-      ref="declarationRef"
-      @navigate-down="descriptionRef?.focus()"
-      @navigate-right="descriptionRef?.focus()"
-    />
+    <div class="flex flex-row items-baseline">
+      <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
+      <button
+        tabindex="-1"
+        v-if="description.length == 0 && !context.readonly.value && !addingDescription"
+        @click="
+          addingDescription = true;
+          descriptionRef?.focus();
+        "
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      >
+        +description
+      </button>
+    </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
@@ -156,6 +178,7 @@ defineExpose({
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"
+    :class="addingDescription ? '' : 'h-0'"
     v-model="description"
     :readonly="context.readonly.value"
     @navigate-left="declarationRef?.focus()"
@@ -164,7 +187,7 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="description.length == 0 && !context.readonly.value"
+    v-if="description.length == 0 && !context.readonly.value && addingDescription"
     @click="descriptionRef?.focus()"
     class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
