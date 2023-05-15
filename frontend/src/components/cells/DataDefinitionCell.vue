@@ -316,8 +316,6 @@ defineExpose({
   <div class="flex flex-row justify-between">
     <div class="flex flex-row items-baseline">
       <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
-      <!-- Table vs value selector -->
-      <span class="ml-1 inline-flex" :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'">table</span>
       <button
         tabindex="-1"
         v-if="description.length == 0 && !context.readonly.value && !addingDescription"

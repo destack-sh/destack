@@ -1801,6 +1801,7 @@ type Statement implements Node & SimplyTyped {
   reference: Statement
   symbolType: SymbolType
   generatedMappings(filters: GeneratedMappingFilter): [GeneratedMapping!]!
+  rootTypeFlags: Int
   lang: String
   code: String
   xblocks(filters: XBlockFilter): [XBlock!]!
@@ -1884,6 +1885,7 @@ input StatementCreateInput {
   modifier: StatementModifier = null
   name: String = null
   rootTypeTag: TypeTag = null
+  rootTypeFlags: Int = null
   symbolType: SymbolType = null
   referenceId: GlobalID = null
   description: String = null
@@ -1917,6 +1919,7 @@ input StatementMorphInput {
   symbolType: SymbolType = null
   name: String = null
   rootTypeTag: TypeTag = null
+  rootTypeFlags: Int = null
   lang: String = null
 }
 

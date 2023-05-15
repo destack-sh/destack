@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { StatementModifier, SymbolType } from "@/gql/graphql";
+import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
   MODIFIER_BY_KEYWORD,
@@ -10,6 +10,7 @@ import {
   SUPPORTED_SYMBOL_TYPES,
   SYMBOL_TYPE_BY_KEYWORD,
 } from "@/state/editor";
+import { TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -50,25 +51,38 @@ watch(content, (newContent) => {
   const newContentTrim = newContent.slice(0, -1);
 
   // if it matches an allowed keyword, apply the keyword
-  if (endsInSep && SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])) {
-    context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
-    content.value = "";
-    emit("morphed");
-  } else if (endsInSep && SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
-    context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContentTrim]);
-    content.value = "";
-    emit("morphed");
-  } else if (endsInSep && (newContentTrim == "enum" || newContentTrim == "choice")) {
-    context.setSymbolTypeEnum();
-    content.value = "";
-    emit("morphed");
+  let morphed = true;
+  if (endsInSep) {
+    morphed = handleKeyword(newContentTrim);
   } else if (includesNonalpha || tooLong) {
     // auto-convert to comment if it can't be parsed anymore (keep content)
     newContent = newContent.replace(" ", " "); // replace non-breaking spaces
-    context.morphToComment(newContent);
+  } else {
+    morphed = false;
+  }
+  if (morphed) {
     emit("morphed");
   }
 });
+
+function handleKeyword(newContentTrim: string): boolean {
+  if (SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])) {
+    context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
+  } else if (SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
+    context.morphToDefinition({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
+  } else if (newContentTrim == "enum" || newContentTrim == "choice") {
+    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
+  } else if (newContentTrim == "struct") {
+    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
+  } else if (newContentTrim == "value") {
+    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
+  } else if (newContentTrim == "table") {
+    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });
+  } else {
+    return false;
+  }
+  return true;
+}
 
 // command/type selection dropdown
 // (not sure if this is the best place to put it)
@@ -89,22 +103,43 @@ const commands = computed(() => {
     {
       label: "task",
       description: "Instruct AI to do something.",
-      action: () => (context.setSymbolType(SymbolType.Task), emit("morphed")),
+      action: () => (context.morphToDefinition({ symbolType: SymbolType.Task }), emit("morphed")),
     },
     {
       label: "expect",
       description: "Specify desired behaviour.",
-      action: () => (context.setSymbolType(SymbolType.Expectation), emit("morphed")),
+      action: () => (context.morphToDefinition({ symbolType: SymbolType.Expectation }), emit("morphed")),
     },
     {
-      label: "data",
-      description: "Provide examples and context.",
-      action: () => (context.setSymbolType(SymbolType.Data), emit("morphed")),
+      label: "struct",
+      description: "Define a data structure.",
+      action: () => (
+        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
+      ),
+    },
+    {
+      label: "choice",
+      description: "Define a choice type.",
+      action: () => (
+        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")
+      ),
+    },
+    {
+      label: "value",
+      description: "Configure context and secrets.",
+      action: () => (context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
+    },
+    {
+      label: "table",
+      description: "Define state or examples.",
+      action: () => (
+        context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
+      ),
     },
     {
       label: "code",
       description: "Implement logic in Python.",
-      action: () => (context.setSymbolType(SymbolType.Code), emit("morphed")),
+      action: () => (context.morphToDefinition({ symbolType: SymbolType.Code }), emit("morphed")),
     },
   ];
 
@@ -175,7 +210,7 @@ defineExpose({
     @navigate-down="emit('navigateDown')"
     @navigate-left="emit('navigateLeft')"
     @navigate-right="emit('navigateRight')"
-    @enter="emit('enter')"
+    @enter="handleKeyword(content) || emit('enter')"
     @escape="emit('escape')"
     @delete-left="emit('deleteLeft')"
   />
@@ -204,7 +239,7 @@ defineExpose({
     </span>
     <FadeTransition>
       <ComboboxOptions
-        class="absolute top-7 z-20 flex max-h-80 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+        class="absolute top-7 z-20 flex max-h-64 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
       >
         <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
           <span class="text-gray-700">No results</span>
@@ -213,7 +248,7 @@ defineExpose({
           <li
             class="flex flex-col"
             :class="[
-              'cursor-pointer select-none py-0.5 px-2',
+              'cursor-pointer select-none px-2 py-0.5',
               active ? 'bg-orange-100 text-gray-900' : 'text-gray-900',
             ]"
           >

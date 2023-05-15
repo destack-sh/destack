@@ -23,8 +23,8 @@ from bench.language.type import (
     CapabilityContent,
     Code,
     CodeContent,
-    Dataset,
-    DatasetContent,
+    Data,
+    DataContent,
     Expectation,
     ExpectationContent,
     File,
@@ -645,7 +645,7 @@ def _parse_definition_content(
         literal = tokens.eat_literal()
         lang = literal.value_extras.get("lang")
         records = _parse_dataset_records(tokens, type, lang, literal)
-        return DatasetContent(
+        return DataContent(
             description=description,
             language=lang,
             records=records,
@@ -1574,7 +1574,7 @@ def interp(
         )
         source_content = statement.underlying_definition.content
         symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
-        if isinstance(source_content, (DatasetContent, TaskContent, CodeContent)):
+        if isinstance(source_content, (DataContent, TaskContent, CodeContent)):
             # for typed symbols we need to create a type symbol as well
             type_symbol = Type(
                 name=statement.name,
@@ -1618,7 +1618,7 @@ def interp(
         scope = idx.scopes[symbol.source.id]
         if isinstance(symbol, Type):
             interp_type_node_rec(symbol, idx)
-        elif isinstance(symbol, (Dataset, Task, Code)):
+        elif isinstance(symbol, (Data, Task, Code)):
             interp_type_node_rec(symbol.type, idx)
         # also replace in source type nodes
         if isinstance(scope.statement.content, TypeContent):

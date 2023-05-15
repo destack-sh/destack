@@ -70,6 +70,7 @@ export function useStatementOps() {
         $description: String
         $referenceId: GlobalID
         $rootTypeTag: TypeTag
+        $rootTypeFlags: Int
         $commented: Boolean
         $generated: Boolean
       ) {
@@ -87,6 +88,7 @@ export function useStatementOps() {
             code: $code
             description: $description
             rootTypeTag: $rootTypeTag
+            rootTypeFlags: $rootTypeFlags
             referenceId: $referenceId
             commented: $commented
             generated: $generated
@@ -123,6 +125,7 @@ export function useStatementOps() {
               id
             }
             rootTypeTag
+            rootTypeFlags
             typeNodes(filters: { isVisible: true }) {
               id
             }
@@ -154,6 +157,7 @@ export function useStatementOps() {
         description: string | null;
         referenceId: string | null;
         rootTypeTag: TypeTag | null;
+        rootTypeFlags: number | null;
         commented: boolean;
         generated: boolean;
       }) =>
@@ -185,6 +189,7 @@ export function useStatementOps() {
               edges: [],
             },
             rootTypeTag: vars.rootTypeTag,
+            rootTypeFlags: vars.rootTypeFlags,
             typeNodes: [],
             lang: vars.lang,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
@@ -240,6 +245,7 @@ export function useStatementOps() {
           description: null,
           referenceId: null,
           rootTypeTag: null,
+          rootTypeFlags: null,
           commented: false,
           generated: false,
         });
@@ -264,6 +270,7 @@ export function useStatementOps() {
       name?: string;
       description?: string;
       rootTypeTag?: TypeTag;
+      rootTypeFlags?: number;
     }
   ) {
     return await ops.perform({
@@ -284,6 +291,7 @@ export function useStatementOps() {
           description: input.description ?? null,
           referenceId: null,
           rootTypeTag: input.rootTypeTag ?? null,
+          rootTypeFlags: input.rootTypeFlags ?? null,
           commented: false,
           generated: false,
         });
@@ -306,10 +314,19 @@ export function useStatementOps() {
         $symbolType: SymbolType
         $name: String
         $rootTypeTag: TypeTag
+        $rootTypeFlags: Int
         $lang: String
       ) {
         morphStatement(
-          input: { id: $id, type: $type, symbolType: $symbolType, name: $name, rootTypeTag: $rootTypeTag, lang: $lang }
+          input: {
+            id: $id
+            type: $type
+            symbolType: $symbolType
+            name: $name
+            rootTypeTag: $rootTypeTag
+            rootTypeFlags: $rootTypeFlags
+            lang: $lang
+          }
         ) {
           ... on Statement {
             id
@@ -318,6 +335,7 @@ export function useStatementOps() {
             symbolType
             name
             rootTypeTag
+            rootTypeFlags
             lang
           }
           ...OperationInfoContent
@@ -331,6 +349,7 @@ export function useStatementOps() {
         symbolType?: SymbolType;
         name?: string;
         rootTypeTag?: TypeTag;
+        rootTypeFlags?: number;
         lang?: string;
       }) =>
         ({
@@ -342,6 +361,7 @@ export function useStatementOps() {
             symbolType: vars.symbolType ?? null,
             name: vars.name ?? null,
             rootTypeTag: vars.rootTypeTag ?? null,
+            rootTypeFlags: vars.rootTypeFlags ?? null,
             lang: vars.lang ?? null,
           },
         } as MorphStatementMutation),
@@ -356,6 +376,7 @@ export function useStatementOps() {
       symbolType?: SymbolType;
       name?: string;
       rootTypeTag?: TypeTag;
+      rootTypeFlags?: number;
       lang?: string;
     },
     newStatement: {
@@ -363,6 +384,7 @@ export function useStatementOps() {
       symbolType?: SymbolType;
       name?: string;
       rootTypeTag?: TypeTag;
+      rootTypeFlags?: number;
       lang?: string;
     }
   ) {

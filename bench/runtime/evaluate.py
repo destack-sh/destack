@@ -7,24 +7,9 @@ from typing import cast
 import structlog
 
 from bench.language import ModuleIndex
-from bench.language.type import (
-    Code,
-    Dataset,
-    Task,
-    Type,
-    TypeTag,
-)
-from bench.runtime.instruct import (
-    Instruction,
-    InstructionOp,
-    instruction_tree_from_module,
-)
-from bench.runtime.type import (
-    EvaluationKind,
-    EvaluationMetric,
-    EvaluationResult,
-    EvaluationScope,
-)
+from bench.language.type import Code, Data, Task, Type, TypeTag
+from bench.runtime.instruct import Instruction, InstructionOp, instruction_tree_from_module
+from bench.runtime.type import EvaluationKind, EvaluationMetric, EvaluationResult, EvaluationScope
 
 logger = structlog.get_logger(__name__)
 
@@ -214,7 +199,7 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
 
     if instruction.op in (InstructionOp.SampleData, InstructionOp.DataDefinition):
         # sample data / data defs should have at least 2 samples
-        data = cast(Dataset, instruction.node)
+        data = cast(Data, instruction.node)
         if len(data.records) < 1:
             instruction_perplexity += HALF_CONFUSION
         elif len(data.records) < 2:

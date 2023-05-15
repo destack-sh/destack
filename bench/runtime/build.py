@@ -10,7 +10,7 @@ import structlog
 
 from bench.language.type import (
     Code,
-    Dataset,
+    Data,
     Expectation,
     InterpSymbol,
     Model,
@@ -121,7 +121,7 @@ async def build_task_implementation(task: Task, model: Model) -> Code:
     expectations: list[Expectation] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
     ]
-    data_samples: list[Dataset] = [
+    data_samples: list[Data] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
     ]
     # clarity output label as task completion if we don't have a structured output

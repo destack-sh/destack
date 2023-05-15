@@ -156,6 +156,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
       id
     }
     rootTypeTag
+    rootTypeFlags
     typeNodes(filters: { isVisible: true }) {
       ...SimpleTypeNodeContent
     }

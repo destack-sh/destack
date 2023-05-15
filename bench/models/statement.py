@@ -379,6 +379,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
     xblocks: models.QuerySet[XBlock]  # noqa via XBlock.statement
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
+    root_type_flags = models.IntegerField(null=True, blank=True)
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
