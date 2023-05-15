@@ -803,7 +803,7 @@ class Record:
         return self[item]
 
     def __setattr__(self, key, value):
-        if key in ["order_key", "data", "id", "dataset"]:  # see RecordInstance
+        if key in ["order_key", "data", "id", "session", "owner"]:  # see RecordInstance
             super().__setattr__(key, value)
         else:
             self[key] = value

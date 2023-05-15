@@ -11,11 +11,11 @@ import {
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { useOperations } from "@/state/operations";
+import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { computed, inject, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
-import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
+import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { contextOf, TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
@@ -167,8 +167,10 @@ export function useStatementContext() {
     } else {
       newTypeTag = isTypeTagCompatible(rootTypeTag.value, config.symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
     }
+
+    const tx = openTransaction({ name: "morph init", blockPartialUndo: true, collapseUndoToFirst: true });
     await ops.statement.morph(
-      null,
+      tx,
       statement.value.id,
       {
         type: statement.value.type,
@@ -187,6 +189,11 @@ export function useStatementContext() {
         rootTypeFlags: config.rootTypeFlags,
       }
     );
+    // create default record for value (must exist)
+    if (config.symbolType == SymbolType.Data) {
+      await ops.symbol.createRecord(tx, newDatasetRecordId(), statement.value.id, INTEGER_ZERO, {});
+    }
+    closeTransaction(tx);
   }
 
   async function morphToReference(symbolType: SymbolType, name: string) {

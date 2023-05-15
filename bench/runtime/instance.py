@@ -8,7 +8,7 @@ import itertools
 import textwrap
 import typing
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime
 from random import Random
 from typing import Any, Callable, Coroutine, Optional
@@ -38,6 +38,7 @@ from bench.language.type import (
     RemoteObject,
     RemoteObjectStatus,
     Type,
+    TypeFlag,
     TypeNode,
     TypeTag,
 )
@@ -277,7 +278,9 @@ class TypeInstance(SymbolInstance, Type):
 class RecordInstance(Record):
     # TODO @Performance: mark & collect dirty on session flush for records/datasets
     #  Currently we just write the whole record on any change, which is ughh.
-    dataset: "DataTableInstance" = required_field()
+    type: TypeInstance = required_field()
+    session: Session = required_field()
+    owner: InterpSymbol = required_field()
 
     def __post_init__(self):
         self.data = proxy_value(
@@ -296,7 +299,7 @@ class RecordInstance(Record):
             id=self.id,
             revision=1,
             order_key=self.order_key,
-            statement_id=self.dataset.id,
+            statement_id=self.owner.id,
             data=raw_data,
         )
 
@@ -307,12 +310,8 @@ class RecordInstance(Record):
             raise ValueError(f"'{key}' not present in {self.type}")
         else:
             check_type(self.data.get(key), self.type[key])
-        self.dataset.session.check_can_write(self.dataset)
-        self.dataset.session.mut.update(self._to_wire())
-
-    @property
-    def type(self):
-        return self.dataset.type
+        self.session.check_can_write(self.owner)
+        self.session.mut.update(self._to_wire())
 
 
 @dataclass(repr=False)
@@ -335,7 +334,9 @@ class DataTableInstance(SymbolInstance, Data):
         last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
         record = RecordInstance(
             id=uuid4(),
-            dataset=self,
+            session=self.session,
+            type=self.type,
+            owner=self,
             order_key=generate_key_between(last_ok, None),
             data=data,
         )
@@ -367,6 +368,40 @@ class DataTableInstance(SymbolInstance, Data):
 
     def __iter__(self):
         return iter(self.records)
+
+
+@dataclass(repr=False)
+class DataValueInstance(SymbolInstance, Data):
+    # imitate/proxy record instance
+
+    @property
+    def keys(self):
+        return self.records[0].data.keys()
+
+    def __getitem__(self, item):
+        return self.records[0].data[item]
+
+    def __setitem__(self, key, value):
+        self.records[0].data[key] = value
+
+    # proxy to record data if not in this class
+
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+        elif item in self.records[0].data:
+            return self.records[0][item]
+        else:
+            raise AttributeError(item)
+
+    def __setattr__(self, key, value):
+        if key in DATA_VALUE_INSTANCE_FIELDS_KEYS:
+            super().__setattr__(key, value)
+        else:
+            setattr(self.records[0], key, value)
+
+
+DATA_VALUE_INSTANCE_FIELDS_KEYS = {field.name for field in fields(DataValueInstance)}
 
 
 @dataclass(repr=False)
@@ -474,6 +509,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
     DataTableInstance: SymbolType.DATA,
+    DataValueInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
     SyncCodeInstance: SymbolType.CODE,
@@ -624,11 +660,9 @@ def strip_value(value, type: TypeNode) -> Any:
 # TODO @Feature: what's the counter-part to instantiate record data?
 
 
-def instantiate_dataset(dataset: Data, session: Session) -> DataTableInstance:
+def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
     """Instrument and instantiate a dataset for use."""
-    instance = DataTableInstance(
-        **dict_minus(dataset.__dict__, "records"), records=[], session=session
-    )
+    records = []
     for raw_record in dataset.records:
         py_record_data = {}
         # unkey into real names
@@ -638,10 +672,22 @@ def instantiate_dataset(dataset: Data, session: Session) -> DataTableInstance:
             py_value = instantiate_py_value(value, dataset.type[key])
             py_record_data[py_field] = py_value
         record = RecordInstance(
-            id=raw_record.id, order_key=raw_record.order_key, data=py_record_data, dataset=instance
+            id=raw_record.id,
+            order_key=raw_record.order_key,
+            data=py_record_data,
+            type=dataset.type,
+            session=session,
+            owner=dataset,
         )
-        instance.records.append(record)
-    return instance
+        records.append(record)
+    if dataset.flags & TypeFlag.IsArray:
+        return DataTableInstance(
+            **dict_minus(dataset.__dict__, "records"), records=records, session=session
+        )
+    else:
+        return DataValueInstance(
+            **dict_minus(dataset.__dict__, "records"), records=records, session=session
+        )
 
 
 STATIC_BUILTINS = {
@@ -781,7 +827,7 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
     elif isinstance(symbol, Model):
         return instantiate_model(symbol, session)
     elif isinstance(symbol, Data):
-        return instantiate_dataset(symbol, session)
+        return instantiate_data(symbol, session)
     elif isinstance(symbol, Type):
         return instantiate_type(symbol, session)
     else:

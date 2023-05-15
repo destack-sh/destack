@@ -291,7 +291,7 @@ defineExpose({
       <input
         v-else-if="type.tag == TypeTag.Number"
         :value="value"
-        @input="(e: any) => writeValue(e.target?.value)"
+        @input="(e: any) => writeValue(Number.parseFloat(e.target?.value))"
         ref="valueRef"
         type="number"
         spellcheck="false"
