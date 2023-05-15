@@ -10,6 +10,7 @@ import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/g
 import { useEditorState } from "@/state/editor";
 import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -57,18 +58,8 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
       })
     );
   }
-  // combine basic types with nullable & array options
-  return [
-    ...basicTypes,
-    ...basicTypes
-      .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
-      .map((t) => makeTypeNode({ ...t, flags: t.flags | TypeFlag.IsNullable })),
-    ...basicTypes
-      .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
-      .map((t) => makeTypeNode({ ...t, flags: t.flags | TypeFlag.IsArray })),
-  ];
+  return basicTypes;
 });
-
 const filteredTypes = computed(() => availableTypes.value.filter((t) => renderSimpleType(t).includes(query.value)));
 
 function writeValue(type: SimpleTypeNode) {
@@ -114,6 +105,45 @@ function focus() {
   } else {
     valueRefFocused.focused.value = true;
   }
+}
+
+type FlagButton = {
+  flag: TypeFlag;
+  label: string;
+  icon?: string;
+  unsetIcon?: any;
+  setIcon?: any;
+};
+const flagButtons: FlagButton[] = [
+  {
+    flag: TypeFlag.IsNullable,
+    label: "Optional",
+    icon: "?",
+  },
+  {
+    flag: TypeFlag.IsArray,
+    label: "List",
+    icon: "[]",
+  },
+  {
+    flag: TypeFlag.IsSecret,
+    label: "Secret",
+    unsetIcon: EyeIcon,
+    setIcon: EyeSlashIcon,
+  },
+];
+
+function isFlagSet(flag: TypeFlag) {
+  return value.value.flags & flag;
+}
+
+function toggleFlag(flag: TypeFlag) {
+  const newFlags = value.value.flags ^ flag;
+  value.value = {
+    ...value.value,
+    flags: newFlags,
+  };
+  emit("update:modelValue", value.value);
 }
 
 const editor = useEditorState();
@@ -171,6 +201,23 @@ defineExpose({
       v-show="editing"
       :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
     >
+      <div class="flex flex-row justify-around px-2 py-1">
+        <button
+          v-for="flagButton in flagButtons"
+          :key="flagButton.label"
+          class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
+          :class="isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : ''"
+          @click="toggleFlag(flagButton.flag)"
+        >
+          <span> {{ flagButton.label }}</span>
+          <span v-if="flagButton.icon">{{ flagButton.icon }}</span>
+          <component
+            v-else
+            :is="isFlagSet(flagButton.flag) ? flagButton.setIcon : flagButton.unsetIcon"
+            class="h-4 w-4"
+          />
+        </button>
+      </div>
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[

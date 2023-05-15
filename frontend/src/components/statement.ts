@@ -479,10 +479,13 @@ export function renderSimpleType(node: SimpleType): string {
 
   let rendered: string = renderedElement;
   if (node.flags & TypeFlag.IsArray) {
-    rendered = "list " + renderedElement;
+    rendered = renderedElement + " list";
   }
   if (node.flags & TypeFlag.IsNullable) {
     rendered = rendered + "?";
+  }
+  if (node.flags & TypeFlag.IsSecret) {
+    rendered = "secret " + rendered;
   }
 
   return rendered;

@@ -524,6 +524,7 @@ class TypeFlag(enum.IntFlag):
     IsArray = 2**1
     IsNullable = 2**2
     IsUnionWith = 2**3
+    IsSecret = 2**4
 
 
 class TypeNode(abc.ABC):
@@ -633,7 +634,7 @@ class SimpleTypeNode(TypeNode):
             reference=reference,
             source_reference=self.source_reference,
             value=self.value,
-            flasg=self.flags,
+            flags=self.flags,
         )
 
 
