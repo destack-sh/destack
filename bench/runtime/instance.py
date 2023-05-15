@@ -42,7 +42,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.typer import check_type, map_value, rekey_value
+from bench.language.typer import check_type, map_value
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
@@ -278,6 +278,7 @@ class TypeInstance(SymbolInstance, Type):
 class RecordInstance(Record):
     # TODO @Performance: mark & collect dirty on session flush for records/datasets
     #  Currently we just write the whole record on any change, which is ughh.
+    # :RecordInstanceFieldKeys
     type: TypeInstance = required_field()
     session: Session = required_field()
     owner: InterpSymbol = required_field()
@@ -291,8 +292,9 @@ class RecordInstance(Record):
 
     def _to_wire(self, include_data: bool = True) -> wire.RecordData:
         if include_data:
-            raw_data = strip_value(self.data, self.type)
-            raw_data = rekey_value(raw_data, self.type)
+            raw_data = map_value(
+                self.data, self.type, map_v=strip_py_value_inner, map_k=lambda t: (t.ident, t.key)
+            )
         else:
             raw_data = None
         return wire.RecordData(
@@ -629,48 +631,36 @@ def instantiate_type(type: Type, session: Session) -> TypeInstance:
     return TypeInstance(**type.__dict__, py_type=py_type, session=session)
 
 
-def _instantiate_py_value_inner(value: Any, type: TypeInstance) -> Any:
+def instantiate_py_value_inner(value: Any, type: TypeNode) -> Any:
     if type.tag == TypeTag.FILE:
         try:
             return RemoteObjectInstance.from_dict(value)
         except (KeyError, ValueError, TypeError):
             return value
-    elif type.tag == TypeTag.STRUCT:
+    elif type.tag == TypeTag.STRUCT and isinstance(type, TypeInstance):
         return type(**value)
     return value
 
 
-def _strip_py_value_inner(value: Any, type: TypeInstance) -> Any:
+def strip_py_value_inner(value: Any, type: TypeNode) -> Any:
     if type.tag == TypeTag.FILE:
         try:
             return value.to_dict()
         except (KeyError, ValueError, TypeError):
-            return None  # raise? (but should be type error earlier}
+            return None  # raise? (but should be type error earlier)
     return value
-
-
-def instantiate_py_value(value, type: TypeInstance) -> Any:
-    return map_value(value, type, map_v=_instantiate_py_value_inner)
-
-
-def strip_value(value, type: TypeNode) -> Any:
-    return map_value(value, type, map_v=_strip_py_value_inner)
-
-
-# TODO @Feature: what's the counter-part to instantiate record data?
 
 
 def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
     """Instrument and instantiate a dataset for use."""
     records = []
     for raw_record in dataset.records:
-        py_record_data = {}
-        # unkey into real names
-        raw_data = dataset.type.unkey(raw_record.data)
-        for key, value in raw_data.items():
-            py_field = to_pyidentifier(key)
-            py_value = instantiate_py_value(value, dataset.type[key])
-            py_record_data[py_field] = py_value
+        py_record_data = map_value(
+            raw_record.data,
+            dataset.type,
+            map_v=instantiate_py_value_inner,
+            map_k=lambda t: (t.key, t.ident),
+        )
         record = RecordInstance(
             id=raw_record.id,
             order_key=raw_record.order_key,
