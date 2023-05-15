@@ -519,7 +519,7 @@ class GeneratorContent:
 
 class TypeFlag(enum.IntFlag):
     # :TypeFlags
-    Null = 0
+    Zero = 0
     IsOutput = 2**0
     IsArray = 2**1
     IsNullable = 2**2
