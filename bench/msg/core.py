@@ -78,7 +78,7 @@ async def drain_nats():
 PayloadT = TypeVar("PayloadT", bound=Any)
 # TODO @Robustness: fix PayloadT checking
 
-VERSION = os.environ["VERSION"]
+VERSION = os.environ.get("VERSION", "dev")
 
 
 @dataclass(repr=False)

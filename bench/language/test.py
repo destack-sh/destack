@@ -181,3 +181,40 @@ print(bananas)
         "bananas": StatementPath(".", "bananas"),
     }
     assert not analysis.is_async
+
+
+def test_type_union_with():
+    module, idx = parse_string(
+        """
+--- test ---
+type OAuthConnection:
+- access_token: string
+- refresh_token: string?
+
+type GithubConnection:
+& OAuthConnection
+- username: string
+- email: string
+
+type GithubRepository:
+- owner: string
+- name: string
+
+data connections :: (name: string?) & GithubConnection:
+```jsonl
+{}
+```
+
+data repositories :: GithubRepository:
+```jsonl
+{}
+```
+
+code test_connection :: (repository: GithubRepository) & GithubConnection -> (success: boolean):
+```py
+pass
+```
+"""
+    )
+    idx.symbol(".test:OAuthConnection", Type)
+    idx.symbol(".test:GithubConnection", Type)

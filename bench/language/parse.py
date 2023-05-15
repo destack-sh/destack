@@ -413,11 +413,11 @@ def preparse(
         return []
 
     tokens = TokenParser(tokens, start_pos=0, indent_level=0)
-    states: dict[str, FileParseState] = OrderedDict()  # remember original file order
+    files: dict[str, FileParseState] = OrderedDict()  # remember original file order
     # tokens[0] must be newfile
     initial_file: File = File(module=module, path=tokens.eat_newfile().value)
     local = FileParseState(file=initial_file)
-    states[initial_file.path] = local
+    files[initial_file.path] = local
 
     while tokens.peek() is not None:
         # reset indent if previous token was on a different line
@@ -426,10 +426,10 @@ def preparse(
 
         if tokens.peek().type == TT.NEWFILE:
             path = tokens.eat_newfile().value
-            if path not in states:  # begin new file state
+            if path not in files:  # begin new file state
                 new_file = File(module=module, path=path)
-                states[path] = FileParseState(file=new_file)
-            local = states[path]
+                files[path] = FileParseState(file=new_file)
+            local = files[path]
         elif tokens.peek().type == TT.INDENT:
             tokens.eat()
             local.indent += 1
@@ -476,7 +476,7 @@ def preparse(
                 raise ParseError(ET.UNEXPECTED_INDENT, tokens.peek(), indent=local.indent)
             local.add_statement(statement)
 
-    return [state.file for state in states.values()]
+    return [state.file for state in files.values()]
 
 
 def _parse_comment(tokens: TokenParser, **kwargs) -> Statement:
@@ -636,9 +636,7 @@ def _parse_definition_content(
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
-        tokens.eat_bracket("(")
-        type = parse_type_struct_inline(tokens, name="element")
-        tokens.eat_bracket(")")
+        type = parse_type_struct(tokens, name="element")
         tokens.eat_separator(":")
         tokens.eat_newline()
         description = _parse_description_line_optional(tokens)
@@ -719,7 +717,7 @@ def _parse_definition_type(tokens: TokenParser, **kwargs) -> Statement:
     tokens.eat_separator(":")
     tokens.eat_newline()
     description = _parse_description_line_optional(tokens)
-    struct = parse_type_struct(tokens, name=name.value)
+    struct = parse_type_struct_def(tokens, name=name.value)
     struct.description = description
     tokens.eat_newline_or_eos()
     definition = Statement(
@@ -791,12 +789,11 @@ def parse_simple_type_node(tokens: TokenParser) -> SimpleTypeNode:
 def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> SimpleTypeNode:
     """Parse a type node type including description, handling simple nesting.."""
 
+    flags = TypeFlag.Zero
     # parse array like [<type>] (one layer only)
     if tokens.peek_bracket("["):
-        is_array = True
+        flags |= TypeFlag.IsArray
         tokens.eat_bracket("[")
-    else:
-        is_array = False
 
     # parse actual type as either primitive or type reference
     reference = None
@@ -815,14 +812,12 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
         type = TypeTag.TYPE_REFERENCE
         reference = _parse_reference_slot(tokens)
 
-    if is_array:
+    if flags & TypeFlag.IsArray:
         tokens.eat_bracket("]")
 
     if tokens.peek_type(TokenType.MARK_OPTIONAL):
         tokens.eat()
-        is_optional = True
-    else:
-        is_optional = False
+        flags |= TypeFlag.IsNullable
 
     if tokens.peek_separator(" "):
         tokens.eat_space()
@@ -836,8 +831,7 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
         value=value,
         reference=reference,
         description=description,
-        is_array=is_array,
-        is_nullable=is_optional,
+        flags=flags,
     )
 
 
@@ -849,31 +843,83 @@ def assign_type_node_oks(nodes: list[SimpleTypeNode]) -> list[SimpleTypeNode]:
     return nodes
 
 
-def parse_type_struct(tokens: TokenParser, name: str | None) -> TypeContent:
+def parse_type_struct_def(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse tuples like <tuple1>\n<tuple2>\n...
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
-    while tokens.peek_separator("-"):
-        tokens.eat_separator("-")
+    while tokens.peek_separator("-") or tokens.peek_separator("&"):
+        sep = tokens.eat()
         tokens.eat_space()
-        tuple = parse_simple_type_node(tokens)
-        struct.type_nodes.append(tuple)
+        if sep.value == "&":
+            node = SimpleTypeNode(
+                name=None,
+                tag=TypeTag.TYPE_REFERENCE,
+                reference=(_parse_reference_slot(tokens)),
+                flags=TypeFlag.IsUnionWith,
+            )
+        else:
+            node = parse_simple_type_node(tokens)
+        struct.type_nodes.append(node)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
         tokens.eat_newline_or_eos()
-        if not tokens.peek_separator("-"):
+        if not tokens.peek_separator("-") or tokens.peek_separator("&"):
             tokens.advance(-1)  # go back one token to leave newline separator
             break
     assign_type_node_oks(struct.type_nodes)
     return struct
 
 
+def parse_type_struct(
+    tokens: TokenParser, name: str | None, is_output: bool = False
+) -> TypeContent:
+    """Parse an entire struct with possible unions like (...) & ... & ..."""
+
+    def _parse_union_join():
+        if tokens.peek_separator(" "):
+            tokens.eat_separator(" ")
+            if tokens.peek_separator("&"):
+                tokens.eat_separator("&")
+                tokens.eat_separator(" ")
+                return True
+            else:
+                tokens.advance(-1)  # go back one token
+        return False
+
+    expect_union = True
+    if tokens.peek_bracket("("):
+        tokens.eat_bracket("(")
+        struct = parse_type_struct_inline(tokens, name, is_output=is_output)
+        tokens.eat_bracket(")")
+
+        # parse start of union if there is one
+        expect_union = _parse_union_join()
+    else:
+        struct = TypeContent(name=name, tag=TypeTag.STRUCT)
+
+    while expect_union:
+        node = SimpleTypeNode(
+            name=None,
+            tag=TypeTag.TYPE_REFERENCE,
+            flags=TypeFlag.IsUnionWith | (TypeFlag.IsOutput if is_output else 0),
+            reference=_parse_reference_slot(tokens),
+        )
+        struct.type_nodes.append(node)
+        expect_union = _parse_union_join()
+
+    assign_type_node_oks(struct.type_nodes)
+
+    return struct
+
+
 def parse_type_struct_inline(
     tokens: TokenParser, name: str | None, is_output: bool = False
 ) -> TypeContent:
+    """Parse the inner part of an inline struct like name1: type1, name2: type2, ..."""
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
     while not tokens.peek_bracket(")"):
         tuple = parse_simple_type_node(tokens)
-        tuple.flags = tuple.flags | TypeFlag.IsOutput
+        if is_output:
+            tuple.flags = tuple.flags | TypeFlag.IsOutput
         struct.type_nodes.append(tuple)
         if not tokens.peek_separator(","):
             break
@@ -885,17 +931,12 @@ def parse_type_struct_inline(
 
 def parse_type_func(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse signature like (<tuple1>, <tuple2>, ...) -> (<tuple1>, <tuple2>, ...)
-    tokens.eat_bracket("(")
-    nodes = parse_type_struct_inline(tokens, "input").type_nodes
-    tokens.eat_bracket(")")
+    nodes = parse_type_struct(tokens, name=None).type_nodes
     if tokens.peek_separator(" "):
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        tokens.eat_bracket("(")
-        outputs = parse_type_struct_inline(tokens, "output", is_output=True)
-        nodes.extend(outputs.type_nodes)
-        tokens.eat_bracket(")")
+        nodes.extend(parse_type_struct(tokens, name=None, is_output=True).type_nodes)
     assign_type_node_oks(nodes)
     return TypeContent(name=name, tag=TypeTag.FUNCTION, type_nodes=nodes)
 
