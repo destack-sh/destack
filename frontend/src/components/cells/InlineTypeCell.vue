@@ -65,6 +65,11 @@ const filteredTypes = computed(() => availableTypes.value.filter((t) => renderSi
 function writeValue(type: SimpleTypeNode) {
   editing.value = false;
   nextTick(() => buttonRef.value?.focus());
+  // keep flags
+  type = {
+    ...type,
+    flags: value.value.flags,
+  };
   value.value = type;
   emit("update:modelValue", type);
   emit("escape");

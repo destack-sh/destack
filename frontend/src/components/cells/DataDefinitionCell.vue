@@ -19,7 +19,7 @@ import { TypeTag } from "@/gql/graphql";
 import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { ArrowDownIcon, ArrowPathIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -40,6 +40,7 @@ const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
+const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
 
 const {
   loading,
@@ -78,7 +79,7 @@ const {
   {
     statementId: computed(() => context.statement.value.id),
     after: null,
-    first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+    first: !isTable.value ? 1 : PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
 );
 const pageInfo = computed(() => fetchedRecords.value?.statement?.records.pageInfo);
@@ -94,6 +95,7 @@ const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.valu
 const overfetchedRecord = computed(() =>
   pageInfo.value?.hasNextPage ? fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.node : null
 );
+const mainRecord = computed(() => recordsInView.value?.[0]);
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) {
@@ -116,12 +118,12 @@ const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTy
   fieldTypeNodes,
   {
     gridNavigateUp: focusDescriptionFromTop,
-    gridNavigateDown: focusFirstRecord,
+    gridNavigateDown: isTable.value ? focusFirstRecord : context.navigateDown,
   }
 );
 const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, recordsInView, {
   gridNavigateUp: () => {
-    if (typeGrid.refs.value.length > 0) {
+    if (typeGrid.refs.value.length > 0 && isTable.value) {
       typeGrid.focus(-1, "name");
     } else {
       focusDescriptionFromBottom();
@@ -247,6 +249,7 @@ function deleteRecordField(recordId: string, key: string) {
 }
 
 function deleteRecord(recordId: string) {
+  if (!isTable.value) return; // can't delete the main record
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, recordId);
@@ -281,19 +284,20 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
 const position = useMouseInElement(gridRef);
 
 const extraActions = computed(() => {
-  const inlineActions: InlineAction[] = [
-    {
+  const inlineActions: InlineAction[] = [];
+  if (isTable.value) {
+    inlineActions.push({
       label: "Reload view",
       icon: ArrowPathIcon,
       active: loading.value,
       action: () => refetch(),
-    },
-    {
+    });
+    inlineActions.push({
       label: "Add record",
       icon: PlusIcon,
       action: () => insertRecord(),
-    },
-  ];
+    });
+  }
   return inlineActions;
 });
 
@@ -332,7 +336,7 @@ defineExpose({
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
-      <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0" class="text-gray-400">
+      <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
         {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
       </span>
       <InlineActions :extraActions="extraActions" />
@@ -357,8 +361,9 @@ defineExpose({
   >
     +description
   </button>
-  <!-- Dataset type and records -->
-  <table ref="gridRef" class="-mx-1 w-full table-fixed">
+  <!-- Contents -->
+  <table ref="gridRef" class="-mx-1 w-full" v-if="isTable">
+    <!-- Table (in table form) -->
     <!-- Field types -->
     <tr class="border-b border-orange-900 border-opacity-[12%]">
       <td v-for="field in fieldTypeNodes" :key="field?.id" class="">
@@ -426,10 +431,70 @@ defineExpose({
       </td>
     </tr>
   </table>
+  <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
+    <!-- Single value (vertical) -->
+    <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
+    <tr v-for="field in fieldTypeNodes" :key="field.id">
+      <td class="w-1/3">
+        <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 py-0.5 focus-within:bg-orange-100">
+          <InlineValueCell
+            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
+            immediate
+            debounced
+            :type="STRING_TYPE_NODE"
+            slim
+            :model-value="field.name"
+            :readonly="context.readonly.value"
+            :active="context.editing.value || context.focused.value"
+            @update:model-value="(val: any) => updateFieldName(field, val)"
+            class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            @keydown.delete.exact="isEditing || deleteField(field)"
+            @keydown.up.exact="typeGrid.navigateUp(field?.id, 'name')"
+            @keydown.down.exact="typeGrid.navigateDown(field?.id, 'name')"
+            @keydown.right.exact="typeGrid.focus(field?.id, 'type')"
+          />
+          <InlineTypeCell
+            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
+            :type="field"
+            :readonly="context.readonly.value"
+            class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :model-value="field"
+            @update:model-value="(node: any) => updateFieldType(field, node)"
+            @keydown.delete.exact="isEditing || deleteField(field)"
+            @keydown.up.exact="typeGrid.navigateUp(field?.id, 'type')"
+            @keydown.down.exact="typeGrid.navigateDown(field?.id, 'type')"
+            @keydown.left.exact="typeGrid.focus(field?.id, 'name')"
+            @keydown.right.exact="recordGrid.focus(mainRecord?.id, field.name as string)"
+          />
+        </div>
+      </td>
+      <td v-if="mainRecord">
+        <InlineValueCell
+          :ref="(el: any) => recordGrid.registerColumnRef(mainRecord.id, field.name as string, el)"
+          :model-value="mainRecord.data?.[field.key as string]"
+          @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
+          :type="runtimeTypeOf(field)"
+          :readonly="context.readonly.value"
+          :active="context.editing.value || context.focused.value"
+          :placeholder-value="context.editing.value ? field.name : undefined"
+          immediate
+          debounced
+          :supports-drop="!context.readonly.value"
+          @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"
+          @delete-left="deleteRecord(mainRecord.id)"
+          @keydown.delete.exact="isEditing || deleteRecordField(mainRecord.id, field.key as string)"
+          @keydown.up.exact="recordGrid.navigateLeft(mainRecord.id, field.name as string)"
+          @keydown.down.exact="recordGrid.navigateRight(mainRecord.id, field.name as string)"
+          @keydown.left.exact="typeGrid.focus(field?.id, 'type')"
+          class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+        />
+      </td>
+    </tr>
+  </table>
   <!-- Load more -->
   <div class="my-1 flex flex-row gap-2">
     <button
-      v-if="pageInfo?.hasNextPage"
+      v-if="pageInfo?.hasNextPage && isTable"
       @click="loadMore()"
       @keydown.up.exact="focusLastRecord"
       @keydown.right.exact="addRecordRef?.focus"
@@ -449,7 +514,7 @@ defineExpose({
     </button>
     <!-- Insert button -->
     <button
-      v-if="!context.readonly.value"
+      v-if="!context.readonly.value && isTable"
       tabindex="-1"
       ref="addRecordRef"
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"

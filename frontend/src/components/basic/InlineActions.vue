@@ -43,7 +43,9 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       <FadeTransition name="fade" mode="out-in">
         <component :is="action.active ? ArrowPathIcon : action.icon" class="h-4 w-4" />
       </FadeTransition>
+      <!-- Label -->
       <span
+        v-if="!action.active"
         class="absolute -left-3 top-6 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
       >
         {{ action.label }}

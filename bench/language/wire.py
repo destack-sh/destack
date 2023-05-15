@@ -303,6 +303,7 @@ def rmap_symbol(
     if isinstance(content, language.TypeContent):
         data.description = content.description
         data.root_type_tag = content.tag
+        data.root_type_flags = content.flags
         data.type_nodes = [
             rmap_simple_type_node(data.id, node, impute_type_references)
             for node in content.type_nodes

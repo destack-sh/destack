@@ -14,4 +14,12 @@ class Migration(migrations.Migration):
             name="root_type_flags",
             field=models.IntegerField(blank=True, null=True),
         ),
+        # init existing data statements as tables (set type flag for IsArray)
+        migrations.RunSQL(
+            """
+            UPDATE bench_statement
+            SET root_type_flags = 2
+            WHERE type = 'def' and symbol_type = 'data'
+            """
+        ),
     ]

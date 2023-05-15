@@ -37,12 +37,13 @@ export type Transaction = {
   closedAt?: DateTime;
   operations: Operation<unknown>[];
   blockPartialUndo?: boolean; // whether to block partial undo
+  collapseUndoToFirst?: boolean; // whether undo/redo only apply to the first executed operation
   undo?(): Promise<unknown>; // tx-level undo of all operations
   redo?(): Promise<unknown>; // tx-level redo of all operations (both must be set if any)
 };
 
 export function openTransaction(
-  options?: Pick<Transaction, "name" | "blockPartialUndo" | "undo" | "redo">
+  options?: Pick<Transaction, "name" | "blockPartialUndo" | "collapseUndoToFirst" | "undo" | "redo">
 ): Transaction {
   return {
     ...options,
@@ -195,6 +196,11 @@ export const useOperationsStore = defineStore("operations", {
           throw new Error(`operation ${operation.id} is already in transaction ${operation.tx.id}`);
         }
         operation.tx.operations.push(operation);
+        // collapse undo/redo to first performed operation if requested
+        if (operation.tx.collapseUndoToFirst && operation.undo == null) {
+          operation.tx.undo = operation.undo;
+          operation.tx.redo = operation.redo;
+        }
       }
       // enable undo even before the operation is performed (for responsiveness)
       if (operation.undo != null) {
