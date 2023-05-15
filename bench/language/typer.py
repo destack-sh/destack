@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Callable, Collection, Mapping, Union
 
-from bench.language.type import PRIMITIVE_TYPES, RemoteObject, TypeNode, TypeTag
+from bench.language.type import PRIMITIVE_TYPES, RemoteObject, TypeFlag, TypeNode, TypeTag
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
@@ -55,7 +55,7 @@ def check_type(
             else:
                 _on_invalid_collect(value, expected, message)
 
-    if expected.is_array and not ignore_array:
+    if expected.flags & TypeFlag.IsArray and not ignore_array:
         _check(isinstance(value, Collection), "expected array")
         if isinstance(value, Collection):  # _check may not be eager
             for item in value:
@@ -81,7 +81,7 @@ def check_type(
         _check(isinstance(value, Mapping), "expected struct")
         if isinstance(value, Mapping):  # _check may not be eager
             for subtype in expected.type_nodes:
-                if is_output is not None and subtype.is_output != is_output:
+                if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
                     continue
                 alt_name = to_pyidentifier(subtype.name)
                 subvalue = value.get(subtype.name, value.get(alt_name))
@@ -131,11 +131,11 @@ def map_value(
         raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, Mapping):
         return value  # type error, ignore here
-    if type.is_array and not ignore_array:
+    if type.flags & TypeFlag.IsArray and not ignore_array:
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     mapped = {}
     for subtype in type.type_nodes:
-        if is_output is not None and subtype.is_output != is_output:
+        if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
             continue
         source_k, target_k = map_k(subtype)
         if source_k not in value:

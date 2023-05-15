@@ -17,6 +17,7 @@ from bench.language.type import (
     StatementModifier,
     StatementType,
     SymbolType,
+    TypeFlag,
     TypeTag,
     new_type_node_key,
 )
@@ -54,9 +55,7 @@ class SimpleTypeNode(UUIDModel):
     key = models.CharField(max_length=TYPE_NODE_KEY_LENGTH, default=new_type_node_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
-    is_output = models.BooleanField(default=False)
-    is_array = models.BooleanField(default=False)
-    is_nullable = models.BooleanField(default=False)
+    flags = models.IntegerField(default=0)
     description = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
     reference = models.ForeignKey(
@@ -64,10 +63,11 @@ class SimpleTypeNode(UUIDModel):
     )
 
     def __str__(self):
-        output_str = "output" if self.is_output else ""
-        array_str = "array" if self.is_array else ""
-        nullable_str = "nullable" if self.is_nullable else ""
-        flags_str = ", ".join([f for f in [output_str, array_str, nullable_str] if f])
+        output_str = "output" if self.flags & TypeFlag.IsOutput else ""
+        array_str = "array" if self.flags & TypeFlag.IsArray else ""
+        nullable_str = "nullable" if self.flags & TypeFlag.IsNullable else ""
+        unioned_str = "unioned" if self.flags & TypeFlag.IsUnionWith else ""
+        flags_str = ", ".join([f for f in [output_str, array_str, nullable_str, unioned_str] if f])
         flags_str = f" ({flags_str})" if flags_str else ""
         name_str = f"{self.name} " if self.name else ""
         return f"{self.statement} {name_str}{self.tag.value}{flags_str}"

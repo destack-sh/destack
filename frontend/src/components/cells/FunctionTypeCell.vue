@@ -4,6 +4,7 @@ import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -19,10 +20,10 @@ const emit = defineEmits<{
 
 const nodes = computed(() => context.typeNodes.value ?? []);
 const inputNodes = computed(
-  () => context.typeNodes.value?.filter((n) => !n.isOutput).map((n) => n as SimpleTypeNode) ?? []
+  () => context.typeNodes.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as SimpleTypeNode) ?? []
 );
 const outputNodes = computed(
-  () => context.typeNodes.value?.filter((n) => n.isOutput).map((n) => n as SimpleTypeNode) ?? []
+  () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as SimpleTypeNode) ?? []
 );
 
 type ColumnType = "name" | "type" | "description";
@@ -60,13 +61,11 @@ function writeColumn(kind: "input" | "output", memberId: string, column: ColumnT
   if (!member) {
     return;
   }
+  const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    context.updateTypeNode(member as SimpleType, { ...value, isOutput: kind == "output" } as SimpleType);
+    context.updateTypeNode(member as SimpleType, { ...value, flags } as SimpleType);
   } else {
-    context.updateTypeNode(
-      member as SimpleType,
-      { ...member, [column]: value, isOutput: kind == "output" } as SimpleType
-    );
+    context.updateTypeNode(member as SimpleType, { ...member, [column]: value, flags } as SimpleType);
   }
 }
 
@@ -84,7 +83,7 @@ function insertBelow(kind: "input" | "output", memberId?: string) {
     name: membersOfKind.length == 0 ? kind : kind + " " + (membersOfKind.length + 1),
     tag: TypeTag.String,
     orderKey,
-    isOutput: kind == "output",
+    flags: kind == "output" ? TypeFlag.IsOutput : 0,
   });
   context.createTypeNode(newMemberNode);
   nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "name"));

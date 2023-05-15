@@ -124,9 +124,7 @@ export const SimpleTypeNodeType = graphql(/* GraphQL */ `
     reference {
       id
     }
-    isOutput
-    isArray
-    isNullable
+    flags
   }
 `);
 

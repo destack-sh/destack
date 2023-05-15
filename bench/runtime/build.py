@@ -17,6 +17,7 @@ from bench.language.type import (
     StatementModifier,
     Task,
     Type,
+    TypeFlag,
     TypeNode,
     TypeTag,
     XBlock,
@@ -261,7 +262,7 @@ class XEmitTypeExplanation(XEmit):
             return " # " + d if d and self.include_descriptions else ""
 
         def _render_simple_type(t: TypeNode):
-            if t.is_nullable:
+            if t.flags & TypeFlag.IsNullable:
                 return _render_simple_type(t.type_nodes[0]) + "?"
             return t.reference.name if t.reference else t.tag.value
 
@@ -276,7 +277,7 @@ class XEmitTypeExplanation(XEmit):
                 el_str = f"\n{label} struct:{_render_description(type.description)}\n"
                 for child in type.type_nodes:
                     el_str += f"- {child.name}: {_render_simple_type(child)}{_render_description(child.description)}\n"
-            elif type.is_array:
+            elif type.flags & TypeFlag.IsArray:
                 el_str = f"\n{label} array of {_render_simple_type(type)}{_render_description(type.description)}\n"
             else:
                 el_str = f"{label}: {_render_simple_type(type)} {_render_description(type.description)}\n"

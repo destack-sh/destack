@@ -14,6 +14,7 @@ from bench.language.type import (
     StatementPath,
     StatementType,
     SymbolType,
+    TypeFlag,
     TypeTag,
     XKind,
     XSource,
@@ -35,9 +36,7 @@ class SimpleTypeNodeData:
     statement_id: UUID
     order_key: str
     description: Optional[str]
-    is_output: bool
-    is_array: bool
-    is_nullable: bool
+    flags: TypeFlag
     value: Optional[typing.Any] = None
     reference_id: Union[None, UUID] = None
 
@@ -411,29 +410,25 @@ def rmap_simple_type_node(
         statement_id=statement_id,
         tag=node.reference.tag if node.reference and impute_type_references else node.tag,
         description=node.description,
-        is_output=node.is_output,
-        is_array=node.is_array,
-        is_nullable=node.is_nullable,
+        flags=node.flags,
         reference_id=node.reference.id if node.reference else None,
         order_key=node.order_key,
         value=node.value,
     )
 
 
-def wmap_simple_type_node(data: SimpleTypeNodeData) -> language.SimpleTypeNode:
+def wmap_simple_type_node(node: SimpleTypeNodeData) -> language.SimpleTypeNode:
     """Maps a simple type node data object to a simple type node."""
     return language.SimpleTypeNode(
-        id=data.id,
-        name=data.name,
-        key=data.key,
-        tag=data.tag,
-        description=data.description,
-        is_output=data.is_output,
-        is_array=data.is_array,
-        is_nullable=data.is_nullable,
-        reference=data.reference_id,
-        order_key=data.order_key,
-        value=data.value,
+        id=node.id,
+        name=node.name,
+        key=node.key,
+        tag=node.tag,
+        description=node.description,
+        flags=node.flags,
+        reference=node.reference_id,
+        order_key=node.order_key,
+        value=node.value,
     )
 
 

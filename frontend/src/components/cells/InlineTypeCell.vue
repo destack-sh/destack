@@ -8,7 +8,7 @@ import {
 } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
-import { fileOf, symbolsLike } from "@/state/runtime";
+import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -62,10 +62,10 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
     ...basicTypes,
     ...basicTypes
       .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
-      .map((t) => makeTypeNode({ ...t, isNullable: true })),
+      .map((t) => makeTypeNode({ ...t, flags: t.flags | TypeFlag.IsNullable })),
     ...basicTypes
       .filter((t) => t.tag != TypeTag.Any && t.tag != TypeTag.Null)
-      .map((t) => makeTypeNode({ ...t, isArray: true })),
+      .map((t) => makeTypeNode({ ...t, flags: t.flags | TypeFlag.IsArray })),
   ];
 });
 

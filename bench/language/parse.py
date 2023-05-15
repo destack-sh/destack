@@ -47,6 +47,7 @@ from bench.language.type import (
     TokenType,
     Type,
     TypeContent,
+    TypeFlag,
     TypeNode,
     TypeTag,
     parse_statement_path,
@@ -872,7 +873,7 @@ def parse_type_struct_inline(
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
     while not tokens.peek_bracket(")"):
         tuple = parse_simple_type_node(tokens)
-        tuple.is_output = is_output
+        tuple.flags = tuple.flags | TypeFlag.IsOutput
         struct.type_nodes.append(tuple)
         if not tokens.peek_separator(","):
             break

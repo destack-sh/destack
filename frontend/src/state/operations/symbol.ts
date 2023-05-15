@@ -618,9 +618,7 @@ export function useSymbolContentOps() {
         $orderKey: String!
         $name: String!
         $description: String
-        $isOutput: Boolean!
-        $isArray: Boolean!
-        $isNullable: Boolean!
+        $flags: Int!
         $value: JSON
         $referenceId: GlobalID
       ) {
@@ -633,9 +631,7 @@ export function useSymbolContentOps() {
             orderKey: $orderKey
             name: $name
             description: $description
-            isOutput: $isOutput
-            isArray: $isArray
-            isNullable: $isNullable
+            flags: $flags
             value: $value
             referenceId: $referenceId
           }
@@ -659,9 +655,7 @@ export function useSymbolContentOps() {
             reference {
               id
             }
-            isOutput
-            isArray
-            isNullable
+            flags
           }
           ...OperationInfoContent
         }
@@ -676,9 +670,7 @@ export function useSymbolContentOps() {
         statementId: string;
         name: string;
         description: string | null;
-        isOutput: boolean;
-        isArray: boolean;
-        isNullable: boolean;
+        flags: number;
         value: any;
         referenceId: string | null;
       }) =>
@@ -702,9 +694,7 @@ export function useSymbolContentOps() {
             value: vars.value,
             orderKey: vars.orderKey,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
-            isOutput: vars.isOutput,
-            isArray: vars.isArray,
-            isNullable: vars.isNullable,
+            flags: vars.flags,
           },
         } as any),
       update(cache, { data }) {
@@ -812,9 +802,7 @@ export function useSymbolContentOps() {
       description: input.description ?? null,
       value: input.value ?? null,
       referenceId: input.referenceId ?? null,
-      isArray: input.isArray ?? false,
-      isNullable: input.isNullable ?? false,
-      isOutput: input.isOutput ?? false,
+      flags: input.flags ?? 0,
     } as TypeNodeCreateInput;
   }
 
@@ -865,9 +853,7 @@ export function useSymbolContentOps() {
         $tag: TypeTag!
         $name: String
         $description: String
-        $isOutput: Boolean!
-        $isArray: Boolean!
-        $isNullable: Boolean!
+        $flags: Int!
         $value: JSON
         $referenceId: GlobalID
       ) {
@@ -877,9 +863,7 @@ export function useSymbolContentOps() {
             tag: $tag
             name: $name
             description: $description
-            isOutput: $isOutput
-            isArray: $isArray
-            isNullable: $isNullable
+            flags: $flags
             value: $value
             referenceId: $referenceId
           }
@@ -891,9 +875,7 @@ export function useSymbolContentOps() {
             revision
             name
             description
-            isOutput
-            isArray
-            isNullable
+            flags
             value
             reference {
               id
@@ -909,9 +891,7 @@ export function useSymbolContentOps() {
         tag: TypeTag;
         name: string | null;
         description: string;
-        isOutput: boolean;
-        isArray: boolean;
-        isNullable: boolean;
+        flags: number;
         value: any;
         referenceId?: string;
       }) => {
@@ -924,9 +904,7 @@ export function useSymbolContentOps() {
             revision: PENDING_REVISION,
             name: vars.name,
             description: vars.description,
-            isOutput: vars.isOutput,
-            isArray: vars.isArray,
-            isNullable: vars.isNullable,
+            flags: vars.flags,
             value: vars.value,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
           },

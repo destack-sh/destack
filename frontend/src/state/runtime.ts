@@ -18,6 +18,14 @@ import { DateTime } from "luxon";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 import { v4 as uuidv4 } from "uuid";
 
+export enum TypeFlag {
+  Null = 0,
+  IsOutput = 1 << 0,
+  IsArray = 1 << 1,
+  IsNullable = 1 << 2,
+  IsUnionWith = 1 << 3,
+}
+
 export const InterpSymbolContentType = graphql(/* GraphQL */ `
   fragment InterpSymbolContent on InterpSymbol {
     id
@@ -43,9 +51,7 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
       reference {
         id
       }
-      isOutput
-      isArray
-      isNullable
+      flags
     }
   }
 `);

@@ -16,7 +16,7 @@ import { computed, inject, type Ref } from "vue";
 
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { contextOf } from "@/state/runtime";
+import { contextOf, TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 
@@ -302,9 +302,7 @@ export function useStatementContext() {
       description: newTypeNode.description ?? oldTypeNode.description,
       value: newTypeNode.value,
       reference: newTypeNode.reference,
-      isArray: newTypeNode.isArray,
-      isNullable: newTypeNode.isNullable,
-      isOutput: newTypeNode.isOutput,
+      flags: newTypeNode.flags,
     };
     await ops.symbol.updateTypeNode(
       null,
@@ -375,9 +373,7 @@ function makeTypeNodeInput(id: string, typeNode: SimpleType): TypeNodeCreateInpu
     description: typeNode.description ?? null,
     name: typeNode.name ?? null,
     value: typeNode.value ?? null,
-    isArray: typeNode.isArray ?? false,
-    isNullable: typeNode.isNullable ?? false,
-    isOutput: typeNode.isOutput ?? false,
+    flags: typeNode.flags,
   };
 }
 
@@ -389,9 +385,7 @@ function makeTypeNodeUpdate(typeNode: SimpleType): TypeNodeUpdateInput {
     description: typeNode.description ?? null,
     name: typeNode.name ?? null,
     value: typeNode.value ?? null,
-    isArray: typeNode.isArray ?? false,
-    isNullable: typeNode.isNullable ?? false,
-    isOutput: typeNode.isOutput ?? false,
+    flags: typeNode.flags,
   };
 }
 
@@ -443,9 +437,7 @@ export function makeTypeNode(data: {
   orderKey?: string;
   value?: any;
   reference?: { id: string; name?: string };
-  isOutput?: boolean;
-  isNullable?: boolean;
-  isArray?: boolean;
+  flags?: number;
 }): SimpleType {
   const typeNodeData: SimpleType = {
     id: newTypeNodeId(),
@@ -455,9 +447,7 @@ export function makeTypeNode(data: {
     orderKey: data.orderKey ?? INTEGER_ZERO,
     value: data.value ?? null,
     reference: data.reference,
-    isOutput: data.isOutput ?? false,
-    isNullable: data.isNullable ?? false,
-    isArray: data.isArray ?? false,
+    flags: data.flags ?? 0,
   };
   return typeNodeData;
 }
@@ -488,10 +478,10 @@ export function renderSimpleType(node: SimpleType): string {
   }
 
   let rendered: string = renderedElement;
-  if (node.isArray) {
+  if (node.flags & TypeFlag.IsArray) {
     rendered = "list " + renderedElement;
   }
-  if (node.isNullable) {
+  if (node.flags & TypeFlag.IsNullable) {
     rendered = rendered + "?";
   }
 

@@ -631,10 +631,8 @@ export type InterpSimpleType = Node &
     createdAt: Scalars["DateTime"];
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
+    flags: Scalars["Int"];
     id: Scalars["GlobalID"];
-    isArray: Scalars["Boolean"];
-    isNullable: Scalars["Boolean"];
-    isOutput: Scalars["Boolean"];
     key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
@@ -2010,10 +2008,8 @@ export type RunStateOperationInfo = OperationInfo | RunState;
 
 export type SimpleType = {
   description?: Maybe<Scalars["String"]>;
+  flags: Scalars["Int"];
   id: Scalars["GlobalID"];
-  isArray: Scalars["Boolean"];
-  isNullable: Scalars["Boolean"];
-  isOutput: Scalars["Boolean"];
   key: Scalars["String"];
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
@@ -2028,10 +2024,8 @@ export type SimpleTypeNode = Node &
     createdAt: Scalars["DateTime"];
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
+    flags: Scalars["Int"];
     id: Scalars["GlobalID"];
-    isArray: Scalars["Boolean"];
-    isNullable: Scalars["Boolean"];
-    isOutput: Scalars["Boolean"];
     key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
@@ -2345,10 +2339,8 @@ export type SystemInfo = {
 
 export type TypeNodeCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
+  flags?: Scalars["Int"];
   id: Scalars["GlobalID"];
-  isArray?: Scalars["Boolean"];
-  isNullable?: Scalars["Boolean"];
-  isOutput?: Scalars["Boolean"];
   key: Scalars["String"];
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
@@ -2383,10 +2375,8 @@ export type TypeNodeUpdateDescriptionInput = {
 
 export type TypeNodeUpdateInput = {
   description?: InputMaybe<Scalars["String"]>;
+  flags?: Scalars["Int"];
   id: Scalars["GlobalID"];
-  isArray?: Scalars["Boolean"];
-  isNullable?: Scalars["Boolean"];
-  isOutput?: Scalars["Boolean"];
   name?: InputMaybe<Scalars["String"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
@@ -2394,10 +2384,8 @@ export type TypeNodeUpdateInput = {
 };
 
 export type TypeNodeUpdateTypeInput = {
+  flags?: Scalars["Int"];
   id: Scalars["GlobalID"];
-  isArray?: Scalars["Boolean"];
-  isNullable?: Scalars["Boolean"];
-  isOutput?: Scalars["Boolean"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
   value?: InputMaybe<Scalars["JSON"]>;
@@ -3616,9 +3604,7 @@ export type SimpleTypeNodeContentFragment = {
   description?: string | null;
   value?: any | null;
   orderKey: string;
-  isOutput: boolean;
-  isArray: boolean;
-  isNullable: boolean;
+  flags: number;
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "SimpleTypeNodeContentFragment" };
 
@@ -4600,9 +4586,7 @@ export type CreateTypeNodeMutationVariables = Exact<{
   orderKey: Scalars["String"];
   name: Scalars["String"];
   description?: InputMaybe<Scalars["String"]>;
-  isOutput: Scalars["Boolean"];
-  isArray: Scalars["Boolean"];
-  isNullable: Scalars["Boolean"];
+  flags: Scalars["Int"];
   value?: InputMaybe<Scalars["JSON"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
@@ -4626,9 +4610,7 @@ export type CreateTypeNodeMutation = {
         tag: TypeTag;
         description?: string | null;
         value?: any | null;
-        isOutput: boolean;
-        isArray: boolean;
-        isNullable: boolean;
+        flags: number;
         statement: { __typename?: "Statement"; id: any };
         reference?: { __typename?: "Statement"; id: any } | null;
       };
@@ -4678,9 +4660,7 @@ export type UpdateTypeNodeMutationVariables = Exact<{
   tag: TypeTag;
   name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
-  isOutput: Scalars["Boolean"];
-  isArray: Scalars["Boolean"];
-  isNullable: Scalars["Boolean"];
+  flags: Scalars["Int"];
   value?: InputMaybe<Scalars["JSON"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
@@ -4699,9 +4679,7 @@ export type UpdateTypeNodeMutation = {
         revision: number;
         name?: string | null;
         description?: string | null;
-        isOutput: boolean;
-        isArray: boolean;
-        isNullable: boolean;
+        flags: number;
         value?: any | null;
         reference?: { __typename?: "Statement"; id: any } | null;
       };
@@ -4864,9 +4842,7 @@ export type InterpSymbolContentFragment = {
     description?: string | null;
     value?: any | null;
     orderKey: string;
-    isOutput: boolean;
-    isArray: boolean;
-    isNullable: boolean;
+    flags: number;
     reference?: { __typename?: "Statement"; id: any } | null;
   }> | null;
 } & { " $fragmentName"?: "InterpSymbolContentFragment" };
@@ -5521,9 +5497,7 @@ export const SimpleTypeNodeContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "isOutput" } },
-          { kind: "Field", name: { kind: "Name", value: "isArray" } },
-          { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
         ],
       },
     },
@@ -5693,9 +5667,7 @@ export const InterpSymbolContentFragmentDoc = {
                     selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                   },
                 },
-                { kind: "Field", name: { kind: "Name", value: "isOutput" } },
-                { kind: "Field", name: { kind: "Name", value: "isArray" } },
-                { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+                { kind: "Field", name: { kind: "Name", value: "flags" } },
               ],
             },
           },
@@ -13311,18 +13283,8 @@ export const CreateTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
         {
           kind: "VariableDefinition",
@@ -13385,18 +13347,8 @@ export const CreateTypeNodeDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "isOutput" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isArray" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isNullable" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+                      name: { kind: "Name", value: "flags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
                     },
                     {
                       kind: "ObjectField",
@@ -13448,9 +13400,7 @@ export const CreateTypeNodeDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
-                      { kind: "Field", name: { kind: "Name", value: "isOutput" } },
-                      { kind: "Field", name: { kind: "Name", value: "isArray" } },
-                      { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+                      { kind: "Field", name: { kind: "Name", value: "flags" } },
                     ],
                   },
                 },
@@ -13674,18 +13624,8 @@ export const UpdateTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
         {
           kind: "VariableDefinition",
@@ -13733,18 +13673,8 @@ export const UpdateTypeNodeDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "isOutput" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isOutput" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isArray" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isArray" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "isNullable" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "isNullable" } },
+                      name: { kind: "Name", value: "flags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
                     },
                     {
                       kind: "ObjectField",
@@ -13775,9 +13705,7 @@ export const UpdateTypeNodeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
-                      { kind: "Field", name: { kind: "Name", value: "isOutput" } },
-                      { kind: "Field", name: { kind: "Name", value: "isArray" } },
-                      { kind: "Field", name: { kind: "Name", value: "isNullable" } },
+                      { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
                         kind: "Field",

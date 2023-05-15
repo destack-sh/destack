@@ -22,6 +22,7 @@ from bench.language.type import (
     Task,
     Type,
     TypeContent,
+    TypeFlag,
     TypeNode,
     TypeTag,
 )
@@ -321,7 +322,7 @@ class SampleFabricateRandom(SampleSource):
 
 def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = None) -> Any:
     """Synthesizes a value of the given type with fake fields."""
-    if type.is_array and not skip_array:
+    if type.flags & TypeFlag.IsArray and not skip_array:
         return [fabricate_value(type.type_nodes[0], skip_array=True)]
     elif type.tag == TypeTag.STRING:
         return "lorem ipsum"
@@ -337,7 +338,7 @@ def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = 
         return {
             subtype.name: fabricate_value(subtype)
             for subtype in type.type_nodes
-            if is_output is None or subtype.is_output == is_output
+            if is_output is None or bool(subtype.flags & TypeFlag.IsOutput) == is_output
         }
     elif type.tag == TypeTag.UNION:
         return fabricate_value(type.type_nodes[0])

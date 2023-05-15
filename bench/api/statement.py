@@ -126,9 +126,7 @@ class SimpleType:
     key: str
     order_key: str
     tag: TypeTag
-    is_output: bool
-    is_array: bool
-    is_nullable: bool
+    flags: int
     description: Optional[str]
     value: Optional[JSON]
     reference: Optional["Statement"]
@@ -145,9 +143,7 @@ class SimpleTypeNode(gql.Node, SimpleType):
     key: auto
     order_key: auto
     tag: TypeTag
-    is_output: auto
-    is_array: auto
-    is_nullable: auto
+    flags: int
     description: auto
     value: auto
     reference: Optional["Statement"]
@@ -726,9 +722,7 @@ class TypeNodeCreateInput:
     name: Optional[str] = None
     tag: TypeTag
     description: Optional[str] = None
-    is_output: bool = False
-    is_nullable: bool = False
-    is_array: bool = False
+    flags: int = 0
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
@@ -738,9 +732,7 @@ class TypeNodeUpdateInput(gql.NodeInput):
     name: Optional[str] = None
     tag: TypeTag
     description: Optional[str] = None
-    is_output: bool = False
-    is_nullable: bool = False
-    is_array: bool = False
+    flags: int = 0
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
@@ -758,9 +750,7 @@ class TypeNodeUpdateDescriptionInput(gql.NodeInput):
 @gql.input
 class TypeNodeUpdateTypeInput(gql.NodeInput):
     tag: TypeTag
-    is_output: bool = False
-    is_nullable: bool = False
-    is_array: bool = False
+    flags: int = 0
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
@@ -916,9 +906,7 @@ class SymbolMutation:
             name=input.name,
             description=input.description,
             tag=input.tag,
-            is_output=input.is_output,
-            is_nullable=input.is_nullable,
-            is_array=input.is_array,
+            flags=input.flags,
             value=input.value,
             reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
         )
@@ -930,9 +918,7 @@ class SymbolMutation:
         type_node.name = input.name
         type_node.description = input.description
         type_node.tag = input.tag
-        type_node.is_output = input.is_output
-        type_node.is_nullable = input.is_nullable
-        type_node.is_array = input.is_array
+        type_node.flags = input.flags
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
@@ -957,9 +943,7 @@ class SymbolMutation:
     ) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.tag = input.tag
-        type_node.is_output = input.is_output
-        type_node.is_nullable = input.is_nullable
-        type_node.is_array = input.is_array
+        type_node.flags = input.flags
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node

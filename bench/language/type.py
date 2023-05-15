@@ -517,13 +517,20 @@ class GeneratorContent:
     generated_mappings: list[GeneratedMapping] = field(default_factory=list)
 
 
+class TypeFlag(enum.IntFlag):
+    # :TypeFlags
+    Null = 0
+    IsOutput = 2**0
+    IsArray = 2**1
+    IsNullable = 2**2
+    IsUnionWith = 2**3
+
+
 class TypeNode(abc.ABC):
     name: Optional[str]
     key: Optional[str]
     tag: TypeTag
-    is_output: bool
-    is_nullable: bool
-    is_array: bool
+    flags: TypeFlag
     description: Optional[str]
     type_nodes: list["TypeNode"]
     value: Optional[LiteralValue]
@@ -531,11 +538,11 @@ class TypeNode(abc.ABC):
 
     @property
     def inputs(self) -> list["TypeNode"]:
-        return [child for child in self.type_nodes if not child.is_output]
+        return [child for child in self.type_nodes if not child.flags & TypeFlag.IsOutput]
 
     @property
     def outputs(self) -> list["TypeNode"]:
-        return [child for child in self.type_nodes if child.is_output]
+        return [child for child in self.type_nodes if child.flags & TypeFlag.IsOutput]
 
     def __getitem__(self, item: str) -> "TypeNode":
         node = first((child for child in self.type_nodes if child.name == item), None)
@@ -592,9 +599,7 @@ class SimpleTypeNode(TypeNode):
     id: UUID = field(default_factory=uuid.uuid4)
     key: str = field(default_factory=new_type_node_key)
     description: Optional[str] = None
-    is_output: bool = False
-    is_array: bool = False
-    is_nullable: bool = False
+    flags: TypeFlag = TypeFlag(0)
     value: Optional[LiteralValue] = None  # for literal types
     # source reference is separate as the resolved TypeNode may not contain the name
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"] = None
@@ -628,9 +633,7 @@ class SimpleTypeNode(TypeNode):
             reference=reference,
             source_reference=self.source_reference,
             value=self.value,
-            is_output=self.is_output,
-            is_array=self.is_array,
-            is_nullable=self.is_nullable,
+            flasg=self.flags,
         )
 
 
@@ -642,9 +645,7 @@ class TypeContent(SymbolContent, TypeNode):
     description: Optional[str] = None
     # not directly configurable for types
     key = None
-    is_output = False
-    is_array = False
-    is_nullable = False
+    flags = TypeFlag(0)
     value = None
     reference = None
 

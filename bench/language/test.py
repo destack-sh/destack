@@ -11,7 +11,7 @@ from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import ErrorType, ParseError, SemanticError, parse_code, parse_string
 from bench.language.reconstruct import render
-from bench.language.type import Code, StatementPath, Task, Type
+from bench.language.type import Code, StatementPath, Task, Type, TypeFlag
 
 # all  files in bench/bench
 demo_paths = glob.glob("../bench/*.bench")
@@ -105,7 +105,7 @@ type Event:
     )
 
     type_event = idx.symbol(".test:Event", Type)
-    assert type_event["entities"].is_array
+    assert type_event["entities"].flags & TypeFlag.IsArray
 
     type_entity = idx.symbol(".test:Entity", Type)
     assert type_entity["first_event"].reference.id == type_event.id
@@ -130,7 +130,7 @@ task test :: (a: string, b: string "input 1") -> (x: string "output 1", y: strin
     ]:
         assert task_type[name].tag == tag
         assert task_type[name].description == descr
-        assert task_type[name].is_output == is_output
+        assert bool(task_type[name].flags & TypeFlag.IsOutput) == is_output
 
 
 def test_extract_code_references():
