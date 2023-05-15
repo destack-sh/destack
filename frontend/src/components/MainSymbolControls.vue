@@ -4,7 +4,7 @@ import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { fileOf, symbolsLike, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
+import { fileOf, symbolsLike, TypeFlag, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { ChevronDownIcon, PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watchEffect } from "vue";
@@ -49,7 +49,9 @@ watchEffect(() => {
 const symbolOps = useSymbolOps();
 
 // can run inline if has no non-default inputs :InlineRun
-const hasNoInputs = computed(() => mainSymbol.value?.typeNodes?.filter((n) => !n.isOutput).length == 0);
+const hasNoInputs = computed(
+  () => mainSymbol.value?.typeNodes?.filter((n) => !(n.flags & TypeFlag.IsOutput)).length == 0
+);
 const runMain = provideGlobalAction({
   id: "symbol.runMain",
   label: computed(() => "Run " + mainSymbol.value?.name + (hasNoInputs.value ? "" : "...")),

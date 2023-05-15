@@ -3,7 +3,7 @@ import ObjectValueCell from "@/components/cells/ObjectValueCell.vue";
 import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { OBJECT_TYPETAGS } from "@/state/object";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
@@ -202,7 +202,7 @@ defineExpose({
       <!-- Default content if empty and no special rendering-->
       <!-- TODO @Incomplete: edit array & struct values values -->
       <!-- TODO @UX: array & struct rendering (esp. nested) is ugly and hacky (nested InlineValueCells, see below) -->
-      <div v-if="type.isArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
+      <div v-if="type.flags & TypeFlag.IsArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
         <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
           v-for="(value, index) in modelValue"

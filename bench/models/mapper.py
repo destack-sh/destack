@@ -587,9 +587,7 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
         key=node.key,
         order_key=node.order_key,
         description=node.description,
-        is_output=node.is_output,
-        is_array=node.is_array,
-        is_nullable=node.is_nullable,
+        flags=node.flags,
         value=node.value,
         reference_id=node.reference_id,
     )
@@ -606,9 +604,7 @@ def wmap_simple_type_node(
         name=node.name,
         tag=node.tag,
         description=node.description,
-        is_output=node.is_output,
-        is_array=node.is_array,
-        is_nullable=node.is_nullable,
+        flags=node.flags,
         value=node.value,
         reference_id=node.reference_id,
     )

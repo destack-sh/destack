@@ -27,6 +27,7 @@ from bench.language.type import (
     SymbolType,
     TaskContent,
     TypeContent,
+    TypeFlag,
     TypeNode,
     TypeTag,
 )
@@ -232,9 +233,9 @@ def render_type_node(
     else:
         raise ValueError(f"unexpected type: {node.tag}")
 
-    if node.is_array:
+    if node.flags & TypeFlag.IsArray:
         type_str = f"[{type_str}]"
-    if node.is_nullable:
+    if node.flags & TypeFlag.IsNullable:
         type_str = f"{type_str}?"
 
     return f"{identifier_str}{type_str}{description_str}"
