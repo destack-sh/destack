@@ -663,7 +663,7 @@ class LanguageWorker:
 
     def on_module_changed(self, mutator: list[ModuleMutation] | ModuleMutator) -> InterpJob:
         if not isinstance(mutator, ModuleMutator):
-            mutator = ModuleMutator(self.idx, mutator)
+            mutator = ModuleMutator(self.idx, mutator, source=self.source)
         new_source = mutator.apply()
         job = InterpJob(
             # not sure if reactive=False is always correct?
@@ -719,20 +719,20 @@ class LanguageWorker:
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
-        prev_hash = self.module_hash
         requirements = get_requirements(new_source)
         dependencies = await self.interpreter.interp_requirements(requirements)
         await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
-        if prev_hash != self.module_hash:
-            # reactively trigger (debounced) reactors
-            if not self.interp.committed:
-                create_wrapped_task(self._trigger_reactive_generate())
-                # create_wrapped_task(self._trigger_reactive_lint()) (disabled for now)
-            # notify clients
-            payload = make_full_change_payload(self, InterpChangedPayload)
-            await publish(NMessageType.INTERP_CHANGED, payload)
+        # TODO @Performance: don't send full interp change on every interp
+        # (module hash is not reliable enough to detect changes yet)
+        # reactively trigger (debounced) reactors
+        if not self.interp.committed:
+            create_wrapped_task(self._trigger_reactive_generate())
+            # create_wrapped_task(self._trigger_reactive_lint()) (disabled for now)
+        # notify clients
+        payload = make_full_change_payload(self, InterpChangedPayload)
+        await publish(NMessageType.INTERP_CHANGED, payload)
 
     @debounce(GENERATE_DEBOUNCE, max_wait=GENERATE_DEBOUNCE_MAX_WAIT)
     async def _trigger_reactive_generate(self) -> None:

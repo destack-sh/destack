@@ -511,6 +511,9 @@ class GeneratedMapping:
     def __repr__(self):
         return f"<GeneratedMapping {self}>"
 
+    def deepcopy(self):
+        return self.__class__(**self.__dict__)
+
 
 @dataclass(repr=False)
 class GeneratorContent:
@@ -633,7 +636,7 @@ class SimpleTypeNode(TypeNode):
     ) -> "SimpleTypeNode":
         if not keep_reference or self.reference is None:
             reference = self.source_reference
-        elif deepcopy_reference:
+        elif deepcopy_reference and isinstance(self.reference, TypeContent):
             reference = self.reference.deepcopy(
                 keep_id=True, keep_reference=keep_reference, deepcopy_reference=False
             )
@@ -994,6 +997,9 @@ class Requirement(InterpSymbol, RequirementContent):
 @dataclass(repr=False)
 class BuildSettings(ReactiveSettings):
     weights: dict[str, float] = field(default_factory=dict)
+
+    def deepcopy(self):
+        return BuildSettings(**self.__dict__)
 
 
 @dataclass(repr=False)

@@ -16,15 +16,15 @@ const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 
 const inlineActions: Ref<InlineAction[]> = computed(() => {
   const inlineActions: InlineAction[] = [];
+  if (props.extraActions) {
+    inlineActions.push(...props.extraActions);
+  }
   if (!context.readonly.value) {
     inlineActions.push({
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
       action: () => magic.duplicate(),
     });
-  }
-  if (props.extraActions) {
-    inlineActions.push(...props.extraActions);
   }
   return inlineActions;
 });

@@ -19,7 +19,7 @@ import { computed, isRef, ref, watch, type Ref } from "vue";
 import { v4 as uuidv4 } from "uuid";
 
 export enum TypeFlag { // :TypeFlags
-  Null = 0,
+  Zero = 0,
   IsOutput = 1 << 0,
   IsArray = 1 << 1,
   IsNullable = 1 << 2,

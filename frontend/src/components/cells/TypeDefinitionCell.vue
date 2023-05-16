@@ -5,9 +5,19 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import {
+  makeTypeNode,
+  STRING_TYPE_NODE,
+  useStatementContext,
+  type InlineAction,
+  type SimpleType,
+} from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
+import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
+import PlusIcon from "@heroicons/vue/24/outline/PlusIcon";
+import TableCellsIcon from "@heroicons/vue/24/outline/TableCellsIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -21,8 +31,13 @@ context.syncDescription(
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
-const members = computed(() => context.typeNodes.value ?? []);
+const members = computed(
+  () => context.typeNodes.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
+);
 const membersLength = computed(() => members.value?.length ?? 0);
+const extendedTypes = computed(
+  () => context.typeNodes.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+);
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
 
@@ -43,10 +58,10 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
 });
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
-function insertBelow(memberId?: string) {
+function insertBelow(memberId?: string, isUnionWith?: boolean) {
   let orderKey;
   if (memberId == null) {
-    const lastMember = members.value?.[membersLength.value - 1];
+    const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
     orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   } else {
     const member = members.value?.find((m) => m.id === memberId);
@@ -62,11 +77,18 @@ function insertBelow(memberId?: string) {
       value: name, // :LiteralStringEnum
       orderKey,
     });
-  } else {
+  } else if (!isUnionWith) {
     newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
+    });
+  } else {
+    newMemberNode = makeTypeNode({
+      name: "",
+      tag: TypeTag.TypeReference,
+      orderKey,
+      flags: TypeFlag.IsUnionWith,
     });
   }
 
@@ -143,6 +165,23 @@ function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
 
+const extraActions = computed(() => {
+  const inlineActions: InlineAction[] = [];
+  inlineActions.push({
+    label: "Add " + (isEnum.value ? "option" : "field"),
+    icon: TableCellsIcon,
+    action: () => insertBelow(),
+  });
+  if (!isEnum.value) {
+    inlineActions.push({
+      label: "Extend",
+      icon: CubeTransparentIcon,
+      action: () => insertBelow(undefined, true),
+    });
+  }
+  return inlineActions;
+});
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -158,6 +197,33 @@ defineExpose({
   <div class="flex items-center justify-between">
     <div class="flex flex-row items-baseline">
       <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
+      <!-- Extended types -->
+      <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
+        <span class="mr-1 text-orange-600">is</span>
+        <div class="inline-flex flex-row gap-1">
+          <InlineTypeCell
+            v-for="field of extendedTypes"
+            :model-value="field"
+            @update:model-value="(val) => context.updateTypeNode(field, val)"
+            @keydown.delete.exact="isEditing || context.deleteTypeNode(field)"
+            :active="context.focused.value || context.editing.value"
+            :key="field.id"
+            :readonly="context.readonly.value"
+            structref-only
+            hide-flags
+            class="w-full self-start border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          />
+        </div>
+      </div>
+      <!-- Inline buttons -->
+      <button
+        v-if="!isEnum && !context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
+        tabindex="-1"
+        @click="() => insertBelow(undefined, true)"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      >
+        +extend
+      </button>
       <button
         tabindex="-1"
         v-if="description.length == 0 && !context.readonly.value && !addingDescription"
@@ -173,6 +239,7 @@ defineExpose({
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
+      :extraActions="extraActions"
     />
   </div>
   <!-- Description -->
@@ -195,6 +262,7 @@ defineExpose({
   </button>
   <!-- Members (enum options or struct fields) -->
   <div
+    v-if="membersLength > 0"
     class="my-1 grid w-fit"
     :class="{
       'grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]': isEnum,
@@ -232,12 +300,14 @@ defineExpose({
         <!-- Note the :EditableCellStyle above (should be symmetric) -->
       </template>
     </template>
+  </div>
+  <div class="mb-1">
     <!-- Add a member -->
     <button
       v-show="!context.readonly.value"
       tabindex="-1"
       ref="addMemberRef"
-      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      class="mt-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertBelow()"
       @enter="insertBelow()"
       @keydown.up.exact="focusLast"

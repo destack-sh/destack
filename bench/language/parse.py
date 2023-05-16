@@ -1697,6 +1697,8 @@ def interp(
         if not isinstance(node, (Type, Task, Code, Data)) or node.id in inlined_node_ids:
             return node.type_nodes
         inlined_node_ids.add(node.id)
+        if not any(n.flags & TypeFlag.IsUnionWith for n in node.type_nodes):
+            return node.type_nodes  # skip, no unions
         path = path + [node]
         inlined_nodes = []
         node.self_type_nodes = deepcopy_types(node.type_nodes)  # retain originals
@@ -1704,9 +1706,9 @@ def interp(
             if not child.flags & TypeFlag.IsUnionWith:
                 inlined_nodes.append(child)
                 continue
-            # inline child's type nodes
             if not isinstance(child.reference, Type):
-                raise RuntimeError(f"expected type in {node}, got {child}")
+                continue  # ignore unresolved
+            # inline child's type nodes
             for to_inline in _inline_type_union_rec(child.reference, path):
                 existing = first((n for n in inlined_nodes if n.name == to_inline.name), None)
                 # check if type is compatible if overlapping
@@ -1716,7 +1718,7 @@ def interp(
                 ):
                     # TODO @Robustness: check union type compatibility properly
                     path = "->".join(str(n) for n in path)
-                    _error(ET.MISMATCHED_UNION, node=existing, other=to_inline, path=path)
+                    _error(ET.MISMATCHED_UNION, node, node=existing, other=to_inline, path=path)
                     continue
                 inlined_nodes.append(to_inline)
             if isinstance(node, Type):  # extend expectations

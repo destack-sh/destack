@@ -17,6 +17,8 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 const props = defineProps<{
   modelValue?: SimpleType;
   readonly: boolean;
+  structrefOnly?: boolean;
+  hideFlags?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -45,11 +47,14 @@ const availableSymbols = symbolsLike({
   symbolTypes: [SymbolType.Type],
 });
 const availableTypes: Ref<SimpleType[]> = computed(() => {
-  const basicTypes = [...PRIMITIVE_TYPE_NODES];
+  const basicTypes = [];
+  if (!props.structrefOnly) {
+    basicTypes.push(...PRIMITIVE_TYPE_NODES);
+  }
   // references
   for (const symbol of availableSymbols.value) {
-    if (symbol.name == null) {
-      continue; // ignore, shouldn't happen
+    if (symbol.name == null || (symbol.rootTypeTag != TypeTag.Struct && props.structrefOnly)) {
+      continue;
     }
     basicTypes.push(
       makeTypeNode({
@@ -206,7 +211,8 @@ defineExpose({
       v-show="editing"
       :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
     >
-      <div class="flex flex-row justify-around px-2 py-1">
+      <!-- Flags -->
+      <div v-if="!props.hideFlags" class="flex flex-row justify-around px-2 py-1">
         <button
           v-for="flagButton in flagButtons"
           :key="flagButton.label"
@@ -223,6 +229,7 @@ defineExpose({
           />
         </button>
       </div>
+      <!-- Options -->
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[

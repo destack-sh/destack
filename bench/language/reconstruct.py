@@ -120,7 +120,8 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATA:
             content = cast(DataContent, statement.content)
-            type_str = render_type_struct(content.self_type_nodes, statement)
+            nodes = content.self_type_nodes or content.type_nodes or []
+            type_str = render_type_struct(nodes, statement)
             postfix = f" :: {type_str}:"
         else:
             postfix = ":"
@@ -227,7 +228,8 @@ def render_type_node(
     if node.tag == TypeTag.TYPE_REFERENCE or (node.reference is not None and not ignore_reference):
         type_str = render_reference(node.reference, statement)
     elif node.tag == TypeTag.UNION:
-        type_str = " | ".join(render_type_node(e, statement) for e in node.self_type_nodes)
+        nodes = node.self_type_nodes or node.type_nodes or []
+        type_str = " | ".join(render_type_node(e, statement) for e in nodes)
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
         type_str = node.tag.value
     elif node.tag == TypeTag.LITERAL:
@@ -244,8 +246,9 @@ def render_type_node(
 
 
 def render_type_func(node: TypeContent, statement: Statement) -> str:
-    inputs = [n for n in node.self_type_nodes if not (n.flags & TypeFlag.IsOutput)]
-    outputs = [n for n in node.self_type_nodes if n.flags & TypeFlag.IsOutput]
+    nodes = node.self_type_nodes or node.type_nodes or []
+    inputs = [n for n in nodes if not (n.flags & TypeFlag.IsOutput)]
+    outputs = [n for n in nodes if n.flags & TypeFlag.IsOutput]
     input_str = render_type_struct(inputs, statement)
     if node.outputs:
         output_str = render_type_struct(outputs, statement)
