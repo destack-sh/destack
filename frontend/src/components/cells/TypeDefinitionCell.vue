@@ -42,7 +42,7 @@ const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
 
 // dynamic member refs for names, values & descriptions for each member
-type ColumnType = "name" | "value" | "type" | "description";
+type ColumnType = "name" | "type" | "description";
 const columnsInOrder: Ref<ColumnType[]> = computed(() => {
   if (isEnum.value) {
     return ["name", "description"];

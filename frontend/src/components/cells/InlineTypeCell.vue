@@ -16,13 +16,15 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue?: SimpleType;
+  named?: boolean;
   readonly: boolean;
+  inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<SimpleType, "tag" | "reference">): void;
+  (e: "update:modelValue", value: Pick<SimpleType, "name" | "tag" | "flags" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -169,89 +171,97 @@ defineExpose({
 });
 </script>
 <template>
-  <button
-    v-if="!editing"
-    ref="buttonRef"
-    tabindex="-1"
-    :disabled="readonly"
-    @click="edit"
-    @keydown.enter.exact.prevent="edit"
-    @keydown.left.exact.prevent="emit('navigateLeft')"
-    @keydown.right.exact.prevent="emit('navigateRight')"
-    @keydown.up.exact.prevent="emit('navigateUp')"
-    @keydown.down.exact.prevent="emit('navigateDown')"
-    @keydown.delete.exact="editing || emit('deleteSelf')"
-    @focus.stop.prevent="emit('focus', $event)"
-    class="text-left outline-none"
-  >
-    {{ renderSimpleType(value) }}
-  </button>
-  <!-- Editable type :EditableCellStyle -->
-  <Combobox v-else as="div" class="relative" :model-value="value" @update:model-value="writeValue">
-    <ComboboxInput
-      as="input"
-      ref="valueRef"
-      class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
-      :class="{
-        'font-mono': editor.fontMono,
-        'text-sm placeholder:text-sm': editor.textSmall,
-        'text-md placeholder:text-md': !editor.textSmall,
-      }"
-      @change="query = $event.target.value"
-      :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
-      placeholder="..."
-      spellcheck="false"
-      @keydown.escape.prevent=""
-      @keyup.escape.prevent="cancel"
-    />
-    <ComboboxOptions
-      ref="optionsRef"
-      class="absolute z-20 mt-8 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
-      static
-      v-show="editing"
-      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+  <div class="relative">
+    <!-- Type preview -->
+    <button
+      ref="buttonRef"
+      tabindex="-1"
+      :disabled="readonly"
+      @click="edit"
+      @keydown.enter.exact.prevent="edit"
+      @keydown.left.exact.prevent="emit('navigateLeft')"
+      @keydown.right.exact.prevent="emit('navigateRight')"
+      @keydown.up.exact.prevent="emit('navigateUp')"
+      @keydown.down.exact.prevent="emit('navigateDown')"
+      @keydown.delete.exact="editing || emit('deleteSelf')"
+      @focus.stop.prevent="emit('focus', $event)"
+      class="text-left outline-none"
     >
-      <!-- Flags -->
-      <div v-if="!props.hideFlags" class="flex flex-row justify-around px-2 py-1">
-        <button
-          v-for="flagButton in flagButtons"
-          :key="flagButton.label"
-          class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
-          :class="isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : ''"
-          @click="toggleFlag(flagButton.flag)"
-        >
-          <span> {{ flagButton.label }}</span>
-          <span v-if="flagButton.icon">{{ flagButton.icon }}</span>
-          <component
-            v-else
-            :is="isFlagSet(flagButton.flag) ? flagButton.setIcon : flagButton.unsetIcon"
-            class="h-4 w-4"
-          />
-        </button>
-      </div>
-      <!-- Options -->
-      <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
-        <li
-          :class="[
-            'relative cursor-default select-none px-2 py-0.5',
-            active ? 'bg-orange-600 text-white' : 'text-gray-900',
-            selected ? 'underline' : '',
-          ]"
-        >
-          <div class="flex items-baseline justify-between">
-            <span class="truncate">
-              {{ renderSimpleType(node) }}
-            </span>
-            <span
-              v-if="node.tag == TypeTag.TypeReference && node.reference != null"
-              class="text-xs"
-              :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']"
-            >
-              {{ fileOf(node.reference)?.path }}
-            </span>
-          </div>
-        </li>
-      </ComboboxOption>
-    </ComboboxOptions>
-  </Combobox>
+      <span
+        v-if="named"
+        class="mr-1 text-gray-900"
+        :class="inlined ? 'underline decoration-gray-500 decoration-dashed underline-offset-4' : ''"
+        >{{ value.name ?? "(unnamed)" }}</span
+      >
+      {{ renderSimpleType(value) }}
+    </button>
+    <!-- Editable type :EditableCellStyle -->
+    <Combobox v-if="editing" as="div" :model-value="value" @update:model-value="writeValue">
+      <ComboboxInput
+        as="input"
+        ref="valueRef"
+        class="absolute -left-0.5 -top-0.5 z-10 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
+        :class="{
+          'font-mono': editor.fontMono,
+          'text-sm placeholder:text-sm': editor.textSmall,
+          'text-md placeholder:text-md': !editor.textSmall,
+        }"
+        @change="query = $event.target.value"
+        :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
+        placeholder="..."
+        spellcheck="false"
+        @keydown.escape.prevent=""
+        @keyup.escape.prevent="cancel"
+      />
+      <ComboboxOptions
+        ref="optionsRef"
+        class="absolute z-20 mt-3 max-h-60 w-60 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+        static
+        v-show="editing"
+        :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+      >
+        <!-- Flags -->
+        <div v-if="!props.hideFlags" class="flex flex-row justify-around px-2 py-1">
+          <button
+            v-for="flagButton in flagButtons"
+            :key="flagButton.label"
+            class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
+            :class="isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : ''"
+            @click="toggleFlag(flagButton.flag)"
+          >
+            <span> {{ flagButton.label }}</span>
+            <span v-if="flagButton.icon">{{ flagButton.icon }}</span>
+            <component
+              v-else
+              :is="isFlagSet(flagButton.flag) ? flagButton.setIcon : flagButton.unsetIcon"
+              class="h-4 w-4"
+            />
+          </button>
+        </div>
+        <!-- Options -->
+        <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
+          <li
+            :class="[
+              'relative cursor-default select-none px-2 py-0.5',
+              active ? 'bg-orange-600 text-white' : 'text-gray-900',
+              selected ? 'underline' : '',
+            ]"
+          >
+            <div class="flex items-baseline justify-between">
+              <span class="truncate">
+                {{ renderSimpleType(node) }}
+              </span>
+              <span
+                v-if="node.tag == TypeTag.TypeReference && node.reference != null"
+                class="text-xs"
+                :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']"
+              >
+                {{ fileOf(node.reference)?.path }}
+              </span>
+            </div>
+          </li>
+        </ComboboxOption>
+      </ComboboxOptions>
+    </Combobox>
+  </div>
 </template>

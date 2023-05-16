@@ -115,7 +115,13 @@ const selfFields = computed(
 const extendedTypes = computed(
   () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
 );
-const columnsInOrder: Ref<string[]> = computed(() => allFields.value?.map((n) => n.name ?? "") ?? []);
+const columnsInOrder: Ref<string[]> = computed(() => {
+  if (isTable.value) {
+    return allFields.value?.map((n) => n.name ?? "") ?? [];
+  } else {
+    return ["type", "value"];
+  }
+});
 // map the field type to its actual runtime type
 // children cannot be imputed into SimpleTypeNode but we still want to know the actual type
 const selfSymbol = computed(() => symbolOf(context.statement.value.id));
@@ -130,27 +136,23 @@ const extendedFields = computed(
 );
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
-const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTypeCell>>(
-  computed(() => ["name", "type"]),
-  allFields,
+const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell>>(
+  columnsInOrder,
+  computed(() => {
+    if (isTable.value) {
+      // one row for fields, then values
+      return [{ id: "" }, ...recordsInView.value];
+    } else {
+      // one row for every field
+      return allFields.value;
+    }
+  }),
   {
-    gridNavigateUp: focusDescriptionFromTop,
-    gridNavigateDown: isTable.value ? focusFirstRecord : context.navigateDown,
+    gridNavigateUp: focusDescriptionFromBottom,
+    gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
   }
 );
-const recordGrid = useNavigationGrid<string, InstanceType<typeof InlineValueCell>>(columnsInOrder, recordsInView, {
-  gridNavigateUp: () => {
-    if (typeGrid.refs.value.length > 0 && isTable.value) {
-      typeGrid.focus(-1, "name");
-    } else {
-      focusDescriptionFromBottom();
-    }
-  },
-  gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
-});
-const isEditing = computed(
-  () => typeGrid.refs.value.find((n) => n.editing) || recordGrid.refs.value.find((n) => n.editing)
-);
+const isEditing = computed(() => grid.refs.value.find((n) => n.editing) || grid.refs.value.find((n) => n.editing));
 
 function focusDescriptionFromTop() {
   if (description.value?.length > 0 || addingDescription.value) {
@@ -169,26 +171,24 @@ function focusDescriptionFromBottom() {
 }
 
 function focusFirst() {
-  if (typeGrid.refs.value.length > 0) {
-    typeGrid.focus(0, "name");
+  if (grid.refs.value.length > 0) {
+    grid.focus(0, columnsInOrder.value[0]);
   } else {
     focusFirstRecord();
   }
 }
 
 function focusFirstRecord() {
-  if (recordGrid.refs.value.length > 0) {
-    recordGrid.focus(0, columnsInOrder.value[0]);
+  if (grid.refs.value.length > 0) {
+    grid.focus(0, columnsInOrder.value[0]);
   } else {
     addRecordRef.value?.focus();
   }
 }
 
 function focusLastRecord() {
-  if (recordGrid.refs.value.length > 0) {
-    recordGrid.focus(-1, columnsInOrder.value[0]);
-  } else if (typeGrid.refs.value.length > 0) {
-    typeGrid.focus(0, "name");
+  if (grid.refs.value.length > 0) {
+    grid.focus(-1, columnsInOrder.value[0]);
   } else {
     descriptionRef.value?.focus();
   }
@@ -219,7 +219,7 @@ function insertField(isUnionWith?: boolean) {
       })
     );
   }
-  nextTick(() => typeGrid.focus(-1, "name"));
+  nextTick(() => grid.focus(-1, "name"));
 }
 
 function updateFieldName(node: SimpleType, name: string) {
@@ -233,7 +233,7 @@ function updateFieldType(node: SimpleType, changed: SimpleType) {
 function deleteField(node: SimpleType) {
   const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
   context.deleteTypeNode(node);
-  typeGrid.focus(fieldIdx - 1, "name");
+  grid.focus(fieldIdx - 1, "name");
 }
 
 function insertRecord(belowRecordId?: string) {
@@ -259,7 +259,7 @@ function insertRecord(belowRecordId?: string) {
     orderKey = generateKeyBetween(record?.orderKey ?? null, null);
   }
   ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
-  nextTick(() => recordGrid.focus(-1, columnsInOrder.value[0]));
+  nextTick(() => grid.focus(-1, columnsInOrder.value[0]));
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
@@ -285,7 +285,7 @@ function deleteRecord(recordId: string) {
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, recordId);
   // move focus up
-  recordGrid.focus(recordIdx - 1, columnsInOrder.value[0]);
+  grid.focus(recordIdx - 1, columnsInOrder.value[0]);
 }
 
 // drag & drop
@@ -344,8 +344,8 @@ defineExpose({
     descriptionRef.value?.blur();
     addRecordRef.value?.blur();
     addFieldRef.value?.blur();
-    typeGrid.blur();
-    recordGrid.blur();
+    grid.blur();
+    grid.blur();
   },
   // prevent outer drag and drop while inside grid
   innerDrag: computed(() => !position.isOutside.value),
@@ -431,40 +431,20 @@ defineExpose({
     <!-- Field types -->
     <tr class="border-b border-orange-900 border-opacity-[12%]">
       <td v-for="field in allFields" :key="field?.id" class="">
-        <div class="flex flex-row gap-0.5 whitespace-nowrap p-1 focus-within:bg-orange-100">
-          <InlineValueCell
-            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
-            immediate
-            debounced
-            :type="STRING_TYPE_NODE"
-            slim
-            :model-value="field.name"
-            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            :active="context.editing.value || context.focused.value"
-            @update:model-value="(val: any) => updateFieldName(field, val)"
-            class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-            :class="
-              extendedFields.find((n) => n.name == field.name) != null
-                ? 'underline decoration-gray-600 decoration-dashed underline-offset-4'
-                : ''
-            "
-            @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
-            @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
-            @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
-            @navigate-down="typeGrid.navigateDown(field?.id, 'name')"
-            @keydown.delete.exact="isEditing || deleteField(field)"
-          />
+        <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
           <InlineTypeCell
-            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
+            :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :inlined="extendedFields.find((n) => n.name == field.name) != null"
+            named
+            class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
-            @navigate-left="typeGrid.navigateLeft(field?.id, 'type')"
-            @navigate-right="typeGrid.navigateRight(field?.id, 'type')"
-            @navigate-up="typeGrid.navigateUp(field?.id, 'type')"
-            @navigate-down="typeGrid.navigateDown(field?.id, 'type')"
+            @navigate-left="grid.navigateLeft('', field.name as string)"
+            @navigate-right="grid.navigateRight('', field.name as string)"
+            @navigate-up="grid.navigateUp('', field.name as string)"
+            @navigate-down="grid.navigateDown('', field.name as string)"
             @keydown.delete.exact="isEditing || deleteField(field)"
           />
         </div>
@@ -478,7 +458,7 @@ defineExpose({
     >
       <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
         <InlineValueCell
-          :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
+          :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
           :model-value="record.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
           :type="runtimeTypeOf(field)"
@@ -489,10 +469,10 @@ defineExpose({
           debounced
           :supports-drop="!context.readonly.value"
           @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
-          @navigate-left="recordGrid.navigateLeft(record.id, field.name as string)"
-          @navigate-right="recordGrid.navigateRight(record.id, field.name as string)"
-          @navigate-up="recordGrid.navigateUp(record.id, field.name as string)"
-          @navigate-down="recordGrid.navigateDown(record.id, field.name as string)"
+          @navigate-left="grid.navigateLeft(record.id, field.name as string)"
+          @navigate-right="grid.navigateRight(record.id, field.name as string)"
+          @navigate-up="grid.navigateUp(record.id, field.name as string)"
+          @navigate-down="grid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
           class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         />
@@ -504,47 +484,29 @@ defineExpose({
     <!-- Single value (vertical) -->
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
     <tr v-for="field in allFields" :key="field.id">
-      <td class="w-1/3">
+      <td class="w-1/4">
         <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 focus-within:bg-orange-100">
-          <InlineValueCell
-            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
-            immediate
-            debounced
-            :type="STRING_TYPE_NODE"
-            slim
-            :model-value="field.name"
-            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            :active="context.editing.value || context.focused.value"
-            @update:model-value="(val: any) => updateFieldName(field, val)"
-            class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-            :class="
-              extendedFields.find((n) => n.name == field.name) != null
-                ? 'underline decoration-gray-600 decoration-dashed underline-offset-4'
-                : ''
-            "
-            @keydown.delete.exact="isEditing || deleteField(field)"
-            @keydown.up.exact="typeGrid.navigateUp(field?.id, 'name')"
-            @keydown.down.exact="typeGrid.navigateDown(field?.id, 'name')"
-            @keydown.right.exact="typeGrid.focus(field?.id, 'type')"
-          />
           <InlineTypeCell
-            :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
+            :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :inlined="extendedFields.find((n) => n.name == field.name) != null"
+            named
+            class="h-full w-full border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @keydown.delete.exact="isEditing || deleteField(field)"
-            @keydown.up.exact="typeGrid.navigateUp(field?.id, 'type')"
-            @keydown.down.exact="typeGrid.navigateDown(field?.id, 'type')"
-            @keydown.left.exact="typeGrid.focus(field?.id, 'name')"
-            @keydown.right.exact="recordGrid.focus(mainRecord?.id, field.name as string)"
+            @keydown.up.exact="grid.navigateUp(field?.id, 'type')"
+            @keydown.down.exact="grid.navigateDown(field?.id, 'type')"
+            @keydown.right.exact="grid.focus(field?.id, 'value')"
+            @keydown.left.exact="grid.focus(field?.id, 'name')"
           />
         </div>
       </td>
+      <!-- main record should always exist but just in case? -->
       <td v-if="mainRecord">
         <InlineValueCell
-          :ref="(el: any) => recordGrid.registerColumnRef(mainRecord.id, field.name as string, el)"
+          :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="mainRecord.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
           :type="runtimeTypeOf(field)"
@@ -557,9 +519,10 @@ defineExpose({
           @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"
           @delete-left="deleteRecord(mainRecord.id)"
           @keydown.delete.exact="isEditing || deleteRecordField(mainRecord.id, field.key as string)"
-          @keydown.up.exact="recordGrid.navigateLeft(mainRecord.id, field.name as string)"
-          @keydown.down.exact="recordGrid.navigateRight(mainRecord.id, field.name as string)"
-          @keydown.left.exact="typeGrid.focus(field?.id, 'type')"
+          @keydown.up.exact="grid.navigateUp(field.id, 'value')"
+          @keydown.down.exact="grid.navigateDown(field.id, 'value')"
+          @keydown.right.exact="grid.focus(field.id, 'name')"
+          @keydown.left.exact="grid.focus(field.id, 'type')"
           class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
