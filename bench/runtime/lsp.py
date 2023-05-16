@@ -91,6 +91,11 @@ def parse_code(code: str | None) -> "CodeParse":
                 self.local_variables.add(node.targets[0].id)
             self.generic_visit(node)
 
+        def visit_AnnAssign(self, node):
+            if isinstance(node.target, ast.Name):
+                self.local_variables.add(node.target.id)
+            self.generic_visit(node)
+
         def visit_Name(self, node):
             if (
                 node.id not in self.local_variables

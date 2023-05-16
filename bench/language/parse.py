@@ -13,6 +13,7 @@ from typing import Callable, Optional
 from uuid import UUID
 
 import structlog
+from more_itertools import first
 
 from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex, lex_string
@@ -50,6 +51,7 @@ from bench.language.type import (
     TypeFlag,
     TypeNode,
     TypeTag,
+    deepcopy_types,
     parse_statement_path,
 )
 from bench.runtime.lsp import parse_code
@@ -862,7 +864,7 @@ def parse_type_struct_def(tokens: TokenParser, name: str | None) -> TypeContent:
         if not tokens.peek_type(TokenType.NEWLINE):
             break
         tokens.eat_newline_or_eos()
-        if not tokens.peek_separator("-") or tokens.peek_separator("&"):
+        if not (tokens.peek_separator("-") or tokens.peek_separator("&")):
             tokens.advance(-1)  # go back one token to leave newline separator
             break
     assign_type_node_oks(struct.type_nodes)
@@ -1335,8 +1337,11 @@ def resolve(
     for statement in statements:
         code = statement.content
         if isinstance(code, CodeContent):
+            input_keys = (input.ident for input in code.inputs)
             code.parse = parse_code(code.code)
             for key, reference in code.parse.references.items():
+                if key in input_keys:
+                    continue  # input arguments are obviously not resolved
                 reference = resolve_statement_reference(
                     reference=reference,
                     idx=idx,
@@ -1542,40 +1547,6 @@ def index_module(
     return idx
 
 
-def interp_type_node_rec(type: TypeNode, idx: ModuleIndex):
-    """Replaces type node references with Types and imputes."""
-    for node in type.walk():
-        if not isinstance(node.reference, (TypeNode, Type, Statement)):
-            # not a reference or unresolved
-            continue
-        node.reference = idx.symbols[node.reference.id]
-        # impute type reference
-        impute_type_reference(node, keep_references=True)
-
-
-def impute_type_reference(node: TypeNode, keep_references: bool = True) -> None:
-    """
-    Replace this nodes field in-place with the values of the referenced type node.
-    Note that without references, perfect source reconstruction is impossible.
-    """
-    if node.tag != TypeTag.TYPE_REFERENCE:
-        return
-
-    if not isinstance(node.reference, TypeNode):
-        raise ValueError(f"type reference is not resolved: {node}")
-
-    # error? if reference is an unresolved reference
-    if node.reference.tag == TypeTag.TYPE_REFERENCE:
-        # could just impute that as well? but then we'd need to break circles?
-        raise ValueError(f"reference is unresolved type reference: {node}")
-
-    node.tag = node.reference.tag
-    if not keep_references:
-        node.reference = None
-    elif node.source_reference is None:
-        node.source_reference = node.reference.name
-
-
 def interp(
     idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
 ) -> ModuleIndex:
@@ -1637,6 +1608,10 @@ def interp(
             # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
             symbol = symbol_cls(**base_symbol.__dict__, **source_content.deepcopy().__dict__)  # type: ignore
 
+        # replace source content with symbol (if it's a definition)
+        if statement.content is not None:
+            statement.content = symbol
+
         scope.parent.add_symbol(symbol)
         idx.symbols[statement.id] = symbol
 
@@ -1654,16 +1629,30 @@ def interp(
         if symbol.definition.abstract:
             raise NotImplementedError("TODO @Incomplete: implement abstraction :Variables")
 
-    # replace type node references with symbols (now that we have Type instances)
+    # interp type nodes
+    interped_type_nodes: set[UUID] = set()
+
+    def _interp_type_rec(node: TypeNode):
+        if node.id in interped_type_nodes:
+            return
+        interped_type_nodes.add(node.id)
+        # impute type reference
+        if isinstance(node.reference, Statement):
+            node.reference = idx.symbols[node.reference.id]
+            if node.reference.tag == TypeTag.TYPE_REFERENCE:
+                _interp_type_rec(node.reference)
+            if not isinstance(node.reference, Type) or node.reference.tag == TypeTag.TYPE_REFERENCE:
+                raise ValueError(f"type reference is not resolved: {node}")
+            node.tag = node.reference.tag
+            if node.source_reference is None:
+                node.source_reference = node.reference.name
+        for child in node.type_nodes:
+            _interp_type_rec(child)
+
+    # first impute all the references
     for symbol in idx.symbols.values():
-        scope = idx.scopes[symbol.source.id]
-        if isinstance(symbol, Type):
-            interp_type_node_rec(symbol, idx)
-        elif isinstance(symbol, (Data, Task, Code)):
-            interp_type_node_rec(symbol.type, idx)
-        # also replace in source type nodes
-        if isinstance(scope.statement.content, TypeContent):
-            interp_type_node_rec(scope.statement.content, idx)
+        if isinstance(symbol, TypeContent):
+            _interp_type_rec(symbol)
 
     # interp symbol contents using related symbols
     # this should probably set/work with :InstructionOps?
@@ -1674,25 +1663,19 @@ def interp(
         else:  # borrow scope from reference (imported references import their scope)
             scope = idx.scopes[statement.reference_id]
 
-        if isinstance(symbol, Type):
+        if isinstance(symbol, (Type, Task, Expectation)):
             for child in scope.proper_symbols:
                 if child.source.is_expect:
                     symbol.expectations.append(child)
-        elif isinstance(symbol, Task):
+        if isinstance(symbol, Task):
             for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
-                elif isinstance(child, (Task, Code)):
+                if isinstance(child, (Task, Code)):
                     symbol.steps.append(child)
-        elif isinstance(symbol, Code):
+        if isinstance(symbol, Code):
             # replace code references with symbols
             for key, reference in symbol.references.items():
                 symbol.context[key] = idx.symbols[reference.id]
-        elif isinstance(symbol, Expectation):
-            for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
-        elif isinstance(symbol, Build):
+        if isinstance(symbol, Build):
             for child in scope.proper_symbols:
                 if isinstance(child, Model):
                     symbol.models.append(child)
@@ -1707,6 +1690,49 @@ def interp(
                         and task.source.file.module.id == symbol.source.file.module.id
                     ):
                         symbol.tasks.append(task)
+
+    inlined_node_ids: set[UUID] = set()
+
+    # inline union types (and extend expectations if they exist)
+    def _inline_type_union_rec(node: TypeNode, path: list[TypeNode]) -> list[TypeNode]:
+        if any(n.id == node.id for n in path):
+            path = "->".join(str(n) for n in path + [node])
+            _error(ET.CIRCULAR_UNION, node.source, path=path)
+            return []
+        if not isinstance(node, (Type, Task, Code, Data)) or node.id in inlined_node_ids:
+            return node.type_nodes
+        inlined_node_ids.add(node.id)
+        path = path + [node]
+        inlined_nodes = []
+        node.self_type_nodes = deepcopy_types(node.type_nodes)  # retain originals
+        for child in node.type_nodes:
+            if not child.flags & TypeFlag.IsUnionWith:
+                inlined_nodes.append(child)
+                continue
+            # inline child's type nodes
+            if not isinstance(child.reference, Type):
+                raise RuntimeError(f"expected type in {node}, got {child}")
+            for to_inline in _inline_type_union_rec(child.reference, path):
+                existing = first((n for n in inlined_nodes if n.name == to_inline.name), None)
+                # check if type is compatible if overlapping
+                if existing is not None and (
+                    existing.tag != to_inline.tag
+                    or existing.source_reference != to_inline.source_reference
+                ):
+                    # TODO @Robustness: check union type compatibility properly
+                    path = "->".join(str(n) for n in path)
+                    _error(ET.MISMATCHED_UNION, node=existing, other=to_inline, path=path)
+                    continue
+                inlined_nodes.append(to_inline)
+            if isinstance(node, Type):  # extend expectations
+                node.expectations.extend(child.reference.expectations)
+        node.type_nodes = inlined_nodes
+        return node.type_nodes
+
+    for node_id in interped_type_nodes:
+        if node_id in idx.symbols:
+            type = typing.cast(TypeNode, idx.symbols[node_id])
+            _inline_type_union_rec(type, [])
 
     idx.interpreted = True
     return idx

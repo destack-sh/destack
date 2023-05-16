@@ -120,8 +120,8 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATA:
             content = cast(DataContent, statement.content)
-            type_str = render_type_struct(content.type_nodes, statement, ", ")
-            postfix = f" :: ({type_str}):"
+            type_str = render_type_struct(content.self_type_nodes, statement)
+            postfix = f" :: {type_str}:"
         else:
             postfix = ":"
         def_str = f"{modifier_str}{symt_str} {identifier_str}{postfix}"
@@ -182,9 +182,11 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return rendered_data
     elif isinstance(content, TypeContent):
         if content.tag == TypeTag.STRUCT:
-            rendered_type = render_type_struct(content.type_nodes, statement, "\n", inline=False)
+            rendered_type = render_type_struct_inner(
+                content.self_type_nodes, statement, "\n", inline=False
+            )
         elif content.tag == TypeTag.ENUM:
-            rendered_type = render_type_enum(content.type_nodes)
+            rendered_type = render_type_enum(content.self_type_nodes)
         elif content.tag == TypeTag.FUNCTION:
             rendered_type = render_type_func(content, statement)
         else:
@@ -225,7 +227,7 @@ def render_type_node(
     if node.tag == TypeTag.TYPE_REFERENCE or (node.reference is not None and not ignore_reference):
         type_str = render_reference(node.reference, statement)
     elif node.tag == TypeTag.UNION:
-        type_str = " | ".join(render_type_node(e, statement) for e in node.type_nodes)
+        type_str = " | ".join(render_type_node(e, statement) for e in node.self_type_nodes)
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
         type_str = node.tag.value
     elif node.tag == TypeTag.LITERAL:
@@ -242,23 +244,45 @@ def render_type_node(
 
 
 def render_type_func(node: TypeContent, statement: Statement) -> str:
-    input_str = render_type_struct(node.inputs, statement, seperator=", ")
+    inputs = [n for n in node.self_type_nodes if not (n.flags & TypeFlag.IsOutput)]
+    outputs = [n for n in node.self_type_nodes if n.flags & TypeFlag.IsOutput]
+    input_str = render_type_struct(inputs, statement)
     if node.outputs:
-        output_str = render_type_struct(node.outputs, statement, seperator=", ")
-        return f"({input_str}) -> ({output_str})"
+        output_str = render_type_struct(outputs, statement)
+        return f"{input_str} -> {output_str}"
     else:
-        return f"({input_str})"
+        return input_str
 
 
-def render_type_struct(
+def render_type_struct(nodes: list[TypeNode], statement: Statement | None) -> str:
+    if not nodes:
+        return "()"
+    unioned_nodes = [node for node in nodes if node.flags & TypeFlag.IsUnionWith]
+    normal_nodes = [node for node in nodes if not node.flags & TypeFlag.IsUnionWith]
+
+    parts = []
+    if normal_nodes:
+        normal_str = f"({render_type_struct_inner(normal_nodes, statement, ', ')})"
+        parts.append(normal_str)
+    for node in unioned_nodes:
+        parts.append(render_reference(node.reference, statement))
+    return " & ".join(parts)
+
+
+def render_type_struct_inner(
     nodes: list[TypeNode], statement: Statement | None, seperator: str, inline: bool = True
 ) -> str:
     if not nodes:
         return ""
-    field_strs = [render_type_node(field, statement) for field in nodes]
-    if not inline:
-        # prepend "- "
-        field_strs = [f"- {field_str}" for field_str in field_strs]
+    field_strs = []
+    for node in nodes:
+        field_str = render_type_node(node, statement)
+        if not inline:
+            if node.flags & TypeFlag.IsUnionWith:
+                field_str = f"& {field_str}"
+            else:
+                field_str = f"- {field_str}"
+        field_strs.append(field_str)
     return seperator.join(field_strs)
 
 

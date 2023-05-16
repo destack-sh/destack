@@ -9,7 +9,14 @@ import pytest
 
 from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
-from bench.language.parse import ErrorType, ParseError, SemanticError, parse_code, parse_string
+from bench.language.parse import (
+    ErrorCollector,
+    ErrorType,
+    ParseError,
+    SemanticError,
+    parse_code,
+    parse_string,
+)
 from bench.language.reconstruct import render
 from bench.language.type import Code, StatementPath, Task, Type, TypeFlag
 
@@ -52,6 +59,7 @@ type AppleTree:
 
 code graft :: (tree: .a.AppleTree, apple: Apple) -> (tree: AppleTree):
 ```python
+num_branches: int = 0 # not used (for testing)
 return tree + apple
 ```
 
@@ -115,7 +123,6 @@ def test_output_struct():
     module, idx = parse_string(
         """
 --- test ---
-
 task test :: (a: string, b: string "input 1") -> (x: string "output 1", y: string):
 "Just a test"
         """
@@ -184,21 +191,32 @@ print(bananas)
 
 
 def test_type_union_with():
-    module, idx = parse_string(
-        """
+    bench = """
 --- test ---
-type OAuthConnection:
+type Resource:
+- name: string
+
+type Connection:
+& Resource
 - access_token: string
+
+type OAuthConnection:
+& Connection
 - refresh_token: string?
 
 type GithubConnection:
 & OAuthConnection
+& GithubThing
 - username: string
 - email: string
 
 type GithubRepository:
+& GithubThing
 - owner: string
 - name: string
+
+type GithubThing:
+- github_id: string
 
 data connections :: (name: string?) & GithubConnection:
 ```jsonl
@@ -211,10 +229,42 @@ data repositories :: GithubRepository:
 ```
 
 code test_connection :: (repository: GithubRepository) & GithubConnection -> (success: boolean):
-```py
+```python
 pass
 ```
-"""
+""".strip()
+    module, idx = parse_string(bench)
+    # members should include inherited members
+    github_connection_names = (
+        i.name for i in idx.symbol(".test:GithubConnection", Type).type_nodes
     )
-    idx.symbol(".test:OAuthConnection", Type)
-    idx.symbol(".test:GithubConnection", Type)
+    assert set(github_connection_names) == {
+        "name",
+        "username",
+        "email",
+        "github_id",
+        "refresh_token",
+        "access_token",
+    }
+
+    # rendered should match
+    reconstructed = render(module.files)
+    assert reconstructed == bench
+
+
+def test_recursive_union_fail():
+    collector = ErrorCollector()
+    module, idx = parse_string(
+        """
+--- test ---
+type A:
+& B
+
+--- test ---
+type B:
+& A
+""",
+        on_error=collector,
+    )
+    assert len(collector.errors) == 1
+    assert collector.errors[0].type == ErrorType.CIRCULAR_UNION
