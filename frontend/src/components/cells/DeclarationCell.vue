@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
+import SelectTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
