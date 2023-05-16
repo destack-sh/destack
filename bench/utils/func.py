@@ -63,6 +63,10 @@ def dict_minus(obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
     return {k: v for k, v in obj.items() if k not in keys}
 
 
+def dict_intersect(obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
+    return {k: v for k, v in obj.items() if k in keys}
+
+
 async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
     task_id = task_id or coro.__name__
     try:
@@ -80,6 +84,7 @@ def debounce(delay: int, max_wait: int = None):
     """Debounces the async function by the given delay (in seconds) and
     ensures that the function is called at least once every max_wait seconds
     if provided"""
+
     # TODO @Broken: implement debounce max_wait
 
     def decorator(func):

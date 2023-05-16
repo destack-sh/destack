@@ -19,6 +19,7 @@ from bench.language.error import ErrorType, ParseError, SemanticError
 from bench.language.lex import lex, lex_string
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
+    SYMBOL_FIELDS_NAMES_BY_TYPE,
     Build,
     BuildContent,
     CapabilityContent,
@@ -61,6 +62,7 @@ from bench.utils.fractional import (
     generate_n_keys_between,
     increment_integer,
 )
+from bench.utils.func import dict_intersect
 
 logger = structlog.get_logger(__name__)
 
@@ -1586,27 +1588,20 @@ def interp(
         )
         source_content = statement.underlying_definition.content
         symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
+        symbol_keys = SYMBOL_FIELDS_NAMES_BY_TYPE[statement.symbol_type]
+        # intersect because source_content may be a full InterpSymbol (see below)
+        symbol_kwargs = dict_intersect(source_content.__dict__, symbol_keys)
+        symbol_kwargs.update(base_symbol.__dict__)
         if isinstance(source_content, (DataContent, TaskContent, CodeContent)):
             # for typed symbols we need to create a type symbol as well
-            type_symbol = Type(
+            symbol_kwargs["type"] = Type(
                 name=statement.name,
                 abstract=abstract,
                 source=statement,
                 tag=source_content.tag,
                 type_nodes=source_content.type_nodes,
             )
-            kwargs = {**source_content.__dict__}
-            kwargs.update(base_symbol.__dict__)
-            symbol = symbol_cls(**kwargs, type=type_symbol)
-        elif isinstance(source_content, TypeContent):
-            # avoid name clash, use name from source statement
-            # (TypeNode.name is not set sometimes for pure Type symbols)
-            kwargs = {**source_content.__dict__}
-            kwargs.update(base_symbol.__dict__)
-            symbol = Type(**kwargs)
-        else:
-            # assumes symbol_cls is InterpSymbol + SymbolContent (symbol-only fields as defaults)
-            symbol = symbol_cls(**base_symbol.__dict__, **source_content.deepcopy().__dict__)  # type: ignore
+        symbol = symbol_cls(**symbol_kwargs)  # type: ignore
 
         # replace source content with symbol (if it's a definition)
         if statement.content is not None:
