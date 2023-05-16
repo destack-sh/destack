@@ -53,11 +53,17 @@ const editableContainerRef: Ref<HTMLDivElement | null> = ref(null);
 const comboboxButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
 
 const readValue = computed(() => {
+  let value;
   if (!editing.value && props.modelValue == null && props.placeholderValue) {
-    return props.placeholderValue;
+    value = props.placeholderValue;
   } else {
-    return props.modelValue;
+    value = props.modelValue;
   }
+  // "coerce"
+  if (props.type.tag == TypeTag.Boolean) {
+    value = typeof value == "boolean" ? value : false;
+  }
+  return value;
 });
 
 // force is used for immediate updates from e.g. selects (that don't need debouncing)

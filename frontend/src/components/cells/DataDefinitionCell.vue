@@ -21,7 +21,7 @@ import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { ArrowDownIcon, ArrowPathIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { ArrowDownIcon, ArrowPathIcon, CubeTransparentIcon, PlusIcon, TableCellsIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -109,13 +109,30 @@ function loadMore() {
   });
 }
 
-const fieldTypeNodes = computed(() => context.typeNodes.value?.map((n) => n as SimpleType) ?? []);
-const lastField = computed(() => fieldTypeNodes.value?.[fieldTypeNodes.value?.length - 1]);
-const columnsInOrder: Ref<string[]> = computed(() => fieldTypeNodes.value?.map((n) => n.name ?? "") ?? []);
+const selfFields = computed(
+  () => context.typeNodes.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
+);
+const extendedTypes = computed(
+  () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+);
+const columnsInOrder: Ref<string[]> = computed(() => allFields.value?.map((n) => n.name ?? "") ?? []);
+// map the field type to its actual runtime type
+// children cannot be imputed into SimpleTypeNode but we still want to know the actual type
+const selfSymbol = computed(() => symbolOf(context.statement.value.id));
+function runtimeTypeOf(field: SimpleType) {
+  return selfSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
+}
+const extendedFields = computed(
+  () =>
+    selfSymbol.value?.typeNodes
+      ?.filter((n) => !selfFields.value.find((f) => f.name == n.name))
+      .map((n) => n as SimpleType) ?? []
+);
+const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
 const typeGrid = useNavigationGrid<"name" | "type", InstanceType<typeof InlineTypeCell>>(
   computed(() => ["name", "type"]),
-  fieldTypeNodes,
+  allFields,
   {
     gridNavigateUp: focusDescriptionFromTop,
     gridNavigateDown: isTable.value ? focusFirstRecord : context.navigateDown,
@@ -179,15 +196,29 @@ function focusLastRecord() {
 
 const ops = useOperations();
 
-function insertField() {
-  const nextOrderKey = generateKeyBetween(lastField.value?.orderKey ?? INTEGER_ZERO, null);
-  context.createTypeNode(
-    makeTypeNode({
-      name: "field " + fieldTypeNodes.value?.length,
-      tag: TypeTag.String,
-      orderKey: nextOrderKey,
-    })
+function insertField(isUnionWith?: boolean) {
+  const nextOrderKey = generateKeyBetween(
+    context.typeNodes.value?.[context.typeNodes.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
+    null
   );
+  if (!isUnionWith) {
+    context.createTypeNode(
+      makeTypeNode({
+        name: "field " + selfFields.value?.length,
+        tag: TypeTag.String,
+        orderKey: nextOrderKey,
+      })
+    );
+  } else {
+    context.createTypeNode(
+      makeTypeNode({
+        name: "",
+        tag: TypeTag.TypeReference,
+        orderKey: nextOrderKey,
+        flags: TypeFlag.IsUnionWith,
+      })
+    );
+  }
   nextTick(() => typeGrid.focus(-1, "name"));
 }
 
@@ -200,7 +231,7 @@ function updateFieldType(node: SimpleType, changed: SimpleType) {
 }
 
 function deleteField(node: SimpleType) {
-  const fieldIdx = fieldTypeNodes.value?.findIndex((n) => n.id === node.id);
+  const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
   context.deleteTypeNode(node);
   typeGrid.focus(fieldIdx - 1, "name");
 }
@@ -257,13 +288,6 @@ function deleteRecord(recordId: string) {
   recordGrid.focus(recordIdx - 1, columnsInOrder.value[0]);
 }
 
-// map the field type to its actual runtime type
-// children cannot be imputed into SimpleTypeNode but we still want to know the actual type
-const datasetSymbol = computed(() => symbolOf(context.statement.value.id));
-function runtimeTypeOf(field: SimpleType) {
-  return datasetSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
-}
-
 // drag & drop
 const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
@@ -286,18 +310,30 @@ const position = useMouseInElement(gridRef);
 const extraActions = computed(() => {
   const inlineActions: InlineAction[] = [];
   if (isTable.value) {
-    inlineActions.push({
-      label: "Reload view",
-      icon: ArrowPathIcon,
-      active: loading.value,
-      action: () => refetch(),
-    });
+    if ((fetchedRecords?.value?.statement?.records.totalCount ?? -1) == -1) {
+      inlineActions.push({
+        label: "Reload view",
+        icon: ArrowPathIcon,
+        active: loading.value,
+        action: () => refetch(),
+      });
+    }
     inlineActions.push({
       label: "Add record",
       icon: PlusIcon,
       action: () => insertRecord(),
     });
   }
+  inlineActions.push({
+    label: "Add field",
+    icon: TableCellsIcon,
+    action: () => insertField(),
+  });
+  inlineActions.push({
+    label: "Extend",
+    icon: CubeTransparentIcon,
+    action: () => insertField(true),
+  });
   return inlineActions;
 });
 
@@ -320,6 +356,33 @@ defineExpose({
   <div class="flex flex-row justify-between">
     <div class="flex flex-row items-baseline">
       <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
+      <!-- Extended types -->
+      <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
+        <span class="mr-1 text-orange-600">is</span>
+        <div class="inline-flex flex-row gap-1">
+          <InlineTypeCell
+            v-for="field of extendedTypes"
+            :model-value="field"
+            @update:model-value="(val) => context.updateTypeNode(field, val)"
+            @keydown.delete.exact="isEditing || context.deleteTypeNode(field)"
+            :active="context.focused.value || context.editing.value"
+            :key="field.id"
+            :readonly="context.readonly.value"
+            structref-only
+            hide-flags
+            class="w-full self-start border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          />
+        </div>
+      </div>
+      <!-- Inline buttons -->
+      <button
+        v-if="!context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
+        tabindex="-1"
+        @click="() => insertField(true)"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      >
+        +extend
+      </button>
       <button
         tabindex="-1"
         v-if="description.length == 0 && !context.readonly.value && !addingDescription"
@@ -336,6 +399,7 @@ defineExpose({
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
+      <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
       <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
         {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
       </span>
@@ -366,7 +430,7 @@ defineExpose({
     <!-- Table (in table form) -->
     <!-- Field types -->
     <tr class="border-b border-orange-900 border-opacity-[12%]">
-      <td v-for="field in fieldTypeNodes" :key="field?.id" class="">
+      <td v-for="field in allFields" :key="field?.id" class="">
         <div class="flex flex-row gap-0.5 whitespace-nowrap p-1 focus-within:bg-orange-100">
           <InlineValueCell
             :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
@@ -375,10 +439,15 @@ defineExpose({
             :type="STRING_TYPE_NODE"
             slim
             :model-value="field.name"
-            :readonly="context.readonly.value"
+            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :active="context.editing.value || context.focused.value"
             @update:model-value="(val: any) => updateFieldName(field, val)"
             class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :class="
+              extendedFields.find((n) => n.name == field.name) != null
+                ? 'underline decoration-gray-600 decoration-dashed underline-offset-4'
+                : ''
+            "
             @navigate-left="typeGrid.navigateLeft(field?.id, 'name')"
             @navigate-right="typeGrid.navigateRight(field?.id, 'name')"
             @navigate-up="typeGrid.navigateUp(field?.id, 'name')"
@@ -388,7 +457,7 @@ defineExpose({
           <InlineTypeCell
             :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
             :type="field"
-            :readonly="context.readonly.value"
+            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
@@ -407,7 +476,7 @@ defineExpose({
       :key="record.id"
       class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
     >
-      <td v-for="field in fieldTypeNodes" :key="record.id + '.' + field?.id" class="h-full">
+      <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
         <InlineValueCell
           :ref="(el: any) => recordGrid.registerColumnRef(record.id, field.name as string, el)"
           :model-value="record.data?.[field.key as string]"
@@ -434,9 +503,9 @@ defineExpose({
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
     <!-- Single value (vertical) -->
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
-    <tr v-for="field in fieldTypeNodes" :key="field.id">
+    <tr v-for="field in allFields" :key="field.id">
       <td class="w-1/3">
-        <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 py-0.5 focus-within:bg-orange-100">
+        <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 focus-within:bg-orange-100">
           <InlineValueCell
             :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'name', el)"
             immediate
@@ -444,10 +513,15 @@ defineExpose({
             :type="STRING_TYPE_NODE"
             slim
             :model-value="field.name"
-            :readonly="context.readonly.value"
+            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :active="context.editing.value || context.focused.value"
             @update:model-value="(val: any) => updateFieldName(field, val)"
             class="border border-transparent py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            :class="
+              extendedFields.find((n) => n.name == field.name) != null
+                ? 'underline decoration-gray-600 decoration-dashed underline-offset-4'
+                : ''
+            "
             @keydown.delete.exact="isEditing || deleteField(field)"
             @keydown.up.exact="typeGrid.navigateUp(field?.id, 'name')"
             @keydown.down.exact="typeGrid.navigateDown(field?.id, 'name')"
@@ -456,7 +530,7 @@ defineExpose({
           <InlineTypeCell
             :ref="(el: any) => typeGrid.registerColumnRef(field?.id, 'type', el)"
             :type="field"
-            :readonly="context.readonly.value"
+            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             class="border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"

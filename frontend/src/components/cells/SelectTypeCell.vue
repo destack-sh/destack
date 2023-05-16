@@ -57,6 +57,7 @@ watch(content, (newContent) => {
   } else if (includesNonalpha || tooLong) {
     // auto-convert to comment if it can't be parsed anymore (keep content)
     newContent = newContent.replace(" ", " "); // replace non-breaking spaces
+    context.morphToComment(newContent);
   } else {
     morphed = false;
   }

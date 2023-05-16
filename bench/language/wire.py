@@ -1,6 +1,7 @@
+import copy
 import enum
 import typing
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields
 from typing import Optional, Union
 from uuid import UUID
 
@@ -47,6 +48,21 @@ class SimpleTypeNodeData:
     def __repr__(self):
         return f"<SimpleTypeNode {str(self)}>"
 
+    def deepcopy(self):
+        return SimpleTypeNodeData(
+            id=self.id,
+            revision=self.revision,
+            name=self.name,
+            key=self.key,
+            tag=self.tag,
+            statement_id=self.statement_id,
+            order_key=self.order_key,
+            description=self.description,
+            flags=self.flags,
+            value=copy.deepcopy(self.value),
+            reference_id=self.reference_id,
+        )
+
 
 @dataclass(repr=False, slots=True)
 class RecordData:
@@ -61,6 +77,9 @@ class RecordData:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
+
+    def deepcopy(self):
+        return RecordData(**self.__dict__)
 
 
 @dataclass(repr=False, slots=True)
@@ -81,6 +100,19 @@ class XBlockData:
     def __repr__(self):
         return f"<XBlock {str(self)}>"
 
+    def deepcopy(self):
+        return XBlockData(
+            id=self.id,
+            statement_id=self.statement_id,
+            order_key=self.order_key,
+            kind=self.kind,
+            source=self.source,
+            revision=self.revision,
+            value=copy.deepcopy(self.value),
+            path=self.path,
+            description=self.description,
+        )
+
 
 @dataclass(repr=False, slots=True)
 class RemoteObjectData:
@@ -89,6 +121,9 @@ class RemoteObjectData:
     content_length: int
     content_type: str
     name: Optional[str]
+
+    def deepcopy(self):
+        return RemoteObjectData(**asdict(self))
 
 
 @dataclass(repr=False, slots=True)
@@ -103,6 +138,14 @@ class ModuleData:
 
     def __repr__(self):
         return f"<Module {str(self)}>"
+
+    def deepcopy(self):
+        return ModuleData(
+            id=self.id,
+            name=self.name,
+            committed=self.committed,
+            files=[f.deepcopy() for f in self.files],
+        )
 
 
 @dataclass(repr=False, slots=True)
@@ -124,6 +167,16 @@ class FileData:
 
     def __repr__(self):
         return f"<File {str(self)}>"
+
+    def deepcopy(self):
+        return FileData(
+            id=self.id,
+            module_id=self.module_id,
+            path=self.path,
+            revision=self.revision,
+            generated=self.generated,
+            statements=[s.deepcopy() for s in self.statements],
+        )
 
 
 ModuleReference = typing.NamedTuple(
@@ -177,6 +230,19 @@ class StatementData:
 
     def __repr__(self):
         return f"<Statement {str(self)}>"
+
+    def deepcopy(self):
+        copied = {}
+        for field in _STATEMENT_DATA_FIELDS:
+            value = getattr(self, field.name)
+            if value is not None and hasattr(value, "deepcopy"):
+                copied[field.name] = value.deepcopy()
+            else:
+                copied[field.name] = value
+        return StatementData(**copied)
+
+
+_STATEMENT_DATA_FIELDS = fields(StatementData)
 
 
 def rmap_module(module: language.Module, impute_type_references: bool = False) -> ModuleData:
@@ -304,9 +370,13 @@ def rmap_symbol(
         data.description = content.description
         data.root_type_tag = content.tag
         data.root_type_flags = content.flags
+        source_nodes = (
+            content.type_nodes
+            if impute_type_references
+            else (content.self_type_nodes or content.type_nodes)
+        )
         data.type_nodes = [
-            rmap_simple_type_node(data.id, node, impute_type_references)
-            for node in content.type_nodes
+            rmap_simple_type_node(data.id, node, impute_type_references) for node in source_nodes
         ]
     if isinstance(content, language.TaskContent):
         data.description = content.description

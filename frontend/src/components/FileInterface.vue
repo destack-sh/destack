@@ -226,7 +226,7 @@ const auth = useAuth();
             <!-- Note the :EditableSyncDance on the name update -->
             <EditableSpan
               ref="nameRef"
-              class="text-3xl"
+              class="text-3xl font-extrabold"
               suppress-shortcuts
               :readonly="editor.readonly || isDeleted || isOtherVersion"
               v-model="name"
@@ -234,7 +234,7 @@ const auth = useAuth();
               @keyup.up.prevent="() => ({}) /* noop */"
             />
             <span
-              class="cursor-text select-none text-3xl text-gray-300"
+              class="cursor-text select-none text-3xl font-extrabold text-gray-300"
               v-if="name?.trim().length == 0"
               @click="nameRef?.focus()"
             >

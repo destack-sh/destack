@@ -257,9 +257,11 @@ class ModuleMutator:
         idx: Optional[ModuleIndex] = None,
         mutations: list[ModuleMutation] = None,
         module_id: Optional[UUID] = None,
+        source: Optional[wire.ModuleData] = None,
     ):
         self.idx = idx
         self.module = idx.module if idx else None
+        self.module_source = source
         self.module_id = module_id or (idx.module.id if idx else None)
         if self.module_id is None:
             raise ValueError("module_id is required")
@@ -404,7 +406,10 @@ class ModuleMutator:
         if not mut.simple:
             raise ValueError(f"cannot apply complex mutations in {self}: {mut.complex_mutations}")
 
-        module = wire.rmap_module(self.module)
+        if self.module_source:
+            module = self.module_source.deepcopy()
+        else:
+            module = wire.rmap_module(self.module)
         files: dict[UUID, FileData] = {f.id: f for f in module.files}
         statements: dict[UUID, StatementData] = {
             s.id: s for s in chain.from_iterable(f.statements for f in module.files)
@@ -444,10 +449,16 @@ class ModuleMutator:
         for m in mut[MMT.CREATE_STATEMENT]:
             statements[m.data.id] = m.data
         for m in mut[MMT.CREATE_TYPE_NODE]:
+            if statements[m.statement_id].type_nodes is None:
+                statements[m.statement_id].type_nodes = []
             statements[m.statement_id].type_nodes.append(m.data)
         for m in mut[MMT.CREATE_RECORD]:
+            if statements[m.statement_id].records is None:
+                statements[m.statement_id].records = []
             statements[m.statement_id].records.append(m.data)
         for m in mut[MMT.CREATE_XBLOCK]:
+            if statements[m.statement_id].xblocks is None:
+                statements[m.statement_id].xblocks = []
             statements[m.statement_id].xblocks.append(m.data)
 
         # apply updates

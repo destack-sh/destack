@@ -39,6 +39,12 @@ class InterpModule:
     dependencies: list[language.ModuleIndex]
     committed: bool
 
+    def __str__(self):
+        return str(self.module_idx)
+
+    def __repr__(self):
+        return f"<InterpModule {self}>"
+
     @property
     def has_user_errors(self):
         """Whether any non-generated errors are present."""
