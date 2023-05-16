@@ -3,6 +3,7 @@ import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
+import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
@@ -432,12 +433,11 @@ defineExpose({
     <tr class="border-b border-orange-900 border-opacity-[12%]">
       <td v-for="field in allFields" :key="field?.id" class="">
         <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
-          <InlineTypeCell
+          <InlineTypeTupleCell
             :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            named
             class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
@@ -486,17 +486,16 @@ defineExpose({
     <tr v-for="field in allFields" :key="field.id">
       <td class="w-1/4">
         <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 focus-within:bg-orange-100">
-          <InlineTypeCell
+          <InlineTypeTupleCell
             :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            named
             class="h-full w-full border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
-            @keydown.delete.exact="isEditing || deleteField(field)"
-            @keydown.up.exact="grid.navigateUp(field?.id, 'type')"
+            @keydown.delete.exact.prevent="isEditing || deleteField(field)"
+            @keydown.up.exact.prevent="grid.navigateUp(field?.id, 'type')"
             @keydown.down.exact="grid.navigateDown(field?.id, 'type')"
             @keydown.right.exact="grid.focus(field?.id, 'value')"
             @keydown.left.exact="grid.focus(field?.id, 'name')"

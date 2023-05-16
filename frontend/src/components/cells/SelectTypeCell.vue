@@ -1,267 +1,188 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext } from "@/components/statement";
-import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
 import {
-  MODIFIER_BY_KEYWORD,
-  SUPPORTED_MODIFIERS,
-  SUPPORTED_SYMBOL_TYPES,
-  SYMBOL_TYPE_BY_KEYWORD,
-} from "@/state/editor";
-import { TypeFlag } from "@/state/runtime";
-import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
-import { useFocus } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+  ANY_TYPE_NODE,
+  makeTypeNode,
+  PRIMITIVE_TYPE_NODES,
+  renderSimpleType,
+  type SimpleType,
+} from "@/components/statement";
+import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { useEditorState } from "@/state/editor";
+import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
+import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/vue/24/outline";
+import { computed, ref, watch, type Ref } from "vue";
 
-defineProps<{ showDots?: boolean }>();
-
-const emit = defineEmits<{
-  (e: "navigateUp", position?: number): void;
-  (e: "navigateDown", position?: number): void;
-  (e: "navigateLeft"): void;
-  (e: "navigateRight"): void;
-  (e: "enter"): void;
-  (e: "escape"): void;
-  (e: "deleteLeft"): void;
-  (e: "morphed"): void;
+const props = defineProps<{
+  modelValue?: SimpleType;
+  inlined?: boolean;
+  structrefOnly?: boolean;
+  hideFlags?: boolean;
 }>();
 
-const context = useStatementContext();
-const content: Ref<string> = ref("");
-const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const emit = defineEmits<{
+  (e: "update:modelValue", value: Pick<SimpleType, "name" | "tag" | "flags" | "reference">): void;
+  (e: "escape"): void;
+}>();
 
-const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(SYMBOL_TYPE_BY_KEYWORD)].reduce(
-  (max, keyword) => Math.max(max, keyword.length),
-  0
+const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
+const query: Ref<string> = ref("");
+const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
+
+const availableSymbols = symbolsLike({
+  types: [StatementType.Definition],
+  symbolTypes: [SymbolType.Type],
+});
+const availableTypes: Ref<SimpleType[]> = computed(() => {
+  const basicTypes = [];
+  if (!props.structrefOnly) {
+    basicTypes.push(...PRIMITIVE_TYPE_NODES);
+  }
+  // references
+  for (const symbol of availableSymbols.value) {
+    if (symbol.name == null || (symbol.rootTypeTag != TypeTag.Struct && props.structrefOnly)) {
+      continue;
+    }
+    basicTypes.push(
+      makeTypeNode({
+        tag: TypeTag.TypeReference,
+        reference: symbol as { id: string; name: string },
+      })
+    );
+  }
+  return basicTypes;
+});
+const filteredTypes = computed(() => availableTypes.value.filter((t) => renderSimpleType(t).includes(query.value)));
+
+function writeValue(type: SimpleTypeNode) {
+  // keep flags
+  type = {
+    ...type,
+    flags: value.value.flags,
+  };
+  value.value = type;
+  emit("update:modelValue", type);
+  emit("escape");
+}
+
+// sync modelValue if changed externally
+watch(
+  () => [props.modelValue],
+  () => {
+    if (props.modelValue != value.value) {
+      value.value = props.modelValue ?? ANY_TYPE_NODE;
+    }
+  }
 );
 
-// parse content changes :ParseStatementInput
-watch(content, (newContent) => {
-  if (newContent == "/") {
-    openCommandSelection();
-    return;
-  }
-
-  const endsInSep =
-    newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
-  const includesNonalpha = !newContent.match(/^[a-zA-Z]*$/);
-  const tooLong = newContent.length > MAX_KEYWORD_LENGTH;
-  const newContentTrim = newContent.slice(0, -1);
-
-  // if it matches an allowed keyword, apply the keyword
-  let morphed = true;
-  if (endsInSep) {
-    morphed = handleKeyword(newContentTrim);
-  } else if (includesNonalpha || tooLong) {
-    // auto-convert to comment if it can't be parsed anymore (keep content)
-    newContent = newContent.replace(" ", " "); // replace non-breaking spaces
-    context.morphToComment(newContent);
-  } else {
-    morphed = false;
-  }
-  if (morphed) {
-    emit("morphed");
-  }
-});
-
-function handleKeyword(newContentTrim: string): boolean {
-  if (SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])) {
-    context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
-  } else if (SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
-    context.morphToDefinition({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
-  } else if (newContentTrim == "enum" || newContentTrim == "choice") {
-    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
-  } else if (newContentTrim == "struct") {
-    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
-  } else if (newContentTrim == "value") {
-    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
-  } else if (newContentTrim == "table") {
-    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });
-  } else {
-    return false;
-  }
-  return true;
-}
-
-// command/type selection dropdown
-// (not sure if this is the best place to put it)
-const commanding: Ref<boolean> = ref(false);
-const commandQuery: Ref<string> = ref("");
-const commandInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
-const commandButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
-const { focused: commandInputRefFocused } = useFocus(commandInputRef);
-
-type Command = {
+type FlagButton = {
+  flag: TypeFlag;
   label: string;
-  description: string;
-  action: () => void;
+  icon?: string;
+  unsetIcon?: any;
+  setIcon?: any;
 };
+const flagButtons: FlagButton[] = [
+  {
+    flag: TypeFlag.IsNullable,
+    label: "optional",
+    icon: "?",
+  },
+  {
+    flag: TypeFlag.IsArray,
+    label: "list",
+    icon: "[]",
+  },
+  {
+    flag: TypeFlag.IsSecret,
+    label: "secret",
+    unsetIcon: EyeIcon,
+    setIcon: EyeSlashIcon,
+  },
+];
 
-const commands = computed(() => {
-  const commands: Command[] = [
-    {
-      label: "task",
-      description: "Instruct AI to do something.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Task }), emit("morphed")),
-    },
-    {
-      label: "expect",
-      description: "Specify desired behaviour.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Expectation }), emit("morphed")),
-    },
-    {
-      label: "struct",
-      description: "Define a data structure.",
-      action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
-      ),
-    },
-    {
-      label: "choice",
-      description: "Define a choice type.",
-      action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")
-      ),
-    },
-    {
-      label: "value",
-      description: "Configure context and secrets.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
-    },
-    {
-      label: "table",
-      description: "Define state or examples.",
-      action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
-      ),
-    },
-    {
-      label: "code",
-      description: "Implement logic in Python.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Code }), emit("morphed")),
-    },
-  ];
-
-  if (context.statement.value.parent != null) {
-    commands.push({
-      label: "like",
-      description: "Give positive behaviour examples.",
-      action: () => (context.setModifier(StatementModifier.Like), emit("morphed")),
-    });
-    commands.push({
-      label: "unlike",
-      description: "Give negative behaviour examples.",
-      action: () => (context.setModifier(StatementModifier.Unlike), emit("morphed")),
-    });
-  }
-
-  return commands;
-});
-const filteredCommands = computed(() => {
-  return commands.value.filter((command) => {
-    return command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
-  });
-});
-
-function openCommandSelection() {
-  commanding.value = true;
-  nextTick(() => ((commandInputRefFocused.value = true), commandButtonRef.value?.$el.click()));
+function isFlagSet(flag: TypeFlag) {
+  return value.value.flags & flag;
 }
 
-function stopCommanding() {
-  commanding.value = false;
-  content.value = "";
-  nextTick(() => spanRef.value?.focus());
+function toggleFlag(flag: TypeFlag) {
+  const newFlags = value.value.flags ^ flag;
+  value.value = {
+    ...value.value,
+    flags: newFlags,
+  };
+  emit("update:modelValue", value.value);
 }
 
-function selectCommand(command: Command) {
-  commanding.value = false;
-  content.value = "";
-  command.action();
-}
-
-function focus() {
-  spanRef.value?.focus();
-  commanding.value = false;
-}
-
-function blur() {
-  spanRef.value?.blur();
-  commandInputRefFocused.value = false;
-  commanding.value = false;
-}
-
-const appearance = useAppearance();
+const editor = useEditorState();
 
 defineExpose({
-  focus,
-  blur,
-  content,
+  focus: () => inputRef.value?.$el.focus(),
 });
 </script>
 <template>
-  <EditableSpan
-    ref="spanRef"
-    v-if="!commanding"
-    v-model="content"
-    :readonly="context.readonly.value"
-    @navigate-up="emit('navigateUp')"
-    @navigate-down="emit('navigateDown')"
-    @navigate-left="emit('navigateLeft')"
-    @navigate-right="emit('navigateRight')"
-    @enter="handleKeyword(content) || emit('enter')"
-    @escape="emit('escape')"
-    @delete-left="emit('deleteLeft')"
-  />
-  <!-- Command selection -->
-  <Combobox
-    v-else
-    as="div"
-    class="relative flex w-full flex-col"
-    @update:model-value="selectCommand($event)"
-    by="label"
-  >
-    <!-- Hidden button to manage focus programmatically -->
-    <ComboboxButton class="hidden" ref="commandButtonRef" />
-    <span class="flex flex-row items-baseline">
-      /
-      <ComboboxInput
-        as="input"
-        ref="commandInputRef"
-        @change="commandQuery = $event.target.value"
-        spellcheck="false"
-        class="w-full min-w-0 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
-        :class="[appearance.textSmall ? 'text-sm' : 'text-md']"
-        @keydown.backspace.exact="commandQuery.length > 0 || stopCommanding()"
-        @keydown.escape.prevent="emit('escape')"
-      />
-    </span>
-    <FadeTransition>
-      <ComboboxOptions
-        class="absolute top-7 z-20 flex max-h-64 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+  <Combobox as="div" :model-value="value" @update:model-value="writeValue">
+    <!-- Flags -->
+    <div v-if="!props.hideFlags" class="mb-2 flex flex-row justify-around">
+      <button
+        v-for="flagButton in flagButtons"
+        :key="flagButton.label"
+        class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
+        :class="isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : ''"
+        @click="toggleFlag(flagButton.flag)"
       >
-        <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
-          <span class="text-gray-700">No results</span>
-        </div>
-        <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
-          <li
-            class="flex flex-col"
-            :class="[
-              'cursor-pointer select-none px-2 py-0.5',
-              active ? 'bg-orange-100 text-gray-900' : 'text-gray-900',
-            ]"
-          >
-            <span class="text-orange-600">
-              {{ command.label }}
+        <span> {{ flagButton.label }}</span>
+        <span v-if="flagButton.icon">{{ flagButton.icon }}</span>
+        <component
+          v-else
+          :is="isFlagSet(flagButton.flag) ? flagButton.setIcon : flagButton.unsetIcon"
+          class="h-4 w-4"
+        />
+      </button>
+    </div>
+    <ComboboxInput
+      as="input"
+      ref="inputRef"
+      class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
+      :class="{
+        'font-mono': editor.fontMono,
+        'text-sm placeholder:text-sm': editor.textSmall,
+        'text-md placeholder:text-md': !editor.textSmall,
+      }"
+      @change="query = $event.target.value"
+      :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
+      placeholder="..."
+      spellcheck="false"
+    />
+    <ComboboxOptions
+      ref="optionsRef"
+      class="mt-2 max-h-48 w-60 overflow-auto"
+      static
+      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+    >
+      <!-- Options -->
+      <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
+        <li
+          :class="[
+            'relative cursor-default select-none px-2 py-0.5',
+            active ? 'bg-orange-600 text-white' : 'text-gray-900',
+            selected ? 'underline' : '',
+          ]"
+        >
+          <div class="flex items-baseline justify-between">
+            <span class="truncate">
+              {{ renderSimpleType(node) }}
             </span>
-            <span class="text-gray-700">
-              {{ command.description }}
+            <span
+              v-if="node.tag == TypeTag.TypeReference && node.reference != null"
+              class="text-xs"
+              :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']"
+            >
+              {{ fileOf(node.reference)?.path }}
             </span>
-          </li>
-        </ComboboxOption>
-      </ComboboxOptions>
-    </FadeTransition>
+          </div>
+        </li>
+      </ComboboxOption>
+    </ComboboxOptions>
   </Combobox>
 </template>

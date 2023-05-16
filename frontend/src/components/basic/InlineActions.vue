@@ -46,7 +46,7 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       <!-- Label -->
       <span
         v-if="!action.active"
-        class="absolute -left-3 top-6 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
+        class="absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
       >
         {{ action.label }}
       </span>

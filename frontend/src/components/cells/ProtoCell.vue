@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ModifierCell from "@/components/cells/ModifierCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
+import ProtoSymbolTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
@@ -15,7 +15,7 @@ defineProps<{ showDots?: boolean }>();
 const context = useStatementContext();
 
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
+const gapRef: Ref<InstanceType<typeof ProtoSymbolTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
 
 // symbols available for reference
@@ -27,7 +27,7 @@ const availableSymbols = symbolsLike(
   }))
 );
 
-// set symbol type if query starts with it and it's not yet set (like in SelectTypeCell)
+// set symbol type if query starts with it and it's not yet set (like in ProtoSymbolTypeCell)
 // define in place if it ends with :
 watch(
   () => nameRef.value?.query,
@@ -120,7 +120,7 @@ defineExpose({
       :readonly="context.readonly.value"
     />
     <ModifierCell v-if="context.statement.value.modifier" />
-    <SelectTypeCell
+    <ProtoSymbolTypeCell
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"

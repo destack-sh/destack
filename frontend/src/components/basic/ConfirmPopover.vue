@@ -8,7 +8,7 @@ const emit = defineEmits<{ (e: "action"): void; (e: "cancel"): void }>();
   <Popover class="relative" v-slot="{ open, close }">
     <slot :open="open" />
     <PopoverPanel
-      class="absolute top-6 right-0 z-10 mt-0 flex w-60 flex-col gap-4 rounded-sm bg-white p-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="absolute right-0 top-6 z-10 mt-0 flex w-60 flex-col gap-4 rounded-sm bg-white p-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
     >
       <!-- Header -->
       <div class="px-1.5">
