@@ -610,7 +610,6 @@ class SimpleTypeNode(TypeNode):
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     value: Optional[LiteralValue] = None  # for literal types
-    # source reference is separate as the resolved TypeNode may not contain the name
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"] = None
     source_reference: Optional[StatementPath] = None
 
@@ -627,7 +626,7 @@ class SimpleTypeNode(TypeNode):
             return self.reference.type_nodes
         return []
 
-    self_type_nodes = type_nodes
+    self_type_nodes = type_nodes  # always the same for simple type nodes
 
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
@@ -1049,6 +1048,10 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
 }
 SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
+}
+SYMBOL_FIELDS_BY_TYPE = {t: fields(c) for t, c in SYMBOL_CLASS_BY_TYPE.items()}
+SYMBOL_FIELDS_NAMES_BY_TYPE = {
+    t: {f.name for f in fields(c)} for t, c in SYMBOL_CLASS_BY_TYPE.items()
 }
 
 EMPTY_FUNC_TYPE = TypeContent(name=None, tag=TypeTag.FUNCTION)
