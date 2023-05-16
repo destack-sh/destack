@@ -78,7 +78,9 @@ class ErrorType(enum.Enum):
     UNEXPECTED_STATEMENT = 75, "unexpected statement"
     BUILD_MISSING_MODEL = 76, "missing model"
     BUILD_MISSING_TASK = 77, "missing task"
-    CIRCULAR_ANCESTRY = 78, "Dark season 2 via {path}"
+    CIRCULAR_ANCESTRY = 78, "circular ancestry via {path}"
+    CIRCULAR_UNION = 79, "circular union via {path}"
+    MISMATCHED_UNION = 80, "mismatched union at {node} vs {other} via {path}"
 
     def __new__(cls, value, description):
         obj = object.__new__(cls)

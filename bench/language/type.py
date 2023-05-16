@@ -528,12 +528,14 @@ class TypeFlag(enum.IntFlag):
 
 
 class TypeNode(abc.ABC):
+    id: UUID
     name: Optional[str]
     key: Optional[str]
     tag: TypeTag
     flags: TypeFlag
     description: Optional[str]
     type_nodes: list["TypeNode"]
+    self_type_nodes: list["TypeNode"]
     value: Optional[LiteralValue]
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
 
@@ -625,12 +627,19 @@ class SimpleTypeNode(TypeNode):
             return self.reference.type_nodes
         return []
 
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "SimpleTypeNode":
-        reference = (
-            self.source_reference
-            if not keep_reference or self.reference is None
-            else self.reference.deepcopy(keep_id=True, keep_reference=keep_reference)
-        )
+    self_type_nodes = type_nodes
+
+    def deepcopy(
+        self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
+    ) -> "SimpleTypeNode":
+        if not keep_reference or self.reference is None:
+            reference = self.source_reference
+        elif deepcopy_reference:
+            reference = self.reference.deepcopy(
+                keep_id=True, keep_reference=keep_reference, deepcopy_reference=False
+            )
+        else:
+            reference = self.reference
         return SimpleTypeNode(
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
@@ -649,6 +658,7 @@ class TypeContent(SymbolContent, TypeNode):
     name: Optional[str] = None
     tag: TypeTag = required_field()
     type_nodes: list[SimpleTypeNode] = field(default_factory=list)
+    self_type_nodes: list[SimpleTypeNode] = None
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types
@@ -663,9 +673,15 @@ class TypeContent(SymbolContent, TypeNode):
     def __repr__(self):
         return f"<TypeContent {self}>"
 
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeContent":
+    def deepcopy(
+        self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
+    ) -> "TypeContent":
         type_nodes = [
-            type_node.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+            type_node.deepcopy(
+                keep_id=keep_id,
+                keep_reference=keep_reference,
+                deepcopy_reference=deepcopy_reference,
+            )
             for type_node in self.type_nodes
         ]
         return TypeContent(
@@ -681,9 +697,15 @@ class TypeContent(SymbolContent, TypeNode):
 class Type(InterpSymbol, TypeContent):
     expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
 
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "Type":
+    def deepcopy(
+        self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
+    ) -> "Type":
         type_nodes = [
-            type_node.deepcopy(keep_id=keep_id, keep_reference=keep_reference)
+            type_node.deepcopy(
+                keep_id=keep_id,
+                keep_reference=keep_reference,
+                deepcopy_reference=deepcopy_reference,
+            )
             for type_node in self.type_nodes
         ]
         return Type(
@@ -693,6 +715,8 @@ class Type(InterpSymbol, TypeContent):
             description=self.description,
             type_nodes=type_nodes,
             expectations=self.expectations,
+            flags=self.flags,
+            source=self.source,
         )
 
     # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
