@@ -214,7 +214,13 @@ def normalize_to_project(obj) -> models.Project:
         obj = obj.project_version.project
     elif isinstance(
         obj,
-        (models.ProjectVersion, models.Deployment, models.EvaluationResult, models.RemoteObject),
+        (
+            models.ProjectVersion,
+            models.Deployment,
+            models.EvaluationResult,
+            models.RemoteObject,
+            models.Secret,
+        ),
     ):
         obj = obj.project
     elif not isinstance(obj, models.Project):

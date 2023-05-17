@@ -152,6 +152,10 @@ const DB_ENV_VARS = [
     name: "BENCH_POSTGRES_PORT",
     value: db.port.apply((port) => port.toString()),
   },
+  {
+    name: "PGCRYPTO_KEY",
+    value: config.requireSecret("pgcryptoKey"),
+  },
 ];
 
 // Create persistent ElastiCache Redis cluster
