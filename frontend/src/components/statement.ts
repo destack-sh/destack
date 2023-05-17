@@ -10,15 +10,14 @@ import {
   type TypeNodeUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
+import { TYPETAG_KEYWORD, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { computed, inject, type Ref } from "vue";
-
-import { TYPETAG_KEYWORD } from "@/state/editor";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { contextOf, TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
+import { computed, inject, type Ref } from "vue";
 
 // not using Symbol here to improve hotreload experience (Symbol is not a constant)
 export const STATEMENT_CONTEXT = "__statementContext__" as const;
@@ -39,9 +38,16 @@ export type StatementContext = {
 export type InlineAction = {
   label: string;
   icon: any;
-  action: () => void;
+  action: (statement: StatementHeader) => void;
   active?: boolean;
   disabled?: boolean;
+};
+
+export type TypeAction = {
+  label: string;
+  icon: any;
+  keepOpen?: boolean;
+  action: (type: SimpleType) => void;
 };
 
 export function useStatementContext() {
@@ -307,7 +313,7 @@ export function useStatementContext() {
     });
   }
 
-  // one-way writes to backend (:Singleplayer)
+  // one-way writes to backend
 
   async function createTypeNode(typeNode: SimpleType) {
     await ops.symbol.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });

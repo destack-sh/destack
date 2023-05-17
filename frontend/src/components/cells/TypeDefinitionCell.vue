@@ -12,11 +12,13 @@ import {
   useStatementContext,
   type InlineAction,
   type SimpleType,
+  type TypeAction,
 } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { newTypeNodeId } from "@/state/operations/statement";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
-import { SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { Square2StackIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -42,34 +44,22 @@ const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
 
 // dynamic member refs for names, values & descriptions for each member
-type ColumnType = "name" | "type" | "description";
-const columnsInOrder: Ref<ColumnType[]> = computed(() => {
-  if (isEnum.value) {
-    return ["name", "description"];
-  } else if (isStruct.value) {
-    return ["type", "description"];
-  } else {
-    throw new Error("unexpected type node tag: " + context.typeRootTag.value);
+type ColumnType = "type" | "description";
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
+  ref(["type", "description"] as ColumnType[]),
+  members,
+  {
+    gridNavigateUp: focusDescriptionFromBottom,
+    gridNavigateDown,
   }
-});
-const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(columnsInOrder, members, {
-  gridNavigateUp: focusDescriptionFromBottom,
-  gridNavigateDown,
-});
+);
 const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
-function insertBelow(memberId?: string, isUnionWith?: boolean) {
-  let orderKey;
-  if (memberId == null) {
-    const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
-    orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
-  } else {
-    const member = members.value?.find((m) => m.id === memberId);
-    orderKey = generateKeyBetween(member?.orderKey ?? null, null);
-  }
-
+function insertMember(isUnionWith?: boolean) {
+  const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
+  const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   let newMemberNode;
   if (isEnum.value) {
     const name = "Option " + (membersLength.value + 1);
@@ -79,7 +69,7 @@ function insertBelow(memberId?: string, isUnionWith?: boolean) {
       value: name, // :LiteralStringEnum
       orderKey,
     });
-    nextTick(() => grid.focus(membersLength.value - 1, "name"));
+    nextTick(() => grid.focus(membersLength.value - 1, "type"));
   } else if (!isUnionWith) {
     newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
@@ -99,27 +89,23 @@ function insertBelow(memberId?: string, isUnionWith?: boolean) {
   context.createTypeNode(newMemberNode);
 }
 
-function readColumn(member: SimpleTypeNode, column: ColumnType) {
-  if (column == "type") {
-    return member;
-  } else {
-    return member[column];
-  }
-}
-
-function writeColumn(memberId: string, column: ColumnType, value: any) {
-  const member = members.value?.find((m) => m.id === memberId);
-  if (!member) {
-    return;
-  }
-  if (column == "type") {
-    context.updateTypeNode(member as SimpleType, value as SimpleType);
-  } else if (column == "name" && isEnum.value) {
-    // copy name over to value for literal string enums :LiteralStringEnum
-    context.updateTypeNode(member as SimpleType, { ...member, [column]: value, value: value } as SimpleType);
-  } else {
-    context.updateTypeNode(member as SimpleType, { ...member, [column]: value } as SimpleType);
-  }
+function duplicateMember(memberId: string) {
+  // :DuplicateTypeNode
+  const memberIdx = members.value?.findIndex((m) => m.id === memberId);
+  if (memberIdx < 0) return;
+  const member = members.value?.[memberIdx];
+  const orderKey = generateKeyBetween(member?.orderKey ?? null, members.value?.[memberIdx + 1]?.orderKey ?? null);
+  // "name" => "name 2", "name 2" => "name 3", etc.
+  const newName =
+    member.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? member.name + " 2";
+  const newMemberNode = {
+    ...member,
+    id: newTypeNodeId(),
+    name: newName,
+    orderKey,
+  };
+  context.createTypeNode(newMemberNode);
+  nextTick(() => grid.focus(memberIdx + 1, "type"));
 }
 
 function deleteMember(memberId: string) {
@@ -129,7 +115,19 @@ function deleteMember(memberId: string) {
   }
   const member = members.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
-  grid.focus(memberIdx - 1, "name"); // move focus above
+  grid.focus(memberIdx - 1, "type"); // move focus above
+}
+
+function writeType(memberId: string, newType: SimpleType) {
+  const oldType = members.value?.find((m) => m.id === memberId);
+  if (!oldType) return;
+  context.updateTypeNode(oldType, { ...oldType, ...newType, id: memberId });
+}
+
+function writeDescription(memberId: string, newDescription: string) {
+  const oldType = members.value?.find((m) => m.id === memberId);
+  if (!oldType) return;
+  context.updateTypeNode(oldType, { ...oldType, description: newDescription });
 }
 
 function focusDescriptionFromTop() {
@@ -152,13 +150,13 @@ function focusFirstIfExists() {
   if (membersLength.value == 0) {
     addMemberRef.value?.focus();
   } else {
-    grid.focus(0, columnsInOrder.value[0]);
+    grid.focus(0, "type");
   }
 }
 
 function focusLast() {
   if (membersLength.value > 0) {
-    grid.focus(membersLength.value - 1, columnsInOrder.value[0]);
+    grid.focus(membersLength.value - 1, "type");
   } else {
     focusDescriptionFromBottom();
   }
@@ -168,19 +166,19 @@ function gridNavigateDown() {
   addMemberRef.value?.focus();
 }
 
-const extraActions = computed(() => {
+const extraInlineActions = computed(() => {
   const inlineActions: InlineAction[] = [];
   if (!isEnum.value) {
     inlineActions.push({
       label: "Extend",
       icon: CubeTransparentIcon,
-      action: () => insertBelow(undefined, true),
+      action: () => insertMember(true),
     });
   }
   inlineActions.push({
     label: "Add " + (isEnum.value ? "option" : "field"),
     icon: SquaresPlusIcon,
-    action: () => insertBelow(),
+    action: () => insertMember(),
   });
   return inlineActions;
 });
@@ -249,7 +247,7 @@ defineExpose({
           extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : declarationRef?.focus()
         "
         tabindex="-1"
-        @click="() => insertBelow(undefined, true)"
+        @click="() => insertMember(true)"
         class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
         +extend
@@ -269,7 +267,7 @@ defineExpose({
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
-      :extraActions="extraActions"
+      :extraActions="extraInlineActions"
     />
   </div>
   <!-- Description -->
@@ -294,35 +292,48 @@ defineExpose({
   <div v-if="membersLength > 0" class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]">
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
-      <!-- Columns -->
-      <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
-        <!-- Individual column: a bit messy -->
-        <component
-          :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
-          :model-value="readColumn(member as SimpleTypeNode, column)"
-          @update:model-value="(val: any) => writeColumn(member.id, column, val)"
-          :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
-          :readonly="context.readonly.value"
-          :active="context.focused.value || context.editing.value"
-          immediate
-          debounced
-          :placeholder-value="context.editing.value ? '+' + column : null"
-          :type="STRING_TYPE_NODE"
-          slim
-          @navigate-left="grid.navigateLeft(member.id, column)"
-          @navigate-right="grid.navigateRight(member.id, column)"
-          @navigate-up="grid.navigateUp(member.id, column)"
-          @navigate-down="grid.navigateDown(member.id, column)"
-          @delete-self="deleteMember(member.id)"
-          @delete-left="deleteMember(member.id)"
-          @keydown.delete.exact="isEditing || deleteMember(member.id)"
-          class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
-          :class="{
-            'text-gray-400': column == 'type',
-          }"
-        />
-        <!-- :EditableCellStyle -->
-      </template>
+      <!-- Type -->
+      <InlineTypeTupleCell
+        :model-value="member"
+        @update:model-value="(val: any) => writeType(member.id, val)"
+        :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
+        :readonly="context.readonly.value"
+        :active="context.focused.value || context.editing.value"
+        :untyped="isEnum"
+        :tupleName="isEnum ? 'option' : 'field'"
+        @navigate-left="grid.navigateLeft(member.id, 'type')"
+        @navigate-right="grid.navigateRight(member.id, 'type')"
+        @navigate-up="grid.navigateUp(member.id, 'type')"
+        @navigate-down="grid.navigateDown(member.id, 'type')"
+        @delete-self="deleteMember(member.id)"
+        @delete-left="deleteMember(member.id)"
+        @duplicate-self="duplicateMember(member.id)"
+        @keydown.delete.exact="isEditing || deleteMember(member.id)"
+        class="w-full self-start border border-transparent py-0.5 pr-2 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+      />
+      <!-- Description -->
+      <InlineValueCell
+        :model-value="member.description"
+        @update:model-value="writeDescription(member.id, $event)"
+        :ref="(el: any) => grid.registerColumnRef(member.id, 'description', el)"
+        :readonly="context.readonly.value"
+        :active="context.focused.value || context.editing.value"
+        immediate
+        debounced
+        :placeholder-value="context.editing.value ? '+' + 'description' : null"
+        :type="STRING_TYPE_NODE"
+        slim
+        @navigate-left="grid.navigateLeft(member.id, 'description')"
+        @navigate-right="grid.navigateRight(member.id, 'description')"
+        @navigate-up="grid.navigateUp(member.id, 'description')"
+        @navigate-down="grid.navigateDown(member.id, 'description')"
+        @delete-self="deleteMember(member.id)"
+        @delete-left="deleteMember(member.id)"
+        @duplicate-self="duplicateMember(member.id)"
+        @keydown.delete.exact="isEditing || deleteMember(member.id)"
+        class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+      />
+      <!-- :EditableCellStyle -->
     </template>
   </div>
   <div class="mb-1">
@@ -332,8 +343,8 @@ defineExpose({
       tabindex="-1"
       ref="addMemberRef"
       class="mt-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click="insertBelow()"
-      @enter="insertBelow()"
+      @click="insertMember()"
+      @enter="insertMember()"
       @keydown.up.exact="focusLast"
       @keydown.down.exact="context.navigateDown"
     >

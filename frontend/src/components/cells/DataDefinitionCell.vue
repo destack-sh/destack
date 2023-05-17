@@ -7,13 +7,19 @@ import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
-import { makeTypeNode, useStatementContext, type InlineAction, type SimpleType } from "@/components/statement";
+import {
+  makeTypeNode,
+  useStatementContext,
+  type InlineAction,
+  type SimpleType,
+  type TypeAction,
+} from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { newDatasetRecordId } from "@/state/operations/statement";
+import { newDatasetRecordId, newTypeNodeId } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
@@ -21,6 +27,7 @@ import {
   ArrowPathIcon,
   CubeTransparentIcon,
   PlusIcon,
+  Square2StackIcon,
   SquaresPlusIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -227,6 +234,25 @@ function insertField(isUnionWith?: boolean) {
   }
 }
 
+function duplicateField(fieldId: string) {
+  // :DuplicateTypeNode
+  const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
+  if (fieldIdx < 0) return;
+  const field = selfFields.value?.[fieldIdx];
+  const orderKey = generateKeyBetween(field?.orderKey ?? null, selfFields.value?.[fieldIdx + 1]?.orderKey ?? null);
+  // "name" => "name 2", "name 2" => "name 3", etc.
+  const newName =
+    field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
+  const newFieldNode = {
+    ...field,
+    id: newTypeNodeId(),
+    name: newName,
+    orderKey,
+  };
+  context.createTypeNode(newFieldNode);
+  nextTick(() => grid.focus(fieldIdx + 1, "type"));
+}
+
 function updateFieldName(node: SimpleType, name: string) {
   context.updateTypeNode(node, { ...node, name });
 }
@@ -312,7 +338,7 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
 }
 const position = useMouseInElement(gridRef);
 
-const extraActions = computed(() => {
+const extraInlineActions = computed(() => {
   const inlineActions: InlineAction[] = [];
   if (isTable.value) {
     if ((fetchedRecords?.value?.statement?.records.totalCount ?? -1) == -1) {
@@ -369,7 +395,7 @@ defineExpose({
       />
       <!-- Extended types -->
       <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
-        <span class="mr-1 text-orange-600">is</span>
+        <span class="mr-1 text-orange-600">has</span>
         <div class="inline-flex flex-row gap-1">
           <InlineTypeCell
             v-for="field of extendedTypes"
@@ -434,7 +460,7 @@ defineExpose({
       <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
         {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
       </span>
-      <InlineActions :extraActions="extraActions" />
+      <InlineActions :extraActions="extraInlineActions" />
     </div>
   </div>
   <!-- Description -->
@@ -476,6 +502,7 @@ defineExpose({
             @navigate-up="grid.navigateUp('', field.name as string)"
             @navigate-down="grid.navigateDown('', field.name as string)"
             @delete-self="deleteField(field)"
+            @duplicate-self="duplicateField(field.id)"
           />
         </div>
       </td>
