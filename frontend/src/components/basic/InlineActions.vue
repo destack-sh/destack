@@ -1,11 +1,11 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useMagicActions } from "@/components/file";
+import type { InlineAction } from "@/components/statement";
 import { useStatementContext } from "@/components/statement";
 import type { StatementHeader } from "@/state/editor";
-import { DocumentDuplicateIcon, ArrowPathIcon } from "@heroicons/vue/24/outline";
+import { ArrowPathIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "vue";
-import type { InlineAction } from "@/components/statement";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   extraActions?: InlineAction[];
@@ -22,7 +22,7 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
   if (!context.readonly.value) {
     inlineActions.push({
       label: "Duplicate",
-      icon: DocumentDuplicateIcon,
+      icon: Square2StackIcon,
       action: () => magic.duplicate(),
     });
   }

@@ -4,6 +4,7 @@ import { useEditorState, type FileHeader, type StatementHeader } from "@/state/e
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
+import { TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
 
@@ -842,6 +843,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       fileId: nav.value.file.id,
       symbolType: SymbolType.Data,
       rootTypeTag: TypeTag.Struct,
+      rootTypeFlags: TypeFlag.IsArray,
       name: getRandomAdjective() + " documents",
     };
     const tx = openTransaction({

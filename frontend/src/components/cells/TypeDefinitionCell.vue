@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import { useNavigationGrid } from "@/components/cells/grid";
+import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
+import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import {
@@ -15,9 +16,8 @@ import {
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
+import { SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
-import PlusIcon from "@heroicons/vue/24/outline/PlusIcon";
-import TableCellsIcon from "@heroicons/vue/24/outline/TableCellsIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -47,7 +47,7 @@ const columnsInOrder: Ref<ColumnType[]> = computed(() => {
   if (isEnum.value) {
     return ["name", "description"];
   } else if (isStruct.value) {
-    return ["name", "type", "description"];
+    return ["type", "description"];
   } else {
     throw new Error("unexpected type node tag: " + context.typeRootTag.value);
   }
@@ -56,6 +56,8 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
   gridNavigateUp: focusDescriptionFromBottom,
   gridNavigateDown,
 });
+const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
 function insertBelow(memberId?: string, isUnionWith?: boolean) {
@@ -77,12 +79,14 @@ function insertBelow(memberId?: string, isUnionWith?: boolean) {
       value: name, // :LiteralStringEnum
       orderKey,
     });
+    nextTick(() => grid.focus(membersLength.value - 1, "name"));
   } else if (!isUnionWith) {
     newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
     });
+    nextTick(() => grid.focus(membersLength.value - 1, "type"));
   } else {
     newMemberNode = makeTypeNode({
       name: "",
@@ -90,10 +94,9 @@ function insertBelow(memberId?: string, isUnionWith?: boolean) {
       orderKey,
       flags: TypeFlag.IsUnionWith,
     });
+    nextTick(() => extendedTypesRefs.focus(extendedTypes.value.slice(-1)[0].id));
   }
-
   context.createTypeNode(newMemberNode);
-  nextTick(() => grid.focus(membersLength.value - 1, "name"));
 }
 
 function readColumn(member: SimpleTypeNode, column: ColumnType) {
@@ -167,11 +170,6 @@ function gridNavigateDown() {
 
 const extraActions = computed(() => {
   const inlineActions: InlineAction[] = [];
-  inlineActions.push({
-    label: "Add " + (isEnum.value ? "option" : "field"),
-    icon: TableCellsIcon,
-    action: () => insertBelow(),
-  });
   if (!isEnum.value) {
     inlineActions.push({
       label: "Extend",
@@ -179,6 +177,11 @@ const extraActions = computed(() => {
       action: () => insertBelow(undefined, true),
     });
   }
+  inlineActions.push({
+    label: "Add " + (isEnum.value ? "option" : "field"),
+    icon: SquaresPlusIcon,
+    action: () => insertBelow(),
+  });
   return inlineActions;
 });
 
@@ -196,31 +199,58 @@ defineExpose({
   <!-- Declaration -->
   <div class="flex items-center justify-between">
     <div class="flex flex-row items-baseline">
-      <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
+      <DeclarationCell
+        ref="declarationRef"
+        @navigate-down="focusDescriptionFromTop"
+        @navigate-right="
+          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : extendButtonRef?.focus()
+        "
+      />
       <!-- Extended types -->
+      <!-- TODO @Cleanup: reduce duplication with data definition cell (and general ugliness of keyboard navigation...) -->
       <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">is</span>
         <div class="inline-flex flex-row gap-1">
           <InlineTypeCell
             v-for="field of extendedTypes"
+            :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
             @update:model-value="(val) => context.updateTypeNode(field, val)"
-            @keydown.delete.exact="isEditing || context.deleteTypeNode(field)"
+            @delete-self="context.deleteTypeNode(field)"
+            @navigate-left="
+              field.id == extendedTypes[0].id
+                ? declarationRef?.focus()
+                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) - 1].id)
+            "
+            @navigate-right="
+              field.id == extendedTypes[extendedTypes.length - 1].id
+                ? extendButtonRef?.focus()
+                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) + 1].id)
+            "
+            @navigate-down="focusDescriptionFromTop"
+            @navigate-up="context.navigateUp"
             :active="context.focused.value || context.editing.value"
             :key="field.id"
             :readonly="context.readonly.value"
             structref-only
             hide-flags
-            class="w-full self-start border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            hide-icon
+            class="w-full rounded-sm border border-transparent border-opacity-[15%] focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
           />
         </div>
       </div>
       <!-- Inline buttons -->
       <button
         v-if="!isEnum && !context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
+        ref="extendButtonRef"
+        @keydown.down.exact="focusDescriptionFromTop"
+        @keydown.up.exact="context.navigateUp"
+        @keydown.left.exact="
+          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : declarationRef?.focus()
+        "
         tabindex="-1"
         @click="() => insertBelow(undefined, true)"
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
         +extend
       </button>
@@ -231,7 +261,7 @@ defineExpose({
           addingDescription = true;
           descriptionRef?.focus();
         "
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
         +description
       </button>
@@ -261,21 +291,14 @@ defineExpose({
     +description
   </button>
   <!-- Members (enum options or struct fields) -->
-  <div
-    v-if="membersLength > 0"
-    class="my-1 grid w-fit"
-    :class="{
-      'grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]': isEnum,
-      'grid-cols-[minmax(40px,auto)_120px_minmax(160px,1fr)]': isStruct,
-    }"
-  >
+  <div v-if="membersLength > 0" class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]">
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Columns -->
       <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
         <!-- Individual column: a bit messy -->
         <component
-          :is="column == 'type' ? InlineTypeCell : InlineValueCell"
+          :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
           :model-value="readColumn(member as SimpleTypeNode, column)"
           @update:model-value="(val: any) => writeColumn(member.id, column, val)"
           :ref="(el: any) => grid.registerColumnRef(member.id, column, el)"
@@ -290,6 +313,7 @@ defineExpose({
           @navigate-right="grid.navigateRight(member.id, column)"
           @navigate-up="grid.navigateUp(member.id, column)"
           @navigate-down="grid.navigateDown(member.id, column)"
+          @delete-self="deleteMember(member.id)"
           @delete-left="deleteMember(member.id)"
           @keydown.delete.exact="isEditing || deleteMember(member.id)"
           class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
@@ -297,7 +321,7 @@ defineExpose({
             'text-gray-400': column == 'type',
           }"
         />
-        <!-- Note the :EditableCellStyle above (should be symmetric) -->
+        <!-- :EditableCellStyle -->
       </template>
     </template>
   </div>

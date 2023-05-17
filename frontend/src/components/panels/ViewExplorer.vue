@@ -39,7 +39,7 @@ const panels: Ref<Panel[]> = computed(() => [
     ],
   } as Panel,
   {
-    title: "Symbols",
+    title: "Outline",
     count: symbolExplorer.value?.count,
     actions: [],
   } as Panel,
@@ -120,7 +120,7 @@ watch(
           />
           <SymbolExplorer
             :ref="(ref) => (symbolExplorer = ref as any)"
-            v-else-if="panel.title == 'Symbols'"
+            v-else-if="panel.title == 'Outline'"
             :focused="props.focused"
             @navigate-up="fileExplorer?.focus('last')"
             @navigate-down="fileExplorer?.focus('first')"

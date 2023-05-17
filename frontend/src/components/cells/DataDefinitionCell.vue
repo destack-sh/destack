@@ -1,19 +1,13 @@
 <script lang="ts" setup>
 import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import { useNavigationGrid } from "@/components/cells/grid";
+import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
-import {
-  makeTypeNode,
-  STRING_TYPE_NODE,
-  useStatementContext,
-  type InlineAction,
-  type SimpleType,
-} from "@/components/statement";
+import { makeTypeNode, useStatementContext, type InlineAction, type SimpleType } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
@@ -22,7 +16,13 @@ import { useOperations } from "@/state/operations";
 import { newDatasetRecordId } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { ArrowDownIcon, ArrowPathIcon, CubeTransparentIcon, PlusIcon, TableCellsIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowDownIcon,
+  ArrowPathIcon,
+  CubeTransparentIcon,
+  PlusIcon,
+  SquaresPlusIcon,
+} from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -150,9 +150,12 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
   }),
   {
     gridNavigateUp: focusDescriptionFromBottom,
-    gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
+    gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value ?? addFieldRef.value)?.focus(),
   }
 );
+const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
+
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing) || grid.refs.value.find((n) => n.editing));
 
 function focusDescriptionFromTop() {
@@ -210,6 +213,7 @@ function insertField(isUnionWith?: boolean) {
         orderKey: nextOrderKey,
       })
     );
+    nextTick(() => grid.focus(0, columnsInOrder.value.slice(-1)[0]));
   } else {
     context.createTypeNode(
       makeTypeNode({
@@ -219,8 +223,8 @@ function insertField(isUnionWith?: boolean) {
         flags: TypeFlag.IsUnionWith,
       })
     );
+    nextTick(() => extendedTypesRefs.focus(extendedTypes.value.slice(-1)[0].id));
   }
-  nextTick(() => grid.focus(-1, "name"));
 }
 
 function updateFieldName(node: SimpleType, name: string) {
@@ -326,14 +330,14 @@ const extraActions = computed(() => {
     });
   }
   inlineActions.push({
-    label: "Add field",
-    icon: TableCellsIcon,
-    action: () => insertField(),
-  });
-  inlineActions.push({
     label: "Extend",
     icon: CubeTransparentIcon,
     action: () => insertField(true),
+  });
+  inlineActions.push({
+    label: "Add field",
+    icon: SquaresPlusIcon,
+    action: () => insertField(),
   });
   return inlineActions;
 });
@@ -356,31 +360,57 @@ defineExpose({
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
     <div class="flex flex-row items-baseline">
-      <DeclarationCell ref="declarationRef" @navigate-down="focusDescriptionFromTop" />
+      <DeclarationCell
+        ref="declarationRef"
+        @navigate-down="focusDescriptionFromTop"
+        @navigate-right="
+          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : extendButtonRef?.focus()
+        "
+      />
       <!-- Extended types -->
       <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">is</span>
         <div class="inline-flex flex-row gap-1">
           <InlineTypeCell
             v-for="field of extendedTypes"
+            :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
             @update:model-value="(val) => context.updateTypeNode(field, val)"
-            @keydown.delete.exact="isEditing || context.deleteTypeNode(field)"
+            @delete-self="context.deleteTypeNode(field)"
+            @navigate-left="
+              field.id == extendedTypes[0].id
+                ? declarationRef?.focus()
+                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) - 1].id)
+            "
+            @navigate-right="
+              field.id == extendedTypes[extendedTypes.length - 1].id
+                ? extendButtonRef?.focus()
+                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) + 1].id)
+            "
+            @navigate-down="focusDescriptionFromTop"
+            @navigate-up="context.navigateUp"
             :active="context.focused.value || context.editing.value"
             :key="field.id"
             :readonly="context.readonly.value"
             structref-only
             hide-flags
-            class="w-full self-start border border-transparent focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            hide-icon
+            class="w-full rounded-sm border border-transparent border-opacity-[15%] focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
           />
         </div>
       </div>
       <!-- Inline buttons -->
       <button
         v-if="!context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
+        ref="extendButtonRef"
+        @keydown.down.exact="focusDescriptionFromTop"
+        @keydown.up.exact="context.navigateUp"
+        @keydown.left.exact="
+          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : declarationRef?.focus()
+        "
         tabindex="-1"
         @click="() => insertField(true)"
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
         +extend
       </button>
@@ -391,7 +421,7 @@ defineExpose({
           addingDescription = true;
           descriptionRef?.focus();
         "
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
         +description
       </button>
@@ -445,7 +475,7 @@ defineExpose({
             @navigate-right="grid.navigateRight('', field.name as string)"
             @navigate-up="grid.navigateUp('', field.name as string)"
             @navigate-down="grid.navigateDown('', field.name as string)"
-            @keydown.delete.exact="isEditing || deleteField(field)"
+            @delete-self="deleteField(field)"
           />
         </div>
       </td>
@@ -484,21 +514,22 @@ defineExpose({
     <!-- Single value (vertical) -->
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
     <tr v-for="field in allFields" :key="field.id">
-      <td class="w-1/4">
-        <div class="flex w-full flex-row flex-wrap gap-0.5 whitespace-nowrap px-1 focus-within:bg-orange-100">
+      <td class="w-1/5">
+        <div class="flex flex-row flex-wrap gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
           <InlineTypeTupleCell
             :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @keydown.delete.exact.prevent="isEditing || deleteField(field)"
-            @keydown.up.exact.prevent="grid.navigateUp(field?.id, 'type')"
-            @keydown.down.exact="grid.navigateDown(field?.id, 'type')"
-            @keydown.right.exact="grid.focus(field?.id, 'value')"
-            @keydown.left.exact="grid.focus(field?.id, 'name')"
+            @delete-self="deleteField(field)"
+            @navigate-up="grid.navigateUp(field?.id, 'type')"
+            @navigate-down="grid.navigateDown(field?.id, 'type')"
+            @navigate-right="grid.navigateRight(field?.id, 'type')"
+            @navigate-left="grid.navigateLeft(field?.id, 'type')"
           />
         </div>
       </td>
@@ -520,8 +551,8 @@ defineExpose({
           @keydown.delete.exact="isEditing || deleteRecordField(mainRecord.id, field.key as string)"
           @keydown.up.exact="grid.navigateUp(field.id, 'value')"
           @keydown.down.exact="grid.navigateDown(field.id, 'value')"
-          @keydown.right.exact="grid.focus(field.id, 'name')"
-          @keydown.left.exact="grid.focus(field.id, 'type')"
+          @keydown.right.exact="grid.navigateRight(field.id, 'value')"
+          @keydown.left.exact="grid.navigateLeft(field.id, 'value')"
           class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
