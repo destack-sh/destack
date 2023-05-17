@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
-import { ANY_TYPE_NODE, renderSimpleType, type SimpleType } from "@/components/statement";
-import type { SimpleTypeNode } from "@/gql/graphql";
+import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
+import { ANY_TYPE_NODE, type SimpleType } from "@/components/statement";
+import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -12,6 +13,7 @@ const props = defineProps<{
   inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
+  hideIcon?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -78,7 +80,7 @@ defineExpose({
 });
 </script>
 <template>
-  <Popover as="div" class="relative">
+  <Popover as="div" v-slot="{ close }" class="relative">
     <!-- Type preview -->
     <button
       ref="buttonRef"
@@ -93,7 +95,7 @@ defineExpose({
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
-      {{ renderSimpleType(value) }}
+      <SimpleTypePreview :type="value" :hide-icon="hideIcon || value.reference != null" />
     </button>
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
     <!-- Editable type :EditableCellStyle -->
@@ -108,7 +110,8 @@ defineExpose({
           ref="valueRef"
           as="div"
           :model-value="value"
-          @update:model-value="writeValue"
+          @update:model-value="writeValue($event), close(), buttonRef?.focus()"
+          @escape="close(), buttonRef?.focus()"
           :inlined="inlined"
           :structref-only="structrefOnly"
           :hide-flags="hideFlags"

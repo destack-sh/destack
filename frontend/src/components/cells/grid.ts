@@ -1,5 +1,32 @@
 import { computed, ref, type Ref } from "vue";
 
+export function useElementRefs<RefType = HTMLInputElement>() {
+  const refs: Ref<Record<string, RefType>> = ref({});
+
+  function registerRef(id: string, ref: RefType | undefined) {
+    if (ref != undefined) {
+      refs.value[id] = ref;
+    } else {
+      delete refs.value[id];
+    }
+  }
+
+  function getRef(id: string): RefType {
+    return refs.value[id];
+  }
+
+  function focus(id: string) {
+    refs.value[id]?.focus();
+  }
+
+  return {
+    registerRef,
+    refs: computed(() => Object.values(refs.value)),
+    getRef,
+    focus,
+  };
+}
+
 export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElement>(
   columnsInOrder: Ref<ColumnType[]>,
   rows: Ref<{ id: string }[]>,

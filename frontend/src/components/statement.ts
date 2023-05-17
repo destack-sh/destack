@@ -486,7 +486,7 @@ export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });
 export const PRIMITIVE_TYPES = [TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.File, TypeTag.Embedding];
 export const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
 
-export function renderSimpleType(node: SimpleType): string {
+export function renderSimpleType(node: SimpleType, includeFlags: boolean): string {
   let renderedElement: string;
   if (PRIMITIVE_TYPES.includes(node.tag)) {
     renderedElement = TYPETAG_KEYWORD[node.tag];
@@ -501,14 +501,16 @@ export function renderSimpleType(node: SimpleType): string {
   }
 
   let rendered: string = renderedElement;
-  if (node.flags & TypeFlag.IsArray) {
-    rendered = renderedElement + " list";
-  }
-  if (node.flags & TypeFlag.IsNullable) {
-    rendered = rendered + "?";
-  }
-  if (node.flags & TypeFlag.IsSecret) {
-    rendered = "secret " + rendered;
+  if (includeFlags) {
+    if (node.flags & TypeFlag.IsArray) {
+      rendered = renderedElement + " list";
+    }
+    if (node.flags & TypeFlag.IsNullable) {
+      rendered = rendered + "?";
+    }
+    if (node.flags & TypeFlag.IsSecret) {
+      rendered = "secret " + rendered;
+    }
   }
 
   return rendered;

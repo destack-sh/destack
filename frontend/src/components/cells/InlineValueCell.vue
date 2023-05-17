@@ -252,6 +252,7 @@ defineExpose({
         <div v-for="field in structFields" :key="field.name" class="flex flex-col">
           <span class="text-left text-xs text-gray-500">{{ field.name }}</span>
           <InlineValueCell
+            v-if="field.tag != TypeTag.Struct"
             :type="field"
             :modelValue="readValue[field.name]"
             :placeholderValue="field.name"
@@ -352,7 +353,7 @@ defineExpose({
         </ComboboxOptions>
       </Combobox>
       <!-- Uneditable -->
-      <span v-else class="text-red-500">{{ readValue || "panic!" }}</span>
+      <span v-else class="text-red-500">{{ readValue || "panic (" + type.tag + ")" }}</span>
     </div>
   </div>
 </template>

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import {
   ANY_TYPE_NODE,
   makeTypeNode,
@@ -7,11 +8,18 @@ import {
   type SimpleType,
 } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { EyeIcon, EyeSlashIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, watch, type Ref } from "vue";
+import {
+  ExclamationCircleIcon,
+  EyeIcon,
+  EyeSlashIcon,
+  ListBulletIcon,
+  QuestionMarkCircleIcon,
+} from "@heroicons/vue/24/outline";
+import { computed, onMounted, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue?: SimpleType;
@@ -52,7 +60,9 @@ const availableTypes: Ref<SimpleType[]> = computed(() => {
   }
   return basicTypes;
 });
-const filteredTypes = computed(() => availableTypes.value.filter((t) => renderSimpleType(t).includes(query.value)));
+const filteredTypes = computed(() =>
+  availableTypes.value.filter((t) => renderSimpleType(t, false).includes(query.value))
+);
 
 function writeValue(type: SimpleTypeNode) {
   // keep flags
@@ -86,12 +96,14 @@ const flagButtons: FlagButton[] = [
   {
     flag: TypeFlag.IsNullable,
     label: "optional",
-    icon: "?",
+    setIcon: QuestionMarkCircleIcon,
+    unsetIcon: ExclamationCircleIcon,
   },
   {
     flag: TypeFlag.IsArray,
-    label: "list",
-    icon: "[]",
+    label: "many",
+    setIcon: ListBulletIcon,
+    unsetIcon: ListBulletIcon,
   },
   {
     flag: TypeFlag.IsSecret,
@@ -114,7 +126,12 @@ function toggleFlag(flag: TypeFlag) {
   emit("update:modelValue", value.value);
 }
 
-const editor = useEditorState();
+// focus input once mounted
+onMounted(() => {
+  inputRef.value?.$el.focus();
+});
+
+const appearance = useAppearance();
 
 defineExpose({
   focus: () => inputRef.value?.$el.focus(),
@@ -145,34 +162,33 @@ defineExpose({
       ref="inputRef"
       class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
       :class="{
-        'font-mono': editor.fontMono,
-        'text-sm placeholder:text-sm': editor.textSmall,
-        'text-md placeholder:text-md': !editor.textSmall,
+        'font-mono': appearance.fontMono,
+        'text-sm placeholder:text-sm': appearance.textSmall,
+        'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(node: any) => node != null ? renderSimpleType(node) : null"
+      :display-value="(node: any) => node != null ? renderSimpleType(node, false) : null"
       placeholder="..."
       spellcheck="false"
+      @keydown.enter.prevent.stop="emit('escape')"
     />
     <ComboboxOptions
       ref="optionsRef"
-      class="mt-2 max-h-48 w-60 overflow-auto"
+      class="mt-1 max-h-48 w-60 overflow-auto"
       static
-      :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+      :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
     >
       <!-- Options -->
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
-            'relative cursor-default select-none px-2 py-0.5',
+            'relative cursor-default select-none px-1 py-1',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected ? 'underline' : '',
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <span class="truncate">
-              {{ renderSimpleType(node) }}
-            </span>
+            <SimpleTypePreview :type="node" show-type-name />
             <span
               v-if="node.tag == TypeTag.TypeReference && node.reference != null"
               class="text-xs"

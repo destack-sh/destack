@@ -2,11 +2,12 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
+import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import { ANY_TYPE_NODE, renderSimpleType } from "@/components/statement";
-import type { SimpleType } from "@/gql/graphql";
+import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { PencilIcon } from "@heroicons/vue/24/outline";
+import { AdjustmentsHorizontalIcon, PencilIcon } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -64,26 +65,22 @@ watch(
 type Action = {
   label: string;
   icon: any;
-  action: () => boolean;
+  keepOpen?: boolean;
+  action: () => void;
 };
 const actions = computed(() => {
   const actions = [];
   if (!props.readonly) {
     actions.push({
       label: "Edit type",
-      icon: PencilIcon,
-      action: () => {
-        typeButtonRef.value?.$el.click();
-        return false;
-      },
+      icon: AdjustmentsHorizontalIcon,
+      keepOpen: true,
+      action: () => typeButtonRef.value?.$el.click(),
     });
     actions.push({
       label: "Delete",
       icon: TrashIcon,
-      action: () => {
-        emit("deleteLeft");
-        return true;
-      },
+      action: () => emit("deleteSelf"),
     });
   }
   if (props.extraActions != null) {
@@ -124,7 +121,7 @@ defineExpose({
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
-      class="h-full w-full text-left outline-none"
+      class="flex h-full w-full flex-row items-center text-left outline-none"
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
@@ -133,9 +130,7 @@ defineExpose({
         :class="inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : ''"
         >{{ value.name }}</span
       >
-      <span>
-        {{ renderSimpleType(value) }}
-      </span>
+      <SimpleTypePreview :type="value" :hide-icon="value.reference != null" />
     </button>
     <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
@@ -154,32 +149,44 @@ defineExpose({
             :readonly="readonly"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
             @navigate-right="typeButtonRef?.$el.focus()"
+            @enter="
+              close();
+              buttonRef?.focus();
+            "
           />
           <!-- Type popover -->
-          <Popover as="div" class="relative">
+          <Popover as="div" class="relative" v-slot="{ close }">
             <PopoverButton
               ref="typeButtonRef"
               :disabled="readonly"
-              class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
+              class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
               :class="readonly ? '' : 'hover:bg-orange-100'"
               @keydown.left.exact.prevent="nameRef?.focus()"
             >
-              {{ renderSimpleType(value) }}
+              <SimpleTypePreview :type="value" hide-reference />
             </PopoverButton>
             <PopoverPanel
               class="absolute -left-1 -top-10 z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+              unmount
             >
-              <SelectTypeCell :model-value="value" @update:model-value="emit('update:modelValue', $event)" />
+              <SelectTypeCell
+                :model-value="value"
+                @update:model-value="emit('update:modelValue', $event)"
+                @escape="close"
+              />
             </PopoverPanel>
           </Popover>
         </div>
         <!-- Actions -->
-        <div class="mt-0.5 flex flex-col gap-1" v-if="actions.length > 0">
+        <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">
           <button
             v-for="action in actions"
             :key="action.label"
-            class="flex w-full flex-row items-center gap-2.5 rounded-sm px-2 py-1 hover:bg-orange-100"
-            @click="action.action() && close()"
+            class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100"
+            @click="
+              action.action();
+              action.keepOpen || close();
+            "
           >
             <component :is="action.icon" class="h-4 w-4 text-gray-500" />
             <span class="text-gray-700">{{ action.label }}</span>
