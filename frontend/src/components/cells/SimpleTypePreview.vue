@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { TYPETAG_KEYWORD } from "@/state/editor";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
   ArrowDownCircleIcon,
   ArrowUpRightIcon,
@@ -9,6 +9,7 @@ import {
   CheckIcon,
   DocumentIcon,
   HashtagIcon,
+  LockClosedIcon,
   MinusSmallIcon,
   PhotoIcon,
   SparklesIcon,
@@ -18,7 +19,13 @@ import {
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
-const props = defineProps<{ type: SimpleType; showTypeName?: boolean; hideIcon?: boolean; hideReference?: boolean }>();
+const props = defineProps<{
+  type: SimpleType;
+  showTypeName?: boolean;
+  hideIcon?: boolean;
+  hideFlags?: boolean;
+  hideReference?: boolean;
+}>();
 
 // resolve type since the type reference is likely not included
 // (this hack will be removed once the special interp state finally dies)
@@ -50,10 +57,10 @@ const iconsByTag: Record<TypeTag, any> = {
 };
 </script>
 <template>
-  <div class="inline-flex flex-row items-baseline gap-1.5">
+  <div class="relative inline-flex flex-row items-baseline gap-1.5">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <span v-if="iconsByTag[resolvedTag] && !hideIcon" class="relative h-4 w-4">
+    <span v-if="iconsByTag[resolvedTag] && !hideIcon" class="h-4 w-4">
       <span class="opacity-0">t</span>
       <component
         :is="iconsByTag[resolvedTag]"
@@ -66,5 +73,6 @@ const iconsByTag: Record<TypeTag, any> = {
     }}</span>
     <span v-if="type.reference && !hideReference">{{ resolvedReference?.name ?? "???" }}</span>
     <span v-else-if="type.tag == TypeTag.TypeReference && type.reference == null">...</span>
+    <LockClosedIcon v-if="type.flags & TypeFlag.IsSecret && !hideFlags" class="-ml-1 h-4 w-4" />
   </div>
 </template>

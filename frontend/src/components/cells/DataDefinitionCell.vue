@@ -193,7 +193,7 @@ function focusFirstRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(0, columnsInOrder.value[0]);
   } else {
-    addRecordRef.value?.focus();
+    (addRecordRef.value ?? addFieldRef.value)?.focus();
   }
 }
 
@@ -220,7 +220,7 @@ function insertField(isUnionWith?: boolean) {
         orderKey: nextOrderKey,
       })
     );
-    nextTick(() => grid.focus(0, columnsInOrder.value.slice(-1)[0]));
+    nextTick(() => grid.focus(0, selfFields.value.find((f) => f.orderKey == nextOrderKey)?.name ?? ""));
   } else {
     context.createTypeNode(
       makeTypeNode({
@@ -248,13 +248,10 @@ function duplicateField(fieldId: string) {
     id: newTypeNodeId(),
     name: newName,
     orderKey,
+    referenceId: field.reference?.id,
   };
   context.createTypeNode(newFieldNode);
   nextTick(() => grid.focus(fieldIdx + 1, "type"));
-}
-
-function updateFieldName(node: SimpleType, name: string) {
-  context.updateTypeNode(node, { ...node, name });
 }
 
 function updateFieldType(node: SimpleType, changed: SimpleType) {
@@ -482,9 +479,8 @@ defineExpose({
   >
     +description
   </button>
-  <!-- Contents -->
+  <!-- Table (in table form) -->
   <table ref="gridRef" class="-mx-1 w-full" v-if="isTable">
-    <!-- Table (in table form) -->
     <!-- Field types -->
     <tr class="border-b border-orange-900 border-opacity-[12%]">
       <td v-for="field in allFields" :key="field?.id" class="">
@@ -537,11 +533,11 @@ defineExpose({
       </td>
     </tr>
   </table>
+  <!-- Single value (vertical) -->
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
-    <!-- Single value (vertical) -->
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
     <tr v-for="field in allFields" :key="field.id">
-      <td class="w-1/5">
+      <td class="w-1/4">
         <div class="flex flex-row flex-wrap gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
           <InlineTypeTupleCell
             :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
@@ -551,12 +547,12 @@ defineExpose({
             class="h-full w-full border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
-            @keydown.delete.exact.prevent="isEditing || deleteField(field)"
-            @delete-self="deleteField(field)"
             @navigate-up="grid.navigateUp(field?.id, 'type')"
             @navigate-down="grid.navigateDown(field?.id, 'type')"
             @navigate-right="grid.navigateRight(field?.id, 'type')"
             @navigate-left="grid.navigateLeft(field?.id, 'type')"
+            @delete-self="deleteField(field)"
+            @duplicate-self="duplicateField(field.id)"
           />
         </div>
       </td>

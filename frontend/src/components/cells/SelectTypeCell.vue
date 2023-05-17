@@ -9,14 +9,13 @@ import {
 } from "@/components/statement";
 import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useEditorState } from "@/state/editor";
 import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import {
   ExclamationCircleIcon,
-  EyeIcon,
-  EyeSlashIcon,
   ListBulletIcon,
+  LockClosedIcon,
+  LockOpenIcon,
   QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, onMounted, ref, watch, type Ref } from "vue";
@@ -108,10 +107,20 @@ const flagButtons: FlagButton[] = [
   {
     flag: TypeFlag.IsSecret,
     label: "secret",
-    unsetIcon: EyeIcon,
-    setIcon: EyeSlashIcon,
+    unsetIcon: LockOpenIcon,
+    setIcon: LockClosedIcon,
   },
 ];
+
+function isFlagEnabled(flag: TypeFlag) {
+  if (flag == TypeFlag.IsArray) {
+    return !isFlagSet(TypeFlag.IsSecret);
+  } else if (flag == TypeFlag.IsSecret) {
+    return !isFlagSet(TypeFlag.IsArray) && value.value.reference == null;
+  } else {
+    return true;
+  }
+}
 
 function isFlagSet(flag: TypeFlag) {
   return value.value.flags & flag;
@@ -144,8 +153,12 @@ defineExpose({
       <button
         v-for="flagButton in flagButtons"
         :key="flagButton.label"
+        :disabled="!isFlagEnabled(flagButton.flag)"
         class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
-        :class="isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : ''"
+        :class="[
+          isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : '',
+          isFlagEnabled(flagButton.flag) ? '' : 'cursor-not-allowed text-gray-400',
+        ]"
         @click="toggleFlag(flagButton.flag)"
       >
         <span> {{ flagButton.label }}</span>

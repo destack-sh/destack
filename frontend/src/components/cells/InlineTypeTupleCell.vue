@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useElementRefs } from "@/components/cells/grid";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
@@ -40,9 +41,11 @@ const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const typeButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
+const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
+const typePopoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
+const actionRefs = useElementRefs();
 
 syncProperty({
   value: name,
@@ -152,7 +155,8 @@ defineExpose({
             v-model="name"
             :readonly="readonly"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
-            @navigate-right="typeButtonRef?.$el.focus()"
+            @navigate-right="typeButtonRef?.focus()"
+            @navigate-down="actionRefs.focus(actions[0].label)"
             @enter="
               close();
               buttonRef?.focus();
@@ -160,15 +164,20 @@ defineExpose({
           />
           <!-- Type popover -->
           <Popover v-if="!untyped" as="div" class="relative" v-slot="{ close }">
-            <PopoverButton
+            <button
               ref="typeButtonRef"
               :disabled="readonly"
               class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
               :class="readonly ? '' : 'hover:bg-orange-100'"
-              @keydown.left.exact.prevent="nameRef?.focus()"
+              @keydown.left="nameRef?.focus()"
+              @keydown.down="actionRefs.focus(actions[0].label)"
+              @click="typePopoverButtonRef?.$el.click()"
+              @keydown.enter.stop.prevent="typePopoverButtonRef?.$el.click()"
             >
-              <SimpleTypePreview :type="value" hide-reference />
-            </PopoverButton>
+              <!-- No idea why but this needs to be set absolutely or the icons are too high -->
+              <SimpleTypePreview class="absolute top-0.5" :type="value" hide-reference />
+            </button>
+            <PopoverButton ref="typePopoverButtonRef" @focus.prevent="typeButtonRef?.focus" class="hidden" />
             <PopoverPanel
               class="absolute -left-1 -top-10 z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
               unmount
@@ -176,7 +185,10 @@ defineExpose({
               <SelectTypeCell
                 :model-value="value"
                 @update:model-value="emit('update:modelValue', $event)"
-                @escape="close"
+                @escape="
+                  close();
+                  typeButtonRef?.focus();
+                "
               />
             </PopoverPanel>
           </Popover>
@@ -184,13 +196,20 @@ defineExpose({
         <!-- Actions -->
         <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">
           <button
-            v-for="action in actions"
+            v-for="(action, i) in actions"
+            :ref="(el: any) => actionRefs.registerRef(action.label, el)"
             :key="action.label"
-            class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100"
+            class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
             @click="
               action.action(value);
               action.keepOpen || close();
             "
+            @keydown.enter.prevent.stop="
+              action.action(value);
+              action.keepOpen || close();
+            "
+            @keydown.up.exact.stop.prevent="i == 0 ? nameRef?.focus() : actionRefs.focus(actions[i - 1].label)"
+            @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
           >
             <component :is="action.icon" class="h-4 w-4 text-gray-500" />
             <span class="text-gray-700">{{ action.label }}</span>
