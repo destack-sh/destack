@@ -6,6 +6,7 @@ import { OBJECT_TYPETAGS } from "@/state/object";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
+import { EyeIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -205,10 +206,24 @@ defineExpose({
         'text-gray-300': readValue == placeholderValue,
       }"
     >
-      <!-- Default content if empty and no special rendering-->
-      <!-- TODO @Incomplete: edit array & struct values values -->
-      <!-- TODO @UX: array & struct rendering (esp. nested) is ugly and hacky (nested InlineValueCells, see below) -->
-      <div v-if="type.flags & TypeFlag.IsArray && !parentArray" class="flex w-full flex-row flex-wrap gap-1.5 px-1">
+      <button
+        v-if="type.flags & TypeFlag.IsSecret"
+        class="group h-full w-full rounded-sm bg-gray-100"
+        @click.prevent=""
+      >
+        &nbsp;
+        <span
+          class="absolute right-1 p-0.5 text-gray-400"
+          :class="active ? '' : 'opacity-0 transition duration-150 group-hover:text-gray-700 group-hover:opacity-100'"
+        >
+          <EyeIcon class="h-4 w-4" />
+        </span>
+      </button>
+      <!-- TODO @UX: edit and view arrays & structs -->
+      <div
+        v-else-if="type.flags & TypeFlag.IsArray && !parentArray"
+        class="flex w-full flex-row flex-wrap gap-1.5 px-1"
+      >
         <span class="text-xs text-gray-500" v-if="modelValue?.length == 0">({{ modelValue?.length }} elements)</span>
         <InlineValueCell
           v-for="(value, index) in modelValue"

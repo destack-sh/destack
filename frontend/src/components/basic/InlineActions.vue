@@ -37,7 +37,7 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       :key="action.label"
       class="group relative p-0.5 text-gray-500 hover:text-gray-800"
       :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
-      @click.prevent.stop="action.action"
+      @click.prevent.stop="action.action(context.statement.value as StatementHeader)"
       :disabled="action.disabled || action.active"
     >
       <FadeTransition name="fade" mode="out-in">
@@ -46,7 +46,7 @@ const inlineActions: Ref<InlineAction[]> = computed(() => {
       <!-- Label -->
       <span
         v-if="!action.active"
-        class="absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
+        class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
       >
         {{ action.label }}
       </span>

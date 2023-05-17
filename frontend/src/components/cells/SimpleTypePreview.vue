@@ -3,6 +3,7 @@ import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { TYPETAG_KEYWORD } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
 import {
+  ArrowDownCircleIcon,
   ArrowUpRightIcon,
   Bars3BottomLeftIcon,
   CheckIcon,
@@ -12,6 +13,7 @@ import {
   PhotoIcon,
   SparklesIcon,
   SpeakerWaveIcon,
+  Squares2X2Icon,
   VideoCameraIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
@@ -30,7 +32,8 @@ const resolvedReference = computed(() => {
   }
 });
 
-// nocheckin improve icons
+const resolvedTag = computed(() => resolvedReference.value?.rootTypeTag ?? props.type.tag);
+
 const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.String]: Bars3BottomLeftIcon,
   [TypeTag.Number]: HashtagIcon,
@@ -42,24 +45,24 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Audio]: SpeakerWaveIcon,
   [TypeTag.Video]: VideoCameraIcon,
   [TypeTag.TypeReference]: ArrowUpRightIcon,
-  [TypeTag.Struct]: ArrowUpRightIcon,
-  [TypeTag.Enum]: ArrowUpRightIcon,
+  [TypeTag.Struct]: Squares2X2Icon,
+  [TypeTag.Enum]: ArrowDownCircleIcon,
 };
 </script>
 <template>
   <div class="inline-flex flex-row items-baseline gap-1.5">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <span v-if="iconsByTag[type.tag] && !hideIcon" class="relative h-4 w-4">
+    <span v-if="iconsByTag[resolvedTag] && !hideIcon" class="relative h-4 w-4">
       <span class="opacity-0">t</span>
       <component
-        :is="iconsByTag[type.tag]"
+        :is="iconsByTag[resolvedTag]"
         class="absolute left-0 h-4 w-4"
         :class="showTypeName ? 'top-0.5' : 'top-0'"
       />
     </span>
-    <span v-if="!iconsByTag[type.tag] || (showTypeName && type.tag != TypeTag.TypeReference)">{{
-      TYPETAG_KEYWORD[type.tag]
+    <span v-if="!iconsByTag[resolvedTag] || (showTypeName && type.reference == null)">{{
+      TYPETAG_KEYWORD[resolvedTag]
     }}</span>
     <span v-if="type.reference && !hideReference">{{ resolvedReference?.name ?? "???" }}</span>
     <span v-else-if="type.tag == TypeTag.TypeReference && type.reference == null">...</span>

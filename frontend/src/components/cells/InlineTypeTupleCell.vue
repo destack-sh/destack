@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import { ANY_TYPE_NODE, renderSimpleType } from "@/components/statement";
-import { TypeTag, type SimpleType } from "@/gql/graphql";
+import EditableSpan from "@/components/EditableSpan.vue";
+import { ANY_TYPE_NODE, type SimpleType, type TypeAction } from "@/components/statement";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { AdjustmentsHorizontalIcon, PencilIcon } from "@heroicons/vue/24/outline";
+import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -17,7 +16,9 @@ const props = defineProps<{
   inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
-  extraActions?: Action[];
+  extraActions?: TypeAction[];
+  tupleName?: string;
+  untyped?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -28,11 +29,13 @@ const emit = defineEmits<{
   (e: "navigateRight"): void;
   (e: "deleteLeft"): void;
   (e: "deleteSelf"): void;
+  (e: "duplicateSelf"): void;
   (e: "enter"): void;
   (e: "escape"): void;
   (e: "focus", event: FocusEvent): void;
 }>();
 
+const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -62,23 +65,24 @@ watch(
   }
 );
 
-type Action = {
-  label: string;
-  icon: any;
-  keepOpen?: boolean;
-  action: () => void;
-};
-const actions = computed(() => {
+const actions: Ref<TypeAction[]> = computed(() => {
   const actions = [];
   if (!props.readonly) {
+    if (!props.untyped) {
+      actions.push({
+        label: "Edit type",
+        icon: AdjustmentsHorizontalIcon,
+        keepOpen: true,
+        action: () => typeButtonRef.value?.$el.click(),
+      });
+    }
     actions.push({
-      label: "Edit type",
-      icon: AdjustmentsHorizontalIcon,
-      keepOpen: true,
-      action: () => typeButtonRef.value?.$el.click(),
+      label: "Duplicate " + tupleName.value,
+      icon: Square2StackIcon,
+      action: () => emit("duplicateSelf"),
     });
     actions.push({
-      label: "Delete",
+      label: "Delete " + tupleName.value,
       icon: TrashIcon,
       action: () => emit("deleteSelf"),
     });
@@ -130,7 +134,7 @@ defineExpose({
         :class="inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : ''"
         >{{ value.name }}</span
       >
-      <SimpleTypePreview :type="value" :hide-icon="value.reference != null" />
+      <SimpleTypePreview v-if="!untyped" :type="value" :hide-icon="value.reference != null" />
     </button>
     <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
@@ -155,7 +159,7 @@ defineExpose({
             "
           />
           <!-- Type popover -->
-          <Popover as="div" class="relative" v-slot="{ close }">
+          <Popover v-if="!untyped" as="div" class="relative" v-slot="{ close }">
             <PopoverButton
               ref="typeButtonRef"
               :disabled="readonly"
@@ -184,7 +188,7 @@ defineExpose({
             :key="action.label"
             class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100"
             @click="
-              action.action();
+              action.action(value);
               action.keepOpen || close();
             "
           >
