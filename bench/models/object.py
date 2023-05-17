@@ -89,7 +89,9 @@ class RemoteObjectStatus(models.TextChoices):
 
 
 class RemoteObject(UUIDModel):
-    """A pointer to a remotely stored object."""
+    """
+    A pointer to a remotely stored object.
+    """
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

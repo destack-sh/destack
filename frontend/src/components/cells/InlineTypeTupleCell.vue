@@ -76,7 +76,7 @@ const actions: Ref<TypeAction[]> = computed(() => {
         label: "Edit type",
         icon: AdjustmentsHorizontalIcon,
         keepOpen: true,
-        action: () => typeButtonRef.value?.$el.click(),
+        action: () => typeButtonRef.value?.click(),
       });
     }
     actions.push({
@@ -99,7 +99,9 @@ const actions: Ref<TypeAction[]> = computed(() => {
 function open() {
   if (popoverOpenRef.value == null) {
     popoverButtonRef.value?.$el.click();
-    nextTick(() => nameRef.value?.focus());
+    if (!props.readonly) {
+      nextTick(() => nameRef.value?.focus());
+    }
   }
 }
 

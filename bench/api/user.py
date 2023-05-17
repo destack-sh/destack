@@ -256,13 +256,13 @@ class UserMutation:
         return client
 
     @safe_mutation
-    def close_client(self, info: Info) -> Client | OperationInfo:
+    def close_client(self, info: Info) -> None | Client | OperationInfo:
         user = info.context.request.scope["user"]
         if not user.is_authenticated:
             raise PermissionDenied("can only close client when logged in")
         client_id = _get_client_id(info)
         if client_id is not None:
-            raise PermissionDenied("can only close client when client_id is set")
+            return None  # ignore
         client = models.Client.objects.get(id=client_id)
         client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.last_seen_at = client.closed_at

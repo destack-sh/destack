@@ -40,10 +40,10 @@ const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Type],
 });
-const availableTypes: Ref<SimpleType[]> = computed(() => {
+const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {
   const basicTypes = [];
   if (!props.structrefOnly) {
-    basicTypes.push(...PRIMITIVE_TYPE_NODES);
+    basicTypes.push(...PRIMITIVE_TYPE_NODES.map((t) => ({ ...t, primitive: true })));
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -202,6 +202,7 @@ defineExpose({
         >
           <div class="flex items-baseline justify-between">
             <SimpleTypePreview :type="node" show-type-name />
+            <!-- Ref source -->
             <span
               v-if="node.tag == TypeTag.TypeReference && node.reference != null"
               class="text-xs"
@@ -209,6 +210,8 @@ defineExpose({
             >
               {{ fileOf(node.reference)?.path }}
             </span>
+            <!-- Builtin -->
+            <span v-else-if="node.primitive" class="text-xs text-gray-400"> (builtin) </span>
           </div>
         </li>
       </ComboboxOption>

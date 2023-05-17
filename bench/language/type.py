@@ -177,7 +177,7 @@ class SymbolType(models.TextChoices):
 
 
 class TypeTag(models.TextChoices):
-    """The type of type node."""
+    """The actual value type of a type node."""
 
     STRING = "string"
     NUMBER = "number"
@@ -196,6 +196,30 @@ class TypeTag(models.TextChoices):
     NULL = "null"
     ANY = "any"
     TYPE_REFERENCE = "ref"
+
+
+class TypeHint(models.TextChoices):
+    """The representation of a type node"""
+
+    # string
+    DATE = "date"
+    DATETIME = "datetime"
+    TIME = "time"
+    DURATION = "duration"
+    EMAIL = "email"
+    URL = "url"
+    EMBED_URL = "embed_url"
+    MARKDOWN = "markdown"
+    RICH_TEXT = "rich_text"
+    HTML = "html"
+    # number
+    INTEGER = "integer"
+    FLOAT = "float"
+    SLIDER = "slider"
+    PHONE = "phone"
+    # boolean
+    TOGGLE = "toggle"
+    CHECKBOX = "checkbox"
 
 
 @dataclass(repr=False)
@@ -607,6 +631,7 @@ def new_type_node_key() -> str:
 class SimpleTypeNode(TypeNode):
     name: Optional[str]
     tag: TypeTag
+    hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
     id: UUID = field(default_factory=uuid.uuid4)
     key: str = field(default_factory=new_type_node_key)
@@ -804,6 +829,19 @@ class RemoteObject:
 
     def __repr__(self):
         return f"<RemoteObject {self}>"
+
+
+@dataclass(repr=False, slots=True)
+class Secret:
+    id: UUID
+    sha512: str
+    value: Optional[Any] = None
+
+    def __str__(self):
+        return f"{self.id} ({self.sha512})"
+
+    def __repr__(self):
+        return f"<Secret {self}>"
 
 
 @dataclass(repr=False)

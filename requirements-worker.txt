@@ -6,19 +6,26 @@
 #
 aiohttp==3.8.3
     # via
+    #   -r requirements-worker.in
     #   -r requirements.in
     #   anthropic
+    #   langchain
     #   openai
 aiosignal==1.3.1
     # via aiohttp
-anthropic==0.2.5
-    # via -r requirements.in
+anthropic==0.2.9
+    # via
+    #   -r requirements-worker.in
+    #   -r requirements.in
 anyio==3.6.2
     # via
     #   httpcore
     #   starlette
+argilla==1.7.0
+    # via unstructured
 asgiref==3.6.0
     # via
+    #   -r requirements-worker.in
     #   channels
     #   daphne
     #   django
@@ -37,7 +44,9 @@ autobahn==23.1.2
 automat==22.10.0
     # via twisted
 backoff==2.2.1
-    # via posthog
+    # via
+    #   argilla
+    #   posthog
 boto3==1.26.125
     # via -r requirements.in
 botocore==1.29.125
@@ -46,13 +55,16 @@ botocore==1.29.125
     #   boto3
     #   s3transfer
 cachetools==5.2.0
-    # via -r requirements.in
-certifi==2022.12.7
+    # via
+    #   -r requirements-worker.in
+    #   -r requirements.in
+certifi==2023.5.7
     # via
     #   httpcore
     #   httpx
     #   requests
     #   sentry-sdk
+    #   unstructured
 cffi==1.15.1
     # via cryptography
 channels==4.0.0
@@ -62,16 +74,22 @@ channels==4.0.0
 charset-normalizer==2.1.1
     # via
     #   aiohttp
+    #   pdfminer-six
     #   requests
 click==8.1.3
     # via
+    #   nltk
     #   strawberry-graphql
+    #   typer
     #   uvicorn
+commonmark==0.9.1
+    # via rich
 constantly==15.1.0
     # via twisted
 cryptography==40.0.2
     # via
     #   autobahn
+    #   pdfminer-six
     #   pyopenssl
     #   service-identity
     #   social-auth-core
@@ -80,13 +98,17 @@ dacite==1.7.0
 daphne==4.0.0
     # via -r requirements.in
 dataclasses-json==0.5.7
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   langchain
 defusedxml==0.7.1
     # via
     #   python3-openid
     #   social-auth-core
 deprecated==1.2.13
-    # via opentelemetry-api
+    # via
+    #   argilla
+    #   opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
 django==4.2.1
@@ -120,6 +142,8 @@ django-ipware==5.0.0
     #   django-structlog
 django-loginas==0.3.11
     # via -r requirements.in
+django-pgcrypto-fields==2.6.0
+    # via -r requirements.in
 django-prometheus==2.2.0
     # via -r requirements.in
 django-structlog==4.0.1
@@ -146,6 +170,8 @@ drf-nested-routers==0.93.4
     # via -r requirements.in
 drf-spectacular==0.24.2
     # via -r requirements.in
+et-xmlfile==1.1.0
+    # via openpyxl
 frozenlist==1.3.3
     # via
     #   aiohttp
@@ -158,12 +184,16 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-hiredis==2.2.2
+hiredis==2.2.3
     # via redis
-httpcore==0.17.0
+httpcore==0.16.3
     # via httpx
-httpx==0.24.0
-    # via anthropic
+httpx==0.23.3
+    # via
+    #   -r requirements-worker.in
+    #   -r requirements.in
+    #   anthropic
+    #   argilla
 hyperlink==21.0.0
     # via
     #   autobahn
@@ -171,9 +201,9 @@ hyperlink==21.0.0
 idna==3.4
     # via
     #   anyio
-    #   httpx
     #   hyperlink
     #   requests
+    #   rfc3986
     #   twisted
     #   yarl
 importlib-metadata==6.0.1
@@ -188,28 +218,41 @@ jmespath==1.0.1
     # via
     #   boto3
     #   botocore
+joblib==1.2.0
+    # via nltk
 json-stream==2.2.1
     # via -r requirements.in
-json-stream-rs-tokenizer==0.4.16
+json-stream-rs-tokenizer==0.4.17
     # via json-stream
 jsonschema==4.17.3
     # via drf-spectacular
+langchain==0.0.166
+    # via -r requirements-worker.in
 libcst==0.4.9
     # via strawberry-graphql
-markdown-it-py==2.2.0
-    # via rich
+lxml==4.9.2
+    # via
+    #   python-docx
+    #   python-pptx
+    #   unstructured
+markdown==3.4.3
+    # via unstructured
 marshmallow==3.19.0
     # via
     #   dataclasses-json
     #   marshmallow-enum
 marshmallow-enum==1.5.1
     # via dataclasses-json
-mdurl==0.1.2
-    # via markdown-it-py
 monotonic==1.6
-    # via posthog
+    # via
+    #   argilla
+    #   posthog
 more-itertools==9.0.0
-    # via -r requirements.in
+    # via
+    #   -r requirements-worker.in
+    #   -r requirements.in
+msg-parser==1.2.0
+    # via unstructured
 multidict==6.0.4
     # via
     #   aiohttp
@@ -218,14 +261,31 @@ mypy-extensions==1.0.0
     # via typing-inspect
 nats-py==2.2.0
     # via -r requirements.in
-numpy==1.24.3
-    # via -r requirements.in
+nltk==3.8.1
+    # via unstructured
+numexpr==2.8.4
+    # via langchain
+numpy==1.23.5
+    # via
+    #   -r requirements-worker.in
+    #   argilla
+    #   langchain
+    #   numexpr
+    #   pandas
 oauthlib==3.2.2
     # via
     #   requests-oauthlib
     #   social-auth-core
+olefile==0.46
+    # via msg-parser
 openai==0.27.2
-    # via -r requirements.in
+    # via
+    #   -r requirements-worker.in
+    #   -r requirements.in
+openapi-schema-pydantic==1.2.4
+    # via langchain
+openpyxl==3.1.2
+    # via unstructured
 opentelemetry-api==1.17.0
     # via
     #   opentelemetry-sdk
@@ -235,9 +295,21 @@ opentelemetry-sdk==1.17.0
 opentelemetry-semantic-conventions==0.38b0
     # via opentelemetry-sdk
 packaging==23.1
-    # via marshmallow
+    # via
+    #   argilla
+    #   marshmallow
+pandas==1.5.3
+    # via
+    #   -r requirements-worker.in
+    #   argilla
+    #   unstructured
+pdfminer-six==20221105
+    # via unstructured
 pillow==9.4.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   python-pptx
+    #   unstructured
 posthog==2.3.1
     # via -r requirements.in
 prometheus-client==0.16.0
@@ -252,51 +324,76 @@ pyasn1-modules==0.3.0
     # via service-identity
 pycparser==2.21
     # via cffi
+pydantic==1.10.7
+    # via
+    #   argilla
+    #   langchain
+    #   openapi-schema-pydantic
 pydub==0.25.1
     # via -r requirements.in
 pygments==2.15.1
     # via
     #   rich
     #   strawberry-graphql
-pyjwt==2.6.0
+pyjwt==2.7.0
     # via social-auth-core
 pyopenssl==23.1.1
     # via twisted
+pypandoc==1.11
+    # via unstructured
 pyrsistent==0.19.3
     # via jsonschema
 python-dateutil==2.8.2
     # via
     #   botocore
+    #   pandas
     #   posthog
     #   strawberry-graphql
+python-docx==0.8.11
+    # via unstructured
 python-dotenv==0.21.0
     # via -r requirements.in
+python-magic==0.4.27
+    # via unstructured
 python-multipart==0.0.6
     # via strawberry-graphql
+python-pptx==0.6.21
+    # via unstructured
 python3-openid==3.2.0
     # via social-auth-core
 pytz==2022.1
     # via
     #   -r requirements.in
     #   djangorestframework
+    #   pandas
 pyyaml==6.0
     # via
     #   drf-spectacular
+    #   langchain
     #   libcst
 redis[hiredis]==4.5.3
     # via -r requirements.in
-requests==2.28.2
+regex==2023.5.5
+    # via nltk
+requests==2.30.0
     # via
     #   anthropic
+    #   langchain
     #   openai
     #   posthog
     #   requests-oauthlib
     #   social-auth-core
+    #   unstructured
 requests-oauthlib==1.3.1
     # via social-auth-core
-rich==13.3.4
-    # via strawberry-graphql
-s3transfer==0.6.0
+rfc3986[idna2008]==1.5.0
+    # via httpx
+rich==13.0.0
+    # via
+    #   -r requirements.in
+    #   argilla
+    #   strawberry-graphql
+s3transfer==0.6.1
     # via boto3
 sentry-sdk[django]==1.18.0
     # via -r requirements.in
@@ -317,9 +414,11 @@ social-auth-app-django==5.0.0
     # via -r requirements.in
 social-auth-core==4.4.2
     # via social-auth-app-django
+sqlalchemy==2.0.13
+    # via langchain
 sqlparse==0.4.4
     # via django
-starlette==0.26.1
+starlette==0.27.0
     # via strawberry-graphql
 strawberry-django-plus==2.3.2
     # via -r requirements.in
@@ -332,28 +431,41 @@ strawberry-graphql-django==0.9.4
     # via strawberry-django-plus
 structlog==23.1.0
     # via django-structlog
+tenacity==8.2.2
+    # via langchain
 tokenizers==0.13.3
     # via anthropic
 tqdm==4.65.0
-    # via openai
+    # via
+    #   argilla
+    #   langchain
+    #   nltk
+    #   openai
 twisted[tls]==22.10.0
     # via daphne
 txaio==23.1.1
     # via autobahn
+typer==0.9.0
+    # via argilla
 typing-extensions==4.5.0
     # via
     #   django-stubs-ext
     #   janus
     #   libcst
     #   opentelemetry-sdk
+    #   pydantic
+    #   sqlalchemy
     #   strawberry-django-plus
     #   strawberry-graphql
     #   twisted
+    #   typer
     #   typing-inspect
 typing-inspect==0.8.0
     # via
     #   dataclasses-json
     #   libcst
+unstructured==0.6.6
+    # via -r requirements-worker.in
 uritemplate==4.1.1
     # via drf-spectacular
 urllib3==1.26.15
@@ -365,9 +477,14 @@ uvicorn==0.19.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
-wrapt==1.15.0
-    # via deprecated
-yarl==1.9.1
+wrapt==1.14.1
+    # via
+    #   -r requirements.in
+    #   argilla
+    #   deprecated
+xlsxwriter==3.1.0
+    # via python-pptx
+yarl==1.9.2
     # via aiohttp
 zipp==3.15.0
     # via importlib-metadata

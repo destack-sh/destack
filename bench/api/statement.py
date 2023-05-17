@@ -109,6 +109,7 @@ class XBlock(gql.Node):
 
 
 TypeTag = gql.enum(language.type.TypeTag)
+TypeHint = gql.enum(language.type.TypeHint)
 
 
 @gql.interface
@@ -143,6 +144,7 @@ class SimpleTypeNode(gql.Node, SimpleType):
     key: auto
     order_key: auto
     tag: TypeTag
+    hint: Optional[TypeHint]
     flags: int
     description: auto
     value: auto

@@ -353,7 +353,7 @@ const extraInlineActions = computed(() => {
     });
   }
   inlineActions.push({
-    label: "Extend",
+    label: "Extend type",
     icon: CubeTransparentIcon,
     action: () => insertField(true),
   });
@@ -435,7 +435,7 @@ defineExpose({
         @click="() => insertField(true)"
         class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
-        +extend
+        +type
       </button>
       <button
         tabindex="-1"

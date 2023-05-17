@@ -19,7 +19,6 @@ pre-commit==2.20.0
 pytest-django==4.5.2
 pytest-xdist==3.0.2
 pytest==7.2.0
-rich==13.3.4
 ruff==0.0.261
 types-dj-database-url==1.0.0
 types-psycopg2==2.9.21.2

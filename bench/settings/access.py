@@ -16,3 +16,9 @@ ACCESS_TOKEN_DIGEST_LENGTH = int(get_from_env("ACCESS_TOKEN_DIGEST_LENGTH", defa
 ACCESS_TOKEN_KEY_LENGTH = int(get_from_env("ACCESS_TOKEN_KEY_LENGTH", default=6))
 
 ENCRYPT_BENCH_S3_BUCKETS = get_from_env("ENCRYPT_BENCH_S3_BUCKETS", default=False, type_cast=bool)
+
+PUBLIC_PGP_KEY_PATH = get_from_env("PUBLIC_PGP_KEY_PATH", default="public.pgp")
+PRIVATE_PGP_KEY_PATH = get_from_env("PRIVATE_PGP_KEY_PATH", default="private.pgp")
+
+PUBLIC_PGP_KEY = open(PUBLIC_PGP_KEY_PATH).read()
+PRIVATE_PGP_KEY = open(PRIVATE_PGP_KEY_PATH).read()

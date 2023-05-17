@@ -21,6 +21,7 @@ INSTALLED_APPS = [
     "django_filters",
     "django_prometheus",
     "drf_spectacular",
+    "pgcrypto",
     "bench.apps.BenchConfig",
 ]
 

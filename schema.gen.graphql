@@ -629,6 +629,7 @@ type InterpSimpleType implements Node & SimpleType {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  hint: TypeHint
 }
 
 type InterpSymbol implements SimplyTyped {
@@ -788,7 +789,7 @@ type Mutation {
   logout: OperationInfo
   secretRootLogin(username: String!): UserOperationInfo!
   upsertClient(input: ClientUpsertInput!): ClientOperationInfo!
-  closeClient: ClientOperationInfo!
+  closeClient: ClientOperationInfo
   updatePresence: ClientOperationInfo!
   createOrganization(input: OrganizationCreateInput!): OrganizationOperationInfo!
   updateOrganization(input: OrganizationUpdateInput!): OrganizationOperationInfo!
@@ -1767,6 +1768,7 @@ type SimpleTypeNode implements Node & SimpleType {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  hint: TypeHint
 }
 
 input SimpleTypeNodeFilter {
@@ -2013,6 +2015,26 @@ type SystemInfo {
   gitCommit: String!
 }
 
+"""The representation of a type node"""
+enum TypeHint {
+  DATE
+  DATETIME
+  TIME
+  DURATION
+  EMAIL
+  URL
+  EMBED_URL
+  MARKDOWN
+  RICH_TEXT
+  HTML
+  INTEGER
+  FLOAT
+  SLIDER
+  PHONE
+  TOGGLE
+  CHECKBOX
+}
+
 input TypeNodeCreateInput {
   id: GlobalID!
   key: String!
@@ -2067,7 +2089,7 @@ input TypeNodeUpdateTypeInput {
   referenceId: GlobalID = null
 }
 
-"""The type of type node."""
+"""The actual value type of a type node."""
 enum TypeTag {
   STRING
   NUMBER
