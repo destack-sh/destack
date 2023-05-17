@@ -1,16 +1,24 @@
 <script lang="ts" setup>
-import { TypeTag, type SimpleType } from "@/gql/graphql";
-import { TYPETAG_KEYWORD } from "@/state/editor";
+import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { renderBuiltinType, TYPETAG_KEYWORD } from "@/state/editor";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
+  AdjustmentsHorizontalIcon,
   ArrowDownCircleIcon,
   ArrowUpRightIcon,
+  AtSymbolIcon,
   Bars3BottomLeftIcon,
+  CalendarDaysIcon,
   CheckIcon,
+  ClockIcon,
+  CodeBracketIcon,
   DocumentIcon,
+  FingerPrintIcon,
   HashtagIcon,
+  LinkIcon,
   LockClosedIcon,
   MinusSmallIcon,
+  PhoneIcon,
   PhotoIcon,
   SparklesIcon,
   SpeakerWaveIcon,
@@ -55,21 +63,47 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Struct]: Squares2X2Icon,
   [TypeTag.Enum]: ArrowDownCircleIcon,
 };
+const iconsByHint: Record<TypeHint, any> = {
+  // string
+  [TypeHint.Uuid]: FingerPrintIcon,
+  [TypeHint.Date]: CalendarDaysIcon,
+  [TypeHint.Datetime]: CalendarDaysIcon,
+  [TypeHint.Time]: ClockIcon,
+  [TypeHint.Duration]: ClockIcon,
+  [TypeHint.Url]: LinkIcon,
+  [TypeHint.EmbedUrl]: LinkIcon,
+  [TypeHint.Email]: AtSymbolIcon,
+  [TypeHint.Markdown]: CodeBracketIcon,
+  [TypeHint.Html]: CodeBracketIcon,
+  [TypeHint.Code]: CodeBracketIcon,
+  // number
+  [TypeHint.Integer]: HashtagIcon,
+  [TypeHint.Float]: HashtagIcon,
+  [TypeHint.Slider]: AdjustmentsHorizontalIcon,
+  [TypeHint.Phone]: PhoneIcon,
+  // boolean
+  [TypeHint.Toggle]: CheckIcon,
+  [TypeHint.Checkbox]: CheckIcon,
+};
+
+const icon = computed(() => {
+  if (props.type.hint != null && iconsByHint[props.type.hint] != null) {
+    return iconsByHint[props.type.hint];
+  } else {
+    return iconsByTag[resolvedTag.value];
+  }
+});
 </script>
 <template>
-  <div class="relative inline-flex flex-row items-baseline gap-1.5">
+  <div class="relative inline-flex flex-row items-baseline gap-2">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <span v-if="iconsByTag[resolvedTag] && !hideIcon" class="h-4 w-4">
+    <span v-if="icon && !hideIcon" class="h-4 w-4">
       <span class="opacity-0">t</span>
-      <component
-        :is="iconsByTag[resolvedTag]"
-        class="absolute left-0 h-4 w-4"
-        :class="showTypeName ? 'top-0.5' : 'top-0'"
-      />
+      <component :is="icon" class="absolute left-0 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
     </span>
-    <span v-if="!iconsByTag[resolvedTag] || (showTypeName && type.reference == null)">{{
-      TYPETAG_KEYWORD[resolvedTag]
+    <span v-if="!icon || (showTypeName && type.reference == null)">{{
+      renderBuiltinType(resolvedTag, type.hint ?? null)
     }}</span>
     <span v-if="type.reference && !hideReference">{{ resolvedReference?.name ?? "???" }}</span>
     <span v-else-if="type.tag == TypeTag.TypeReference && type.reference == null">...</span>

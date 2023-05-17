@@ -18,6 +18,7 @@ from bench.language.type import (
     StatementType,
     SymbolType,
     TypeFlag,
+    TypeHint,
     TypeTag,
     new_type_node_key,
 )
@@ -55,7 +56,7 @@ class SimpleTypeNode(UUIDModel):
     key = models.CharField(max_length=TYPE_NODE_KEY_LENGTH, default=new_type_node_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
-    hint = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
+    hint = TextChoicesField(choices_enum=TypeHint, null=True, blank=True)
     flags = models.IntegerField(default=0)
     description = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)

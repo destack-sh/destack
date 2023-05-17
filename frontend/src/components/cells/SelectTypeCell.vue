@@ -1,14 +1,9 @@
 <script lang="ts" setup>
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import {
-  ANY_TYPE_NODE,
-  makeTypeNode,
-  PRIMITIVE_TYPE_NODES,
-  renderSimpleType,
-  type SimpleType,
-} from "@/components/statement";
-import { StatementType, SymbolType, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
+import { StatementType, SymbolType, TypeHint, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
+import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/editor";
 import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import {
@@ -36,14 +31,33 @@ const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
+const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
+  TypeTag.String,
+  TypeTag.Boolean,
+  TypeTag.Number,
+  TypeTag.File,
+  TypeTag.Embedding,
+  ...(Object.keys(SUPPORTED_TYPEHINTS) as TypeHint[]),
+];
+const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
+  if (Object.values(TypeTag).includes(tag as TypeTag)) {
+    return makeTypeNode({ tag: tag as TypeTag });
+  } else if (tag in SUPPORTED_TYPEHINTS) {
+    return makeTypeNode({ tag: SUPPORTED_TYPEHINTS[tag as TypeHint] as TypeTag, hint: tag as TypeHint });
+  } else {
+    throw new Error(`unknown primitive ${tag} ${typeof tag} ${Object.keys(TypeTag)}`);
+  }
+});
+
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Type],
 });
 const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {
   const basicTypes = [];
+  // builtin types
   if (!props.structrefOnly) {
-    basicTypes.push(...PRIMITIVE_TYPE_NODES.map((t) => ({ ...t, primitive: true })));
+    basicTypes.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, primitive: true })));
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -60,7 +74,7 @@ const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() 
   return basicTypes;
 });
 const filteredTypes = computed(() =>
-  availableTypes.value.filter((t) => renderSimpleType(t, false).includes(query.value))
+  availableTypes.value.filter((t) => renderSimpleType(t).toLowerCase().includes(query.value.toLowerCase()))
 );
 
 function writeValue(type: SimpleTypeNode) {
@@ -180,7 +194,7 @@ defineExpose({
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(node: any) => node != null ? renderSimpleType(node, false) : null"
+      :display-value="(el) => null"
       placeholder="..."
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"
@@ -195,9 +209,9 @@ defineExpose({
       <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
         <li
           :class="[
-            'relative cursor-default select-none px-1 py-1',
-            active ? 'bg-orange-600 text-white' : 'text-gray-900',
-            selected ? 'underline' : '',
+            'relative cursor-default select-none px-1 py-1 text-gray-900',
+            active ? 'bg-orange-100' : '',
+            selected ? 'text-orange-600' : '',
           ]"
         >
           <div class="flex items-baseline justify-between">
@@ -206,12 +220,14 @@ defineExpose({
             <span
               v-if="node.tag == TypeTag.TypeReference && node.reference != null"
               class="text-xs"
-              :class="['truncate text-gray-500', active ? 'text-orange-200' : 'text-gray-500']"
+              :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']"
             >
               {{ fileOf(node.reference)?.path }}
             </span>
             <!-- Builtin -->
-            <span v-else-if="node.primitive" class="text-xs text-gray-400"> (builtin) </span>
+            <span v-else-if="node.primitive" class="text-xs" :class="[active ? 'text-gray-700' : 'text-gray-500']"
+              >(builtin)</span
+            >
           </div>
         </li>
       </ComboboxOption>

@@ -20,6 +20,7 @@ import {
   type SoftDeleteTypeNodeMutation,
   type UpdateTypeNodeMutation,
   type Scalars,
+  TypeHint,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -614,6 +615,7 @@ export function useSymbolContentOps() {
         $id: GlobalID!
         $statementId: GlobalID!
         $tag: TypeTag!
+        $hint: TypeHint
         $key: String!
         $orderKey: String!
         $name: String!
@@ -627,6 +629,7 @@ export function useSymbolContentOps() {
             id: $id
             statementId: $statementId
             tag: $tag
+            hint: $hint
             key: $key
             orderKey: $orderKey
             name: $name
@@ -650,6 +653,7 @@ export function useSymbolContentOps() {
             revision
             name
             tag
+            hint
             description
             value
             reference {
@@ -665,6 +669,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: {
         id: string;
         tag: string;
+        hint: string | null;
         key: string;
         orderKey: string;
         statementId: string;
@@ -688,6 +693,7 @@ export function useSymbolContentOps() {
             updatedAt: new Date().toISOString(),
             deletedAt: null,
             tag: vars.tag,
+            hint: vars.hint ?? null,
             name: vars.name,
             key: vars.key,
             description: vars.description ?? null,
@@ -799,6 +805,7 @@ export function useSymbolContentOps() {
     return {
       ...input,
       // set optional values to null if not provided
+      hint: input.hint ?? null,
       description: input.description ?? null,
       value: input.value ?? null,
       referenceId: input.referenceId ?? null,
@@ -851,6 +858,7 @@ export function useSymbolContentOps() {
       mutation updateTypeNode(
         $id: GlobalID!
         $tag: TypeTag!
+        $hint: TypeHint
         $name: String
         $description: String
         $flags: Int!
@@ -861,6 +869,7 @@ export function useSymbolContentOps() {
           input: {
             id: $id
             tag: $tag
+            hint: $hint
             name: $name
             description: $description
             flags: $flags
@@ -871,6 +880,7 @@ export function useSymbolContentOps() {
           ... on SimpleTypeNode {
             id
             tag
+            hint
             updatedAt
             revision
             name
@@ -889,6 +899,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: {
         id: string;
         tag: TypeTag;
+        hint: TypeHint | null;
         name: string | null;
         description: string;
         flags: number;
@@ -900,6 +911,7 @@ export function useSymbolContentOps() {
             __typename: "SimpleTypeNode",
             id: vars.id,
             tag: vars.tag,
+            hint: vars.hint ?? null,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
             name: vars.name,

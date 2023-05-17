@@ -202,6 +202,7 @@ class TypeHint(models.TextChoices):
     """The representation of a type node"""
 
     # string
+    UUID = "uuid"
     DATE = "date"
     DATETIME = "datetime"
     TIME = "time"
@@ -212,6 +213,7 @@ class TypeHint(models.TextChoices):
     MARKDOWN = "markdown"
     RICH_TEXT = "rich_text"
     HTML = "html"
+    CODE = "code"
     # number
     INTEGER = "integer"
     FLOAT = "float"
@@ -220,6 +222,28 @@ class TypeHint(models.TextChoices):
     # boolean
     TOGGLE = "toggle"
     CHECKBOX = "checkbox"
+
+
+TYPE_TAG_BY_TYPE_HINT = {
+    TypeHint.UUID: TypeTag.STRING,
+    TypeHint.DATE: TypeTag.STRING,
+    TypeHint.DATETIME: TypeTag.STRING,
+    TypeHint.TIME: TypeTag.STRING,
+    TypeHint.DURATION: TypeTag.STRING,
+    TypeHint.EMAIL: TypeTag.STRING,
+    TypeHint.URL: TypeTag.STRING,
+    TypeHint.EMBED_URL: TypeTag.STRING,
+    TypeHint.MARKDOWN: TypeTag.STRING,
+    TypeHint.RICH_TEXT: TypeTag.STRING,
+    TypeHint.HTML: TypeTag.STRING,
+    TypeHint.CODE: TypeTag.STRING,
+    TypeHint.INTEGER: TypeTag.NUMBER,
+    TypeHint.FLOAT: TypeTag.NUMBER,
+    TypeHint.SLIDER: TypeTag.NUMBER,
+    TypeHint.PHONE: TypeTag.NUMBER,
+    TypeHint.TOGGLE: TypeTag.BOOLEAN,
+    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
+}
 
 
 @dataclass(repr=False)

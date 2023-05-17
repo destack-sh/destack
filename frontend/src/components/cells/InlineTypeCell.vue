@@ -38,7 +38,7 @@ const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
 
 function writeValue(type: SimpleTypeNode) {
   nextTick(() => buttonRef.value?.focus());
-  // keep flags
+  // keep flags (they're configured in a separate interface)
   type = {
     ...type,
     flags: value.value.flags,

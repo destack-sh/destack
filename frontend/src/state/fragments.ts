@@ -118,6 +118,7 @@ export const SimpleTypeNodeType = graphql(/* GraphQL */ `
     name
     key
     tag
+    hint
     description
     value
     orderKey

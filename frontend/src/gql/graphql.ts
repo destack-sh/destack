@@ -634,6 +634,7 @@ export type InterpSimpleType = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
     flags: Scalars["Int"];
+    hint?: Maybe<TypeHint>;
     id: Scalars["GlobalID"];
     key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
@@ -808,7 +809,7 @@ export type Mutation = {
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
   cancelRun: CancelRunPayloadOperationInfo;
-  closeClient: ClientOperationInfo;
+  closeClient?: Maybe<ClientOperationInfo>;
   commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -818,12 +819,14 @@ export type Mutation = {
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
   createRecord: DatasetRecordOperationInfo;
+  createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementBlank: StatementOperationInfo;
   createTypeNode: SimpleTypeNodeOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
   deleteRecord: DatasetRecordOperationInfo;
+  deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
   deleteTypeNode: SimpleTypeNodeOperationInfo;
   logout?: Maybe<OperationInfo>;
@@ -863,6 +866,7 @@ export type Mutation = {
   updateProjectVisibility: ProjectOperationInfo;
   updateRecord: DatasetRecordOperationInfo;
   updateRecordPath: DatasetRecordOperationInfo;
+  updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
   updateStatementCode: StatementOperationInfo;
   updateStatementDescription: StatementOperationInfo;
@@ -958,6 +962,10 @@ export type MutationCreateRecordArgs = {
   input: RecordCreateInput;
 };
 
+export type MutationCreateSecretArgs = {
+  input: SecretCreateInput;
+};
+
 export type MutationCreateStatementArgs = {
   input: StatementCreateInput;
 };
@@ -980,6 +988,10 @@ export type MutationDeleteObjectArgs = {
 
 export type MutationDeleteRecordArgs = {
   input: RecordDeleteInput;
+};
+
+export type MutationDeleteSecretArgs = {
+  input: SecretDeleteInput;
 };
 
 export type MutationDeleteStatementArgs = {
@@ -1128,6 +1140,10 @@ export type MutationUpdateRecordArgs = {
 
 export type MutationUpdateRecordPathArgs = {
   input: RecordUpdatePathInput;
+};
+
+export type MutationUpdateSecretArgs = {
+  input: SecretUpdateInput;
 };
 
 export type MutationUpdateStatementArgs = {
@@ -1690,6 +1706,7 @@ export type Query = {
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
+  secret?: Maybe<Secret>;
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
@@ -1818,6 +1835,10 @@ export type QueryProjectVersionByTagArgs = {
 };
 
 export type QueryRemoteObjectArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type QuerySecretArgs = {
   id: Scalars["GlobalID"];
 };
 
@@ -2008,9 +2029,37 @@ export type RunState = {
 
 export type RunStateOperationInfo = OperationInfo | RunState;
 
+export type Secret = Node & {
+  __typename?: "Secret";
+  id: Scalars["GlobalID"];
+  name?: Maybe<Scalars["String"]>;
+  project: Project;
+  sha512: Scalars["String"];
+  valueRevealed: Scalars["JSON"];
+};
+
+export type SecretCreateInput = {
+  name?: InputMaybe<Scalars["String"]>;
+  projectId: Scalars["GlobalID"];
+  value: Scalars["JSON"];
+};
+
+export type SecretDeleteInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type SecretOperationInfo = OperationInfo | Secret;
+
+export type SecretUpdateInput = {
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  value: Scalars["JSON"];
+};
+
 export type SimpleType = {
   description?: Maybe<Scalars["String"]>;
   flags: Scalars["Int"];
+  hint?: Maybe<TypeHint>;
   id: Scalars["GlobalID"];
   key: Scalars["String"];
   name?: Maybe<Scalars["String"]>;
@@ -2027,6 +2076,7 @@ export type SimpleTypeNode = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
     flags: Scalars["Int"];
+    hint?: Maybe<TypeHint>;
     id: Scalars["GlobalID"];
     key: Scalars["String"];
     name?: Maybe<Scalars["String"]>;
@@ -2342,9 +2392,32 @@ export type SystemInfo = {
   version: Scalars["String"];
 };
 
+/** The representation of a type node */
+export enum TypeHint {
+  Checkbox = "CHECKBOX",
+  Code = "CODE",
+  Date = "DATE",
+  Datetime = "DATETIME",
+  Duration = "DURATION",
+  Email = "EMAIL",
+  EmbedUrl = "EMBED_URL",
+  Float = "FLOAT",
+  Html = "HTML",
+  Integer = "INTEGER",
+  Markdown = "MARKDOWN",
+  Phone = "PHONE",
+  RichText = "RICH_TEXT",
+  Slider = "SLIDER",
+  Time = "TIME",
+  Toggle = "TOGGLE",
+  Url = "URL",
+  Uuid = "UUID",
+}
+
 export type TypeNodeCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
   flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
   key: Scalars["String"];
   name?: InputMaybe<Scalars["String"]>;
@@ -2381,6 +2454,7 @@ export type TypeNodeUpdateDescriptionInput = {
 export type TypeNodeUpdateInput = {
   description?: InputMaybe<Scalars["String"]>;
   flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
   name?: InputMaybe<Scalars["String"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2390,13 +2464,14 @@ export type TypeNodeUpdateInput = {
 
 export type TypeNodeUpdateTypeInput = {
   flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
   value?: InputMaybe<Scalars["JSON"]>;
 };
 
-/** The type of type node. */
+/** The actual value type of a type node. */
 export enum TypeTag {
   Any = "ANY",
   Audio = "AUDIO",
@@ -3606,6 +3681,7 @@ export type SimpleTypeNodeContentFragment = {
   name?: string | null;
   key: string;
   tag: TypeTag;
+  hint?: TypeHint | null;
   description?: string | null;
   value?: any | null;
   orderKey: string;
@@ -3778,11 +3854,12 @@ export type CloseClientMutationVariables = Exact<{ [key: string]: never }>;
 
 export type CloseClientMutation = {
   __typename?: "Mutation";
-  closeClient:
+  closeClient?:
     | { __typename?: "Client" }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      })
+    | null;
 };
 
 export type UpdatePresenceMutationVariables = Exact<{ [key: string]: never }>;
@@ -4592,6 +4669,7 @@ export type CreateTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
+  hint?: InputMaybe<TypeHint>;
   key: Scalars["String"];
   orderKey: Scalars["String"];
   name: Scalars["String"];
@@ -4618,6 +4696,7 @@ export type CreateTypeNodeMutation = {
         revision: number;
         name?: string | null;
         tag: TypeTag;
+        hint?: TypeHint | null;
         description?: string | null;
         value?: any | null;
         flags: number;
@@ -4668,6 +4747,7 @@ export type RestoreTypeNodeMutation = {
 export type UpdateTypeNodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   tag: TypeTag;
+  hint?: InputMaybe<TypeHint>;
   name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
@@ -4685,6 +4765,7 @@ export type UpdateTypeNodeMutation = {
         __typename?: "SimpleTypeNode";
         id: any;
         tag: TypeTag;
+        hint?: TypeHint | null;
         updatedAt: any;
         revision: number;
         name?: string | null;
@@ -5496,6 +5577,7 @@ export const SimpleTypeNodeContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
+          { kind: "Field", name: { kind: "Name", value: "hint" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
@@ -13296,6 +13378,11 @@ export const CreateTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "hint" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "TypeHint" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
@@ -13357,6 +13444,11 @@ export const CreateTypeNodeDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "tag" },
                       value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "hint" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "hint" } },
                     },
                     {
                       kind: "ObjectField",
@@ -13423,6 +13515,7 @@ export const CreateTypeNodeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
+                      { kind: "Field", name: { kind: "Name", value: "hint" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
@@ -13647,6 +13740,11 @@ export const UpdateTypeNodeDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "hint" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "TypeHint" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -13696,6 +13794,11 @@ export const UpdateTypeNodeDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "hint" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "hint" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
@@ -13734,6 +13837,7 @@ export const UpdateTypeNodeDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
+                      { kind: "Field", name: { kind: "Name", value: "hint" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
