@@ -296,3 +296,5 @@ dist
 
 # VSCode configuration
 .vscode/*
+
+*.gpg

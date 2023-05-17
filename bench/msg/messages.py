@@ -10,7 +10,12 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language import mutate, wire
-from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType, RemoteObjectData
+from bench.language.wire import (
+    ExecutionTracingLevel,
+    ExecutionTriggerType,
+    RemoteObjectData,
+    SecretData,
+)
 from bench.models.user import ClientData
 from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
 
@@ -48,6 +53,8 @@ class NMessageType(StrEnum):
     REPLY_READ_OBJECT = "object.read.rep"
     REQUEST_WRITE_OBJECT = "object.write"
     REPLY_WRITE_OBJECT = "object.write.rep"
+    REQUEST_READ_SECRET = "secret.read"
+    REPLY_READ_SECRET = "secret.read.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
     JOB_SAVED = "job.saved"
@@ -282,12 +289,22 @@ class RepReadObjectPayload:
 
 @payload(NMessageType.REQUEST_WRITE_OBJECT)
 class ReqWriteObjectPayload:
-    objects: [RemoteObjectData]
+    objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.REPLY_WRITE_OBJECT)
 class RepWriteObjectPayload:
     post_urls: list[typing.Union[str, None]]
+
+
+@payload(NMessageType.REQUEST_READ_SECRET)
+class ReqReadSecretPayload:
+    secrets: list[SecretData]
+
+
+@payload(NMessageType.REPLY_READ_SECRET)
+class RepReadSecretPayload:
+    secrets: list[SecretData | None]
 
 
 @payload(NMessageType.REQUEST_INTERP)

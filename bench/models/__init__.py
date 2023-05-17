@@ -9,11 +9,7 @@ from .deployment import (
     WorkerStatus,
     WorkerType,
 )
-from .evaluation import (
-    EvaluationKind,
-    EvaluationResult,
-    EvaluationScope,
-)
+from .evaluation import EvaluationKind, EvaluationResult, EvaluationScope
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
@@ -36,6 +32,7 @@ from .project import (
     RefMappingKind,
     RefType,
 )
+from .secret import Secret
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType, XBlock, XKind, XSource
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, Lock, User
@@ -88,6 +85,7 @@ __all__ = [
     "Statement",
     "StatementType",
     "SymbolType",
+    "Secret",
     "User",
     "Worker",
     "WorkerStatus",

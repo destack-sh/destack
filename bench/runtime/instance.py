@@ -37,6 +37,7 @@ from bench.language.type import (
     LiteralValue,
     RemoteObject,
     RemoteObjectStatus,
+    Secret,
     Type,
     TypeFlag,
     TypeNode,
@@ -45,7 +46,12 @@ from bench.language.type import (
 from bench.language.typer import check_type, map_value
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
-from bench.msg.messages import RepReadObjectPayload, ReqReadObjectPayload
+from bench.msg.messages import (
+    RepReadObjectPayload,
+    RepReadSecretPayload,
+    ReqReadObjectPayload,
+    ReqReadSecretPayload,
+)
 from bench.runtime.build import build_task_implementation
 from bench.runtime.inference import InferenceProxy, ModelInference
 from bench.runtime.model import get_endpoints
@@ -583,6 +589,25 @@ class RemoteObjectInstance(RemoteObject):
             "name": self.name,
             "status": self.status.name,
         }
+
+
+@dataclass(repr=False, slots=True)
+class SecretInstance(Secret):
+    """A proxy to a remotely stored secret."""
+
+    async def areveal(self) -> Any:
+        if self.value is not None:
+            return self.value
+        rep: NMessage[RepReadSecretPayload] = await request(
+            NMessageType.REQUEST_READ_SECRET,
+            ReqReadSecretPayload(secrets=[wire.rmap_secret(self)]),
+            reply_t=RepReadSecretPayload,
+        )
+        self.value = rep.p.secrets[0].value
+        return self.value
+
+    def reveal(self) -> Any:
+        return async_to_sync(self.areveal)()
 
 
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue:

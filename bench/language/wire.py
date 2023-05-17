@@ -125,6 +125,28 @@ class RemoteObjectData:
     def deepcopy(self):
         return RemoteObjectData(**asdict(self))
 
+    def __str__(self):
+        return f"{self.id} {self.name} ({self.content_type}, {self.content_length} bytes)"
+
+    def __repr__(self):
+        return f"<RemoteObject {self}>"
+
+
+@dataclass(repr=False, slots=True)
+class SecretData:
+    id: UUID
+    sha512: str
+    value: Optional[typing.Any] = None
+
+    def __deepcopy__(self):
+        return SecretData(**asdict(self))
+
+    def __str__(self):
+        return f"{self.id} ({self.sha512})"
+
+    def __repr__(self):
+        return f"<Secret {self}>"
+
 
 @dataclass(repr=False, slots=True)
 class ModuleData:
@@ -566,6 +588,22 @@ def wmap_remote_object(object: RemoteObjectData) -> language.RemoteObject:
         sha512=object.sha512,
         content_type=object.content_type,
         content_length=object.content_length,
+    )
+
+
+def rmap_secret(secret: language.Secret) -> SecretData:
+    return SecretData(
+        id=secret.id,
+        sha512=secret.sha512,
+        value=secret.value,
+    )
+
+
+def wmap_secret(secret: SecretData) -> language.Secret:
+    return language.Secret(
+        id=secret.id,
+        sha512=secret.sha512,
+        value=secret.value,
     )
 
 
