@@ -1,15 +1,19 @@
+import { makeTypeNode } from "@/components/statement";
 import { graphql } from "@/gql";
 import {
   StatementModifier,
   SymbolType,
+  TypeHint,
   TypeTag,
   type File,
   type Project,
   type ProjectVersion,
+  type SimpleType,
   type Statement,
 } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
+import { symbolOf } from "@/state/runtime";
 import { reverseRecord } from "@/utils/functools";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { defineStore } from "pinia";
@@ -51,11 +55,8 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
   [SymbolType.Capability]: "capability",
-  [SymbolType.Program]: "program",
   [SymbolType.Requirement]: "require",
-  [SymbolType.Runconfig]: "run",
   [SymbolType.Build]: "build",
-  [SymbolType.Evaluate]: "evaluate",
   [SymbolType.Block]: "block",
 };
 export const SUPPORTED_SYMBOL_TYPES = [
@@ -85,8 +86,6 @@ export const SUPPORTED_MODIFIERS = [
 ];
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
-  [TypeTag.Any]: "anything",
-  [TypeTag.Null]: "nothing",
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
@@ -98,12 +97,68 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
   [TypeTag.Struct]: "struct",
-  [TypeTag.Function]: "function",
   [TypeTag.Union]: "union",
-  [TypeTag.TypeReference]: "reference",
-  [TypeTag.Enum]: "enum",
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
+export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
+  // string
+  [TypeHint.Uuid]: "UUID",
+  [TypeHint.Date]: "date",
+  [TypeHint.Datetime]: "datetime",
+  [TypeHint.Time]: "time",
+  [TypeHint.Duration]: "duration",
+  [TypeHint.Email]: "email",
+  [TypeHint.Url]: "URL",
+  [TypeHint.EmbedUrl]: "embed",
+  [TypeHint.Markdown]: "markdown",
+  [TypeHint.RichText]: "rich",
+  [TypeHint.Html]: "HTML",
+  [TypeHint.Code]: "code",
+  // number
+  [TypeHint.Integer]: "integer",
+  [TypeHint.Float]: "float",
+  [TypeHint.Slider]: "slider",
+  [TypeHint.Phone]: "phone",
+  // boolean
+  [TypeHint.Toggle]: "toggle",
+  [TypeHint.Checkbox]: "checkbox",
+};
+export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
+  [TypeHint.Uuid]: TypeTag.String,
+  [TypeHint.Datetime]: TypeTag.String,
+  [TypeHint.Url]: TypeTag.String,
+  [TypeHint.Email]: TypeTag.String,
+  [TypeHint.Html]: TypeTag.String,
+  [TypeHint.Code]: TypeTag.String,
+  [TypeHint.Phone]: TypeTag.String,
+  [TypeHint.Toggle]: TypeTag.Boolean,
+};
+export const TYPEHINT_BY_KEYWORD: Record<string, TypeHint> = reverseRecord(TYPEHINT_KEYWORD);
+
+export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string | null {
+  let builtin = null;
+  if (hint != null && hint in TYPEHINT_KEYWORD) {
+    builtin = TYPEHINT_KEYWORD[hint];
+  } else if (tag in TYPETAG_KEYWORD) {
+    builtin = TYPETAG_KEYWORD[tag];
+  } else {
+    return null;
+  }
+  return builtin.slice(0, 1).toUpperCase() + builtin.slice(1);
+}
+
+export function renderSimpleType(node: SimpleType): string {
+  const builtin = renderBuiltinType(node.tag, node.hint ?? null);
+  if (builtin != null) return builtin;
+  if (node.tag == TypeTag.TypeReference || node.reference != null) {
+    if (node.reference != null) {
+      return symbolOf(node.reference.id)?.name ?? "???";
+    } else {
+      return node.reference?.name ?? "...";
+    }
+  }
+  throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
+}
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 

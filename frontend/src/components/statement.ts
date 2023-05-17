@@ -3,6 +3,7 @@ import {
   StatementModifier,
   StatementType,
   SymbolType,
+  TypeHint,
   TypeTag,
   type InterpSymbol,
   type SimpleTypeNode,
@@ -10,11 +11,11 @@ import {
   type TypeNodeUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { TYPETAG_KEYWORD, type StatementHeader } from "@/state/editor";
+import type { StatementHeader } from "@/state/editor";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { contextOf, TypeFlag } from "@/state/runtime";
+import { TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { computed, inject, type Ref } from "vue";
@@ -327,6 +328,7 @@ export function useStatementContext() {
     newTypeNode = {
       ...oldTypeNode,
       tag: newTypeNode.tag ?? oldTypeNode.tag,
+      hint: newTypeNode.hint ?? oldTypeNode.hint,
       name: newTypeNode.name ?? oldTypeNode.name,
       description: newTypeNode.description ?? oldTypeNode.description,
       value: newTypeNode.value,
@@ -396,6 +398,7 @@ function makeTypeNodeInput(id: string, typeNode: SimpleType): TypeNodeCreateInpu
     statementId: id,
     id: typeNode.id,
     tag: typeNode.tag,
+    hint: typeNode.hint ?? null,
     key: newTypeNodeKey(),
     orderKey: typeNode.orderKey,
     referenceId: typeNode.reference?.id ?? null,
@@ -410,6 +413,7 @@ function makeTypeNodeUpdate(typeNode: SimpleType): TypeNodeUpdateInput {
   return {
     id: typeNode.id,
     tag: typeNode.tag,
+    hint: typeNode.hint ?? null,
     referenceId: typeNode.reference?.id ?? null,
     description: typeNode.description ?? null,
     name: typeNode.name ?? null,
@@ -462,6 +466,7 @@ export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boole
 export function makeTypeNode(data: {
   name?: string | null;
   tag: TypeTag;
+  hint?: TypeHint | null;
   key?: string;
   orderKey?: string;
   value?: any;
@@ -472,6 +477,7 @@ export function makeTypeNode(data: {
     id: newTypeNodeId(),
     name: data.name ?? null,
     tag: data.tag,
+    hint: data.hint ?? null,
     key: data.key ?? newTypeNodeKey(),
     orderKey: data.orderKey ?? INTEGER_ZERO,
     value: data.value ?? null,
@@ -484,40 +490,4 @@ export function makeTypeNode(data: {
 export type SimpleType = Omit<SimpleTypeNode, "statement" | "createdAt" | "updatedAt" | "__typename">;
 
 export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
-export const NUMBER_TYPE_NODE = makeTypeNode({ tag: TypeTag.Number });
-export const BOOLEAN_TYPE_NODE = makeTypeNode({ tag: TypeTag.Boolean });
 export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
-export const NULL_TYPE_NODE = makeTypeNode({ tag: TypeTag.Null });
-
-export const PRIMITIVE_TYPES = [TypeTag.String, TypeTag.Boolean, TypeTag.Number, TypeTag.File, TypeTag.Embedding];
-export const PRIMITIVE_TYPE_NODES = PRIMITIVE_TYPES.map((tag) => makeTypeNode({ tag }));
-
-export function renderSimpleType(node: SimpleType, includeFlags: boolean): string {
-  let renderedElement: string;
-  if (PRIMITIVE_TYPES.includes(node.tag)) {
-    renderedElement = TYPETAG_KEYWORD[node.tag];
-  } else if (node.tag == TypeTag.TypeReference || node.reference != null) {
-    if (node.reference != null) {
-      renderedElement = contextOf(node.reference)?.symbol.name ?? "???";
-    } else {
-      renderedElement = node.reference?.name ?? "...";
-    }
-  } else {
-    throw new Error(`unexpected type node ${node.tag}`);
-  }
-
-  let rendered: string = renderedElement;
-  if (includeFlags) {
-    if (node.flags & TypeFlag.IsArray) {
-      rendered = renderedElement + " list";
-    }
-    if (node.flags & TypeFlag.IsNullable) {
-      rendered = rendered + "?";
-    }
-    if (node.flags & TypeFlag.IsSecret) {
-      rendered = "secret " + rendered;
-    }
-  }
-
-  return rendered;
-}

@@ -620,6 +620,7 @@ type InterpSimpleType implements Node & SimpleType {
   key: String!
   orderKey: String!
   tag: TypeTag!
+  hint: TypeHint
   flags: Int!
   description: String
   value: JSON
@@ -629,7 +630,6 @@ type InterpSimpleType implements Node & SimpleType {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
-  hint: TypeHint
 }
 
 type InterpSymbol implements SimplyTyped {
@@ -1780,6 +1780,7 @@ interface SimpleType {
   key: String!
   orderKey: String!
   tag: TypeTag!
+  hint: TypeHint
   flags: Int!
   description: String
   value: JSON
@@ -1792,6 +1793,7 @@ type SimpleTypeNode implements Node & SimpleType {
   key: String!
   orderKey: String!
   tag: TypeTag!
+  hint: TypeHint
   flags: Int!
   description: String
   value: JSON
@@ -1801,7 +1803,6 @@ type SimpleTypeNode implements Node & SimpleType {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
-  hint: TypeHint
 }
 
 input SimpleTypeNodeFilter {
@@ -2050,6 +2051,7 @@ type SystemInfo {
 
 """The representation of a type node"""
 enum TypeHint {
+  UUID
   DATE
   DATETIME
   TIME
@@ -2060,6 +2062,7 @@ enum TypeHint {
   MARKDOWN
   RICH_TEXT
   HTML
+  CODE
   INTEGER
   FLOAT
   SLIDER
@@ -2075,6 +2078,7 @@ input TypeNodeCreateInput {
   statementId: GlobalID!
   name: String = null
   tag: TypeTag!
+  hint: TypeHint = null
   description: String = null
   flags: Int! = 0
   value: JSON = null
@@ -2108,6 +2112,7 @@ input TypeNodeUpdateInput {
   id: GlobalID!
   name: String = null
   tag: TypeTag!
+  hint: TypeHint = null
   description: String = null
   flags: Int! = 0
   value: JSON = null
@@ -2117,6 +2122,7 @@ input TypeNodeUpdateInput {
 input TypeNodeUpdateTypeInput {
   id: GlobalID!
   tag: TypeTag!
+  hint: TypeHint = null
   flags: Int! = 0
   value: JSON = null
   referenceId: GlobalID = null

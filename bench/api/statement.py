@@ -127,6 +127,7 @@ class SimpleType:
     key: str
     order_key: str
     tag: TypeTag
+    hint: Optional[TypeHint]
     flags: int
     description: Optional[str]
     value: Optional[JSON]
@@ -729,6 +730,7 @@ class TypeNodeCreateInput:
     statement_id: GlobalID
     name: Optional[str] = None
     tag: TypeTag
+    hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
     value: Optional[JSON] = None
@@ -739,6 +741,7 @@ class TypeNodeCreateInput:
 class TypeNodeUpdateInput(gql.NodeInput):
     name: Optional[str] = None
     tag: TypeTag
+    hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
     value: Optional[JSON] = None
@@ -758,6 +761,7 @@ class TypeNodeUpdateDescriptionInput(gql.NodeInput):
 @gql.input
 class TypeNodeUpdateTypeInput(gql.NodeInput):
     tag: TypeTag
+    hint: Optional[TypeHint] = None
     flags: int = 0
     value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
@@ -914,6 +918,7 @@ class SymbolMutation:
             name=input.name,
             description=input.description,
             tag=input.tag,
+            hint=input.hint,
             flags=input.flags,
             value=input.value,
             reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
@@ -926,6 +931,7 @@ class SymbolMutation:
         type_node.name = input.name
         type_node.description = input.description
         type_node.tag = input.tag
+        type_node.hint = input.hint
         type_node.flags = input.flags
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
@@ -951,6 +957,7 @@ class SymbolMutation:
     ) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.tag = input.tag
+        type_node.hint = input.hint
         type_node.flags = input.flags
         type_node.value = input.value
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None

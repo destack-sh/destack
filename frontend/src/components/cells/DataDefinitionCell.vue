@@ -490,7 +490,7 @@ defineExpose({
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full border border-transparent border-opacity-[15%] p-1 text-gray-400 focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @navigate-left="grid.navigateLeft('', field.name as string)"
@@ -527,7 +527,7 @@ defineExpose({
           @navigate-up="grid.navigateUp(record.id, field.name as string)"
           @navigate-down="grid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent border-opacity-[15%] px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
       </td>
@@ -544,7 +544,7 @@ defineExpose({
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full border border-transparent border-opacity-[15%] px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @navigate-up="grid.navigateUp(field?.id, 'type')"
@@ -576,7 +576,7 @@ defineExpose({
           @keydown.down.exact="grid.navigateDown(field.id, 'value')"
           @keydown.right.exact="grid.navigateRight(field.id, 'value')"
           @keydown.left.exact="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent border-opacity-[12%] px-1 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent border-opacity-[15%] px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
     </tr>
