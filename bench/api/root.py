@@ -15,7 +15,7 @@ from strawberry_django_plus.optimizer import DjangoOptimizerExtension
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.auth import CanViewProject
+from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.build import BuildQuery, BuildSubscription
 from bench.api.deployment import DeploymentMutation
 from bench.api.evaluation import EvaluationQuery, EvaluationSubscription
@@ -35,6 +35,7 @@ from bench.api.project import (
     ProjectVisibility,
 )
 from bench.api.runtime import InterpSubscription, RuntimeMutation
+from bench.api.secret import Secret, SecretMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
@@ -155,6 +156,7 @@ class Query(ExecutionQuery, EvaluationQuery, JobQuery, BuildQuery, ClientQuery):
         directives=[CanViewProject()]
     )
     remote_object: Optional[RemoteObject] = gql.relay.node(directives=[CanViewProject()])
+    secret: Optional[Secret] = gql.relay.node(directives=[CanWriteProject()])
     featured_projects: gql.relay.Connection[Project] = gql.django.connection(
         resolver=get_featured_projects
     )
@@ -174,6 +176,7 @@ class Mutation(
     DeploymentMutation,
     RuntimeMutation,
     ObjectMutation,
+    SecretMutation,
 ):
     pass
 
