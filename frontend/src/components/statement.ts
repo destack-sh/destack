@@ -492,3 +492,18 @@ export type SimpleType = Omit<SimpleTypeNode, "statement" | "createdAt" | "updat
 export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
 export const NAME_TYPE_NODE = makeTypeNode({ tag: TypeTag.String, hint: TypeHint.Name });
 export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
+
+export function getEnumColor(type: { key: string }) {
+  /* Generate a strong color for the type */
+  // Convert the client ID to a numerical seed
+  const seed = type.key.split("").reduce((acc, char) => {
+    return acc * 31 + char.charCodeAt(0);
+  }, 0);
+
+  // Generate a random pastel color based on the seed
+  const hue = seed % 360;
+  const saturation = 70 + (seed % 25); // Range: 70-95
+  const lightness = 70 + (seed % 20); // Range: 70-90
+
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}

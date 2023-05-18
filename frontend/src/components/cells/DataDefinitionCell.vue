@@ -519,7 +519,7 @@ defineExpose({
           @navigate-up="grid.navigateUp(record.id, field.name as string)"
           @navigate-down="grid.navigateDown(record.id, field.name as string)"
           @delete-self="deleteRecord(record.id)"
-          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
       </td>
@@ -567,7 +567,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field.id, 'value')"
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
     </tr>

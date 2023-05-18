@@ -4,7 +4,7 @@ import type { SimpleType } from "@/gql/graphql";
 const props = defineProps<{
   type: SimpleType;
   modelValue?: number;
-  preview?: number;
+  preview?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -12,10 +12,10 @@ const emit = defineEmits<{
 }>();
 </script>
 <template>
-  <span v-if="preview">{{ modelValue }}</span>
+  <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
   <input
     v-else
-    class="rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
     type="number"
     :value="modelValue"
     @input="emit('update:modelValue', Number.parseFloat($event.target?.value))"

@@ -39,9 +39,10 @@ function fromArray(value: any) {
 function toArray(value: any) {
   if (Array.isArray(value)) {
     return value;
-  } else {
+  } else if (value != null) {
     return [value];
   }
+  return [];
 }
 
 function coerceToBoolean(value: any) {
@@ -80,6 +81,11 @@ registerInterface("string", {
 registerInterface("number", {
   tags: [TypeTag.Number],
   map: coerceToNumber,
+});
+registerInterface("enum", {
+  tags: [TypeTag.Enum],
+  map: toArray,
+  supportsList: true,
 });
 
 export function getInterface(type: SimpleType): ValueInterface | undefined {
