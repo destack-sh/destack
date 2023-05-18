@@ -57,6 +57,12 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     return columnRefs.value[columnId];
   }
 
+  function getColumn(rowId: string): RefType[] {
+    return Object.entries(columnRefs.value)
+      .filter(([key]) => key.startsWith(rowId))
+      .map(([, value]) => value);
+  }
+
   function blur() {
     Object.values(columnRefs.value).forEach((ref) => ref.blur());
   }
@@ -132,6 +138,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     registerColumnRef,
     refs: computed(() => Object.values(columnRefs.value)),
     getRef,
+    getColumn,
     focus,
     blur,
     navigateUp,

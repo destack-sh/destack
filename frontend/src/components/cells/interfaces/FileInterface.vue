@@ -1,11 +1,12 @@
 <script lang="ts" setup>
+import { useElementRefs } from "@/components/cells/grid";
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowPathIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;
@@ -24,7 +25,9 @@ const objects = useObjects();
 const editor = useEditorState();
 const ongoingUploads = ref(0);
 
+const fileRefs = useElementRefs();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
+const uploadButtonRef = ref<HTMLButtonElement | null>(null);
 const dropZoneRef = ref<HTMLDivElement>();
 const { isOverDropZone: dragOver } = useRelativeDropZone(
   dropZoneRef,
@@ -79,16 +82,31 @@ async function open(file: ObjectRecord) {
   window.open(presignedGet, "_blank");
 }
 
+function remove(file: ObjectRecord) {
+  const fileIndex = props.modelValue.findIndex((f) => f.id == file.id);
+  emit(
+    "update:modelValue",
+    props.modelValue.filter((f) => f.id != file.id)
+  );
+  if (!isArray.value || props.modelValue.length == 1) {
+    nextTick(() => uploadButtonRef.value?.focus());
+  } else {
+    fileRefs.focus(props.modelValue[fileIndex - 1]?.id);
+  }
+}
+
 function focus() {
   if (props.modelValue.length == 0) {
     fileChooserRef.value?.click();
+  } else if (isArray.value) {
+    uploadButtonRef.value?.focus();
   } else {
-    // ???
+    fileRefs.focus(props.modelValue.slice(-1)[0]?.id);
   }
 }
 
 function blur() {
-  // ???
+  // nothing to do?
 }
 
 defineExpose({
@@ -100,8 +118,8 @@ defineExpose({
 <template>
   <!-- Entire thing is drop zone -->
   <div
-    ref="dropzoneRef"
-    class="flex w-full flex-row flex-wrap gap-1"
+    ref="dropZoneRef"
+    class="group/iface flex w-full flex-row flex-wrap gap-x-2.5 gap-y-0.5"
     :class="{
       'rounded-sm border border-dashed border-orange-500': dragOver,
       'border border-transparent': !dragOver,
@@ -109,30 +127,51 @@ defineExpose({
     }"
   >
     <!-- Existing files -->
-    <span
-      v-for="file in modelValue"
+    <!-- :FileStyle -->
+    <div
+      :ref="(el: any) => fileRefs.registerRef(file.id, el)"
+      v-for="(file, i) in modelValue"
+      tabindex="-1"
       :key="file.id"
-      class="group flex flex-row items-center gap-1.5 hover:cursor-pointer"
+      class="group/file flex flex-row items-center gap-1.5 rounded-sm hover:cursor-pointer focus:bg-orange-100 focus:outline-none"
       @click="open(file)"
+      @keydown.enter.stop.prevent="open(file)"
+      @keydown.right.stop.prevent="
+        i == modelValue.length - 1 ? uploadButtonRef?.focus() : fileRefs.focus(modelValue[i + 1]?.id)
+      "
+      @keydown.left.stop.prevent="i == 0 ? null : fileRefs.focus(modelValue[i - 1]?.id)"
+      @keydown.delete.stop.prevent="remove(file)"
     >
-      <!-- :FileStyle -->
+      <!-- File status & info -->
       <component
         :is="file.status == RemoteObjectStatus.Uploading ? ArrowPathIcon : DocumentArrowUpIcon"
         class="h-4 w-4 text-gray-700"
         :class="file.status == RemoteObjectStatus.Uploading ? 'animate-spin' : ''"
       />
-      <span class="text-gray-700 underline-offset-4 group-hover:underline">{{ file.name }}</span>
-      <span class="text-xs text-gray-400">{{ humanizeBytes(file?.contentLength) }}</span>
-    </span>
+      <span class="flex flex-row items-baseline gap-1.5">
+        <span class="text-gray-700 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
+        <span class="text-xs text-gray-400">{{ humanizeBytes(file?.contentLength) }}</span>
+      </span>
+      <!-- Delete button -->
+      <button
+        v-if="!preview"
+        class="text-gray-300 focus:text-gray-700 group-hover/file:text-gray-500"
+        @click.stop.prevent="remove(file)"
+      >
+        x
+      </button>
+    </div>
     <!-- Ensure there's always some content -->
     <template v-if="modelValue.length == 0">&nbsp;</template>
     <!-- Upload button -->
     <button
-      v-if="!readonly && active && (isArray || modelValue.length == 0)"
+      ref="uploadButtonRef"
+      v-if="!readonly && (isArray || modelValue.length == 0)"
       :disabled="ongoingUploads > 0"
-      class="self-end justify-self-end rounded-sm border-gray-300 px-0.5 hover:bg-orange-100"
-      :class="ongoingUploads ? 'animate-spin' : ''"
+      class="self-end justify-self-end rounded-sm border-gray-300 px-0.5 transition hover:bg-orange-100 focus:bg-orange-100 focus:outline-none group-focus-within/iface:opacity-100 group-hover/iface:opacity-100"
+      :class="[ongoingUploads ? 'animate-spin' : '', preview ? 'opacity-0' : '']"
       @click.stop.prevent="fileChooserRef?.click()"
+      @keydown.left.stop.prevent="fileRefs.focus(modelValue.slice(-1)[0]?.id)"
     >
       <component :is="ongoingUploads ? ArrowPathIcon : ArrowUpTrayIcon" class="h-4 w-4 text-gray-400" />
     </button>

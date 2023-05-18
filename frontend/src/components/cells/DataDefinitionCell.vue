@@ -25,7 +25,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -137,7 +137,7 @@ const extendedFields = computed(
 );
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
-const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell>>(
+const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell2>>(
   columnsInOrder,
   computed(() => {
     if (isTable.value) {
@@ -156,7 +156,13 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
-const isEditing = computed(() => grid.refs.value.find((n) => n.editing) || grid.refs.value.find((n) => n.editing));
+function getMaxHeightInRow(id: string): number {
+  /* Gets the maximum value of any elements in the row */
+  return grid
+    .getColumn(id)
+    .map((e) => e.previewSize?.height.value ?? 0)
+    .reduce((a, b) => Math.max(a, b), 0);
+}
 
 function focusDescriptionFromTop() {
   if (description.value?.length > 0 || addingDescription.value) {
@@ -519,7 +525,10 @@ defineExpose({
           @navigate-up="grid.navigateUp(record.id, field.name as string)"
           @navigate-down="grid.navigateDown(record.id, field.name as string)"
           @delete-self="deleteRecord(record.id)"
-          class="h-full w-full self-start border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          :style="{
+            'height': getMaxHeightInRow(record.id as string) + 8 + 'px',
+          }"
         />
         <!-- :EditableCellStyle -->
       </td>
@@ -530,23 +539,24 @@ defineExpose({
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
     <tr v-for="field in allFields" :key="field.id">
       <td class="w-1/4">
-        <div class="flex flex-row flex-wrap gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
-          <InlineTypeTupleCell
-            :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
-            :type="field"
-            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :model-value="field"
-            @update:model-value="(node: any) => updateFieldType(field, node)"
-            @navigate-up="grid.navigateUp(field?.id, 'type')"
-            @navigate-down="grid.navigateDown(field?.id, 'type')"
-            @navigate-right="grid.navigateRight(field?.id, 'type')"
-            @navigate-left="grid.navigateLeft(field?.id, 'type')"
-            @delete-self="deleteField(field)"
-            @duplicate-self="duplicateField(field.id)"
-          />
-        </div>
+        <InlineTypeTupleCell
+          :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
+          :type="field"
+          :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
+          :inlined="extendedFields.find((n) => n.name == field.name) != null"
+          class="min-h-fit w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          :model-value="field"
+          @update:model-value="(node: any) => updateFieldType(field, node)"
+          @navigate-up="grid.navigateUp(field?.id, 'type')"
+          @navigate-down="grid.navigateDown(field?.id, 'type')"
+          @navigate-right="grid.navigateRight(field?.id, 'type')"
+          @navigate-left="grid.navigateLeft(field?.id, 'type')"
+          @delete-self="deleteField(field)"
+          @duplicate-self="duplicateField(field.id)"
+          :style="{
+            'height': getMaxHeightInRow(field.id as string) + 8 + 'px',
+          }"
+        />
       </td>
       <!-- main record should always exist but just in case? -->
       <td v-if="mainRecord">
@@ -567,7 +577,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field.id, 'value')"
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
     </tr>

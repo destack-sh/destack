@@ -132,27 +132,30 @@ defineExpose({
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
-      class="flex h-full w-full flex-row items-center text-left outline-none"
+      class="flex h-full w-full flex-col text-left outline-none"
       :class="[isEnum ? 'bg-gray-100 px-2' : '']"
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
       <!-- :EnumStyle -->
-      <svg
-        v-if="isEnum"
-        class="mr-1.5 h-1.5 w-1.5"
-        :style="{ fill: getEnumColor(value) }"
-        viewBox="0 0 6 6"
-        aria-hidden="true"
-      >
-        <circle cx="3" cy="3" r="3" />
-      </svg>
-      <span
-        class="mr-2 text-gray-900"
-        :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
-        >{{ value.name }}</span
-      >
-      <SimpleTypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+      <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
+      <div class="flex w-full flex-row items-center text-left">
+        <svg
+          v-if="isEnum"
+          class="mr-1.5 h-1.5 w-1.5"
+          :style="{ fill: getEnumColor(value) }"
+          viewBox="0 0 6 6"
+          aria-hidden="true"
+        >
+          <circle cx="3" cy="3" r="3" />
+        </svg>
+        <span
+          class="mr-2 text-gray-900"
+          :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
+          >{{ value.name }}</span
+        >
+        <SimpleTypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+      </div>
     </button>
     <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />

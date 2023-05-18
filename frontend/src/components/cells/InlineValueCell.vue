@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import ObjectValueCell from "@/components/cells/ObjectValueCell.vue";
 import { TypeTag, type SimpleType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { OBJECT_TYPETAGS } from "@/state/object";
@@ -248,17 +247,6 @@ defineExpose({
         :disabled="props.readonly"
       />
       <span ref="valueRef" class="" v-else-if="type.tag == TypeTag.Enum">{{ readValue }}&nbsp;</span>
-      <ObjectValueCell
-        ref="valueRef"
-        v-else-if="OBJECT_TYPETAGS.includes(type.tag)"
-        :type="type"
-        :modelValue="readValue"
-        @update:modelValue="writeValue($event, true)"
-        :readonly="readonly"
-        :active="active"
-        :supportsDrop="props.supportsDrop"
-        @dropFiles="(p, v) => emit('dropFiles', p, v)"
-      />
       <div
         v-else-if="type.tag == TypeTag.Struct"
         class="flex w-full flex-row flex-wrap gap-2 border border-orange-900 border-opacity-[12%] p-1"

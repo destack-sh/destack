@@ -69,9 +69,9 @@ defineExpose({
     <template v-if="selectedMembers.length == 0 && preview">&nbsp;</template>
     <!-- TODO @Feature @UX: add missing enum members inline -->
     <Combobox
-      v-if="!preview && missingMembers.length > 0"
+      v-if="!preview"
       as="div"
-      class="flex w-full flex-col"
+      class="flex w-full min-w-[300px] flex-col"
       :model-value="modelValue"
       @update:model-value="(val: SimpleType) => {
         if (isArray) {
