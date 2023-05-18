@@ -2405,6 +2405,7 @@ export enum TypeHint {
   Html = "HTML",
   Integer = "INTEGER",
   Markdown = "MARKDOWN",
+  Name = "NAME",
   Phone = "PHONE",
   RichText = "RICH_TEXT",
   Slider = "SLIDER",
@@ -4930,6 +4931,7 @@ export type InterpSymbolContentFragment = {
     name?: string | null;
     key: string;
     tag: TypeTag;
+    hint?: TypeHint | null;
     description?: string | null;
     value?: any | null;
     orderKey: string;
@@ -5749,6 +5751,7 @@ export const InterpSymbolContentFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "key" } },
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "hint" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
                 { kind: "Field", name: { kind: "Name", value: "value" } },
                 { kind: "Field", name: { kind: "Name", value: "orderKey" } },

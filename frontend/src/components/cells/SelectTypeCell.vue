@@ -78,10 +78,17 @@ const filteredTypes = computed(() =>
 );
 
 function writeValue(type: SimpleTypeNode) {
-  // keep flags
+  // keep supported flags
+  let newFlags = TypeFlag.Zero;
+  for (let flag of Object.values(TypeFlag)) {
+    flag = flag as TypeFlag;
+    if (isFlagSet(flag) && isFlagSupported(type, flag)) {
+      newFlags |= flag;
+    }
+  }
   type = {
     ...type,
-    flags: value.value.flags,
+    flags: newFlags,
   };
   value.value = type;
   emit("update:modelValue", type);
@@ -126,11 +133,27 @@ const flagButtons: FlagButton[] = [
   },
 ];
 
-function isFlagEnabled(flag: TypeFlag) {
+// constraint list & secret flags to UX-sensible types
+// (internally we could support any permutation)
+const LISTABLE_TAGS = [
+  TypeTag.Audio,
+  TypeTag.Video,
+  TypeTag.Image,
+  TypeTag.File,
+  TypeTag.TypeReference,
+  TypeTag.Struct,
+  TypeTag.Enum,
+];
+const LISTABLE_HINTS = [TypeHint.Name, TypeHint.Email, TypeHint.Phone, TypeHint.Url, TypeHint.Uuid];
+const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
+function isFlagSupported(type: SimpleType, flag: TypeFlag) {
   if (flag == TypeFlag.IsArray) {
-    return !isFlagSet(TypeFlag.IsSecret);
+    return (
+      !isFlagSet(TypeFlag.IsSecret) &&
+      ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
+    );
   } else if (flag == TypeFlag.IsSecret) {
-    return !isFlagSet(TypeFlag.IsArray) && value.value.reference == null;
+    return !isFlagSet(TypeFlag.IsArray) && SECRETABLE_TAGS.includes(type.tag);
   } else {
     return true;
   }
@@ -149,6 +172,16 @@ function toggleFlag(flag: TypeFlag) {
   emit("update:modelValue", value.value);
 }
 
+// use 'combobox id' as a stable id
+
+function toComboId(type: SimpleType) {
+  return `${type.tag}.${type.hint ?? ""}.${type.reference?.id ?? ""}`;
+}
+
+function findByComboId(id: string) {
+  return availableTypes.value.find((t) => toComboId(t) == id);
+}
+
 // focus input once mounted
 onMounted(() => {
   inputRef.value?.$el.focus();
@@ -161,17 +194,21 @@ defineExpose({
 });
 </script>
 <template>
-  <Combobox as="div" :model-value="value" @update:model-value="writeValue">
+  <Combobox
+    as="div"
+    :model-value="toComboId(value)"
+    @update:model-value="(id: any) => writeValue(findByComboId(id) ?? value)"
+  >
     <!-- Flags -->
     <div v-if="!props.hideFlags" class="mb-2 flex flex-row justify-around">
       <button
         v-for="flagButton in flagButtons"
         :key="flagButton.label"
-        :disabled="!isFlagEnabled(flagButton.flag)"
+        :disabled="!isFlagSupported(value, flagButton.flag)"
         class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
         :class="[
           isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : '',
-          isFlagEnabled(flagButton.flag) ? '' : 'cursor-not-allowed text-gray-400',
+          isFlagSupported(value, flagButton.flag) ? '' : 'cursor-not-allowed text-gray-400',
         ]"
         @click="toggleFlag(flagButton.flag)"
       >
@@ -194,7 +231,7 @@ defineExpose({
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el) => null"
+      :display-value="(el: any) => renderSimpleType(findByComboId(el) ?? value)"
       placeholder="..."
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"
@@ -206,7 +243,12 @@ defineExpose({
       :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
     >
       <!-- Options -->
-      <ComboboxOption v-for="node in filteredTypes" :key="node.id" :value="node" v-slot="{ active, selected }">
+      <ComboboxOption
+        v-for="node in filteredTypes"
+        :key="node.id"
+        :value="toComboId(node)"
+        v-slot="{ active, selected }"
+      >
         <li
           :class="[
             'relative cursor-default select-none px-1 py-1 text-gray-900',
@@ -216,18 +258,10 @@ defineExpose({
         >
           <div class="flex items-baseline justify-between">
             <SimpleTypePreview :type="node" show-type-name />
-            <!-- Ref source -->
-            <span
-              v-if="node.tag == TypeTag.TypeReference && node.reference != null"
-              class="text-xs"
-              :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']"
-            >
-              {{ fileOf(node.reference)?.path }}
+            <!-- Source -->
+            <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
+              {{ node.primitive ? "(builtin)" : fileOf(node.reference)?.path }}
             </span>
-            <!-- Builtin -->
-            <span v-else-if="node.primitive" class="text-xs" :class="[active ? 'text-gray-700' : 'text-gray-500']"
-              >(builtin)</span
-            >
           </div>
         </li>
       </ComboboxOption>

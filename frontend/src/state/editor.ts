@@ -102,6 +102,7 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
 export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   // string
+  [TypeHint.Name]: "name",
   [TypeHint.Uuid]: "UUID",
   [TypeHint.Date]: "date",
   [TypeHint.Datetime]: "datetime",
@@ -124,6 +125,7 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.Checkbox]: "checkbox",
 };
 export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
+  [TypeHint.Name]: TypeTag.String,
   [TypeHint.Uuid]: TypeTag.String,
   [TypeHint.Datetime]: TypeTag.String,
   [TypeHint.Url]: TypeTag.String,
@@ -144,7 +146,7 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
   } else {
     return null;
   }
-  return builtin.slice(0, 1).toUpperCase() + builtin.slice(1);
+  return builtin.slice(0, 1).toUpperCase() + builtin.slice(1); // always uppercase first letter
 }
 
 export function renderSimpleType(node: SimpleType): string {

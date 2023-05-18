@@ -16,6 +16,7 @@ from bench.language.type import (
     StatementType,
     SymbolType,
     TypeFlag,
+    TypeHint,
     TypeTag,
     XKind,
     XSource,
@@ -34,6 +35,7 @@ class SimpleTypeNodeData:
     name: Optional[str]
     key: str
     tag: TypeTag
+    hint: Optional[TypeHint]
     statement_id: UUID
     order_key: str
     description: Optional[str]
@@ -55,6 +57,7 @@ class SimpleTypeNodeData:
             name=self.name,
             key=self.key,
             tag=self.tag,
+            hint=self.hint,
             statement_id=self.statement_id,
             order_key=self.order_key,
             description=self.description,
@@ -504,6 +507,7 @@ def rmap_simple_type_node(
         key=node.key,
         statement_id=statement_id,
         tag=node.reference.tag if node.reference and impute_type_references else node.tag,
+        hint=node.reference.hint if node.reference and impute_type_references else node.hint,
         description=node.description,
         flags=node.flags,
         reference_id=node.reference.id if node.reference else None,
@@ -519,6 +523,7 @@ def wmap_simple_type_node(node: SimpleTypeNodeData) -> language.SimpleTypeNode:
         name=node.name,
         key=node.key,
         tag=node.tag,
+        hint=node.hint,
         description=node.description,
         flags=node.flags,
         reference=node.reference_id,

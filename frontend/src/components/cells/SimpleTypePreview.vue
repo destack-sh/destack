@@ -16,6 +16,7 @@ import {
   DocumentIcon,
   FingerPrintIcon,
   HashtagIcon,
+  IdentificationIcon,
   LinkIcon,
   LockClosedIcon,
   MinusSmallIcon,
@@ -66,6 +67,7 @@ const iconsByTag: Record<TypeTag, any> = {
 };
 const iconsByHint: Record<TypeHint, any> = {
   // string
+  [TypeHint.Name]: IdentificationIcon,
   [TypeHint.Uuid]: FingerPrintIcon,
   [TypeHint.Date]: CalendarDaysIcon,
   [TypeHint.Datetime]: CalendarDaysIcon,

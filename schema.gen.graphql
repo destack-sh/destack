@@ -2051,6 +2051,7 @@ type SystemInfo {
 
 """The representation of a type node"""
 enum TypeHint {
+  NAME
   UUID
   DATE
   DATETIME
