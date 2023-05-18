@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { SimpleType } from "@/gql/graphql";
-import { ref } from "vue";
+import { ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;
@@ -23,7 +23,7 @@ defineExpose({
   <input
     v-else
     ref="inputRef"
-    class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    class="w-full min-w-[300px] rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
     type="text"
     :value="modelValue"
     @input="emit('update:modelValue', $event.target?.value)"

@@ -81,14 +81,14 @@ function coerceToNumber(type: SimpleType, value: any) {
 
 registerInterface("boolean.checkbox", {
   tags: [TypeTag.Boolean],
-  inline: true,
   map: coerceToBoolean,
+  inline: true,
 });
 registerInterface("boolean.toggle", {
   tags: [],
   hints: [TypeHint.Toggle],
-  inline: true,
   map: coerceToBoolean,
+  inline: true,
 });
 registerInterface("string", {
   tags: [TypeTag.String],
@@ -100,6 +100,12 @@ registerInterface("number", {
 });
 registerInterface("enum", {
   tags: [TypeTag.Enum],
+  read: (t, v) => toArrayAsFlagged(t, v),
+  write: (t, v) => toArrayIfFlagged(t, v),
+  supportsList: true,
+});
+registerInterface("file", {
+  tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
   read: (t, v) => toArrayAsFlagged(t, v),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
