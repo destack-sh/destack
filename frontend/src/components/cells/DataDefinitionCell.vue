@@ -426,9 +426,9 @@ defineExpose({
       <button
         v-if="!context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
         ref="extendButtonRef"
-        @keydown.down.exact="focusDescriptionFromTop"
-        @keydown.up.exact="context.navigateUp"
-        @keydown.left.exact="
+        @keydown.down.exact.prevent="focusDescriptionFromTop"
+        @keydown.up.exact.prevent="context.navigateUp"
+        @keydown.left.exact.prevent="
           extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : declarationRef?.focus()
         "
         tabindex="-1"
@@ -490,7 +490,7 @@ defineExpose({
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent border-opacity-[15%] p-1 text-gray-400 focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @navigate-left="grid.navigateLeft('', field.name as string)"
@@ -527,7 +527,7 @@ defineExpose({
           @navigate-up="grid.navigateUp(record.id, field.name as string)"
           @navigate-down="grid.navigateDown(record.id, field.name as string)"
           @delete-left="deleteRecord(record.id)"
-          class="h-full w-full self-start border border-transparent border-opacity-[15%] px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
       </td>
@@ -544,7 +544,7 @@ defineExpose({
             :type="field"
             :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
             :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent border-opacity-[15%] px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :model-value="field"
             @update:model-value="(node: any) => updateFieldType(field, node)"
             @navigate-up="grid.navigateUp(field?.id, 'type')"
@@ -571,12 +571,12 @@ defineExpose({
           :supports-drop="!context.readonly.value"
           @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"
           @delete-left="deleteRecord(mainRecord.id)"
-          @keydown.delete.exact="isEditing || deleteRecordField(mainRecord.id, field.key as string)"
-          @keydown.up.exact="grid.navigateUp(field.id, 'value')"
-          @keydown.down.exact="grid.navigateDown(field.id, 'value')"
-          @keydown.right.exact="grid.navigateRight(field.id, 'value')"
-          @keydown.left.exact="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent border-opacity-[15%] px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
+          @delete-self="deleteRecordField(mainRecord.id, field.key as string)"
+          @navigate-up="grid.navigateUp(field.id, 'value')"
+          @navigate-down="grid.navigateDown(field.id, 'value')"
+          @navigate-right="grid.navigateRight(field.id, 'value')"
+          @navigate-left="grid.navigateLeft(field.id, 'value')"
+          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </td>
     </tr>
@@ -586,9 +586,9 @@ defineExpose({
     <button
       v-if="pageInfo?.hasNextPage && isTable"
       @click="loadMore()"
-      @keydown.up.exact="focusLastRecord"
-      @keydown.right.exact="addRecordRef?.focus"
-      @keydown.down.exact="context.navigateDown"
+      @keydown.up.exact.prevent="focusLastRecord"
+      @keydown.right.exact.prevent="addRecordRef?.focus"
+      @keydown.down.exact.prevent="context.navigateDown"
       :disabled="loading"
       ref="loadMoreRef"
       class="flex w-fit select-none flex-row items-center rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
@@ -610,10 +610,10 @@ defineExpose({
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertRecord()"
       @enter="insertRecord()"
-      @keydown.up.exact="focusLastRecord"
-      @keydown.right.exact="addFieldRef?.focus"
-      @keydown.left.exact="loadMoreRef?.focus"
-      @keydown.down.exact="context.navigateDown"
+      @keydown.up.exact.prevent="focusLastRecord"
+      @keydown.right.exact.prevent="addFieldRef?.focus"
+      @keydown.left.exact.prevent="loadMoreRef?.focus"
+      @keydown.down.exact.prevent="context.navigateDown"
     >
       +record
     </button>
@@ -625,9 +625,9 @@ defineExpose({
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertField()"
       @enter="insertField()"
-      @keydown.up.exact="focusLastRecord"
-      @keydown.left.exact="addRecordRef?.focus"
-      @keydown.down.exact="context.navigateDown"
+      @keydown.up.exact.prevent="focusLastRecord"
+      @keydown.left.exact.prevent="addRecordRef?.focus"
+      @keydown.down.exact.prevent="context.navigateDown"
     >
       +field
     </button>

@@ -13,6 +13,7 @@ import FeedbackPopover from "@/components/FeedbackPopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
 import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
 import ViewInstruction from "@/components/panels/ViewInstruction.vue";
@@ -619,7 +620,7 @@ onBeforeUnmount(() => {
             <SharePopover @show="editor.showGlobalHeader = true" />
             <DeployPopover :project="project" @show="editor.showGlobalHeader = true" />
             <OmniCreate @show="editor.showGlobalHeader = true" />
-            <!-- <NotificationPopover @show="editor.showGlobalHeader = true" /> -->
+            <NotificationPopover @show="editor.showGlobalHeader = true" />
           </div>
         </FadeTransition>
         <ClientsPopover v-if="auth.loggedIn.value" class="ml-2" size="large" />
