@@ -4,16 +4,10 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
+import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
-import {
-  makeTypeNode,
-  useStatementContext,
-  type InlineAction,
-  type SimpleType,
-  type TypeAction,
-} from "@/components/statement";
+import { makeTypeNode, useStatementContext, type InlineAction, type SimpleType } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
@@ -27,7 +21,6 @@ import {
   ArrowPathIcon,
   CubeTransparentIcon,
   PlusIcon,
-  Square2StackIcon,
   SquaresPlusIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -510,14 +503,13 @@ defineExpose({
       class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
     >
       <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
-        <InlineValueCell
+        <InlineValueCell2
           :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
           :model-value="record.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
-          :placeholder-value="context.editing.value ? field.name : undefined"
           immediate
           debounced
           :supports-drop="!context.readonly.value"
@@ -526,7 +518,7 @@ defineExpose({
           @navigate-right="grid.navigateRight(record.id, field.name as string)"
           @navigate-up="grid.navigateUp(record.id, field.name as string)"
           @navigate-down="grid.navigateDown(record.id, field.name as string)"
-          @delete-left="deleteRecord(record.id)"
+          @delete-self="deleteRecord(record.id)"
           class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
         />
         <!-- :EditableCellStyle -->
@@ -558,14 +550,13 @@ defineExpose({
       </td>
       <!-- main record should always exist but just in case? -->
       <td v-if="mainRecord">
-        <InlineValueCell
+        <InlineValueCell2
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="mainRecord.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
-          :placeholder-value="context.editing.value ? field.name : undefined"
           immediate
           debounced
           :supports-drop="!context.readonly.value"

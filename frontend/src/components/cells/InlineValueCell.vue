@@ -18,7 +18,6 @@ const props = defineProps<{
   immediate: boolean;
   active: boolean;
   debounced?: boolean;
-  slim?: boolean;
   parentArray?: boolean;
   supportsDrop?: boolean;
 }>();
@@ -287,10 +286,6 @@ defineExpose({
       v-if="editing"
       @click.prevent="emit('edit')"
     >
-      <!-- Button to confirm if not immediate and there are pending changes -->
-      <button class="absolute right-1 text-xs text-gray-500" @click="confirm" v-if="!immediate && value != modelValue">
-        *
-      </button>
       <!-- Strings and numbers -->
       <textarea
         v-if="type.tag == TypeTag.String"
@@ -300,7 +295,7 @@ defineExpose({
         type="text"
         spellcheck="false"
         class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
-        :class="[editor.textSmall ? 'text-sm' : '', slim ? 'min-w-[200px]' : ' min-w-[300px]']"
+        :class="[editor.textSmall ? 'text-sm' : '', 'min-w-[300px]']"
         @keydown.enter.exact.prevent="confirm"
         @keydown.escape.exact.prevent="confirm"
         @keydown.tab.exact.prevent="
@@ -308,7 +303,6 @@ defineExpose({
           emit('navigateRight');
         "
         :placeholder="placeholderValue ?? ''"
-        :rows="slim ? 1 : 3"
       />
       <input
         v-else-if="type.tag == TypeTag.Number"

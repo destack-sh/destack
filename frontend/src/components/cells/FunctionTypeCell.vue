@@ -2,7 +2,13 @@
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import {
+  makeTypeNode,
+  NAME_TYPE_NODE,
+  STRING_TYPE_NODE,
+  useStatementContext,
+  type SimpleType,
+} from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -206,8 +212,7 @@ defineExpose({
             immediate
             debounced
             :placeholder-value="context.editing.value ? '+' + column : null"
-            :type="STRING_TYPE_NODE"
-            slim
+            :type="NAME_TYPE_NODE"
             @navigate-left="outputGrid.navigateLeft(member.id, column)"
             @navigate-right="outputGrid.navigateRight(member.id, column)"
             @navigate-up="outputGrid.navigateUp(member.id, column)"
