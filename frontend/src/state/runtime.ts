@@ -46,6 +46,7 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
       name
       key
       tag
+      hint
       description
       value
       orderKey

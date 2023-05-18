@@ -5,7 +5,7 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import { Bars4Icon, BellSlashIcon, ChartBarIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import { Bars4Icon, BellSlashIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
 
 const appearance = useAppearance();
 const editor = useEditorState();
@@ -55,14 +55,6 @@ const actions = useActions();
             <span class="text-sm text-gray-900">Line numbers</span>
           </span>
           <Switch v-model="editor.showLineNumbers" />
-        </div>
-        <!-- Inline metrics -->
-        <div class="flex flex-row items-center justify-between px-2">
-          <span class="flex flex-row items-center gap-2">
-            <ChartBarIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Inline metrics</span>
-          </span>
-          <Switch v-model="appearance.inlineMetrics" />
         </div>
         <!-- Dark mode -->
         <div class="flex flex-row items-center justify-between px-2">

@@ -202,6 +202,7 @@ class TypeHint(models.TextChoices):
     """The representation of a type node"""
 
     # string
+    NAME = "name"
     UUID = "uuid"
     DATE = "date"
     DATETIME = "datetime"
@@ -225,6 +226,7 @@ class TypeHint(models.TextChoices):
 
 
 TYPE_TAG_BY_TYPE_HINT = {
+    TypeHint.NAME: TypeTag.STRING,
     TypeHint.UUID: TypeTag.STRING,
     TypeHint.DATE: TypeTag.STRING,
     TypeHint.DATETIME: TypeTag.STRING,
@@ -695,6 +697,7 @@ class SimpleTypeNode(TypeNode):
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
             tag=self.tag,
+            hint=self.hint,
             order_key=self.order_key,
             description=self.description,
             reference=reference,
@@ -713,6 +716,7 @@ class TypeContent(SymbolContent, TypeNode):
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types
+    hint = None
     key = None
     value = None
     reference = None

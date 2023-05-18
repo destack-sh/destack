@@ -328,7 +328,7 @@ export function useStatementContext() {
     newTypeNode = {
       ...oldTypeNode,
       tag: newTypeNode.tag ?? oldTypeNode.tag,
-      hint: newTypeNode.hint ?? oldTypeNode.hint,
+      hint: newTypeNode.hint ?? null,
       name: newTypeNode.name ?? oldTypeNode.name,
       description: newTypeNode.description ?? oldTypeNode.description,
       value: newTypeNode.value,
