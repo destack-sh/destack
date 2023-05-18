@@ -2,7 +2,7 @@
 import { getInterface } from "@/components/cells/interfaces";
 import type { SimpleType } from "@/components/statement";
 import { useAppearance } from "@/state/appearance";
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
 import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
@@ -10,6 +10,8 @@ import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
 import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
 import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
 import { onClickOutside } from "@vueuse/core";
+import { pinAbsoluteElement } from "@/composables/useFixed";
+import { useScrollContext } from "@/state/editor";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -52,6 +54,8 @@ const editing = ref(false);
 const previewButtonRef = ref<HTMLDivElement | null>(null);
 const previewRef = ref<any | null>(null);
 const editableRef = ref<any | null>(null);
+const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
+const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
 
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
@@ -70,9 +74,7 @@ const readValue = computed(() => {
   }
 });
 
-onClickOutside(editableRef, () => {
-  editing.value = false;
-});
+onClickOutside(editableRef, close);
 
 function writeValue(value: any) {
   if (valueInterface.value?.write != null) {
@@ -90,6 +92,7 @@ function edit() {
 
   editing.value = true;
   emit("edit");
+  document.body.classList.add("overscroll-y-none");
   nextTick(() => editableRef.value?.focus());
 }
 
@@ -106,11 +109,13 @@ function blur() {
 
 function close() {
   editing.value = false;
+  document.body.classList.remove("overscroll-y-none");
   nextTick(() => previewButtonRef.value?.focus()); // refocus preview
 }
 
 function enter() {
   editing.value = false;
+  document.body.classList.remove("overscroll-y-none");
   emit("navigateDown");
 }
 
@@ -168,9 +173,12 @@ defineExpose({
       <div v-else class="text-red-600">!!!</div>
     </div>
     <!-- Editable popover -->
+    <!-- Positioned is pinned with fixed, see above -->
     <div
       v-if="editing && valueInterface"
-      class="absolute -left-1 -top-1 z-10 min-w-full rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      ref="editablePopoverRef"
+      class="z-20 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      :class="editablePin.pinned.value ? '' : 'absolute -left-1 -top-1 min-h-full min-w-full'"
     >
       <component
         :is="INTERFACES[valueInterface.id]"
@@ -188,5 +196,7 @@ defineExpose({
         @enter="enter"
       />
     </div>
+    <!-- Invisible fixed overlay to prevent scrolling -->
+    <div v-if="editing && valueInterface" class="fixed left-0 top-0 z-10 h-full w-full overscroll-none" />
   </div>
 </template>

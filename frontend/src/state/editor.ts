@@ -17,7 +17,7 @@ import { symbolOf } from "@/state/runtime";
 import { reverseRecord } from "@/utils/functools";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { defineStore } from "pinia";
-import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -729,4 +729,40 @@ export function useEditorMigrations() {
     migrating: computed(() => migratingTo.value != null),
     migrateTo,
   };
+}
+
+export type ScrollContext = {
+  lock(): void;
+  unlock(): void;
+};
+
+export const EDITOR_SCROLL_CONTEXT = "__scroll__";
+
+export function provideScrollContext(el: Ref<HTMLElement | null>) {
+  const scrollContext: ScrollContext = {
+    lock() {
+      if (el.value == null) return;
+      el.value.style.overflow = "hidden";
+    },
+    unlock() {
+      if (el.value == null) return;
+      el.value.style.overflow = "";
+    },
+  };
+  provide(EDITOR_SCROLL_CONTEXT, scrollContext);
+}
+
+export function useScrollContext(required?: boolean): ScrollContext {
+  const scrollContext = inject<ScrollContext>(EDITOR_SCROLL_CONTEXT);
+  if (scrollContext == null) {
+    if (required) {
+      throw new Error("scroll context not provided");
+    } else {
+      return {
+        lock: () => ({}),
+        unlock: () => ({}),
+      };
+    }
+  }
+  return scrollContext;
 }

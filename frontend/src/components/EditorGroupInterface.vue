@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useElementRefs } from "@/components/cells/grid";
 import EditorInterface from "@/components/EditorInterface.vue";
 import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
 import { useActions } from "@/state/actions";
@@ -51,6 +52,9 @@ watch(
     }, 2000)
   )
 );
+
+// keep panel refs to pass to editor interface for scroll context
+const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
 
 const actions = useActions();
 async function createFileInEditorGroup() {
@@ -113,13 +117,14 @@ async function createFileInEditorGroup() {
             (e.g. in FileInterface and ViewExplorer/ViewHistory/etc.)
             -->
         <TabPanel
+          :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
           class="h-full w-full overflow-y-scroll bg-white outline-none"
           v-for="e in group.editors"
           :key="e.id"
           :unmount="!mountAllPanels"
         >
-          <EditorInterface :editor="e" />
+          <EditorInterface :editor="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
         <EmptyEditorInterface
           v-if="editor.currentProjectVersionId != null && group.editors.length === 0"
