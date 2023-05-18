@@ -6,11 +6,17 @@ import { computed, ref } from "vue";
 
 import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
 import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
+import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
+import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
+import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
 import { onClickOutside } from "@vueuse/core";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
   "boolean.toggle": ToggleInterface,
+  string: StringInterface,
+  number: NumberInterface,
+  enum: EnumInterface,
 };
 
 const props = defineProps<{
@@ -47,7 +53,15 @@ const previewButtonRef = ref<HTMLDivElement | null>(null);
 const previewRef = ref<any | null>(null);
 const editableRef = ref<any | null>(null);
 
-const valueInterface = computed(() => getInterface(props.type));
+const valueInterface = computed(() => {
+  const iface = getInterface(props.type);
+  if (INTERFACES[iface?.id] != null) {
+    return iface;
+  } else if (iface != null) {
+    console.log("no interface for", iface.id);
+  }
+  return null;
+});
 const readValue = computed(() => {
   if (valueInterface.value?.read != null) {
     return valueInterface.value.read(props.modelValue);
@@ -90,6 +104,17 @@ function blur() {
 }
 
 const appearance = useAppearance();
+const appearanceAttrs = computed(() => {
+  const classes = {
+    "font-mono": appearance.fontMono,
+    "text-sm": appearance.textSmall,
+    "text-md": !appearance.textSmall,
+  };
+  return {
+    class: classes,
+    ...classes,
+  };
+});
 
 defineExpose({
   editing,
@@ -99,14 +124,7 @@ defineExpose({
 </script>
 <template>
   <!-- Value container -->
-  <div
-    class="relative"
-    :class="{
-      'font-mono': appearance.fontMono,
-      'text-sm': appearance.textSmall,
-      'text-md': !appearance.textSmall,
-    }"
-  >
+  <div class="relative">
     <!-- Preview -->
     <div
       ref="previewButtonRef"
@@ -129,11 +147,13 @@ defineExpose({
         class=""
         ref="previewRef"
         :is="INTERFACES[valueInterface.id]"
+        :type="type"
         :model-value="readValue"
         @update:model-value="writeValue($event)"
         :readonly="readonly"
         :active="active"
         preview
+        v-bind="appearanceAttrs"
       />
       <div v-else class="text-red-600">!!!</div>
     </div>
@@ -141,15 +161,17 @@ defineExpose({
     <div
       v-if="editing && valueInterface"
       ref="editableRef"
-      class="absolute -left-1 -top-1 min-w-full rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="absolute -left-1 -top-1 z-10 min-w-full rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
     >
       <component
         :is="INTERFACES[valueInterface.id]"
+        :type="type"
         :model-value="readValue"
         @update:model-value="writeValue($event)"
         :readonly="readonly"
         :preview="false"
         :active="active"
+        v-bind="appearanceAttrs"
       />
     </div>
   </div>

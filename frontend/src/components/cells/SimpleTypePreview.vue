@@ -19,6 +19,7 @@ import {
   HashtagIcon,
   IdentificationIcon,
   LinkIcon,
+  ListBulletIcon,
   LockClosedIcon,
   MinusSmallIcon,
   PhoneIcon,
@@ -99,7 +100,7 @@ const icon = computed(() => {
 });
 </script>
 <template>
-  <div class="relative inline-flex flex-row items-baseline gap-2">
+  <div class="relative inline-flex flex-row items-center gap-2">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
     <span v-if="icon && !hideIcon" class="h-4 w-4">
@@ -112,5 +113,6 @@ const icon = computed(() => {
     <span v-if="type.reference && !hideReference">{{ resolvedReference?.name ?? "???" }}</span>
     <span v-else-if="type.tag == TypeTag.TypeReference && type.reference == null">...</span>
     <LockClosedIcon v-if="type.flags & TypeFlag.IsSecret && !hideFlags" class="-ml-1 h-4 w-4" />
+    <ListBulletIcon v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="-ml-1 h-4 w-4" />
   </div>
 </template>

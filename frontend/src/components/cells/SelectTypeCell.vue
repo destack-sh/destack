@@ -135,6 +135,7 @@ const flagButtons: FlagButton[] = [
 
 // constraint list & secret flags to UX-sensible types
 // (internally we could support any permutation)
+const NONNULL_TAGS = [TypeTag.Boolean];
 const LISTABLE_TAGS = [
   TypeTag.Audio,
   TypeTag.Video,
@@ -147,7 +148,9 @@ const LISTABLE_TAGS = [
 const LISTABLE_HINTS = [TypeHint.Name, TypeHint.Email, TypeHint.Phone, TypeHint.Url, TypeHint.Uuid];
 const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
 function isFlagSupported(type: SimpleType, flag: TypeFlag) {
-  if (flag == TypeFlag.IsArray) {
+  if (flag == TypeFlag.IsNullable) {
+    return !isFlagSet(TypeFlag.IsArray) && !NONNULL_TAGS.includes(type.tag);
+  } else if (flag == TypeFlag.IsArray) {
     return (
       !isFlagSet(TypeFlag.IsSecret) &&
       ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
@@ -208,7 +211,7 @@ defineExpose({
         class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
         :class="[
           isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : '',
-          isFlagSupported(value, flagButton.flag) ? '' : 'cursor-not-allowed text-gray-400',
+          isFlagSupported(value, flagButton.flag) ? 'text-gray-600' : 'cursor-not-allowed text-gray-400',
         ]"
         @click="toggleFlag(flagButton.flag)"
       >

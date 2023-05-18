@@ -22,7 +22,10 @@ defineExpose({
     type="checkbox"
     class="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-600"
     :checked="modelValue"
-    @change="emit('update:modelValue', $event.target?.checked)"
+    @change="
+      $event.stopPropagation();
+      emit('update:modelValue', $event.target?.checked);
+    "
     :disabled="props.readonly"
   />
 </template>
