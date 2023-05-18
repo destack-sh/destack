@@ -13,28 +13,25 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string[]): void;
+  (e: "close"): void;
 }>();
 
 const isArray = computed(() => props.type.flags & TypeFlag.IsArray);
 const runtimeType = computed(() => symbolOf(props.type.reference?.id));
+
 const members = computed(() => {
   return runtimeType.value?.typeNodes ?? [];
 });
-const missingMembers = computed(() => members.value.filter((m) => !props.modelValue?.find((v) => v == m.name)));
+const selectedMembers = computed(
+  () =>
+    (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as SimpleType[]) ?? []
+);
+const missingMembers = computed(() => members.value.filter((m) => !props.modelValue?.find((v) => v == m.key)));
 
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
-function getColorByValue(value: string) {
-  const member = members.value.find((m) => m.name == value);
-  if (member != null) {
-    return getEnumColor(member);
-  } else {
-    return "gray";
-  }
-}
-
-function removeValue(value: string) {
-  emit("update:modelValue", props.modelValue?.filter((v) => v != value) ?? []);
+function removeValue(key: string) {
+  emit("update:modelValue", props.modelValue?.filter((v) => v != key) ?? []);
 }
 
 const appearance = useAppearance();
@@ -47,24 +44,29 @@ defineExpose({
 <template>
   <div class="flex h-full w-full flex-row flex-wrap gap-1">
     <!-- :EnumStyle -->
-    <!-- Existing members (same as above but with edit button) -->
-    <span
-      v-for="value in modelValue"
-      :key="value"
-      class="inline-flex items-center gap-x-1.5 rounded-sm bg-gray-100 px-2 text-gray-900"
-    >
-      <svg class="h-1.5 w-1.5" :style="{ fill: getColorByValue(value) }" viewBox="0 0 6 6" aria-hidden="true">
-        <circle cx="3" cy="3" r="3" />
-      </svg>
-      {{ value }}
-      <button
-        v-if="!preview && !readonly && isArray"
-        class="p-0.5 text-gray-300 hover:text-gray-700"
-        @click="removeValue(value)"
+    <!-- Existing members (same as above but with delete button) -->
+    <template v-if="isArray || preview">
+      <span
+        v-for="member in selectedMembers"
+        :key="member.key"
+        class="inline-flex items-center gap-x-1.5 rounded-sm bg-gray-100 px-2 text-gray-900"
       >
-        x
-      </button>
-    </span>
+        <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+          <circle cx="3" cy="3" r="3" />
+        </svg>
+        {{ member.name }}
+        <!-- Delete button -->
+        <button
+          v-if="!preview && !readonly && isArray"
+          class="p-0.5 text-gray-300 hover:text-gray-700"
+          @click="removeValue(member.key)"
+        >
+          x
+        </button>
+      </span>
+    </template>
+    <!-- Ensure there's always something -->
+    <template v-if="selectedMembers.length == 0 && preview">&nbsp;</template>
     <!-- TODO @Feature @UX: add missing enum members inline -->
     <Combobox
       v-if="!preview && missingMembers.length > 0"
@@ -73,9 +75,10 @@ defineExpose({
       :model-value="modelValue"
       @update:model-value="(val: SimpleType) => {
         if (isArray) {
-          emit('update:modelValue', [...(modelValue ?? []), val.name as string]);
+          emit('update:modelValue', [...(modelValue ?? []), val.key as string]);
         } else {
-          emit('update:modelValue', [val.name as string]);
+          emit('update:modelValue', [val.key as string]);
+          emit('close')
         }
       }"
     >
@@ -85,8 +88,8 @@ defineExpose({
         as="input"
         ref="inputRef"
         spellcheck="false"
-        class="mt-1.5 w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
-        :class="[appearance.textSmall ? 'text-sm' : '']"
+        class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
+        :class="[appearance.textSmall ? 'text-sm' : '', isArray ? 'mt-1' : '']"
         :display-value="(val: any) => ''"
         :placeholder="isArray ? 'Add ' : 'Select ' + runtimeType?.name"
         @keydown.backspace.exact.prevent="
