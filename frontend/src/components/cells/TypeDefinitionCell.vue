@@ -233,7 +233,7 @@ defineExpose({
             structref-only
             hide-flags
             hide-icon
-            class="w-full rounded-sm border border-transparent border-opacity-[15%] focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
+            class="w-full rounded-sm border border-transparent focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           />
         </div>
       </div>
@@ -309,7 +309,7 @@ defineExpose({
         @delete-left="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        class="w-full self-start border border-transparent py-0.5 pr-2 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+        class="w-full self-start border border-transparent py-0.5 pr-2 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
       />
       <!-- Description -->
       <InlineValueCell
@@ -331,7 +331,7 @@ defineExpose({
         @delete-left="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+        class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
       />
       <!-- :EditableCellStyle -->
     </template>
@@ -345,8 +345,8 @@ defineExpose({
       class="mt-1 w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="insertMember()"
       @enter="insertMember()"
-      @keydown.up.exact="focusLast"
-      @keydown.down.exact="context.navigateDown"
+      @keydown.up.exact.prevent="focusLast"
+      @keydown.down.exact.prevent="context.navigateDown"
     >
       +{{ isEnum ? "option" : "field" }}
     </button>

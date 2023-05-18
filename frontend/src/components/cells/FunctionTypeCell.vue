@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
-import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
+import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { makeTypeNode, STRING_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
@@ -26,16 +26,16 @@ const outputNodes = computed(
   () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as SimpleTypeNode) ?? []
 );
 
-type ColumnType = "name" | "type" | "description";
-const columnsInOrder: Ref<ColumnType[]> = ref(["name", "type", "description"] as ColumnType[]);
-const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(columnsInOrder, inputNodes, {
+type ColumnType = "type" | "description";
+const columnsInOrder: Ref<ColumnType[]> = ref(["type", "description"] as ColumnType[]);
+const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell>>(columnsInOrder, inputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addInputRef.value?.focus(),
   gridNavigateRight: (rowIdx) => focusColumn("output", rowIdx, 0),
   nowrapLeft: true,
   nowrapRight: true,
 });
-const outputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell>>(columnsInOrder, outputNodes, {
+const outputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell>>(columnsInOrder, outputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addOutputRef.value?.focus(),
   gridNavigateLeft: (rowIdx) => focusColumn("input", rowIdx, -1),
@@ -86,7 +86,7 @@ function insertBelow(kind: "input" | "output", memberId?: string) {
     flags: kind == "output" ? TypeFlag.IsOutput : 0,
   });
   context.createTypeNode(newMemberNode);
-  nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "name"));
+  nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "type"));
 }
 
 function deleteMember(kind: "input" | "output", memberId: string) {
@@ -97,7 +97,7 @@ function deleteMember(kind: "input" | "output", memberId: string) {
   }
   const member = members[memberIdx];
   context.deleteTypeNode(member as any); // must exist
-  (kind == "input" ? inputGrid : outputGrid).focus(memberIdx - 1, "name"); // move focus above
+  (kind == "input" ? inputGrid : outputGrid).focus(memberIdx - 1, "type"); // move focus above
 }
 
 function focus(what: "first" | "last", kind: "input" | "output") {
@@ -107,7 +107,7 @@ function focus(what: "first" | "last", kind: "input" | "output") {
     (kind == "input" ? addInputRef : addOutputRef).value?.focus();
   } else {
     // focus first/last
-    (kind == "input" ? inputGrid : outputGrid).focus(what == "first" ? 0 : -1, "name");
+    (kind == "input" ? inputGrid : outputGrid).focus(what == "first" ? 0 : -1, "type");
   }
 }
 
@@ -140,18 +140,17 @@ defineExpose({
 <template>
   <div class="flex w-full flex-row flex-wrap items-start justify-evenly gap-4">
     <!-- Inputs -->
-    <!-- TODO @Cleanup: FunctionTypeCell (input & output) + TypeDefinitionCell + are suspiciously similar -->
-    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,auto)_minmax(60px,1fr)]">
+    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of inputNodes" :key="member.id">
         <!-- Columns -->
         <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
           <!-- Individual column: a bit messy -->
           <component
-            :is="column == 'type' ? InlineTypeCell : InlineValueCell"
+            :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
-            :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
             :active="context.focused.value || context.editing.value"
             immediate
@@ -164,13 +163,13 @@ defineExpose({
             @navigate-up="inputGrid.navigateUp(member.id, column)"
             @navigate-down="inputGrid.navigateDown(member.id, column)"
             @delete-left="deleteMember('input', member.id)"
-            @keydown.delete.exact="isEditing || deleteMember('input', member.id)"
-            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            @delete-self="deleteMember('input', member.id)"
+            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :class="{
               'text-gray-400': column == 'type',
             }"
           />
-          <!-- Note the :EditableCellStyle above (should be symmetric) -->
+          <!-- :EditableCellStyle -->
         </template>
       </template>
       <!-- Add a member -->
@@ -191,17 +190,17 @@ defineExpose({
     <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,auto)_minmax(60px,1fr)]">
+    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of outputNodes" :key="member.id">
         <!-- Columns -->
         <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
           <!-- Individual column: a bit messy -->
           <component
-            :is="column == 'type' ? InlineTypeCell : InlineValueCell"
+            :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
-            :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
             :readonly="context.readonly.value"
             :active="context.focused.value || context.editing.value"
             immediate
@@ -214,13 +213,13 @@ defineExpose({
             @navigate-up="outputGrid.navigateUp(member.id, column)"
             @navigate-down="outputGrid.navigateDown(member.id, column)"
             @delete-left="deleteMember('output', member.id)"
-            @keydown.delete.exact="isEditing || deleteMember('output', member.id)"
-            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+            @delete-self="deleteMember('output', member.id)"
+            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :class="{
               'text-gray-400': column == 'type',
             }"
           />
-          <!-- Note the :EditableCellStyle above (should be symmetric) -->
+          <!-- :EditableCellStyle -->
         </template>
       </template>
       <!-- Add a member -->

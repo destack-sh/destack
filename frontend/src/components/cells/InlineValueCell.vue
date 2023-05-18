@@ -193,10 +193,10 @@ defineExpose({
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
       @keydown.tab.exact.prevent="editing || emitPrevent($event, 'navigateRight')"
       @keydown.shift.tab.exact.prevent="editing || emitPrevent($event, 'navigateLeft')"
-      @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
-      @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
-      @keydown.backspace.exact="editing || emitPrevent($event, 'deleteLeft')"
-      @keydown.delete.exact="editing || emitPrevent($event, 'deleteSelf')"
+      @keydown.up.exact.prevent="editing || emitPrevent($event, 'navigateUp')"
+      @keydown.down.exact.prevent="editing || emitPrevent($event, 'navigateDown')"
+      @keydown.backspace.exact.prevent="editing || emitPrevent($event, 'deleteLeft')"
+      @keydown.delete.exact.prevent="editing || emitPrevent($event, 'deleteSelf')"
       @focus.stop.prevent="emit('focus', $event)"
       class="mousetrap-no-tab relative h-full max-h-28 w-full overflow-y-hidden text-left outline-none"
       :class="{
@@ -343,7 +343,7 @@ defineExpose({
           spellcheck="false"
           class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
           :class="[editor.textSmall ? 'text-sm' : '']"
-          :display-value="(val: any) => val?.name"
+          :display-value="(val: any) => ''"
           :placeholder="placeholderValue ?? '...'"
           @keyup.escape.prevent="confirm"
         >
@@ -357,9 +357,9 @@ defineExpose({
           >
             <li
               :class="[
-                'relative cursor-default select-none px-2 py-0.5 text-gray-900',
+                'relative cursor-default select-none px-1 py-0.5',
                 active ? 'bg-orange-100' : '',
-                selected ? 'underline' : '',
+                selected ? 'text-orange-600' : 'text-gray-900',
               ]"
             >
               {{ member.name }}

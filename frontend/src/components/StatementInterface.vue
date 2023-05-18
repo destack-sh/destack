@@ -402,7 +402,7 @@ const filteredClients = computed(() =>
       }"
     >
       <!-- Left gutter -->
-      <!-- Monaco-like line number (also drag handle) -->
+      <!-- Monaco-like line number and drag handle -->
       <span
         class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-150"
         :style="{ transform: 'translateX(' + -30 + 'px)' }"
@@ -454,22 +454,16 @@ const filteredClients = computed(() =>
       <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
-      <!-- Statement focus indicator (left side if not editing) -->
-      <!-- (the z-[5] puts it in front of the statement focus border) -->
+      <!-- Statement focus indicator  -->
       <div
         class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition duration-150"
         :class="{
-          'group-focus-within/statement:bg-orange-200 group-hover/statement:bg-orange-300': !isCommentish,
-          'group-focus-within/statement:bg-gray-200 group-hover/statement:bg-gray-300': isCommentish,
+          'group-focus-within/statement:bg-orange-300 group-hover/statement:bg-orange-200': !isCommentish,
+          'group-focus-within/statement:bg-gray-300 group-hover/statement:bg-gray-200': isCommentish,
+          'bg-orange-300': isFocused && !isCommentish,
+          'bg-gray-300': isFocused && isCommentish,
         }"
       />
-      <!-- Statement focus indicator (all around if editing) -->
-      <div :class="isEditing ? 'opacity-100' : 'opacity-0'" class="transition duration-150">
-        <div class="absolute left-0 top-0 h-0.5 w-full" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
-        <div class="absolute bottom-0 left-0 h-0.5 w-full" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
-        <div class="absolute left-0 top-0 h-full w-0.5" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
-        <div class="absolute right-0 top-0 h-full w-0.5" :class="isCommentish ? 'bg-gray-200' : 'bg-orange-200'" />
-      </div>
       <!-- Statement drag & drop indicator (top/bottom) -->
       <div
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"

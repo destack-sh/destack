@@ -10,6 +10,7 @@ import {
   Bars3BottomLeftIcon,
   CalendarDaysIcon,
   CheckIcon,
+  ChevronDoubleDownIcon,
   ClockIcon,
   CodeBracketIcon,
   DocumentIcon,
@@ -61,7 +62,7 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Video]: VideoCameraIcon,
   [TypeTag.TypeReference]: ArrowUpRightIcon,
   [TypeTag.Struct]: Squares2X2Icon,
-  [TypeTag.Enum]: ArrowDownCircleIcon,
+  [TypeTag.Enum]: ChevronDoubleDownIcon,
 };
 const iconsByHint: Record<TypeHint, any> = {
   // string
