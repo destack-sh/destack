@@ -1,17 +1,16 @@
 <script lang="ts" setup>
 import { getInterface } from "@/components/cells/interfaces";
-import type { SimpleType } from "@/components/statement";
-import { useAppearance } from "@/state/appearance";
-import { computed, nextTick, ref, type Ref } from "vue";
-
 import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
-import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
-import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
-import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
 import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
-import { onClickOutside } from "@vueuse/core";
+import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
+import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
+import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
+import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
+import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import { useScrollContext } from "@/state/editor";
+import { useAppearance } from "@/state/appearance";
+import { onClickOutside } from "@vueuse/core";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -19,6 +18,7 @@ const INTERFACES: Record<string, any> = {
   string: StringInterface,
   number: NumberInterface,
   enum: EnumInterface,
+  file: FileInterface,
 };
 
 const props = defineProps<{
@@ -190,8 +190,8 @@ defineExpose({
         :preview="false"
         :active="active"
         v-bind="appearanceAttrs"
-        @keydown.escape.prevent.stop="close"
-        @keydown.enter.prevent.stop="enter"
+        @keydown.escape.exact.prevent.stop="close"
+        @keydown.enter.exact.prevent.stop="enter"
         @close="close"
         @enter="enter"
       />

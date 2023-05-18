@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
+import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
 import { ANY_TYPE_NODE } from "@/components/statement";
 import { formatDiffSeconds, formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
@@ -229,7 +229,7 @@ defineExpose({
           </td>
           <!-- Inputs -->
           <td v-for="column in inputColumns" :key="column.type.id" class="px-3 py-3">
-            <InlineValueCell
+            <InlineValueCell2
               :type="column.type"
               :model-value="column.type.name == null ? execution.inputs : execution.inputs?.[column.type.key]"
               :readonly="true"
@@ -239,7 +239,7 @@ defineExpose({
           </td>
           <!-- Outputs -->
           <td v-for="column in outputColumns" :key="column.type.id" class="px-3 py-3">
-            <InlineValueCell
+            <InlineValueCell2
               v-if="execution.status != ExecutionStatus.Failed"
               :type="column.type"
               :model-value="column.type.name == null ? execution.outputs : execution.outputs?.[column.type.key]"
