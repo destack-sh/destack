@@ -2,7 +2,7 @@
 import { getInterface } from "@/components/cells/interfaces";
 import type { SimpleType } from "@/components/statement";
 import { useAppearance } from "@/state/appearance";
-import { computed, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 
 import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
 import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
@@ -64,7 +64,7 @@ const valueInterface = computed(() => {
 });
 const readValue = computed(() => {
   if (valueInterface.value?.read != null) {
-    return valueInterface.value.read(props.modelValue);
+    return valueInterface.value.read(props.type, props.modelValue);
   } else {
     return props.modelValue;
   }
@@ -76,7 +76,7 @@ onClickOutside(editableRef, () => {
 
 function writeValue(value: any) {
   if (valueInterface.value?.write != null) {
-    value = valueInterface.value.write(value);
+    value = valueInterface.value.write(props.type, value);
   }
   emit("update:modelValue", value);
 }
@@ -90,6 +90,7 @@ function edit() {
 
   editing.value = true;
   emit("edit");
+  nextTick(() => editableRef.value?.focus());
 }
 
 function focus() {
@@ -101,6 +102,16 @@ function blur() {
   previewButtonRef.value?.blur();
   previewRef.value?.blur();
   editableRef.value?.blur();
+}
+
+function close() {
+  editing.value = false;
+  nextTick(() => previewButtonRef.value?.focus()); // refocus preview
+}
+
+function enter() {
+  editing.value = false;
+  emit("navigateDown");
 }
 
 const appearance = useAppearance();
@@ -144,7 +155,6 @@ defineExpose({
     >
       <component
         v-if="valueInterface"
-        class=""
         ref="previewRef"
         :is="INTERFACES[valueInterface.id]"
         :type="type"
@@ -160,11 +170,11 @@ defineExpose({
     <!-- Editable popover -->
     <div
       v-if="editing && valueInterface"
-      ref="editableRef"
       class="absolute -left-1 -top-1 z-10 min-w-full rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
     >
       <component
         :is="INTERFACES[valueInterface.id]"
+        ref="editableRef"
         :type="type"
         :model-value="readValue"
         @update:model-value="writeValue($event)"
@@ -172,6 +182,10 @@ defineExpose({
         :preview="false"
         :active="active"
         v-bind="appearanceAttrs"
+        @keydown.escape.prevent.stop="close"
+        @keydown.enter.prevent.stop="enter"
+        @close="close"
+        @enter="enter"
       />
     </div>
   </div>

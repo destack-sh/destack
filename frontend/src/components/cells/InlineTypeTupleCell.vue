@@ -4,7 +4,8 @@ import { useElementRefs } from "@/components/cells/grid";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { ANY_TYPE_NODE, type SimpleType, type TypeAction } from "@/components/statement";
+import { ANY_TYPE_NODE, getEnumColor, type SimpleType, type TypeAction } from "@/components/statement";
+import { TypeTag } from "@/gql/graphql";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
@@ -19,7 +20,7 @@ const props = defineProps<{
   hideFlags?: boolean;
   extraActions?: TypeAction[];
   tupleName?: string;
-  untyped?: boolean;
+  isEnum?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -39,6 +40,7 @@ const emit = defineEmits<{
 const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
+
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -71,7 +73,7 @@ watch(
 const actions: Ref<TypeAction[]> = computed(() => {
   const actions = [];
   if (!props.readonly) {
-    if (!props.untyped) {
+    if (!props.isEnum) {
       actions.push({
         label: "Edit type",
         icon: AdjustmentsHorizontalIcon,
@@ -131,15 +133,26 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
       class="flex h-full w-full flex-row items-center text-left outline-none"
+      :class="[isEnum ? 'bg-gray-100 px-2' : '']"
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
+      <!-- :EnumStyle -->
+      <svg
+        v-if="isEnum"
+        class="mr-1.5 h-1.5 w-1.5"
+        :style="{ fill: getEnumColor(value) }"
+        viewBox="0 0 6 6"
+        aria-hidden="true"
+      >
+        <circle cx="3" cy="3" r="3" />
+      </svg>
       <span
         class="mr-2 text-gray-900"
-        :class="inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : ''"
+        :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
         >{{ value.name }}</span
       >
-      <SimpleTypePreview v-if="!untyped" :type="value" :hide-icon="value.reference != null" />
+      <SimpleTypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
     </button>
     <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
@@ -150,7 +163,7 @@ defineExpose({
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Name & type -->
-        <div class="flex flex-row items-baseline justify-between gap-2">
+        <div class="flex flex-row items-center justify-between gap-2">
           <!-- Name -->
           <EditableSpan
             ref="nameRef"
@@ -165,7 +178,7 @@ defineExpose({
             "
           />
           <!-- Type popover -->
-          <Popover v-if="!untyped" as="div" class="relative" v-slot="{ close }">
+          <Popover v-if="!isEnum" as="div" class="relative" v-slot="{ close }">
             <button
               ref="typeButtonRef"
               :disabled="readonly"
@@ -194,6 +207,16 @@ defineExpose({
               />
             </PopoverPanel>
           </Popover>
+          <!-- Enum color (not yet editable) -->
+          <div
+            v-else
+            ref="typeButtonRef"
+            class="rounded-sm border border-orange-900 border-opacity-[12%] p-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+          >
+            <svg class="h-3 w-3" :style="{ fill: getEnumColor(value) }" viewBox="0 0 6 6" aria-hidden="true">
+              <rect x="0" y="0" width="6" height="6" />
+            </svg>
+          </div>
         </div>
         <!-- Actions -->
         <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">

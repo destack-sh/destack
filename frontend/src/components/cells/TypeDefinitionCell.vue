@@ -288,7 +288,7 @@ defineExpose({
     +description
   </button>
   <!-- Members (enum options or struct fields) -->
-  <div v-if="membersLength > 0" class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_minmax(160px,1fr)]">
+  <div v-if="membersLength > 0" class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_minmax(160px,1fr)] gap-y-0.5">
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Type -->
@@ -298,7 +298,7 @@ defineExpose({
         :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
         :readonly="context.readonly.value"
         :active="context.focused.value || context.editing.value"
-        :untyped="isEnum"
+        :isEnum="isEnum"
         :tupleName="isEnum ? 'option' : 'field'"
         @navigate-left="grid.navigateLeft(member.id, 'type')"
         @navigate-right="grid.navigateRight(member.id, 'type')"
@@ -308,7 +308,12 @@ defineExpose({
         @delete-left="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        class="w-full self-start border border-transparent py-0.5 pr-2 text-gray-400 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+        class="self-start border border-orange-900 border-opacity-0 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
+        :class="
+          isEnum
+            ? 'w-fit focus-within:border-opacity-40 hover:border-opacity-40'
+            : 'w-full py-0.5 focus-within:border-opacity-[15%]'
+        "
       />
       <!-- Description -->
       <InlineValueCell
@@ -329,7 +334,7 @@ defineExpose({
         @delete-left="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+        class="w-full self-start border border-transparent px-2 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
       />
       <!-- :EditableCellStyle -->
     </template>

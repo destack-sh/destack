@@ -503,7 +503,7 @@ export function getEnumColor(type: { key: string }) {
   // Generate a random pastel color based on the seed
   const hue = seed % 360;
   const saturation = 70 + (seed % 25); // Range: 70-95
-  const lightness = 70 + (seed % 20); // Range: 70-90
+  const lightness = 70;
 
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
