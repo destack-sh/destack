@@ -490,4 +490,5 @@ export function makeTypeNode(data: {
 export type SimpleType = Omit<SimpleTypeNode, "statement" | "createdAt" | "updatedAt" | "__typename">;
 
 export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
+export const NAME_TYPE_NODE = makeTypeNode({ tag: TypeTag.String, hint: TypeHint.Name });
 export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });

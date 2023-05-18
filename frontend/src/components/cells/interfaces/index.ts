@@ -1,0 +1,106 @@
+import type { SimpleType } from "@/components/statement";
+import { TypeHint, TypeTag } from "@/gql/graphql";
+import { TypeFlag } from "@/state/runtime";
+
+export type ValueInterface = {
+  id: string;
+  tags?: TypeTag[];
+  hints?: TypeHint[];
+  inline?: boolean;
+  supportsList?: boolean;
+  supportsSecret?: boolean;
+  read?(value: any): any;
+  write?(value: any): any;
+  map?(value: any): any;
+};
+
+export const interfaces: Record<string, ValueInterface> = {};
+
+export function registerInterface(id: string, value: Omit<ValueInterface, "id">) {
+  if (interfaces[id] != null) {
+    throw new Error(`interface ${id} already registered`);
+  }
+  // if map is set, set it as read and write
+  if (value.map != null) {
+    value.read = value.map;
+    value.write = value.map;
+  }
+  interfaces[id] = { ...value, id };
+}
+
+function fromArray(value: any) {
+  if (Array.isArray(value)) {
+    return value[0];
+  } else {
+    return value;
+  }
+}
+
+function toArray(value: any) {
+  if (Array.isArray(value)) {
+    return value;
+  } else {
+    return [value];
+  }
+}
+
+function coerceToBoolean(value: any) {
+  value = fromArray(value);
+  return typeof value == "boolean" ? value : false;
+}
+
+function coerceToString(value: any) {
+  value = fromArray(value);
+  return typeof value == "string" ? value : "";
+}
+
+function coerceToNumber(value: any) {
+  value = fromArray(value);
+  if (typeof value == "string") {
+    value = Number.parseFloat(value.trim());
+  }
+  return typeof value == "number" ? value : null;
+}
+
+registerInterface("boolean.checkbox", {
+  tags: [TypeTag.Boolean],
+  inline: true,
+  map: coerceToBoolean,
+});
+registerInterface("boolean.toggle", {
+  tags: [],
+  hints: [TypeHint.Toggle],
+  inline: true,
+  map: coerceToBoolean,
+});
+registerInterface("string", {
+  tags: [TypeTag.String],
+  map: coerceToString,
+});
+registerInterface("number", {
+  tags: [TypeTag.Number],
+  map: coerceToNumber,
+});
+
+export function getInterface(type: SimpleType): ValueInterface | undefined {
+  // find most specific interface that supports the type
+  const withFlags = Object.values(interfaces).filter((i) => {
+    if (type.flags & TypeFlag.IsArray && !i.supportsList) {
+      return false;
+    }
+    if (type.flags & TypeFlag.IsSecret && !i.supportsSecret) {
+      return false;
+    }
+    return true;
+  });
+  // prefer find by hint
+  if (type.hint != null) {
+    const byHint = withFlags.find((i) => i.hints?.includes(type.hint!));
+    if (byHint != null) {
+      return byHint;
+    }
+  }
+  // if hint not found fall back to tag
+  const byTag = withFlags.find((i) => i.tags?.includes(type.tag));
+  return byTag;
+}

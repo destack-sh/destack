@@ -5,6 +5,7 @@ import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
   AdjustmentsHorizontalIcon,
   ArrowDownCircleIcon,
+  ArrowsRightLeftIcon,
   ArrowUpRightIcon,
   AtSymbolIcon,
   Bars3BottomLeftIcon,
@@ -85,7 +86,7 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Slider]: AdjustmentsHorizontalIcon,
   [TypeHint.Phone]: PhoneIcon,
   // boolean
-  [TypeHint.Toggle]: CheckIcon,
+  [TypeHint.Toggle]: ArrowsRightLeftIcon,
   [TypeHint.Checkbox]: CheckIcon,
 };
 

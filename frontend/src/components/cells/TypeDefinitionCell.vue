@@ -8,17 +8,16 @@ import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import {
   makeTypeNode,
-  STRING_TYPE_NODE,
+  NAME_TYPE_NODE,
   useStatementContext,
   type InlineAction,
   type SimpleType,
-  type TypeAction,
 } from "@/components/statement";
-import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { TypeTag } from "@/gql/graphql";
 import { newTypeNodeId } from "@/state/operations/statement";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
-import { Square2StackIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -321,8 +320,7 @@ defineExpose({
         immediate
         debounced
         :placeholder-value="context.editing.value ? '+' + 'description' : null"
-        :type="STRING_TYPE_NODE"
-        slim
+        :type="NAME_TYPE_NODE"
         @navigate-left="grid.navigateLeft(member.id, 'description')"
         @navigate-right="grid.navigateRight(member.id, 'description')"
         @navigate-up="grid.navigateUp(member.id, 'description')"
