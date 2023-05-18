@@ -43,7 +43,7 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.typer import check_type, map_value
+from bench.language.typer import check_type, map_rekey_enum, map_unkey_enum, map_value
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
@@ -278,6 +278,11 @@ class TypeInstance(SymbolInstance, Type):
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
+
+    def __getattr__(self, item):
+        if item in self:
+            return self[item]
+        raise AttributeError(f"{self} has no attribute {item}")
 
 
 @dataclass(repr=False)
@@ -664,6 +669,8 @@ def instantiate_py_value_inner(value: Any, type: TypeNode) -> Any:
             return value
     elif type.tag == TypeTag.STRUCT and isinstance(type, TypeInstance):
         return type(**value)
+    elif type.tag == TypeTag.ENUM:
+        return map_unkey_enum(value, type)
     return value
 
 
@@ -673,6 +680,8 @@ def strip_py_value_inner(value: Any, type: TypeNode) -> Any:
             return value.to_dict()
         except (KeyError, ValueError, TypeError):
             return None  # raise? (but should be type error earlier)
+    elif type.tag == TypeTag.ENUM:
+        return map_rekey_enum(value, type)
     return value
 
 

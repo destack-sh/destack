@@ -606,14 +606,23 @@ class TypeNode(abc.ABC):
 
     def __getitem__(self, item: str) -> "TypeNode":
         node = first(
-            (child for child in self.type_nodes if child.name == item or child.ident == item), None
+            (
+                child
+                for child in self.type_nodes
+                if child.name == item or child.ident == item or child.key == item
+            ),
+            None,
         )
         if node is None:
             raise KeyError(item)
         return node
 
     def __contains__(self, item):
-        return any(child for child in self.type_nodes if child.name == item or child.ident == item)
+        return any(
+            child
+            for child in self.type_nodes
+            if child.name == item or child.ident == item or child.key == item
+        )
 
     def walk(self, path: list[TypeNode] | None = None):
         if path is None:

@@ -145,6 +145,18 @@ def map_value(
     return mapped
 
 
+def map_unkey_enum(value: Any, type: TypeNode):
+    if type.tag == TypeTag.ENUM:
+        return type[value].name
+    return value
+
+
+def map_rekey_enum(value: Any, type: TypeNode):
+    if type.tag == TypeTag.ENUM:
+        return type[value].key
+    return value
+
+
 def unkey_value(
     value: Any,
     type: TypeNode,
@@ -152,7 +164,7 @@ def unkey_value(
     ignore_array: bool = False,
     to_ident: bool = False,
 ) -> Any:
-    """Replaces all name 'keys' with the actual names (recursively)."""
+    """Replaces keys with actual values."""
     if to_ident:
 
         def map_k(t: TypeNode):
@@ -166,6 +178,7 @@ def unkey_value(
     return map_value(
         value,
         type,
+        map_v=map_unkey_enum,
         map_k=map_k,
         is_output=is_output,
         ignore_array=ignore_array,
@@ -179,7 +192,7 @@ def rekey_value(
     ignore_array: bool = True,
     from_ident: bool = False,
 ) -> Any:
-    """Replaces all actual names with the name 'keys' (recursively)."""
+    """Replaces names with keys."""
     if from_ident:
 
         def map_k(t: TypeNode):
@@ -193,6 +206,7 @@ def rekey_value(
     return map_value(
         value,
         type,
+        map_v=map_rekey_enum,
         map_k=map_k,
         is_output=is_output,
         ignore_array=ignore_array,
