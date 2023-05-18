@@ -9,9 +9,9 @@ export type ValueInterface = {
   inline?: boolean;
   supportsList?: boolean;
   supportsSecret?: boolean;
-  read?(value: any): any;
-  write?(value: any): any;
-  map?(value: any): any;
+  read?(type: SimpleType, value: any): any;
+  write?(type: SimpleType, value: any): any;
+  map?(type: SimpleType, value: any): any;
 };
 
 export const interfaces: Record<string, ValueInterface> = {};
@@ -36,26 +36,42 @@ function fromArray(value: any) {
   }
 }
 
-function toArray(value: any) {
+function toArrayAsFlagged(type: SimpleType, value: any) {
   if (Array.isArray(value)) {
-    return value;
+    if (!(type.flags & TypeFlag.IsArray)) {
+      return value.slice(0, 1);
+    } else {
+      return value;
+    }
   } else if (value != null) {
     return [value];
   }
   return [];
 }
 
-function coerceToBoolean(value: any) {
+function toArrayIfFlagged(type: SimpleType, value: any) {
+  if (type.flags & TypeFlag.IsArray) {
+    if (Array.isArray(value)) {
+      return value;
+    } else {
+      return [value];
+    }
+  } else {
+    return fromArray(value);
+  }
+}
+
+function coerceToBoolean(type: SimpleType, value: any) {
   value = fromArray(value);
   return typeof value == "boolean" ? value : false;
 }
 
-function coerceToString(value: any) {
+function coerceToString(type: SimpleType, value: any) {
   value = fromArray(value);
   return typeof value == "string" ? value : "";
 }
 
-function coerceToNumber(value: any) {
+function coerceToNumber(type: SimpleType, value: any) {
   value = fromArray(value);
   if (typeof value == "string") {
     value = Number.parseFloat(value.trim());
@@ -84,7 +100,8 @@ registerInterface("number", {
 });
 registerInterface("enum", {
   tags: [TypeTag.Enum],
-  map: toArray,
+  read: (t, v) => toArrayAsFlagged(t, v),
+  write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
 });
 

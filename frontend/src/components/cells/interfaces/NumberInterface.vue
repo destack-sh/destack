@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { SimpleType } from "@/gql/graphql";
+import { ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;
@@ -7,14 +8,22 @@ const props = defineProps<{
   preview?: boolean;
 }>();
 
+const inputRef: Ref<HTMLInputElement | null> = ref(null);
+
 const emit = defineEmits<{
   (e: "update:modelValue", value: number): void;
 }>();
+
+defineExpose({
+  focus: () => inputRef.value?.focus(),
+  blur: () => inputRef.value?.blur(),
+});
 </script>
 <template>
   <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
   <input
     v-else
+    ref="inputRef"
     class="w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
     type="number"
     :value="modelValue"
