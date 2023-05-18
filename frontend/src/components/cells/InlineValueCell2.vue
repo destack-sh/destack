@@ -2,14 +2,14 @@
 import { getInterface } from "@/components/cells/interfaces";
 import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
 import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
+import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
 import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
 import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
 import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
-import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
-import { onClickOutside } from "@vueuse/core";
+import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
@@ -57,9 +57,11 @@ const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
 
+const previewSize = useElementSize(previewButtonRef);
+
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
-  if (INTERFACES[iface?.id] != null) {
+  if (INTERFACES[iface?.id as string] != null) {
     return iface;
   } else if (iface != null) {
     console.log("no interface for", iface.id);
@@ -73,8 +75,6 @@ const readValue = computed(() => {
     return props.modelValue;
   }
 });
-
-onClickOutside(editableRef, close);
 
 function writeValue(value: any) {
   if (valueInterface.value?.write != null) {
@@ -136,6 +136,7 @@ defineExpose({
   editing,
   focus,
   blur,
+  previewSize,
 });
 </script>
 <template>
@@ -144,12 +145,12 @@ defineExpose({
     <!-- Preview -->
     <div
       ref="previewButtonRef"
-      class="mousetrap-no-tab relative h-full w-full overflow-y-hidden text-left outline-none"
+      class="mousetrap-no-tab relative inline-block w-full overflow-y-hidden text-left outline-none"
       :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
       @click="edit"
-      @keydown.enter.exact="edit"
+      @keydown.enter.exact.stop.prevent="edit"
       @keydown.space.exact="edit"
       @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
@@ -173,11 +174,11 @@ defineExpose({
       <div v-else class="text-red-600">!!!</div>
     </div>
     <!-- Editable popover -->
-    <!-- Positioned is pinned with fixed, see above -->
+    <!-- Popover position is pinned with fixed, see above -->
     <div
       v-if="editing && valueInterface"
       ref="editablePopoverRef"
-      class="z-20 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="z-50 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="editablePin.pinned.value ? '' : 'absolute -left-1 -top-1 min-h-full min-w-full'"
     >
       <component
@@ -196,7 +197,11 @@ defineExpose({
         @enter="enter"
       />
     </div>
-    <!-- Invisible fixed overlay to prevent scrolling -->
-    <div v-if="editing && valueInterface" class="fixed left-0 top-0 z-10 h-full w-full overscroll-none" />
+    <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
+    <div
+      v-if="editing && valueInterface"
+      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+      @click="close"
+    />
   </div>
 </template>
