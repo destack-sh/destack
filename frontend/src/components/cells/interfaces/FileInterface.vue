@@ -152,7 +152,7 @@ defineExpose({
         :class="file.status == RemoteObjectStatus.Uploading ? 'animate-spin' : ''"
       />
       <span class="flex flex-row items-baseline gap-1.5">
-        <span class="text-gray-700 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
+        <span class="text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
         <span class="text-xs text-gray-400">{{ humanizeBytes(file?.contentLength) }}</span>
       </span>
       <!-- Delete button -->
