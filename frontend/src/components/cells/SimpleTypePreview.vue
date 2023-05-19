@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { renderBuiltinType, TYPETAG_KEYWORD } from "@/state/editor";
+import { renderBuiltinType } from "@/state/editor";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
   AdjustmentsHorizontalIcon,
-  ArrowDownCircleIcon,
   ArrowsRightLeftIcon,
   ArrowUpRightIcon,
   AtSymbolIcon,
@@ -28,7 +27,9 @@ import {
   SparklesIcon,
   SpeakerWaveIcon,
   Squares2X2Icon,
+  StarIcon,
   VideoCameraIcon,
+  HandThumbUpIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -87,9 +88,11 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Float]: HashtagIcon,
   [TypeHint.Slider]: AdjustmentsHorizontalIcon,
   [TypeHint.Phone]: PhoneIcon,
+  [TypeHint.Rating]: StarIcon,
   // boolean
   [TypeHint.Toggle]: ArrowsRightLeftIcon,
   [TypeHint.Checkbox]: CheckIcon,
+  [TypeHint.Thumbs]: HandThumbUpIcon,
 };
 
 const icon = computed(() => {

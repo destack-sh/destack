@@ -52,6 +52,20 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     }
   }
 
+  function findRef(
+    predicate: (ref: RefType) => boolean
+  ): { rowId: string; column: ColumnType; ref: RefType } | undefined {
+    for (const row of rows.value) {
+      for (const column of columnsInOrder.value) {
+        const ref = getRef(row.id, column);
+        if (ref != undefined && predicate(ref)) {
+          return { rowId: row.id, column, ref };
+        }
+      }
+    }
+    return undefined;
+  }
+
   function getRef(rowId: string, column: ColumnType): RefType {
     const columnId = rowId + "." + column;
     return columnRefs.value[columnId];
@@ -137,6 +151,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   return {
     registerColumnRef,
     refs: computed(() => Object.values(columnRefs.value)),
+    findRef,
     getRef,
     getColumn,
     focus,

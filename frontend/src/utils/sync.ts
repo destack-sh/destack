@@ -42,6 +42,7 @@ export function syncProperty<T>(property: {
   });
 
   return {
+    readNow: property.read,
     writeNow: _saveProperty,
     flushNow: () => {
       if (pendingSave.value) {

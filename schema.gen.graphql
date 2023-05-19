@@ -2070,8 +2070,10 @@ enum TypeHint {
   FLOAT
   SLIDER
   PHONE
+  RATING
   TOGGLE
   CHECKBOX
+  THUMBS
 }
 
 input TypeNodeCreateInput {

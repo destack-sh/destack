@@ -120,11 +120,14 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.Float]: "float",
   [TypeHint.Slider]: "slider",
   [TypeHint.Phone]: "phone",
+  [TypeHint.Rating]: "rating",
   // boolean
   [TypeHint.Toggle]: "toggle",
   [TypeHint.Checkbox]: "checkbox",
+  [TypeHint.Thumbs]: "thumbs",
 };
 export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
+  // string
   [TypeHint.Name]: TypeTag.String,
   [TypeHint.Uuid]: TypeTag.String,
   [TypeHint.Datetime]: TypeTag.String,
@@ -133,8 +136,12 @@ export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
   [TypeHint.Html]: TypeTag.String,
   [TypeHint.Key]: TypeTag.String,
   [TypeHint.Code]: TypeTag.String,
+  // number
   [TypeHint.Phone]: TypeTag.String,
+  [TypeHint.Rating]: TypeTag.Number,
+  // boolean
   [TypeHint.Toggle]: TypeTag.Boolean,
+  [TypeHint.Thumbs]: TypeTag.Boolean,
 };
 export const TYPEHINT_BY_KEYWORD: Record<string, TypeHint> = reverseRecord(TYPEHINT_KEYWORD);
 

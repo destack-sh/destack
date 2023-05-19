@@ -14,13 +14,18 @@ import { useAppearance } from "@/state/appearance";
 import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { TypeFlag } from "@/state/runtime";
+import ThumbsInterface from "@/components/cells/interfaces/ThumbsInterface.vue";
+import RatingInterface from "@/components/cells/interfaces/RatingInterface.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
   "boolean.toggle": ToggleInterface,
+  "boolean.thumbs": ThumbsInterface,
   string: StringInterface,
   "string.short": ShortStringInterface,
   number: NumberInterface,
+  "number.rating": RatingInterface,
   enum: EnumInterface,
   file: FileInterface,
   secret: SecretInterface,
@@ -108,6 +113,7 @@ if (debounce) {
 }
 
 function edit() {
+  if (editing.value) return;
   if (valueInterface.value == null) return;
   if (valueInterface.value.inline) {
     previewRef.value.click?.();
@@ -160,6 +166,8 @@ defineExpose({
   editing,
   focus,
   blur,
+  edit,
+  close,
   previewSize,
 });
 </script>
@@ -181,6 +189,7 @@ defineExpose({
       @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
       @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
       @keydown.delete.exact.prevent.stop="editing || emit('deleteSelf')"
+      @keydown="editing || previewRef?.onKeydown?.($event)"
     >
       <component
         v-if="valueInterface"
@@ -194,7 +203,12 @@ defineExpose({
         preview
         v-bind="appearanceAttrs"
       />
-      <div v-else class="text-red-600">!!!</div>
+      <!-- Not found (mainly for dev mode (hopefully)) -->
+      <div v-else class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
+        {{ props.type.tag }} ({{ props.type.hint }})
+        <template v-if="props.type.flags & TypeFlag.IsSecret">(secret)</template>
+        <template v-if="props.type.flags & TypeFlag.IsArray">(array)</template>
+      </div>
     </div>
     <!-- Editable popover -->
     <!-- Popover position is pinned with fixed, see above -->
