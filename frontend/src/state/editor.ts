@@ -115,6 +115,7 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.RichText]: "rich",
   [TypeHint.Html]: "HTML",
   [TypeHint.Code]: "code",
+  [TypeHint.Key]: "key",
   // number
   [TypeHint.Integer]: "integer",
   [TypeHint.Float]: "float",
@@ -131,6 +132,7 @@ export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
   [TypeHint.Url]: TypeTag.String,
   [TypeHint.Email]: TypeTag.String,
   [TypeHint.Html]: TypeTag.String,
+  [TypeHint.Key]: TypeTag.String,
   [TypeHint.Code]: TypeTag.String,
   [TypeHint.Phone]: TypeTag.String,
   [TypeHint.Toggle]: TypeTag.Boolean,

@@ -785,6 +785,11 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     nav.value.paste(undefined, statement.value as StatementHeader);
   }
 
+  async function delete_() {
+    if (statement.value == null) return;
+    ops.statement.softDelete(null, statement.value.id);
+  }
+
   async function moveFocusUp() {
     if (statement.value == null) return;
     const above = nav.value.getAbove(statement.value);
@@ -890,6 +895,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     insertBelow,
     insertAbove,
     duplicate,
+    delete: delete_,
     moveFocusUp,
     moveFocusDown,
     insertFilesAsDataset,

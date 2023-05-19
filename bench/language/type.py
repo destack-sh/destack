@@ -215,6 +215,7 @@ class TypeHint(models.TextChoices):
     RICH_TEXT = "rich_text"
     HTML = "html"
     CODE = "code"
+    KEY = "key"
     # number
     INTEGER = "integer"
     FLOAT = "float"

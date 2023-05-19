@@ -2404,6 +2404,7 @@ export enum TypeHint {
   Float = "FLOAT",
   Html = "HTML",
   Integer = "INTEGER",
+  Key = "KEY",
   Markdown = "MARKDOWN",
   Name = "NAME",
   Phone = "PHONE",

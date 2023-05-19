@@ -102,7 +102,7 @@ registerInterface("string", {
   tags: [TypeTag.String],
   map: coerceToString,
   debounceMs: 1000,
-  minWidth: 200,
+  minWidth: 220,
   targetWidth: 300,
   grow: 1.0,
 });
@@ -119,7 +119,7 @@ registerInterface("enum", {
   read: (t, v) => toArrayAsFlagged(t, v),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
-  minWidth: 200,
+  minWidth: 220,
   targetWidth: 300,
   grow: 1.0,
 });
@@ -128,7 +128,7 @@ registerInterface("file", {
   read: (t, v) => toArrayAsFlagged(t, v),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
-  minWidth: 200,
+  minWidth: 220,
   targetWidth: 300,
   grow: 1.0,
 });

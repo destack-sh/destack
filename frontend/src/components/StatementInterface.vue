@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type ActionPopoverVue from "@/components/basic/ActionPopover.vue";
+import ActionPopover from "@/components/basic/ActionPopover.vue";
 import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DataDefinitionCell from "@/components/cells/DataDefinitionCell.vue";
@@ -8,18 +8,16 @@ import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { useMagicActions, useNavigationContext } from "@/components/file";
-import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
+import { STATEMENT_CONTEXT, type StatementAction, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { getClientColor, useCurrentClients } from "@/state/client";
 import { useEditorState, type StatementHeader } from "@/state/editor";
-import { useCurrentEvaluations } from "@/state/evaluations";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
-import { METRIC_METER_UNITS, toBars, toFixed, toPercent, type MetricSet } from "@/utils/metrics";
-import { PlusIcon, SparklesIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, watch, type Component, type Ref } from "vue";
 
@@ -31,7 +29,6 @@ const props = defineProps<{
   readonly: boolean;
   isFirstInGroup: boolean;
   isLastInGroup: boolean;
-  lineNumberBase: number;
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -72,7 +69,7 @@ const context: Ref<StatementContext> = computed(() => ({
   editing: isEditing.value,
   depth: props.depth,
   xOffset: contentOffsetX.value,
-  lineNumberBase: props.lineNumberBase,
+  lineNumberBase: lineNumber.value,
   statement: props.statement,
   reference: symbolOf(statement.value.reference?.id) ?? null,
   file: props.file,
@@ -304,6 +301,20 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
   }
 }
 
+// actions
+const defaultActions: StatementAction[] = [
+  {
+    label: "Duplicate",
+    icon: Square2StackIcon,
+    action: () => magic.duplicate(),
+  },
+  {
+    label: "Delete",
+    icon: TrashIcon,
+    action: () => magic.delete(),
+  },
+];
+
 // runtime
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
@@ -340,44 +351,47 @@ const filteredClients = computed(() =>
       }"
     >
       <!-- Left gutter -->
-      <!-- Monaco-like line number and drag handle -->
-      <span
-        class="absolute top-[3px] select-none px-1.5 text-left not-italic transition duration-150"
-        :style="{ transform: 'translateX(' + -18 + 'px)' }"
+      <div
+        class="absolute top-0 z-[5] flex flex-row-reverse items-center gap-0.5"
         :class="{
-          'opacity-0': !isFocused && !editor.showLineNumbers,
-          'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
-          'text-sm': editor.textSmall,
-          'text-md': !editor.textSmall,
-          'font-mono': editor.fontMono,
-          'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
-            !isCommentish,
-          'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
-            isCommentish,
-          'text-orange-500': (dragOver || isFocused) && !isCommentish,
-          'text-gray-500': (dragOver || isFocused) && isCommentish,
-          'cursor-grab': !context.readonly,
+          '-left-9': lineNumberDigits == 1,
+          '-left-11': lineNumberDigits == 2,
         }"
-        @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
-        @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
       >
-        {{ lineNumberBase + 1 }}
-      </span>
-      <!-- Add statement below button -->
-      <!-- z-[5] to put it over the line numbers, which have a fixed width to make positioning easier (don't expect >99 statements/file) -->
-      <button
-        v-if="!context.readonly"
-        class="absolute top-[3px] z-[5] rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-        :class="isFocused ? 'opacity-100' : 'opacity-0'"
-        :style="{
-          transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
-        }"
-        @click="insertStatementOnClick"
-      >
-        <PlusIcon class="h-4 w-4" />
-      </button>
-      <!-- Other connected clients -->
-      <div class="absolute -left-16 top-[3px] z-10 flex flex-row gap-0.5 text-xs">
+        <!-- Monaco-like line number and drag handle -->
+        <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
+          <span
+            class="select-none text-right not-italic transition duration-150"
+            :class="{
+              'opacity-0': !isFocused && !open && !editor.showLineNumbers,
+              'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
+              'text-sm': editor.textSmall,
+              'text-md': !editor.textSmall,
+              'font-mono': editor.fontMono,
+              'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
+                !isCommentish,
+              'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
+                isCommentish,
+              'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
+              'text-gray-500': (dragOver || open || isFocused) && isCommentish,
+              'cursor-grab': !context.readonly,
+            }"
+            @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
+            @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
+          >
+            {{ lineNumber + 1 }}
+          </span>
+        </ActionPopover>
+        <!-- Add statement below button -->
+        <button
+          v-if="!context.readonly"
+          class="rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+          :class="isFocused ? 'opacity-100' : 'opacity-0'"
+          @click="insertStatementOnClick"
+        >
+          <PlusIcon class="h-4 w-4" />
+        </button>
+        <!-- Other connected clients -->
         <div
           v-for="client in filteredClients"
           :key="client.id"
@@ -389,7 +403,6 @@ const filteredClients = computed(() =>
           {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
         </div>
       </div>
-      <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
       <!-- Statement drag & drop indicator (top/bottom) -->

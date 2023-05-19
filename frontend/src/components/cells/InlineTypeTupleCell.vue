@@ -120,15 +120,8 @@ function open() {
     if (!props.readonly) {
       nextTick(() => nameRef.value?.focus());
     }
-    document.body.classList.add("overscroll-y-none");
   }
 }
-
-watch(popoverOpenRef, (open) => {
-  if (open == null) {
-    document.body.classList.remove("overscroll-y-none");
-  }
-});
 
 function focus() {
   buttonRef.value?.focus();

@@ -2064,6 +2064,7 @@ enum TypeHint {
   RICH_TEXT
   HTML
   CODE
+  KEY
   INTEGER
   FLOAT
   SLIDER
