@@ -2,7 +2,7 @@
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { useStatementContext, type InlineAction } from "@/components/statement";
+import { useStatementContext, type StatementAction } from "@/components/statement";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useEditorState } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
@@ -60,7 +60,7 @@ const executionActive = computed(
     (lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status))
 );
 const extraActions = computed(() => {
-  const inlineActions: InlineAction[] = [
+  const inlineActions: StatementAction[] = [
     {
       label: "Run",
       icon: PlayIcon,

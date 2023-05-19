@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useMagicActions, useNavigationContext } from "@/components/file";
+import { useAppearance } from "@/state/appearance";
 import { useRelativeDropZone } from "@/utils/drop";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
@@ -9,6 +10,7 @@ const buttonRef = ref(null);
 const { isOverDropZone } = useRelativeDropZone(buttonRef, ["File"], onDrop);
 const magic = useMagicActions(ref(null));
 const nav = useNavigationContext();
+const appearance = useAppearance();
 
 function onDrop(files: File[] | any) {
   if (Array.isArray(files)) {
@@ -26,11 +28,13 @@ function onDrop(files: File[] | any) {
     <!-- Drag indicators (bottom if start, top if end) -->
     <div
       v-if="position == 'end'"
-      class="absolute -top-0.5 left-0 z-[5] mx-[50px] h-1 w-[800px] bg-orange-300 transition duration-150"
+      class="absolute -top-0.5 left-0 z-[5] mx-[50px] h-1 bg-orange-300 transition duration-150"
+      :style="appearance.contentWidthAsFixed"
     />
     <div
       v-if="position == 'start'"
-      class="absolute -bottom-0.5 left-0 z-[5] mx-[50px] h-1 w-[800px] bg-orange-300 transition duration-150"
+      class="absolute -bottom-0.5 left-0 z-[5] mx-[50px] h-1 bg-orange-300 transition duration-150"
+      :style="appearance.contentWidthAsFixed"
     />
     <div class="justify-left relative flex align-top">
       <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">

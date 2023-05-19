@@ -49,7 +49,7 @@ const helpActions = [
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-0 left-14 z-40 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Version -->
         <span class="px-2 text-center text-xs text-gray-700">Bench {{ VERSION }}</span>

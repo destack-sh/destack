@@ -10,7 +10,7 @@ import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
 import { syncProperty } from "@/utils/sync";
-import { useElementSize } from "@vueuse/core";
+import { useElementBounding, useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
@@ -57,7 +57,7 @@ const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
 
-const previewSize = useElementSize(previewButtonRef);
+const previewBounding = useElementBounding(previewButtonRef);
 
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
@@ -160,7 +160,7 @@ defineExpose({
   editing,
   focus,
   blur,
-  previewSize,
+  previewBounding,
 });
 </script>
 <template>
@@ -180,8 +180,7 @@ defineExpose({
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
       @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
       @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
-      @keydown.backspace.exact.prevent="editing || emit('deleteSelf')"
-      @keydown.delete.exact.prevent="editing || emit('deleteSelf')"
+      @keydown.delete.exact.prevent.stop="editing || emit('deleteSelf')"
     >
       <component
         v-if="valueInterface"

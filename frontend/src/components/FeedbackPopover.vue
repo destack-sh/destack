@@ -33,7 +33,7 @@ function submit() {
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-0 left-14 z-10 flex w-72 flex-col gap-2 rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-0 left-14 z-40 flex w-72 flex-col gap-2 rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Header -->
         <div>

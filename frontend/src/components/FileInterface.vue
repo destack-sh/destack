@@ -16,10 +16,12 @@ import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { useAppearance } from "@/state/appearance";
 
 const props = defineProps<{ editorId: string; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const editor = useEditorState();
+const appearance = useAppearance();
 const actions = useActions();
 
 const { result: file, loading: fileLoading } = useQuery(
@@ -180,7 +182,7 @@ const auth = useAuth();
   <div>
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
+      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">
           This file is in trash (was deleted {{ now.getTimeFromNowLongString(fileHeader.deletedAt) }}).
         </div>
@@ -194,7 +196,7 @@ const auth = useAuth();
     </div>
     <!-- Other version file -->
     <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
+      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">This file belongs to another version.</div>
         <router-link
           class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -206,7 +208,7 @@ const auth = useAuth();
     </div>
     <!-- File failed to load -->
     <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
-      <div class="mx-auto flex max-w-[800px] flex-row items-center justify-center gap-2">
+      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">File failed to load.</div>
       </div>
     </div>
@@ -216,8 +218,9 @@ const auth = useAuth();
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full max-w-[900px] flex-row items-center justify-between px-[58px] pt-6 font-bold text-gray-900"
-        :class="editor.fontMono ? 'font-mono' : ''"
+        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between px-[58px] pt-6 font-bold text-gray-900"
+        :class="appearance.fontMono ? 'font-mono' : ''"
+        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
       >
         <!-- Name & actions -->
         <span class="flex flex-row items-center">
@@ -260,7 +263,8 @@ const auth = useAuth();
       </div>
       <!-- Add statement to start -->
       <StatementAddArea
-        class="mx-auto max-w-[900px]"
+        class="mx-auto"
+        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
         position="start"
         @click="editor.readonly || insertStatementStart()"
         v-if="statements?.length > 0"
@@ -269,7 +273,8 @@ const auth = useAuth();
       <div
         v-for="positioned in context?.positionedStatements"
         :key="positioned.statement.id"
-        class="mx-auto w-full max-w-[900px]"
+        class="mx-auto w-full"
+        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
       >
         <StatementInterface
           :file="(fileHeader as any)"
@@ -285,7 +290,8 @@ const auth = useAuth();
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
-        class="mx-auto max-w-[900px] flex-1 pb-60"
+        class="mx-auto flex-1 pb-60"
+        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
         position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />

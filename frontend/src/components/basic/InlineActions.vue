@@ -1,21 +1,21 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useMagicActions } from "@/components/file";
-import type { InlineAction } from "@/components/statement";
+import type { StatementAction } from "@/components/statement";
 import { useStatementContext } from "@/components/statement";
 import type { StatementHeader } from "@/state/editor";
 import { ArrowPathIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "vue";
 
 const props = defineProps<{
-  extraActions?: InlineAction[];
+  extraActions?: StatementAction[];
 }>();
 
 const context = useStatementContext();
 const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 
-const inlineActions: Ref<InlineAction[]> = computed(() => {
-  const inlineActions: InlineAction[] = [];
+const inlineActions: Ref<StatementAction[]> = computed(() => {
+  const inlineActions: StatementAction[] = [];
   if (props.extraActions) {
     inlineActions.push(...props.extraActions);
   }

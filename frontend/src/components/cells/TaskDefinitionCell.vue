@@ -3,7 +3,7 @@ import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext, type InlineAction } from "@/components/statement";
+import { useStatementContext, type StatementAction } from "@/components/statement";
 import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
@@ -25,7 +25,7 @@ const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(nul
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
 const extraActions = computed(() => {
-  const inlineActions: InlineAction[] = [];
+  const inlineActions: StatementAction[] = [];
   return inlineActions;
 });
 

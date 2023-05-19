@@ -111,6 +111,10 @@ hostStatementActions();
 @import "@/assets/base.css";
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans&display=swap");
 
+body {
+  overscroll-behavior-x: none;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

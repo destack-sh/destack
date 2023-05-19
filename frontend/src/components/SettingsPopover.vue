@@ -5,11 +5,17 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import { Bars4Icon, BellSlashIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import { ArrowsPointingOutIcon, Bars4Icon, BellSlashIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import { computed } from "vue";
 
 const appearance = useAppearance();
 const editor = useEditorState();
 const actions = useActions();
+
+const isContentWide = computed(() => appearance.contentWidth != 800);
+function setContentWide(wide: boolean) {
+  appearance.contentWidth = !wide ? 800 : 1200;
+}
 </script>
 
 <template>
@@ -18,7 +24,7 @@ const actions = useActions();
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-1 left-14 z-10 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-1 left-14 z-40 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Font style -->
         <div class="px-2 pb-1">
@@ -47,6 +53,14 @@ const actions = useActions();
             <span class="text-sm text-gray-900">Small text</span>
           </span>
           <Switch v-model="appearance.textSmall" />
+        </div>
+        <!-- Content width -->
+        <div class="flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <ArrowsPointingOutIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Wide content</span>
+          </span>
+          <Switch :model-value="isContentWide" @update:model-value="setContentWide" />
         </div>
         <!-- Line numbers -->
         <div class="flex flex-row items-center justify-between px-2">

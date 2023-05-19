@@ -69,7 +69,7 @@ async function createFileInEditorGroup() {
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
-      <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast -->
+      <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast (that's what the sticky hack below 'solves') -->
       <TabList
         class="sticky top-0 z-[5] flex flex-shrink-0 border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="editor.showEditorGroupHeader"

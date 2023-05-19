@@ -769,6 +769,16 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     }
   }
 
+  async function insertAbove(focus?: boolean) {
+    if (statement.value == null) return;
+    const above = nav.value.getLocationRightAbove(statement.value as StatementHeader);
+    const newStatement = { __typename: "Statement", id: newStatementId() };
+    ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
+    if (focus) {
+      editor.editElement(newStatement as StatementHeader);
+    }
+  }
+
   async function duplicate() {
     if (statement.value == null) return;
     nav.value.copy([statement.value as StatementHeader]);
@@ -878,6 +888,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
   return {
     insertBelow,
+    insertAbove,
     duplicate,
     moveFocusUp,
     moveFocusDown,

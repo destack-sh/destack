@@ -11,7 +11,20 @@ export const useAppearanceState = defineStore("appearance", {
     textSmall: true,
     fontMono: false,
     inlineMetrics: false,
+    contentWidth: 800,
   }),
+  getters: {
+    contentWidthAsFixed(state) {
+      return {
+        width: `${state.contentWidth}px`,
+      };
+    },
+    contentWidthAsMaxWidth(state) {
+      return {
+        "max-width": `${state.contentWidth}px`,
+      };
+    },
+  },
 });
 
 function _useAppearance() {

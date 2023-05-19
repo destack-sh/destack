@@ -10,7 +10,7 @@ import {
   makeTypeNode,
   NAME_TYPE_NODE,
   useStatementContext,
-  type InlineAction,
+  type StatementAction,
   type SimpleType,
 } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
@@ -166,7 +166,7 @@ function gridNavigateDown() {
 }
 
 const extraInlineActions = computed(() => {
-  const inlineActions: InlineAction[] = [];
+  const inlineActions: StatementAction[] = [];
   if (!isEnum.value) {
     inlineActions.push({
       label: "Extend",
@@ -194,7 +194,7 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <div class="flex items-center justify-between">
+  <div class="flex flex-row justify-between">
     <div class="flex flex-row items-baseline">
       <DeclarationCell
         ref="declarationRef"

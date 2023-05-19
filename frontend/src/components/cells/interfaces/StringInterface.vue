@@ -19,11 +19,12 @@ defineExpose({
 });
 </script>
 <template>
-  <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
+  <!-- :ForcedValueMinWidth -->
+  <div v-if="preview" class="h-full w-full min-w-[150px] whitespace-pre-wrap">{{ modelValue }}&nbsp;</div>
   <textarea
     v-else
     ref="inputRef"
-    class="h-fit w-full min-w-[300px] rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    class="h-fit w-full min-w-[300px] whitespace-pre rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
     type="text"
     :value="modelValue"
     @input="emit('update:modelValue', $event.target?.value)"

@@ -1,0 +1,102 @@
+<script lang="ts" setup>
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxOption,
+  ComboboxOptions,
+  Popover,
+  PopoverButton,
+  PopoverPanel,
+} from "@headlessui/vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
+import type { RecordAction, StatementAction } from "@/components/statement";
+import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useAppearance } from "@/state/appearance";
+import { computed, ref, type Ref } from "vue";
+
+const props = defineProps<{ actions: (StatementAction | RecordAction)[]; thing: any }>();
+
+const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
+const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
+const popoverPin = pinAbsoluteElement(
+  computed(() => popoverPanelRef.value?.$el),
+  { pos: true, width: true }
+);
+
+const query = ref("");
+const filteredActions = computed(() =>
+  props.actions.filter((action: StatementAction | RecordAction) =>
+    action.label.toLowerCase().includes(query.value.toLowerCase())
+  )
+);
+
+const appearance = useAppearance();
+</script>
+<template>
+  <Popover as="div" class="relative" v-slot="{ close, open }">
+    <PopoverButton
+      class="rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+      :class="[open ? 'bg-orange-100' : '']"
+      @click="$nextTick(() => inputRef?.$el.focus())"
+    >
+      <slot :close="close" :open="open">
+        <EllipsisVerticalIcon class="h-4 w-4" />
+      </slot>
+    </PopoverButton>
+    <FadeTransition>
+      <PopoverPanel
+        ref="popoverPanelRef"
+        as="div"
+        class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2 '"
+        unmount
+      >
+        <span ref="popoverOpenRef" class="hidden" />
+        <!-- Input & actions -->
+        <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (action.action(thing), close())">
+          <ComboboxInput
+            as="input"
+            ref="inputRef"
+            class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm placeholder:text-sm': appearance.textSmall,
+              'text-md placeholder:text-md': !appearance.textSmall,
+            }"
+            @change="query = $event.target.value"
+            :display-value="(el: any) => null"
+            placeholder="Search actions..."
+            spellcheck="false"
+            @keydown.enter.prevent.stop="close"
+          />
+          <ComboboxOptions
+            class="mt-1 max-h-48 w-60 overflow-auto"
+            static
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm': appearance.textSmall,
+              'text-md': !appearance.textSmall,
+            }"
+          >
+            <!-- Options -->
+            <ComboboxOption
+              v-for="action in filteredActions"
+              :key="action.label"
+              :value="action"
+              v-slot="{ active, selected }"
+            >
+              <button
+                class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"
+                :class="[active ? 'bg-orange-100' : '', selected ? 'text-orange-600' : 'text-gray-900']"
+              >
+                <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+                <span class="text-gray-700">{{ action.label }}</span>
+              </button>
+            </ComboboxOption>
+          </ComboboxOptions>
+        </Combobox>
+      </PopoverPanel>
+    </FadeTransition>
+  </Popover>
+</template>
