@@ -61,6 +61,8 @@ async function doUpload(file: File | null) {
     // if single, replace value
     if (!isArray.value) {
       emit("update:modelValue", val == null ? [] : [val]);
+      // refocus since button may be gone
+      nextTick(() => (val == null ? uploadButtonRef.value?.focus() : fileRefs.focus(val.id)));
     } else if (val != null) {
       // replace specific value or append
       const idx = props.modelValue.findIndex((v) => v.id == val?.id);
@@ -124,6 +126,7 @@ defineExpose({
       'rounded-sm border border-dashed border-orange-500': dragOver,
       'border border-transparent': !dragOver,
       'justify-center': modelValue.length == 0,
+      'min-w-[300px]': !preview,
     }"
   >
     <!-- Existing files -->
@@ -171,6 +174,7 @@ defineExpose({
       class="self-end justify-self-end rounded-sm border-gray-300 px-0.5 transition hover:bg-orange-100 focus:bg-orange-100 focus:outline-none group-focus-within/iface:opacity-100 group-hover/iface:opacity-100"
       :class="[ongoingUploads ? 'animate-spin' : '', preview ? 'opacity-0' : '']"
       @click.stop.prevent="fileChooserRef?.click()"
+      @keydown.enter.stop.prevent="fileChooserRef?.click()"
       @keydown.left.stop.prevent="fileRefs.focus(modelValue.slice(-1)[0]?.id)"
     >
       <component :is="ongoingUploads ? ArrowPathIcon : ArrowUpTrayIcon" class="h-4 w-4 text-gray-400" />
@@ -183,6 +187,7 @@ defineExpose({
       type="file"
       class="hidden"
       @change="(e) => doUpload(e.target?.files?.[0])"
+      @click.stop
     />
   </div>
 </template>

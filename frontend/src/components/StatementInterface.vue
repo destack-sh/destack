@@ -416,8 +416,8 @@ const filteredClients = computed(() =>
             !isCommentish,
           'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
             isCommentish,
-          'text-orange-500': dragOver && !isCommentish,
-          'text-gray-500': dragOver && isCommentish,
+          'text-orange-500': (dragOver || isFocused) && !isCommentish,
+          'text-gray-500': (dragOver || isFocused) && isCommentish,
           'cursor-grab': !context.readonly,
         }"
         @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
@@ -454,16 +454,6 @@ const filteredClients = computed(() =>
       <!-- TODO @UX: focus on @mousedown would be more responsive but doesn't focus properly.. -->
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
-      <!-- Statement focus indicator  -->
-      <div
-        class="absolute -left-0.5 top-0 z-[5] h-full w-1.5 transition duration-150"
-        :class="{
-          'group-focus-within/statement:bg-orange-300 group-hover/statement:bg-orange-200': !isCommentish,
-          'group-focus-within/statement:bg-gray-300 group-hover/statement:bg-gray-200': isCommentish,
-          'bg-orange-300': isFocused && !isCommentish,
-          'bg-gray-300': isFocused && isCommentish,
-        }"
-      />
       <!-- Statement drag & drop indicator (top/bottom) -->
       <div
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"

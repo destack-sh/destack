@@ -14,7 +14,6 @@ const emit = defineEmits<{
 defineExpose({
   click: () => {
     if (!props.readonly) {
-      console.log("click", props.modelValue);
       emit("update:modelValue", !props.modelValue);
     }
   },

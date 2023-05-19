@@ -9,6 +9,7 @@ import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
+import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -25,7 +26,6 @@ const props = defineProps<{
   modelValue: any;
   type: SimpleType;
   readonly: boolean;
-  immediate: boolean;
   active: boolean;
   debounced?: boolean;
   supportsDrop?: boolean;
@@ -68,25 +68,42 @@ const valueInterface = computed(() => {
   }
   return null;
 });
+
+// debounce writes for selected interfaces (then flush on close/enter)
+const debounce = props.debounced && valueInterface.value?.debounceMs != null;
+const value: Ref<any> = ref<any>(props.modelValue);
 const readValue = computed(() => {
   if (valueInterface.value?.read != null) {
-    return valueInterface.value.read(props.type, props.modelValue);
+    return valueInterface.value.read(props.type, value.value);
   } else {
-    return props.modelValue;
+    return value.value;
   }
 });
-
-function writeValue(value: any) {
+function writeValue(newValue: any) {
   if (valueInterface.value?.write != null) {
-    value = valueInterface.value.write(props.type, value);
+    newValue = valueInterface.value.write(props.type, newValue);
   }
-  emit("update:modelValue", value);
+  value.value = newValue;
+  if (!debounce) {
+    emit("update:modelValue", newValue);
+  }
+}
+let sync: any = null;
+if (debounce) {
+  sync = syncProperty({
+    value,
+    editing,
+    read: () => (value.value = props.modelValue),
+    write: () => emit("update:modelValue", value.value),
+    debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,
+  });
 }
 
 function edit() {
   if (valueInterface.value == null) return;
   if (valueInterface.value.inline) {
     previewRef.value.click?.();
+    previewButtonRef.value?.focus();
     return;
   }
 
@@ -110,12 +127,14 @@ function blur() {
 function close() {
   editing.value = false;
   document.body.classList.remove("overscroll-y-none");
+  sync?.flushNow();
   nextTick(() => previewButtonRef.value?.focus()); // refocus preview
 }
 
 function enter() {
   editing.value = false;
   document.body.classList.remove("overscroll-y-none");
+  sync?.flushNow();
   emit("navigateDown");
 }
 
@@ -141,7 +160,7 @@ defineExpose({
 </script>
 <template>
   <!-- Value container -->
-  <div class="relative">
+  <div class="relative" @click.stop.prevent="editing || edit()" :class="[readonly || editing ? '' : 'cursor-pointer']">
     <!-- Preview -->
     <div
       ref="previewButtonRef"
@@ -149,7 +168,7 @@ defineExpose({
       :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
-      @click="edit"
+      @click.stop="edit"
       @keydown.enter.exact.stop.prevent="edit"
       @keydown.space.exact="edit"
       @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
@@ -201,7 +220,7 @@ defineExpose({
     <div
       v-if="editing && valueInterface"
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
-      @click="close"
+      @click.stop="close"
     />
   </div>
 </template>
