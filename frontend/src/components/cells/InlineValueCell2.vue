@@ -11,7 +11,7 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
 import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -97,6 +97,11 @@ if (debounce) {
     write: () => emit("update:modelValue", value.value),
     debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,
   });
+} else {
+  watch(
+    () => props.modelValue,
+    (newValue) => (value.value = newValue)
+  );
 }
 
 function edit() {

@@ -26,5 +26,6 @@ defineExpose({
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     :disabled="props.readonly"
+    @click.stop
   />
 </template>

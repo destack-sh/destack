@@ -31,6 +31,7 @@ defineExpose({
         emit('update:modelValue', $event.target?.checked);
       "
       :disabled="props.readonly"
+      @click.stop
     />
   </div>
 </template>
