@@ -372,7 +372,6 @@ defineExpose({
     addRecordRef.value?.blur();
     addFieldRef.value?.blur();
     grid.blur();
-    grid.blur();
   },
   // prevent outer drag and drop while inside grid
   innerDrag: computed(() => !position.isOutside.value),
@@ -516,7 +515,6 @@ defineExpose({
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
-          immediate
           debounced
           :supports-drop="!context.readonly.value"
           @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
@@ -567,7 +565,6 @@ defineExpose({
           :type="runtimeTypeOf(field)"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
-          immediate
           debounced
           :supports-drop="!context.readonly.value"
           @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"

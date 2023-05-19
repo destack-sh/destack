@@ -5,6 +5,7 @@ import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { ANY_TYPE_NODE, getEnumColor, type SimpleType, type TypeAction } from "@/components/statement";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 import { TypeTag } from "@/gql/graphql";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
@@ -48,6 +49,18 @@ const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(nul
 const typePopoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
 const actionRefs = useElementRefs();
+
+// pin popover to the right
+const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
+const popoverPin = pinAbsoluteElement(
+  computed(() => popoverPanelRef.value?.$el),
+  { pos: true }
+);
+const typePopoverPanelRef = ref<InstanceType<typeof PopoverPanel> | null>(null);
+const typePopoverPin = pinAbsoluteElement(
+  computed(() => typePopoverPanelRef.value?.$el),
+  { pos: true }
+);
 
 syncProperty({
   value: name,
@@ -104,8 +117,15 @@ function open() {
     if (!props.readonly) {
       nextTick(() => nameRef.value?.focus());
     }
+    document.body.classList.add("overscroll-y-none");
   }
 }
+
+watch(popoverOpenRef, (open) => {
+  if (open == null) {
+    document.body.classList.remove("overscroll-y-none");
+  }
+});
 
 function focus() {
   buttonRef.value?.focus();
@@ -159,10 +179,19 @@ defineExpose({
     </button>
     <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
     <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
+    <!-- Prevent scroll and capture click outside -->
+    <div
+      v-if="popoverOpenRef != null"
+      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+      @click.stop="close"
+    />
     <!-- Edit popover -->
     <FadeTransition>
+      <!-- Popover position is pinned -->
       <PopoverPanel
-        class="absolute -left-2 -top-2 z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        ref="popoverPanelRef"
+        class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2 '"
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Name & type -->
@@ -196,8 +225,11 @@ defineExpose({
               <SimpleTypePreview class="absolute top-0.5" :type="value" hide-reference />
             </button>
             <PopoverButton ref="typePopoverButtonRef" @focus.prevent="typeButtonRef?.focus" class="hidden" />
+            <!-- Popover position is also pinned -->
             <PopoverPanel
-              class="absolute -left-1 -top-10 z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+              ref="typePopoverPanelRef"
+              class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+              :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
               unmount
             >
               <SelectTypeCell

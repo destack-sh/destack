@@ -7,6 +7,7 @@ export type ValueInterface = {
   tags?: TypeTag[];
   hints?: TypeHint[];
   inline?: boolean;
+  debounceMs?: number;
   supportsList?: boolean;
   supportsSecret?: boolean;
   read?(type: SimpleType, value: any): any;
@@ -93,10 +94,12 @@ registerInterface("boolean.toggle", {
 registerInterface("string", {
   tags: [TypeTag.String],
   map: coerceToString,
+  debounceMs: 1000,
 });
 registerInterface("number", {
   tags: [TypeTag.Number],
   map: coerceToNumber,
+  debounceMs: 1000,
 });
 registerInterface("enum", {
   tags: [TypeTag.Enum],
