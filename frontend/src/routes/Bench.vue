@@ -11,7 +11,6 @@ import DeployPopover from "@/components/DeployPopover.vue";
 import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
 import FeedbackPopover from "@/components/FeedbackPopover.vue";
 import HelpPopover from "@/components/HelpPopover.vue";
-import MainSymbolControls from "@/components/MainSymbolControls.vue";
 import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
@@ -606,14 +605,6 @@ onBeforeUnmount(() => {
 
       <!-- Right side: controls & profile -->
       <template v-slot:right>
-        <!-- Current "main" statement controls -->
-        <FadeTransition>
-          <MainSymbolControls
-            v-if="versionLoaded && !editor.readonly"
-            :project-id="project.id"
-            :project-version-id="versionToViewId"
-          />
-        </FadeTransition>
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-4">
