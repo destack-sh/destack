@@ -113,7 +113,6 @@ function edit() {
 
   editing.value = true;
   emit("edit");
-  document.body.classList.add("overscroll-y-none");
   nextTick(() => editableRef.value?.focus());
 }
 
@@ -130,14 +129,12 @@ function blur() {
 
 function close() {
   editing.value = false;
-  document.body.classList.remove("overscroll-y-none");
   sync?.flushNow();
   nextTick(() => previewButtonRef.value?.focus()); // refocus preview
 }
 
 function enter() {
   editing.value = false;
-  document.body.classList.remove("overscroll-y-none");
   sync?.flushNow();
   emit("navigateDown");
 }

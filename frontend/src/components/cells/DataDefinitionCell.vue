@@ -142,12 +142,18 @@ const selfSymbol = computed(() => symbolOf(context.statement.value.id));
 function runtimeTypeOf(field: SimpleType) {
   return selfSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
 }
-const extendedFields = computed(
-  () =>
+const extendedFields = computed(() => {
+  if (extendedTypes.value.length == 0) {
+    // shouldn't be needed but because interp state and module state are separate right now,
+    // this prevents flickering changes at least if you're not using unions
+    return [];
+  }
+  return (
     selfSymbol.value?.typeNodes
       ?.filter((n) => !selfFields.value.find((f) => f.name == n.name))
       .map((n) => n as SimpleType) ?? []
-);
+  );
+});
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
 // grid & grid sizing
@@ -168,6 +174,8 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
   }
 );
 
+const verticalBorders = true;
+const maxRowHeight = 250;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
 // auto size columns
@@ -186,25 +194,28 @@ watchEffect(() => {
 
   // if the total width is too small, scale up by the grow factors
   const totalWidth = widths.reduce((a, b) => a + b, 0);
-  const toFill = Math.max(minTotalWidth - totalWidth, 0);
-  if (toFill > 0 && growColumns) {
+  if (totalWidth < minTotalWidth && growColumns) {
+    const toFill = Math.max(minTotalWidth - totalWidth, 0);
     const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
     const growTotal = growFactors.reduce((a, b) => a + b, 0);
     const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
     for (let i = 0; i < widths.length; i++) {
       widths[i] += growWidths[i];
     }
+  } else if (totalWidth > minTotalWidth) {
+    // TODO @UX: if the total width is bigger, should indicate that the column at border is ~half occluded
   }
 
   columnWidths.value = widths;
 });
 
-function getMaxInnerHeightInRow(id: string): number {
+function getRowHeight(id: string): number {
   /* Gets the maximum value of any elements in the row */
-  return grid
+  const maxInnerHeight = grid
     .getColumn(id)
     .map((e) => e.previewSize?.height.value ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
+  return Math.min(maxInnerHeight, maxRowHeight);
 }
 
 const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
@@ -542,7 +553,7 @@ defineExpose({
     <div ref="gridRef" class="-mx-1 flex w-full min-w-fit flex-col">
       <!-- Header (with types) -->
       <div class="flex flex-row border-b border-orange-900 border-opacity-[12%]">
-        <div v-for="(field, i) in allFields" :key="field?.id" class="">
+        <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <InlineTypeTupleCell
               :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
@@ -559,7 +570,7 @@ defineExpose({
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
               :style="{
-                width: columnWidths[i] + 'px',
+                width: columnWidths[x] + 'px',
               }"
             />
           </div>
@@ -567,7 +578,7 @@ defineExpose({
       </div>
       <!-- Records -->
       <div
-        v-for="(record, y) in recordsInView"
+        v-for="record in recordsInView"
         :key="record.id"
         class="group/record flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
       >
@@ -585,10 +596,11 @@ defineExpose({
           v-for="(field, x) in allFields"
           :key="record.id + '.' + field?.id"
           class="h-full min-h-[32px] overflow-hidden"
+          :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{
-          'height': getMaxInnerHeightInRow(record.id as string) + 8 + 'px',
-          'width': columnWidths[x] + 'px',
-        }"
+            'height': getRowHeight(record.id as string) + 8 + 'px',
+            'width': columnWidths[x] + 'px',
+          }"
         >
           <InlineValueCell2
             :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
@@ -605,7 +617,8 @@ defineExpose({
             @navigate-up="grid.navigateUp(record.id, field.name as string)"
             @navigate-down="grid.navigateDown(record.id, field.name as string)"
             @delete-self="deleteRecordField(record.id, field.key)"
-            class="h-full w-full border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            :style="{ 'max-height': maxRowHeight + 'px' }"
           />
         </div>
       </div>
@@ -614,7 +627,11 @@ defineExpose({
   <!-- Single value (vertical) -->
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
-    <tr v-for="field in allFields" :key="field.id">
+    <tr
+      v-for="(field, y) in allFields"
+      :key="field.id"
+      :class="[y < allFields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
+    >
       <td class="w-1/4">
         <InlineTypeTupleCell
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
@@ -631,7 +648,7 @@ defineExpose({
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
           :style="{
-            'height': getMaxInnerHeightInRow(field.id as string) + 8 + 'px',
+            'height': getRowHeight(field.id as string) + 8 + 'px',
           }"
         />
       </td>
@@ -653,6 +670,8 @@ defineExpose({
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
           class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
+          :style="{ 'max-height': maxRowHeight + 'px' }"
         />
       </td>
     </tr>

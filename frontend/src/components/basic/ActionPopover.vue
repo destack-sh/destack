@@ -48,11 +48,17 @@ const appearance = useAppearance();
         <EllipsisVerticalIcon class="h-4 w-4" />
       </slot>
     </PopoverButton>
+    <!-- Prevent scroll and capture click outside -->
+    <div
+      v-if="popoverOpenRef != null"
+      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+      @click.stop="close"
+    />
     <FadeTransition>
       <PopoverPanel
         ref="popoverPanelRef"
         as="div"
-        class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
         :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2 '"
         unmount
       >

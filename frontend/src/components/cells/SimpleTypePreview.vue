@@ -18,6 +18,7 @@ import {
   FingerPrintIcon,
   HashtagIcon,
   IdentificationIcon,
+  KeyIcon,
   LinkIcon,
   ListBulletIcon,
   LockClosedIcon,
@@ -81,6 +82,7 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Markdown]: CodeBracketIcon,
   [TypeHint.Html]: CodeBracketIcon,
   [TypeHint.Code]: CodeBracketIcon,
+  [TypeHint.Key]: KeyIcon,
   // number
   [TypeHint.Integer]: HashtagIcon,
   [TypeHint.Float]: HashtagIcon,
