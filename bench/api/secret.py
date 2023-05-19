@@ -2,7 +2,7 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from strawberry import lazy
+from strawberry import auto, lazy
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -23,6 +23,8 @@ def reveal_secret_value(root: models.Secret) -> str:
 
 @gql.django.type(models.Secret)
 class Secret(gql.Node):
+    created_at: auto
+    updated_at: auto
     sha512: str
     name: Optional[str]
     project: Annotated["Project", lazy(".project")]

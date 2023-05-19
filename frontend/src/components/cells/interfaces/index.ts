@@ -92,7 +92,6 @@ registerInterface("boolean.checkbox", {
   minWidth: 40,
 });
 registerInterface("boolean.toggle", {
-  tags: [],
   hints: [TypeHint.Toggle],
   map: coerceToBoolean,
   inline: true,
@@ -100,6 +99,14 @@ registerInterface("boolean.toggle", {
 });
 registerInterface("string", {
   tags: [TypeTag.String],
+  map: coerceToString,
+  debounceMs: 1000,
+  minWidth: 220,
+  targetWidth: 300,
+  grow: 1.0,
+});
+registerInterface("string.short", {
+  hints: [TypeHint.Name, TypeHint.Uuid, TypeHint.Email, TypeHint.Url, TypeHint.Key],
   map: coerceToString,
   debounceMs: 1000,
   minWidth: 220,
@@ -131,6 +138,13 @@ registerInterface("file", {
   minWidth: 220,
   targetWidth: 300,
   grow: 1.0,
+});
+registerInterface("secret", {
+  tags: [TypeTag.String, TypeTag.Number],
+  supportsSecret: true,
+  minWidth: 220,
+  targetWidth: 300,
+  grow: 0.5,
 });
 
 export function getInterface(type: SimpleType): ValueInterface | undefined {

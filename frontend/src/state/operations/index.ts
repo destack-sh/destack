@@ -5,6 +5,7 @@ import { useObjectOps } from "@/state/operations/object";
 import { useOrganizationOps } from "@/state/operations/organization";
 import { useProjectOps } from "@/state/operations/project";
 import { useRuntimeOps } from "@/state/operations/runtime";
+import { useSecretOps } from "@/state/operations/secret";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
 import { useUserOps } from "@/state/operations/user";
@@ -208,7 +209,7 @@ export const useOperationsStore = defineStore("operations", {
       }
       const ret = await this._do(operation, "do");
       if (!operation.stateless) {
-        console.debug(`reset redo stack for ${operation.type} (id=${operation.id})`);
+        // console.debug(`reset redo stack for ${operation.type} (id=${operation.id})`);
         this.redoStack = []; // reset redo stack, maybe store a redo branch backup?
       }
       return ret as T | null; // cannot be void because it's not undo
@@ -302,6 +303,7 @@ export function _useOperations() {
     version: useProjectVersionOps(),
     deployment: useDeploymentOps(),
     object: useObjectOps(),
+    secret: useSecretOps(),
     state,
   };
 }

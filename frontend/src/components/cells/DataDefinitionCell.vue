@@ -175,7 +175,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 );
 
 const verticalBorders = true;
-const maxRowHeight = 250;
+const maxRowHeight = 220;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
 // auto size columns
@@ -669,7 +669,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field.id, 'value')"
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{ 'max-height': maxRowHeight + 'px' }"
         />
