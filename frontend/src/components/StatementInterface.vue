@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import type ActionPopoverVue from "@/components/basic/ActionPopover.vue";
 import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DataDefinitionCell from "@/components/cells/DataDefinitionCell.vue";
@@ -249,9 +250,9 @@ function onClickContainer(e: MouseEvent) {
   }
 }
 
-function insertStatementBelow(e: MouseEvent) {
+function insertStatementOnClick(e: MouseEvent) {
   onClickContainer(e);
-  magic.insertBelow(true);
+  (e.altKey ? magic.insertAbove : magic.insertBelow)(true);
   e.preventDefault();
   e.stopPropagation();
 }
@@ -308,69 +309,6 @@ const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 const isStale = isSymbolStale(statement);
 
-let metricSets: Ref<MetricSet[] | null>;
-if (editor.inlineMetrics) {
-  const evaluations = useCurrentEvaluations();
-  metricSets = computed(() => {
-    if (
-      !editor.inlineMetrics ||
-      statement.value.type != StatementType.Definition ||
-      statement.value.symbolType == SymbolType.Build
-    ) {
-      return null;
-    }
-    const globalMetrics = evaluations.getGlobalEvaluation(statement.value.id)?.aggregatedMetrics;
-    const metricSets: MetricSet[] = [];
-    if (globalMetrics == null) {
-      return null;
-    }
-
-    // global
-    metricSets.push({
-      label: "Global",
-      description: "",
-      metrics: [
-        {
-          label: "Clarity",
-          value: toPercent(globalMetrics?.clarity),
-          bars: toBars(globalMetrics?.clarity, "clarity"),
-          description: "",
-        },
-        {
-          label: "Difficulty",
-          value: toFixed(globalMetrics?.difficulty),
-          bars: toBars(globalMetrics?.difficulty, "difficulty"),
-          description: "",
-        },
-      ],
-    });
-
-    for (const buildEval of evaluations.getBuildEvaluations(statement.value.id)) {
-      const buildMetrics = buildEval?.aggregatedMetrics;
-      const localMetrics = [
-        {
-          label: "Performance",
-          value: buildMetrics?.performance,
-          bars: toBars(buildMetrics?.performance, "performance"),
-        },
-        {
-          label: "Speed",
-          value: buildMetrics?.speed,
-          bars: toBars(buildMetrics?.speed, "speed"),
-          unavailable: statement.value.symbolType != SymbolType.Task,
-        },
-      ];
-      metricSets.push({
-        label: "claude",
-        metrics: localMetrics,
-      });
-    }
-    return metricSets;
-  });
-} else {
-  metricSets = ref<MetricSet[] | null>(null);
-}
-
 // connected clients / multiplayer
 // TODO @Performance: don't update & render clients per statement (ideally per file?)
 const clients = useCurrentClients();
@@ -404,17 +342,17 @@ const filteredClients = computed(() =>
       <!-- Left gutter -->
       <!-- Monaco-like line number and drag handle -->
       <span
-        class="absolute top-[3px] w-6 select-none text-right not-italic transition duration-150"
-        :style="{ transform: 'translateX(' + -30 + 'px)' }"
+        class="absolute top-[3px] select-none px-1.5 text-left not-italic transition duration-150"
+        :style="{ transform: 'translateX(' + -18 + 'px)' }"
         :class="{
           'opacity-0': !isFocused && !editor.showLineNumbers,
           'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
           'font-mono': editor.fontMono,
-          'text-orange-200 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
+          'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
             !isCommentish,
-          'text-gray-200 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
+          'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
             isCommentish,
           'text-orange-500': (dragOver || isFocused) && !isCommentish,
           'text-gray-500': (dragOver || isFocused) && isCommentish,
@@ -434,7 +372,7 @@ const filteredClients = computed(() =>
         :style="{
           transform: 'translateX(' + (-30 - lineNumberDigits * 8 + 'px') + ')',
         }"
-        @click="insertStatementBelow"
+        @click="insertStatementOnClick"
       >
         <PlusIcon class="h-4 w-4" />
       </button>
@@ -491,30 +429,6 @@ const filteredClients = computed(() =>
           'text-sm': editor.textSmall,
         }"
       >
-        <!-- Metrics -->
-        <div v-if="editor.inlineMetrics && metricSets != null" class="flex flex-row gap-1.5">
-          <div v-for="metricSet of metricSets" :key="metricSet.label" class="flex flex-row gap-0.5">
-            <span v-for="metric in metricSet.metrics" :key="metric.label">
-              <svg viewBox="0 0 6 24" class="h-5">
-                <rect
-                  v-for="i in METRIC_METER_UNITS"
-                  :key="i"
-                  x="0"
-                  :y="(i - 1) * 6"
-                  width="6"
-                  height="4"
-                  :fill="
-                    metric.unavailable ?? false
-                      ? 'transparent'
-                      : i > METRIC_METER_UNITS - metric.bars
-                      ? 'skyblue'
-                      : 'lightgrey'
-                  "
-                />
-              </svg>
-            </span>
-          </div>
-        </div>
         <!-- Errors/warnings -->
         <div>
           <!-- Errors -->

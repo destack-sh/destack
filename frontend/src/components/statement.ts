@@ -5,6 +5,7 @@ import {
   SymbolType,
   TypeHint,
   TypeTag,
+  type DatasetRecord,
   type InterpSymbol,
   type SimpleTypeNode,
   type TypeNodeCreateInput,
@@ -36,10 +37,18 @@ export type StatementContext = {
   destroyed: boolean;
 };
 
-export type InlineAction = {
+export type StatementAction = {
   label: string;
   icon: any;
   action: (statement: StatementHeader) => void;
+  active?: boolean;
+  disabled?: boolean;
+};
+
+export type RecordAction = {
+  label: string;
+  icon: any;
+  action: (record: DatasetRecord) => void;
   active?: boolean;
   disabled?: boolean;
 };

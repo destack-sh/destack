@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import InlineActions from "@/components/basic/InlineActions.vue";
+import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
@@ -7,10 +8,17 @@ import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
-import { makeTypeNode, useStatementContext, type InlineAction, type SimpleType } from "@/components/statement";
+import {
+  makeTypeNode,
+  useStatementContext,
+  type StatementAction,
+  type SimpleType,
+  type RecordAction,
+} from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
+import { useAppearance } from "@/state/appearance";
 import type { StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId } from "@/state/operations/statement";
@@ -21,11 +29,14 @@ import {
   ArrowPathIcon,
   CubeTransparentIcon,
   PlusIcon,
+  Square2StackIcon,
+  Squares2X2Icon,
   SquaresPlusIcon,
+  TrashIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -156,11 +167,11 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
-function getMaxHeightInRow(id: string): number {
+function getMaxInnerHeightInRow(id: string): number {
   /* Gets the maximum value of any elements in the row */
   return grid
     .getColumn(id)
-    .map((e) => e.previewSize?.height.value ?? 0)
+    .map((e) => e.previewBounding?.height.value ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
 }
 
@@ -334,8 +345,8 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
 }
 const position = useMouseInElement(gridRef);
 
-const extraInlineActions = computed(() => {
-  const inlineActions: InlineAction[] = [];
+const extraStatementActions = computed(() => {
+  const inlineActions: StatementAction[] = [];
   if (isTable.value) {
     if ((fetchedRecords?.value?.statement?.records.totalCount ?? -1) == -1) {
       inlineActions.push({
@@ -364,6 +375,21 @@ const extraInlineActions = computed(() => {
   return inlineActions;
 });
 
+const recordActions: RecordAction[] = [
+  {
+    label: "Duplicate",
+    icon: Square2StackIcon,
+    action: (record: any) => insertRecord(record.id),
+  },
+  {
+    label: "Delete",
+    icon: TrashIcon,
+    action: (record: any) => deleteRecord(record.id),
+  },
+];
+
+const appearance = useAppearance();
+
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -391,7 +417,7 @@ defineExpose({
       <!-- Extended types -->
       <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">has</span>
-        <div class="inline-flex flex-row gap-1">
+        <div class="inline-flex flex-row gap-x-1">
           <InlineTypeCell
             v-for="field of extendedTypes"
             :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
@@ -455,7 +481,7 @@ defineExpose({
       <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
         {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
       </span>
-      <InlineActions :extraActions="extraInlineActions" />
+      <InlineActions :extraActions="extraStatementActions" />
     </div>
   </div>
   <!-- Description -->
@@ -478,60 +504,83 @@ defineExpose({
     +description
   </button>
   <!-- Table (in table form) -->
-  <table ref="gridRef" class="-mx-1 w-full" v-if="isTable">
-    <!-- Field types -->
-    <tr class="border-b border-orange-900 border-opacity-[12%]">
-      <td v-for="field in allFields" :key="field?.id" class="">
-        <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
-          <InlineTypeTupleCell
-            :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
-            :type="field"
-            :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-            :inlined="extendedFields.find((n) => n.name == field.name) != null"
-            class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :model-value="field"
-            @update:model-value="(node: any) => updateFieldType(field, node)"
-            @navigate-left="grid.navigateLeft('', field.name as string)"
-            @navigate-right="grid.navigateRight('', field.name as string)"
-            @navigate-up="grid.navigateUp('', field.name as string)"
-            @navigate-down="grid.navigateDown('', field.name as string)"
-            @delete-self="deleteField(field)"
-            @duplicate-self="duplicateField(field.id)"
+  <!-- Wrapper to contain any scrolling -->
+  <div v-if="isTable" class="w-full overflow-x-auto" :style="appearance.contentWidthAsMaxWidth">
+    <table ref="gridRef" class="-mx-1 w-full min-w-fit">
+      <tr class="border-b border-orange-900 border-opacity-[12%]">
+        <td v-for="field in allFields" :key="field?.id" class="">
+          <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
+            <InlineTypeTupleCell
+              :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
+              :type="field"
+              :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
+              :inlined="extendedFields.find((n) => n.name == field.name) != null"
+              class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+              :model-value="field"
+              @update:model-value="(node: any) => updateFieldType(field, node)"
+              @navigate-left="grid.navigateLeft('', field.name as string)"
+              @navigate-right="grid.navigateRight('', field.name as string)"
+              @navigate-up="grid.navigateUp('', field.name as string)"
+              @navigate-down="grid.navigateDown('', field.name as string)"
+              @delete-self="deleteField(field)"
+              @duplicate-self="duplicateField(field.id)"
+            />
+          </div>
+        </td>
+      </tr>
+      <!-- Records -->
+      <tr
+        v-for="record in recordsInView"
+        :key="record.id"
+        class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
+      >
+        <!-- Record values -->
+        <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
+          <InlineValueCell2
+            :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
+            :model-value="record.data?.[field.key as string]"
+            @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
+            :type="runtimeTypeOf(field)"
+            :readonly="context.readonly.value"
+            :active="context.editing.value || context.focused.value"
+            debounced
+            :supports-drop="!context.readonly.value"
+            @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
+            @navigate-left="grid.navigateLeft(record.id, field.name as string)"
+            @navigate-right="grid.navigateRight(record.id, field.name as string)"
+            @navigate-up="grid.navigateUp(record.id, field.name as string)"
+            @navigate-down="grid.navigateDown(record.id, field.name as string)"
+            @delete-self="deleteRecordField(record.id, field.key)"
+            class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            :style="{
+              'height': getMaxInnerHeightInRow(record.id as string) + 8 + 'px',
+            }"
           />
-        </div>
-      </td>
-    </tr>
-    <!-- Records -->
-    <tr
-      v-for="record in recordsInView"
-      :key="record.id"
-      class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
-    >
-      <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
-        <InlineValueCell2
-          :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
-          :model-value="record.data?.[field.key as string]"
-          @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
-          :type="runtimeTypeOf(field)"
-          :readonly="context.readonly.value"
-          :active="context.editing.value || context.focused.value"
-          debounced
-          :supports-drop="!context.readonly.value"
-          @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
-          @navigate-left="grid.navigateLeft(record.id, field.name as string)"
-          @navigate-right="grid.navigateRight(record.id, field.name as string)"
-          @navigate-up="grid.navigateUp(record.id, field.name as string)"
-          @navigate-down="grid.navigateDown(record.id, field.name as string)"
-          @delete-self="deleteRecord(record.id)"
-          class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-          :style="{
-            'height': getMaxHeightInRow(record.id as string) + 8 + 'px',
-          }"
+        </td>
+        <!-- </div> -->
+      </tr>
+    </table>
+    <!-- Record actions -->
+    <!-- <template v-if="!context.readonly.value">
+      <ActionPopover
+        v-for="record in recordsInView"
+        :key="record.id"
+        v-slot="{ open }"
+        class="absolute"
+        :style="{
+          top: grid.getRef(record.id, columnsInOrder[0])?.previewBounding?.x.value,
+          left: grid.getRef(record.id, columnsInOrder[0])?.previewBounding?.y.value,
+        }"
+        :thing="record"
+        :actions="recordActions"
+      >
+        <Squares2X2Icon
+          class="h-4 w-4 transition-opacity"
+          :class="open ? '' : 'opacity-0 group-hover/record:opacity-100'"
         />
-        <!-- :EditableCellStyle -->
-      </td>
-    </tr>
-  </table>
+      </ActionPopover>
+    </template> -->
+  </div>
   <!-- Single value (vertical) -->
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
     <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
@@ -552,7 +601,7 @@ defineExpose({
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
           :style="{
-            'height': getMaxHeightInRow(field.id as string) + 8 + 'px',
+            'height': getMaxInnerHeightInRow(field.id as string) + 8 + 'px',
           }"
         />
       </td>
@@ -568,7 +617,6 @@ defineExpose({
           debounced
           :supports-drop="!context.readonly.value"
           @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"
-          @delete-left="deleteRecord(mainRecord.id)"
           @delete-self="deleteRecordField(mainRecord.id, field.key as string)"
           @navigate-up="grid.navigateUp(field.id, 'value')"
           @navigate-down="grid.navigateDown(field.id, 'value')"

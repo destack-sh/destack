@@ -42,7 +42,8 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex h-full w-full flex-row flex-wrap gap-1">
+  <!-- :ForcedValueMinWidth -->
+  <div class="flex h-full w-full min-w-[150px] flex-row flex-wrap gap-1">
     <!-- :EnumStyle -->
     <!-- Existing members (same as above but with delete button) -->
     <template v-if="isArray || preview">
