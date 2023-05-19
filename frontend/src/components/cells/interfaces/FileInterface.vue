@@ -119,7 +119,6 @@ defineExpose({
 </script>
 <template>
   <!-- Entire thing is drop zone -->
-  <!-- :ForcedValueMinWidth -->
   <div
     ref="dropZoneRef"
     class="group/iface flex w-full flex-row flex-wrap gap-x-2.5 gap-y-0.5"
@@ -127,7 +126,6 @@ defineExpose({
       'rounded-sm border border-dashed border-orange-500': dragOver,
       'border border-transparent': !dragOver,
       'justify-center': modelValue.length == 0,
-      'min-w-[150px]': preview,
       'min-w-[300px]': !preview,
     }"
   >

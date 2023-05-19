@@ -13,16 +13,20 @@ import type { RecordAction, StatementAction } from "@/components/statement";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useAppearance } from "@/state/appearance";
-import { computed, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ actions: (StatementAction | RecordAction)[]; thing: any }>();
 
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
+const popoverOpenRef: Ref<HTMLElement | null> = ref(null);
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const popoverPin = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
   { pos: true, width: true }
 );
+
+// focus input when popover opens
+watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
 
 const query = ref("");
 const filteredActions = computed(() =>
