@@ -10,7 +10,7 @@ import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
 import { syncProperty } from "@/utils/sync";
-import { useElementBounding, useElementSize } from "@vueuse/core";
+import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
@@ -56,8 +56,7 @@ const previewRef = ref<any | null>(null);
 const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
-
-const previewBounding = useElementBounding(previewButtonRef);
+const previewSize = useElementSize(previewButtonRef);
 
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
@@ -160,7 +159,7 @@ defineExpose({
   editing,
   focus,
   blur,
-  previewBounding,
+  previewSize,
 });
 </script>
 <template>
@@ -213,6 +212,8 @@ defineExpose({
         :readonly="readonly"
         :preview="false"
         :active="active"
+        :preview-width="previewSize.width.value"
+        :preview-height="previewSize.height.value"
         v-bind="appearanceAttrs"
         @keydown.escape.exact.prevent.stop="close"
         @keydown.enter.exact.prevent.stop="enter"

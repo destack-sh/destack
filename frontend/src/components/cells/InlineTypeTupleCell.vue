@@ -11,6 +11,7 @@ import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
+import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -43,12 +44,14 @@ const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
+const previewRef: Ref<HTMLDivElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const typePopoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
 const actionRefs = useElementRefs();
+const previewSize = useElementSize(previewRef);
 
 // pin popover to the right
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
@@ -139,6 +142,7 @@ defineExpose({
   editing: computed(() => popoverOpenRef.value != null),
   focus,
   blur,
+  previewSize,
 });
 </script>
 <template>
@@ -154,12 +158,12 @@ defineExpose({
       @keydown.delete.exact="editing || emit('deleteSelf')"
       class="flex h-full w-full flex-col text-left outline-none"
       :class="[isEnum ? 'bg-gray-100 px-2' : '']"
-      @click="open"
+      @click.stop="open"
       @keydown.enter.exact.prevent="open"
     >
       <!-- :EnumStyle -->
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
-      <div class="flex w-full flex-row items-center text-left">
+      <div ref="previewRef" class="flex flex-row items-center text-left">
         <svg
           v-if="isEnum"
           class="mr-1.5 h-1.5 w-1.5"

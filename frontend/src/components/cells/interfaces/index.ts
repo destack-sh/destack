@@ -6,13 +6,18 @@ export type ValueInterface = {
   id: string;
   tags?: TypeTag[];
   hints?: TypeHint[];
-  inline?: boolean;
   debounceMs?: number;
   supportsList?: boolean;
   supportsSecret?: boolean;
+  // read/write mapping
   read?(type: SimpleType, value: any): any;
   write?(type: SimpleType, value: any): any;
   map?(type: SimpleType, value: any): any;
+  // display and sizing (see table in data cell)
+  minWidth?: number;
+  targetWidth?: number;
+  grow?: number;
+  inline?: boolean;
 };
 
 export const interfaces: Record<string, ValueInterface> = {};
@@ -84,34 +89,48 @@ registerInterface("boolean.checkbox", {
   tags: [TypeTag.Boolean],
   map: coerceToBoolean,
   inline: true,
+  minWidth: 40,
 });
 registerInterface("boolean.toggle", {
   tags: [],
   hints: [TypeHint.Toggle],
   map: coerceToBoolean,
   inline: true,
+  minWidth: 40,
 });
 registerInterface("string", {
   tags: [TypeTag.String],
   map: coerceToString,
   debounceMs: 1000,
+  minWidth: 200,
+  targetWidth: 300,
+  grow: 1.0,
 });
 registerInterface("number", {
   tags: [TypeTag.Number],
   map: coerceToNumber,
   debounceMs: 1000,
+  minWidth: 150,
+  targetWidth: 200,
+  grow: 0.5,
 });
 registerInterface("enum", {
   tags: [TypeTag.Enum],
   read: (t, v) => toArrayAsFlagged(t, v),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
+  minWidth: 200,
+  targetWidth: 300,
+  grow: 1.0,
 });
 registerInterface("file", {
   tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
   read: (t, v) => toArrayAsFlagged(t, v),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
+  minWidth: 200,
+  targetWidth: 300,
+  grow: 1.0,
 });
 
 export function getInterface(type: SimpleType): ValueInterface | undefined {
@@ -135,4 +154,9 @@ export function getInterface(type: SimpleType): ValueInterface | undefined {
   // if hint not found fall back to tag
   const byTag = withFlags.find((i) => i.tags?.includes(type.tag));
   return byTag;
+}
+
+export function getMinWidth(type: SimpleType): number | undefined {
+  const iface = getInterface(type);
+  return iface?.minWidth;
 }

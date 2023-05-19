@@ -1,19 +1,20 @@
 <script lang="ts" setup>
-import InlineActions from "@/components/basic/InlineActions.vue";
 import ActionPopover from "@/components/basic/ActionPopover.vue";
+import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
+import { getInterface } from "@/components/cells/interfaces";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
 import {
   makeTypeNode,
   useStatementContext,
-  type StatementAction,
-  type SimpleType,
   type RecordAction,
+  type SimpleType,
+  type StatementAction,
 } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
@@ -36,7 +37,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useMouseInElement } from "@vueuse/core";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, watchEffect, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -53,6 +54,7 @@ const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
 const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
+const appearance = useAppearance();
 
 const {
   loading,
@@ -148,6 +150,7 @@ const extendedFields = computed(
 );
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
+// grid & grid sizing
 const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell2>>(
   columnsInOrder,
   computed(() => {
@@ -164,16 +167,48 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
     gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value ?? addFieldRef.value)?.focus(),
   }
 );
-const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
-const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
+
+const growColumns = true;
+const columnWidths: Ref<number[]> = ref([]);
+// auto size columns
+watchEffect(() => {
+  const minTotalWidth = appearance.contentWidth;
+  const ifaces = allFields.value.map((f) => getInterface(f));
+
+  // init width to minimum widths as min(header, iface_min)
+  const widths: number[] = [];
+  for (let i = 0; i < allFields.value.length; i++) {
+    const iface = ifaces[i];
+    const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize?.width.value ?? 50) + 16; // little padding
+    const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
+    widths.push(minWidth);
+  }
+
+  // if the total width is too small, scale up by the grow factors
+  const totalWidth = widths.reduce((a, b) => a + b, 0);
+  const toFill = Math.max(minTotalWidth - totalWidth, 0);
+  if (toFill > 0 && growColumns) {
+    const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
+    const growTotal = growFactors.reduce((a, b) => a + b, 0);
+    const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
+    for (let i = 0; i < widths.length; i++) {
+      widths[i] += growWidths[i];
+    }
+  }
+
+  columnWidths.value = widths;
+});
 
 function getMaxInnerHeightInRow(id: string): number {
   /* Gets the maximum value of any elements in the row */
   return grid
     .getColumn(id)
-    .map((e) => e.previewBounding?.height.value ?? 0)
+    .map((e) => e.previewSize?.height.value ?? 0)
     .reduce((a, b) => Math.max(a, b), 0);
 }
+
+const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 function focusDescriptionFromTop() {
   if (description.value?.length > 0 || addingDescription.value) {
@@ -388,8 +423,6 @@ const recordActions: RecordAction[] = [
   },
 ];
 
-const appearance = useAppearance();
-
 defineExpose({
   focus: () => declarationRef.value?.focus(),
   blur: () => {
@@ -503,12 +536,13 @@ defineExpose({
   >
     +description
   </button>
-  <!-- Table (in table form) -->
+  <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div v-if="isTable" class="w-full overflow-x-auto" :style="appearance.contentWidthAsMaxWidth">
-    <table ref="gridRef" class="-mx-1 w-full min-w-fit">
-      <tr class="border-b border-orange-900 border-opacity-[12%]">
-        <td v-for="field in allFields" :key="field?.id" class="">
+    <div ref="gridRef" class="-mx-1 flex w-full min-w-fit flex-col">
+      <!-- Header (with types) -->
+      <div class="flex flex-row border-b border-orange-900 border-opacity-[12%]">
+        <div v-for="(field, i) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <InlineTypeTupleCell
               :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
@@ -524,18 +558,38 @@ defineExpose({
               @navigate-down="grid.navigateDown('', field.name as string)"
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
+              :style="{
+                width: columnWidths[i] + 'px',
+              }"
             />
           </div>
-        </td>
-      </tr>
+        </div>
+      </div>
       <!-- Records -->
-      <tr
-        v-for="record in recordsInView"
+      <div
+        v-for="(record, y) in recordsInView"
         :key="record.id"
-        class="border-collapse border-b border-orange-900 border-opacity-[12%] align-top"
+        class="group/record flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
       >
+        <!-- Record action -->
+        <div class="absolute -left-5 mt-1">
+          <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
+            <Squares2X2Icon
+              class="h-4 w-4 text-gray-400"
+              :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
+            />
+          </ActionPopover>
+        </div>
         <!-- Record values -->
-        <td v-for="field in allFields" :key="record.id + '.' + field?.id" class="h-full">
+        <div
+          v-for="(field, x) in allFields"
+          :key="record.id + '.' + field?.id"
+          class="h-full min-h-[32px] overflow-hidden"
+          :style="{
+          'height': getMaxInnerHeightInRow(record.id as string) + 8 + 'px',
+          'width': columnWidths[x] + 'px',
+        }"
+        >
           <InlineValueCell2
             :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
             :model-value="record.data?.[field.key as string]"
@@ -551,35 +605,11 @@ defineExpose({
             @navigate-up="grid.navigateUp(record.id, field.name as string)"
             @navigate-down="grid.navigateDown(record.id, field.name as string)"
             @delete-self="deleteRecordField(record.id, field.key)"
-            class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :style="{
-              'height': getMaxInnerHeightInRow(record.id as string) + 8 + 'px',
-            }"
+            class="h-full w-full border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           />
-        </td>
-        <!-- </div> -->
-      </tr>
-    </table>
-    <!-- Record actions -->
-    <!-- <template v-if="!context.readonly.value">
-      <ActionPopover
-        v-for="record in recordsInView"
-        :key="record.id"
-        v-slot="{ open }"
-        class="absolute"
-        :style="{
-          top: grid.getRef(record.id, columnsInOrder[0])?.previewBounding?.x.value,
-          left: grid.getRef(record.id, columnsInOrder[0])?.previewBounding?.y.value,
-        }"
-        :thing="record"
-        :actions="recordActions"
-      >
-        <Squares2X2Icon
-          class="h-4 w-4 transition-opacity"
-          :class="open ? '' : 'opacity-0 group-hover/record:opacity-100'"
-        />
-      </ActionPopover>
-    </template> -->
+        </div>
+      </div>
+    </div>
   </div>
   <!-- Single value (vertical) -->
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">

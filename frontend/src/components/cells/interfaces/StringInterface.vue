@@ -6,6 +6,8 @@ const props = defineProps<{
   type: SimpleType;
   modelValue?: string;
   preview?: boolean;
+  previewWidth?: number;
+  previewHeight?: number;
 }>();
 const inputRef: Ref<HTMLInputElement | null> = ref(null);
 
@@ -20,11 +22,13 @@ defineExpose({
 </script>
 <template>
   <!-- :ForcedValueMinWidth -->
-  <div v-if="preview" class="h-full w-full min-w-[150px] whitespace-pre-wrap">{{ modelValue }}&nbsp;</div>
+  <div v-if="preview" class="h-full w-full whitespace-pre-wrap">{{ modelValue }}&nbsp;</div>
   <textarea
     v-else
     ref="inputRef"
-    class="h-fit w-full min-w-[300px] whitespace-pre rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    class="h-fit min-w-[300px] max-w-full whitespace-pre-wrap break-words rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    :style="{ minHeight: previewHeight + 'px' }"
+    wrap="hard"
     type="text"
     :value="modelValue"
     @input="emit('update:modelValue', $event.target?.value)"
