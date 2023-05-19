@@ -5,7 +5,9 @@ import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
 import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
 import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
 import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
+import ShortStringInterface from "@/components/cells/interfaces/ShortStringInterface.vue";
 import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
+import SecretInterface from "@/components/cells/interfaces/SecretInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
@@ -17,9 +19,11 @@ const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
   "boolean.toggle": ToggleInterface,
   string: StringInterface,
+  "string.short": ShortStringInterface,
   number: NumberInterface,
   enum: EnumInterface,
   file: FileInterface,
+  secret: SecretInterface,
 };
 
 const props = defineProps<{

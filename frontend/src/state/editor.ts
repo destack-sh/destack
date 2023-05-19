@@ -110,7 +110,6 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.Duration]: "duration",
   [TypeHint.Email]: "email",
   [TypeHint.Url]: "URL",
-  [TypeHint.EmbedUrl]: "embed",
   [TypeHint.Markdown]: "markdown",
   [TypeHint.RichText]: "rich",
   [TypeHint.Html]: "HTML",

@@ -1750,6 +1750,8 @@ union RunStateOperationInfo = RunState | OperationInfo
 
 type Secret implements Node {
   id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
   sha512: String!
   name: String
   project: Project!
@@ -2059,7 +2061,6 @@ enum TypeHint {
   DURATION
   EMAIL
   URL
-  EMBED_URL
   MARKDOWN
   RICH_TEXT
   HTML

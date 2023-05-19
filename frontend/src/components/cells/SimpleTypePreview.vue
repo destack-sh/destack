@@ -77,7 +77,6 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Time]: ClockIcon,
   [TypeHint.Duration]: ClockIcon,
   [TypeHint.Url]: LinkIcon,
-  [TypeHint.EmbedUrl]: LinkIcon,
   [TypeHint.Email]: AtSymbolIcon,
   [TypeHint.Markdown]: CodeBracketIcon,
   [TypeHint.Html]: CodeBracketIcon,

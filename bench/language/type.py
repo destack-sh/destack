@@ -210,7 +210,6 @@ class TypeHint(models.TextChoices):
     DURATION = "duration"
     EMAIL = "email"
     URL = "url"
-    EMBED_URL = "embed_url"
     MARKDOWN = "markdown"
     RICH_TEXT = "rich_text"
     HTML = "html"
@@ -235,7 +234,6 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.DURATION: TypeTag.STRING,
     TypeHint.EMAIL: TypeTag.STRING,
     TypeHint.URL: TypeTag.STRING,
-    TypeHint.EMBED_URL: TypeTag.STRING,
     TypeHint.MARKDOWN: TypeTag.STRING,
     TypeHint.RICH_TEXT: TypeTag.STRING,
     TypeHint.HTML: TypeTag.STRING,

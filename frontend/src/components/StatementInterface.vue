@@ -359,6 +359,7 @@ const filteredClients = computed(() =>
         }"
       >
         <!-- Monaco-like line number and drag handle -->
+        <!-- TODO @Broken: fix dragging (broke when wrapping span in action popover button) -->
         <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
           <span
             class="select-none text-right not-italic transition duration-150"
@@ -379,7 +380,7 @@ const filteredClients = computed(() =>
             @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
             @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
           >
-            {{ lineNumber + 1 }}
+            {{ lineNumber }}
           </span>
         </ActionPopover>
         <!-- Add statement below button -->

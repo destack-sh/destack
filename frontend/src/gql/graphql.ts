@@ -2031,10 +2031,12 @@ export type RunStateOperationInfo = OperationInfo | RunState;
 
 export type Secret = Node & {
   __typename?: "Secret";
+  createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   project: Project;
   sha512: Scalars["String"];
+  updatedAt: Scalars["DateTime"];
   valueRevealed: Scalars["JSON"];
 };
 
@@ -2400,7 +2402,6 @@ export enum TypeHint {
   Datetime = "DATETIME",
   Duration = "DURATION",
   Email = "EMAIL",
-  EmbedUrl = "EMBED_URL",
   Float = "FLOAT",
   Html = "HTML",
   Integer = "INTEGER",
@@ -4200,6 +4201,49 @@ export type CancelMutation = {
       });
 };
 
+export type CreateSecretMutationVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  value: Scalars["JSON"];
+}>;
+
+export type CreateSecretMutation = {
+  __typename?: "Mutation";
+  createSecret:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Secret"; id: any; createdAt: any; updatedAt: any; sha512: string; name?: string | null };
+};
+
+export type UpdateSecretMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  value: Scalars["JSON"];
+}>;
+
+export type UpdateSecretMutation = {
+  __typename?: "Mutation";
+  updateSecret:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Secret"; id: any; createdAt: any; updatedAt: any; sha512: string; name?: string | null };
+};
+
+export type DeleteSecretMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type DeleteSecretMutation = {
+  __typename?: "Mutation";
+  deleteSecret?:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | null;
+};
+
 export type CreateStatementMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
   fileId: Scalars["GlobalID"];
@@ -5006,6 +5050,15 @@ export type InterpChangedSubscription = {
   interpChanged: { __typename?: "InterpModule" } & {
     " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
   };
+};
+
+export type RevealSecretQueryVariables = Exact<{
+  secretId: Scalars["GlobalID"];
+}>;
+
+export type RevealSecretQuery = {
+  __typename?: "Query";
+  secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
 };
 
 export type ModuleChangedSubscriptionVariables = Exact<{
@@ -11098,6 +11151,219 @@ export const CancelDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CancelMutation, CancelMutationVariables>;
+export const CreateSecretDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createSecret" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createSecret" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Secret" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "sha512" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateSecretMutation, CreateSecretMutationVariables>;
+export const UpdateSecretDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateSecret" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateSecret" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Secret" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "sha512" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateSecretMutation, UpdateSecretMutationVariables>;
+export const DeleteSecretDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteSecret" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteSecret" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<DeleteSecretMutation, DeleteSecretMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [
@@ -14396,6 +14662,56 @@ export const InterpChangedDocument = {
     ...InterpErrorContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<InterpChangedSubscription, InterpChangedSubscriptionVariables>;
+export const RevealSecretDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "revealSecret" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "secretId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "secret" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "secretId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Secret" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "sha512" } },
+                      { kind: "Field", name: { kind: "Name", value: "valueRevealed" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RevealSecretQuery, RevealSecretQueryVariables>;
 export const ModuleChangedDocument = {
   kind: "Document",
   definitions: [

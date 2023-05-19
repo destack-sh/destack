@@ -4,14 +4,13 @@ import { ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;
-  modelValue?: number;
+  modelValue?: string;
   preview?: boolean;
 }>();
-
 const inputRef: Ref<HTMLInputElement | null> = ref(null);
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: number): void;
+  (e: "update:modelValue", value: string): void;
 }>();
 
 defineExpose({
@@ -20,14 +19,15 @@ defineExpose({
 });
 </script>
 <template>
-  <div v-if="preview" class="h-full w-full text-right">{{ modelValue }}&nbsp;</div>
+  <!-- :ForcedValueMinWidth -->
+  <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
   <input
     v-else
     ref="inputRef"
-    class="w-full rounded-none border-none bg-transparent p-0 text-right outline-none ring-0 focus:ring-0"
-    type="number"
+    class="min-w-[300px] max-w-full rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    type="text"
     :value="modelValue"
-    @input="emit('update:modelValue', Number.parseFloat($event.target?.value))"
+    @input="emit('update:modelValue', $event.target?.value)"
     spellcheck="false"
   />
 </template>
