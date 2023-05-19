@@ -1,14 +1,8 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import {
-  makeTypeNode,
-  NAME_TYPE_NODE,
-  STRING_TYPE_NODE,
-  useStatementContext,
-  type SimpleType,
-} from "@/components/statement";
+import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -48,9 +42,6 @@ const outputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeTuple
   nowrapLeft: true,
   nowrapRight: true,
 });
-const isEditing = computed(
-  () => inputGrid.refs.value.find((r) => r.editing) || outputGrid.refs.value.find((r) => r.editing)
-);
 
 const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
 const addOutputRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -154,7 +145,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell2"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
             :readonly="context.readonly.value"
@@ -162,7 +153,7 @@ defineExpose({
             immediate
             debounced
             :placeholder-value="context.editing.value ? '+' + column : null"
-            :type="STRING_TYPE_NODE"
+            :type="NAME_TYPE_NODE"
             slim
             @navigate-left="inputGrid.navigateLeft(member.id, column)"
             @navigate-right="inputGrid.navigateRight(member.id, column)"
@@ -204,7 +195,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell2"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
             :readonly="context.readonly.value"

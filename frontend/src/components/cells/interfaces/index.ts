@@ -8,7 +8,7 @@ export type ValueInterface = {
   hints?: TypeHint[];
   debounceMs?: number;
   supportsList?: boolean;
-  supportsSecret?: boolean;
+  isSecret?: boolean;
   // read/write mapping
   read?(type: SimpleType, value: any): any;
   write?(type: SimpleType, value: any): any;
@@ -85,18 +85,7 @@ function coerceToNumber(type: SimpleType, value: any) {
   return typeof value == "number" ? value : null;
 }
 
-registerInterface("boolean.checkbox", {
-  tags: [TypeTag.Boolean],
-  map: coerceToBoolean,
-  inline: true,
-  minWidth: 40,
-});
-registerInterface("boolean.toggle", {
-  hints: [TypeHint.Toggle],
-  map: coerceToBoolean,
-  inline: true,
-  minWidth: 40,
-});
+// string
 registerInterface("string", {
   tags: [TypeTag.String],
   map: coerceToString,
@@ -111,14 +100,6 @@ registerInterface("string.short", {
   debounceMs: 1000,
   minWidth: 220,
   targetWidth: 300,
-  grow: 1.0,
-});
-registerInterface("number", {
-  tags: [TypeTag.Number],
-  map: coerceToNumber,
-  debounceMs: 1000,
-  minWidth: 150,
-  targetWidth: 200,
   grow: 0.5,
 });
 registerInterface("enum", {
@@ -130,6 +111,49 @@ registerInterface("enum", {
   targetWidth: 300,
   grow: 1.0,
 });
+registerInterface("secret", {
+  tags: [TypeTag.String, TypeTag.Number],
+  isSecret: true,
+  minWidth: 220,
+  targetWidth: 300,
+  grow: 0.5,
+});
+// number
+registerInterface("number", {
+  tags: [TypeTag.Number],
+  map: coerceToNumber,
+  debounceMs: 1000,
+  minWidth: 150,
+  targetWidth: 200,
+  grow: 0.5,
+});
+registerInterface("number.rating", {
+  hints: [TypeHint.Rating],
+  map: coerceToNumber,
+  minWidth: 120,
+  grow: 0.1,
+  inline: true,
+});
+// boolean
+registerInterface("boolean.checkbox", {
+  tags: [TypeTag.Boolean],
+  map: coerceToBoolean,
+  minWidth: 40,
+  inline: true,
+});
+registerInterface("boolean.toggle", {
+  hints: [TypeHint.Toggle],
+  map: coerceToBoolean,
+  minWidth: 40,
+  inline: true,
+});
+registerInterface("boolean.thumbs", {
+  hints: [TypeHint.Thumbs],
+  map: coerceToBoolean,
+  minWidth: 40,
+  inline: true,
+});
+// other
 registerInterface("file", {
   tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
   read: (t, v) => toArrayAsFlagged(t, v),
@@ -139,35 +163,28 @@ registerInterface("file", {
   targetWidth: 300,
   grow: 1.0,
 });
-registerInterface("secret", {
-  tags: [TypeTag.String, TypeTag.Number],
-  supportsSecret: true,
-  minWidth: 220,
-  targetWidth: 300,
-  grow: 0.5,
-});
 
 export function getInterface(type: SimpleType): ValueInterface | undefined {
+  let filtered = Object.values(interfaces);
   // find most specific interface that supports the type
-  const withFlags = Object.values(interfaces).filter((i) => {
+  filtered = filtered.filter((i) => {
     if (type.flags & TypeFlag.IsArray && !i.supportsList) {
       return false;
     }
-    if (type.flags & TypeFlag.IsSecret && !i.supportsSecret) {
+    if (Boolean(type.flags & TypeFlag.IsSecret) != Boolean(i.isSecret)) {
       return false;
     }
     return true;
   });
   // prefer find by hint
   if (type.hint != null) {
-    const byHint = withFlags.find((i) => i.hints?.includes(type.hint!));
+    const byHint = filtered.find((i) => i.hints?.includes(type.hint!));
     if (byHint != null) {
       return byHint;
     }
   }
   // if hint not found fall back to tag
-  const byTag = withFlags.find((i) => i.tags?.includes(type.tag));
-  return byTag;
+  return filtered.find((i) => i.tags?.includes(type.tag));
 }
 
 export function getMinWidth(type: SimpleType): number | undefined {

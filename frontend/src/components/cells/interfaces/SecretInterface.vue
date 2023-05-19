@@ -26,11 +26,14 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const secretValue = ref<string | null>(null);
 const hidden = ref(true);
 
-// auto write secret when editing
+// auto reset secret value (reset on change)
 syncProperty({
   value: secretValue,
-  editing: ref(props.preview),
-  read: () => doReveal(true),
+  editing: ref(!props.preview),
+  read: () => {
+    props.modelValue; // trigger reactivity
+    secretValue.value = null;
+  },
   write: writeSecretValue,
   debounceMs: 1000,
 });
@@ -136,7 +139,8 @@ defineExpose({
       <button
         v-for="action in inlineActions"
         :key="action.label"
-        class="p-0.5 text-gray-400 hover:bg-orange-100 focus:bg-orange-100"
+        class="p-0.5 text-gray-400 transition-opacity hover:bg-orange-100 focus:bg-orange-100"
+        :class="[active ? '' : 'opacity-0 group-hover/iface:opacity-100']"
         @click.stop="action.action"
         @keydown.enter.stop="action.action"
       >

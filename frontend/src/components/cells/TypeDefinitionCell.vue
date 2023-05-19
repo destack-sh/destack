@@ -4,14 +4,14 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
+import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import {
   makeTypeNode,
   NAME_TYPE_NODE,
   useStatementContext,
-  type StatementAction,
   type SimpleType,
+  type StatementAction,
 } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
 import { newTypeNodeId } from "@/state/operations/statement";
@@ -305,7 +305,6 @@ defineExpose({
         @navigate-up="grid.navigateUp(member.id, 'type')"
         @navigate-down="grid.navigateDown(member.id, 'type')"
         @delete-self="deleteMember(member.id)"
-        @delete-left="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
         class="self-start border border-orange-900 border-opacity-0 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
@@ -316,13 +315,12 @@ defineExpose({
         "
       />
       <!-- Description -->
-      <InlineValueCell
+      <InlineValueCell2
         :model-value="member.description"
         @update:model-value="writeDescription(member.id, $event)"
         :ref="(el: any) => grid.registerColumnRef(member.id, 'description', el)"
         :readonly="context.readonly.value"
         :active="context.focused.value || context.editing.value"
-        immediate
         debounced
         :placeholder-value="context.editing.value ? '+' + 'description' : null"
         :type="NAME_TYPE_NODE"
@@ -331,8 +329,6 @@ defineExpose({
         @navigate-up="grid.navigateUp(member.id, 'description')"
         @navigate-down="grid.navigateDown(member.id, 'description')"
         @delete-self="deleteMember(member.id)"
-        @delete-left="deleteMember(member.id)"
-        @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
         class="w-full self-start border border-transparent px-2 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
       />

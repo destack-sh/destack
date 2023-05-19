@@ -220,12 +220,15 @@ class TypeHint(models.TextChoices):
     FLOAT = "float"
     SLIDER = "slider"
     PHONE = "phone"
+    RATING = "rating"
     # boolean
     TOGGLE = "toggle"
     CHECKBOX = "checkbox"
+    THUMBS = "thumbs"
 
 
 TYPE_TAG_BY_TYPE_HINT = {
+    # string
     TypeHint.NAME: TypeTag.STRING,
     TypeHint.UUID: TypeTag.STRING,
     TypeHint.DATE: TypeTag.STRING,
@@ -238,12 +241,17 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.RICH_TEXT: TypeTag.STRING,
     TypeHint.HTML: TypeTag.STRING,
     TypeHint.CODE: TypeTag.STRING,
+    TypeHint.KEY: TypeTag.STRING,
+    # number
     TypeHint.INTEGER: TypeTag.NUMBER,
     TypeHint.FLOAT: TypeTag.NUMBER,
     TypeHint.SLIDER: TypeTag.NUMBER,
     TypeHint.PHONE: TypeTag.NUMBER,
+    TypeHint.RATING: TypeTag.NUMBER,
+    # boolean
     TypeHint.TOGGLE: TypeTag.BOOLEAN,
     TypeHint.CHECKBOX: TypeTag.BOOLEAN,
+    TypeHint.THUMBS: TypeTag.BOOLEAN,
 }
 
 

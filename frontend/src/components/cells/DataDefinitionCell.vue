@@ -36,7 +36,7 @@ import {
   TrashIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useMouseInElement } from "@vueuse/core";
+import { onStartTyping, useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watchEffect, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
@@ -221,6 +221,19 @@ function getRowHeight(id: string): number {
 const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
+// navigation
+
+// auto-edit value field if starting to type (clear & focus)
+onStartTyping((e) => {
+  if (context.readonly.value) return;
+  const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
+  if (cell != null && cell.rowId != "") {
+    const field = allFields.value.find((f) => f.name == cell.column);
+    deleteRecordField(cell.rowId, field?.key as string);
+    nextTick(() => cell.ref.edit?.());
+  }
+});
+
 function focusDescriptionFromTop() {
   if (description.value?.length > 0 || addingDescription.value) {
     descriptionRef.value?.focus();
@@ -260,6 +273,8 @@ function focusLastRecord() {
     descriptionRef.value?.focus();
   }
 }
+
+// state
 
 const ops = useOperations();
 
@@ -390,6 +405,8 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
   await magic.insertFilesAsRecords(key, orderKeys, files);
 }
 const position = useMouseInElement(gridRef);
+
+// actions
 
 const extraStatementActions = computed(() => {
   const inlineActions: StatementAction[] = [];

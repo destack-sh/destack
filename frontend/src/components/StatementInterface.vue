@@ -351,57 +351,57 @@ const filteredClients = computed(() =>
       }"
     >
       <!-- Left gutter -->
-      <div
-        class="absolute top-0 z-[5] flex flex-row-reverse items-center gap-0.5"
-        :class="{
-          '-left-9': lineNumberDigits == 1,
-          '-left-11': lineNumberDigits == 2,
-        }"
-      >
-        <!-- Monaco-like line number and drag handle -->
-        <!-- TODO @Broken: fix dragging (broke when wrapping span in action popover button) -->
-        <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
-          <span
-            class="select-none text-right not-italic transition duration-150"
-            :class="{
-              'opacity-0': !isFocused && !open && !editor.showLineNumbers,
-              'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
-              'text-sm': editor.textSmall,
-              'text-md': !editor.textSmall,
-              'font-mono': editor.fontMono,
-              'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
-                !isCommentish,
-              'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
-                isCommentish,
-              'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
-              'text-gray-500': (dragOver || open || isFocused) && isCommentish,
-              'cursor-grab': !context.readonly,
-            }"
-            @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
-            @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
-          >
-            {{ lineNumber }}
-          </span>
-        </ActionPopover>
-        <!-- Add statement below button -->
-        <button
-          v-if="!context.readonly"
-          class="rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-          :class="isFocused ? 'opacity-100' : 'opacity-0'"
-          @click="insertStatementOnClick"
-        >
-          <PlusIcon class="h-4 w-4" />
-        </button>
-        <!-- Other connected clients -->
-        <div
-          v-for="client in filteredClients"
-          :key="client.id"
-          class="rounded-sm px-1 py-0.5 text-gray-700"
-          :style="{
-            backgroundColor: getClientColor(client.id),
-          }"
-        >
-          {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+      <!-- Small positioning hack to get content right-aligned on absolute left offset -->
+      <div class="absolute -left-1 top-0 z-[5]">
+        <div class="relative">
+          <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
+            <!-- Monaco-like line number and drag handle -->
+            <!-- TODO @Broken: fix dragging (broke when wrapping span in action popover button) -->
+            <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
+              <span
+                class="select-none text-right not-italic transition duration-150"
+                :class="{
+                  'opacity-0': !isFocused && !open && !editor.showLineNumbers,
+                  'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
+                  'text-sm': editor.textSmall,
+                  'text-md': !editor.textSmall,
+                  'font-mono': editor.fontMono,
+                  'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
+                    !isCommentish,
+                  'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
+                    isCommentish,
+                  'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
+                  'text-gray-500': (dragOver || open || isFocused) && isCommentish,
+                  'cursor-grab': !context.readonly,
+                }"
+                @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
+                @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
+              >
+                {{ lineNumber }}
+              </span>
+            </ActionPopover>
+            <!-- Add statement below button -->
+            <button
+              v-if="!context.readonly"
+              class="rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+              :class="isFocused ? 'opacity-100' : 'opacity-0'"
+              @click="insertStatementOnClick"
+            >
+              <PlusIcon class="h-4 w-4" />
+            </button>
+            <!-- Other connected clients -->
+            <div
+              v-for="client in filteredClients"
+              :key="client.id"
+              class="rounded-sm px-1 py-0.5 text-gray-700"
+              :class="[editor.textSmall ? 'text-xs' : 'text-sm']"
+              :style="{
+                backgroundColor: getClientColor(client.id),
+              }"
+            >
+              {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+            </div>
+          </div>
         </div>
       </div>
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
