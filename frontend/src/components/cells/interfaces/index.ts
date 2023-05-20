@@ -17,7 +17,6 @@ export type ValueInterface = {
   map?(type: SimpleType, value: any): any;
   // display and sizing (see table in data cell)
   minWidth?: number;
-  targetWidth?: number;
   grow?: number;
   inline?: boolean;
 };
@@ -97,7 +96,6 @@ registerInterface("string", {
   map: coerceToString,
   debounceMs: 1000,
   minWidth: 220,
-  targetWidth: 300,
   grow: 1.0,
 });
 registerInterface("string.short", {
@@ -105,7 +103,6 @@ registerInterface("string.short", {
   map: coerceToString,
   debounceMs: 1000,
   minWidth: 220,
-  targetWidth: 300,
   grow: 0.5,
 });
 registerInterface("enum", {
@@ -114,7 +111,6 @@ registerInterface("enum", {
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
   minWidth: 220,
-  targetWidth: 300,
   grow: 1.0,
 });
 registerInterface("secret", {
@@ -122,7 +118,6 @@ registerInterface("secret", {
   read: (t, v) => (isValidSecretRecord(v) ? v : null),
   isSecret: true,
   minWidth: 220,
-  targetWidth: 300,
   grow: 0.5,
 });
 // number
@@ -131,7 +126,6 @@ registerInterface("number", {
   map: coerceToNumber,
   debounceMs: 1000,
   minWidth: 150,
-  targetWidth: 200,
   grow: 0.5,
 });
 registerInterface("number.rating", {
@@ -166,7 +160,6 @@ registerInterface("file", {
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
   minWidth: 220,
-  targetWidth: 300,
   grow: 1.0,
 });
 

@@ -40,13 +40,16 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     onFocus?: (rowId: string, column: ColumnType) => void;
   } = {}
 ) {
+  const gridId = Math.random().toString(36).substring(2, 15); // just for debugging
   const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);
 
   function registerColumnRef(rowId: string, column: ColumnType, ref: RefType | undefined) {
     const columnId = rowId + "." + column;
     if (ref != undefined) {
-      columnRefs.value[columnId] = ref;
+      if (columnRefs.value[columnId] !== ref) {
+        columnRefs.value[columnId] = ref;
+      }
     } else {
       delete columnRefs.value[columnId];
     }
@@ -150,6 +153,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
 
   return {
     registerColumnRef,
+    refsByColumn: columnRefs,
     refs: computed(() => Object.values(columnRefs.value)),
     findRef,
     getRef,

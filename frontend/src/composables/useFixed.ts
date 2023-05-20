@@ -6,6 +6,7 @@ export function pinAbsoluteElement(
     pos?: boolean;
     width?: boolean;
     height?: boolean;
+    pushIntoView?: boolean;
   }
 ) {
   // fixes the element at the first available position

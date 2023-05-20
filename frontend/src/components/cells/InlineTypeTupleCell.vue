@@ -7,6 +7,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { ANY_TYPE_NODE, getEnumColor, type SimpleType, type TypeAction } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { TypeTag } from "@/gql/graphql";
+import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
@@ -52,6 +53,11 @@ const typePopoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref
 const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
 const actionRefs = useElementRefs();
 const previewSize = useElementSize(previewRef);
+const previewSizeValue = {
+  // :ReactiveGridFuckery
+  width: toValueRef(previewSize.width),
+  height: toValueRef(previewSize.height),
+};
 
 // pin popover to the right
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
@@ -135,7 +141,7 @@ defineExpose({
   editing: computed(() => popoverOpenRef.value != null),
   focus,
   blur,
-  previewSize,
+  previewSize: previewSizeValue,
 });
 </script>
 <template>

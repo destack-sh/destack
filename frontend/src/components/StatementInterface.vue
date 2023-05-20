@@ -438,6 +438,7 @@ const filteredClients = computed(() =>
           v-if="rootCell.component == DeclarationCell"
           ref="rootCellRef"
           :is="rootCell.component"
+          key="main"
           @navigate-up="magic.moveFocusUp"
           @navigate-down="magic.moveFocusDown"
         />

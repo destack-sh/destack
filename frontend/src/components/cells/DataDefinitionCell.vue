@@ -22,7 +22,7 @@ import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
-import { newDatasetRecordId, newTypeNodeId } from "@/state/operations/statement";
+import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
@@ -38,7 +38,7 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useMouseInElement } from "@vueuse/core";
 import { editor } from "monaco-editor";
-import { computed, nextTick, ref, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -141,6 +141,13 @@ const columnsInOrder: Ref<string[]> = computed(() => {
     return ["type", "value"];
   }
 });
+const rowIdsInOrder: Ref<string[]> = computed(() => {
+  if (isTable.value) {
+    return recordsInView.value?.map((r) => r.id) ?? [];
+  } else {
+    return allFields.value?.map((n) => n.id ?? "") ?? [];
+  }
+});
 // map the field type to its actual runtime type
 // children cannot be imputed into SimpleTypeNode but we still want to know the actual type
 const selfSymbol = computed(() => symbolOf(context.statement.value.id));
@@ -184,6 +191,7 @@ const verticalBorders = true;
 const maxRowHeight = 220;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
+const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
   if (editorView.size.value.width > appearance.contentWidthWithMargin) {
     return (editorView.size.value.width - appearance.contentWidth) / 2;
@@ -191,41 +199,59 @@ const gridOffsetX: Ref<number> = computed(() => {
     return appearance.contentMarginX;
   }
 });
-// auto size columns
-watchEffect(() => {
-  const targetMinTotalWidth =
-    Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
-  const ifaces = allFields.value.map((f) => getInterface(f));
-  // init width to minimum widths as min(header, iface_min)
-  const widths: number[] = [];
-  for (let i = 0; i < allFields.value.length; i++) {
-    const iface = ifaces[i];
-    const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize?.width.value ?? 50) + 16; // little padding
-    const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
-    widths.push(minWidth);
-  }
-  // if the total width is too small, scale up to fill by the grow factors
-  const minTotalWidth = widths.reduce((a, b) => a + b, 0);
-  if (minTotalWidth < targetMinTotalWidth && growColumns) {
-    const toFill = Math.max(targetMinTotalWidth - minTotalWidth, 0);
-    const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
-    const growTotal = growFactors.reduce((a, b) => a + b, 0);
-    const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
-    for (let i = 0; i < widths.length; i++) {
-      widths[i] += growWidths[i];
-    }
-  }
-  columnWidths.value = widths;
-});
+// auto size columns and rows
+// manual dependency tracking to prevent recursive updates
+// TODO @Robustness @UX @Performance: grid resizing sometimes loops and becomes recursive :ReactiveGridFuckery
+//  many :ref seem to be triggered, triggering registerColumnRef, triggering grid.refsByColumn below..
+//  Sometimes this is annoying because it causes noticable lags when editing, especially when adding rows or modifying columns.
 
-function getRowHeight(id: string): number {
-  /* Gets the maximum value of any elements in the row */
-  const maxInnerHeight = grid
-    .getColumn(id)
-    .map((e) => e.previewSize?.height.value ?? 0)
-    .reduce((a, b) => Math.max(a, b), 0);
-  return Math.min(maxInnerHeight, maxRowHeight);
-}
+watch(
+  () => [
+    appearance.contentWidth,
+    appearance.contentMarginX,
+    editorView.size.value,
+    allFields.value,
+    Object.values(grid.refsByColumn.value).map((r) => [r.previewSize?.width.value, r.previewSize?.height.value]),
+  ],
+  () => {
+    // update columns
+    const targetMinTotalWidth =
+      Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
+    const ifaces = allFields.value.map((f) => getInterface(f));
+    // init width to minimum widths as min(header, iface_min)
+    const widths: number[] = [];
+    for (let i = 0; i < allFields.value.length; i++) {
+      const iface = ifaces[i];
+      const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize?.width.value ?? 50) + 16; // little padding
+      const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
+      widths.push(minWidth);
+    }
+    // if the total width is too small, scale up to fill by the grow factors
+    const minTotalWidth = widths.reduce((a, b) => a + b, 0);
+    if (minTotalWidth < targetMinTotalWidth && growColumns) {
+      const toFill = Math.max(targetMinTotalWidth - minTotalWidth, 0);
+      const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
+      const growTotal = growFactors.reduce((a, b) => a + b, 0);
+      const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
+      for (let i = 0; i < widths.length; i++) {
+        widths[i] += growWidths[i];
+      }
+    }
+    columnWidths.value = widths;
+
+    // update rows
+    rowHeights.value = rowIdsInOrder.value
+      .map((r) =>
+        grid
+          .getColumn(r)
+          .map((e) => e.previewSize?.height.value ?? 0)
+          .reduce((a, b) => Math.max(a, b), 0)
+      )
+      .map((h) => Math.min(h, maxRowHeight));
+
+    // console.log("auto size", columnWidths.value, rowHeights.value);
+  }
+);
 
 // navigation
 
@@ -233,9 +259,14 @@ function getRowHeight(id: string): number {
 onStartTyping((e) => {
   if (context.readonly.value) return;
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
-  if (cell != null && cell.rowId != "") {
-    const field = allFields.value.find((f) => f.name == cell.column);
-    deleteRecordField(cell.rowId, field?.key as string);
+  if (cell != null && cell.rowId != "" && cell.rowId != "type") {
+    if (isTable.value) {
+      const field = allFields.value.find((f) => f.name == cell.column);
+      deleteRecordField(cell.rowId, field?.key as string);
+    } else {
+      const field = allFields.value.find((f) => f.id == cell.rowId);
+      deleteRecordField(mainRecord.value.id, field?.key as string);
+    }
     nextTick(() => cell.ref.edit?.());
   }
 });
@@ -324,6 +355,7 @@ function duplicateField(fieldId: string) {
     ...field,
     id: newTypeNodeId(),
     name: newName,
+    key: newTypeNodeKey(),
     orderKey,
     referenceId: field.reference?.id,
   };
@@ -590,6 +622,7 @@ defineExpose({
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <InlineTypeTupleCell
               :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
+              :key="field?.id + '.header'"
               :type="field"
               :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
               :inlined="extendedFields.find((n) => n.name == field.name) != null"
@@ -611,7 +644,7 @@ defineExpose({
       </div>
       <!-- Records -->
       <div
-        v-for="record in recordsInView"
+        v-for="(record, y) in recordsInView"
         :key="record.id"
         class="group/record relative flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
       >
@@ -631,12 +664,13 @@ defineExpose({
           class="h-full min-h-[32px] overflow-hidden"
           :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{
-            'height': getRowHeight(record.id as string) + 'px',
-            'width': columnWidths[x] + 'px',
+            width: columnWidths[x] + 'px',
+            height: rowHeights[y] + 'px',
           }"
         >
           <InlineValueCell2
             :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
+            :key="record.id + '.' + field?.id + '.value'"
             :model-value="record.data?.[field.key as string]"
             @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
             :type="runtimeTypeOf(field)"
@@ -681,7 +715,7 @@ defineExpose({
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
           :style="{
-            'height': getRowHeight(field.id as string) + 8 + 'px',
+            height: rowHeights[y] + 8 + 'px',
           }"
         />
       </td>

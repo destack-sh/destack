@@ -4,19 +4,20 @@ import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.v
 import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
 import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
 import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
-import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
-import ShortStringInterface from "@/components/cells/interfaces/ShortStringInterface.vue";
-import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
+import RatingInterface from "@/components/cells/interfaces/RatingInterface.vue";
 import SecretInterface from "@/components/cells/interfaces/SecretInterface.vue";
+import ShortStringInterface from "@/components/cells/interfaces/ShortStringInterface.vue";
+import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
+import ThumbsInterface from "@/components/cells/interfaces/ThumbsInterface.vue";
+import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
+import { TypeFlag } from "@/state/runtime";
+import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
-import { TypeFlag } from "@/state/runtime";
-import ThumbsInterface from "@/components/cells/interfaces/ThumbsInterface.vue";
-import RatingInterface from "@/components/cells/interfaces/RatingInterface.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -66,6 +67,11 @@ const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
 const previewSize = useElementSize(previewButtonRef);
+const previewSizeValue = {
+  // :ReactiveGridFuckery
+  width: toValueRef(previewSize.width),
+  height: toValueRef(previewSize.height),
+};
 
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
@@ -168,7 +174,7 @@ defineExpose({
   blur,
   edit,
   close,
-  previewSize,
+  previewSize: previewSizeValue,
 });
 </script>
 <template>
