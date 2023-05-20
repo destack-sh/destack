@@ -76,6 +76,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
+    NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_CANCEL_RUN: NMessageType.REPLY_CANCEL_RUN,
@@ -304,7 +305,7 @@ class ReqReadSecretPayload:
 
 @payload(NMessageType.REPLY_READ_SECRET)
 class RepReadSecretPayload:
-    secrets: list[SecretData | None]
+    secrets: list[SecretData]
 
 
 @payload(NMessageType.REQUEST_INTERP)

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 def reveal_secret_value(root: models.Secret) -> str:
-    return json.loads(root.value)
+    return json.loads(root.value)  # :SecretJson
 
 
 @gql.django.type(models.Secret)
@@ -55,7 +55,7 @@ class SecretMutation:
     def create_secret(self, info: Info, input: SecretCreateInput) -> Secret | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
         check_can_write_project(info, project)
-        value_str = json.dumps(input.value, indent=0)
+        value_str = json.dumps(input.value, indent=0)  # :SecretJson
         sha512 = hashlib.sha512(value_str.encode("utf-8")).hexdigest()
         secret = models.Secret.objects.create(
             project=project, name=input.name, value=value_str, sha512=sha512

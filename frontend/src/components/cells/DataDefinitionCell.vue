@@ -613,7 +613,7 @@ defineExpose({
       <div
         v-for="record in recordsInView"
         :key="record.id"
-        class="group/record flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
+        class="group/record relative flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
       >
         <!-- Record action -->
         <div class="absolute -left-5 mt-1">

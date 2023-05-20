@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -36,11 +37,13 @@ from bench.msg.messages import (
     RepInterpPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
+    RepReadSecretPayload,
     RepRegisterWorkerPayload,
     RepWriteModulePayload,
     ReqInterpPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
+    ReqReadSecretPayload,
     ReqRegisterWorkerPayload,
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
@@ -126,6 +129,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
+            await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(
                 f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
@@ -223,6 +227,17 @@ class LanguageServer:
                 get_urls.append(model_obj.presigned_get)
         logger.debug("object.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
         await msg.reply(RepReadObjectPayload(get_urls=get_urls))
+
+    @message_handler
+    async def read_secret(self, msg: NMessage[ReqReadSecretPayload]) -> None:
+        logger.debug("secret.read", msg=msg)
+        # TODO @Security: check if msg origin has read access to secret
+        secrets = []
+        async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
+            secret_data = wire.rmap_secret(secret)
+            secret_data.value = json.loads(secret_data.value)  # :SecretJson
+            secrets.append(secret_data)
+        await msg.reply(RepReadSecretPayload(secrets=secrets))
 
     @message_handler
     async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):

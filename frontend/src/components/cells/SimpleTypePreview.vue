@@ -84,7 +84,7 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Code]: CodeBracketIcon,
   [TypeHint.Key]: KeyIcon,
   // number
-  [TypeHint.Integer]: HashtagIcon,
+  [TypeHint.Integer]: HashtagIcon, // should have a different icon from float
   [TypeHint.Float]: HashtagIcon,
   [TypeHint.Slider]: AdjustmentsHorizontalIcon,
   [TypeHint.Phone]: PhoneIcon,
