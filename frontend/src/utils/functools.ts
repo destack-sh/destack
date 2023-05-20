@@ -30,11 +30,20 @@ export function valueRef<T>(value: T) {
         return value;
       },
       set(newValue: T) {
-        // there are definitely nicer ways to do this
-        if (JSON.stringify(value) != JSON.stringify(newValue)) {
-          value = newValue;
-          trigger();
+        // TODO @Performance: find better ways to implement value ref semantics
+        const newValueType = typeof newValue;
+        const valueType = typeof value;
+        if (newValueType == valueType) {
+          if (newValueType == "number" && (newValue == value || (isNaN(newValue) && isNaN(value)))) {
+            return;
+          } else if ((newValueType == "string" || newValueType == "boolean") && newValue == value) {
+            return;
+          } else if (JSON.stringify(value) == JSON.stringify(newValue)) {
+            return;
+          }
         }
+        value = newValue;
+        trigger();
       },
     };
   });
