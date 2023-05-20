@@ -111,6 +111,14 @@ def check_type(
         on_invalid(value, expected, suberrors=_suberrors)
 
 
+def _map_v_noop(v, t):
+    return v
+
+
+def _map_k_noop(t):
+    return t.name, t.name
+
+
 def map_value(
     value: Any,
     type: TypeNode,
@@ -118,10 +126,11 @@ def map_value(
     map_k: Callable[[TypeNode], tuple[str, str]] = None,
     is_output: bool = None,
     ignore_array: bool = False,
+    ignore_outer_map: bool = False,
 ):
     """Walks the value and reassembles with new keys and values."""
-    map_v = map_v or (lambda v, t: v)
-    map_k = map_k or (lambda t: (t.name, t.name))
+    map_v = map_v or _map_v_noop
+    map_k = map_k or _map_k_noop
     # communicate via yield/send
     if type.tag in PRIMITIVE_TYPES:
         return map_v(value, type)
@@ -140,9 +149,10 @@ def map_value(
         source_k, target_k = map_k(subtype)
         if source_k not in value:
             continue  # ignore missing keys
-        new_value = map_value(value[source_k], subtype, map_v, map_k)
-        mapped[target_k] = new_value
-    mapped = map_v(mapped, type)
+        target_value = map_value(value[source_k], subtype, map_v, map_k)
+        mapped[target_k] = target_value
+    if not ignore_outer_map:
+        mapped = map_v(mapped, type)
     return mapped
 
 

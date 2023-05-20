@@ -711,7 +711,8 @@ class FileMapping(TypeMapping):
             name=value["name"],
             content_type=value["content_type"],
             content_length=value["content_length"],
-            status=RemoteObjectStatus(value["status"]),
+            sha512=value["sha512"],
+            status=RemoteObjectStatus[value["status"]],
         )
 
     def from_py_value(self, type: TypeNode, value: Any) -> Any:
@@ -721,7 +722,8 @@ class FileMapping(TypeMapping):
             "name": value.name,
             "content_type": value.content_type,
             "content_length": value.content_length,
-            "status": value.status.value,
+            "sha512": value.sha512,
+            "status": value.status.name,
         }
 
 
@@ -732,7 +734,6 @@ class SecretTypeMapping(TypeMapping):
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
         return SecretInstance(
             id=UUID(value["id"]),
-            name=value["name"],
             sha512=value["sha512"],
         )
 
@@ -740,7 +741,6 @@ class SecretTypeMapping(TypeMapping):
         return {
             TYPENAME_SENTINEL: SECRET_TYPENAME,
             "id": str(value.id),
-            "name": value.name,
             "sha512": value.sha512,
         }
 
@@ -753,7 +753,8 @@ class StructTypeMapping(TypeMapping):
         )
 
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
-        assert isinstance(type, TypeInstance), "struct type must be an instance"
+        if not isinstance(type, TypeInstance):
+            raise ValueError(f"struct type {type} is not an instance")
         return type(**value)
 
     def from_py_value(self, type: TypeNode, value: Any) -> Any:
@@ -837,6 +838,7 @@ def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | Dat
             dataset.type,
             map_v=instantiate_py_value_flat,
             map_k=lambda t: (t.key, t.ident),
+            ignore_outer_map=True,  # we're mapping that to RecordInstance
         )
         record = RecordInstance(
             id=raw_record.id,

@@ -92,8 +92,9 @@ export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
   [TypeHint.Key]: TypeTag.String,
   [TypeHint.Code]: TypeTag.String,
   // number
-  [TypeHint.Phone]: TypeTag.String,
+  [TypeHint.Phone]: TypeTag.Number,
   [TypeHint.Rating]: TypeTag.Number,
+  [TypeHint.Integer]: TypeTag.Number,
   // boolean
   [TypeHint.Toggle]: TypeTag.Boolean,
   [TypeHint.Thumbs]: TypeTag.Boolean,

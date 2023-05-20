@@ -87,7 +87,7 @@ export function useSecrets() {
         }
       `),
       variables: { secretId: toSecretId(secretId) },
-      fetchPolicy: "network-only",
+      fetchPolicy: "no-cache",
     });
     if (ret.data.secret?.__typename != "Secret") {
       throw new Error("could not get secret");
