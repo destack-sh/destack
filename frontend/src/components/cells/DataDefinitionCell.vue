@@ -20,7 +20,7 @@ import { humanizeNumber } from "@/composables/useNow";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import type { StatementHeader } from "@/state/editor";
+import { useEditorContext, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
@@ -37,10 +37,16 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useMouseInElement } from "@vueuse/core";
+import { editor } from "monaco-editor";
 import { computed, nextTick, ref, watchEffect, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
+const editorView = useEditorContext();
+const addingDescription = ref(false);
+const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
+
+const appearance = useAppearance();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -52,9 +58,8 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
-const addingDescription = ref(false);
-const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
-const appearance = useAppearance();
+const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const {
   loading,
@@ -157,6 +162,7 @@ const extendedFields = computed(() => {
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
 
 // grid & grid sizing
+
 const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell2>>(
   columnsInOrder,
   computed(() => {
@@ -178,11 +184,18 @@ const verticalBorders = true;
 const maxRowHeight = 220;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
+const gridOffsetX: Ref<number> = computed(() => {
+  if (editorView.size.value.width > appearance.contentWidthWithMargin) {
+    return (editorView.size.value.width - appearance.contentWidth) / 2;
+  } else {
+    return appearance.contentMarginX;
+  }
+});
 // auto size columns
 watchEffect(() => {
-  const minTotalWidth = appearance.contentWidth;
+  const targetMinTotalWidth =
+    Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
   const ifaces = allFields.value.map((f) => getInterface(f));
-
   // init width to minimum widths as min(header, iface_min)
   const widths: number[] = [];
   for (let i = 0; i < allFields.value.length; i++) {
@@ -191,21 +204,17 @@ watchEffect(() => {
     const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
     widths.push(minWidth);
   }
-
-  // if the total width is too small, scale up by the grow factors
-  const totalWidth = widths.reduce((a, b) => a + b, 0);
-  if (totalWidth < minTotalWidth && growColumns) {
-    const toFill = Math.max(minTotalWidth - totalWidth, 0);
+  // if the total width is too small, scale up to fill by the grow factors
+  const minTotalWidth = widths.reduce((a, b) => a + b, 0);
+  if (minTotalWidth < targetMinTotalWidth && growColumns) {
+    const toFill = Math.max(targetMinTotalWidth - minTotalWidth, 0);
     const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
     const growTotal = growFactors.reduce((a, b) => a + b, 0);
     const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
     for (let i = 0; i < widths.length; i++) {
       widths[i] += growWidths[i];
     }
-  } else if (totalWidth > minTotalWidth) {
-    // TODO @UX: if the total width is bigger, should indicate that the column at border is ~half occluded
   }
-
   columnWidths.value = widths;
 });
 
@@ -217,9 +226,6 @@ function getRowHeight(id: string): number {
     .reduce((a, b) => Math.max(a, b), 0);
   return Math.min(maxInnerHeight, maxRowHeight);
 }
-
-const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
-const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 // navigation
 
@@ -566,8 +572,18 @@ defineExpose({
   </button>
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
-  <div v-if="isTable" class="w-full overflow-x-auto" :style="appearance.contentWidthAsMaxWidth">
-    <div ref="gridRef" class="-mx-1 flex w-full min-w-fit flex-col">
+  <div
+    v-if="isTable"
+    class="overflow-x-auto"
+    :style="{
+      'margin-left': -gridOffsetX + 'px',
+      'margin-right': -gridOffsetX + 'px',
+      'padding-left': gridOffsetX + 'px',
+      'padding-right': gridOffsetX + 'px',
+      'max-width': editorView.size.value.width + 'px',
+    }"
+  >
+    <div ref="gridRef" class="-mx-1 flex min-w-fit flex-col">
       <!-- Header (with types) -->
       <div class="flex flex-row border-b border-orange-900 border-opacity-[12%]">
         <div v-for="(field, x) in allFields" :key="field?.id" class="">
@@ -603,7 +619,7 @@ defineExpose({
         <div class="absolute -left-5 mt-1">
           <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
             <Squares2X2Icon
-              class="h-4 w-4 text-gray-400"
+              class="h-4 w-4 bg-white text-gray-400"
               :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
             />
           </ActionPopover>
@@ -615,7 +631,7 @@ defineExpose({
           class="h-full min-h-[32px] overflow-hidden"
           :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{
-            'height': getRowHeight(record.id as string) + 8 + 'px',
+            'height': getRowHeight(record.id as string) + 'px',
             'width': columnWidths[x] + 'px',
           }"
         >
@@ -693,7 +709,7 @@ defineExpose({
       </td>
     </tr>
   </table>
-  <!-- Load more -->
+  <!-- Bottom actions -->
   <div class="my-1 flex flex-row gap-2">
     <button
       v-if="pageInfo?.hasNextPage && isTable"

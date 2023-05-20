@@ -4,6 +4,7 @@ import { useEditorState } from "@/state/editor";
 import { useSecretOps } from "@/state/operations/secret";
 import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
+import assert from "assert";
 
 export type SecretRecord = {
   __typename: typeof SECRET_TYPENAME;
@@ -22,13 +23,30 @@ export function toSecretId(id: string) {
   return btoa(`Secret:${id}`);
 }
 
-export function makeSecretRecord(secret: Secret): SecretRecord {
-  return {
+function makeSecretRecord(secret: Secret): SecretRecord {
+  const record = {
     __typename: SECRET_TYPENAME,
     id: toSecretDataId(secret.id),
     name: secret.name ?? null,
     sha512: secret.sha512,
-  };
+  } as SecretRecord;
+  if (!isValidSecretRecord(record)) {
+    throw new Error("invalid secret record");
+  }
+  return record;
+}
+
+export function isValidSecretRecord(obj: any): boolean {
+  if (obj?.__typename != SECRET_TYPENAME) {
+    return false;
+  }
+  // check required field types
+  for (const field of ["id", "sha512"]) {
+    if (typeof obj[field] != "string") {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function useSecrets() {
@@ -68,7 +86,8 @@ export function useSecrets() {
           }
         }
       `),
-      variables: { secretId },
+      variables: { secretId: toSecretId(secretId) },
+      fetchPolicy: "network-only",
     });
     if (ret.data.secret?.__typename != "Secret") {
       throw new Error("could not get secret");

@@ -40,7 +40,7 @@ const appearance = useAppearance();
 <template>
   <Popover as="div" class="relative" v-slot="{ close, open }">
     <PopoverButton
-      class="rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+      class="z-20 rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
       :class="[open ? 'bg-orange-100' : '']"
       @click="$nextTick(() => inputRef?.$el.focus())"
     >

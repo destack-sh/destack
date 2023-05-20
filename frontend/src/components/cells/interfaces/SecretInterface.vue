@@ -68,6 +68,9 @@ async function reveal() {
 
 function hide() {
   hidden.value = true;
+  if (props.preview) {
+    secretValue.value = null;
+  }
 }
 
 async function copy() {

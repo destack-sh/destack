@@ -12,12 +12,13 @@ import { STATEMENT_CONTEXT, type StatementAction, type StatementContext } from "
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { getClientColor, useCurrentClients } from "@/state/client";
 import { useEditorState, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
-import { PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, watch, type Component, type Ref } from "vue";
 
@@ -35,6 +36,7 @@ const statement = computed(() => useFragment(StatementContentType, props.stateme
 const ancestors = computed(() => props.ancestors.map((s) => useFragment(StatementContentType, s)));
 
 const editor = useEditorState();
+const appearance = useAppearance();
 const nav = useNavigationContext();
 
 const isFocused = computed(() => editor.focusedElementId == statement.value?.id);
@@ -46,7 +48,6 @@ const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
 const lineNumber = computed(() => nav.value?.statementPositions[statement.value.id] + 1 ?? 0);
-const lineNumberDigits = computed(() => lineNumber.value.toString().length);
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
@@ -304,6 +305,14 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
 // actions
 const defaultActions: StatementAction[] = [
   {
+    label: "Rename",
+    icon: PencilIcon,
+    action: () => {
+      editor.editElement(statement.value as StatementHeader);
+      nextTick(() => rootCellRef.value?.focus());
+    },
+  },
+  {
     label: "Duplicate",
     icon: Square2StackIcon,
     action: () => magic.duplicate(),
@@ -329,7 +338,7 @@ const filteredClients = computed(() =>
 </script>
 <template>
   <!-- Statement wrapper -->
-  <div class="group/statement relative w-full px-[50px]" @click="onClickContainer">
+  <div class="group/statement relative w-full" :style="appearance.contentMarginXAsPaddingX" @click="onClickContainer">
     <!-- Statement main -->
     <div
       tabindex="-1"

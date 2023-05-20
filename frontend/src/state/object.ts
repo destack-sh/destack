@@ -3,6 +3,7 @@ import { TypeTag, type RemoteObject, RemoteObjectStatus } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { REMOTE_OBJECT_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
+import assert from "assert";
 
 export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
 
@@ -17,6 +18,13 @@ export type ObjectRecord = {
   status: RemoteObjectStatus;
 };
 
+const OBJECT_RECORD_FIELD_TYPES: Record<string, string> = {
+  id: "string",
+  content_length: "number",
+  content_type: "string",
+  sha512: "string",
+};
+
 export function toObjectDataId(id: string) {
   /* From btoa encoded RemoteObject:uuid to uuid */
   return atob(id).split(":")[1];
@@ -28,7 +36,7 @@ export function toRemoteObjectId(id: string) {
 }
 
 function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
-  return {
+  const record = {
     __typename: REMOTE_OBJECT_TYPENAME,
     id: toObjectDataId(remoteObject.id),
     name: remoteObject.name ?? null,
@@ -36,7 +44,24 @@ function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus
     content_type: remoteObject.contentType,
     sha512: remoteObject.sha512,
     status: status ?? remoteObject.status,
-  };
+  } as ObjectRecord;
+  if (!isValidObjectRecord(record)) {
+    throw new Error("invalid object record");
+  }
+  return record;
+}
+
+export function isValidObjectRecord(obj: any): boolean {
+  if (obj?.__typename != REMOTE_OBJECT_TYPENAME) {
+    return false;
+  }
+  // check required field types
+  for (const field of Object.keys(OBJECT_RECORD_FIELD_TYPES)) {
+    if (typeof obj[field] != OBJECT_RECORD_FIELD_TYPES[field]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function humanizeBytes(bytes: number) {

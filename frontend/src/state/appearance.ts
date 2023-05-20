@@ -12,8 +12,12 @@ export const useAppearanceState = defineStore("appearance", {
     fontMono: false,
     inlineMetrics: false,
     contentWidth: 800,
+    contentMarginX: 70,
   }),
   getters: {
+    contentWidthWithMargin(state) {
+      return state.contentWidth + 2 * state.contentMarginX;
+    },
     contentWidthAsFixed(state) {
       return {
         width: `${state.contentWidth}px`,
@@ -21,7 +25,13 @@ export const useAppearanceState = defineStore("appearance", {
     },
     contentWidthAsMaxWidth(state) {
       return {
-        "max-width": `${state.contentWidth}px`,
+        maxWidth: `${state.contentWidth}px`,
+      };
+    },
+    contentMarginXAsPaddingX(state) {
+      return {
+        paddingLeft: `${state.contentMarginX}px`,
+        paddingRight: `${state.contentMarginX}px`,
       };
     },
   },

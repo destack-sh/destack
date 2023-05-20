@@ -14,7 +14,8 @@ const actions = useActions();
 
 const isContentWide = computed(() => appearance.contentWidth != 800);
 function setContentWide(wide: boolean) {
-  appearance.contentWidth = !wide ? 800 : 1200;
+  appearance.contentWidth = wide ? 1200 : 800;
+  appearance.contentMarginX = wide ? 50 : 70;
 }
 </script>
 

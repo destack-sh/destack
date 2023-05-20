@@ -1,6 +1,8 @@
 import type { SimpleType } from "@/components/statement";
 import { TypeHint, TypeTag } from "@/gql/graphql";
+import { isValidObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";
+import { isValidSecretRecord } from "@/state/secret";
 
 export type ValueInterface = {
   id: string;
@@ -117,6 +119,7 @@ registerInterface("enum", {
 });
 registerInterface("secret", {
   tags: [TypeTag.String, TypeTag.Number],
+  read: (t, v) => (isValidSecretRecord(v) ? v : null),
   isSecret: true,
   minWidth: 220,
   targetWidth: 300,
@@ -135,7 +138,6 @@ registerInterface("number.rating", {
   hints: [TypeHint.Rating],
   map: coerceToNumber,
   minWidth: 120,
-  grow: 0.1,
   inline: true,
 });
 // boolean
@@ -160,7 +162,7 @@ registerInterface("boolean.thumbs", {
 // other
 registerInterface("file", {
   tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
-  read: (t, v) => toArrayAsFlagged(t, v),
+  read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
   minWidth: 220,
