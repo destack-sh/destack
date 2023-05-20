@@ -1,8 +1,13 @@
 <script lang="ts" setup>
 import { useNotifications, type DisplayNotification } from "@/state/notifications";
 import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { computed } from "vue";
 
 const notifications = useNotifications();
+
+const MAX_NOTIFICATIONS = 4;
+
+const shownNotifications = computed(() => notifications.shownNotifications.value.slice(0, MAX_NOTIFICATIONS));
 
 function getIcon(notification: DisplayNotification) {
   if (notification.icon) {
@@ -37,7 +42,7 @@ function freezeNotification(notification: DisplayNotification) {
         appear
       >
         <div
-          v-for="notification in notifications.shownNotifications.value"
+          v-for="notification in shownNotifications"
           :key="notification.localId"
           class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
           @mouseenter="freezeNotification(notification)"

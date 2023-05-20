@@ -8,7 +8,6 @@ from datetime import datetime
 from json import JSONDecodeError
 from typing import Any, Optional
 
-import PIL
 import pytz
 import structlog
 
@@ -96,9 +95,7 @@ class ModelInference:
     async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
         raise self.incapable_error(self.generate_text)
 
-    async def generate_image(
-        self, input: list[XBlock], settings: ImageGenerationSettings
-    ) -> PIL.Image:
+    async def generate_image(self, input: list[XBlock], settings: ImageGenerationSettings) -> bytes:
         raise self.incapable_error(self.generate_image)
 
     async def generate_audio(self, input: list[XBlock], settings: AudioGenerationSettings) -> bytes:

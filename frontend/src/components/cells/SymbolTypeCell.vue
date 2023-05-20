@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
-import { SYMBOL_TYPE_KEYWORD } from "@/state/editor";
+import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 
 const context = useStatementContext();
 </script>

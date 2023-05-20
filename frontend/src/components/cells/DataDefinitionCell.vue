@@ -655,7 +655,7 @@ defineExpose({
           :type="field"
           :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
           :inlined="extendedFields.find((n) => n.name == field.name) != null"
-          class="min-h-fit w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="min-h-[32px] w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
           @update:model-value="(node: any) => updateFieldType(field, node)"
           @navigate-up="grid.navigateUp(field?.id, 'type')"

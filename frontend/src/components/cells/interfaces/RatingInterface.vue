@@ -38,7 +38,6 @@ defineExpose({
     <button
       v-for="i in MAX_STARS"
       :key="i"
-      :disabled="readonly"
       class="p-0.5 transition duration-200 hover:bg-orange-100 focus:outline-none"
       @click.stop="emit('update:modelValue', i)"
     >

@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD, useEditorState, type StatementHeader } from "@/state/editor";
+import { useEditorState, type StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
+import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -198,7 +199,7 @@ defineExpose({
       <ComboboxOption v-if="query.length > 0 || canDefineAnonymous" :key="0" :value="null" v-slot="{ active }">
         <li
           :class="[
-            'relative flex cursor-default select-none items-baseline justify-between py-0.5 px-2  text-sm',
+            'relative flex cursor-default select-none items-baseline justify-between px-2 py-0.5  text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             editor.fontMono ? 'font-mono' : '',
           ]"
@@ -220,7 +221,7 @@ defineExpose({
       >
         <li
           :class="[
-            'relative cursor-default select-none py-0.5 px-2 text-sm',
+            'relative cursor-default select-none px-2 py-0.5 text-sm',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected && !active ? 'text-orange-600' : '',
             editor.fontMono ? 'font-mono' : '',

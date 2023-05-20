@@ -6,7 +6,7 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
-import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/editor";
+import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
 import { symbolsLike } from "@/state/runtime";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 

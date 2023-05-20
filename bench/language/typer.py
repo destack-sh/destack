@@ -142,6 +142,7 @@ def map_value(
             continue  # ignore missing keys
         new_value = map_value(value[source_k], subtype, map_v, map_k)
         mapped[target_k] = new_value
+    mapped = map_v(mapped, type)
     return mapped
 
 

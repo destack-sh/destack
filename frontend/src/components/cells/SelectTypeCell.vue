@@ -3,7 +3,7 @@ import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
 import { StatementType, SymbolType, TypeHint, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/editor";
+import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import {
