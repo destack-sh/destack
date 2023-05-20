@@ -135,20 +135,6 @@ const tabs = computed(() => {
     component: SettingsAccessTokens,
   });
   tabs.push({
-    id: "secrets",
-    name: "Secrets",
-    icon: LockClosedIcon,
-    disabled: true,
-    count: 0,
-  });
-  tabs.push({
-    id: "integrations",
-    name: "Integrations",
-    icon: LinkIcon,
-    disabled: true,
-    count: 0,
-  });
-  tabs.push({
     id: "plan",
     name: "Plan & billing",
     icon: CreditCardIcon,

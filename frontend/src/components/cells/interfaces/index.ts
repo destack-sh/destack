@@ -34,6 +34,10 @@ export function registerInterface(id: string, value: Omit<ValueInterface, "id">)
   interfaces[id] = { ...value, id };
 }
 
+// We automatically coerce to/from arrays as needed so we can smoothly
+//  switch between array and non-array types without having to store everything
+//  as an array upfront.  :ArrayCoercion
+
 function fromArray(value: any) {
   if (Array.isArray(value)) {
     return value[0];

@@ -13,8 +13,6 @@ from functools import cached_property
 from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
 from uuid import UUID
 
-import PIL.Image
-import pydub
 from django.db import models
 from more_itertools import first
 
@@ -528,9 +526,7 @@ class SymbolContent:
 
 
 # Danger: the order of these types is important because it influences deserialization order.
-LiteralValue = Union[
-    dict[str, Any], list[Any], bool, int, float, str, PIL.Image.Image, pydub.AudioSegment, None
-]
+LiteralValue = Union[dict[str, Any], list[Any], bool, int, float, str, None]
 PRIMITIVE_TYPES = [
     TypeTag.ANY,
     TypeTag.NULL,
@@ -592,6 +588,7 @@ class TypeNode(abc.ABC):
     name: Optional[str]
     key: Optional[str]
     tag: TypeTag
+    hint: Optional[TypeHint]
     flags: TypeFlag
     description: Optional[str]
     type_nodes: list["TypeNode"]

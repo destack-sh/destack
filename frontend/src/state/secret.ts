@@ -2,9 +2,34 @@ import { graphql } from "@/gql";
 import type { Secret } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { useSecretOps } from "@/state/operations/secret";
+import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
-export type SecretRecord = Pick<Secret, "id" | "createdAt" | "updatedAt" | "sha512" | "name">;
+export type SecretRecord = {
+  __typename: typeof SECRET_TYPENAME;
+  id: string;
+  name?: string | null;
+  sha512: string;
+};
+
+export function toSecretDataId(id: string) {
+  /* From btoa encoded Secret:uuid to uuid */
+  return atob(id).split(":")[1];
+}
+
+export function toSecretId(id: string) {
+  /* From uuid to btoa encoded Secret:uuid */
+  return btoa(`Secret:${id}`);
+}
+
+export function makeSecretRecord(secret: Secret): SecretRecord {
+  return {
+    __typename: SECRET_TYPENAME,
+    id: toSecretDataId(secret.id),
+    name: secret.name ?? null,
+    sha512: secret.sha512,
+  };
+}
 
 export function useSecrets() {
   const ops = useSecretOps();
@@ -20,13 +45,13 @@ export function useSecrets() {
       if (ret?.data?.createSecret.__typename != "Secret") {
         throw new Error("secret.create returned non-secret");
       }
-      return ret?.data?.createSecret;
+      return makeSecretRecord(ret.data.createSecret as Secret);
     } else {
-      const ret = await ops.update(existing.id, updated.name, updated.value);
+      const ret = await ops.update(toSecretId(existing.id), updated.name, updated.value);
       if (ret?.data?.updateSecret.__typename != "Secret") {
         throw new Error("secret.update returned non-secret");
       }
-      return ret?.data?.updateSecret;
+      return makeSecretRecord(ret.data.updateSecret as Secret);
     }
   }
 

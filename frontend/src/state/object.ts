@@ -1,12 +1,21 @@
 import { graphql } from "@/gql";
 import { TypeTag, type RemoteObject, RemoteObjectStatus } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
+import { REMOTE_OBJECT_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
 export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
 
 // :RemoteObjectType
-export type ObjectRecord = Pick<RemoteObject, "id" | "status" | "name" | "contentType" | "contentLength" | "sha512">;
+export type ObjectRecord = {
+  __typename: typeof REMOTE_OBJECT_TYPENAME;
+  id: string;
+  name?: string | null;
+  content_length: number;
+  content_type: string;
+  sha512: string;
+  status: RemoteObjectStatus;
+};
 
 export function toObjectDataId(id: string) {
   /* From btoa encoded RemoteObject:uuid to uuid */
@@ -20,10 +29,11 @@ export function toRemoteObjectId(id: string) {
 
 function makeBasicObject(remoteObject: RemoteObject, status?: RemoteObjectStatus): ObjectRecord {
   return {
+    __typename: REMOTE_OBJECT_TYPENAME,
     id: toObjectDataId(remoteObject.id),
-    name: remoteObject.name,
-    contentLength: remoteObject.contentLength,
-    contentType: remoteObject.contentType,
+    name: remoteObject.name ?? null,
+    content_length: remoteObject.contentLength,
+    content_type: remoteObject.contentType,
     sha512: remoteObject.sha512,
     status: status ?? remoteObject.status,
   };
@@ -57,8 +67,8 @@ export function useObjects() {
     if (remoteObject.presignedPost == null) {
       throw new Error("no presigned post on remote object");
     }
-    // emit uploading state
-    updateValue(makeBasicObject(remoteObject, RemoteObjectStatus.Uploading));
+    // don't emit uploading state since that would cause an extra state change
+    // (which is meaningless to undo but too far down the pipe to easily bind to a tx)
     await ops.object.doUpload(remoteObject.id, remoteObject.presignedPost, file);
     await ops.object.notifyUploaded(remoteObject.id);
     // emit uploaded state

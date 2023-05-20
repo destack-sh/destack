@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD, useEditorState, type ViewId } from "@/state/editor";
+import { useEditorState, type ViewId } from "@/state/editor";
 import { useCurrentInterpModule, useSymbolNavigation } from "@/state/runtime";
+import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllSymbols?: boolean }>();

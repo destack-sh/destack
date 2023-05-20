@@ -43,11 +43,7 @@ async function writeSecretValue() {
     name: props.type.name ?? null,
     value: secretValue.value,
   });
-  emit("update:modelValue", {
-    id: newRecord.id,
-    name: newRecord.name,
-    sha512: newRecord.sha512,
-  } as SecretRecord);
+  emit("update:modelValue", newRecord);
 }
 
 function focus() {

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useStatementContext } from "@/components/statement";
-import { MODIFIER_KEYWORD } from "@/state/editor";
+import { MODIFIER_KEYWORD } from "@/state/type";
 import { computed } from "vue";
 
 const context = useStatementContext();

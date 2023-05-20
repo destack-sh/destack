@@ -9,7 +9,7 @@ import textwrap
 import typing
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, fields
-from datetime import datetime
+from datetime import date, datetime, time
 from random import Random
 from typing import Any, Callable, Coroutine, Optional
 from uuid import UUID, uuid4
@@ -33,6 +33,7 @@ from bench.language import (
 )
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import (
+    TYPE_TAG_BY_TYPE_HINT,
     InterpSymbol,
     LiteralValue,
     RemoteObject,
@@ -40,6 +41,7 @@ from bench.language.type import (
     Secret,
     Type,
     TypeFlag,
+    TypeHint,
     TypeNode,
     TypeTag,
 )
@@ -304,7 +306,7 @@ class RecordInstance(Record):
     def _to_wire(self, include_data: bool = True) -> wire.RecordData:
         if include_data:
             raw_data = map_value(
-                self.data, self.type, map_v=strip_py_value_inner, map_k=lambda t: (t.ident, t.key)
+                self.data, self.type, map_v=strip_py_value_flat, map_k=lambda t: (t.ident, t.key)
             )
         else:
             raw_data = None
@@ -535,7 +537,7 @@ class RemoteObjectInstance(RemoteObject):
     """A proxy to a remotely stored object behaving like a Python file on demand."""
 
     def __getitem__(self, item):
-        return self.to_dict()[item]
+        return self.__dict__[item]
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
@@ -574,27 +576,6 @@ class RemoteObjectInstance(RemoteObject):
     def readlines(self) -> list[str]:
         return self.read().decode().splitlines()
 
-    @staticmethod
-    def from_dict(value: dict):
-        return RemoteObjectInstance(
-            id=UUID(value["id"]),
-            sha512=value["sha512"],
-            content_length=value["contentLength"],
-            content_type=value["contentType"],
-            name=value["name"],
-            status=RemoteObjectStatus[value["status"]],
-        )
-
-    def to_dict(self) -> dict:
-        return {
-            "id": str(self.id),
-            "sha512": self.sha512,
-            "contentLength": self.content_length,
-            "contentType": self.content_type,
-            "name": self.name,
-            "status": self.status.name,
-        }
-
 
 @dataclass(repr=False, slots=True)
 class SecretInstance(Secret):
@@ -615,44 +596,198 @@ class SecretInstance(Secret):
         return async_to_sync(self.areveal)()
 
 
+TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
+REMOTE_OBJECT_TYPENAME = "RemoteObject"
+SECRET_TYPENAME = "Secret"
+TypeSignature = typing.NamedTuple(
+    "TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint]), ("flags", TypeFlag)]
+)
+
+
+class TypeMapping:
+    """
+    Maps specific types (and values) into and from Python.
+    Don't bother with lists and optional types here.
+    """
+
+    def to_py_type(self, type: TypeNode) -> type:
+        raise NotImplementedError
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return value
+
+    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+        return value
+
+
+type_mappings: dict[TypeSignature, TypeMapping] = {}
+
+
+def register_mapping(
+    mapping: TypeMapping,
+    *,
+    tags: list[TypeTag] = None,
+    hints: list[TypeHint] = None,
+    flags: TypeFlag = None,
+):
+    if not tags and not hints:
+        raise ValueError("at least one tag or hint must be specified")
+    tags = tags or []
+    hints = hints or []
+    flags = flags or TypeFlag.Zero
+    for tag in tags:
+        type_mappings[TypeSignature(tag, None, flags)] = mapping
+    for hint in hints:
+        tag = TYPE_TAG_BY_TYPE_HINT[hint]
+        type_mappings[TypeSignature(tag, hint, flags)] = mapping
+
+
+def get_flat_mapping(type: TypeNode) -> TypeMapping:
+    """
+    Gets the most appropriate mapping for the given type.
+    (flat because we ignore list and optional types).
+    """
+    # strip list and optional types
+    stripped_flags = type.flags & ~TypeFlag.IsArray & ~TypeFlag.IsNullable
+    exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
+    mapping = type_mappings.get(exact_signature)
+    if mapping is not None:
+        return mapping
+    # no exact match, try generic without hint
+    stripped_signature = TypeSignature(type.tag, None, stripped_flags)
+    mapping = type_mappings.get(stripped_signature)
+    if mapping is not None:
+        return mapping
+    raise LookupError(f"no mapping for {type}")
+
+
+@dataclass(repr=False, slots=True)
+class StaticTypeMapping(TypeMapping):
+    py_type: type
+
+    def to_py_type(self, type: TypeNode) -> type:
+        return self.py_type
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return self.py_type(value)
+
+
+class StringifyTypeMapping(StaticTypeMapping):
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return self.py_type(value)
+
+    def from_py_value(self, type: TypeNode, value: Any) -> str:
+        return str(value)
+
+
+class IsoDtTypeMapping(StaticTypeMapping):
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return self.py_type.fromisoformat(value)
+
+    def from_py_value(self, type: TypeNode, value: Any) -> str:
+        return value.isoformat()
+
+
+class EnumMapping(TypeMapping):
+    def to_py_type(self, type: TypeNode) -> Any:
+        members = {to_pyidentifier(child.name): child.name for child in type.type_nodes}
+        enum_name = type.name or "_anon_" + uuid4().hex
+        return enum.StrEnum(enum_name, members)
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return map_unkey_enum(value, type)
+
+    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+        return map_rekey_enum(value, type)
+
+
+class FileMapping(TypeMapping):
+    def to_py_type(self, type: TypeNode) -> type:
+        return RemoteObjectInstance
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return RemoteObjectInstance(
+            id=UUID(value["id"]),
+            name=value["name"],
+            content_type=value["content_type"],
+            content_length=value["content_length"],
+            status=RemoteObjectStatus(value["status"]),
+        )
+
+    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+        return {
+            TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
+            "id": str(value.id),
+            "name": value.name,
+            "content_type": value.content_type,
+            "content_length": value.content_length,
+            "status": value.status.value,
+        }
+
+
+class SecretTypeMapping(TypeMapping):
+    def to_py_type(self, type: TypeNode) -> Any:
+        return SecretInstance
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        return SecretInstance(
+            id=UUID(value["id"]),
+            name=value["name"],
+            sha512=value["sha512"],
+        )
+
+    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+        return {
+            TYPENAME_SENTINEL: SECRET_TYPENAME,
+            "id": str(value.id),
+            "name": value.name,
+            "sha512": value.sha512,
+        }
+
+
+class StructTypeMapping(TypeMapping):
+    def to_py_type(self, type: TypeNode) -> typing.TypedDict:
+        return typing.TypedDict(
+            type.name,
+            {member.ident: instantiate_py_type(member) for member in type.type_nodes},
+        )
+
+    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+        assert isinstance(type, TypeInstance), "struct type must be an instance"
+        return type(**value)
+
+    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+        return {TYPENAME_SENTINEL: type.key, **value}
+
+
+# type tags
+register_mapping(StaticTypeMapping(str), tags=[TypeTag.STRING])
+register_mapping(StaticTypeMapping(float), tags=[TypeTag.NUMBER])
+register_mapping(StaticTypeMapping(type(None)), tags=[TypeTag.NULL])
+register_mapping(StaticTypeMapping(bool), tags=[TypeTag.BOOLEAN])
+register_mapping(FileMapping(), tags=[TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO])
+register_mapping(EnumMapping(), tags=[TypeTag.ENUM])
+register_mapping(StructTypeMapping(), tags=[TypeTag.STRUCT])
+# type hints
+register_mapping(StringifyTypeMapping(UUID), hints=[TypeHint.UUID])
+register_mapping(IsoDtTypeMapping(date), hints=[TypeHint.DATE])
+register_mapping(IsoDtTypeMapping(datetime), hints=[TypeHint.DATETIME])
+register_mapping(IsoDtTypeMapping(time), hints=[TypeHint.TIME])
+register_mapping(StaticTypeMapping(int), hints=[TypeHint.INTEGER])
+# other
+register_mapping(
+    SecretTypeMapping(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret
+)
+
+
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
     """Create the Python-native type for the given type node."""
-    # :PrimitiveTypeMap
-    if node.tag == TypeTag.STRING:
-        return str
-    elif node.tag == TypeTag.NUMBER:
-        return float
-    elif node.tag == TypeTag.NULL:
-        return type(None)
-    elif node.tag == TypeTag.BOOLEAN:
-        return bool
-    elif node.tag == TypeTag.IMAGE:
-        return RemoteObject
-    elif node.tag == TypeTag.AUDIO:
-        return RemoteObject
-    elif node.tag == TypeTag.FILE:
-        return RemoteObject
-    elif node.tag == TypeTag.EMBEDDING:
-        return numpy.ndarray
-    elif node.tag == TypeTag.UNION:
-        return typing.Union[tuple(instantiate_py_type(child) for child in node.type_nodes)]
-    elif node.tag == TypeTag.STRUCT:
-        return typing.TypedDict(
-            node.name,
-            {node.name: instantiate_py_type(node) for node in node.type_nodes},
-        )
-    elif node.tag == TypeTag.ENUM:
-        # create 'fake' enum with the given constants pointing to themselves
-        # assumes enums are value enums (not type union enums)
-        members = {to_pyidentifier(child.name): child.name for child in node.type_nodes}
-        enum_name = node.name or "_anon_" + uuid4().hex
-        return enum.StrEnum(enum_name, members)
-    elif node.tag == TypeTag.LITERAL:
-        return node.value
-    elif node.tag == TypeTag.ANY:
-        return Any
+    mapping = get_flat_mapping(node)
+    py_type = mapping.to_py_type(node)
+    if node.flags & TypeFlag.IsArray:
+        return list[py_type]
     else:
-        raise ValueError(f"unexpected type node: {node}")
+        return py_type
 
 
 def instantiate_type(type: Type, session: Session) -> TypeInstance:
@@ -661,38 +796,46 @@ def instantiate_type(type: Type, session: Session) -> TypeInstance:
     return TypeInstance(**type.__dict__, py_type=py_type, session=session)
 
 
-def instantiate_py_value_inner(value: Any, type: TypeNode) -> Any:
-    if type.tag == TypeTag.FILE:
-        try:
-            return RemoteObjectInstance.from_dict(value)
-        except (KeyError, ValueError, TypeError):
-            return value
-    elif type.tag == TypeTag.STRUCT and isinstance(type, TypeInstance):
-        return type(**value)
-    elif type.tag == TypeTag.ENUM:
-        return map_unkey_enum(value, type)
-    return value
+def instantiate_py_value_flat(value: Any, type: TypeNode) -> Any:
+    """Maps to the Python representation of the given value."""
+    if value is None:  # skip null values
+        return None  # type checking is done elsewhere
+    # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
+    mapping = get_flat_mapping(type)
+    try:
+        if type.flags & TypeFlag.IsArray:
+            if not isinstance(value, list):
+                value = [value]
+            return [mapping.to_py_value(type, v) for v in value]
+        else:
+            if isinstance(value, list):
+                value = value[0]
+            return mapping.to_py_value(type, value)
+    except (KeyError, ValueError, TypeError):
+        logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
+        return None
 
 
-def strip_py_value_inner(value: Any, type: TypeNode) -> Any:
-    if type.tag == TypeTag.FILE:
-        try:
-            return value.to_dict()
-        except (KeyError, ValueError, TypeError):
-            return None  # raise? (but should be type error earlier)
-    elif type.tag == TypeTag.ENUM:
-        return map_rekey_enum(value, type)
-    return value
+def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
+    """Maps back to the raw value from the Python representation."""
+    # we don't auto-coerce here since that's only needed for external data
+    if value is None:
+        return None
+    mapping = get_flat_mapping(type)
+    if isinstance(value, list):
+        return [mapping.from_py_value(type, v) for v in value]
+    else:
+        return mapping.from_py_value(type, value)
 
 
 def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
-    """Instrument and instantiate a dataset for use."""
+    """Instrument and instantiate a data symbol."""
     records = []
     for raw_record in dataset.records:
         py_record_data = map_value(
             raw_record.data,
             dataset.type,
-            map_v=instantiate_py_value_inner,
+            map_v=instantiate_py_value_flat,
             map_k=lambda t: (t.key, t.ident),
         )
         record = RecordInstance(

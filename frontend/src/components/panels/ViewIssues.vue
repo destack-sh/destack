@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
-import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
+import { useEditorState } from "@/state/editor";
 import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/runtime";
+import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 
 const editor = useEditorState();

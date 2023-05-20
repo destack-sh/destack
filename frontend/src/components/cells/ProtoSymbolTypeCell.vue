@@ -4,12 +4,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import {
-  MODIFIER_BY_KEYWORD,
-  SUPPORTED_MODIFIERS,
-  SUPPORTED_SYMBOL_TYPES,
-  SYMBOL_TYPE_BY_KEYWORD,
-} from "@/state/editor";
+import { MODIFIER_BY_KEYWORD, SUPPORTED_MODIFIERS, SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
 import { TypeFlag } from "@/state/runtime";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
