@@ -2,7 +2,7 @@
 import FileInterface from "@/components/FileInterface.vue";
 import {
   EDITOR_INTERFACE_STATE,
-  provideScrollContext,
+  provideEditorContext,
   useEditorState,
   type Editor,
   type EditorInterfaceState,
@@ -15,7 +15,7 @@ const props = defineProps<{ editor: Editor; containerEl: HTMLElement | null }>()
 const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
 const focused = computed(() => editorState.focusedEditorId == props.editor.id);
 
-provideScrollContext(toRef(props, "containerEl"));
+provideEditorContext(toRef(props, "containerEl"));
 
 // generic editor interface state
 const editorInterfaceState: EditorInterfaceState = {

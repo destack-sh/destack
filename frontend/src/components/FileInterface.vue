@@ -181,7 +181,7 @@ const auth = useAuth();
   <!-- File container div -->
   <div>
     <!-- Deleted file status and restore -->
-    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
+    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
       <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">
           This file is in trash (was deleted {{ now.getTimeFromNowLongString(fileHeader.deletedAt) }}).
@@ -195,7 +195,7 @@ const auth = useAuth();
       </div>
     </div>
     <!-- Other version file -->
-    <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 px-12 py-2">
+    <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-2">
       <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">This file belongs to another version.</div>
         <router-link
@@ -207,13 +207,13 @@ const auth = useAuth();
       </div>
     </div>
     <!-- File failed to load -->
-    <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 px-12 py-2">
+    <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
       <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
         <div class="text-sm font-bold text-white">File failed to load.</div>
       </div>
     </div>
     <!-- bottom padding is in last StatementAddArea -->
-    <div class="relative flex flex-col bg-white px-12" v-if="fileHeader">
+    <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
@@ -264,7 +264,7 @@ const auth = useAuth();
       <!-- Add statement to start -->
       <StatementAddArea
         class="mx-auto"
-        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
+        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
         position="start"
         @click="editor.readonly || insertStatementStart()"
         v-if="statements?.length > 0"
@@ -274,7 +274,7 @@ const auth = useAuth();
         v-for="positioned in context?.positionedStatements"
         :key="positioned.statement.id"
         class="mx-auto w-full"
-        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
+        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
       >
         <StatementInterface
           :file="(fileHeader as any)"
@@ -291,7 +291,7 @@ const auth = useAuth();
       <!-- Add statement to end -->
       <StatementAddArea
         class="mx-auto flex-1 pb-60"
-        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
+        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
         position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />

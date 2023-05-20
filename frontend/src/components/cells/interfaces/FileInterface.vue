@@ -153,7 +153,7 @@ defineExpose({
       />
       <span class="flex flex-row items-baseline gap-1.5">
         <span class="text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
-        <span class="text-xs text-gray-400">{{ humanizeBytes(file?.contentLength) }}</span>
+        <span class="text-xs text-gray-400">{{ humanizeBytes(file?.content_length) }}</span>
       </span>
       <!-- Delete button -->
       <button
