@@ -290,7 +290,7 @@ const auth = useAuth();
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
-        class="mx-auto flex-1 pb-60"
+        class="mx-auto flex-1 pb-72"
         :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
         position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"

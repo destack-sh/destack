@@ -65,7 +65,7 @@ const previewButtonRef = ref<HTMLDivElement | null>(null);
 const previewRef = ref<any | null>(null);
 const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
-const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true });
+const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true, keepInView: true });
 const previewSize = useElementSize(previewButtonRef);
 const previewSizeValue = {
   // :ReactiveGridFuckery

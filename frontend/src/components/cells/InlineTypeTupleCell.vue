@@ -63,12 +63,12 @@ const previewSizeValue = {
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
 const popoverPin = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
-  { pos: true }
+  { pos: true, keepInView: true }
 );
 const typePopoverPanelRef = ref<InstanceType<typeof PopoverPanel> | null>(null);
 const typePopoverPin = pinAbsoluteElement(
   computed(() => typePopoverPanelRef.value?.$el),
-  { pos: true }
+  { pos: true, keepInView: true }
 );
 
 syncProperty({
@@ -198,13 +198,13 @@ defineExpose({
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Name & type -->
-        <div class="flex flex-row items-center justify-between gap-2">
+        <div class="flex max-w-full flex-row items-center justify-between gap-2">
           <!-- Name -->
           <EditableSpan
             ref="nameRef"
             v-model="name"
             :readonly="readonly"
-            class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
+            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
             @navigate-right="typeButtonRef?.focus()"
             @navigate-down="actionRefs.focus(actions[0].label)"
             @enter="

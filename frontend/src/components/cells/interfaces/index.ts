@@ -131,7 +131,7 @@ registerInterface("number", {
 registerInterface("number.rating", {
   hints: [TypeHint.Rating],
   map: coerceToNumber,
-  minWidth: 120,
+  minWidth: 120, // sync with RatingInterface max stars
   inline: true,
 });
 // boolean

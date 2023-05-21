@@ -4,7 +4,7 @@ import { StarIcon } from "@heroicons/vue/24/solid";
 import { ref } from "vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 
-const MAX_STARS = 5;
+const MAX_STARS = 5; // sync with minWidth in interfaces
 
 const props = defineProps<{
   modelValue: number | null;

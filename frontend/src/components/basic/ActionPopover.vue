@@ -22,7 +22,7 @@ const popoverOpenRef: Ref<HTMLElement | null> = ref(null);
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const popoverPin = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
-  { pos: true, width: true }
+  { pos: true, width: true, keepInView: true }
 );
 
 // focus input when popover opens
