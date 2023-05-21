@@ -188,6 +188,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 );
 
 const verticalBorders = true;
+const minRowHeight = 32;
 const maxRowHeight = 220;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
@@ -204,17 +205,17 @@ const gridOffsetX: Ref<number> = computed(() => {
 // TODO @Robustness @UX @Performance: grid resizing sometimes loops and becomes recursive :ReactiveGridFuckery
 //  many :ref seem to be triggered, triggering registerColumnRef, triggering grid.refsByColumn below..
 //  Sometimes this is annoying because it causes noticable lags when editing, especially when adding rows or modifying columns.
-
+//  Only triggering ref updates (on preview size and on widths/heights) if the values actually changed seems to fix (?) this.
 watch(
   () => [
     appearance.contentWidth,
     appearance.contentMarginX,
     editorView.size.value,
     allFields.value,
-    Object.values(grid.refsByColumn.value).map((r) => [r.previewSize?.width.value, r.previewSize?.height.value]),
+    Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
-    // update columns
+    // update column widths
     const targetMinTotalWidth =
       Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
     const ifaces = allFields.value.map((f) => getInterface(f));
@@ -222,7 +223,7 @@ watch(
     const widths: number[] = [];
     for (let i = 0; i < allFields.value.length; i++) {
       const iface = ifaces[i];
-      const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize?.width.value ?? 50) + 16; // little padding
+      const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
       widths.push(minWidth);
     }
@@ -237,19 +238,21 @@ watch(
         widths[i] += growWidths[i];
       }
     }
-    columnWidths.value = widths;
-
-    // update rows
-    rowHeights.value = rowIdsInOrder.value
+    // update row heights
+    const heights: number[] = rowIdsInOrder.value
       .map((r) =>
         grid
           .getColumn(r)
-          .map((e) => e.previewSize?.height.value ?? 0)
-          .reduce((a, b) => Math.max(a, b), 0)
+          .map((e) => e.previewSize.height.value ?? 0)
+          .reduce((a, b) => Math.max(a, b), minRowHeight)
       )
       .map((h) => Math.min(h, maxRowHeight));
 
-    // console.log("auto size", columnWidths.value, rowHeights.value);
+    // update if changed (only trigger DOM update if necessary)
+    if (widths.some((w, i) => w != columnWidths.value[i]) || heights.some((h, i) => h != rowHeights.value[i])) {
+      columnWidths.value = widths;
+      rowHeights.value = heights;
+    }
   }
 );
 
@@ -661,9 +664,10 @@ defineExpose({
         <div
           v-for="(field, x) in allFields"
           :key="record.id + '.' + field?.id"
-          class="h-full min-h-[32px] overflow-hidden"
+          class="h-full overflow-hidden"
           :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{
+            minHeight: minRowHeight + 'px',
             width: columnWidths[x] + 'px',
             height: rowHeights[y] + 'px',
           }"
