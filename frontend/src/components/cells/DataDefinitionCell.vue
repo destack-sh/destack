@@ -719,7 +719,7 @@ defineExpose({
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
           :style="{
-            height: rowHeights[y] + 8 + 'px',
+            height: rowHeights[y] + 'px',
           }"
         />
       </td>

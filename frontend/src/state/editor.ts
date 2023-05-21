@@ -3,7 +3,7 @@ import type { SymbolType, File, Project, ProjectVersion, Statement } from "@/gql
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { useLazyQuery } from "@vue/apollo-composable";
-import { useElementSize } from "@vueuse/core";
+import { useElementBounding, useElementSize } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
 
@@ -605,6 +605,7 @@ export function useEditorMigrations() {
 
 export type EditorContext = {
   size: Ref<{ width: number; height: number }>;
+  pos: Ref<{ left: number; top: number }>;
   lock(): void;
   unlock(): void;
 };
@@ -612,9 +613,13 @@ export type EditorContext = {
 export const EDITOR_CONTEXT = "__editor__";
 
 export function provideEditorContext(el: Ref<HTMLElement | null>) {
-  const elementSize = useElementSize(el);
+  const elementBounding = useElementBounding(el);
   const scrollContext: EditorContext = {
-    size: computed(() => ({ width: elementSize.width.value, height: elementSize.height.value })),
+    size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
+    pos: computed(() => ({
+      left: elementBounding.left.value,
+      top: elementBounding.top.value,
+    })),
     lock() {
       if (el.value == null) return;
       el.value.style.overflow = "hidden";
@@ -628,9 +633,9 @@ export function provideEditorContext(el: Ref<HTMLElement | null>) {
 }
 
 export function useEditorContext(): EditorContext {
-  const scrollContext = inject<EditorContext>(EDITOR_CONTEXT);
-  if (scrollContext == null) {
+  const context = inject<EditorContext>(EDITOR_CONTEXT);
+  if (context == null) {
     throw new Error("scroll context not provided");
   }
-  return scrollContext;
+  return context;
 }
