@@ -17,7 +17,7 @@ import { TypeFlag } from "@/state/runtime";
 import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -78,12 +78,13 @@ const valueInterface = computed(() => {
   if (INTERFACES[iface?.id as string] != null) {
     return iface;
   } else if (iface != null) {
-    console.log("no interface for", iface.id);
+    console.warn("no interface for", iface.id);
   }
   return null;
 });
 
 // debounce writes for selected interfaces (then flush on close/enter)
+// TODO @Robustness: value debounce doesn't consider type changes
 const debounce = props.debounced && valueInterface.value?.debounceMs != null;
 const value: Ref<any> = ref<any>(props.modelValue);
 const readValue = computed(() => {
@@ -174,6 +175,7 @@ defineExpose({
   blur,
   edit,
   close,
+  value: readValue,
   previewSize: previewSizeValue,
 });
 </script>
