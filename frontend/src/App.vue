@@ -112,13 +112,14 @@ hostStatementActions();
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans&display=swap");
 
 body {
+  /* not wanted anywhere */
   overscroll-behavior: none;
 }
 
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
-  transition: opacity 0.075s ease-in-out;
+  transition: all 0.15s ease-in-out;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -126,20 +127,16 @@ body {
   background-clip: padding-box;
   border: 2px solid rgba(0, 0, 0, 0);
   border-radius: 2px;
-  transition: background-color 0.075s ease-in-out;
+  transition: all 0.15s ease-in-out;
+  opacity: 1;
 }
 
-/* TODO @UX: make scrollbar visible when active in container */
 ::-webkit-scrollbar-thumb:hover {
   background-color: #fdba74;
 }
 
-::-webkit-scrollbar:hover {
-  opacity: 1;
-}
-
-::-webkit-scrollbar-track {
-  background-color: transparent;
+.scroll-active::-webkit-scrollbar-thumb {
+  background-color: #fdba74;
 }
 
 ::selection {

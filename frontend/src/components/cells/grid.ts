@@ -1,12 +1,21 @@
 import { computed, ref, type Ref } from "vue";
 
-export function useElementRefs<RefType = HTMLInputElement>() {
+export function useElementRefs<RefType = HTMLInputElement>(options?: {
+  onRegister?: (id: string, ref: RefType) => void;
+  onUnregister?: (id: string, ref: RefType) => void;
+}) {
   const refs: Ref<Record<string, RefType>> = ref({});
 
   function registerRef(id: string, ref: RefType | undefined) {
     if (ref != undefined) {
       refs.value[id] = ref;
+      if (options?.onRegister) {
+        options.onRegister(id, ref);
+      }
     } else {
+      if (options?.onUnregister) {
+        options.onUnregister(id, refs.value[id]);
+      }
       delete refs.value[id];
     }
   }
