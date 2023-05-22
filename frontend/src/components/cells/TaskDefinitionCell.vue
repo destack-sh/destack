@@ -20,6 +20,7 @@ context.syncDescription(
   description,
   computed(() => descriptionRef.value?.focused)
 );
+const addingDescription = ref(false);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
@@ -41,12 +42,25 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <DeclarationCell
-      ref="declarationRef"
-      class="inline-flex"
-      @navigate-down="descriptionRef?.focus"
-      @navigate-right="typeRef?.focus"
-    />
+    <div class="flex flex-row items-baseline">
+      <DeclarationCell
+        ref="declarationRef"
+        class="inline-flex"
+        @navigate-down="descriptionRef?.focus"
+        @navigate-right="typeRef?.focus"
+      />
+      <button
+        tabindex="-1"
+        v-if="description.length == 0 && !context.readonly.value && !addingDescription"
+        @click="
+          addingDescription = true;
+          descriptionRef?.focus();
+        "
+        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
+      >
+        +description
+      </button>
+    </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
@@ -57,19 +71,19 @@ defineExpose({
   <div>
     <EditableSpan
       ref="descriptionRef"
+      :class="addingDescription ? '' : 'h-0'"
       v-model="description"
       :readonly="context.readonly.value"
-      @navigate-left="typeRef?.focus"
-      @navigate-up="declarationRef?.focus"
+      @navigate-left="declarationRef?.focus()"
+      @navigate-up="declarationRef?.focus()"
       @navigate-down="typeRef?.focus"
-      @delete-left="declarationRef?.focus"
       @enter="context.insertBelow"
     />
     <button
       tabindex="-1"
-      v-if="description.trim().length == 0 && !context.readonly.value"
+      v-if="description.length == 0 && !context.readonly.value && addingDescription"
       @click="descriptionRef?.focus()"
-      class="w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
       +description
     </button>
@@ -77,7 +91,6 @@ defineExpose({
     <FunctionTypeCell
       v-if="isTyped && (context.typeNodes.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
-      class="py-1"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @navigate-left="descriptionRef?.focus"
