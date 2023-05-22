@@ -12,13 +12,12 @@ import ThumbsInterface from "@/components/interfaces/ThumbsInterface.vue";
 import ToggleInterface from "@/components/interfaces/ToggleInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
+import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
 import { TypeFlag } from "@/state/runtime";
-import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { ArrowPathIcon } from "@heroicons/vue/24/outline";
-import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, onUpdated, ref, watch, watchEffect, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -68,11 +67,6 @@ const editableRef = ref<any | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const editablePin = pinAbsoluteElement(editablePopoverRef, { pos: true, width: true, keepInView: true });
 const previewSize = useElementSize(previewButtonRef);
-const previewSizeValue = {
-  // :ReactiveGridFuckery
-  width: toValueRef(previewSize.width),
-  height: toValueRef(previewSize.height),
-};
 
 const valueInterface = computed(() => {
   const iface = getInterface(props.type);
@@ -177,7 +171,7 @@ defineExpose({
   edit,
   close,
   value: readValue,
-  previewSize: previewSizeValue,
+  previewSize,
 });
 </script>
 <template>
