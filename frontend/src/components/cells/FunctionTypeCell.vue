@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
+import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
@@ -145,7 +145,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell2"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
             :readonly="context.readonly.value"
@@ -195,7 +195,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell2"
+            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
             :readonly="context.readonly.value"

@@ -79,6 +79,9 @@ function coerceToBoolean(type: SimpleType, value: any) {
 
 function coerceToString(type: SimpleType, value: any) {
   value = fromArray(value);
+  if (typeof value == "number") {
+    value = value.toString();
+  }
   return typeof value == "string" ? value : "";
 }
 

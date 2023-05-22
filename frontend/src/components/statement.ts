@@ -25,16 +25,16 @@ import { computed, inject, type Ref } from "vue";
 export const STATEMENT_CONTEXT = "__statementContext__" as const;
 
 export type StatementContext = {
-  depth: number;
-  xOffset: number;
-  lineNumberBase: number;
-  readonly: boolean;
-  focused: boolean;
-  editing: boolean;
-  statement: FragmentType<typeof StatementContentType>;
-  file: FragmentType<typeof FileHeaderType>;
-  reference: InterpSymbol | { id: string; name: string } | null;
-  destroyed: boolean;
+  depth: Ref<number>;
+  xOffset: Ref<number>;
+  lineNumberBase: Ref<number>;
+  readonly: Ref<boolean>;
+  focused: Ref<boolean>;
+  editing: Ref<boolean>;
+  statement: Ref<FragmentType<typeof StatementContentType>>;
+  file: Ref<FragmentType<typeof FileHeaderType>>;
+  reference: Ref<InterpSymbol | { id: string; name: string } | null>;
+  destroyed: Ref<boolean>;
 };
 
 export type StatementAction = {
@@ -61,16 +61,16 @@ export type TypeAction = {
 };
 
 export function useStatementContext() {
-  const context = inject<Ref<StatementContext>>(STATEMENT_CONTEXT);
+  const context = inject<StatementContext>(STATEMENT_CONTEXT);
   if (context == null) {
     throw new Error("StatementContext is not available.");
   }
 
   // state
 
-  const statement = computed(() => useFragment(StatementContentType, context.value.statement));
-  const file = computed(() => useFragment(FileHeaderType, context.value.file));
-  const reference = computed(() => useFragment(StatementHeaderType, context.value.reference));
+  const statement = computed(() => useFragment(StatementContentType, context.statement.value));
+  const file = computed(() => useFragment(FileHeaderType, context.file.value));
+  const reference = computed(() => useFragment(StatementHeaderType, context.reference.value));
 
   const rootTypeTag = computed(() => statement.value.rootTypeTag);
   const typeNodes = computed(() =>
@@ -365,12 +365,11 @@ export function useStatementContext() {
     statement,
     file,
     reference,
-    depth: computed(() => context.value.depth),
-    readonly: computed(() => context.value.readonly || statement.value.generated),
-    focused: computed(() => context.value.focused),
-    editing: computed(() => context.value.editing),
-    xOffset: computed(() => context.value.xOffset),
-    lineNumberBase: computed(() => context.value.lineNumberBase),
+    depth: context.depth,
+    readonly: context.readonly,
+    focused: context.focused,
+    editing: context.editing,
+    xOffset: context.xOffset,
     typeRootTag: rootTypeTag,
     symbolSubtype,
     typeNodes,

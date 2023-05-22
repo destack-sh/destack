@@ -282,9 +282,6 @@ const auth = useAuth();
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
           :ancestors="positioned.ancestors.map((ancestorId) => context?.statementsById[ancestorId])"
-          :isFirstInGroup="positioned.isFirstInGroup"
-          :isLastInGroup="positioned.isLastInGroup"
-          :lineNumberBase="positioned.lineNumberBase"
           class="w-full"
         />
       </div>

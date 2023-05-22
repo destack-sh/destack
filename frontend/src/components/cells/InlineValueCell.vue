@@ -1,15 +1,15 @@
 <script lang="ts" setup>
-import { getInterface } from "@/components/cells/interfaces";
-import CheckboxInterface from "@/components/cells/interfaces/CheckboxInterface.vue";
-import EnumInterface from "@/components/cells/interfaces/EnumInterface.vue";
-import FileInterface from "@/components/cells/interfaces/FileInterface.vue";
-import NumberInterface from "@/components/cells/interfaces/NumberInterface.vue";
-import RatingInterface from "@/components/cells/interfaces/RatingInterface.vue";
-import SecretInterface from "@/components/cells/interfaces/SecretInterface.vue";
-import ShortStringInterface from "@/components/cells/interfaces/ShortStringInterface.vue";
-import StringInterface from "@/components/cells/interfaces/StringInterface.vue";
-import ThumbsInterface from "@/components/cells/interfaces/ThumbsInterface.vue";
-import ToggleInterface from "@/components/cells/interfaces/ToggleInterface.vue";
+import { getInterface } from "@/components/interfaces";
+import CheckboxInterface from "@/components/interfaces/CheckboxInterface.vue";
+import EnumInterface from "@/components/interfaces/EnumInterface.vue";
+import FileInterface from "@/components/interfaces/FileInterface.vue";
+import NumberInterface from "@/components/interfaces/NumberInterface.vue";
+import RatingInterface from "@/components/interfaces/RatingInterface.vue";
+import SecretInterface from "@/components/interfaces/SecretInterface.vue";
+import ShortStringInterface from "@/components/interfaces/ShortStringInterface.vue";
+import StringInterface from "@/components/interfaces/StringInterface.vue";
+import ThumbsInterface from "@/components/interfaces/ThumbsInterface.vue";
+import ToggleInterface from "@/components/interfaces/ToggleInterface.vue";
 import type { SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
@@ -17,7 +17,7 @@ import { TypeFlag } from "@/state/runtime";
 import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
