@@ -135,7 +135,7 @@ const innerWrapperRef = ref<HTMLElement | null>(null);
 const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: containerFocused } = useFocus(containerRef);
-const { focused: inRootCellFocused } = useFocusWithin(rootCellRef);
+const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
 
 // focus containerRef if focused in editor but not in container and not editing
 watch(
@@ -269,9 +269,8 @@ const {
 //  (also would need to include other elements (incl. descendants) in drag image)
 function onDragStart(e: DragEvent) {
   if (innerWrapperRef.value == null) return;
-  if (e.dataTransfer == null) throw new Error("no dataTransfer??");
   setDragData(e, { type: "Statement", id: statement.value.id });
-  e.dataTransfer.setDragImage(innerWrapperRef.value, 0, 0);
+  e.dataTransfer?.setDragImage(innerWrapperRef.value, 0, 0);
 }
 
 async function onDrop(thing: File[] | { type: string; id: string } | null) {
@@ -341,7 +340,7 @@ const filteredClients = computed(() =>
       tabindex="-1"
       ref="containerRef"
       @dragstart="onDragStart"
-      class="relative min-h-[30px] w-full outline-none transition duration-150 focus:outline-none"
+      class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
       :class="{
         'focus:bg-orange-100': !isCommentish,
         'focus:bg-gray-100': isCommentish,
@@ -469,6 +468,7 @@ const filteredClients = computed(() =>
       <template v-if="isFocused">F</template>
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
+      <template v-if="inRootCellFocused">r*</template>
       <template v-if="containerFocused">.</template>
       <template v-if="isEditing">e</template>
       <template v-if="isCommented">#</template>
