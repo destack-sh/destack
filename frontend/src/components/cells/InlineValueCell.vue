@@ -16,6 +16,7 @@ import { useAppearance } from "@/state/appearance";
 import { TypeFlag } from "@/state/runtime";
 import { toValueRef } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
+import { ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -128,7 +129,6 @@ function edit() {
     return;
   }
 
-  console.log("edit");
   editing.value = true;
   emit("edit");
   nextTick(() => editableRef.value?.focus());
@@ -226,7 +226,7 @@ defineExpose({
     <!-- Editable popover -->
     <!-- Popover position is pinned with fixed, see above -->
     <div
-      v-if="editing && valueInterface"
+      v-if="(editing || editableRef?.pending) && valueInterface"
       ref="editablePopoverRef"
       class="z-50 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="editablePin.pinned.value ? '' : 'absolute -left-1 -top-1 min-h-full min-w-full'"
@@ -248,6 +248,10 @@ defineExpose({
         @close="close"
         @enter="enter"
       />
+      <!-- pending indicator -->
+      <span v-if="editableRef?.pending" class="absolute -right-6 top-1.5 mr-1 mt-1">
+        <ArrowPathIcon class="h-4 w-4 animate-spin text-gray-400" />
+      </span>
     </div>
     <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
     <div

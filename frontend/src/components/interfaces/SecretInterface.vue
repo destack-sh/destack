@@ -25,6 +25,7 @@ const setButtonRef = ref<HTMLButtonElement | null>(null);
 const inputRef = ref<HTMLInputElement | null>(null);
 const secretValue = ref<string | null>(null);
 const hidden = ref(true);
+const pending = ref(false);
 
 // auto reset secret value (reset on change)
 syncProperty({
@@ -33,17 +34,23 @@ syncProperty({
   read: () => {
     props.modelValue; // trigger reactivity
     secretValue.value = null;
+    hidden.value = true;
   },
   write: writeSecretValue,
   debounceMs: 1000,
 });
 
 async function writeSecretValue() {
-  const newRecord = await ops.upsert(props.modelValue, {
-    name: props.type.name ?? null,
-    value: secretValue.value,
-  });
-  emit("update:modelValue", newRecord);
+  pending.value = true;
+  try {
+    const newRecord = await ops.upsert(props.modelValue, {
+      name: props.type.name ?? null,
+      value: secretValue.value,
+    });
+    emit("update:modelValue", newRecord);
+  } finally {
+    pending.value = false;
+  }
 }
 
 function focus() {
@@ -98,11 +105,12 @@ const appearance = useAppearance();
 defineExpose({
   focus,
   blur,
+  pending,
 });
 </script>
 <template>
   <div
-    class="group flex w-full flex-row gap-x-2.5"
+    class="flex w-full flex-row gap-x-2.5"
     :class="{
       'items-center justify-center': modelValue == null,
       'justify-end bg-gray-100': modelValue != null && preview,
@@ -113,7 +121,7 @@ defineExpose({
     <button
       v-if="!readonly && modelValue == null && preview"
       ref="setButtonRef"
-      class="flex flex-row gap-0.5 p-0.5 text-gray-400 opacity-0 hover:bg-orange-100 focus:bg-orange-100 group-hover:opacity-100"
+      class="flex flex-row gap-0.5 justify-self-end p-0.5 text-gray-400 opacity-0 hover:bg-orange-100 focus:bg-orange-100 group-focus-within/iface:opacity-100 group-hover/iface:opacity-100"
     >
       <PlusIcon class="h-4 w-4" />
       <KeyIcon class="h-4 w-4" />
