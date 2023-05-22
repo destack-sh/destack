@@ -73,7 +73,7 @@ defineExpose({
       v-if="!preview"
       as="div"
       class="flex w-full min-w-[300px] flex-col"
-      :model-value="modelValue"
+      :model-value="isArray ? null : selectedMembers[0]"
       @update:model-value="(val: SimpleType) => {
         if (isArray) {
           emit('update:modelValue', [...(modelValue ?? []), val.key as string]);
