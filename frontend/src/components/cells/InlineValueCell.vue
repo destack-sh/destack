@@ -128,6 +128,7 @@ function edit() {
     return;
   }
 
+  console.log("edit");
   editing.value = true;
   emit("edit");
   nextTick(() => editableRef.value?.focus());
@@ -181,7 +182,11 @@ defineExpose({
 </script>
 <template>
   <!-- Value container -->
-  <div class="relative" @click.stop.prevent="editing || edit()" :class="[readonly || editing ? '' : 'cursor-pointer']">
+  <div
+    class="group/iface relative"
+    @click.stop.prevent="editing || (previewButtonRef?.parentNode?.contains($event.target) && edit())"
+    :class="[readonly || editing ? '' : 'cursor-pointer']"
+  >
     <!-- Preview -->
     <div
       ref="previewButtonRef"

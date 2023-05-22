@@ -262,7 +262,7 @@ export function useStatementContext() {
       null,
       statement.value.id,
       statement.value.reference?.id,
-      context?.value.reference?.name ?? null,
+      context?.reference.value?.name ?? null,
       reference?.id ?? null,
       reference?.name ?? null
     );
@@ -278,7 +278,7 @@ export function useStatementContext() {
 
   // We can only save if the statement wasn't deleted, and often the statement component owning the
   // statement reference is destroyed before the deletedAt is set, so we also treat the context destroy as delete.
-  const isDeleted = computed(() => statement.value.deletedAt != null || context.value.destroyed);
+  const isDeleted = computed(() => statement.value.deletedAt != null || context.destroyed.value);
 
   function syncName(content: Ref<string>, editing: Ref<boolean | undefined>) {
     return syncProperty({

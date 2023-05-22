@@ -102,7 +102,7 @@ defineExpose({
 </script>
 <template>
   <div
-    class="group/iface group flex w-full flex-row gap-x-2.5"
+    class="group flex w-full flex-row gap-x-2.5"
     :class="{
       'items-center justify-center': modelValue == null,
       'justify-end bg-gray-100': modelValue != null && preview,

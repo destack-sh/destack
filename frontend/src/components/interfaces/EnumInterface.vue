@@ -16,7 +16,7 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const isArray = computed(() => props.type.flags & TypeFlag.IsArray);
+const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => symbolOf(props.type.reference?.id));
 
 const members = computed(() => {
