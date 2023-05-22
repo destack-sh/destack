@@ -35,6 +35,12 @@ export const useAppearanceState = defineStore("appearance", {
         paddingRight: `${state.contentMarginX}px`,
       };
     },
+    contentMarginXAsMarginX(state) {
+      return {
+        marginLeft: `${state.contentMarginX}px`,
+        marginRight: `${state.contentMarginX}px`,
+      };
+    },
   },
 });
 

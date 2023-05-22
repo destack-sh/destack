@@ -10,7 +10,6 @@ const buttonRef = ref(null);
 const { isOverDropZone } = useRelativeDropZone(buttonRef, ["File"], onDrop);
 const magic = useMagicActions(ref(null));
 const nav = useNavigationContext();
-const appearance = useAppearance();
 
 function onDrop(files: File[] | any) {
   if (Array.isArray(files)) {
@@ -22,19 +21,17 @@ function onDrop(files: File[] | any) {
 <template>
   <button
     ref="buttonRef"
-    class="group relative flex w-full cursor-default py-1 opacity-0 outline-none transition duration-150 hover:opacity-100"
+    class="group relative flex cursor-default py-1 opacity-0 opacity-100 outline-none transition duration-150 hover:opacity-100"
     :class="isOverDropZone ? 'opacity-100' : 'opacity-0'"
   >
     <!-- Drag indicators (bottom if start, top if end) -->
     <div
       v-if="position == 'end'"
-      class="absolute -top-0.5 left-0 z-[5] mx-[50px] h-1 bg-orange-300 transition duration-150"
-      :style="appearance.contentWidthAsFixed"
+      class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
     />
     <div
       v-if="position == 'start'"
-      class="absolute -bottom-0.5 left-0 z-[5] mx-[50px] h-1 bg-orange-300 transition duration-150"
-      :style="appearance.contentWidthAsFixed"
+      class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
     />
     <div class="justify-left relative flex align-top">
       <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">
