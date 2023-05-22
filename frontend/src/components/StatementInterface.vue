@@ -421,7 +421,7 @@ const filteredClients = computed(() =>
       />
       <!-- Main cell -->
       <div
-        ref="innerWrapperRef overflow-hidden"
+        ref="innerWrapperRef"
         class="relative px-2 py-1"
         :class="{
           'text-sm': editor.textSmall,
