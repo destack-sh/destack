@@ -17,6 +17,7 @@ import {
   type StatementAction,
 } from "@/components/statement";
 import { humanizeNumber } from "@/composables/useNow";
+import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
@@ -264,6 +265,8 @@ watch(
 );
 
 // navigation
+
+useActiveScroll(gridRef);
 
 // auto-edit value field if starting to type (clear & focus)
 onStartTyping((e) => {
@@ -616,6 +619,7 @@ defineExpose({
   <!-- Wrapper to contain any scrolling -->
   <div
     v-if="isTable"
+    ref="gridRef"
     class="overflow-x-auto"
     :style="{
       'margin-left': -gridOffsetX + 'px',
@@ -625,7 +629,7 @@ defineExpose({
       'max-width': editorView.size.value.width + 'px',
     }"
   >
-    <div ref="gridRef" class="-mx-1 flex min-w-fit flex-col">
+    <div class="-mx-1 flex min-w-fit flex-col">
       <!-- Header (with types) -->
       <div class="flex flex-row border-b border-orange-900 border-opacity-[12%]">
         <div v-for="(field, x) in allFields" :key="field?.id" class="">

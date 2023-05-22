@@ -8,8 +8,7 @@ import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
-
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 const props = defineProps<{ group: EditorGroup }>();
 
 const editor = useEditorState();

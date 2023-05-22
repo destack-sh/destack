@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
+import { useActiveScroll } from "@/composables/useScroll";
 import {
   EDITOR_INTERFACE_STATE,
   provideEditorContext,
@@ -14,6 +15,7 @@ const editorState = useEditorState();
 const props = defineProps<{ editor: Editor; containerEl: HTMLElement | null }>();
 const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
 const focused = computed(() => editorState.focusedEditorId == props.editor.id);
+useActiveScroll(toRef(props, "containerEl"));
 
 provideEditorContext(toRef(props, "containerEl"));
 
