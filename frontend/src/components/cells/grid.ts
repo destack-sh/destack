@@ -53,15 +53,48 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);
 
+  let columnRefsBatchChange: Record<string, RefType | "delete"> | null = null;
+
   function registerColumnRef(rowId: string, column: ColumnType, ref: RefType | undefined) {
     const columnId = rowId + "." + column;
     if (ref != undefined) {
       if (columnRefs.value[columnId] !== ref) {
-        columnRefs.value[columnId] = ref;
+        if (columnRefsBatchChange != null) {
+          columnRefsBatchChange[columnId] = ref;
+        } else {
+          columnRefs.value[columnId] = ref;
+        }
       }
     } else {
-      delete columnRefs.value[columnId];
+      if (columnRefsBatchChange != null) {
+        columnRefsBatchChange[columnId] = "delete";
+      } else {
+        delete columnRefs.value[columnId];
+      }
     }
+  }
+
+  function beginBatchChange() {
+    // used when we need to add/remove columns since directly writing columnRefs via :ref
+    // seems to trigger a re-render frame for every row + modified column
+    // TODO @Performance @Robustness: improve grid update batching
+    //  For instance this doesn't work for other connected clients in multiplayer since they
+    //  will be receiving the changes via the direct mutation.
+    columnRefsBatchChange = {};
+  }
+
+  function flush() {
+    if (columnRefsBatchChange == null) {
+      return;
+    }
+    for (const [key, value] of Object.entries(columnRefsBatchChange)) {
+      if (value === "delete") {
+        delete columnRefs.value[key];
+      } else {
+        columnRefs.value[key] = value;
+      }
+    }
+    columnRefsBatchChange = null;
   }
 
   function findRef(
@@ -162,6 +195,8 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
 
   return {
     registerColumnRef,
+    beginBatchChange,
+    flush,
     refsByColumn: columnRefs,
     refs: computed(() => Object.values(columnRefs.value)),
     findRef,

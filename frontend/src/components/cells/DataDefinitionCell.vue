@@ -195,7 +195,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 );
 
 const verticalBorders = true;
-const minRowHeight = 32;
+const minRowHeight = 32; // incl. padding
 const rowPadding = 4;
 const maxRowHeight = 220;
 const growColumns = true;
@@ -255,7 +255,6 @@ watch(
           .reduce((a, b) => Math.max(a, b), minRowHeight - rowPadding * 2)
       )
       .map((h) => Math.min(h, maxRowHeight));
-
     // update if changed (only trigger DOM update if necessary)
     if (widths.some((w, i) => w != columnWidths.value[i]) || heights.some((h, i) => h != rowHeights.value[i])) {
       columnWidths.value = widths;
@@ -265,7 +264,6 @@ watch(
 );
 
 // navigation
-
 useActiveScroll(gridRef);
 
 // auto-edit value field if starting to type (clear & focus)
@@ -340,11 +338,12 @@ function insertField(isUnionWith?: boolean) {
       tag: TypeTag.String,
       orderKey: nextOrderKey,
     });
+    grid.beginBatchChange();
     context.createTypeNode(typeNode);
     if (isTable.value) {
-      nextTick(() => grid.focus("", newName));
+      nextTick(() => (grid.focus("", newName), grid.flush()));
     } else {
-      nextTick(() => grid.focus(typeNode.id, "type"));
+      nextTick(() => (grid.focus(typeNode.id, "type"), grid.flush()));
     }
   } else {
     context.createTypeNode(
@@ -390,8 +389,10 @@ function updateFieldType(node: SimpleType, changed: SimpleType) {
 
 function deleteField(node: SimpleType) {
   const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
+  grid.beginBatchChange();
   context.deleteTypeNode(node);
   grid.focus(fieldIdx - 1, "name");
+  nextTick(() => grid.flush());
 }
 
 function getNewOrderKey(belowRecordId?: string) {
@@ -406,18 +407,9 @@ function insertRecordAtEnd() {
 
 function insertRecord(options?: { belowRecordId?: string; data?: Record<string, any> }) {
   const orderKey = getNewOrderKey(options?.belowRecordId);
-  console.log("insert record", orderKey, options?.belowRecordId, options?.data);
-  ops.symbol.createRecord(
-    null,
-    newDatasetRecordId(),
-    context.statement.value.id,
-    orderKey,
-    options?.data ?? ({} as any)
-  );
-  nextTick(() => {
-    const recordIdx = recordsInView.value.findIndex((r) => r.orderKey == orderKey);
-    grid.focus(recordIdx, columnsInOrder.value[0]);
-  });
+  const recordId = newDatasetRecordId();
+  ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.data ?? ({} as any));
+  nextTick(() => grid.focus(recordId, columnsInOrder.value[0]));
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
@@ -637,9 +629,10 @@ defineExpose({
       'max-width': editorView.size.value.width + 'px',
     }"
   >
-    <div class="-mx-1 flex min-w-fit flex-col">
+    <div class="relative -mx-1 flex min-w-fit flex-col">
       <!-- Header (with types) -->
-      <div class="flex flex-row border-b border-orange-900 border-opacity-[12%]">
+      <!-- TODO @UX: make data table header sticky -->
+      <div class="flex flex-row self-start border-b border-orange-900 border-opacity-[12%]">
         <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <InlineTypeTupleCell
@@ -706,7 +699,6 @@ defineExpose({
         >
           <InlineValueCell
             :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
-            :key="record.id + '.' + field?.id + '.value'"
             :model-value="record.data?.[field.key as string]"
             @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
             :type="runtimeTypeOf(field)"
