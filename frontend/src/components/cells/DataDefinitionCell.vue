@@ -334,14 +334,18 @@ function insertField(isUnionWith?: boolean) {
     null
   );
   if (!isUnionWith) {
-    context.createTypeNode(
-      makeTypeNode({
-        name: "field " + selfFields.value?.length,
-        tag: TypeTag.String,
-        orderKey: nextOrderKey,
-      })
-    );
-    nextTick(() => grid.focus(0, selfFields.value.find((f) => f.orderKey == nextOrderKey)?.name ?? ""));
+    const newName = "field " + selfFields.value?.length;
+    const typeNode = makeTypeNode({
+      name: newName,
+      tag: TypeTag.String,
+      orderKey: nextOrderKey,
+    });
+    context.createTypeNode(typeNode);
+    if (isTable.value) {
+      nextTick(() => grid.focus("", newName));
+    } else {
+      nextTick(() => grid.focus(typeNode.id, "type"));
+    }
   } else {
     context.createTypeNode(
       makeTypeNode({
@@ -373,7 +377,11 @@ function duplicateField(fieldId: string) {
     referenceId: field.reference?.id,
   };
   context.createTypeNode(newFieldNode);
-  nextTick(() => grid.focus(fieldIdx + 1, "type"));
+  if (isTable.value) {
+    nextTick(() => grid.focus("", newFieldNode.name ?? ""));
+  } else {
+    nextTick(() => grid.focus(newFieldNode.id, "type"));
+  }
 }
 
 function updateFieldType(node: SimpleType, changed: SimpleType) {

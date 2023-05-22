@@ -14,7 +14,7 @@ import {
   type StatementAction,
 } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
-import { newTypeNodeId } from "@/state/operations/statement";
+import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
 import { SquaresPlusIcon } from "@heroicons/vue/24/outline";
@@ -59,33 +59,34 @@ const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 function insertMember(isUnionWith?: boolean) {
   const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
   const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
-  let newMemberNode;
   if (isEnum.value) {
     const name = "Option " + (membersLength.value + 1);
-    newMemberNode = makeTypeNode({
+    const newMemberNode = makeTypeNode({
       name,
       tag: TypeTag.Literal,
       value: name, // :LiteralStringEnum
       orderKey,
     });
-    nextTick(() => grid.focus(membersLength.value - 1, "type"));
+    context.createTypeNode(newMemberNode);
+    nextTick(() => grid.focus(newMemberNode.id, "type"));
   } else if (!isUnionWith) {
-    newMemberNode = makeTypeNode({
+    const newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
     });
-    nextTick(() => grid.focus(membersLength.value - 1, "type"));
+    context.createTypeNode(newMemberNode);
+    nextTick(() => grid.focus(newMemberNode.id, "type"));
   } else {
-    newMemberNode = makeTypeNode({
+    const newMemberNode = makeTypeNode({
       name: "",
       tag: TypeTag.TypeReference,
       orderKey,
       flags: TypeFlag.IsUnionWith,
     });
+    context.createTypeNode(newMemberNode);
     nextTick(() => extendedTypesRefs.focus(extendedTypes.value.slice(-1)[0].id));
   }
-  context.createTypeNode(newMemberNode);
 }
 
 function duplicateMember(memberId: string) {
@@ -100,6 +101,7 @@ function duplicateMember(memberId: string) {
   const newMemberNode = {
     ...member,
     id: newTypeNodeId(),
+    key: newTypeNodeKey(),
     name: newName,
     orderKey,
   };
