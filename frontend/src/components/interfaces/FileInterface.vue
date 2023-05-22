@@ -54,15 +54,13 @@ function onDrop(files: File[] | { type: string; id: string } | null) {
 async function doUpload(file: File | null) {
   if (file == null || editor.currentProjectId == null) return;
   ongoingUploads.value++;
-  if (!isArray.value) {
-    await emit("update:modelValue", []);
-  }
   function onUpdate(val: ObjectRecord | null) {
+    if (val == null) return;
     // if single, replace value
     if (!isArray.value) {
-      emit("update:modelValue", val == null ? [] : [val]);
       // refocus since button may be gone
       nextTick(() => (val == null ? uploadButtonRef.value?.focus() : fileRefs.focus(val.id)));
+      emit("update:modelValue", [val]);
     } else if (val != null) {
       // replace specific value or append
       const idx = props.modelValue.findIndex((v) => v.id == val?.id);
@@ -115,13 +113,14 @@ defineExpose({
   focus,
   blur,
   click: () => props.readonly || fileChooserRef.value?.click(),
+  pending: computed(() => ongoingUploads.value > 0),
 });
 </script>
 <template>
   <!-- Entire thing is drop zone -->
   <div
     ref="dropZoneRef"
-    class="group/iface flex w-full flex-row flex-wrap gap-x-2.5 gap-y-0.5"
+    class="flex w-full flex-row flex-wrap gap-x-2.5 gap-y-0.5"
     :class="{
       'rounded-sm border border-dashed border-orange-500': dragOver,
       'border border-transparent': !dragOver,
@@ -148,11 +147,11 @@ defineExpose({
       <!-- File status & info -->
       <component
         :is="file.status == RemoteObjectStatus.Uploading ? ArrowPathIcon : DocumentArrowUpIcon"
-        class="h-4 w-4 text-gray-700"
+        class="h-4 w-4 flex-shrink-0 text-gray-700"
         :class="file.status == RemoteObjectStatus.Uploading ? 'animate-spin' : ''"
       />
       <span class="flex flex-row items-baseline gap-1.5">
-        <span class="text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
+        <span class="truncate text-gray-900 underline-offset-4 group-hover/file:underline">{{ file.name }}</span>
         <span class="text-xs text-gray-400">{{ humanizeBytes(file?.content_length) }}</span>
       </span>
       <!-- Delete button -->
