@@ -5,7 +5,14 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import { ArrowsPointingOutIcon, Bars4Icon, BellSlashIcon, MinusCircleIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowsPointingOutIcon,
+  MapIcon,
+  Bars4Icon,
+  BellSlashIcon,
+  MinusCircleIcon,
+  MoonIcon,
+} from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const appearance = useAppearance();
@@ -62,6 +69,14 @@ function setContentWide(wide: boolean) {
             <span class="text-sm text-gray-900">Wide content</span>
           </span>
           <Switch :model-value="isContentWide" @update:model-value="setContentWide" />
+        </div>
+        <!-- Editor headers -->
+        <div class="flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <MapIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Editor headers</span>
+          </span>
+          <Switch v-model="editor.showEditorGroupHeader" />
         </div>
         <!-- Line numbers -->
         <div class="flex flex-row items-center justify-between px-2">

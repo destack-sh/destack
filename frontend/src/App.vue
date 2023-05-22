@@ -145,4 +145,14 @@ body {
 ::selection {
   background-color: #fef08a;
 }
+
+.scroll-hidden {
+  /* Hide the scrollbar */
+  scrollbar-width: none; /* For Firefox */
+  -ms-overflow-style: none; /* For Internet Explorer and Microsoft Edge legacy */
+}
+.scroll-hidden::-webkit-scrollbar {
+  /* For Chrome, Safari, and Opera */
+  display: none;
+}
 </style>

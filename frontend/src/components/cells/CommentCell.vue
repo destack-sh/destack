@@ -44,6 +44,6 @@ defineExpose({
     @delete-if-empty="context.deleteSelf"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="mt-[-1px]"
+    class=""
   />
 </template>

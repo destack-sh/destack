@@ -2,6 +2,7 @@
 import FileExplorer from "@/components/panels/FileExplorer.vue";
 import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import type { FileHeader } from "@/state/editor";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
@@ -11,6 +12,7 @@ const props = defineProps<{ files?: FileHeader[]; focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const actions = useActions();
+const appearance = useAppearance();
 
 type Panel = {
   title: string;
@@ -81,6 +83,9 @@ watch(
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+      :style="{
+        height: appearance.headerHeight + 'px',
+      }"
     >
       <span class="select-none text-xs font-bold uppercase">Explorer</span>
     </div>

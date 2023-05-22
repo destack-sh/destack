@@ -1,11 +1,11 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useAppearance } from "@/state/appearance";
 import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/runtime";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 
-const editor = useEditorState();
+const appearance = useAppearance();
 const errors = useVisibleErrors();
 const { focusSymbol } = useSymbolNavigation();
 
@@ -21,6 +21,9 @@ function focusError(error: InterpError) {
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+      :style="{
+        height: appearance.headerHeight + 'px',
+      }"
     >
       <span class="text-xs font-bold uppercase">
         Issues
