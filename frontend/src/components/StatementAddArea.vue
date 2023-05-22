@@ -21,7 +21,7 @@ function onDrop(files: File[] | any) {
 <template>
   <button
     ref="buttonRef"
-    class="group relative flex cursor-default py-1 opacity-0 opacity-100 outline-none transition duration-150 hover:opacity-100"
+    class="group relative flex cursor-default py-1 opacity-0 outline-none transition duration-150 hover:opacity-100"
     :class="isOverDropZone ? 'opacity-100' : 'opacity-0'"
   >
     <!-- Drag indicators (bottom if start, top if end) -->
