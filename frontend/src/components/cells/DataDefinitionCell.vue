@@ -386,30 +386,30 @@ function deleteField(node: SimpleType) {
   grid.focus(fieldIdx - 1, "name");
 }
 
-function insertRecord(belowRecordId?: string) {
-  let orderKey;
-  if (belowRecordId == null) {
-    if (overfetchedRecord.value == null) {
-      // end of dataset
-      console.debug("insert record at end of dataset", lastRecordInView.value);
-      orderKey = generateKeyBetween(lastRecordInView.value?.orderKey ?? null, null);
-    } else {
-      // end of page but not end of dataset
-      console.debug("insert record at end of page", lastRecordInView.value, overfetchedRecord.value);
-      orderKey = generateKeyBetween(
-        lastRecordInView.value?.orderKey ?? null,
-        overfetchedRecord.value?.orderKey ?? null
-      );
-    }
-  } else {
-    const record = recordsInView.value?.find((r) => r.id === belowRecordId);
-    if (record == null) {
-      throw new Error("record not found: " + belowRecordId);
-    }
-    orderKey = generateKeyBetween(record?.orderKey ?? null, null);
-  }
-  ops.symbol.createRecord(null, newDatasetRecordId(), context.statement.value.id, orderKey, {} as any);
-  nextTick(() => grid.focus(-1, columnsInOrder.value[0]));
+function getNewOrderKey(belowRecordId?: string) {
+  const recordIdx = recordsInView.value.findIndex((r) => r.id === belowRecordId);
+  const recordBelow = recordsInView.value[recordIdx + 1] ?? overfetchedRecord.value;
+  return generateKeyBetween(recordsInView.value[recordIdx]?.orderKey ?? null, recordBelow?.orderKey ?? null);
+}
+
+function insertRecordAtEnd() {
+  insertRecord({ belowRecordId: lastRecordInView.value?.id });
+}
+
+function insertRecord(options?: { belowRecordId?: string; data?: Record<string, any> }) {
+  const orderKey = getNewOrderKey(options?.belowRecordId);
+  console.log("insert record", orderKey, options?.belowRecordId, options?.data);
+  ops.symbol.createRecord(
+    null,
+    newDatasetRecordId(),
+    context.statement.value.id,
+    orderKey,
+    options?.data ?? ({} as any)
+  );
+  nextTick(() => {
+    const recordIdx = recordsInView.value.findIndex((r) => r.orderKey == orderKey);
+    grid.focus(recordIdx, columnsInOrder.value[0]);
+  });
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
@@ -473,7 +473,7 @@ const extraStatementActions = computed(() => {
     inlineActions.push({
       label: "Add record",
       icon: PlusIcon,
-      action: () => insertRecord(),
+      action: () => insertRecordAtEnd(),
     });
   }
   inlineActions.push({
@@ -493,7 +493,7 @@ const recordActions: RecordAction[] = [
   {
     label: "Duplicate",
     icon: Square2StackIcon,
-    action: (record: any) => insertRecord(record.id),
+    action: (record: any) => insertRecord({ belowRecordId: record.id, data: JSON.parse(JSON.stringify(record.data)) }),
   },
   {
     label: "Delete",
@@ -786,8 +786,8 @@ defineExpose({
       tabindex="-1"
       ref="addRecordRef"
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click="insertRecord()"
-      @enter="insertRecord()"
+      @click="insertRecordAtEnd()"
+      @enter="insertRecordAtEnd()"
       @keydown.up.exact.prevent="focusLastRecord"
       @keydown.right.exact.prevent="addFieldRef?.focus"
       @keydown.left.exact.prevent="loadMoreRef?.focus"
