@@ -662,14 +662,27 @@ defineExpose({
         :key="record.id"
         class="group/record relative flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
       >
-        <!-- Record action -->
-        <div class="absolute -left-5 mt-1">
-          <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
-            <Squares2X2Icon
-              class="h-4 w-4 bg-white text-gray-400"
-              :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
-            />
-          </ActionPopover>
+        <!-- Record actions -->
+        <div class="absolute -left-1 mt-1">
+          <div class="relative">
+            <div class="absolute right-0 flex flex-row-reverse items-baseline gap-0.5">
+              <!-- Standard actions -->
+              <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
+                <Squares2X2Icon
+                  class="h-4 w-4 bg-white text-gray-400"
+                  :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
+                />
+              </ActionPopover>
+              <!-- Insert record -->
+              <button
+                v-if="!context.readonly.value"
+                class="rounded-sm p-0.5 text-gray-500 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/record:opacity-100"
+                @click="() => insertRecord({ belowRecordId: record.id })"
+              >
+                <PlusIcon class="h-4 w-4" />
+              </button>
+            </div>
+          </div>
         </div>
         <!-- Record values -->
         <div
