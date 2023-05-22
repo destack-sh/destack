@@ -1,28 +1,19 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
-import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useEditorState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import {
-  ArrowsPointingOutIcon,
-  MapIcon,
-  Bars4Icon,
-  BellSlashIcon,
-  MinusCircleIcon,
-  MoonIcon,
-} from "@heroicons/vue/24/outline";
+import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, HashtagIcon, MapIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const appearance = useAppearance();
 const editor = useEditorState();
-const actions = useActions();
 
 const isContentWide = computed(() => appearance.contentWidth != 800);
 function setContentWide(wide: boolean) {
   appearance.contentWidth = wide ? 1200 : 800;
-  appearance.contentMarginX = wide ? 50 : 70;
+  appearance.contentMarginX = wide ? 45 : 72;
 }
 </script>
 
@@ -57,7 +48,7 @@ function setContentWide(wide: boolean) {
         <!-- Font size -->
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
-            <MinusCircleIcon class="h-5 w-5 text-gray-700" />
+            <Bars3BottomLeftIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Small text</span>
           </span>
           <Switch v-model="appearance.textSmall" />
@@ -70,6 +61,22 @@ function setContentWide(wide: boolean) {
           </span>
           <Switch :model-value="isContentWide" @update:model-value="setContentWide" />
         </div>
+        <!-- Line numbers -->
+        <div class="flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <HashtagIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Line numbers</span>
+          </span>
+          <Switch v-model="editor.showLineNumbers" />
+        </div>
+        <!-- Editor headers -->
+        <div class="flex flex-row items-center justify-between px-2">
+          <span class="flex flex-row items-center gap-2">
+            <MapIcon class="h-5 w-5 text-gray-700" />
+            <span class="text-sm text-gray-900">Global header</span>
+          </span>
+          <Switch v-model="editor.showGlobalHeader" />
+        </div>
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
@@ -77,14 +84,6 @@ function setContentWide(wide: boolean) {
             <span class="text-sm text-gray-900">Editor headers</span>
           </span>
           <Switch v-model="editor.showEditorGroupHeader" />
-        </div>
-        <!-- Line numbers -->
-        <div class="flex flex-row items-center justify-between px-2">
-          <span class="flex flex-row items-center gap-2">
-            <Bars4Icon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Line numbers</span>
-          </span>
-          <Switch v-model="editor.showLineNumbers" />
         </div>
         <!-- Dark mode -->
         <div class="flex flex-row items-center justify-between px-2">
@@ -98,13 +97,7 @@ function setContentWide(wide: boolean) {
           />
         </div>
         <!-- Zen mode -->
-        <div class="flex flex-row items-center justify-between px-2 py-1">
-          <span class="flex flex-row items-center gap-2">
-            <BellSlashIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Zen mode</span>
-          </span>
-          <Switch :model-value="editor.zenMode" @update:model-value="actions.apply('editor.zenMode')" />
-        </div>
+        <!-- (should become an action) -->
       </PopoverPanel>
     </FadeTransition>
   </Popover>

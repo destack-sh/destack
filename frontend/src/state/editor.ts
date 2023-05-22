@@ -614,7 +614,7 @@ export const EDITOR_CONTEXT = "__editor__";
 
 export function provideEditorContext(el: Ref<HTMLElement | null>) {
   const elementBounding = useElementBounding(el);
-  const scrollContext: EditorContext = {
+  const context: EditorContext = {
     size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
     pos: computed(() => ({
       left: elementBounding.left.value,
@@ -629,7 +629,8 @@ export function provideEditorContext(el: Ref<HTMLElement | null>) {
       el.value.style.overflow = "";
     },
   };
-  provide(EDITOR_CONTEXT, scrollContext);
+  provide(EDITOR_CONTEXT, context);
+  return context;
 }
 
 export function useEditorContext(): EditorContext {

@@ -9,7 +9,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useEditorState, type EditorContext, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
@@ -18,7 +18,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
 
-const props = defineProps<{ editorId: string; fileId: string; focused: boolean }>();
+const props = defineProps<{ editorId: string; context: EditorContext; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const editor = useEditorState();
 const appearance = useAppearance();
@@ -174,12 +174,30 @@ const metaActions = computed(() => [
   },
 ]);
 
+const statementAddAreaPosition = computed(() => {
+  const editorSize = props.context.size.value;
+  if (editorSize.width > appearance.contentWidthWithMargin) {
+    const marginX = (editorSize.width - appearance.contentWidth) / 2;
+    return {
+      width: appearance.contentWidth - 4 + "px",
+      marginLeft: marginX - 4 + "px", // no, not sure where the 4 comes from
+      marginRight: marginX + "px",
+    };
+  } else {
+    return {
+      width: editorSize.width - appearance.contentMarginX * 2 + "px",
+      marginLeft: appearance.contentMarginX + "px",
+      marginRight: appearance.contentMarginX + "px",
+    };
+  }
+});
+
 const auth = useAuth();
 </script>
 
 <template>
-  <!-- File container div -->
-  <div>
+  <!-- File container -->
+  <div class="overflow-x-hidden">
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
       <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
@@ -218,9 +236,13 @@ const auth = useAuth();
       <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between px-[58px] pt-6 font-bold text-gray-900"
+        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between pt-10 font-bold text-gray-900"
         :class="appearance.fontMono ? 'font-mono' : ''"
-        :style="{ 'max-width': appearance.contentWidth + 100 + 'px' }"
+        :style="{
+          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
+          paddingLeft: `${appearance.contentMarginX}px`,
+          paddingRight: `${appearance.contentMarginX}px`,
+        }"
       >
         <!-- Name & actions -->
         <span class="flex flex-row items-center">
@@ -264,7 +286,7 @@ const auth = useAuth();
       <!-- Add statement to start -->
       <StatementAddArea
         class="mx-auto"
-        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
+        :style="statementAddAreaPosition"
         position="start"
         @click="editor.readonly || insertStatementStart()"
         v-if="statements?.length > 0"
@@ -287,8 +309,8 @@ const auth = useAuth();
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
-        class="mx-auto flex-1 pb-72"
-        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
+        class="flex-1 pb-72"
+        :style="statementAddAreaPosition"
         position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />

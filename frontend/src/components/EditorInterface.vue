@@ -17,7 +17,7 @@ const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
 const focused = computed(() => editorState.focusedEditorId == props.editor.id);
 useActiveScroll(toRef(props, "containerEl"));
 
-provideEditorContext(toRef(props, "containerEl"));
+const context = provideEditorContext(toRef(props, "containerEl"));
 
 // generic editor interface state
 const editorInterfaceState: EditorInterfaceState = {
@@ -38,6 +38,7 @@ provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
     ref="containerRef"
     v-if="editor.type == 'file'"
     :editorId="editor.id"
+    :context="context"
     :fileId="(editor as FileEditor).fileId"
     :focused="focused"
     :state="editor.localState"
