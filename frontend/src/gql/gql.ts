@@ -21,8 +21,6 @@ const documents = {
     types.FileContentByIdDocument,
   "\n    query existingProjectVersionTag($projectId: GlobalID!, $tag: String!) {\n      projectVersionByTag(projectId: $projectId, tag: $tag) {\n        id\n        tag\n      }\n    }\n  ":
     types.ExistingProjectVersionTagDocument,
-  "\n    query runInfo($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        path\n        name\n        slug\n      }\n      projectVersion(id: $projectVersionId) {\n        id\n        name\n        tag\n        committed\n        createdAt\n        committedAt\n      }\n    }\n  ":
-    types.RunInfoDocument,
   "\n    query matchingUsers($slug: String, $email: String) {\n      users(first: 10, filters: { slugPrefix: $slug, emailEquals: $email }) {\n        totalCount\n        edges {\n          node {\n            id\n            slug\n            username\n            email\n          }\n        }\n      }\n    }\n  ":
     types.MatchingUsersDocument,
   "\n    query records($statementId: GlobalID!, $after: String, $first: Int) {\n      statement(id: $statementId) {\n        id\n        records(filters: { isVisible: true }, after: $after, first: $first) {\n          totalCount\n          pageInfo {\n            hasNextPage\n            hasPreviousPage\n            startCursor\n            endCursor\n          }\n          edges {\n            cursor\n            node {\n              id\n              revision\n              createdAt\n              updatedAt\n              deletedAt\n              orderKey\n              data\n            }\n          }\n        }\n      }\n    }\n  ":
@@ -287,12 +285,6 @@ export function graphql(
 export function graphql(
   source: "\n    query existingProjectVersionTag($projectId: GlobalID!, $tag: String!) {\n      projectVersionByTag(projectId: $projectId, tag: $tag) {\n        id\n        tag\n      }\n    }\n  "
 ): typeof documents["\n    query existingProjectVersionTag($projectId: GlobalID!, $tag: String!) {\n      projectVersionByTag(projectId: $projectId, tag: $tag) {\n        id\n        tag\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n    query runInfo($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        path\n        name\n        slug\n      }\n      projectVersion(id: $projectVersionId) {\n        id\n        name\n        tag\n        committed\n        createdAt\n        committedAt\n      }\n    }\n  "
-): typeof documents["\n    query runInfo($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        path\n        name\n        slug\n      }\n      projectVersion(id: $projectVersionId) {\n        id\n        name\n        tag\n        committed\n        createdAt\n        committedAt\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

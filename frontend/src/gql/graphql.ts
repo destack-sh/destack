@@ -2714,25 +2714,6 @@ export type ExistingProjectVersionTagQuery = {
   projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
 };
 
-export type RunInfoQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type RunInfoQuery = {
-  __typename?: "Query";
-  project?: { __typename?: "Project"; id: any; path: string; name: string; slug: string } | null;
-  projectVersion?: {
-    __typename?: "ProjectVersion";
-    id: any;
-    name?: string | null;
-    tag?: string | null;
-    committed: boolean;
-    createdAt: any;
-    committedAt?: any | null;
-  } | null;
-};
-
 export type MatchingUsersQueryVariables = Exact<{
   slug?: InputMaybe<Scalars["String"]>;
   email?: InputMaybe<Scalars["String"]>;
@@ -6264,75 +6245,6 @@ export const ExistingProjectVersionTagDocument = {
     },
   ],
 } as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
-export const RunInfoDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "runInfo" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "path" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-                { kind: "Field", name: { kind: "Name", value: "committed" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "committedAt" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<RunInfoQuery, RunInfoQueryVariables>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [

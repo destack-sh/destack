@@ -4,7 +4,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
+import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import {
   makeTypeNode,
@@ -315,7 +315,7 @@ defineExpose({
         "
       />
       <!-- Description -->
-      <InlineValueCell2
+      <InlineValueCell
         :model-value="member.description"
         @update:model-value="writeDescription(member.id, $event)"
         :ref="(el: any) => grid.registerColumnRef(member.id, 'description', el)"

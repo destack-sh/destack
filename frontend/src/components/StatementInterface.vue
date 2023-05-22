@@ -20,7 +20,7 @@ import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, onBeforeUnmount, provide, ref, watch, type Component, type Ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -28,8 +28,6 @@ const props = defineProps<{
   depth: number;
   ancestors: FragmentType<typeof StatementContentType>[];
   readonly: boolean;
-  isFirstInGroup: boolean;
-  isLastInGroup: boolean;
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -64,19 +62,18 @@ const destroyed = ref(false); // (useful for delete tracking if component had no
 onBeforeUnmount(() => {
   destroyed.value = true;
 });
-const context: Ref<StatementContext> = computed(() => ({
-  readonly: editor.readonly || props.readonly,
-  focused: isFocused.value,
-  editing: isEditing.value,
-  depth: props.depth,
-  xOffset: contentOffsetX.value,
-  lineNumberBase: lineNumber.value,
-  statement: props.statement,
-  reference: symbolOf(statement.value.reference?.id) ?? null,
-  file: props.file,
-  destroyed: destroyed.value,
-}));
-provide(STATEMENT_CONTEXT, context);
+provide(STATEMENT_CONTEXT, {
+  readonly: computed(() => editor.readonly || props.readonly),
+  focused: isFocused,
+  editing: isEditing,
+  depth: toRef(props, "depth"),
+  xOffset: contentOffsetX,
+  lineNumberBase: lineNumber,
+  statement,
+  reference: computed(() => symbolOf(statement.value.reference?.id) ?? null),
+  file,
+  destroyed,
+} as StatementContext);
 const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
@@ -368,7 +365,7 @@ const filteredClients = computed(() =>
             <!-- TODO @Broken: fix dragging (broke when wrapping span in action popover button) -->
             <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
               <span
-                class="select-none text-right not-italic transition duration-150"
+                class="cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
                   'opacity-0': !isFocused && !open && !editor.showLineNumbers,
                   'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
@@ -381,17 +378,16 @@ const filteredClients = computed(() =>
                     isCommentish,
                   'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
                   'text-gray-500': (dragOver || open || isFocused) && isCommentish,
-                  'cursor-grab': !context.readonly,
                 }"
-                @mousedown="context.readonly || containerRef?.setAttribute('draggable', 'true')"
-                @mouseup="context.readonly || containerRef?.setAttribute('draggable', 'false')"
+                @mousedown="containerRef?.setAttribute('draggable', 'true')"
+                @mouseup="containerRef?.setAttribute('draggable', 'false')"
               >
                 {{ lineNumber }}
               </span>
             </ActionPopover>
             <!-- Add statement below button -->
             <button
-              v-if="!context.readonly"
+              v-if="!editor.readonly && !props.readonly"
               class="rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isFocused ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
@@ -475,8 +471,6 @@ const filteredClients = computed(() =>
       <template v-if="inContainerFocused">*</template>
       <template v-if="containerFocused">.</template>
       <template v-if="isEditing">e</template>
-      <template v-if="isFirstInGroup">[</template>
-      <template v-if="isLastInGroup">]</template>
       <template v-if="isCommented">#</template>
       <template v-if="isStale">S</template>
       <span class="lowercase">

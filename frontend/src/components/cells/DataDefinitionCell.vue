@@ -5,10 +5,10 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
 import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell2 from "@/components/cells/InlineValueCell2.vue";
-import { getInterface } from "@/components/cells/interfaces";
+import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useMagicActions } from "@/components/file";
+import { getInterface } from "@/components/interfaces";
 import {
   makeTypeNode,
   useStatementContext,
@@ -37,8 +37,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useMouseInElement } from "@vueuse/core";
-import { editor } from "monaco-editor";
-import { computed, nextTick, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const PAGE_SIZE = 10;
 const context = useStatementContext();
@@ -152,8 +151,15 @@ const rowIdsInOrder: Ref<string[]> = computed(() => {
 // children cannot be imputed into SimpleTypeNode but we still want to know the actual type
 const selfSymbol = computed(() => symbolOf(context.statement.value.id));
 function runtimeTypeOf(field: SimpleType) {
-  return selfSymbol.value?.typeNodes?.find((n) => n.name == field.name) ?? field;
+  if (field.tag != TypeTag.TypeReference) {
+    // prevent slow round-trip updates for non-references
+    // this is really a hack until we get rid of separate interp state
+    return field;
+  } else {
+    return selfSymbol.value?.typeNodes?.find((n) => n.key == field.key) ?? field;
+  }
 }
+
 const extendedFields = computed(() => {
   if (extendedTypes.value.length == 0) {
     // shouldn't be needed but because interp state and module state are separate right now,
@@ -170,7 +176,7 @@ const allFields = computed(() => [...selfFields.value, ...extendedFields.value])
 
 // grid & grid sizing
 
-const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell2>>(
+const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell>>(
   columnsInOrder,
   computed(() => {
     if (isTable.value) {
@@ -189,6 +195,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 
 const verticalBorders = true;
 const minRowHeight = 32;
+const rowPadding = 4;
 const maxRowHeight = 220;
 const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
@@ -244,7 +251,7 @@ watch(
         grid
           .getColumn(r)
           .map((e) => e.previewSize.height.value ?? 0)
-          .reduce((a, b) => Math.max(a, b), minRowHeight)
+          .reduce((a, b) => Math.max(a, b), minRowHeight - rowPadding * 2)
       )
       .map((h) => Math.min(h, maxRowHeight));
 
@@ -669,10 +676,10 @@ defineExpose({
           :style="{
             minHeight: minRowHeight + 'px',
             width: columnWidths[x] + 'px',
-            height: rowHeights[y] + 'px',
+            height: rowHeights[y] + rowPadding * 2 + 'px',
           }"
         >
-          <InlineValueCell2
+          <InlineValueCell
             :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
             :key="record.id + '.' + field?.id + '.value'"
             :model-value="record.data?.[field.key as string]"
@@ -688,8 +695,8 @@ defineExpose({
             @navigate-up="grid.navigateUp(record.id, field.name as string)"
             @navigate-down="grid.navigateDown(record.id, field.name as string)"
             @delete-self="deleteRecordField(record.id, field.key)"
-            class="h-full w-full overflow-hidden border border-transparent px-1 py-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :style="{ 'max-height': maxRowHeight + 'px' }"
+            class="h-full w-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
           />
         </div>
       </div>
@@ -709,7 +716,7 @@ defineExpose({
           :type="field"
           :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
           :inlined="extendedFields.find((n) => n.name == field.name) != null"
-          class="min-h-[32px] w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
           @update:model-value="(node: any) => updateFieldType(field, node)"
           @navigate-up="grid.navigateUp(field?.id, 'type')"
@@ -719,13 +726,14 @@ defineExpose({
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
           :style="{
-            height: rowHeights[y] + 'px',
+            minHeight: minRowHeight + 'px',
+            height: rowHeights[y] + rowPadding * 2 + 'px',
           }"
         />
       </td>
       <!-- main record should always exist but just in case? -->
       <td v-if="mainRecord">
-        <InlineValueCell2
+        <InlineValueCell
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="mainRecord.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
@@ -742,7 +750,7 @@ defineExpose({
           @navigate-left="grid.navigateLeft(field.id, 'value')"
           class="h-full w-full self-start border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
-          :style="{ 'max-height': maxRowHeight + 'px' }"
+          :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
         />
       </td>
     </tr>
