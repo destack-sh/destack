@@ -223,6 +223,7 @@ watch(
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
+    console.log("resize grid");
     // update column widths
     const targetMinTotalWidth =
       Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
@@ -260,6 +261,9 @@ watch(
       columnWidths.value = widths;
       rowHeights.value = heights;
     }
+  },
+  {
+    onTrigger: (e) => console.log("resize grid trigger", e),
   }
 );
 
