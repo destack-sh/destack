@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
-import { useEditorState } from "@/state/editor";
+import { useEditorState, type EditorGroup } from "@/state/editor";
 import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
+
+const props = defineProps<{ group: EditorGroup }>();
 
 const editor = useEditorState();
 const actions = useActions();
@@ -65,13 +67,13 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; path: string }) {
-  editor.openFile(file);
+  editor.openFile(file, { group: props.group });
 }
 </script>
 <template>
   <div class="flex h-full w-full flex-col justify-center pb-32">
     <div
-      class="flex w-full max-w-xl flex-row justify-center gap-4 self-center px-4 pt-8 pb-16 text-left transition-colors duration-75 sm:px-6 lg:px-8"
+      class="flex w-full max-w-xl flex-row justify-center gap-4 self-center px-4 pb-16 pt-8 text-left transition-colors duration-75 sm:px-6 lg:px-8"
     >
       <!-- Actions -->
       <div class="flex-1 p-1">
@@ -97,7 +99,7 @@ function openFile(file: { id: string; path: string }) {
       </div>
       <!-- Recent files -->
       <div class="flex-1 p-1">
-        <h3 class="px-1 text-lg font-bold text-gray-900">Suggested</h3>
+        <h3 class="px-1 text-lg font-bold text-gray-900">Files</h3>
         <!-- Files -->
         <div class="my-1 flex flex-col gap-1.5" v-if="(totalCount ?? 0) > 0">
           <button

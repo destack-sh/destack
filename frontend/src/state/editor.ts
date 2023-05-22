@@ -157,7 +157,7 @@ export const useEditorState = defineStore("editor", {
       debug: false,
       showGenerated: true,
       showLineNumbers: false,
-      showEditorGroupHeader: true,
+      showEditorGroupHeader: false,
       showGlobalHeader: true,
       showViewSelection: true,
       showViewContent: false,
@@ -431,8 +431,8 @@ export const useEditorState = defineStore("editor", {
     setZenMode(zenMode: boolean) {
       const appearance = useAppearanceState();
       this.zenMode = zenMode;
+      this.showViewContent = !zenMode;
       this.showGlobalHeader = !zenMode;
-      this.showEditorGroupHeader = !zenMode;
       appearance.fullscreen = zenMode;
     },
 

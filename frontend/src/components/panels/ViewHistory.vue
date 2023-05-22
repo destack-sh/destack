@@ -4,6 +4,7 @@ import { useNavigationGrid } from "@/components/cells/grid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { provideGlobalAction } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { useEditorState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
@@ -26,6 +27,8 @@ const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 const { getTimeFromNowString } = useTimeFromNow();
 
 const editor = useEditorState();
+const appearance = useAppearance();
+
 function isCurrent(version: { id: string }): boolean {
   return editor.currentProjectVersionId == version.id;
 }
@@ -195,6 +198,9 @@ defineExpose({
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+      :style="{
+        height: appearance.headerHeight + 'px',
+      }"
     >
       <span class="text-xs font-bold uppercase">
         History

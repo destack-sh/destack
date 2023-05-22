@@ -3,16 +3,26 @@ import { useElementRefs } from "@/components/cells/grid";
 import EditorInterface from "@/components/EditorInterface.vue";
 import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
 import { useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
-import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, toRef, watch } from "vue";
+import { PlusIcon } from "@heroicons/vue/24/outline";
+import { useElementSize } from "@vueuse/core";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
 const editor = useEditorState();
+const appearance = useAppearance();
 const selectedTab = ref(-1);
-const tabGroupRef = ref(null);
+const containerRef: Ref<HTMLDivElement | null> = ref(null);
+const containerSize = useElementSize(containerRef);
+const mountAllPanels = ref(false);
+// keep panel refs to pass to editor interface for scroll context
+const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
+const focused = computed(() => editor.focusedEditor?.groupId == props.group.id);
+
+// auto update selected tab
 watch(
   () => [props.group.activeEditorId, props.group.editors],
   () => {
@@ -29,32 +39,19 @@ watch(
   },
   { immediate: true, deep: true }
 );
-const focused = computed(() => editor.focusedEditor?.groupId == props.group.id);
+
+const editorSize = computed(() => {
+  return {
+    width: containerSize.width.value + "px",
+    height: containerSize.height.value - (editor.showEditorGroupHeader ? appearance.headerHeight : 0) + "px",
+  };
+});
 
 function focus(e: Editor) {
   editor.focusEditor(e);
   // blur any focused element when clicking on a tab
   editor.blurElement();
 }
-
-// load panels (i.e. disallow unmounting) after 2s to load active panel first
-const mountAllPanels = ref(false);
-setTimeout(() => {
-  mountAllPanels.value = true;
-}, 2000);
-// reset whenever project version changes
-watch(
-  toRef(editor, "currentProjectVersionId"),
-  () => (
-    (mountAllPanels.value = false),
-    setTimeout(() => {
-      mountAllPanels.value = true;
-    }, 2000)
-  )
-);
-
-// keep panel refs to pass to editor interface for scroll context
-const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
 
 const actions = useActions();
 async function createFileInEditorGroup() {
@@ -63,16 +60,19 @@ async function createFileInEditorGroup() {
 </script>
 <template>
   <!-- Tabbed editors for this group -->
-  <div class="relative flex flex-col">
-    <TabGroup :selected-index="selectedTab" :default-index="selectedTab" ref="tabGroupRef">
+  <div class="relative flex flex-col" ref="containerRef">
+    <TabGroup :selected-index="selectedTab" :default-index="selectedTab">
       <!-- Tabs -->
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
       <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast (that's what the sticky hack below 'solves') -->
       <TabList
-        class="sticky top-0 z-[5] flex flex-shrink-0 border-b border-orange-900 border-opacity-[12%] bg-gray-50"
+        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="editor.showEditorGroupHeader"
+        :style="{
+          height: appearance.headerHeight + 'px',
+        }"
       >
         <Tab as="template" v-for="(e, i) in group.editors" :key="e.id" v-slot="{ selected }">
           <button
@@ -109,17 +109,12 @@ async function createFileInEditorGroup() {
         </button>
       </TabList>
       <!-- Contents -->
-      <TabPanels class="relative h-full w-full flex-1">
-        <!-- TODO @Robustness: handle resizable scrollable flex containers (editor, views) better -->
-        <!-- Scrolling currently relies on this weird relative/absolute hack, but it's not
-             easy to apply to proper resizable elements and it cuts off areas (e.g. the bottom),
-            because it includes more width/height than it should, so we have extra padding
-            (e.g. in FileInterface and ViewExplorer/ViewHistory/etc.)
-            -->
+      <TabPanels :style="editorSize">
         <TabPanel
           :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
-          class="h-full w-full overflow-y-scroll bg-white outline-none"
+          class="overflow-y-scroll bg-white outline-none"
+          :style="editorSize"
           v-for="e in group.editors"
           :key="e.id"
           :unmount="!mountAllPanels"
@@ -128,7 +123,8 @@ async function createFileInEditorGroup() {
         </TabPanel>
         <EmptyEditorInterface
           v-if="editor.currentProjectVersionId != null && group.editors.length === 0"
-          class="relative h-full w-full flex-1"
+          class="relative h-full w-full"
+          :group="group"
         />
       </TabPanels>
     </TabGroup>

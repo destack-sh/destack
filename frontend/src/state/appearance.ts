@@ -13,6 +13,7 @@ export const useAppearanceState = defineStore("appearance", {
     inlineMetrics: false,
     contentWidth: 800,
     contentMarginX: 70,
+    headerHeight: 32,
   }),
   getters: {
     contentWidthWithMargin(state) {
