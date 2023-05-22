@@ -136,7 +136,7 @@ const extendedTypes = computed(
 );
 const columnsInOrder: Ref<string[]> = computed(() => {
   if (isTable.value) {
-    return allFields.value?.map((n) => n.name ?? "") ?? [];
+    return allFields.value?.map((n) => n.key ?? "") ?? [];
   } else {
     return ["type", "value"];
   }
@@ -169,7 +169,7 @@ const extendedFields = computed(() => {
   }
   return (
     selfSymbol.value?.typeNodes
-      ?.filter((n) => !selfFields.value.find((f) => f.name == n.name))
+      ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
       .map((n) => n as SimpleType) ?? []
   );
 });
@@ -223,7 +223,6 @@ watch(
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
-    console.log("resize grid");
     // update column widths
     const targetMinTotalWidth =
       Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
@@ -261,9 +260,6 @@ watch(
       columnWidths.value = widths;
       rowHeights.value = heights;
     }
-  },
-  {
-    onTrigger: (e) => console.log("resize grid trigger", e),
   }
 );
 
@@ -276,7 +272,7 @@ onStartTyping((e) => {
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
   if (cell != null && cell.rowId != "" && cell.rowId != "type") {
     if (isTable.value) {
-      const field = allFields.value.find((f) => f.name == cell.column);
+      const field = allFields.value.find((f) => f.key == cell.column);
       deleteRecordField(cell.rowId, field?.key as string);
     } else {
       const field = allFields.value.find((f) => f.id == cell.rowId);
@@ -381,7 +377,7 @@ function duplicateField(fieldId: string) {
   };
   context.createTypeNode(newFieldNode);
   if (isTable.value) {
-    nextTick(() => grid.focus("", newFieldNode.name ?? ""));
+    nextTick(() => grid.focus("", newFieldNode.key ?? ""));
   } else {
     nextTick(() => grid.focus(newFieldNode.id, "type"));
   }
@@ -445,8 +441,7 @@ function deleteRecord(recordId: string) {
 // drag & drop
 const magic = useMagicActions(context.statement as Ref<StatementHeader>);
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
-  const key = context.typeNodesByName.value?.[column]?.key;
-  console.log("drop insert files into dataset", recordId, column, key, position, files);
+  console.log("drop insert files into dataset", recordId, column, position, files);
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   const record = recordsInView.value[recordIdx];
   const above = recordsInView.value[recordIdx - 1];
@@ -457,7 +452,7 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
   } else {
     orderKeys = generateNKeysBetween(record.orderKey, below?.orderKey ?? null, files.length);
   }
-  await magic.insertFilesAsRecords(key, orderKeys, files);
+  await magic.insertFilesAsRecords(column, orderKeys, files);
 }
 const position = useMouseInElement(gridRef);
 
@@ -640,18 +635,18 @@ defineExpose({
         <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <InlineTypeTupleCell
-              :ref="(el: any) => grid.registerColumnRef('', field.name as string, el)"
+              :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
-              :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-              :inlined="extendedFields.find((n) => n.name == field.name) != null"
+              :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
+              :inlined="extendedFields.find((n) => n.key == field.key) != null"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
               @update:model-value="(node: any) => updateFieldType(field, node)"
-              @navigate-left="grid.navigateLeft('', field.name as string)"
-              @navigate-right="grid.navigateRight('', field.name as string)"
-              @navigate-up="grid.navigateUp('', field.name as string)"
-              @navigate-down="grid.navigateDown('', field.name as string)"
+              @navigate-left="grid.navigateLeft('', field.key as string)"
+              @navigate-right="grid.navigateRight('', field.key as string)"
+              @navigate-up="grid.navigateUp('', field.key as string)"
+              @navigate-down="grid.navigateDown('', field.key as string)"
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
               :style="{
@@ -702,7 +697,7 @@ defineExpose({
           }"
         >
           <InlineValueCell
-            :ref="(el: any) => grid.registerColumnRef(record.id, field.name as string, el)"
+            :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
             :model-value="record.data?.[field.key as string]"
             @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
             :type="runtimeTypeOf(field)"
@@ -710,11 +705,11 @@ defineExpose({
             :active="context.editing.value || context.focused.value"
             debounced
             :supports-drop="!context.readonly.value"
-            @drop-files="(p, v) => onDropFiles(record.id, field.name as string, p, v)"
-            @navigate-left="grid.navigateLeft(record.id, field.name as string)"
-            @navigate-right="grid.navigateRight(record.id, field.name as string)"
-            @navigate-up="grid.navigateUp(record.id, field.name as string)"
-            @navigate-down="grid.navigateDown(record.id, field.name as string)"
+            @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
+            @navigate-left="grid.navigateLeft(record.id, field.key as string)"
+            @navigate-right="grid.navigateRight(record.id, field.key as string)"
+            @navigate-up="grid.navigateUp(record.id, field.key as string)"
+            @navigate-down="grid.navigateDown(record.id, field.key as string)"
             @delete-self="deleteRecordField(record.id, field.key)"
             class="h-full w-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
@@ -735,8 +730,8 @@ defineExpose({
         <InlineTypeTupleCell
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
-          :readonly="context.readonly.value || extendedFields.find((n) => n.name == field.name) != null"
-          :inlined="extendedFields.find((n) => n.name == field.name) != null"
+          :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
+          :inlined="extendedFields.find((n) => n.key == field.key) != null"
           class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
           @update:model-value="(node: any) => updateFieldType(field, node)"
@@ -763,7 +758,7 @@ defineExpose({
           :active="context.editing.value || context.focused.value"
           debounced
           :supports-drop="!context.readonly.value"
-          @drop-files="(p, v) => onDropFiles(mainRecord.id, field.name as string, p, v)"
+          @drop-files="(p, v) => onDropFiles(mainRecord.id, field.key as string, p, v)"
           @delete-self="deleteRecordField(mainRecord.id, field.key as string)"
           @navigate-up="grid.navigateUp(field.id, 'value')"
           @navigate-down="grid.navigateDown(field.id, 'value')"
