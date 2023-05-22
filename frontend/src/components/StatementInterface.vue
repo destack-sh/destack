@@ -387,7 +387,7 @@ const filteredClients = computed(() =>
             <!-- Add statement below button -->
             <button
               v-if="!editor.readonly && !props.readonly"
-              class="rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isFocused ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
             >
@@ -412,12 +412,14 @@ const filteredClients = computed(() =>
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
       <!-- Statement drag & drop indicator (top/bottom) -->
       <div
+        v-if="!readonly"
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
-        :class="!readonly && dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
+        :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
       />
       <div
+        v-if="!readonly"
         class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
-        :class="!readonly && dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
+        :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
       <!-- Main cell -->
       <div

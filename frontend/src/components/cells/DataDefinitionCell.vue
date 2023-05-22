@@ -670,14 +670,14 @@ defineExpose({
               <!-- Standard actions -->
               <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
                 <Squares2X2Icon
-                  class="h-4 w-4 bg-white text-gray-400"
+                  class="h-4 w-4 text-gray-400 hover:text-gray-700"
                   :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
                 />
               </ActionPopover>
               <!-- Insert record -->
               <button
                 v-if="!context.readonly.value"
-                class="rounded-sm p-0.5 text-gray-500 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/record:opacity-100"
+                class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/record:opacity-100"
                 @click="() => insertRecord({ belowRecordId: record.id })"
               >
                 <PlusIcon class="h-4 w-4" />
@@ -776,7 +776,7 @@ defineExpose({
   <div class="my-1 flex flex-row gap-2">
     <button
       v-if="pageInfo?.hasNextPage && isTable"
-      @click="loadMore()"
+      @click.stop="loadMore()"
       @keydown.up.exact.prevent="focusLastRecord"
       @keydown.right.exact.prevent="addRecordRef?.focus"
       @keydown.down.exact.prevent="context.navigateDown"
@@ -799,7 +799,7 @@ defineExpose({
       tabindex="-1"
       ref="addRecordRef"
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click="insertRecordAtEnd()"
+      @click.stop="insertRecordAtEnd()"
       @enter="insertRecordAtEnd()"
       @keydown.up.exact.prevent="focusLastRecord"
       @keydown.right.exact.prevent="addFieldRef?.focus"
@@ -814,7 +814,7 @@ defineExpose({
       tabindex="-1"
       ref="addFieldRef"
       class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click="insertField()"
+      @click.stop="insertField()"
       @enter="insertField()"
       @keydown.up.exact.prevent="focusLastRecord"
       @keydown.left.exact.prevent="addRecordRef?.focus"

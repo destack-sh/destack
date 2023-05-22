@@ -115,6 +115,10 @@ if (debounce) {
 }
 
 function edit() {
+  if (props.readonly) {
+    previewButtonRef.value?.focus();
+    return;
+  }
   if (editing.value) return;
   if (valueInterface.value == null) return;
   if (valueInterface.value.inline) {
@@ -178,14 +182,13 @@ defineExpose({
   <!-- Value container -->
   <div
     class="group/iface relative"
-    @click.stop.prevent="editing || (previewButtonRef?.parentNode?.contains($event.target) && edit())"
-    :class="[readonly || editing ? '' : 'cursor-pointer']"
+    @click.stop.prevent="editing || (previewButtonRef?.parentNode?.contains($event.target as Node) && edit())"
+    :class="[editing ? '' : 'cursor-pointer']"
   >
     <!-- Preview -->
     <div
       ref="previewButtonRef"
-      class="mousetrap-no-tab relative inline-block w-full overflow-y-hidden text-left outline-none"
-      :class="[readonly ? '' : 'cursor-pointer']"
+      class="mousetrap-no-tab relative inline-block w-full cursor-pointer overflow-y-hidden text-left outline-none"
       tabindex="-1"
       :disabled="readonly"
       @click.stop="edit"
