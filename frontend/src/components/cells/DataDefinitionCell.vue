@@ -177,7 +177,7 @@ const allFields = computed(() => [...selfFields.value, ...extendedFields.value])
 
 // grid & grid sizing
 
-const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | InstanceType<typeof InlineValueCell>>(
+const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell> | InstanceType<typeof InlineValueCell>>(
   columnsInOrder,
   computed(() => {
     if (isTable.value) {
@@ -195,7 +195,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeCell> | Ins
 );
 
 const verticalBorders = true;
-const minRowHeight = 32; // incl. padding
+const minRowHeight = 32; // incl. padding * 2
 const rowPadding = 4;
 const maxRowHeight = 220;
 const growColumns = true;
@@ -210,14 +210,15 @@ const gridOffsetX: Ref<number> = computed(() => {
 });
 // auto size columns and rows
 // manual dependency tracking to prevent recursive updates
-// TODO @Robustness @UX @Performance: grid resizing sometimes loops and becomes recursive :ReactiveGridFuckery
-//  many :ref seem to be triggered, triggering registerColumnRef, triggering grid.refsByColumn below..
+// TODO @Robustness @UX @Performance: grid resizing sometimes loops and becomes recursive
+//  many :ref are re-triggered, calling registerColumnRef, triggering grid.refsByColumn below..
 //  Sometimes this is annoying because it causes noticable lags when editing, especially when adding rows or modifying columns.
-//  Only triggering ref updates (on preview size and on widths/heights) if the values actually changed seems to fix (?) this.
+//  Only triggering ref updates (on preview size and on widths/heights) on value changes & batching column updates seems to fix this.
 watch(
   () => [
     appearance.contentWidth,
     appearance.contentMarginX,
+    context.xOffset,
     editorView.size.value,
     allFields.value,
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
@@ -225,7 +226,9 @@ watch(
   () => {
     // update column widths
     const targetMinTotalWidth =
-      Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) - 8; // not sure why -8, probably some mx-1? borders?
+      Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) -
+      context.xOffset.value -
+      8; // not sure why -8, probably some mx-1? borders?
     const ifaces = allFields.value.map((f) => getInterface(f));
     // init width to minimum widths as min(header, iface_min)
     const widths: number[] = [];
@@ -332,18 +335,17 @@ function insertField(isUnionWith?: boolean) {
     null
   );
   if (!isUnionWith) {
-    const newName = "field " + selfFields.value?.length;
     const typeNode = makeTypeNode({
-      name: newName,
+      name: "field " + selfFields.value?.length,
       tag: TypeTag.String,
       orderKey: nextOrderKey,
     });
     grid.beginBatchChange();
     context.createTypeNode(typeNode);
     if (isTable.value) {
-      nextTick(() => (grid.focus("", newName), grid.flush()));
+      nextTick(() => (grid.flush(), grid.focus("", typeNode.key)));
     } else {
-      nextTick(() => (grid.focus(typeNode.id, "type"), grid.flush()));
+      nextTick(() => (grid.flush(), grid.focus(typeNode.id, "type")));
     }
   } else {
     context.createTypeNode(
@@ -660,7 +662,7 @@ defineExpose({
       <div
         v-for="(record, y) in recordsInView"
         :key="record.id"
-        class="group/record relative flex flex-row border-b border-orange-900 border-opacity-[12%] align-top"
+        class="group/record relative flex flex-row self-start border-b border-orange-900 border-opacity-[12%] align-top"
       >
         <!-- Record actions -->
         <div class="absolute -left-1 mt-1">

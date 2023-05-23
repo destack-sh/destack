@@ -135,6 +135,7 @@ body {
   background-color: #fdba74;
 }
 
+/* TODO @UX: tranistion scrollbar properly on active */
 .scroll-active::-webkit-scrollbar-thumb {
   background-color: #fdba74;
 }
