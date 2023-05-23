@@ -134,11 +134,7 @@ defineExpose({
       class="w-full rounded-none border-none bg-transparent p-0 text-gray-900 outline-none ring-0 placeholder:text-gray-300 focus:ring-0"
       :type="hidden ? 'password' : 'text'"
       :placeholder="hidden ? '••••••••••••••••••••••••••••' : '123456789-123456789'"
-      :class="{
-        'font-mono': appearance.fontMono,
-        'text-sm': appearance.textSmall,
-        'text-md': !appearance.textSmall,
-      }"
+      :class="appearance.baseClass"
       @keydown.enter.stop.prevent="writeSecretValue(), emit('enter')"
     />
     <!-- Controls -->

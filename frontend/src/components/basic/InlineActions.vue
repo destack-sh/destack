@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useMagicActions } from "@/components/file";
-import type { StatementAction } from "@/components/statement";
+import type { StatementAction } from "@/state/editor";
 import { useStatementContext } from "@/components/statement";
 import type { StatementHeader } from "@/state/editor";
 import { ArrowPathIcon, Square2StackIcon } from "@heroicons/vue/24/outline";

@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import type { SymbolType, File, Project, ProjectVersion, Statement } from "@/gql/graphql";
+import type { SymbolType, File, Project, ProjectVersion, Statement, DatasetRecord, SimpleType } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { useLazyQuery } from "@vue/apollo-composable";
@@ -640,3 +640,17 @@ export function useEditorContext(): EditorContext {
   }
   return context;
 }
+
+export type Action<T> = {
+  label: string;
+  icon: any;
+  action: (item: T) => void;
+  active?: boolean;
+  disabled?: boolean;
+  keepOpen?: boolean;
+};
+
+export type FileAction = Action<FileHeader>;
+export type StatementAction = Action<StatementHeader>;
+export type TypeAction = Action<SimpleType>;
+export type RecordAction = Action<DatasetRecord>;

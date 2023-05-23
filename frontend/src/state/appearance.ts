@@ -9,13 +9,19 @@ export const useAppearanceState = defineStore("appearance", {
     fullscreen: false,
     theme: "light" as Theme,
     textSmall: true,
-    fontMono: false,
+    font: "sans" as "sans" | "serif" | "mono",
     inlineMetrics: false,
     contentWidth: 800,
     contentMarginX: 70,
     headerHeight: 32,
   }),
   getters: {
+    fontMono(state) {
+      return state.font === "mono";
+    },
+    fontSerif(state) {
+      return state.font === "serif";
+    },
     contentWidthWithMargin(state) {
       return state.contentWidth + 2 * state.contentMarginX;
     },
@@ -39,6 +45,22 @@ export const useAppearanceState = defineStore("appearance", {
       return {
         marginLeft: `${state.contentMarginX}px`,
         marginRight: `${state.contentMarginX}px`,
+      };
+    },
+    baseClass(state) {
+      return {
+        "text-sm placeholder:text-sm": state.textSmall,
+        "text-md placeholder:text-md": !state.textSmall,
+        "font-mono": state.font == "mono",
+        "font-serif": state.font == "serif",
+        "font-sans": state.font == "sans",
+      };
+    },
+    baseClassUnsized(state) {
+      return {
+        "font-mono": state.font == "mono",
+        "font-serif": state.font == "serif",
+        "font-sans": state.font == "sans",
       };
     },
   },
