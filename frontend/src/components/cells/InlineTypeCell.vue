@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import { ANY_TYPE_NODE, type SimpleType } from "@/components/statement";
-import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import type { SimpleTypeNode } from "@/gql/graphql";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
