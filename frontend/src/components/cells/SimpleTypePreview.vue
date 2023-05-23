@@ -116,6 +116,14 @@ const icon = computed(() => {
     }}</span>
     <span v-if="type.reference && !hideReference">{{ resolvedReference?.name ?? "???" }}</span>
     <span v-else-if="type.tag == TypeTag.TypeReference && type.reference == null">...</span>
+    <!-- Not optional flag ("underline") -->
+    <!-- TODO @UX: improve required type look (underline is a bit clumsy) -->
+    <!-- This is also used in select type flag menu -->
+    <span
+      class="absolute -bottom-0.5 h-0.5 w-full bg-gray-300"
+      v-if="!(type.flags & TypeFlag.IsNullable) && !hideFlags"
+    />
+    <!-- List & secret flags -->
     <LockClosedIcon v-if="type.flags & TypeFlag.IsSecret && !hideFlags" class="-ml-1 h-4 w-4" />
     <ListBulletIcon v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="-ml-1 h-4 w-4" />
   </div>

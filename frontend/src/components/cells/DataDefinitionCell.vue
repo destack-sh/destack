@@ -340,6 +340,7 @@ function insertField(isUnionWith?: boolean) {
       name: "field " + selfFields.value?.length,
       tag: TypeTag.String,
       orderKey: nextOrderKey,
+      flags: TypeFlag.IsNullable, // :DefaultTypeOptional
     });
     grid.beginBatchChange();
     context.createTypeNode(typeNode);

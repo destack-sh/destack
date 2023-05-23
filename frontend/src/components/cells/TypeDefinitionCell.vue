@@ -58,6 +58,7 @@ function insertMember(isUnionWith?: boolean) {
   const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
   const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   if (isEnum.value) {
+    // enum member
     const name = "Option " + (membersLength.value + 1);
     const newMemberNode = makeTypeNode({
       name,
@@ -68,10 +69,12 @@ function insertMember(isUnionWith?: boolean) {
     context.createTypeNode(newMemberNode);
     nextTick(() => grid.focus(newMemberNode.id, "type"));
   } else if (!isUnionWith) {
+    // struct field
     const newMemberNode = makeTypeNode({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
+      flags: TypeFlag.IsNullable, // :DefaultTypeFlags
     });
     context.createTypeNode(newMemberNode);
     nextTick(() => grid.focus(newMemberNode.id, "type"));

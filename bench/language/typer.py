@@ -54,19 +54,19 @@ def check_type(
                 on_invalid(value, expected, message)
             else:
                 _on_invalid_collect(value, expected, message)
+        return valid
 
     if expected.flags & TypeFlag.IsArray and not ignore_array:
-        _check(isinstance(value, Collection), "expected array")
-        if isinstance(value, Collection):  # _check may not be eager
+        if _check(isinstance(value, Collection), "expected array"):
             for item in value:
                 check_type(
                     item,
-                    expected.type_nodes[0],
+                    expected,
                     eager_error=eager_error,
-                    on_invalid=_on_invalid_collect,
+                    on_invalid=on_invalid,
                     ignore_array=True,
                 )
-    if expected.tag == TypeTag.STRING:
+    elif expected.tag == TypeTag.STRING:
         _check(isinstance(value, str), "expected string")
     elif expected.tag == TypeTag.NUMBER:
         _check(isinstance(value, (int, float)), "expected number")
@@ -78,22 +78,24 @@ def check_type(
     elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
-        _check(isinstance(value, Mapping), "expected struct")
-        if isinstance(value, Mapping):  # _check may not be eager
-            for subtype in expected.type_nodes:
-                if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
+        if _check(isinstance(value, Mapping), "expected struct"):
+            for field in expected.type_nodes:
+                if is_output is not None and bool(field.flags & TypeFlag.IsOutput) != is_output:
                     continue
-                alt_name = to_pyidentifier(subtype.name)
-                subvalue = value.get(subtype.name, value.get(alt_name))
-                check_type(
-                    subvalue, subtype, eager_error=eager_error, on_invalid=_on_invalid_collect
-                )
+                alt_name = to_pyidentifier(field.name)
+                subvalue = value.get(field.name, value.get(alt_name))
+                if subvalue is None:
+                    _check(bool(field.flags & TypeFlag.IsNullable), "expected non-nullable value")
+                else:
+                    check_type(
+                        subvalue, field, eager_error=eager_error, on_invalid=_on_invalid_collect
+                    )
     elif expected.tag in (TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO, TypeTag.VIDEO):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:
-        for subtype in expected.type_nodes:
+        for option in expected.type_nodes:
             try:
-                check_type(value, subtype)
+                check_type(value, option)
                 return
             except TypeError:
                 pass
