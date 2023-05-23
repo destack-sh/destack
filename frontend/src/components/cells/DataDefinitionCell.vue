@@ -26,6 +26,7 @@ import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { memberExpression } from "@babel/types";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
@@ -397,6 +398,29 @@ function deleteField(node: SimpleType) {
   nextTick(() => grid.flush());
 }
 
+function moveField(node: SimpleType, position: "before" | "after", other: SimpleType) {
+  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
+  if (position == "before") {
+    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    context.moveTypeNode(node, orderKey);
+  } else {
+    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    context.moveTypeNode(node, orderKey);
+  }
+}
+
+function dropField(droppedId: string, position: "above" | "below" | "right" | "left", fieldId: string) {
+  const dropped = selfFields.value.find((n) => n.id == droppedId);
+  const field = selfFields.value.find((n) => n.id == fieldId);
+  if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
+  moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
+  if (isTable.value) {
+    nextTick(() => grid.focus("", dropped.key ?? ""));
+  } else {
+    nextTick(() => grid.focus(dropped.id, "type"));
+  }
+}
+
 function getNewOrderKey(belowRecordId?: string) {
   const recordIdx = recordsInView.value.findIndex((r) => r.id === belowRecordId);
   const recordBelow = recordsInView.value[recordIdx + 1] ?? overfetchedRecord.value;
@@ -642,6 +666,7 @@ defineExpose({
               :type="field"
               :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
               :inlined="extendedFields.find((n) => n.key == field.key) != null"
+              orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
               @update:model-value="(node: any) => updateFieldType(field, node)"
@@ -651,6 +676,7 @@ defineExpose({
               @navigate-down="grid.navigateDown('', field.key as string)"
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
+              @drop="(p, v) => dropField(v.id, p, field.id)"
               :style="{
                 width: columnWidths[x] + 'px',
               }"
@@ -734,6 +760,7 @@ defineExpose({
           :type="field"
           :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
           :inlined="extendedFields.find((n) => n.key == field.key) != null"
+          orientation="vertical"
           class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
           @update:model-value="(node: any) => updateFieldType(field, node)"
@@ -743,6 +770,7 @@ defineExpose({
           @navigate-left="grid.navigateLeft(field?.id, 'type')"
           @delete-self="deleteField(field)"
           @duplicate-self="duplicateField(field.id)"
+          @drop="(p, v) => dropField(v.id, p, field.id)"
           :style="{
             minHeight: minRowHeight + 'px',
             height: rowHeights[y] + rowPadding * 2 + 'px',

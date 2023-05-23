@@ -260,7 +260,7 @@ const {
   inBottomHalf: dragInBottomHalf,
 } = useRelativeDropZone(
   containerRef,
-  ["Statement", "File"],
+  ["Statement", "NativeFile"],
   onDrop,
   computed(() => !innerDrag.value && !props.readonly)
 );
@@ -339,7 +339,7 @@ const filteredClients = computed(() =>
     <div
       tabindex="-1"
       ref="containerRef"
-      @dragstart="onDragStart"
+      @dragstart.stop="onDragStart"
       class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
       :class="{
         'focus:bg-orange-100': !isCommentish,
@@ -361,8 +361,13 @@ const filteredClients = computed(() =>
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
-            <!-- TODO @Broken: fix dragging (broke when wrapping span in action popover button) -->
-            <ActionPopover :thing="statement" :actions="defaultActions" v-slot="{ open }">
+            <ActionPopover
+              :thing="statement"
+              :actions="defaultActions"
+              v-slot="{ open }"
+              @mousedown="containerRef?.setAttribute('draggable', 'true')"
+              @mouseup="containerRef?.setAttribute('draggable', 'false')"
+            >
               <span
                 class="cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
@@ -378,8 +383,6 @@ const filteredClients = computed(() =>
                   'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
                   'text-gray-500': (dragOver || open || isFocused) && isCommentish,
                 }"
-                @mousedown="containerRef?.setAttribute('draggable', 'true')"
-                @mouseup="containerRef?.setAttribute('draggable', 'false')"
               >
                 {{ lineNumber }}
               </span>
@@ -410,7 +413,7 @@ const filteredClients = computed(() =>
       </div>
       <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
       <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
-      <!-- Statement drag & drop indicator (top/bottom) -->
+      <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
       <div
         v-if="!readonly"
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
@@ -422,9 +425,10 @@ const filteredClients = computed(() =>
         :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
       <!-- Main cell -->
+      <!-- :StatementPadding -->
       <div
         ref="innerWrapperRef"
-        class="relative py-1"
+        class="relative px-2 py-1"
         :class="{
           'text-sm': editor.textSmall,
           'text-md': !editor.textSmall,
@@ -433,9 +437,8 @@ const filteredClients = computed(() =>
         <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
         <component
           v-if="rootCell.component == DeclarationCell"
-          ref="rootCellRef"
           :is="rootCell.component"
-          key="main"
+          ref="rootCellRef"
           @navigate-up="magic.moveFocusUp"
           @navigate-down="magic.moveFocusDown"
         />

@@ -942,6 +942,44 @@ export function useSymbolContentOps() {
     });
   }
 
+  const { mutate: moveTypeNodeMut } = registry.useMutation(
+    ModuleMutationType.MoveTypeNode,
+    graphql(/* GraphQL */ `
+      mutation moveTypeNode($id: GlobalID!, $orderKey: String!) {
+        moveTypeNode(input: { id: $id, orderKey: $orderKey }) {
+          ... on SimpleTypeNode {
+            id
+            orderKey
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; orderKey: string }) =>
+        ({
+          moveTypeNode: {
+            __typename: "SimpleTypeNode",
+            id: vars.id,
+            orderKey: vars.orderKey,
+          },
+        } as any),
+    }
+  );
+
+  async function moveTypeNode(tx: Transaction | null, id: string, oldOrderKey: string, newOrderKey: string) {
+    await ops.perform({
+      tx,
+      type: "symbol.moveTypeNode",
+      do: async () => {
+        return await moveTypeNodeMut({ id, orderKey: newOrderKey });
+      },
+      undo: async () => {
+        return await moveTypeNodeMut({ id, orderKey: oldOrderKey });
+      },
+    });
+  }
+
   return {
     registry,
     updateStatementDescription,
@@ -956,6 +994,7 @@ export function useSymbolContentOps() {
     truncateRecords,
     createTypeNode,
     updateTypeNode,
+    moveTypeNode,
     deleteTypeNode,
     softDeleteTypeNode,
   };

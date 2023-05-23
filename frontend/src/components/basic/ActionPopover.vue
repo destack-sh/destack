@@ -16,8 +16,14 @@ import { useAppearance } from "@/state/appearance";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ actions: (StatementAction | RecordAction)[]; thing: any }>();
+const emit = defineEmits<{
+  (e: "mousedown", v: MouseEvent): void;
+  (e: "mouseup", v: MouseEvent): void;
+  (e: "click", v: MouseEvent): void;
+}>();
 
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
+const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const popoverOpenRef: Ref<HTMLElement | null> = ref(null);
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const popoverPin = pinAbsoluteElement(
@@ -39,15 +45,19 @@ const appearance = useAppearance();
 </script>
 <template>
   <Popover as="div" class="relative" v-slot="{ close, open }">
-    <PopoverButton
+    <!-- Button proxy so we can handle drag events -->
+    <button
       class="z-20 rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
       :class="[open ? 'bg-orange-100' : '']"
-      @click="$nextTick(() => inputRef?.$el.focus())"
+      @click="emit('click', $event), popoverButtonRef?.$el.click(), $nextTick(() => inputRef?.$el.focus())"
+      @mousedown="emit('mousedown', $event)"
+      @mouseup="emit('mouseup', $event)"
     >
       <slot :close="close" :open="open">
         <EllipsisVerticalIcon class="h-4 w-4" />
       </slot>
-    </PopoverButton>
+    </button>
+    <PopoverButton ref="popoverButtonRef" class="hidden" />
     <!-- Prevent scroll and capture click outside -->
     <div
       v-if="popoverOpenRef != null"
