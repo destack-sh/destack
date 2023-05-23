@@ -8,7 +8,7 @@ import itertools
 import textwrap
 import typing
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import date, datetime, time
 from random import Random
 from typing import Any, Callable, Coroutine, Optional
@@ -289,14 +289,21 @@ class TypeInstance(SymbolInstance, Type):
         raise AttributeError(f"{self} has no attribute {item}")
 
 
+@dataclass(repr=False, slots=True)
+class RecordInstanceMeta:
+    """Record instance data in a separate struct to proxy access via _"""
+
+    type: TypeInstance
+    session: Session
+    owner: InterpSymbol
+
+
 @dataclass(repr=False)
 class RecordInstance(Record):
     # TODO @Performance: mark & collect dirty on session flush for records/datasets
     #  Currently we just write the whole record on any change, which is ughh.
     # :RecordInstanceFieldKeys
-    type: TypeInstance = required_field()
-    session: Session = required_field()
-    owner: InterpSymbol = required_field()
+    _: RecordInstanceMeta = required_field()
 
     def __post_init__(self):
         self.data = proxy_value(
@@ -308,7 +315,7 @@ class RecordInstance(Record):
     def _to_wire(self, include_data: bool = True) -> wire.RecordData:
         if include_data:
             raw_data = map_value(
-                self.data, self.type, map_v=strip_py_value_flat, map_k=lambda t: (t.ident, t.key)
+                self.data, self._.type, map_v=strip_py_value_flat, map_k=lambda t: (t.ident, t.key)
             )
         else:
             raw_data = None
@@ -316,23 +323,32 @@ class RecordInstance(Record):
             id=self.id,
             revision=1,
             order_key=self.order_key,
-            statement_id=self.owner.id,
+            statement_id=self._.owner.id,
             data=raw_data,
         )
 
     def _notify_update(self, key: Optional[str]):
         if key is None or key == "":
-            check_type(self.data, self.type)
-        elif key not in self.type:
-            raise ValueError(f"'{key}' not present in {self.type}")
+            check_type(self.data, self._.type)
+        elif key not in self._.type:
+            raise ValueError(f"'{key}' not present in {self._.type}")
         else:
-            check_type(self.data.get(key), self.type[key])
-        self.session.check_can_write(self.owner)
-        self.session.mut.update(self._to_wire())
+            check_type(self.data.get(key), self._.type[key])
+        self._.session.check_can_write(self._.owner)
+        self._.session.mut.update(self._to_wire())
 
 
 @dataclass(repr=False)
 class DataTableInstance(SymbolInstance, Data):
+    meta: RecordInstanceMeta = field(init=False)
+
+    def __post_init__(self):
+        self.meta = RecordInstanceMeta(
+            type=self.type,
+            session=self.session,
+            owner=self,
+        )
+
     def clear(self):
         self.session.check_can_write(self)
         # should really be truncate operation
@@ -351,9 +367,7 @@ class DataTableInstance(SymbolInstance, Data):
         last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
         record = RecordInstance(
             id=uuid4(),
-            session=self.session,
-            type=self.type,
-            owner=self,
+            _=self.meta,
             order_key=generate_key_between(last_ok, None),
             data=data,
         )
@@ -374,7 +388,7 @@ class DataTableInstance(SymbolInstance, Data):
         records = [
             RecordInstance(
                 id=uuid4(),
-                dataset=self,
+                _=self.meta,
                 order_key=ok,
                 data=data,
             )
@@ -393,6 +407,15 @@ class DataTableInstance(SymbolInstance, Data):
 @dataclass(repr=False)
 class DataValueInstance(SymbolInstance, Data):
     # imitate/proxy record instance
+
+    meta: RecordInstanceMeta = field(init=False)
+
+    def __post_init__(self):
+        self.meta = RecordInstanceMeta(
+            type=self.type,
+            session=self.session,
+            owner=self,
+        )
 
     @property
     def keys(self):
@@ -828,7 +851,7 @@ def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
     if value is None:
         return None
     mapping = get_flat_mapping(type)
-    if isinstance(value, list):
+    if type.flags & TypeFlag.IsArray:
         return [mapping.from_py_value(type, v) for v in value]
     else:
         return mapping.from_py_value(type, value)
@@ -836,7 +859,14 @@ def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
 
 def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
     """Instrument and instantiate a data symbol."""
-    records = []
+    if dataset.flags & TypeFlag.IsArray:
+        instance = DataTableInstance(
+            **dict_minus(dataset.__dict__, "records"), records=[], session=session
+        )
+    else:
+        instance = DataValueInstance(
+            **dict_minus(dataset.__dict__, "records"), records=[], session=session
+        )
     for raw_record in dataset.records:
         py_record_data = map_value(
             raw_record.data,
@@ -849,19 +879,10 @@ def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | Dat
             id=raw_record.id,
             order_key=raw_record.order_key,
             data=py_record_data,
-            type=dataset.type,
-            session=session,
-            owner=dataset,
+            _=instance.meta,
         )
-        records.append(record)
-    if dataset.flags & TypeFlag.IsArray:
-        return DataTableInstance(
-            **dict_minus(dataset.__dict__, "records"), records=records, session=session
-        )
-    else:
-        return DataValueInstance(
-            **dict_minus(dataset.__dict__, "records"), records=records, session=session
-        )
+        instance.records.append(record)
+    return instance
 
 
 STATIC_BUILTINS = {

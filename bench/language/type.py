@@ -914,14 +914,14 @@ class Record:
         return self[item]
 
     def __setattr__(self, key, value):
-        if key in RECORD_FIELD_KEYS:  # see RecordInstance
+        if key in RECORD_FIELD_KEYS or key in RECORD_INSTANCE_FIELD_KEYS:  # see RecordInstance
             super().__setattr__(key, value)
         else:
             self[key] = value
 
 
 RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
-RECORD_INSTANCE_FIELD_KEYS = {"type", "session", "owner"}  # :RecordInstanceFieldKeys
+RECORD_INSTANCE_FIELD_KEYS = {"_"}  # :RecordInstanceFieldKeys
 
 
 @dataclass(repr=False)

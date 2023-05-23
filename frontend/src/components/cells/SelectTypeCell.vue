@@ -107,6 +107,7 @@ watch(
 
 type FlagButton = {
   flag: TypeFlag;
+  invert: boolean;
   label: string;
   icon?: string;
   unsetIcon?: any;
@@ -115,18 +116,21 @@ type FlagButton = {
 const flagButtons: FlagButton[] = [
   {
     flag: TypeFlag.IsNullable,
-    label: "optional",
-    setIcon: QuestionMarkCircleIcon,
-    unsetIcon: ExclamationCircleIcon,
+    invert: true,
+    label: "required",
+    setIcon: ExclamationCircleIcon,
+    unsetIcon: QuestionMarkCircleIcon,
   },
   {
     flag: TypeFlag.IsArray,
+    invert: false,
     label: "many",
     setIcon: ListBulletIcon,
     unsetIcon: ListBulletIcon,
   },
   {
     flag: TypeFlag.IsSecret,
+    invert: false,
     label: "secret",
     unsetIcon: LockOpenIcon,
     setIcon: LockClosedIcon,
@@ -162,8 +166,8 @@ function isFlagSupported(type: SimpleType, flag: TypeFlag) {
   }
 }
 
-function isFlagSet(flag: TypeFlag) {
-  return value.value.flags & flag;
+function isFlagSet(flag: TypeFlag): boolean {
+  return Boolean(value.value.flags & flag);
 }
 
 function toggleFlag(flag: TypeFlag) {
@@ -210,8 +214,11 @@ defineExpose({
         :disabled="!isFlagSupported(value, flagButton.flag)"
         class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
         :class="[
-          isFlagSet(flagButton.flag) ? 'font-bold text-orange-600' : '',
+          isFlagSet(flagButton.flag) !== flagButton.invert ? 'font-bold text-orange-600' : '',
           isFlagSupported(value, flagButton.flag) ? 'text-gray-600' : 'cursor-not-allowed text-gray-400',
+          isFlagSet(flagButton.flag) !== flagButton.invert && flagButton.flag == TypeFlag.IsNullable
+            ? 'underline underline-offset-4'
+            : '',
         ]"
         @click="toggleFlag(flagButton.flag)"
       >
@@ -219,7 +226,7 @@ defineExpose({
         <span v-if="flagButton.icon">{{ flagButton.icon }}</span>
         <component
           v-else
-          :is="isFlagSet(flagButton.flag) ? flagButton.setIcon : flagButton.unsetIcon"
+          :is="isFlagSet(flagButton.flag) !== flagButton.invert ? flagButton.setIcon : flagButton.unsetIcon"
           class="h-4 w-4"
         />
       </button>
@@ -260,7 +267,7 @@ defineExpose({
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <SimpleTypePreview :type="node" show-type-name />
+            <SimpleTypePreview :type="node" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
               {{ node.primitive ? "(builtin)" : fileOf(node.reference)?.path }}

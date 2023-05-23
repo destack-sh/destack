@@ -33,6 +33,12 @@ class ProxyDict(Mapping):
         self._onread = onread
         self._onwrite = onwrite
 
+    def __str__(self):
+        return str(self._inner)
+
+    def __repr__(self):
+        return f"<ProxyDict {self._inner}>"
+
     def items(self):
         self._onread("")
         return self._inner.items()
@@ -86,6 +92,12 @@ class ProxyList(Collection):
         self._inner = inner
         self._onread = onread
         self._onwrite = onwrite
+
+    def __str__(self):
+        return str(self._inner)
+
+    def __repr__(self):
+        return f"<ProxyList {self._inner}>"
 
     def __delitem__(self, key: int) -> None:
         self._onwrite(str(key))
