@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useFocus } from "@vueuse/core";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 const props = defineProps<{
   modelValue: string;
@@ -109,7 +109,7 @@ defineExpose({
     @keydown.enter.exact.prevent="emit('enter', modelValue)"
     @keydown.backspace.exact="deleteLeftIfEmpty"
     @keydown.escape.prevent="emit('escape')"
-    @input="emit('update:modelValue', spanRef?.innerText.replace('\n', '') ?? '')"
+    @input="emit('update:modelValue', spanRef?.innerText.replace('\n', ' ') ?? '')"
   >
     {{ modelValue }}
   </span>
