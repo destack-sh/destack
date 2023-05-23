@@ -80,7 +80,7 @@ export function useRelativeDropZone(
     event.preventDefault();
     counter = 0;
     const type = getType(event);
-    if (type == "File") {
+    if (type == "NativeFile") {
       const files = Array.from(event.dataTransfer?.files ?? []);
       onDrop?.(files.length === 0 ? null : files);
     } else if (type != null) {

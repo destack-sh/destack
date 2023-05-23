@@ -7,8 +7,8 @@ import { getEnumColor, type SimpleType } from "@/components/statement";
 
 const props = defineProps<{
   type: SimpleType;
-  readonly?: boolean;
   modelValue?: string[];
+  readonly?: boolean;
   preview?: boolean;
 }>();
 const emit = defineEmits<{
@@ -42,10 +42,9 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- :ForcedValueMinWidth -->
   <div class="flex h-full w-full flex-row flex-wrap gap-1">
     <!-- :EnumStyle -->
-    <!-- Existing members (same as above but with delete button) -->
+    <!-- Existing members -->
     <template v-if="isArray || preview">
       <span
         v-for="member in selectedMembers"

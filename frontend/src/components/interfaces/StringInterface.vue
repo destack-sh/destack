@@ -21,7 +21,6 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- :ForcedValueMinWidth -->
   <div v-if="preview" class="h-full w-full whitespace-pre-wrap">{{ modelValue }}&nbsp;</div>
   <textarea
     v-else

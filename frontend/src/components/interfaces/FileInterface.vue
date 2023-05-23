@@ -106,7 +106,8 @@ function focus() {
 }
 
 function blur() {
-  // nothing to do?
+  uploadButtonRef.value?.blur();
+  fileRefs.refs.value.forEach((ref) => ref?.blur());
 }
 
 defineExpose({

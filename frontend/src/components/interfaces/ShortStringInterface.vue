@@ -19,7 +19,6 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- :ForcedValueMinWidth -->
   <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
   <input
     v-else

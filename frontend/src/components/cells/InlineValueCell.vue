@@ -8,6 +8,7 @@ import RatingInterface from "@/components/interfaces/RatingInterface.vue";
 import SecretInterface from "@/components/interfaces/SecretInterface.vue";
 import ShortStringInterface from "@/components/interfaces/ShortStringInterface.vue";
 import StringInterface from "@/components/interfaces/StringInterface.vue";
+import StructInterface from "@/components/interfaces/StructInterface.vue";
 import ThumbsInterface from "@/components/interfaces/ThumbsInterface.vue";
 import ToggleInterface from "@/components/interfaces/ToggleInterface.vue";
 import type { SimpleType } from "@/components/statement";
@@ -17,7 +18,7 @@ import { useAppearance } from "@/state/appearance";
 import { TypeFlag } from "@/state/runtime";
 import { syncProperty } from "@/utils/sync";
 import { ArrowPathIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, onUpdated, ref, watch, watchEffect, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInterface,
@@ -28,6 +29,7 @@ const INTERFACES: Record<string, any> = {
   number: NumberInterface,
   "number.rating": RatingInterface,
   enum: EnumInterface,
+  struct: StructInterface,
   file: FileInterface,
   secret: SecretInterface,
 };

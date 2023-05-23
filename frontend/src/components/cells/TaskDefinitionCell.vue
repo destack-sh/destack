@@ -3,7 +3,8 @@ import InlineActions from "@/components/basic/InlineActions.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext, type StatementAction } from "@/components/statement";
+import { useStatementContext } from "@/components/statement";
+import type { StatementAction } from "@/state/editor";
 import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations

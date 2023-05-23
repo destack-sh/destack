@@ -2,7 +2,6 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import { getClientColor, useClient } from "@/state/client";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
 import { ArrowLeftOnRectangleIcon, Cog8ToothIcon, UserCircleIcon } from "@heroicons/vue/24/outline";
 import { useBrowserLocation } from "@vueuse/core";
@@ -51,7 +50,7 @@ const userNavigation = computed(() => [
       </MenuButton>
       <FadeTransition>
         <MenuItems
-          class="absolute right-1 top-12 z-10 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
+          class="absolute right-1 top-12 z-30 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
         >
           <p class="flex max-w-full flex-col px-2 py-2">
             <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>

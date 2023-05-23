@@ -235,7 +235,7 @@ watch(
     const widths: number[] = [];
     for (let i = 0; i < allFields.value.length; i++) {
       const iface = ifaces[i];
-      const headerWidth = (grid.getRef("", allFields.value[i].name ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
+      const headerWidth = (grid.getRef("", allFields.value[i].key ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
       widths.push(minWidth);
     }
@@ -698,13 +698,17 @@ defineExpose({
               <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
                 <Squares2X2Icon
                   class="h-4 w-4 text-gray-400 hover:text-gray-700"
-                  :class="[open ? '' : 'opacity-0 transition-opacity focus:opacity-100 group-hover/record:opacity-100']"
+                  :class="[
+                    open
+                      ? ''
+                      : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
+                  ]"
                 />
               </ActionPopover>
               <!-- Insert record -->
               <button
                 v-if="!context.readonly.value"
-                class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/record:opacity-100"
+                class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-focus-within/record:opacity-100 group-hover/record:opacity-100"
                 @click="() => insertRecord({ belowRecordId: record.id })"
               >
                 <PlusIcon class="h-4 w-4" />

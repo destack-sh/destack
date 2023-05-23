@@ -117,7 +117,7 @@ const { getTimeFromNowString } = useTimeFromNow();
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute right-0 top-10 z-10 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-2 pt-2 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-2 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
         unmount
       >
         <!-- Header -->
