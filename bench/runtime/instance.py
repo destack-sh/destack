@@ -851,10 +851,7 @@ def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
     if value is None:
         return None
     mapping = get_flat_mapping(type)
-    if type.flags & TypeFlag.IsArray:
-        return [mapping.from_py_value(type, v) for v in value]
-    else:
-        return mapping.from_py_value(type, value)
+    return mapping.from_py_value(type, value)
 
 
 def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
