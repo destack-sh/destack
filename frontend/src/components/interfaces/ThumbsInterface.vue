@@ -2,6 +2,7 @@
 import { HandThumbDownIcon } from "@heroicons/vue/24/outline";
 import { HandThumbUpIcon } from "@heroicons/vue/24/solid";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { ref } from "vue";
 
 const props = defineProps<{
   modelValue: boolean;
@@ -12,16 +13,25 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: boolean): void;
 }>();
 
+const buttonRef = ref<HTMLButtonElement | null>(null);
+
 defineExpose({
   click: () => {
     if (!props.readonly) {
       emit("update:modelValue", !props.modelValue);
     }
   },
+  focus: () => buttonRef.value?.focus(),
+  blur: () => buttonRef.value?.blur(),
 });
 </script>
 <template>
-  <button class="p-0.5 hover:bg-orange-100" :disabled="readonly" @click.stop="emit('update:modelValue', !modelValue)">
+  <button
+    ref="buttonRef"
+    class="p-0.5 hover:bg-orange-100"
+    :disabled="readonly"
+    @click.stop="emit('update:modelValue', !modelValue)"
+  >
     <FadeTransition mode="out-in">
       <component
         :is="modelValue ? HandThumbUpIcon : HandThumbDownIcon"
