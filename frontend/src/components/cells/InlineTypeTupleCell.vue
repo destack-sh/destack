@@ -7,6 +7,7 @@ import EditableSpan from "@/components/EditableSpan.vue";
 import { ANY_TYPE_NODE, getEnumColor, type SimpleType, type TypeAction } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
+import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { syncProperty } from "@/utils/sync";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
@@ -22,6 +23,8 @@ const props = defineProps<{
   extraActions?: TypeAction[];
   tupleName?: string;
   isEnum?: boolean;
+  orientation?: "horizontal" | "vertical";
+  statementId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -36,12 +39,14 @@ const emit = defineEmits<{
   (e: "enter"): void;
   (e: "escape"): void;
   (e: "focus", event: FocusEvent): void;
+  (e: "drop", p: "above" | "below" | "left" | "right", v: Dragged): void;
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 
+const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const previewRef: Ref<HTMLDivElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -85,6 +90,8 @@ watch(
   }
 );
 
+// actions
+
 const actions: Ref<TypeAction[]> = computed(() => {
   const actions = [];
   if (!props.readonly) {
@@ -113,6 +120,37 @@ const actions: Ref<TypeAction[]> = computed(() => {
   return actions;
 });
 
+// drag & drop
+
+const {
+  isOverDropZone: dragOver,
+  inLeftHalf: dragInLeftHalf,
+  inRightHalf: dragInRightHalf,
+  inTopHalf: dragInTopHalf,
+  inBottomHalf: dragInBottomHalf,
+} = useRelativeDropZone(containerRef, ["Type"], onDrop);
+
+// TODO @UX: ensure type tuple drag start works even if the containing statement is not focused
+//  no idea how this relates yet.
+function onDragStart(e: DragEvent) {
+  setDragData(e, { type: "Type", id: props.modelValue?.id, statementId: props.statementId });
+  e.dataTransfer?.setDragImage(buttonRef.value as HTMLElement, 20, 20);
+}
+
+function onDrop(thing: File[] | { type: string; id: string } | null) {
+  if (!Array.isArray(thing) && thing?.type == "Type") {
+    const position =
+      props.orientation == "horizontal"
+        ? dragInLeftHalf.value
+          ? "left"
+          : "right"
+        : dragInTopHalf.value
+        ? "above"
+        : "below";
+    emit("drop", position, thing);
+  }
+}
+
 function open() {
   if (popoverOpenRef.value == null) {
     popoverButtonRef.value?.$el.click();
@@ -138,20 +176,44 @@ defineExpose({
 });
 </script>
 <template>
-  <Popover as="div" class="relative" v-slot="{ close }">
+  <Popover as="div" ref="containerRef" class="relative" :class="[dragOver ? 'bg-orange-100' : '']" v-slot="{ close }">
+    <!-- :DragStyle -->
+    <div
+      v-if="!readonly && orientation == 'horizontal'"
+      class="absolute -left-0.5 top-0 h-full w-1 bg-orange-300 transition"
+      :class="dragOver && dragInLeftHalf ? 'opacity-100' : 'opacity-0'"
+    />
+    <div
+      v-if="!readonly && orientation == 'horizontal'"
+      class="absolute -right-0.5 top-0 h-full w-1 bg-orange-300 transition"
+      :class="dragOver && dragInRightHalf ? 'opacity-100' : 'opacity-0'"
+    />
+    <div
+      v-if="!readonly && orientation == 'vertical'"
+      class="absolute -top-0.5 left-0 h-1 w-full bg-orange-300 transition"
+      :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
+    />
+    <div
+      v-if="!readonly && orientation == 'vertical'"
+      class="absolute -bottom-0.5 left-0 h-1 w-full bg-orange-300 transition"
+      :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
+    />
     <!-- Preview -->
     <button
       ref="buttonRef"
       tabindex="-1"
+      class="relative flex h-full w-full flex-col text-left outline-none"
+      :class="[isEnum ? 'bg-gray-100 px-2' : '']"
       @keydown.left.exact.prevent="emit('navigateLeft')"
       @keydown.right.exact.prevent="emit('navigateRight')"
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
-      class="flex h-full w-full flex-col text-left outline-none"
-      :class="[isEnum ? 'bg-gray-100 px-2' : '']"
-      @click.stop="open"
       @keydown.enter.exact.prevent="open"
+      @click.stop="open"
+      @dragstart.stop="onDragStart"
+      @mousedown="buttonRef?.setAttribute('draggable', 'true')"
+      @mouseup="buttonRef?.setAttribute('draggable', 'false')"
     >
       <!-- :EnumStyle -->
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->

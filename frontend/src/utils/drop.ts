@@ -1,15 +1,21 @@
 import { useEventListener, useMouseInElement } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 
-export function setDragData(event: DragEvent, data: { type: string; id: string }) {
+export type Dragged = {
+  type: string;
+  id: string;
+  statementId?: string;
+};
+
+export function setDragData(event: DragEvent, data: Dragged) {
   const json = JSON.stringify(data);
   event?.dataTransfer?.setData("application/symbolx.bench." + data.type.toLowerCase(), json);
 }
 
 export function useRelativeDropZone(
   target: Ref<HTMLElement | null | undefined>,
-  types: ("Statement" | "TypeNode" | "Record" | "File")[],
-  onDrop?: (thing: File[] | { type: string; id: string } | null) => void,
+  types: ("Statement" | "Type" | "Record" | "File" | "NativeFile")[],
+  onDrop?: (thing: File[] | Dragged | null) => void,
   enabled?: Ref<boolean>
 ) {
   enabled = enabled ?? ref(true);
@@ -17,7 +23,7 @@ export function useRelativeDropZone(
   const position = useMouseInElement(target);
   let counter = 0;
 
-  function getType(event: DragEvent): "Statement" | "TypeNode" | "Record" | "File" | null {
+  function getType(event: DragEvent): "Statement" | "Type" | "Record" | "File" | "NativeFile" | null {
     // either files or one of our types
     if (event.dataTransfer?.types != null) {
       for (const type of event.dataTransfer.types) {
@@ -27,7 +33,7 @@ export function useRelativeDropZone(
         }
       }
       if (event.dataTransfer.types.includes("Files")) {
-        return "File";
+        return "NativeFile";
       }
     }
     return null;
@@ -85,11 +91,15 @@ export function useRelativeDropZone(
 
   const inTopHalf = computed(() => position.elementY.value < position.elementHeight.value / 2);
   const inBottomHalf = computed(() => position.elementY.value > position.elementHeight.value / 2);
+  const inLeftHalf = computed(() => position.elementX.value < position.elementWidth.value / 2);
+  const inRightHalf = computed(() => position.elementX.value > position.elementWidth.value / 2);
 
   return {
     isOverDropZone: computed(() => enabled?.value && isOverDropZone.value),
     position,
     inTopHalf,
     inBottomHalf,
+    inLeftHalf,
+    inRightHalf,
   };
 }

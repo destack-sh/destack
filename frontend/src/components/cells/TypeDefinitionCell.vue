@@ -56,6 +56,9 @@ const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
+// TODO @Cleanup: reduce duplication between type definition & data definition cells (also in view below)
+// perhaps move into statement context?
+
 function insertMember(isUnionWith?: boolean) {
   const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
   const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
@@ -117,6 +120,25 @@ function deleteMember(memberId: string) {
   const member = members.value?.[memberIdx];
   context.deleteTypeNode(member as any); // must exist
   grid.focus(memberIdx - 1, "type"); // move focus above
+}
+
+function moveMember(node: SimpleType, position: "before" | "after", other: SimpleType) {
+  const otherIndex = members.value?.findIndex((n) => n.id == other.id);
+  if (position == "before") {
+    const orderKey = generateKeyBetween(members.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    context.moveTypeNode(node, orderKey);
+  } else {
+    const orderKey = generateKeyBetween(other.orderKey, members.value[otherIndex + 1]?.orderKey ?? null);
+    context.moveTypeNode(node, orderKey);
+  }
+}
+
+function dropMember(droppedId: string, position: "above" | "below", memberId: string) {
+  const dropped = members.value.find((n) => n.id == droppedId);
+  const member = members.value.find((n) => n.id == memberId);
+  if (dropped == null || member == null || dropped.id == member.id) return; // ignore invalid / cross statement drops
+  moveMember(dropped, ["above", "left"].includes(position) ? "before" : "after", member);
+  nextTick(() => grid.focus(droppedId, "type"));
 }
 
 function writeType(memberId: string, newType: SimpleType) {
@@ -299,9 +321,9 @@ defineExpose({
         @update:model-value="(val: any) => writeType(member.id, val)"
         :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
         :readonly="context.readonly.value"
-        :active="context.focused.value || context.editing.value"
         :isEnum="isEnum"
         :tupleName="isEnum ? 'option' : 'field'"
+        orientation="vertical"
         @navigate-left="grid.navigateLeft(member.id, 'type')"
         @navigate-right="grid.navigateRight(member.id, 'type')"
         @navigate-up="grid.navigateUp(member.id, 'type')"
@@ -309,6 +331,7 @@ defineExpose({
         @delete-self="deleteMember(member.id)"
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
+        @drop="(p, v) => dropMember(v.id, p, member.id)"
         class="self-start border border-orange-900 border-opacity-0 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         :class="
           isEnum

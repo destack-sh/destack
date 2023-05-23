@@ -240,8 +240,8 @@ const auth = useAuth();
         :class="appearance.fontMono ? 'font-mono' : ''"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX}px`,
-          paddingRight: `${appearance.contentMarginX}px`,
+          paddingLeft: `${appearance.contentMarginX + 8}px`, // +8 for :StatementPadding
+          paddingRight: `${appearance.contentMarginX + 8}px`,
         }"
       >
         <!-- Name & actions -->

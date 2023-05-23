@@ -6,7 +6,7 @@ import { ref } from "vue";
 
 const props = defineProps<{ position: "start" | "end" }>();
 const buttonRef = ref(null);
-const { isOverDropZone } = useRelativeDropZone(buttonRef, ["File"], onDrop);
+const { isOverDropZone } = useRelativeDropZone(buttonRef, ["NativeFile"], onDrop);
 const magic = useMagicActions(ref(null));
 const nav = useNavigationContext();
 
@@ -23,7 +23,7 @@ function onDrop(files: File[] | any) {
     class="group relative flex cursor-default py-1 opacity-0 outline-none transition duration-150 hover:opacity-100"
     :class="isOverDropZone ? 'opacity-100' : 'opacity-0'"
   >
-    <!-- Drag indicators (bottom if start, top if end) -->
+    <!-- Drag indicators (bottom if start, top if end) :DragStyle -->
     <div
       v-if="position == 'end'"
       class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"

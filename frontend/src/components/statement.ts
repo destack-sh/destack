@@ -268,8 +268,6 @@ export function useStatementContext() {
     );
   }
 
-  // one-way syncs from current state to backend (:Singleplayer)
-
   // :EditableSyncDance
   // There is a bit of a delicate dance when syncing these properties since we want to
   // preserve the users local edits, but also want to sync from server/cache when not editing
@@ -323,7 +321,7 @@ export function useStatementContext() {
     });
   }
 
-  // one-way writes to backend
+  // type node helpers
 
   async function createTypeNode(typeNode: SimpleType) {
     await ops.symbol.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });
@@ -349,6 +347,14 @@ export function useStatementContext() {
       makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
       makeTypeNodeUpdate(newTypeNode as SimpleTypeNode)
     );
+  }
+
+  async function moveTypeNode(typeNode: SimpleType, orderKey: string) {
+    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
+    if (!oldTypeNode) {
+      throw new Error("cannot move type node that doesn't exist");
+    }
+    await ops.symbol.moveTypeNode(null, typeNode.id, oldTypeNode.orderKey, orderKey);
   }
 
   async function deleteTypeNode(typeNode: { id: string }) {
@@ -393,6 +399,7 @@ export function useStatementContext() {
     syncDescription,
     createTypeNode,
     updateTypeNode,
+    moveTypeNode,
     deleteTypeNode,
     deleteSelf,
     tryDeleteLeft,
