@@ -282,6 +282,8 @@ class TypeInstance(SymbolInstance, Type):
         return self.py_type(*args, **kwargs)
 
     def __getattr__(self, item):
+        if self.tag == TypeTag.ENUM:
+            return self.py_type[item]
         if item in self:
             return self[item]
         raise AttributeError(f"{self} has no attribute {item}")
