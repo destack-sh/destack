@@ -37,29 +37,6 @@ export type StatementContext = {
   destroyed: Ref<boolean>;
 };
 
-export type StatementAction = {
-  label: string;
-  icon: any;
-  action: (statement: StatementHeader) => void;
-  active?: boolean;
-  disabled?: boolean;
-};
-
-export type RecordAction = {
-  label: string;
-  icon: any;
-  action: (record: DatasetRecord) => void;
-  active?: boolean;
-  disabled?: boolean;
-};
-
-export type TypeAction = {
-  label: string;
-  icon: any;
-  keepOpen?: boolean;
-  action: (type: SimpleType) => void;
-};
-
 export function useStatementContext() {
   const context = inject<StatementContext>(STATEMENT_CONTEXT);
   if (context == null) {

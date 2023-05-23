@@ -9,7 +9,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import { useEditorState, type EditorContext, type StatementHeader } from "@/state/editor";
+import { useEditorState, type EditorContext, type FileAction, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
@@ -17,6 +17,7 @@ import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicon
 import { useQuery } from "@vue/apollo-composable";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
+import ActionPopover from "@/components/basic/ActionPopover.vue";
 
 const props = defineProps<{ editorId: string; context: EditorContext; fileId: string; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -142,15 +143,24 @@ function goToContent() {
   }
 }
 
-// file meta actions
-const metaActions = computed(() => [
+// file actions
+const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() => [
+  {
+    label: "Rename",
+    icon: DocumentDuplicateIcon,
+    action: () => {
+      nameRef.value?.focus();
+      nameRef.value?.selectAll();
+    },
+    hideInline: true,
+  },
   {
     label: "Duplicate",
     icon: DocumentDuplicateIcon,
     action: () => {
       // not implemented yet
     },
-    enabled: false,
+    disabled: true,
   },
   {
     label: "Move",
@@ -158,7 +168,7 @@ const metaActions = computed(() => [
     action: () => {
       // not implemented yet
     },
-    enabled: false,
+    disabled: true,
   },
   {
     label: "Delete",
@@ -170,11 +180,12 @@ const metaActions = computed(() => [
       ops.file.softDelete(null, fileHeader.value?.id);
       emit("close");
     },
-    enabled: !editor.readonly,
+    disabled: editor.readonly,
   },
 ]);
 
-const statementAddAreaPosition = computed(() => {
+// computed absolutely because I'm so tired of flex for this kind of thing
+const statementAddAreaPositionX = computed(() => {
   const editorSize = props.context.size.value;
   if (editorSize.width > appearance.contentWidthWithMargin) {
     const marginX = (editorSize.width - appearance.contentWidth) / 2;
@@ -191,7 +202,6 @@ const statementAddAreaPosition = computed(() => {
     };
   }
 });
-
 const auth = useAuth();
 </script>
 
@@ -230,14 +240,25 @@ const auth = useAuth();
         <div class="text-sm font-bold text-white">File failed to load.</div>
       </div>
     </div>
-    <!-- bottom padding is in last StatementAddArea -->
+    <!-- File main content -->
+    <!-- (bottom padding is in last StatementAddArea) -->
     <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
-      <div v-if="isDeleted" class="absolute inset-0 z-10 flex justify-center opacity-100" />
+      <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
+      <!-- Fixed file path with actions -->
+      <div
+        class="fixed z-10 ml-1 flex w-full flex-row gap-1 rounded-md bg-white px-1 pt-0.5"
+        :class="appearance.baseClass"
+      >
+        <span class="select-all text-gray-700">
+          {{ name }}
+        </span>
+        <ActionPopover :thing="file" :actions="fileActions" />
+      </div>
       <!-- File name & meta actions -->
       <div
-        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between pt-10 font-bold text-gray-900"
-        :class="appearance.fontMono ? 'font-mono' : ''"
+        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between pt-14 font-bold text-gray-900"
+        :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
           paddingLeft: `${appearance.contentMarginX + 8}px`, // +8 for :StatementPadding
@@ -252,6 +273,7 @@ const auth = useAuth();
             <EditableSpan
               ref="nameRef"
               class="text-3xl font-extrabold"
+              :class="appearance.baseClassUnsized"
               suppress-shortcuts
               :readonly="editor.readonly || isDeleted || isOtherVersion"
               v-model="name"
@@ -263,18 +285,18 @@ const auth = useAuth();
               v-if="name?.trim().length == 0"
               @click="nameRef?.focus()"
             >
-              Untitled AI
+              Untitled
             </span>
           </span>
           <!-- Actions -->
           <span class="ml-4 flex flex-row gap-1">
             <button
-              v-for="action in metaActions"
+              v-for="action in fileActions.filter((action) => !action.hideInline)"
               :key="action.label"
               class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
-              :class="[action.enabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
+              :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
               @click="action.action()"
-              :disabled="!action.enabled"
+              :disabled="action.disabled"
             >
               <component :is="action.icon" class="h-5 w-5" />
             </button>
@@ -286,7 +308,7 @@ const auth = useAuth();
       <!-- Add statement to start -->
       <StatementAddArea
         class="mx-auto"
-        :style="statementAddAreaPosition"
+        :style="statementAddAreaPositionX"
         position="start"
         @click="editor.readonly || insertStatementStart()"
         v-if="statements?.length > 0"
@@ -310,7 +332,7 @@ const auth = useAuth();
       <!-- Add statement to end -->
       <StatementAddArea
         class="flex-1 pb-72"
-        :style="statementAddAreaPosition"
+        :style="statementAddAreaPositionX"
         position="end"
         @click="editor.readonly || insertOrFocusStatementEnd()"
       />

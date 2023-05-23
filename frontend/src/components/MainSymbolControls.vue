@@ -2,6 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { SYMBOL_TYPE_KEYWORD, useEditorState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { fileOf, symbolsLike, TypeFlag, useCurrentInterpModule, useSymbolOps } from "@/state/runtime";
@@ -17,6 +18,7 @@ const props = defineProps<{
 // statement selection
 const ops = useOperations();
 const editor = useEditorState();
+const appearance = useAppearance();
 const runtime = useCurrentInterpModule();
 const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
 const mainSymbolMissing = computed(() => mainSymbol.value == null && editor.mainSymbolId != null);
@@ -95,13 +97,11 @@ const mainActions = [
       <ListboxButton
         class="flex w-fit max-w-fit flex-row items-center gap-1 whitespace-nowrap rounded-sm border-none py-1.5 pl-3 pr-0.5 text-right text-sm outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-200 focus:border-orange-500 focus:ring-0"
         :class="{
-          'font-mono tracking-tighter': editor.fontMono,
-          'text-sm': editor.textSmall,
-          'text-md': !editor.textSmall,
           'text-gray-800': mainSymbol != null,
           'text-gray-700': mainSymbol == null,
           'bg-orange-200': open,
           'font-semibold': !mainSymbolMissing,
+          ...appearance.baseClass,
         }"
         @change="query = $event.target.value"
         @contextmenu.prevent="$event.target.click()"
@@ -115,7 +115,7 @@ const mainActions = [
         <ListboxOptions
           v-show="runtime.connected.value"
           class="absolute z-10 mt-1 max-h-60 w-80 overflow-auto rounded-sm bg-white py-1 text-base shadow-md ring-1 ring-orange-900 ring-opacity-40 sm:text-sm"
-          :class="{ 'font-mono': editor.fontMono, 'text-sm': editor.textSmall, 'text-md': !editor.textSmall }"
+          :class="appearance.baseClass"
         >
           <div v-if="availableSymbols.length == 0" class="px-2 py-1 text-gray-500">No runnable symbols.</div>
           <div v-else-if="filteredSymbols.length == 0" class="px-2 py-1 text-gray-500">No matching symbols.</div>

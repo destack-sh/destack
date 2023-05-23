@@ -346,8 +346,8 @@ const filteredClients = computed(() =>
         'focus:bg-gray-100': isCommentish,
         'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight || dragOver),
         'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight || dragOver),
-        'font-mono': editor.fontMono && !isComment,
         'text-gray-700': isCommented,
+        ...appearance.baseClass,
       }"
       :style="{
         marginLeft: highlightOffsetX + 'px',
@@ -357,7 +357,7 @@ const filteredClients = computed(() =>
     >
       <!-- Left gutter -->
       <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-      <div class="absolute -left-1 top-0 z-[5]">
+      <div class="absolute -left-1 top-0.5 z-[5]">
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
@@ -373,15 +373,13 @@ const filteredClients = computed(() =>
                 :class="{
                   'opacity-0': !isFocused && !open && !editor.showLineNumbers,
                   'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
-                  'text-sm': editor.textSmall,
-                  'text-md': !editor.textSmall,
-                  'font-mono': editor.fontMono,
                   'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
                     !isCommentish,
                   'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
                     isCommentish,
                   'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
                   'text-gray-500': (dragOver || open || isFocused) && isCommentish,
+                  ...appearance.baseClass,
                 }"
               >
                 {{ lineNumber }}

@@ -157,14 +157,8 @@ function enter() {
 
 const appearance = useAppearance();
 const appearanceAttrs = computed(() => {
-  const classes = {
-    "font-mono": appearance.fontMono,
-    "text-sm": appearance.textSmall,
-    "text-md": !appearance.textSmall,
-  };
   return {
-    class: classes,
-    ...classes,
+    class: appearance.baseClass,
   };
 });
 

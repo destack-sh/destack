@@ -6,14 +6,9 @@ import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
 import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
 import InlineValueCell from "@/components/cells/InlineValueCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import {
-  makeTypeNode,
-  NAME_TYPE_NODE,
-  useStatementContext,
-  type SimpleType,
-  type StatementAction,
-} from "@/components/statement";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
 import { TypeTag } from "@/gql/graphql";
+import type { StatementAction } from "@/state/editor";
 import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";

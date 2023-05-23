@@ -15,6 +15,27 @@ function setContentWide(wide: boolean) {
   appearance.contentWidth = wide ? 1200 : 800;
   appearance.contentMarginX = wide ? 45 : 72;
 }
+
+const fontOptions = [
+  {
+    key: "sans",
+    label: "Sans",
+    style: "font-sans",
+    default: true,
+  },
+  {
+    key: "serif",
+    label: "Serif",
+    style: "font-serif",
+    default: false,
+  },
+  {
+    key: "mono",
+    label: "Mono",
+    style: "font-mono",
+    default: false,
+  },
+];
 </script>
 
 <template>
@@ -26,22 +47,17 @@ function setContentWide(wide: boolean) {
         class="absolute bottom-1 left-14 z-40 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Font style -->
-        <div class="px-2 pb-1">
+        <div class="w-full px-2 pb-1">
           <!-- <span class="text-xs text-gray-500">Style</span> -->
-          <div class="flex flex-row justify-center">
+          <div class="flex flex-row justify-between">
             <button
-              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-100"
-              @click="appearance.fontMono = false"
+              v-for="font in fontOptions"
+              :key="font.key"
+              class="flex flex-col items-center justify-center rounded-sm px-5 text-center hover:bg-orange-100"
+              @click="appearance.font = font.key"
             >
-              <span class="font-sans text-2xl" :class="{ 'text-orange-600': !editor.fontMono }">Ag</span>
-              <span class="text-xs text-gray-500">Sans</span>
-            </button>
-            <button
-              class="flex flex-col items-center justify-center rounded-sm px-3 text-center hover:bg-orange-100"
-              @click="appearance.fontMono = true"
-            >
-              <span class="font-mono text-2xl" :class="{ 'text-orange-600': editor.fontMono }">Ag</span>
-              <span class="text-xs text-gray-500">Mono</span>
+              <span class="text-2xl" :class="{ 'text-orange-600': appearance.font == font.key }">Ag</span>
+              <span class="text-xs text-gray-500">{{ font.label }}</span>
             </button>
           </div>
         </div>
@@ -49,9 +65,12 @@ function setContentWide(wide: boolean) {
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
             <Bars3BottomLeftIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Small text</span>
+            <span class="text-sm text-gray-900">Big text</span>
           </span>
-          <Switch v-model="appearance.textSmall" />
+          <Switch
+            :model-value="!appearance.textSmall"
+            @update:model-value="appearance.textSmall = !appearance.textSmall"
+          />
         </div>
         <!-- Content width -->
         <div class="flex flex-row items-center justify-between px-2">

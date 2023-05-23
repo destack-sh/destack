@@ -82,11 +82,19 @@ function blur() {
   }
 }
 
+function selectAll() {
+  const selection = window.getSelection();
+  if (selection && spanRef.value != null) {
+    selection.selectAllChildren(spanRef.value);
+  }
+}
+
 const { focused } = useFocus(spanRef);
 
 defineExpose({
   focus,
   blur,
+  selectAll,
   focused,
   modelValue: props.modelValue,
 });

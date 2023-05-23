@@ -9,13 +9,13 @@ import {
   PopoverPanel,
 } from "@headlessui/vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { RecordAction, StatementAction } from "@/components/statement";
+import type { FileAction, RecordAction, StatementAction, TypeAction } from "@/state/editor";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useAppearance } from "@/state/appearance";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ actions: (StatementAction | RecordAction)[]; thing: any }>();
+const props = defineProps<{ actions: (FileAction | TypeAction | StatementAction | RecordAction)[]; thing: any }>();
 const emit = defineEmits<{
   (e: "mousedown", v: MouseEvent): void;
   (e: "mouseup", v: MouseEvent): void;
@@ -36,9 +36,7 @@ watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
 
 const query = ref("");
 const filteredActions = computed(() =>
-  props.actions.filter((action: StatementAction | RecordAction) =>
-    action.label.toLowerCase().includes(query.value.toLowerCase())
-  )
+  props.actions.filter((action: { label: string }) => action.label.toLowerCase().includes(query.value.toLowerCase()))
 );
 
 const appearance = useAppearance();
@@ -80,9 +78,7 @@ const appearance = useAppearance();
             ref="inputRef"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
             :class="{
-              'font-mono': appearance.fontMono,
-              'text-sm placeholder:text-sm': appearance.textSmall,
-              'text-md placeholder:text-md': !appearance.textSmall,
+              ...appearance.baseClass,
             }"
             @change="query = $event.target.value"
             :display-value="(el: any) => null"
@@ -104,13 +100,14 @@ const appearance = useAppearance();
               v-for="action in filteredActions"
               :key="action.label"
               :value="action"
-              v-slot="{ active, selected }"
+              :disabled="action.disabled"
+              v-slot="{ active }"
             >
               <button
                 class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"
-                :class="[active ? 'bg-orange-100' : '', selected ? 'text-orange-600' : 'text-gray-900']"
+                :class="[active ? 'bg-orange-100' : '', action.disabled ? 'opacity-50' : '']"
               >
-                <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+                <component :is="action.icon" class="h-4 w-4" />
                 <span class="text-gray-700">{{ action.label }}</span>
               </button>
             </ComboboxOption>
