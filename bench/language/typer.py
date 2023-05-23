@@ -140,10 +140,10 @@ def map_value(
         return map_v(value, type)
     elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, Mapping):
-        return value  # type error, ignore here
     if type.flags & TypeFlag.IsArray and not ignore_array:
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+    if not isinstance(value, Mapping):
+        return value  # type error, ignore here
     mapped = {}
     for subtype in type.type_nodes:
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
