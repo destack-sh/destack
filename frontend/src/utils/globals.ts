@@ -11,6 +11,7 @@ export const HTTP_API_BASE_URL = API_BASE_URL.includes("127.0.0.1")
 export const WS_API_BASE_URL = API_BASE_URL.includes("127.0.0.1") ? "ws://127.0.0.1:8000" : "wss://" + API_BASE_URL;
 
 export const IS_LOCALHOST = HTTP_API_BASE_URL.includes("127.0.0.1");
+export const IS_DEBUG = import.meta.env.MODE === "development";
 
 // Can't define these in main because it would create a circular dependency.
 export const WS_CONNECTED = ref(false); // auto-set in main.ts, read-only elsewhere

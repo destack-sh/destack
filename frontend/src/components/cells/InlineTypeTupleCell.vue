@@ -1,15 +1,13 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useElementRefs } from "@/components/cells/grid";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
-import { ANY_TYPE_NODE, getEnumColor, type SimpleType, type TypeAction } from "@/components/statement";
+import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/components/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { syncProperty } from "@/utils/sync";
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -45,29 +43,22 @@ const emit = defineEmits<{
 const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
+const editing = ref(false);
+const editingType = ref(false);
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const previewRef: Ref<HTMLDivElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
-const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
-const typePopoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
-const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
 const actionRefs = useElementRefs();
 const previewSize = useElementSize(previewRef);
 
 // pin popover to the right
-const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
-const popoverPin = pinAbsoluteElement(
-  computed(() => popoverPanelRef.value?.$el),
-  { pos: true, keepInView: true }
-);
-const typePopoverPanelRef = ref<InstanceType<typeof PopoverPanel> | null>(null);
-const typePopoverPin = pinAbsoluteElement(
-  computed(() => typePopoverPanelRef.value?.$el),
-  { pos: true, keepInView: true }
-);
+const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
+const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
+const typeEditablePopoverRef = ref<HTMLDivElement | null>(null);
+const typePopoverPin = pinAbsoluteElement(typeEditablePopoverRef, { pos: true, keepInView: true });
 
 syncProperty({
   value: name,
@@ -152,8 +143,8 @@ function onDrop(thing: File[] | { type: string; id: string } | null) {
 }
 
 function open() {
-  if (popoverOpenRef.value == null) {
-    popoverButtonRef.value?.$el.click();
+  if (!editing.value) {
+    editing.value = true;
     if (!props.readonly) {
       nextTick(() => nameRef.value?.focus());
     }
@@ -168,22 +159,21 @@ function blur() {
   buttonRef.value?.blur();
 }
 
+function close() {
+  editing.value = false;
+  editingType.value = false;
+  nextTick(focus);
+}
+
 defineExpose({
-  editing: computed(() => popoverOpenRef.value != null),
+  editing,
   focus,
   blur,
   previewSize,
 });
 </script>
 <template>
-  <Popover
-    as="div"
-    ref="containerRef"
-    class="relative"
-    :class="[dragOver ? 'bg-orange-100' : '']"
-    v-slot="{ close }"
-    @keydown.escape.exact="popoverOpenRef != null && ($event.stopPropagation(), $nextTick(close), emit('escape'))"
-  >
+  <div ref="containerRef" class="relative" :class="[dragOver ? 'bg-orange-100' : '']">
     <!-- :DragStyle -->
     <div
       v-if="!readonly && orientation == 'horizontal'"
@@ -242,105 +232,95 @@ defineExpose({
         <SimpleTypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
       </div>
     </button>
-    <!-- Hidden popover button to proxy the button to because I can't figure out key events on the popover button directly -->
-    <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
     <!-- Prevent scroll and capture click outside -->
-    <div
-      v-if="popoverOpenRef != null"
-      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
-      @click.stop="close"
-    />
+    <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
     <!-- Edit popover -->
-    <FadeTransition>
-      <!-- Popover position is pinned -->
-      <PopoverPanel
-        ref="popoverPanelRef"
-        class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2 '"
-      >
-        <span ref="popoverOpenRef" class="hidden" />
-        <!-- Name & type -->
-        <div class="flex max-w-full flex-row items-center justify-between gap-2">
-          <!-- Name -->
-          <EditableSpan
-            ref="nameRef"
-            v-model="name"
-            :readonly="readonly"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
-            @navigate-right="typeButtonRef?.focus()"
-            @navigate-down="actionRefs.focus(actions[0].label)"
-            @enter="
-              close();
-              buttonRef?.focus();
-            "
-          />
-          <!-- Type popover -->
-          <Popover v-if="!isEnum" as="div" class="relative" v-slot="{ close }">
-            <button
-              ref="typeButtonRef"
-              :disabled="readonly"
-              class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
-              :class="readonly ? '' : 'hover:bg-orange-100'"
-              @keydown.left="nameRef?.focus()"
-              @keydown.down="actionRefs.focus(actions[0].label)"
-              @click="typePopoverButtonRef?.$el.click()"
-              @keydown.enter.stop.prevent="typePopoverButtonRef?.$el.click()"
-            >
-              <!-- No idea why but this needs to be set absolutely or the icons are too high -->
-              <SimpleTypePreview class="absolute top-0.5" :type="value" hide-reference />
-            </button>
-            <PopoverButton ref="typePopoverButtonRef" @focus.prevent="typeButtonRef?.focus" class="hidden" />
-            <!-- Popover position is also pinned -->
-            <PopoverPanel
-              ref="typePopoverPanelRef"
-              class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-              :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
-              unmount
-            >
-              <SelectTypeCell
-                :model-value="value"
-                @update:model-value="emit('update:modelValue', $event)"
-                @escape="
-                  close();
-                  typeButtonRef?.focus();
-                "
-              />
-            </PopoverPanel>
-          </Popover>
-          <!-- Enum color (not yet editable) -->
-          <div
-            v-else
+    <!-- Popover position is pinned -->
+    <div
+      v-if="editing"
+      ref="editablePopoverRef"
+      class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
+      @keydown.escape.exact.prevent.stop="close"
+    >
+      <span ref="popoverOpenRef" class="hidden" />
+      <!-- Name & type -->
+      <div class="flex max-w-full flex-row items-center justify-between gap-2">
+        <!-- Name -->
+        <EditableSpan
+          ref="nameRef"
+          v-model="name"
+          :readonly="readonly"
+          class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
+          @navigate-right="typeButtonRef?.focus()"
+          @navigate-down="actionRefs.focus(actions[0].label)"
+          @enter="close"
+        />
+        <!-- Type popover -->
+        <div v-if="!isEnum" class="relative">
+          <button
             ref="typeButtonRef"
-            class="rounded-sm border border-orange-900 border-opacity-[12%] p-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            :disabled="readonly"
+            class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            :class="readonly ? '' : 'hover:bg-orange-100'"
+            @keydown.left.stop.prevent="nameRef?.focus()"
+            @keydown.down.stop.prevent="actionRefs.focus(actions[0].label)"
+            @click="editingType = true"
+            @keydown.enter.stop.prevent="editingType = true"
           >
-            <svg class="h-3 w-3" :style="{ fill: getEnumColor(value) }" viewBox="0 0 6 6" aria-hidden="true">
-              <rect x="0" y="0" width="6" height="6" />
-            </svg>
+            <!-- No idea why but this needs to be set absolutely or the icons are too high -->
+            <SimpleTypePreview class="absolute top-0.5" :type="value" hide-reference />
+          </button>
+          <!-- Popover position is also pinned -->
+          <div
+            v-if="editingType"
+            ref="typeEditablePopoverRef"
+            class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+            :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
+          >
+            <SelectTypeCell
+              :model-value="value"
+              @update:model-value="emit('update:modelValue', $event)"
+              @escape="
+                editingType = false;
+                typeButtonRef?.focus();
+              "
+            />
           </div>
         </div>
-        <!-- Actions -->
-        <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">
-          <button
-            v-for="(action, i) in actions"
-            :ref="(el: any) => actionRefs.registerRef(action.label, el)"
-            :key="action.label"
-            class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
-            @click="
-              action.action(value);
-              action.keepOpen || close();
-            "
-            @keydown.enter.prevent.stop="
-              action.action(value);
-              action.keepOpen || close();
-            "
-            @keydown.up.exact.stop.prevent="i == 0 ? nameRef?.focus() : actionRefs.focus(actions[i - 1].label)"
-            @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
-          >
-            <component :is="action.icon" class="h-4 w-4 text-gray-500" />
-            <span class="text-gray-700">{{ action.label }}</span>
-          </button>
+        <!-- Enum color (not yet editable) -->
+        <div
+          v-else
+          ref="typeButtonRef"
+          class="rounded-sm border border-orange-900 border-opacity-[12%] p-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+        >
+          <svg class="h-3 w-3" :style="{ fill: getEnumColor(value) }" viewBox="0 0 6 6" aria-hidden="true">
+            <rect x="0" y="0" width="6" height="6" />
+          </svg>
         </div>
-      </PopoverPanel>
-    </FadeTransition>
-  </Popover>
+      </div>
+      <!-- Actions -->
+      <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">
+        <button
+          v-for="(action, i) in actions"
+          :ref="(el: any) => actionRefs.registerRef(action.label, el)"
+          :key="action.label"
+          class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+          @click="
+            action.action(value);
+            action.keepOpen || close();
+          "
+          @keydown.enter.prevent.stop="
+            action.action(value);
+            action.keepOpen || close();
+          "
+          @keydown.up.exact.stop.prevent="i == 0 ? nameRef?.focus() : actionRefs.focus(actions[i - 1].label)"
+          @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
+        >
+          <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+          <span class="text-gray-700">{{ action.label }}</span>
+        </button>
+      </div>
+    </div>
+  </div>
 </template>

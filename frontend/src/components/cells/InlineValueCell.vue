@@ -16,6 +16,7 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
 import { TypeFlag } from "@/state/runtime";
+import { IS_DEBUG } from "@/utils/globals";
 import { syncProperty } from "@/utils/sync";
 import { ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
@@ -210,10 +211,14 @@ defineExpose({
         v-bind="appearanceAttrs"
       />
       <!-- Not found (mainly for dev mode (hopefully)) -->
-      <div v-else class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
+      <div v-else-if="IS_DEBUG" class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
         {{ props.type.tag }} ({{ props.type.hint }})
         <template v-if="props.type.flags & TypeFlag.IsSecret">(secret)</template>
         <template v-if="props.type.flags & TypeFlag.IsArray">(array)</template>
+      </div>
+      <div v-else>
+        <!-- damn it -->
+        &nbsp;
       </div>
     </div>
     <!-- Editable popover -->
