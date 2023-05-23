@@ -8,7 +8,7 @@ import { useStatementContext } from "@/components/statement";
 import { StatementType } from "@/gql/graphql";
 import { useEditorState } from "@/state/editor";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
 
