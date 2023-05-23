@@ -98,29 +98,21 @@ registerInterface("string", {
   tags: [TypeTag.String],
   map: coerceToString,
   debounceMs: 1000,
-  minWidth: 220,
+  minWidth: 200,
   grow: 1.0,
 });
 registerInterface("string.short", {
   hints: [TypeHint.Name, TypeHint.Uuid, TypeHint.Email, TypeHint.Url, TypeHint.Key],
   map: coerceToString,
   debounceMs: 1000,
-  minWidth: 220,
+  minWidth: 200,
   grow: 0.5,
-});
-registerInterface("enum", {
-  tags: [TypeTag.Enum],
-  read: (t, v) => toArrayAsFlagged(t, v),
-  write: (t, v) => toArrayIfFlagged(t, v),
-  supportsList: true,
-  minWidth: 220,
-  grow: 1.0,
 });
 registerInterface("secret", {
   tags: [TypeTag.String, TypeTag.Number],
   read: (t, v) => (isValidSecretRecord(v) ? v : null),
   isSecret: true,
-  minWidth: 220,
+  minWidth: 200,
   grow: 0.5,
 });
 // number
@@ -157,12 +149,28 @@ registerInterface("boolean.thumbs", {
   inline: true,
 });
 // other
+registerInterface("enum", {
+  tags: [TypeTag.Enum],
+  read: (t, v) => toArrayAsFlagged(t, v),
+  write: (t, v) => toArrayIfFlagged(t, v),
+  supportsList: true,
+  minWidth: 200,
+  grow: 1.0,
+});
+registerInterface("struct", {
+  tags: [TypeTag.Struct],
+  read: (t, v) => toArrayAsFlagged(t, v),
+  write: (t, v) => toArrayIfFlagged(t, v),
+  supportsList: true,
+  minWidth: 200,
+  grow: 1.0,
+});
 registerInterface("file", {
   tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
   read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,
-  minWidth: 220,
+  minWidth: 200,
   grow: 1.0,
 });
 

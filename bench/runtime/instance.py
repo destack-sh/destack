@@ -381,6 +381,9 @@ class DataTableInstance(SymbolInstance, Data):
         self.records.extend(records)
         self.session.mut.create_many(*(record._to_wire() for record in records))
 
+    def __getitem__(self, item: int | slice) -> RecordInstance | list[RecordInstance]:
+        return self.records[item]
+
     def __iter__(self):
         return iter(self.records)
 

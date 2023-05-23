@@ -295,7 +295,7 @@ const auth = useAuth();
               :key="action.label"
               class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
               :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
-              @click="action.action()"
+              @click="action.action(fileHeader)"
               :disabled="action.disabled"
             >
               <component :is="action.icon" class="h-5 w-5" />

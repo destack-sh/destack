@@ -176,7 +176,14 @@ defineExpose({
 });
 </script>
 <template>
-  <Popover as="div" ref="containerRef" class="relative" :class="[dragOver ? 'bg-orange-100' : '']" v-slot="{ close }">
+  <Popover
+    as="div"
+    ref="containerRef"
+    class="relative"
+    :class="[dragOver ? 'bg-orange-100' : '']"
+    v-slot="{ close }"
+    @keydown.escape.exact="popoverOpenRef != null && ($event.stopPropagation(), $nextTick(close), emit('escape'))"
+  >
     <!-- :DragStyle -->
     <div
       v-if="!readonly && orientation == 'horizontal'"
