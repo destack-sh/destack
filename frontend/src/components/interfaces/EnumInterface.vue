@@ -91,7 +91,7 @@ defineExpose({
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
         :class="[appearance.textSmall ? 'text-sm' : '', isArray ? 'mt-1' : '']"
         :display-value="(val: any) => ''"
-        :placeholder="isArray ? 'Add ' : 'Select ' + runtimeType?.name"
+        :placeholder="(isArray ? 'Add ' : 'Select ') + runtimeType?.name"
         @keydown.backspace.exact.prevent="
           inputRef?.$el.value.length > 0 || removeValue(modelValue?.[modelValue.length - 1] ?? '')
         "
