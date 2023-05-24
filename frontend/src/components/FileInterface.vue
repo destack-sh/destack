@@ -267,35 +267,44 @@ const auth = useAuth();
     <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
-      <!-- Fixed editor path with actions -->
+      <!-- Fixed inline header -->
+      <!-- (for some reason w-full doesn't work here, so set width absolutely..) -->
       <div
-        class="fixed z-10 flex w-full flex-row items-center gap-1 rounded-md border-b border-orange-900 border-opacity-[12%] bg-white px-1"
+        class="fixed z-10 flex flex-row items-center justify-between gap-1 rounded-md border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
         :class="appearance.baseClass"
-        :style="{ height: appearance.headerHeight + 'px' }"
+        :style="{ height: appearance.headerHeight + 'px', width: props.editor.size?.value?.width + 'px' }"
       >
-        <!-- editor type -->
-        <span class="p-0.5">
-          <CodeBracketIcon class="h-4 w-4 text-gray-700" />
-        </span>
-        <!-- editor path -->
-        <ActionPopover anchor="left" :thing="file" :actions="[...fileActions, ...props.editor.actions.value]" class="">
-          <span class="text-gray-900">{{ name }}</span>
-        </ActionPopover>
-        <FadeTransition mode="out-in">
-          <span
-            v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null"
-            :key="editor.activeStatementId"
-            class="text-gray-900"
-            ><span class="text-gray-700">/</span>
-            {{ context?.statementsById[editor.activeStatementId as string].name }}</span
-          >
-        </FadeTransition>
-        <span v-if="bench.debug" class="bg-red-200 bg-opacity-50 text-gray-900">
-          {{ editor.editing ? "(editing)" : "" }}
-          {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
-        </span>
+        <!-- Main info -->
+        <div class="flex flex-row items-center gap-1">
+          <!-- editor actions -->
+          <ActionPopover anchor="left" :thing="file" :actions="props.editor.actions.value" class="">
+            <CodeBracketIcon class="mt-1 h-4 w-4 text-gray-700" />
+          </ActionPopover>
+          <!-- editor path -->
+          <ActionPopover anchor="left" :thing="file" :actions="fileActions" class="">
+            <span class="text-gray-900">{{ name }}</span>
+          </ActionPopover>
+          <!-- sub path inside editor -->
+          <FadeTransition mode="out-in">
+            <span
+              v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null"
+              :key="editor.activeStatementId"
+              class="text-gray-900"
+              ><span class="text-gray-700">/</span>
+              {{ context?.statementsById[editor.activeStatementId as string].name }}</span
+            >
+          </FadeTransition>
+          <span v-if="bench.debug" class="bg-red-200 bg-opacity-50 text-gray-900">
+            {{ editor.editing ? "(editing)" : "" }}
+            {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
+          </span>
+        </div>
+        <div class="flex flex-row gap-1">
+          <!-- Other clients presence -->
+          <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="editor.fileId" />
+        </div>
       </div>
-      <!-- File name & meta actions -->
+      <!-- File header & inline actions -->
       <div
         class="group/meta relative mx-auto flex w-full flex-row items-center justify-between pt-14 font-bold text-gray-900"
         :class="appearance.baseClass"
@@ -342,8 +351,6 @@ const auth = useAuth();
             </button>
           </span>
         </span>
-        <!-- Other clients presence -->
-        <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="editor.fileId" />
       </div>
       <!-- Add statement to start -->
       <StatementAddArea

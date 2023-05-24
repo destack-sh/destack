@@ -2,7 +2,7 @@ import { graphql } from "@/gql";
 import type { DatasetRecord, File, Project, ProjectVersion, Scalars, SimpleType, Statement } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
-import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
+import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -559,7 +559,13 @@ export function provideEditorContext<T extends Editor>(
       top: elementBounding.top.value,
     })),
     actions: computed(() => {
-      const actions: EditorAction[] = [];
+      const actions: EditorAction[] = [
+        {
+          label: "Close",
+          icon: XCircleIcon,
+          action: () => editorState.closeEditor(editor.value),
+        },
+      ];
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
           label: "Move to right",
