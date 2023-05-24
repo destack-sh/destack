@@ -466,6 +466,18 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
+  // instance specific actions
+  // TODO @Architecture: statement component instance specific actions should be inlined from statment actions
+  const run = provideGlobalAction({
+    id: "statement.run",
+    label: "Run statement",
+    shortcuts: ["ctrl+enter", "meta+enter"],
+    enabled: computed(() => cur.value?.statement != null),
+    apply: async () => {
+      cur.value?.component?.root?.run?.();
+    },
+  });
+
   return {
     indent,
     unindent,
@@ -498,5 +510,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     cut,
     paste,
     duplicate,
+    run,
   };
 }

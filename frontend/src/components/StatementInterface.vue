@@ -19,7 +19,7 @@ import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
-import { onClickOutside, useFocus, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
+import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
@@ -148,7 +148,10 @@ whenever(isActive, () => {
   const editorRect = editor.container.value?.getBoundingClientRect();
   const containerRect = containerRef.value?.getBoundingClientRect();
   if (editorRect != null && containerRect != null) {
-    if (containerRect.top < editorRect.top + appearance.headerHeight || containerRect.bottom > editorRect.bottom) {
+    if (
+      containerRect.top < editorRect.top + appearance.editorHeaderHeight ||
+      containerRect.bottom > editorRect.bottom
+    ) {
       // TODO @UX: improve scroll behavior (feels a bit janky sometimes)
       containerRef.value?.scrollIntoView(false);
     }
@@ -341,6 +344,10 @@ const clients = useCurrentClients();
 const filteredClients = computed(() =>
   clients.activeClientsWithoutSelf.value.filter((c) => c.statement?.id == statement.value.id)
 );
+
+defineExpose({
+  root: rootCellRef,
+});
 </script>
 <template>
   <!-- Statement wrapper -->
@@ -381,7 +388,7 @@ const filteredClients = computed(() =>
               <span
                 class="cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
-                  'opacity-0': !isActive && !open && !bench.showLineNumbers,
+                  'opacity-0 group-hover/statement:opacity-100': !isActive && !open && !bench.showLineNumbers,
                   'opacity-100': isActive && !bench.showLineNumbers,
                   'text-orange-200 hover:bg-orange-100 group-hover/statement:font-bold group-hover/statement:text-orange-500':
                     !isCommentish,

@@ -22,7 +22,7 @@ function focusError(error: InterpError) {
     <div
       class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
       :style="{
-        height: appearance.headerHeight + 'px',
+        height: appearance.editorHeaderHeight + 'px',
       }"
     >
       <span class="text-xs font-bold uppercase">

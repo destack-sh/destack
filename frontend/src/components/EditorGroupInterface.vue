@@ -42,7 +42,7 @@ watch(
 const editorSize = computed(() => {
   return {
     width: containerSize.width.value + "px",
-    height: containerSize.height.value - (bench.showEditorGroupHeader ? appearance.headerHeight : 0) + "px",
+    height: containerSize.height.value - (bench.showEditorGroupHeader ? appearance.editorHeaderHeight : 0) + "px",
   };
 });
 
@@ -65,12 +65,11 @@ async function createFileInEditorGroup() {
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
-      <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast (that's what the sticky hack below 'solves') -->
       <TabList
         class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="bench.showEditorGroupHeader"
         :style="{
-          height: appearance.headerHeight + 'px',
+          height: appearance.editorHeaderHeight + 'px',
         }"
       >
         <!-- Editor tab -->
@@ -110,10 +109,12 @@ async function createFileInEditorGroup() {
       </TabList>
       <!-- Contents -->
       <TabPanels :style="editorSize">
+        <!-- Only file editors have a white background :FileBackground -->
         <TabPanel
           :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
-          class="overflow-y-scroll bg-white outline-none"
+          class="overflow-y-scroll outline-none"
+          :class="[e.type == 'file' ? 'bg-white' : 'bg-gray-50']"
           :style="editorSize"
           v-for="e in group.editors"
           :key="e.id"

@@ -13,7 +13,8 @@ export const useAppearanceState = defineStore("appearance", {
     inlineMetrics: false,
     contentWidth: 800,
     contentMarginX: 70,
-    headerHeight: 32,
+    benchHeaderHeight: 52,
+    editorHeaderHeight: 32,
   }),
   getters: {
     fontMono(state) {

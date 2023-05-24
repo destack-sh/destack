@@ -4,7 +4,8 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import type { StatementAction } from "@/state/editor";
+import { useBenchState, type StatementAction } from "@/state/editor";
+import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
@@ -13,6 +14,7 @@ defineProps<{
   isTyped: boolean;
 }>();
 
+const bench = useBenchState();
 const context = useStatementContext();
 
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -27,7 +29,15 @@ const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(nul
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
 const extraActions = computed(() => {
-  const inlineActions: StatementAction[] = [];
+  const inlineActions: StatementAction[] = [
+    {
+      label: "Run",
+      icon: PlayIcon,
+      action: () => {
+        bench.openRun(context.statement.value);
+      },
+    },
+  ];
   return inlineActions;
 });
 
@@ -77,7 +87,7 @@ defineExpose({
       :readonly="context.readonly.value"
       @navigate-left="declarationRef?.focus()"
       @navigate-up="declarationRef?.focus()"
-      @navigate-down="typeRef?.focus"
+      @navigate-down="isTyped ? typeRef?.focus() : context.navigateDown()"
       @enter="context.insertBelow"
     />
     <button

@@ -1,7 +1,15 @@
 <script lang="ts" setup>
 import FileInterface from "@/components/FileInterface.vue";
+import RunInterface from "@/components/RunInterface.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import { provideEditorContext, useBenchState, type EditorContext, type Editor, type FileEditor } from "@/state/editor";
+import {
+  provideEditorContext,
+  useBenchState,
+  type EditorContext,
+  type Editor,
+  type FileEditor,
+  RunEditor,
+} from "@/state/editor";
 import { useEventListener } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, toRef } from "vue";
 
@@ -36,6 +44,13 @@ defineExpose({
     v-if="editor.type == 'file'"
     :editor="(context as EditorContext<FileEditor>)"
     :fileId="(editor as FileEditor).fileId"
+    :focused="focused"
+    @close="bench.closeEditor(editor)"
+  />
+  <RunInterface
+    ref="containerRef"
+    v-else-if="editor.type == 'run'"
+    :editor="(context as EditorContext<RunEditor>)"
     :focused="focused"
     @close="bench.closeEditor(editor)"
   />
