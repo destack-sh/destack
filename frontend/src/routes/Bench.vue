@@ -15,7 +15,6 @@ import NotificationArea from "@/components/notifications/NotificationArea.vue";
 import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
 import ViewExplorer from "@/components/panels/ViewExplorer.vue";
 import ViewHistory from "@/components/panels/ViewHistory.vue";
-import ViewInstruction from "@/components/panels/ViewInstruction.vue";
 import ViewIssues from "@/components/panels/ViewIssues.vue";
 import ProjectPopover from "@/components/ProjectPopover.vue";
 import SettingsPopover from "@/components/SettingsPopover.vue";
@@ -24,6 +23,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
@@ -35,7 +35,6 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
-  AdjustmentsHorizontalIcon,
   ChatBubbleLeftIcon,
   ClockIcon,
   Cog8ToothIcon,
@@ -52,7 +51,7 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useTitle } from "@vueuse/core";
+import { useElementSize, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 import { useRouter } from "vue-router";
@@ -75,9 +74,8 @@ const allViews: Ref<View[]> = computed(() => [
   { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
   { id: "history", label: "History", icon: ClockIcon, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "instruction", label: "Instruction", icon: AdjustmentsHorizontalIcon, enabled: false },
-  { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
   { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
+  { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
@@ -180,11 +178,16 @@ const versionToViewId = computed(() => {
 
 // set up bench state
 const bench = useBenchState();
+const appearance = useAppearance();
 const editorReady = computed(
   () => bench.currentProjectVersionId != null && bench.currentProjectVersionId == versionToViewId.value
 );
 const notifications = useNotifications();
 const router = useRouter();
+const viewContainerRef = ref<HTMLElement | null>(null);
+const viewContainerSize = useElementSize(viewContainerRef);
+const mainContainerRef = ref<HTMLElement | null>(null);
+const mainContainerSize = useElementSize(mainContainerRef);
 
 // sync title bar with project info
 const title = useTitle();
@@ -324,15 +327,15 @@ const auth = useAuth();
 
 // show notification if disconnected/reconnected
 const connectionLost = ref(false);
-const everConnected = ref(false);
+const wasEverConnected = ref(false);
 watch(
   () => [WS_CONNECTED.value, runtime.connected.value],
   () => {
     if (WS_CONNECTED.value && runtime.connected.value) {
-      everConnected.value = true;
+      wasEverConnected.value = true;
     }
 
-    if (!WS_CONNECTED.value && !connectionLost.value && everConnected.value) {
+    if (!WS_CONNECTED.value && !connectionLost.value && wasEverConnected.value) {
       notifications.show({
         type: "runtime.disconnected",
         kind: "warning",
@@ -635,8 +638,8 @@ onBeforeUnmount(() => {
         </div>
         <!-- View content -->
         <div
-          ref="viewsContainerRef"
-          class="relative h-full flex-1 border-r border-orange-900 border-opacity-[12%]"
+          ref="viewContainerRef"
+          class="relative h-full max-h-full max-w-full flex-1 border-r border-orange-900 border-opacity-[12%]"
           v-show="bench.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
@@ -646,6 +649,9 @@ onBeforeUnmount(() => {
             @blur="bench.blurView('explorer')"
             :files="files"
             :focused="bench.focusedViewId == 'explorer'"
+            :container-size="viewContainerSize"
+            class="scroll-hidden overflow-y-auto"
+            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
           />
           <ViewHistory
             v-show="activeView.id == 'history'"
@@ -655,19 +661,18 @@ onBeforeUnmount(() => {
             :project="project"
             :focused="bench.focusedViewId == 'history'"
             :current-version="version"
+            :container-size="viewContainerSize"
+            class="scroll-hidden overflow-y-auto"
+            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
           />
           <ViewIssues
             v-show="activeView.id == 'issues'"
             @show="bench.focusView('issues')"
             @blur="bench.blurView('issues')"
             :focused="bench.focusedViewId == 'issues'"
-          />
-          <ViewInstruction
-            v-show="activeView.id == 'instruction'"
-            @show="bench.focusView('instruction')"
-            @blur="bench.blurView('instruction')"
-            :focused="bench.focusedViewId == 'instruction'"
-            :version="version"
+            :container-size="viewContainerSize"
+            class="scroll-hidden overflow-y-auto"
+            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
           />
           <!-- Unknown view -->
           <div
@@ -686,6 +691,7 @@ onBeforeUnmount(() => {
       </aside>
       <!-- Main editor area -->
       <main
+        ref="mainContainerRef"
         v-show="versionLoaded"
         class="flex h-full w-full flex-1 divide-x divide-orange-900 divide-opacity-[12%] bg-gray-50"
       >

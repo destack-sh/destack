@@ -55,6 +55,7 @@ const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecuti
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
+const hasTypes = computed(() => context.typeNodes.value.length > 0);
 const addingTypes = ref(false);
 const hideOutput = ref(false);
 const truncateOutput = ref(true);
@@ -99,18 +100,22 @@ async function run() {
   if (executionActive.value) {
     return; // already running
   }
-  lastExecutionLocalId.value = newExecutionId();
-  hideOutput.value = false;
-  preparingRun.value = true; // for immediate feedback if flush takes more than few ms
-  try {
-    await codeSync.flushNow(); // flush any pending changes to the code (debounced)
-  } finally {
-    preparingRun.value = false;
-  }
-  // TODO @UX: ensure that executed code is exact same as in editor
-  const ret = await symbolOps.run(context.statement.value, lastExecutionLocalId.value);
-  if (ret?.data?.run.__typename == "RunState") {
-    lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
+  if (hasTypes.value) {
+    bench.openRun(context.statement.value);
+  } else {
+    lastExecutionLocalId.value = newExecutionId();
+    hideOutput.value = false;
+    preparingRun.value = true; // for immediate feedback if flush takes more than few ms
+    try {
+      await codeSync.flushNow(); // flush any pending changes to the code (debounced)
+    } finally {
+      preparingRun.value = false;
+    }
+    // TODO @UX: ensure that executed code is exact same as in editor
+    const ret = await symbolOps.run(context.statement.value, lastExecutionLocalId.value);
+    if (ret?.data?.run.__typename == "RunState") {
+      lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
+    }
   }
 }
 
@@ -130,6 +135,7 @@ defineExpose({
     typeRef.value?.blur();
     monacoRef.value?.blur();
   },
+  run,
 });
 </script>
 <template>
@@ -178,9 +184,9 @@ defineExpose({
     </div>
   </div>
   <FunctionTypeCell
-    v-if="context.typeNodes.value.length > 0 || addingTypes"
+    v-if="hasTypes || addingTypes"
     ref="typeRef"
-    class="py-1"
+    class=""
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

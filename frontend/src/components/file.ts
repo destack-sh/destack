@@ -7,6 +7,7 @@ import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } fro
 import { TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
+import type StatementInterface from "@/components/StatementInterface.vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
@@ -15,6 +16,7 @@ export type FileState = {
   focused: boolean;
   file: FileHeader;
   statementsUnordered: StatementHeader[]; // unordered
+  statementsComponents: Record<string, InstanceType<typeof StatementInterface>>;
   navigateUp: () => void;
   navigateDown: () => void;
 };
@@ -22,6 +24,7 @@ export type FileState = {
 export type FileContext = FileState & {
   statements: StatementHeader[]; // ordered
   statementsById: Record<string, StatementHeader>;
+  statementsComponents: Record<string, InstanceType<typeof StatementInterface>>;
   statementsByParentId: Record<string, StatementHeader[]>;
   statementPositions: Record<string, number>;
   positionedStatements: PositionedStatement[];
@@ -41,7 +44,7 @@ export type PositionedStatement = {
 // so we have a global reference here that is automatically set to the focused file.
 // We can't just use singleton actions here because multiple files may have
 // 'focused' set during moves or transition.
-export const activeFileState = ref<FileState | null>(null);
+export const activeFileState: Ref<FileState> = ref<FileState | null>(null);
 export const fileContexts = ref<Record<string, FileContext>>({});
 export const navigationContexts = ref<Record<string, NavigationContext>>({});
 
@@ -157,6 +160,7 @@ export function provideFileState(file: Ref<FileState | null>) {
     return {
       ...file.value,
       statements: statements.value,
+      statementsComponents: file.value.statementsComponents ?? {},
       statementsById: statementsById.value,
       statementsByParentId: statementsByParentId.value,
       statementPositions: statementPositions.value,
@@ -249,6 +253,7 @@ export type NavigationContext = FileContext & {
 
 export type CurrentNavigationContext = {
   statement: StatementHeader | null;
+  component: InstanceType<typeof StatementInterface> | null;
   orderKey: string | null;
   previousSibling: StatementHeader | null;
   children: StatementHeader[];
@@ -559,7 +564,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   function getSelectionBottom(): StatementHeader | undefined {
-    if (bench.hasSelection) {
+    if (file.value?.editor.hasSelection) {
       const selectedRoots = getSelectedRoots();
       return selectedRoots[selectedRoots.length - 1];
     } else if (statement.value != null) {
@@ -678,7 +683,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
     // current
     const current = {
-      statement: statementsById.value[bench.focusedStatementId as string],
+      statement: statementsById.value[file.value.editor.activeStatementId as string],
+      component: file.value.statementsComponents[file.value.editor.activeStatementId as string],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],

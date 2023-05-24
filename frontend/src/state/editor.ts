@@ -37,7 +37,7 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
-export type EditorType = "file";
+export type EditorType = "file" | "run";
 
 // note that editor state should be JSON serializable (except below)
 const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
@@ -45,12 +45,12 @@ export abstract class Editor {
   type: EditorType;
   id: string;
   path: string;
-  groupId: string | null; // id instead of EditorGroup to avoid circular dependency
+  groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
 
-  constructor(type: EditorType, id: string, path: string, groupId: string | null) {
+  constructor(type: EditorType, id: string, path: string, groupId: string | null = null) {
     this.type = type;
     this.id = id;
     this.path = path;
@@ -77,7 +77,6 @@ export abstract class Editor {
   }
 
   onDeserialized(bench: ReturnType<typeof useBenchState>) {
-    this.editing = false;
     this._bench = bench;
   }
 
@@ -278,6 +277,15 @@ export const useBenchState = defineStore("bench", {
       if (!editor || options?.create) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = new FileEditor(file);
+      }
+      return this.openEditor(editor, options?.group);
+    },
+
+    openRun(symbol: { id: string; name?: string }, options?: { group?: EditorGroup; create?: boolean }): Editor {
+      let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
+      if (!editor || options?.create) {
+        console.log(`create new run editor for ${symbol.name}`);
+        editor = new RunEditor(symbol);
       }
       return this.openEditor(editor, options?.group);
     },
@@ -643,13 +651,14 @@ export class FileEditor extends Editor {
     if (element == null || element.id == this.activeStatementId) {
       this.activeStatementId = undefined;
       this.editing = false;
-      console.log(`blur element ${element?.id}`);
+      console.debug(`blur element ${element?.id}`);
     }
   }
 
   editElement(element: FileElement) {
     this.focusElement(element);
     this.editing = true;
+    console.debug(`edit element ${element.id}`);
   }
 
   stopEditingElement(element?: FileElement) {
@@ -700,6 +709,21 @@ export class FileEditor extends Editor {
     if (!this.hasSelection) return;
     console.debug("clear selection", this.path);
     this.selectedElementIds = [];
+  }
+}
+
+export class RunEditor extends Editor {
+  type = "run" as const;
+  symbolId: string;
+  arguments: Record<string, any> = {};
+
+  constructor(symbol: { id: string; name: string }) {
+    super("run", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name);
+    this.symbolId = symbol.id;
+  }
+
+  clear() {
+    this.arguments = {};
   }
 }
 

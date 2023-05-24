@@ -27,6 +27,8 @@ const bench = useBenchState();
 const appearance = useAppearance();
 const actions = useActions();
 const editor = computed(() => props.editor.editor.value);
+const now = useTimeFromNow();
+const ops = useOperations();
 
 // file state
 
@@ -64,6 +66,7 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
+const statementsComponents = ref<Record<string, InstanceType<typeof StatementInterface>>>({});
 const fileState: Ref<FileState | null> = computed(() => {
   if (fileHeader.value == null) {
     return null;
@@ -73,18 +76,53 @@ const fileState: Ref<FileState | null> = computed(() => {
     focused: props.focused,
     file: fileHeader.value as any,
     statementsUnordered: statements.value,
+    statementsComponents: statementsComponents.value,
     navigateUp: () => (props.editor.editor.value.blurElement(), nameRef.value?.focus()),
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
 const context = provideFileState(fileState);
 
-const now = useTimeFromNow();
-const ops = useOperations();
+function registerStatementRef(id: string, component: InstanceType<typeof StatementInterface> | undefined) {
+  if (component == null) {
+    delete statementsComponents.value[id];
+  } else if (statementsComponents.value[id] !== component) {
+    statementsComponents.value[id] = component;
+  }
+}
+
+const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
+const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+
+syncProperty({
+  value: name,
+  editing: computed(() => nameRef.value?.focused),
+  read: () => (name.value = fileHeader.value?.name ?? null),
+  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
+});
+
+// sync name/path into editor
+watch(name, () => (editor.value.path = name.value ?? ""));
+
+// auto-focus name once loaded and if contents are empty
+watch(
+  () => [name.value, props.focused],
+  () => {
+    if (name.value == null) {
+      return;
+    }
+    if (props.focused && statements.value.length == 0 && name.value == "") {
+      nameRef.value?.focus();
+      nextTick(() => nameRef.value?.focus()); // required to focus if just loaded
+    }
+  }
+);
 
 function restore() {
   ops.file.restore(null, fileHeader.value?.id);
 }
+
+// navigation
 
 async function insertStatementStart() {
   if (fileHeader.value == null) return;
@@ -129,33 +167,6 @@ whenever(
   () => editor.value?.clearSelection()
 );
 
-const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
-const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-
-syncProperty({
-  value: name,
-  editing: computed(() => nameRef.value?.focused),
-  read: () => (name.value = fileHeader.value?.name ?? null),
-  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
-});
-
-// sync name/path into editor
-watch(name, () => (editor.value.path = name.value ?? ""));
-
-// auto-focus name once loaded and if contents are empty
-watch(
-  () => [name.value, props.focused],
-  () => {
-    if (name.value == null) {
-      return;
-    }
-    if (props.focused && statements.value.length == 0 && name.value == "") {
-      nameRef.value?.focus();
-      nextTick(() => nameRef.value?.focus()); // required to focus if just loaded
-    }
-  }
-);
-
 function goToContent() {
   nameRef.value?.blur();
   if (context.value?.positionedStatements.length == 0) {
@@ -165,7 +176,7 @@ function goToContent() {
   }
 }
 
-// file actions
+// actions
 const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() => [
   {
     label: "Rename",
@@ -229,7 +240,8 @@ const auth = useAuth();
 
 <template>
   <!-- File container -->
-  <div class="overflow-x-hidden">
+  <!-- Only files have a white background :FileBackground -->
+  <div class="overflow-x-hidden bg-white">
     <!-- Deleted file status and restore -->
     <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
       <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
@@ -272,7 +284,7 @@ const auth = useAuth();
       <div
         class="fixed z-10 flex flex-row items-center justify-between gap-1 rounded-md border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
         :class="appearance.baseClass"
-        :style="{ height: appearance.headerHeight + 'px', width: props.editor.size?.value?.width + 'px' }"
+        :style="{ height: appearance.editorHeaderHeight + 'px', width: props.editor.size?.value?.width + 'px' }"
       >
         <!-- Main info -->
         <div class="flex flex-row items-center gap-1">
@@ -368,6 +380,7 @@ const auth = useAuth();
         :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
       >
         <StatementInterface
+          :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion"
