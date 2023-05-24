@@ -39,13 +39,16 @@ export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" |
 
 export type EditorType = "file";
 
-// note that editor state should be JSON serializable
+// note that editor state should be JSON serializable (except below)
+const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
 export abstract class Editor {
   type: EditorType;
   id: string;
   path: string;
   groupId: string | null; // id instead of EditorGroup to avoid circular dependency
-  editing = false;
+  // refs assigned on creation/component instantiation
+  _bench: ReturnType<typeof useBenchState> | undefined = undefined;
+  _context: any | undefined = undefined;
 
   constructor(type: EditorType, id: string, path: string, groupId: string | null) {
     this.type = type;
@@ -54,8 +57,43 @@ export abstract class Editor {
     this.groupId = groupId;
   }
 
-  blur() {
+  get focused() {
+    return this._bench?.focusedEditorId == this.id;
+  }
+
+  get bench(): ReturnType<typeof useBenchState> {
+    if (this._bench == null) {
+      throw new Error(`editor ${this.id} has no bench`);
+    }
+    return this._bench;
+  }
+
+  get context(): any {
+    // TODO @Cleanup: this should be typed but TS throws up
+    if (this._context == null) {
+      throw new Error(`editor ${this.id} has no context`);
+    }
+    return this._context;
+  }
+
+  onDeserialized(bench: ReturnType<typeof useBenchState>) {
     this.editing = false;
+    this._bench = bench;
+  }
+
+  onMounted(context: EditorContext<any>) {
+    if (this._context != null) {
+      throw new Error(`editor ${this.id} already has a context`);
+    }
+    this._context = context;
+  }
+
+  onUnmounted() {
+    this._context = undefined;
+  }
+
+  blur() {
+    // noop by default
   }
 }
 
@@ -158,6 +196,8 @@ export const useBenchState = defineStore("bench", {
       this.currentProjectVersionId = versionId;
     },
 
+    // views
+
     setActiveView(viewId: ViewId): void {
       this.activeViewId = viewId;
     },
@@ -166,6 +206,22 @@ export const useBenchState = defineStore("bench", {
       this.activeViewId = viewId;
       this.showViewContent = true;
     },
+
+    focusView(viewId: ViewId): void {
+      if (viewId == this.focusedViewId) return;
+      this.focusedViewId = viewId;
+      this.openActiveView(viewId);
+      this.blur();
+      console.log(`focus view ${viewId}`);
+    },
+
+    blurView(viewId?: ViewId): void {
+      if (viewId != null && viewId != this.focusedViewId) return;
+      this.focusedViewId = null;
+      console.log(`blur view ${viewId}`);
+    },
+
+    // editors
 
     _removeEditorFromGroup(editor: Editor): void {
       if (editor.groupId == null) return;
@@ -226,18 +282,18 @@ export const useBenchState = defineStore("bench", {
       return this.openEditor(editor, options?.group);
     },
 
-    focusView(viewId: ViewId): void {
-      if (viewId == this.focusedViewId) return;
-      this.focusedViewId = viewId;
-      this.openActiveView(viewId);
-      this.blur();
-      console.log(`focus view ${viewId}`);
+    nextGroup(group: EditorGroup): EditorGroup | undefined {
+      const index = this.groups.indexOf(group);
+      return this.groups[(index + 1) % this.groups.length];
     },
 
-    blurView(viewId?: ViewId): void {
-      if (viewId != null && viewId != this.focusedViewId) return;
-      this.focusedViewId = null;
-      console.log(`blur view ${viewId}`);
+    focusGroup(group: EditorGroup): void {
+      if (this.focusedGroup?.id == group.id) return;
+      if (group.activeEditorId == null) {
+        throw new Error("group must have an active editor");
+      }
+      console.debug(`focus group ${group.id}`);
+      this.focusedEditorId = group.activeEditorId;
     },
 
     focusEditor(editor: Editor): void {
@@ -248,6 +304,12 @@ export const useBenchState = defineStore("bench", {
       if (!editor.groupId) {
         throw new Error("editor must be in a group: " + editor.path);
       }
+      // blur all other editors
+      this.editors.forEach((e) => {
+        if (e.id != editor.id) {
+          e.blur();
+        }
+      });
       this.focusedEditorId = editor.id;
       this.group(editor.groupId).activeEditorId = editor.id;
     },
@@ -262,6 +324,8 @@ export const useBenchState = defineStore("bench", {
       this.editors.forEach((e) => e.blur());
     },
 
+    // settings
+
     setZenMode(zenMode: boolean) {
       const appearance = useAppearanceState();
       this.zenMode = zenMode;
@@ -269,6 +333,8 @@ export const useBenchState = defineStore("bench", {
       this.showGlobalHeader = !zenMode;
       appearance.fullscreen = zenMode;
     },
+
+    // migration
 
     async _doMigrateTo(versionId: string, refMappings: Record<string, string>): Promise<void> {
       // migrate by serializing state and replacing refs
@@ -307,10 +373,30 @@ export const useBenchState = defineStore("bench", {
 export function useBenchPersistence(intervalMs = 1000) {
   const bench = useBenchState();
 
+  function cleanEditor(editor: Editor) {
+    const cleaned = { ...editor };
+    for (const prop of UNSERIALIZABLE_EDITOR_PROPS) {
+      delete cleaned[prop];
+    }
+    return cleaned;
+  }
+
   const save = () => {
     // save editor state by project id
     if (bench.currentProjectId == null) return;
-    localStorage.setItem(`editor-state-${bench.currentProjectId}`, JSON.stringify(bench.$state));
+    // clean up editor state for serialization
+    const state = {
+      ...bench.$state,
+      left: {
+        ...bench.$state.left,
+        editors: bench.$state.left.editors.map((e) => cleanEditor(e)),
+      },
+      right: {
+        ...bench.$state.right,
+        editors: bench.$state.right.editors.map((e) => cleanEditor(e)),
+      },
+    };
+    localStorage.setItem(`editor-state-${bench.currentProjectId}`, JSON.stringify(state));
   };
 
   const load = () => {
@@ -322,7 +408,7 @@ export function useBenchPersistence(intervalMs = 1000) {
         bench.$patch(JSON.parse(state));
         // instantiate editors
         for (const group of bench.groups) {
-          group.editors = group.editors.map(instantiate);
+          group.editors = group.editors.map((e) => instantiate(e, bench));
         }
         console.log(`restored editor state for project ${bench.currentProjectId}`);
       } catch (e) {
@@ -447,6 +533,7 @@ export function useBenchMigrations() {
 
 export type EditorContext<T extends Editor> = {
   editor: Ref<T>;
+  component: Ref<any>;
   container: Ref<HTMLElement | null>;
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
@@ -455,11 +542,16 @@ export type EditorContext<T extends Editor> = {
 
 export const EDITOR_CONTEXT = "__editor__";
 
-export function provideEditorContext<T extends Editor>(editor: Ref<T>, container: Ref<HTMLElement | null>) {
+export function provideEditorContext<T extends Editor>(
+  editor: Ref<T>,
+  component: Ref<any>,
+  container: Ref<HTMLElement | null>
+) {
   const editorState = useBenchState();
   const elementBounding = useElementBounding(container);
   const context: EditorContext<T> = {
     editor,
+    component,
     container,
     size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
     pos: computed(() => ({
@@ -524,6 +616,7 @@ export class FileEditor extends Editor {
   activeStatementId?: string;
   selectedElementType?: FileElementType;
   selectedElementIds: string[] = [];
+  editing = false;
 
   constructor(file: { id: string; path: string }) {
     super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, null);
@@ -543,6 +636,7 @@ export class FileEditor extends Editor {
   blurElement(element?: FileElement) {
     if (element == null || element.id == this.activeStatementId) {
       this.activeStatementId = undefined;
+      this.editing = false;
       console.log(`blur element ${element?.id}`);
     }
   }
@@ -607,7 +701,7 @@ const EDITOR_INSTANCES: Record<EditorType, any> = {
   file: FileEditor,
 };
 
-function instantiate(editorData: any): Editor {
+function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {
   const type = editorData.type;
   const EditorClass = EDITOR_INSTANCES[type as EditorType];
   if (EditorClass == null) {
@@ -616,5 +710,7 @@ function instantiate(editorData: any): Editor {
   if (!Reflect.setPrototypeOf(editorData, EditorClass.prototype)) {
     throw new Error(`failed to set prototype of editor ${editorData.id}`);
   }
-  return editorData;
+  const editor = editorData as Editor;
+  editor.onDeserialized(bench);
+  return editor;
 }

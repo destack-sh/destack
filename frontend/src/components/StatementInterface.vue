@@ -38,7 +38,8 @@ const appearance = useAppearance();
 const nav = useNavigationContext();
 const editor = useEditorContext();
 
-const isFocused = computed(() => nav.value.editor.activeStatementId == statement.value?.id);
+const isActive = computed(() => nav.value.editor.activeStatementId == statement.value?.id);
+const isFocused = computed(() => isActive.value && nav.value.editor.focused);
 const isEditing = computed(() => isFocused.value && nav.value.editor.editing);
 const isSelected = computed(() => nav.value.editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
@@ -67,6 +68,7 @@ onBeforeUnmount(() => {
 });
 provide(STATEMENT_CONTEXT, {
   readonly: computed(() => bench.readonly || props.readonly),
+  active: isActive,
   focused: isFocused,
   editing: isEditing,
   depth: toRef(props, "depth"),
@@ -137,17 +139,18 @@ const containerRef = ref<HTMLElement | null>(null);
 const innerWrapperRef = ref<HTMLElement | null>(null);
 const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
-const { focused: containerFocused } = useFocus(containerRef);
 const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
 
-// focus containerRef if focused in editor but not in container and not editing
-watch(
-  () => [isFocused.value, isEditing.value, containerFocused.value],
+// focus root cell if editing in editor but not in container
+whenever(
+  isEditing,
   () => {
-    if (isFocused.value && !isEditing.value && !inRootCellFocused.value && !containerFocused.value) {
-      containerFocused.value = true;
+    if (isEditing.value && !inContainerFocused.value) {
+      rootCellRef.value?.focus();
+      nextTick(() => rootCellRef.value?.focus()); // required to focus if just loaded
     }
-  }
+  },
+  { immediate: true }
 );
 
 // refocus if root cell changed and we're editing
@@ -159,18 +162,6 @@ watch(
     }
   },
   { deep: false }
-);
-
-// focus root cell if editing in editor but not in container
-whenever(
-  isEditing,
-  () => {
-    if (isEditing.value && (!inContainerFocused.value || containerFocused.value)) {
-      rootCellRef.value?.focus();
-      nextTick(() => rootCellRef.value?.focus()); // required to focus if just loaded
-    }
-  },
-  { immediate: true }
 );
 
 // blur root cell if focused in container (but no longer editing or focused)
@@ -204,7 +195,7 @@ whenever(inRootCellFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
-  if (altKeyState.value || containerFocused.value) {
+  if (altKeyState.value) {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
@@ -244,9 +235,6 @@ function onClickContainer(e: MouseEvent) {
   }
   if (!bench.readonly) {
     nav.value.editor.editElement(statement.value as StatementHeader);
-    containerFocused.value = false;
-  } else {
-    containerFocused.value = true;
   }
   if (!inContainerFocused.value) {
     rootCellRef.value?.focus();
@@ -352,8 +340,8 @@ const filteredClients = computed(() =>
       :class="{
         'focus:bg-orange-100': !isCommentish,
         'focus:bg-gray-100': isCommentish,
-        'bg-orange-100': !isCommentish && (isSelected || isAncestorHighlight || dragOver),
-        'bg-gray-100': isCommentish && (isSelected || isAncestorHighlight || dragOver),
+        'bg-orange-100': !isCommentish && ((isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver),
+        'bg-gray-100': isCommentish && ((isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver),
         'text-gray-700': isCommented,
         ...appearance.baseClass,
       }"
@@ -380,14 +368,14 @@ const filteredClients = computed(() =>
               <span
                 class="cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
-                  'opacity-0': !isFocused && !open && !bench.showLineNumbers,
-                  'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !bench.showLineNumbers,
-                  'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
+                  'opacity-0': !isActive && !open && !bench.showLineNumbers,
+                  'opacity-100': isActive && !bench.showLineNumbers,
+                  'text-orange-200 hover:bg-orange-100 group-hover/statement:font-bold group-hover/statement:text-orange-500':
                     !isCommentish,
-                  'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
+                  'text-gray-200 hover:bg-gray-100  group-hover/statement:font-bold group-hover/statement:text-gray-500':
                     isCommentish,
-                  'text-orange-500': (dragOver || open || isFocused) && !isCommentish,
-                  'text-gray-500': (dragOver || open || isFocused) && isCommentish,
+                  'text-orange-500': (dragOver || open || isActive) && !isCommentish,
+                  'text-gray-500': (dragOver || open || isActive) && isCommentish,
                   ...appearance.baseClass,
                 }"
               >
@@ -398,7 +386,7 @@ const filteredClients = computed(() =>
             <button
               v-if="!bench.readonly && !props.readonly"
               class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-              :class="isFocused ? 'opacity-100' : 'opacity-0'"
+              :class="isActive ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
             >
               <PlusIcon class="h-4 w-4" />
@@ -477,11 +465,11 @@ const filteredClients = computed(() =>
     <!-- Debug info -->
     <div v-if="bench.debug" class="absolute -right-1 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
+      <template v-if="isActive">A</template>
       <template v-if="isFocused">F</template>
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inRootCellFocused">r*</template>
-      <template v-if="containerFocused">.</template>
       <template v-if="isEditing">e</template>
       <template v-if="isCommented">#</template>
       <template v-if="isStale">S</template>

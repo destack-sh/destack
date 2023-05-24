@@ -5,6 +5,22 @@ import { computed } from "vue";
 export function useEditorActions() {
   const bench = useBenchState();
 
+  // jump around
+  const focusNextEditorGroup = provideGlobalAction({
+    id: "bench.focusNextEditorGroup",
+    label: "Focus Next Editor Group",
+    shortcuts: ["meta+shift+space"],
+    enabled: computed(() => bench.focusedEditor != null),
+    apply: () => {
+      if (bench.focusedGroup == null) return;
+      const currentGroup = bench.focusedGroup;
+      const nextGroup = bench.nextGroup(currentGroup);
+      if (nextGroup != null && nextGroup != currentGroup) {
+        bench.focusGroup(nextGroup);
+      }
+    },
+  });
+
   // move editor
   const moveEditorLeft = provideGlobalAction({
     id: "bench.moveEditorLeft",
@@ -43,6 +59,7 @@ export function useEditorActions() {
   });
 
   return {
+    focusNextEditorGroup,
     moveEditorLeft,
     moveEditorRight,
     closeEditor,

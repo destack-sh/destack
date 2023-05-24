@@ -54,7 +54,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex w-fit flex-row flex-wrap items-baseline gap-1">
+  <div class="relative flex w-fit flex-row items-baseline gap-1 whitespace-nowrap">
     <!-- Start trap -->
     <EditableSpan
       :model-value="''"

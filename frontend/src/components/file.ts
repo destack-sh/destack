@@ -661,12 +661,12 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       console.log("pasted " + sourceStatements.length + " statements");
       // select the pasted stuff
       if (bench.focusedStatementId != null && sourceIds.includes(bench.focusedStatementId)) {
-        bench.focusElement({ id: targetIds[bench.focusedElementId], __typename: "Statement" });
+        file.value?.editor.focusElement({ id: targetIds[bench.focusedStatementId], __typename: "Statement" });
       } else {
-        bench.blurElement();
+        file.value?.editor.blurElement();
       }
-      bench.clearSelection();
-      Object.values(targetIds).forEach((targetId) => bench.addToSelection({ id: targetId }));
+      file.value?.editor.clearSelection();
+      Object.values(targetIds).forEach((targetId) => file.value?.editor.addToSelection({ id: targetId }));
     } catch (err) {
       console.error("failed to parse clipboard data", err);
       return;
@@ -678,7 +678,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
     // current
     const current = {
-      statement: statementsById.value[bench.focusedElementId as string],
+      statement: statementsById.value[bench.focusedStatementId as string],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
@@ -767,7 +767,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
     if (focus) {
-      bench.editElement(newStatement as StatementHeader);
+      nav.value.editor.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -777,7 +777,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
     if (focus) {
-      bench.editElement(newStatement as StatementHeader);
+      nav.value.editor.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -796,14 +796,14 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (statement.value == null) return;
     const above = nav.value.getAbove(statement.value);
     if (above == null) return;
-    bench.focusElement(above);
+    nav.value.editor.focusElement(above);
   }
 
   async function moveFocusDown() {
     if (statement.value == null) return;
     const below = nav.value.getBelow(statement.value);
     if (below == null) return;
-    bench.focusElement(below);
+    nav.value.editor.focusElement(below);
   }
 
   async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
