@@ -26,11 +26,11 @@ function onDrop(files: File[] | any) {
     <!-- Drag indicators (bottom if start, top if end) :DragStyle -->
     <div
       v-if="position == 'end'"
-      class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+      class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-200 transition duration-150"
     />
     <div
       v-if="position == 'start'"
-      class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
+      class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-200 transition duration-150"
     />
     <div class="justify-left relative flex align-top">
       <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">

@@ -22,14 +22,13 @@ export function pinAbsoluteElement(
     throw new Error("keepInView requires pos");
   }
 
-  watch(el, (el) => {
-    if (el == null && fixed.value != null) fixed.value = null; // reset
-    if (el == null) return; // no element
-    if (fixed.value != null) return; // already fixed
-    // fix element
-    const rect = el.getBoundingClientRect();
-    fixed.value = { x: rect.left, y: rect.top, width: 200, height: rect.height };
-
+  watch([el, editorContext?.pos, editorContext?.size], () => {
+    if (el.value == null && fixed.value != null) fixed.value = null; // reset
+    if (el.value == null) return; // no element
+    if (fixed.value != null && !fix.keepInView) return; // already fixed
+    // (re)fix element in view
+    const rect = el.value.getBoundingClientRect();
+    fixed.value = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     if (fix.keepInView && editorContext != null) {
       const cpos = editorContext.pos.value;
       const crect = editorContext.size.value;
@@ -52,12 +51,12 @@ export function pinAbsoluteElement(
     }
 
     if (fix.pos) {
-      el.style.position = "fixed";
-      el.style.left = `${fixed.value.x}px`;
-      el.style.top = `${fixed.value.y}px`;
+      el.value.style.position = "fixed";
+      el.value.style.left = `${fixed.value.x}px`;
+      el.value.style.top = `${fixed.value.y}px`;
     }
-    if (fix.width) el.style.width = `${rect.width}px`;
-    if (fix.height) el.style.height = `${rect.height}px`;
+    if (fix.width) el.value.style.width = `${rect.width}px`;
+    if (fix.height) el.value.style.height = `${rect.height}px`;
   });
 
   return {
