@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
 import { ANY_TYPE_NODE, type SimpleType } from "@/components/statement";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { SimpleTypeNode } from "@/gql/graphql";
-import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue?: SimpleType;
@@ -30,11 +29,12 @@ const emit = defineEmits<{
 }>();
 
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
+const editing = ref(false);
+
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const valueRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
-const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
-
-const popoverOpenRef: Ref<HTMLSpanElement | null> = ref(null);
+const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
+const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
 
 function writeValue(type: SimpleTypeNode) {
   nextTick(() => buttonRef.value?.focus());
@@ -59,9 +59,16 @@ watch(
 );
 
 function open() {
-  if (popoverOpenRef.value == null) {
-    popoverButtonRef.value?.$el.click();
+  if (!editing.value) {
+    editing.value = true;
     nextTick(() => valueRef.value?.focus());
+  }
+}
+
+function close() {
+  if (editing.value) {
+    editing.value = false;
+    nextTick(() => buttonRef.value?.focus());
   }
 }
 
@@ -74,13 +81,13 @@ function blur() {
 }
 
 defineExpose({
-  editing: computed(() => popoverOpenRef.value != null),
+  editing,
   focus,
   blur,
 });
 </script>
 <template>
-  <Popover as="div" v-slot="{ close }" class="relative">
+  <div class="relative">
     <!-- Type preview -->
     <button
       ref="buttonRef"
@@ -95,28 +102,29 @@ defineExpose({
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
-      <SimpleTypePreview :type="value" :hide-icon="hideIcon || value.reference != null" />
+      <SimpleTypePreview :type="value" :hide-icon="hideIcon || value.reference != null" hide-flags />
     </button>
-    <PopoverButton ref="popoverButtonRef" @focus.prevent="focus" class="hidden" />
+    <!-- Prevent scroll and capture click outside -->
+    <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
     <!-- Editable type :EditableCellStyle -->
-    <FadeTransition>
-      <PopoverPanel
-        class="absolute -left-2 z-10 flex flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="hideFlags ? '-top-2' : '-top-10'"
-        unmount
-      >
-        <span ref="popoverOpenRef" class="hidden" />
-        <SelectTypeCell
-          ref="valueRef"
-          as="div"
-          :model-value="value"
-          @update:model-value="writeValue($event), close(), buttonRef?.focus()"
-          @escape="close(), buttonRef?.focus()"
-          :inlined="inlined"
-          :structref-only="structrefOnly"
-          :hide-flags="hideFlags"
-        />
-      </PopoverPanel>
-    </FadeTransition>
-  </Popover>
+    <div
+      v-if="editing"
+      ref="editablePopoverRef"
+      class="absolute -left-2 z-50 flex flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      :class="[hideFlags ? '-top-2' : '-top-10', popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2']"
+      @keydown.escape.exact.prevent.stop="close"
+    >
+      <span ref="popoverOpenRef" class="hidden" />
+      <SelectTypeCell
+        ref="valueRef"
+        as="div"
+        :model-value="value"
+        @update:model-value="writeValue($event), close()"
+        @escape="close"
+        :inlined="inlined"
+        :structref-only="structrefOnly"
+        :hide-flags="hideFlags"
+      />
+    </div>
+  </div>
 </template>
