@@ -362,6 +362,7 @@ const filteredClients = computed(() =>
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
             <ActionPopover
+              anchor="right"
               :thing="statement"
               :actions="defaultActions"
               v-slot="{ open }"

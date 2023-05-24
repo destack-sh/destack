@@ -2,6 +2,7 @@ import { graphql } from "@/gql";
 import type { SymbolType, File, Project, ProjectVersion, Statement, DatasetRecord, SimpleType } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery } from "@vue/apollo-composable";
 import { useElementBounding, useElementSize } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -606,13 +607,13 @@ export function useEditorMigrations() {
 export type EditorContext = {
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
-  lock(): void;
-  unlock(): void;
+  actions: Ref<EditorAction[]>;
 };
 
 export const EDITOR_CONTEXT = "__editor__";
 
-export function provideEditorContext(el: Ref<HTMLElement | null>) {
+export function provideEditorContext(editor: Ref<Editor>, el: Ref<HTMLElement | null>) {
+  const editorState = useEditorState();
   const elementBounding = useElementBounding(el);
   const context: EditorContext = {
     size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
@@ -620,14 +621,23 @@ export function provideEditorContext(el: Ref<HTMLElement | null>) {
       left: elementBounding.left.value,
       top: elementBounding.top.value,
     })),
-    lock() {
-      if (el.value == null) return;
-      el.value.style.overflow = "hidden";
-    },
-    unlock() {
-      if (el.value == null) return;
-      el.value.style.overflow = "";
-    },
+    actions: computed(() => {
+      const actions: EditorAction[] = [];
+      if (editor.value.groupId == editorState.left.id) {
+        actions.push({
+          label: "Move to right",
+          icon: ArrowRightIcon,
+          action: () => editorState.moveEditor(editor.value, editorState.right),
+        });
+      } else {
+        actions.push({
+          label: "Move to left",
+          icon: ArrowLeftIcon,
+          action: () => editorState.moveEditor(editor.value, editorState.left),
+        });
+      }
+      return actions;
+    }),
   };
   provide(EDITOR_CONTEXT, context);
   return context;
@@ -654,3 +664,4 @@ export type FileAction = Action<FileHeader>;
 export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<SimpleType>;
 export type RecordAction = Action<DatasetRecord>;
+export type EditorAction = Action<Editor>;

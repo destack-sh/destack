@@ -17,7 +17,7 @@ const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
 const focused = computed(() => editorState.focusedEditorId == props.editor.id);
 useActiveScroll(toRef(props, "containerEl"));
 
-const context = provideEditorContext(toRef(props, "containerEl"));
+const context = provideEditorContext(toRef(props, "editor"), toRef(props, "containerEl"));
 
 // generic editor interface state
 const editorInterfaceState: EditorInterfaceState = {
@@ -32,6 +32,10 @@ const editorInterfaceState: EditorInterfaceState = {
   },
 };
 provide(EDITOR_INTERFACE_STATE, editorInterfaceState);
+
+defineExpose({
+  context,
+});
 </script>
 <template>
   <FileInterface

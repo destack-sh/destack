@@ -2,15 +2,21 @@
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
-import { useStatementContext, type StatementAction } from "@/components/statement";
+import { useStatementContext } from "@/components/statement";
 import { useTimeFromNow } from "@/composables/useNow";
-import { useEditorState } from "@/state/editor";
+import { useEditorState, type StatementAction } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { newExecutionId, useSymbolOps } from "@/state/runtime";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import InlineActions from "@/components/basic/InlineActions.vue";
-import { NoSymbolIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
+import {
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
+  NoSymbolIcon,
+  PlayIcon,
+  StopIcon,
+} from "@heroicons/vue/24/outline";
 import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
 import { formatDurationSeconds } from "@/composables/useNow";
 import { useOperations } from "@/state/operations";
@@ -51,6 +57,7 @@ const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(nul
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 const addingTypes = ref(false);
 const hideOutput = ref(false);
+const truncateOutput = ref(true);
 const preparingRun = ref(false);
 
 const executionActive = computed(
@@ -209,10 +216,11 @@ defineExpose({
   <!-- Last output/error (if any) -->
   <div
     v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"
-    class="relative -mx-1 mb-0.5 w-full rounded-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
+    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
     :class="[
       context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
       lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600',
+      truncateOutput ? 'max-h-[250px] overflow-y-hidden' : '',
     ]"
     :key="lastExecution?.id"
   >
@@ -241,5 +249,16 @@ defineExpose({
         </span>
       </li>
     </ul>
+    <!-- If truncating, button overlay with fade gradient -->
+    <button
+      v-if="truncateOutput"
+      class="absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-gray-100 to-transparent pb-2"
+      @click="truncateOutput = false"
+    >
+      <ChevronDoubleDownIcon class="h-4 w-4 text-gray-400" />
+    </button>
+    <button v-else class="flex w-full flex-row justify-center bg-gray-100 pt-0.5" @click="truncateOutput = true">
+      <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400" />
+    </button>
   </div>
 </template>
