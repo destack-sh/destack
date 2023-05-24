@@ -83,7 +83,7 @@ export type RegisteredAction = {
   label: string | Ref<string>;
   shortcuts: string[];
   registered?: Ref<boolean>;
-  enabled?: Ref<boolean>;
+  enabled?: Ref<boolean | undefined>;
   apply: () => void;
 };
 

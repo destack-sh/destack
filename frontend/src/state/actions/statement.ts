@@ -1,11 +1,11 @@
 import { activeFileState, navigationContexts, type NavigationContext } from "@/components/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
-import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useBenchState, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
-import { useSymbolNavigation, useSymbolOps } from "@/state/runtime";
-import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
+import { useSymbolNavigation } from "@/state/runtime";
+import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";
 
@@ -21,7 +21,7 @@ function _provideStatementActions() {
 }
 
 function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const ops = useOperations();
 
   const statements = computed(() => file.value?.statements ?? []);
@@ -30,10 +30,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     () => file.value?.statementsByParentId ?? {}
   );
   const cur = computed(() => file.value?.current);
-
-  // actions for currently focused statement
-
-  const navigatingFile = computed(() => !editor.editingElement && editor.focusedViewId == null);
+  const editor = computed(() => file.value?.editor);
+  const navigatingFile = computed(() => !editor.value?.editing && bench.focusedViewId == null);
 
   // move focus
   const moveFocusUp = provideGlobalAction({
@@ -42,9 +40,9 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: ["up"],
     enabled: computed(() => navigatingFile.value),
     apply: () => {
-      editor.clearSelection();
+      editor.value?.clearSelection();
       if (cur.value?.above != null) {
-        editor.focusElement(cur.value.above, true);
+        editor.value?.focusElement(cur.value.above, true);
       } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus last statement
         // note: I have disabled auto-focus last since it leads to some annoying behaviour,
@@ -62,16 +60,16 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     enabled: computed(() => navigatingFile.value),
     shortcuts: ["down"],
     apply: () => {
-      editor.clearSelection();
+      editor.value?.clearSelection();
       if (cur.value?.below != null) {
-        editor.focusElement(cur.value?.below, true);
+        editor.value?.focusElement(cur.value?.below, true);
       } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus first statement
-        if (editor.hasSelection) {
+        if (editor.value?.hasSelection) {
           const selectedRoots = file.value?.getSelectedRoots();
-          editor.focusElement(selectedRoots?.[0] as StatementHeader);
+          editor.value?.focusElement(selectedRoots?.[0] as StatementHeader);
         } else {
-          editor.focusElement(statements.value[0], true);
+          editor.value?.focusElement(statements.value[0], true);
         }
       } else if (cur.value?.statement != null) {
         // navigate down from statements
@@ -86,8 +84,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: ["right"],
     enabled: computed(() => navigatingFile.value && cur.value?.statement != null && cur.value?.children.length > 0),
     apply: () => {
-      editor.clearSelection();
-      editor.focusElement(cur.value?.children[0] as StatementHeader, true);
+      editor.value?.clearSelection();
+      editor.value?.focusElement(cur.value?.children[0] as StatementHeader, true);
     },
   });
   const moveFocusOut = provideGlobalAction({
@@ -98,9 +96,9 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       () => navigatingFile.value && cur.value?.statement != null && cur.value?.statement.parent != null
     ),
     apply: () => {
-      editor.clearSelection();
+      editor.value?.clearSelection();
       const parent = statementsById.value[cur.value?.statement?.parent?.id];
-      editor.focusElement(parent, true);
+      editor.value?.focusElement(parent, true);
     },
   });
 
@@ -111,16 +109,16 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: ["enter"],
     enabled: computed(() => cur.value?.statement != null && navigatingFile.value),
     apply: () => {
-      editor.editElement(cur.value?.statement as StatementHeader);
+      editor.value?.editElement(cur.value?.statement as StatementHeader);
     },
   });
   const stopEditing = provideGlobalAction({
     id: "statement.stopEditingCurrent",
     label: "Stop editing statement",
     shortcuts: ["escape"],
-    enabled: computed(() => cur.value?.statement != null && editor.editingElement && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && editor.value?.editing && !editor.value?.hasSelection),
     apply: () => {
-      editor.stopEditingElement(cur.value?.statement as StatementHeader);
+      editor.value?.stopEditingElement(cur.value?.statement as StatementHeader);
     },
   });
 
@@ -129,7 +127,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.indentCurrent",
     label: "Indent statement",
     shortcuts: ["tab"],
-    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null && !editor.value?.hasSelection),
     // we can only indent if there is a sibling above
     apply: async () => {
       await file.value?.indent(cur.value?.statement as StatementHeader);
@@ -140,7 +138,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     label: "Unindent statement",
     shortcuts: ["shift+tab"],
     enabled: computed(
-      () => cur.value?.statement != null && cur.value?.statement.parent != null && !editor.hasSelection
+      () => cur.value?.statement != null && cur.value?.statement.parent != null && !editor.value?.hasSelection
     ),
     apply: async () => {
       await file.value?.unindent(cur.value?.statement as StatementHeader);
@@ -150,7 +148,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.indentSelection",
     label: "Indent selection",
     shortcuts: ["tab"],
-    enabled: computed(() => editor.hasSelection),
+    enabled: computed(() => editor.value?.hasSelection),
     apply: async () => {
       // indent selected roots in line with the topmost selected statement
       const selectedRoots = file.value?.getSelectedRoots();
@@ -161,7 +159,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.unindentSelection",
     label: "Unindent selection",
     shortcuts: ["shift+tab"],
-    enabled: computed(() => editor.hasSelection),
+    enabled: computed(() => editor.value?.hasSelection),
     apply: async () => {
       // unindent selected roots in line with the topmost selected statement
       const selectedRoots = file.value?.getSelectedRoots();
@@ -174,7 +172,9 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.moveCurrentUp",
     label: "Move statement up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => cur.value?.statement != null && file.value?.current.above != null && !editor.hasSelection),
+    enabled: computed(
+      () => cur.value?.statement != null && file.value?.current.above != null && !editor.value?.hasSelection
+    ),
     apply: async () => {
       await file.value?.moveUp(cur.value?.statement as StatementHeader);
     },
@@ -184,7 +184,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
     enabled: computed(
-      () => cur.value?.statement != null && file.value?.current.belowCurGroup != null && !editor.hasSelection
+      () => cur.value?.statement != null && file.value?.current.belowCurGroup != null && !editor.value?.hasSelection
     ),
     apply: async () => {
       await file.value?.moveDown(cur.value?.statement as StatementHeader);
@@ -194,7 +194,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.moveSelectionUp",
     label: "Move selection up",
     shortcuts: ["alt+up", "meta+up"],
-    enabled: computed(() => editor.hasSelection),
+    enabled: computed(() => editor.value?.hasSelection),
     apply: async () => {
       await file.value?.moveBatchUp(file.value?.getSelectedRoots() ?? []);
     },
@@ -203,7 +203,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.moveSelectionDown",
     label: "Move selection down",
     shortcuts: ["alt+down", "meta+down"],
-    enabled: computed(() => editor.hasSelection),
+    enabled: computed(() => editor.value?.hasSelection),
     apply: async () => {
       await file.value?.moveBatchDown(file.value?.getSelectedRoots() ?? []);
     },
@@ -218,16 +218,16 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       // remove self from selection if previous selected (last is current) is above
       // (that means we're expanding down)
-      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
+      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.value?.previousSelectedStatementId);
       if (prevSelectedPosition > -1 && prevSelectedPosition < (cur.value?.position as number)) {
-        editor.removeFromSelection(cur.value?.statement as StatementHeader);
+        editor.value?.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
-        editor.addToSelection(cur.value?.statement as StatementHeader);
-        editor.addToSelection(cur.value?.aboveCurGroup as StatementHeader);
+        editor.value?.addToSelection(cur.value?.statement as StatementHeader);
+        editor.value?.addToSelection(cur.value?.aboveCurGroup as StatementHeader);
       }
       // then move focus up to previous sibling or parent
       // (if above != null, then aboveCurGroup must also be non null)
-      editor.focusElement(cur.value?.aboveCurGroup as StatementHeader, false);
+      editor.value?.focusElement(cur.value?.aboveCurGroup as StatementHeader, false);
     },
   });
   const expandSelectionDown = provideGlobalAction({
@@ -238,24 +238,24 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       // remove self from selection if previous selected (last is current) is below
       // (that means we're expanding up)
-      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.previousSelectedElementId);
+      const prevSelectedPosition = statements.value.findIndex((s) => s.id == editor.value?.previousSelectedStatementId);
       if (prevSelectedPosition > -1 && prevSelectedPosition > (cur.value?.position as number)) {
-        editor.removeFromSelection(cur.value?.statement as StatementHeader);
+        editor.value?.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
-        editor.addToSelection(cur.value?.statement as StatementHeader);
-        editor.addToSelection(cur.value?.belowCurGroup as StatementHeader);
+        editor.value?.addToSelection(cur.value?.statement as StatementHeader);
+        editor.value?.addToSelection(cur.value?.belowCurGroup as StatementHeader);
       }
       // then move focus down
-      editor.focusElement(cur.value?.belowCurGroup as StatementHeader, false);
+      editor.value?.focusElement(cur.value?.belowCurGroup as StatementHeader, false);
     },
   });
   const cancelSelection = provideGlobalAction({
     id: "statement.cancelSelection",
     label: "Cancel selection",
     shortcuts: ["escape"],
-    enabled: computed(() => editor.hasSelection),
+    enabled: computed(() => editor.value?.hasSelection),
     apply: () => {
-      editor.clearSelection();
+      editor.value?.clearSelection();
     },
   });
   const selectAll = provideGlobalAction({
@@ -264,7 +264,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: ["ctrl+a", "meta+a"],
     enabled: computed(() => navigatingFile.value),
     apply: () => {
-      statements.value.forEach(editor.addToSelection);
+      if (editor.value == null) return;
+      statements.value.forEach(editor.value?.addToSelection);
     },
   });
 
@@ -273,11 +274,11 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.deleteCurrent",
     label: "Delete current statement",
     shortcuts: ["backspace", "delete"],
-    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
+    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.value?.hasSelection),
     apply: async () => {
       const current = cur.value?.statement?.id;
       if (cur.value?.above) {
-        editor.focusElement(cur.value?.above);
+        editor.value?.focusElement(cur.value?.above);
       }
       await ops.statement.softDelete(null, current);
     },
@@ -286,11 +287,12 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.deleteSelection",
     label: "Delete selected statements",
     shortcuts: ["backspace", "delete"],
-    enabled: computed(() => editor.hasSelection && navigatingFile.value),
+    enabled: computed(() => editor.value?.hasSelection && navigatingFile.value),
     apply: async () => {
       // after delete focus next statement above
-      editor.blurElement();
-      await ops.statement.batchSoftDelete(editor.selectedElementIds);
+      if (editor.value == null) return;
+      editor.value?.blurElement();
+      await ops.statement.batchSoftDelete(editor.value?.selectedElementIds);
     },
   });
 
@@ -309,7 +311,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: async () => {
       const current = cur.value?.statement?.id;
       if (cur.value?.above) {
-        editor.focusElement(cur.value?.above, true);
+        editor.value?.focusElement(cur.value?.above, true);
       }
       await ops.statement.softDelete(null, current);
     },
@@ -346,7 +348,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       const roots = statementsByParentId.value[""];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
       const newStatement = _insertOptimisticBlank(null, generateKeyBetween(null, firstRootKey));
-      editor.editElement(newStatement as StatementHeader);
+      editor.value?.editElement(newStatement as StatementHeader);
     },
   });
   const insertEnd = provideGlobalAction({
@@ -358,16 +360,16 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       const roots = statementsByParentId.value[""];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
       const newStatement = _insertOptimisticBlank(null, generateKeyBetween(lastRootKey, null));
-      editor.editElement(newStatement as StatementHeader);
+      editor.value?.editElement(newStatement as StatementHeader);
     },
   });
   const insertAbove = provideGlobalAction({
     id: "statement.insertAboveCurrent",
     label: "Insert statement above",
     shortcuts: ["a"],
-    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.value?.hasSelection) && navigatingFile.value),
     apply: () => {
-      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
+      const selectedRoots = editor.value?.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
       const top = selectedRoots?.[0];
       if (top != null) {
         const previousSibling = file.value?.getPreviousSibling(top);
@@ -386,7 +388,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.insertBelowCurrent",
     label: "Insert statement below",
     shortcuts: ["b", "shift+enter", "plus"],
-    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.value?.hasSelection) && navigatingFile.value),
     apply: () => {
       const bottom = file.value?.getSelectionBottom();
       const nextSibling = bottom != null ? file.value?.getNextSibling(bottom) : undefined;
@@ -396,7 +398,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       );
       // wait for next tick to ensure there is something to focus
       // this feels a bit hacky, but focus management will likely be overhauled anyway
-      nextTick(() => editor.editElement(newStatement as StatementHeader));
+      nextTick(() => editor.value?.editElement(newStatement as StatementHeader));
     },
   });
 
@@ -425,9 +427,9 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.copy",
     label: "Copy statements",
     shortcuts: ["ctrl+c", "meta+c"],
-    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.value?.hasSelection) && navigatingFile.value),
     apply: async () => {
-      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
+      const selectedRoots = editor.value?.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
       file.value?.copy(selectedRoots as StatementHeader[]);
     },
   });
@@ -435,11 +437,11 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.cut",
     label: "Cut statements",
     shortcuts: ["ctrl+x", "meta+x"],
-    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.value?.hasSelection) && navigatingFile.value),
     apply: async () => {
       copy.value.apply();
-      const selectedRoots = editor.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
-      editor.blurElement();
+      const selectedRoots = editor.value?.hasSelection ? file.value?.getSelectedRoots() : [cur.value?.statement];
+      editor.value?.blurElement();
       await ops.statement.batchSoftDelete(selectedRoots?.map((s) => s?.id) ?? []);
     },
   });
@@ -456,22 +458,10 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     id: "statement.duplicate",
     label: "Duplicate statements",
     shortcuts: ["ctrl+d", "meta+d"],
-    enabled: computed(() => (cur.value?.statement != null || editor.hasSelection) && navigatingFile.value),
+    enabled: computed(() => (cur.value?.statement != null || editor.value?.hasSelection) && navigatingFile.value),
     apply: async () => {
       await copy.value.apply();
       paste.value.apply();
-    },
-  });
-
-  // symbol ops
-  const symbolOps = useSymbolOps();
-  const run = provideGlobalAction({
-    id: "statement.run",
-    label: "Run current statement",
-    shortcuts: ["r r"],
-    enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.hasSelection),
-    apply: async () => {
-      await symbolOps.openRun(cur.value?.statement);
     },
   });
 
@@ -507,6 +497,5 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     cut,
     paste,
     duplicate,
-    run,
   };
 }

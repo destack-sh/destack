@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import type { Secret } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { useSecretOps } from "@/state/operations/secret";
 import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
@@ -51,7 +51,7 @@ export function isValidSecretRecord(obj: any): boolean {
 
 export function useSecrets() {
   const ops = useSecretOps();
-  const editor = useEditorState();
+  const bench = useBenchState();
   const client = useApolloClient();
 
   async function upsert(
@@ -59,7 +59,7 @@ export function useSecrets() {
     updated: { name: string | null; value: any }
   ): Promise<SecretRecord> {
     if (existing == null) {
-      const ret = await ops.create(editor.currentProjectId as string, updated.name, updated.value);
+      const ret = await ops.create(bench.currentProjectId as string, updated.name, updated.value);
       if (ret?.data?.createSecret.__typename != "Secret") {
         throw new Error("secret.create returned non-secret");
       }

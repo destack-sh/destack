@@ -5,7 +5,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { provideGlobalAction } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useEditorState, type ProjectHeader } from "@/state/editor";
+import { useBenchState, type ProjectHeader } from "@/state/editor";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -26,11 +26,11 @@ const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const { getTimeFromNowString } = useTimeFromNow();
 
-const editor = useEditorState();
+const bench = useBenchState();
 const appearance = useAppearance();
 
 function isCurrent(version: { id: string }): boolean {
-  return editor.currentProjectVersionId == version.id;
+  return bench.currentProjectVersionId == version.id;
 }
 
 const { result: versionsQuery, loading } = useQuery(
@@ -61,7 +61,7 @@ const versions = computed(
 );
 const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
-const isAtHead = computed(() => editor.currentProjectVersionId == head.value?.id);
+const isAtHead = computed(() => bench.currentProjectVersionId == head.value?.id);
 
 const router = useRouter();
 const notifications = useNotifications();
@@ -85,7 +85,7 @@ const commit = provideGlobalAction({
   enabled: computed(
     () =>
       props.project.canWrite &&
-      editor.currentProjectVersionId != null &&
+      bench.currentProjectVersionId != null &&
       !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: () => {
@@ -121,11 +121,11 @@ provideGlobalAction({
   enabled: computed(
     () =>
       props.project.canWrite &&
-      editor.currentProjectVersionId != null &&
+      bench.currentProjectVersionId != null &&
       !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: async () => {
-    await doCommit({ projectVersionId: editor.currentProjectVersionId as string });
+    await doCommit({ projectVersionId: bench.currentProjectVersionId as string });
   },
 });
 
@@ -136,7 +136,7 @@ const restore = provideGlobalAction({
   enabled: computed(() => props.project.canWrite && !isAtHead.value),
   apply: async () => {
     ops.state.reset();
-    const ret = await ops.version.restore(editor.currentProjectVersionId as string);
+    const ret = await ops.version.restore(bench.currentProjectVersionId as string);
     if (ret?.data?.restore.__typename == "CommitPayload") {
       notifications.show({
         type: "restore.success",

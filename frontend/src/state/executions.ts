@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { ExecutionStatus } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";
@@ -194,9 +194,9 @@ export function useExecutions(
 }
 
 function _useModuleExecutions() {
-  const editor = useEditorState();
-  const projectId = computed(() => editor.currentProjectId);
-  const projectVersionId = computed(() => editor.currentProjectVersionId);
+  const bench = useBenchState();
+  const projectId = computed(() => bench.currentProjectId);
+  const projectVersionId = computed(() => bench.currentProjectVersionId);
   return useExecutions(
     {
       projectId,

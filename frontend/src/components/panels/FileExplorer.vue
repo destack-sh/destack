@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
-import { useEditorState, type FileHeader, type ViewId } from "@/state/editor";
-import { onClickOutside, useFocusWithin } from "@vueuse/core";
+import { useBenchState, type FileHeader, type ViewId } from "@/state/editor";
+import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{
@@ -12,7 +12,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
 }>();
 
-const editor = useEditorState();
+const bench = useBenchState();
 
 const filesSorted = computed(() => {
   const files = props.files?.filter((f) => f.deletedAt == null && !f.directory && !f.generated) ?? [];
@@ -20,7 +20,7 @@ const filesSorted = computed(() => {
     return a.path.localeCompare(b.path);
   });
 });
-const focusedFileId = computed(() => filesSorted.value.find((f) => f.id == editor.focusedFileId)?.id);
+const focusedFileId = computed(() => filesSorted.value.find((f) => f.id == bench.focusedFileId)?.id);
 const filesGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
   filesSorted,
@@ -31,23 +31,18 @@ const filesGrid = useNavigationGrid<"name", HTMLElement>(
 );
 
 function focusFile(file: FileHeader) {
-  const focusedViewId = editor.focusedViewId;
-  editor.focusFile(file);
-  editor.focusView(focusedViewId as ViewId); // keep focused view
+  const focusedViewId = bench.focusedViewId;
+  bench.focusFile(file);
+  bench.focusView(focusedViewId as ViewId); // keep focused view
 }
 
 function focusFileAndGoThere(file: FileHeader) {
-  editor.focusFile(file);
+  bench.focusFile(file);
 }
 
 // blur focused file if clicking outside file explorer
 const listRef: Ref<HTMLDivElement | null> = ref(null);
 const { focused: listRefFocused } = useFocusWithin(listRef);
-onClickOutside(listRef, () => {
-  if (editor.focusedElementType == "File") {
-    editor.blurElement();
-  }
-});
 
 function focus(target?: "first" | "last") {
   // focus currently focused file if nothing was directly selected (and thus focused)
@@ -80,9 +75,9 @@ defineExpose({
       @keydown.down.exact.prevent="filesGrid.navigateDown(file.id, 'name')"
       class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer focus:border-orange-600"
       :class="{
-        'bg-orange-100 text-orange-600': file.id == editor?.focusedFileId,
-        'text-gray-700 hover:text-orange-600': file.id != editor?.focusedFileId,
-        'border-l-2 border-l-gray-300 pl-2.5': file.generated && file.id != editor?.focusedFileId,
+        'bg-orange-100 text-orange-600': file.id == bench?.focusedFileId,
+        'text-gray-700 hover:text-orange-600': file.id != bench?.focusedFileId,
+        'border-l-2 border-l-gray-300 pl-2.5': file.generated && file.id != bench?.focusedFileId,
       }"
       @click="focusFile(file)"
       @keydown.enter.exact.prevent="focusFileAndGoThere(file)"

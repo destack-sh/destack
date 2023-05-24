@@ -1,14 +1,14 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
-import { useEditorState, type EditorGroup } from "@/state/editor";
+import { useBenchState, type EditorGroup } from "@/state/editor";
 import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
 const props = defineProps<{ group: EditorGroup }>();
 
-const editor = useEditorState();
+const bench = useBenchState();
 const actions = useActions();
 
 const { result: suggestedFiles } = useQuery(
@@ -31,11 +31,11 @@ const { result: suggestedFiles } = useQuery(
     }
   `),
   computed(() => ({
-    projectVersionId: editor.currentProjectVersionId,
+    projectVersionId: bench.currentProjectVersionId,
     last: 8,
   })) as any,
   {
-    enabled: computed(() => !!editor.currentProjectVersionId),
+    enabled: computed(() => !!bench.currentProjectVersionId),
   }
 );
 const files = computed(() =>
@@ -49,13 +49,13 @@ const createActions = computed(() => [
   {
     label: "View files",
     icon: DocumentIcon,
-    action: () => actions.apply("editor.view.openExplorer"),
+    action: () => actions.apply("bench.view.openExplorer"),
     enabled: true,
   },
   {
     label: "Search files",
     icon: MagnifyingGlassIcon,
-    action: () => actions.apply("editor.view.openSearch"),
+    action: () => actions.apply("bench.view.openSearch"),
     enabled: false,
   },
   {
@@ -67,7 +67,7 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; path: string }) {
-  editor.openFile(file, { group: props.group });
+  bench.openFile(file, { group: props.group });
 }
 </script>
 <template>

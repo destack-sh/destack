@@ -9,21 +9,25 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import { useEditorState, type EditorContext, type FileAction, type StatementHeader } from "@/state/editor";
+import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon, CodeBracketIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
 import ActionPopover from "@/components/basic/ActionPopover.vue";
+import { whenever } from "@vueuse/core";
 
-const props = defineProps<{ editorId: string; context: EditorContext; fileId: string; focused: boolean }>();
+const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
-const editor = useEditorState();
+const bench = useBenchState();
 const appearance = useAppearance();
 const actions = useActions();
+const editor = computed(() => props.editor.editor.value);
+
+// file state
 
 const { result: file, loading: fileLoading } = useQuery(
   graphql(/* GraphQL */ `
@@ -41,18 +45,17 @@ const { result: file, loading: fileLoading } = useQuery(
     }
   `),
   () => ({
-    fileId: props.fileId,
+    fileId: props.editor.editor.value.fileId,
   })
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
 const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
 const isOtherVersion = computed(
   () =>
-    editor.currentProjectVersionId != null &&
+    bench.currentProjectVersionId != null &&
     fileHeader.value != null &&
-    fileHeader.value?.projectVersion?.id != editor.currentProjectVersionId
+    fileHeader.value?.projectVersion?.id != bench.currentProjectVersionId
 );
-const now = useTimeFromNow(fileHeader.value?.deletedAt);
 const statements = computed(() => {
   return (
     file.value?.file?.statements
@@ -60,55 +63,70 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-
 const fileState: Ref<FileState | null> = computed(() => {
   if (fileHeader.value == null) {
     return null;
   }
   return {
-    editorId: props.editorId,
+    editor: props.editor.editor.value,
     focused: props.focused,
     file: fileHeader.value as any,
     statementsUnordered: statements.value,
-    navigateUp: () => (editor.blurElement(), nameRef.value?.focus()),
+    navigateUp: () => (props.editor.editor.value.blurElement(), nameRef.value?.focus()),
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
 const context = provideFileState(fileState);
 
+const now = useTimeFromNow();
 const ops = useOperations();
+
 function restore() {
   ops.file.restore(null, fileHeader.value?.id);
 }
 
 async function insertStatementStart() {
   if (fileHeader.value == null) return;
-  editor.focusFile(fileHeader.value);
+  bench.focusFile(fileHeader.value);
   actions.apply("statement.insertStart");
 }
 
 async function insertOrFocusStatementStart() {
   if (fileHeader.value == null) return;
-  editor.focusFile(fileHeader.value);
+  bench.focusFile(fileHeader.value);
   if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
-    editor.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
+    editor.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
   }
 }
 
 async function insertOrFocusStatementEnd() {
   if (fileHeader.value == null) return;
-  editor.focusFile(fileHeader.value);
+  bench.focusFile(fileHeader.value);
   // focus last statement if it's a blank
   const lastStatement = context.value?.positionedStatements[context.value.positionedStatements.length - 1];
   if (lastStatement?.statement.type == StatementType.Blank) {
-    editor.editElement(lastStatement.statement as StatementHeader);
+    editor.value.editElement(lastStatement.statement as StatementHeader);
     return;
   } else {
     actions.apply("statement.insertEnd");
   }
 }
+
+// left click anywhere clears editor selection
+function clearSelectionIfLeftClick(e: MouseEvent) {
+  if (e.button == 0 && !e.altKey && !e.shiftKey) {
+    editor.value?.clearSelection();
+  }
+}
+document.addEventListener("click", clearSelectionIfLeftClick);
+onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
+// whenever editing -> clears selection
+whenever(
+  computed(() => editor.value.editing),
+  () => editor.value?.clearSelection()
+);
 
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -119,6 +137,9 @@ syncProperty({
   read: () => (name.value = fileHeader.value?.name ?? null),
   write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
 });
+
+// sync name/path into editor
+watch(name, () => (editor.value.path = name.value ?? ""));
 
 // auto-focus name once loaded and if contents are empty
 watch(
@@ -180,13 +201,13 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       ops.file.softDelete(null, fileHeader.value?.id);
       emit("close");
     },
-    disabled: editor.readonly,
+    disabled: bench.readonly,
   },
 ]);
 
-// computed absolutely because I'm so tired of flex for this kind of thing
+// statement add areas (computed absolutely because I'm so tired of flex)
 const statementAddAreaPositionX = computed(() => {
-  const editorSize = props.context.size.value;
+  const editorSize = props.editor.size.value;
   if (editorSize.width > appearance.contentWidthWithMargin) {
     const marginX = (editorSize.width - appearance.contentWidth) / 2;
     return {
@@ -256,13 +277,16 @@ const auth = useAuth();
           <CodeBracketIcon class="h-4 w-4 text-gray-700" />
         </span>
         <!-- editor path -->
-        <ActionPopover anchor="left" :thing="file" :actions="[...fileActions, ...props.context.actions.value]" class="">
+        <ActionPopover anchor="left" :thing="file" :actions="[...fileActions, ...props.editor.actions.value]" class="">
           <span class="text-gray-900">{{ name }}</span>
         </ActionPopover>
-        <span v-if="context.statementsById[editor.focusedElementId ?? '']?.name != null" class="text-gray-900"
+        <span v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null" class="text-gray-900"
           ><span class="text-gray-700">/</span>
-          {{ context.statementsById[editor.focusedElementId as string].name }}</span
+          {{ context?.statementsById[editor.activeStatementId as string].name }}</span
         >
+        <span v-if="bench.debug" class="bg-red-200 bg-opacity-50 text-gray-900">
+          {{ editor.editing ? "(editing)" : "" }}
+        </span>
       </div>
       <!-- File name & meta actions -->
       <div
@@ -284,7 +308,7 @@ const auth = useAuth();
               class="text-3xl font-extrabold"
               :class="appearance.baseClassUnsized"
               suppress-shortcuts
-              :readonly="editor.readonly || isDeleted || isOtherVersion"
+              :readonly="bench.readonly || isDeleted || isOtherVersion"
               v-model="name"
               @enter="goToContent"
               @keyup.up.prevent="() => ({}) /* noop */"
@@ -312,14 +336,14 @@ const auth = useAuth();
           </span>
         </span>
         <!-- Other clients presence -->
-        <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="props.fileId" />
+        <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="editor.fileId" />
       </div>
       <!-- Add statement to start -->
       <StatementAddArea
         class="mx-auto"
         :style="statementAddAreaPositionX"
         position="start"
-        @click="editor.readonly || insertOrFocusStatementStart()"
+        @click="bench.readonly || insertOrFocusStatementStart()"
         v-if="statements?.length > 0"
       />
       <!-- File's statements -->
@@ -343,7 +367,7 @@ const auth = useAuth();
         class="flex-1 pb-72"
         :style="statementAddAreaPositionX"
         position="end"
-        @click="editor.readonly || insertOrFocusStatementEnd()"
+        @click="bench.readonly || insertOrFocusStatementEnd()"
       />
     </div>
   </div>

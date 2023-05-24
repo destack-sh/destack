@@ -7,7 +7,7 @@ import {
   type InterpModule,
   type InterpSymbol,
 } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
@@ -205,9 +205,9 @@ function _useInterpModule(projectVersionId: Ref<string | null>) {
 }
 
 function _useCurrentInterpModule(projectVersionId?: Ref<string | null>) {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const activeVersionId = computed(() =>
-    projectVersionId?.value != null ? projectVersionId.value : editor.currentProjectVersionId
+    projectVersionId?.value != null ? projectVersionId.value : bench.currentProjectVersionId
   );
   return _useInterpModule(activeVersionId);
 }
@@ -334,25 +334,25 @@ export function buildsOf(
 
 export function useVisibleErrors() {
   const runtime = useCurrentInterpModule();
-  const editor = useEditorState();
+  const bench = useBenchState();
   return computed(() =>
     (runtime.errors.value ?? [])
       .map((e) => e as InterpError)
-      .filter((e: InterpError) => e.symbol == null || editor.showGenerated || !e.symbol.generated)
+      .filter((e: InterpError) => e.symbol == null || bench.showGenerated || !e.symbol.generated)
   );
 }
 
 export function useSymbolNavigation() {
-  const editor = useEditorState();
+  const bench = useBenchState();
 
   function focusSymbol(symbol: { id: string }) {
     const context = contextOf(symbol);
     if (!context?.file) return;
     // can't focus external modules yet
-    if (context.module.id != editor.currentProjectVersionId) return;
+    if (context.module.id != bench.currentProjectVersionId) return;
 
-    editor.focusFile(context.file as any);
-    editor.editElement(symbol as any);
+    bench.focusFile(context.file as any);
+    bench.editElement(symbol as any);
   }
 
   return { focusSymbol };

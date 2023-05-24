@@ -1,10 +1,10 @@
 import { graphql } from "@/gql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useRuntimeOps() {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const ops = useOperationsStore();
 
   const { mutate: runMut } = useMutation(
@@ -74,7 +74,7 @@ export function useRuntimeOps() {
       stateless: true,
       do: async () => {
         return await runMut({
-          projectVersionId: editor.currentProjectVersionId,
+          projectVersionId: bench.currentProjectVersionId,
           runnableId,
           buildId,
           executionId,
@@ -117,7 +117,7 @@ export function useRuntimeOps() {
       stateless: true,
       do: async () => {
         return await cancelMut({
-          projectVersionId: editor.currentProjectVersionId,
+          projectVersionId: bench.currentProjectVersionId,
           executionId,
         });
       },

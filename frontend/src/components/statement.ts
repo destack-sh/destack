@@ -5,14 +5,12 @@ import {
   SymbolType,
   TypeHint,
   TypeTag,
-  type DatasetRecord,
   type InterpSymbol,
   type SimpleTypeNode,
   type TypeNodeCreateInput,
   type TypeNodeUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import type { StatementHeader } from "@/state/editor";
 import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";

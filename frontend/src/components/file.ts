@@ -1,6 +1,6 @@
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
-import { useEditorState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/editor";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
@@ -11,7 +11,7 @@ import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
 export type FileState = {
-  editorId: string;
+  editor: FileEditor;
   focused: boolean;
   file: FileHeader;
   statementsUnordered: StatementHeader[]; // unordered
@@ -53,7 +53,7 @@ export function provideFileState(file: Ref<FileState | null>) {
     }
   });
   onBeforeUnmount(() => {
-    if (activeFileState.value?.editorId === file.value?.editorId) {
+    if (activeFileState.value?.editor.id === file.value?.editor.id) {
       activeFileState.value = null;
     }
   });
@@ -261,7 +261,7 @@ export type CurrentNavigationContext = {
 };
 
 export function provideNavigationContext(file: Ref<FileContext | null>) {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const ops = useOperations();
 
   const statements = computed(() => file.value?.statements ?? []);
@@ -548,16 +548,18 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   // selection
 
-  const statement = computed(() => statementsById.value[editor.focusedElementId as string]);
+  const statement = computed(() => statementsById.value[bench.focusedStatementId as string]);
 
   function getSelectedRoots(): StatementHeader[] {
     // Gets the in-selection roots of selected statements (ordered by position)
     // (it can happen that we first select a child, then expand to parent, we only want parent)
-    return getLocalRoots(editor.selectedElementIds.map((s) => statementsById.value[s]).filter((s) => s != null));
+    return getLocalRoots(
+      bench.focusedFile?.selectedElementIds?.map((s) => statementsById.value[s]).filter((s) => s != null) ?? []
+    );
   }
 
   function getSelectionBottom(): StatementHeader | undefined {
-    if (editor.hasSelection) {
+    if (bench.hasSelection) {
       const selectedRoots = getSelectedRoots();
       return selectedRoots[selectedRoots.length - 1];
     } else if (statement.value != null) {
@@ -658,13 +660,13 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       );
       console.log("pasted " + sourceStatements.length + " statements");
       // select the pasted stuff
-      if (editor.focusedElementId != null && sourceIds.includes(editor.focusedElementId)) {
-        editor.focusElement({ id: targetIds[editor.focusedElementId], __typename: "Statement" });
+      if (bench.focusedStatementId != null && sourceIds.includes(bench.focusedStatementId)) {
+        bench.focusElement({ id: targetIds[bench.focusedElementId], __typename: "Statement" });
       } else {
-        editor.blurElement();
+        bench.blurElement();
       }
-      editor.clearSelection();
-      Object.values(targetIds).forEach((targetId) => editor.addToSelection({ id: targetId }));
+      bench.clearSelection();
+      Object.values(targetIds).forEach((targetId) => bench.addToSelection({ id: targetId }));
     } catch (err) {
       console.error("failed to parse clipboard data", err);
       return;
@@ -676,7 +678,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
     // current
     const current = {
-      statement: statementsById.value[editor.focusedElementId as string],
+      statement: statementsById.value[bench.focusedElementId as string],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
@@ -757,7 +759,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   const nav = useNavigationContext();
   const ops = useOperations();
   const objects = useObjects();
-  const editor = useEditorState();
+  const bench = useBenchState();
 
   async function insertBelow(focus?: boolean) {
     if (statement.value == null) return;
@@ -765,7 +767,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
     if (focus) {
-      editor.editElement(newStatement as StatementHeader);
+      bench.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -775,7 +777,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
     if (focus) {
-      editor.editElement(newStatement as StatementHeader);
+      bench.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -794,14 +796,14 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (statement.value == null) return;
     const above = nav.value.getAbove(statement.value);
     if (above == null) return;
-    editor.focusElement(above);
+    bench.focusElement(above);
   }
 
   async function moveFocusDown() {
     if (statement.value == null) return;
     const below = nav.value.getBelow(statement.value);
     if (below == null) return;
-    editor.focusElement(below);
+    bench.focusElement(below);
   }
 
   async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
@@ -825,11 +827,11 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       const newRecordId = newRecordIds[i];
       const file = files[i];
       const orderKey = orderKeys[i];
-      const remoteObject = await ops.object.prepareUpload(editor.currentProjectId as string, file);
+      const remoteObject = await ops.object.prepareUpload(bench.currentProjectId as string, file);
       const data = { [key]: remoteObject };
       ops.symbol.createRecord(tx, newRecordId, as ?? statement.value?.id, orderKey, data);
       uploads.push(
-        objects.upload(editor.currentProjectId as string, file, (updatedObject) => {
+        objects.upload(bench.currentProjectId as string, file, (updatedObject) => {
           const newData = { ...data, [key]: updatedObject };
           ops.symbol.updateRecord(tx, newRecordId, data, newData);
         })

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
-import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useAppearance } from "@/state/appearance";
+import { useBenchState, type StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -144,7 +145,7 @@ function importSourceTo(symbol: InterpSymbol): string | undefined {
   return undefined;
 }
 
-const editor = useEditorState();
+const appearance = useAppearance();
 
 defineExpose({
   focus: () => (inputRefFocus.focused.value = true),
@@ -177,7 +178,7 @@ defineExpose({
       as="input"
       ref="inputRef"
       class="max-w-80 w-auto min-w-fit rounded-sm border-0 p-0 underline-offset-4 outline-none ring-0 focus:underline focus:ring-0 sm:text-sm"
-      :class="{ 'font-mono': editor.fontMono }"
+      :class="appearance.baseClass"
       @change="query = $event.target.value"
       :display-value="(stmt: any) => stmt?.name"
       placeholder="..."
@@ -221,10 +222,11 @@ defineExpose({
       >
         <li
           :class="[
-            'relative cursor-default select-none px-2 py-0.5 text-sm',
+            'relative cursor-default select-none px-2 py-0.5',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
             selected && !active ? 'text-orange-600' : '',
-            editor.fontMono ? 'font-mono' : '',
+            appearance.fontMono ? 'font-mono' : '',
+            appearance.fontSerif ? 'font-serif' : '',
           ]"
         >
           <div class="flex items-baseline justify-between">
