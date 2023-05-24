@@ -141,6 +141,20 @@ const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
 
+// scroll into view when becoming active
+whenever(isActive, () => {
+  if (isEditing.value) return; //  (but not editing, which would focus an actual HTML element)
+  // scroll into view if not visible
+  const editorRect = editor.container.value?.getBoundingClientRect();
+  const containerRect = containerRef.value?.getBoundingClientRect();
+  if (editorRect != null && containerRect != null) {
+    if (containerRect.top < editorRect.top + appearance.headerHeight || containerRect.bottom > editorRect.bottom) {
+      // TODO @UX: improve scroll behavior (feels a bit janky sometimes)
+      containerRef.value?.scrollIntoView(false);
+    }
+  }
+});
+
 // focus root cell if editing in editor but not in container
 whenever(
   isEditing,
@@ -164,7 +178,7 @@ watch(
   { deep: false }
 );
 
-// blur root cell if focused in container (but no longer editing or focused)
+// blur root cell if focused in container but no longer editing or focused
 watch(
   () => [isEditing.value, inRootCellFocused.value],
   () => {
@@ -333,7 +347,6 @@ const filteredClients = computed(() =>
   <div class="group/statement relative w-full" :style="appearance.contentMarginXAsPaddingX" @click="onClickContainer">
     <!-- Statement main -->
     <div
-      tabindex="-1"
       ref="containerRef"
       @dragstart.stop="onDragStart"
       class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
@@ -392,16 +405,18 @@ const filteredClients = computed(() =>
               <PlusIcon class="h-4 w-4" />
             </button>
             <!-- Other connected clients -->
-            <div
-              v-for="client in filteredClients"
-              :key="client.id"
-              class="rounded-sm px-1 py-0.5 text-gray-700"
-              :class="[bench.textSmall ? 'text-xs' : 'text-sm']"
-              :style="{
-                backgroundColor: getClientColor(client.id),
-              }"
-            >
-              {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+            <div class="mr-1 flex flex-row" v-if="filteredClients.length > 0">
+              <div
+                v-for="client in filteredClients"
+                :key="client.id"
+                class="rounded-sm px-1 py-0.5 text-gray-700"
+                :class="[bench.textSmall ? 'text-xs' : 'text-sm']"
+                :style="{
+                  backgroundColor: getClientColor(client.id),
+                }"
+              >
+                {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
+              </div>
             </div>
           </div>
         </div>
