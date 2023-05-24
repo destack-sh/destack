@@ -1,44 +1,44 @@
 import { provideGlobalAction } from "@/state/actions";
-import { useEditorState, type Editor } from "@/state/editor";
+import { useBenchState, type Editor } from "@/state/editor";
 import { computed } from "vue";
 
 export function useEditorActions() {
-  const editor = useEditorState();
+  const bench = useBenchState();
 
   // move editor
   const moveEditorLeft = provideGlobalAction({
-    id: "editor.moveEditorLeft",
+    id: "bench.moveEditorLeft",
     label: "Move Editor Left",
     shortcuts: ["ctrl+shift+left", "meta+shift+left"],
-    enabled: computed(() => editor.focusedEditor != null),
-    apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.left),
+    enabled: computed(() => bench.focusedEditor != null),
+    apply: () => bench.moveEditor(bench.focusedEditor as Editor, bench.left),
   });
   const moveEditorRight = provideGlobalAction({
-    id: "editor.moveEditorRight",
+    id: "bench.moveEditorRight",
     label: "Move Editor Right",
     shortcuts: ["ctrl+shift+right", "meta+shift+right"],
-    enabled: computed(() => editor.focusedEditor != null),
-    apply: () => editor.moveEditor(editor.focusedEditor as Editor, editor.right),
+    enabled: computed(() => bench.focusedEditor != null),
+    apply: () => bench.moveEditor(bench.focusedEditor as Editor, bench.right),
   });
 
   // close editor
   const closeEditor = provideGlobalAction({
-    id: "editor.closeEditor",
+    id: "bench.closeEditor",
     label: "Close Editor",
     shortcuts: ["alt+w", "ctrl+w", "meta+w"],
-    enabled: computed(() => editor.focusedEditor != null),
-    apply: () => editor.closeEditor(editor.focusedEditor as Editor),
+    enabled: computed(() => bench.focusedEditor != null),
+    apply: () => bench.closeEditor(bench.focusedEditor as Editor),
   });
 
   // toggle debug mode
   const toggleDebugMode = provideGlobalAction({
-    id: "editor.toggleDebugMode",
+    id: "bench.toggleDebugMode",
     label: "Toggle Debug Mode",
     shortcuts: ["ctrl+shift+d", "meta+shift+d"],
     enabled: computed(() => true),
     apply: () => {
       console.log("toggle debug mode");
-      editor.debug = !editor.debug;
+      bench.debug = !bench.debug;
     },
   });
 

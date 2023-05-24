@@ -2,13 +2,13 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
 import { useAppearance } from "@/state/appearance";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, HashtagIcon, MapIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const appearance = useAppearance();
-const editor = useEditorState();
+const bench = useBenchState();
 
 const isContentWide = computed(() => appearance.contentWidth != 800);
 function setContentWide(wide: boolean) {
@@ -86,7 +86,7 @@ const fontOptions = [
             <HashtagIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Line numbers</span>
           </span>
-          <Switch v-model="editor.showLineNumbers" />
+          <Switch v-model="bench.showLineNumbers" />
         </div>
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">
@@ -94,7 +94,7 @@ const fontOptions = [
             <MapIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Global header</span>
           </span>
-          <Switch v-model="editor.showGlobalHeader" />
+          <Switch v-model="bench.showGlobalHeader" />
         </div>
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">
@@ -102,7 +102,7 @@ const fontOptions = [
             <MapIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Editor headers</span>
           </span>
-          <Switch v-model="editor.showEditorGroupHeader" />
+          <Switch v-model="bench.showEditorGroupHeader" />
         </div>
         <!-- Dark mode -->
         <div class="flex flex-row items-center justify-between px-2">

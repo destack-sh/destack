@@ -4,7 +4,7 @@ import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import { useTimeFromNow } from "@/composables/useNow";
-import { useEditorState, type StatementAction } from "@/state/editor";
+import { useBenchState, type StatementAction } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { newExecutionId, useSymbolOps } from "@/state/runtime";
@@ -34,12 +34,12 @@ const codeSync = context.syncCode(
 
 const now = useTimeFromNow();
 
-// TODO @Broken @Performance @UX: load inline code executions more sensibly
-const editor = useEditorState();
+// TODO @Performance: load inline code executions more sensibly
+const bench = useBenchState();
 const executions = useExecutions(
   {
-    projectId: toRef(editor, "currentProjectId"),
-    projectVersionId: toRef(editor, "currentProjectVersionId"),
+    projectId: toRef(bench, "currentProjectId"),
+    projectVersionId: toRef(bench, "currentProjectVersionId"),
     codeIds: ref([context.statement.value.id]),
     buildIds: ref(null),
     includeAncestorVersions: ref(false),

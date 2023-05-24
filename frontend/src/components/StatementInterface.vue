@@ -8,13 +8,13 @@ import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { useMagicActions, useNavigationContext } from "@/components/file";
-import { STATEMENT_CONTEXT, type StatementAction, type StatementContext } from "@/components/statement";
+import { STATEMENT_CONTEXT, type StatementContext } from "@/components/statement";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType, SymbolType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { getClientColor, useCurrentClients } from "@/state/client";
-import { useEditorState, type StatementHeader } from "@/state/editor";
+import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/editor";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { isSymbolStale, localErrorsOf, symbolOf } from "@/state/runtime";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
@@ -33,13 +33,14 @@ const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
 const ancestors = computed(() => props.ancestors.map((s) => useFragment(StatementContentType, s)));
 
-const editor = useEditorState();
+const bench = useBenchState();
 const appearance = useAppearance();
 const nav = useNavigationContext();
+const editor = useEditorContext();
 
-const isFocused = computed(() => editor.focusedElementId == statement.value?.id);
-const isEditing = computed(() => isFocused.value && editor.editingElement);
-const isSelected = computed(() => editor.isSelected(statement.value));
+const isFocused = computed(() => nav.value.editor.activeStatementId == statement.value?.id);
+const isEditing = computed(() => isFocused.value && nav.value.editor.editing);
+const isSelected = computed(() => nav.value.editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
 const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
 const isCommentish = computed(
@@ -49,9 +50,11 @@ const lineNumber = computed(() => nav.value?.statementPositions[statement.value.
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
-  ancestors.value.findIndex((s) => editor.focusedElementId == s.id || editor.selectedElementIds.includes(s.id))
+  ancestors.value.findIndex(
+    (s) => nav.value.editor.activeStatementId == s.id || nav.value.editor.selectedElementIds.includes(s.id)
+  )
 );
-const isAncestorHighlight = computed(() => !editor.editingElement && ancestorHighlightDepth.value > -1);
+const isAncestorHighlight = computed(() => !nav.value.editor.editing && ancestorHighlightDepth.value > -1);
 const contentOffsetX = computed(() => props.depth * 20);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
@@ -63,7 +66,7 @@ onBeforeUnmount(() => {
   destroyed.value = true;
 });
 provide(STATEMENT_CONTEXT, {
-  readonly: computed(() => editor.readonly || props.readonly),
+  readonly: computed(() => bench.readonly || props.readonly),
   focused: isFocused,
   editing: isEditing,
   depth: toRef(props, "depth"),
@@ -182,11 +185,16 @@ watch(
 
 const altKeyState = useKeyModifier("Alt");
 const shiftKeyState = useKeyModifier("Shift");
-// cancel focus if clicked outside (unless alt/shift is pressed)
-onClickOutside(containerRef, () => {
-  if (isFocused.value && !altKeyState.value && !shiftKeyState.value) {
+// cancel focus if clicked outside this statement in our editor (unless alt/shift is pressed)
+onClickOutside(containerRef, (e) => {
+  if (
+    isFocused.value &&
+    !altKeyState.value &&
+    !shiftKeyState.value &&
+    editor.container.value?.parentNode?.contains(e.target as Node)
+  ) {
     // We don't blur the root cell here because the focus is already elsewhere.
-    editor.blurElement(statement.value as StatementHeader);
+    nav.value.editor.blurElement(statement.value as StatementHeader);
   }
 });
 
@@ -199,14 +207,14 @@ whenever(inRootCellFocused, () => {
   if (altKeyState.value || containerFocused.value) {
     return;
   }
-  if (!isEditing.value && !editor.readonly) {
-    editor.editElement(statement.value as StatementHeader);
+  if (!isEditing.value && !bench.readonly) {
+    nav.value.editor.editElement(statement.value as StatementHeader);
   }
 });
 
 function focusInEditor() {
-  editor.focusFile(file.value as any);
-  editor.focusElement(statement.value as StatementHeader);
+  bench.focusFile(file.value as any);
+  nav.value.editor.focusElement(statement.value as StatementHeader);
 }
 
 function onClickContainer(e: MouseEvent) {
@@ -217,7 +225,7 @@ function onClickContainer(e: MouseEvent) {
   // create selection to here if shift was pressed
   if (e.shiftKey) {
     const index = nav.value.statementPositions[statement.value.id];
-    const lastIndex = nav.value.statementPositions[editor.focusedElementId ?? ""];
+    const lastIndex = nav.value.statementPositions[nav.value.editor.activeStatementId ?? ""];
     console.log("select all statements between", index, lastIndex);
     focusInEditor();
     if (lastIndex != null) {
@@ -225,7 +233,7 @@ function onClickContainer(e: MouseEvent) {
       for (let i = Math.min(index, lastIndex); i <= Math.max(index, lastIndex); i++) {
         const statement = nav.value.statements[i];
         if (statement != null) {
-          editor.addToSelection(statement);
+          nav.value.editor.addToSelection(statement);
         }
       }
     }
@@ -234,8 +242,8 @@ function onClickContainer(e: MouseEvent) {
   if (!isFocused.value) {
     focusInEditor();
   }
-  if (!editor.readonly) {
-    editor.editElement(statement.value as StatementHeader);
+  if (!bench.readonly) {
+    nav.value.editor.editElement(statement.value as StatementHeader);
     containerFocused.value = false;
   } else {
     containerFocused.value = true;
@@ -304,7 +312,7 @@ const defaultActions: StatementAction[] = [
     label: "Rename",
     icon: PencilIcon,
     action: () => {
-      editor.editElement(statement.value as StatementHeader);
+      nav.value.editor.editElement(statement.value as StatementHeader);
       nextTick(() => rootCellRef.value?.focus());
     },
   },
@@ -372,8 +380,8 @@ const filteredClients = computed(() =>
               <span
                 class="cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
-                  'opacity-0': !isFocused && !open && !editor.showLineNumbers,
-                  'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !editor.showLineNumbers,
+                  'opacity-0': !isFocused && !open && !bench.showLineNumbers,
+                  'group-focus-within/statement:opacity-100 group-hover/statement:opacity-100': !bench.showLineNumbers,
                   'text-orange-200 hover:bg-orange-100 group-focus-within/statement:font-bold group-focus-within/statement:text-orange-500 group-hover/statement:font-bold group-hover/statement:text-orange-500 group-focus/statement:text-orange-500':
                     !isCommentish,
                   'text-gray-200 hover:bg-gray-100 group-focus-within/statement:font-bold group-focus-within/statement:text-gray-500 group-hover/statement:font-bold group-hover/statement:text-gray-500 group-focus/statement:text-gray-500':
@@ -388,7 +396,7 @@ const filteredClients = computed(() =>
             </ActionPopover>
             <!-- Add statement below button -->
             <button
-              v-if="!editor.readonly && !props.readonly"
+              v-if="!bench.readonly && !props.readonly"
               class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isFocused ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
@@ -400,7 +408,7 @@ const filteredClients = computed(() =>
               v-for="client in filteredClients"
               :key="client.id"
               class="rounded-sm px-1 py-0.5 text-gray-700"
-              :class="[editor.textSmall ? 'text-xs' : 'text-sm']"
+              :class="[bench.textSmall ? 'text-xs' : 'text-sm']"
               :style="{
                 backgroundColor: getClientColor(client.id),
               }"
@@ -429,8 +437,8 @@ const filteredClients = computed(() =>
         ref="innerWrapperRef"
         class="relative px-2 py-1"
         :class="{
-          'text-sm': editor.textSmall,
-          'text-md': !editor.textSmall,
+          'text-sm': bench.textSmall,
+          'text-md': !bench.textSmall,
         }"
       >
         <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
@@ -448,8 +456,8 @@ const filteredClients = computed(() =>
         v-if="statement.type == StatementType.Definition || statement.type == StatementType.Reference"
         class="absolute left-full top-[6px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
-          'text-md': !editor.textSmall,
-          'text-sm': editor.textSmall,
+          'text-md': !bench.textSmall,
+          'text-sm': bench.textSmall,
         }"
       >
         <!-- Errors/warnings -->
@@ -458,7 +466,7 @@ const filteredClients = computed(() =>
           <button
             v-if="hasLocalErrors"
             class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
-            @click="actions.apply('editor.view.openIssues')"
+            @click="actions.apply('bench.view.openIssues')"
           >
             <XCircleIcon class="h-5 w-5" />
           </button>
@@ -467,7 +475,7 @@ const filteredClients = computed(() =>
       </div>
     </div>
     <!-- Debug info -->
-    <div v-if="editor.debug" class="absolute -right-1 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
+    <div v-if="bench.debug" class="absolute -right-1 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isFocused">F</template>
       <template v-if="isSelected">S</template>

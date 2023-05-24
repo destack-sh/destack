@@ -1,27 +1,27 @@
 import { provideGlobalAction } from "@/state/actions";
-import { useEditorState, type FileHeader } from "@/state/editor";
+import { useBenchState, type FileHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newFileId } from "@/state/operations/file";
 import { computed } from "vue";
 
 export function useFileActions() {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const ops = useOperations();
 
   const create = provideGlobalAction({
     id: "file.new",
     label: "New file...",
-    enabled: computed(() => editor.currentProjectVersionId != null && !editor.readonly),
+    enabled: computed(() => bench.currentProjectVersionId != null && !bench.readonly),
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name = "") => {
       const fileId = newFileId();
-      const create = ops.file.create(null, fileId, editor.currentProjectVersionId as string, name, name, null, false);
+      const create = ops.file.create(null, fileId, bench.currentProjectVersionId as string, name, name, null, false);
       const optimisticFile = { __typename: "File", id: fileId, name, path: name } as FileHeader;
-      const optimisticEditor = editor.focusFile(optimisticFile);
+      const optimisticEditor = bench.focusFile(optimisticFile);
       try {
         await create;
       } catch (e) {
-        editor.closeEditor(optimisticEditor);
+        bench.closeEditor(optimisticEditor);
       }
     },
   });

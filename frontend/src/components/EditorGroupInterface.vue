@@ -4,22 +4,21 @@ import EditorInterface from "@/components/EditorInterface.vue";
 import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useEditorState, type Editor, type EditorGroup } from "@/state/editor";
+import { useBenchState, type Editor, type EditorGroup } from "@/state/editor";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 const props = defineProps<{ group: EditorGroup }>();
 
-const editor = useEditorState();
+const bench = useBenchState();
 const appearance = useAppearance();
 const selectedTab = ref(-1);
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
-const mountAllPanels = ref(false);
 // keep panel refs to pass to editor interface for scroll context
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
-const focused = computed(() => editor.focusedEditor?.groupId == props.group.id);
+const focused = computed(() => bench.focusedEditor?.groupId == props.group.id);
 
 // auto update selected tab
 watch(
@@ -39,17 +38,18 @@ watch(
   { immediate: true, deep: true }
 );
 
+// compute editor size absolutely
 const editorSize = computed(() => {
   return {
     width: containerSize.width.value + "px",
-    height: containerSize.height.value - (editor.showEditorGroupHeader ? appearance.headerHeight : 0) + "px",
+    height: containerSize.height.value - (bench.showEditorGroupHeader ? appearance.headerHeight : 0) + "px",
   };
 });
 
 function focus(e: Editor) {
-  editor.focusEditor(e);
+  bench.focusEditor(e);
   // blur any focused element when clicking on a tab
-  editor.blurElement();
+  bench.blur();
 }
 
 const actions = useActions();
@@ -68,11 +68,12 @@ async function createFileInEditorGroup() {
       <!-- TODO @Robustness: prevent TabList from getting 'stuck' when scrolling down in content fast (that's what the sticky hack below 'solves') -->
       <TabList
         class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
-        v-show="editor.showEditorGroupHeader"
+        v-show="bench.showEditorGroupHeader"
         :style="{
           height: appearance.headerHeight + 'px',
         }"
       >
+        <!-- Editor tab -->
         <Tab as="template" v-for="(e, i) in group.editors" :key="e.id" v-slot="{ selected }">
           <button
             class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 text-sm outline-none"
@@ -81,7 +82,7 @@ async function createFileInEditorGroup() {
               'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
-            @click.middle.prevent="editor.closeEditor(e)"
+            @click.middle.prevent="bench.closeEditor(e)"
             @click.prevent="focus(e)"
           >
             {{ e.path.length > 0 ? e.path : "(Untitled)" }}
@@ -89,7 +90,7 @@ async function createFileInEditorGroup() {
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"
               :class="i == selectedTab ? 'text-gray-400' : 'text-transparent'"
-              @click.prevent="editor.closeEditor(e)"
+              @click.prevent="bench.closeEditor(e)"
             >
               x
             </button>
@@ -116,12 +117,12 @@ async function createFileInEditorGroup() {
           :style="editorSize"
           v-for="e in group.editors"
           :key="e.id"
-          :unmount="!mountAllPanels"
+          unmount
         >
           <EditorInterface :editor="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
         <EmptyEditorInterface
-          v-if="editor.currentProjectVersionId != null && group.editors.length === 0"
+          v-if="bench.currentProjectVersionId != null && group.editors.length === 0"
           class="relative h-full w-full"
           :group="group"
         />

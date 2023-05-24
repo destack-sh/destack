@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
@@ -153,12 +153,12 @@ export function useEvaluations(
 }
 
 function _useCurrentEvaluations() {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const runtime = useCurrentInterpModule();
-  const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
+  const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[bench.mainSymbolId ?? ""]);
   const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } | undefined>);
-  const projectId = computed(() => editor.currentProjectId as string);
-  const projectVersionId = computed(() => editor.currentProjectVersionId as string);
+  const projectId = computed(() => bench.currentProjectId as string);
+  const projectVersionId = computed(() => bench.currentProjectVersionId as string);
 
   const globalEvaluations = useEvaluations(
     {

@@ -6,7 +6,7 @@ import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
 import { StatementType } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
 import { computed, ref, watch, type Ref } from "vue";
 
@@ -40,9 +40,6 @@ function deleteModifierOrAbove() {
     context.tryDeleteLeft();
   }
 }
-
-const editor = useEditorState();
-const isMain = computed(() => editor.mainSymbolId == context.statement.value.id);
 
 // runtime
 const localErrors = localErrorsOf(context.statement);
@@ -91,7 +88,6 @@ defineExpose({
       v-if="context.statement.value.type == StatementType.Definition"
       ref="nameRef"
       class="mx-0.5"
-      :class="isMain ? 'font-bold' : ''"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"

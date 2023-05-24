@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { EvaluationKind, EvaluationScope, SymbolType } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { useEvaluations } from "@/state/evaluations";
 import { buildsOf, useCurrentInterpModule } from "@/state/runtime";
 import {
@@ -20,9 +20,9 @@ const props = defineProps<{
   projectVersionId: string;
 }>();
 
-const editor = useEditorState();
+const bench = useBenchState();
 const runtime = useCurrentInterpModule();
-const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[editor.mainSymbolId ?? ""]);
+const mainSymbol = computed(() => runtime.moduleIndex.value?.symbolsById[bench.mainSymbolId ?? ""]);
 const mainBuilds = buildsOf(mainSymbol as Ref<{ id: string; parentId: string } | undefined>);
 const { tween } = useTween(0.5);
 

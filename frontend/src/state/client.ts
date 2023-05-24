@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
@@ -91,9 +91,9 @@ function getOrCreateClientId(): string {
 }
 
 function _useClient(presenceIntervalMs = 15000) {
-  const editor = useEditorState();
-  const projectId = toValueRef(toRef(editor, "currentProjectId"));
-  const projectVersionId = toValueRef(toRef(editor, "currentProjectVersionId"));
+  const bench = useBenchState();
+  const projectId = toValueRef(toRef(bench, "currentProjectId"));
+  const projectVersionId = toValueRef(toRef(bench, "currentProjectVersionId"));
   const auth = useAuth();
   const ops = useOperations();
 
@@ -119,8 +119,8 @@ function _useClient(presenceIntervalMs = 15000) {
       browserName,
       projectId.value,
       projectVersionId.value,
-      editor.focusedFileId,
-      editor.focusedElementType == "Statement" ? editor.focusedElementId : null,
+      bench.focusedFileId,
+      bench.focusedStatementId,
       null,
       null,
       null
@@ -130,8 +130,8 @@ function _useClient(presenceIntervalMs = 15000) {
   const _upsertInfoDebounced = useDebounceFn(_upsertInfo, 250, { maxWait: 1000 });
 
   // upsert client info if logged in
-  const focusedFileId = toValueRef(toRef(editor, "focusedFileId"));
-  const focusedElementId = toValueRef(toRef(editor, "focusedElementId"));
+  const focusedFileId = toValueRef(toRef(bench, "focusedFileId"));
+  const focusedElementId = toValueRef(toRef(bench, "focusedStatementId"));
   watch(
     () => [auth.loggedIn.value, projectId.value, projectVersionId.value, focusedFileId.value, focusedElementId.value],
     async () => {
@@ -319,13 +319,13 @@ export function useConnectedClients(
 }
 
 function _useCurrentClients() {
-  const editor = useEditorState();
+  const bench = useBenchState();
   const clients = useConnectedClients(
     {
-      projectId: toRef(editor, "currentProjectId"),
-      projectVersionId: toRef(editor, "currentProjectVersionId"),
+      projectId: toRef(bench, "currentProjectId"),
+      projectVersionId: toRef(bench, "currentProjectVersionId"),
       userId: ref(null),
-      inSameOrganizations: computed(() => editor.currentProjectId == null),
+      inSameOrganizations: computed(() => bench.currentProjectId == null),
       active: ref(null),
       present: ref(true),
     },

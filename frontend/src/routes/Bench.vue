@@ -25,13 +25,7 @@ import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import {
-  useEditorMigrations,
-  useEditorPersistence,
-  useEditorState,
-  type FileEditor,
-  type ViewId,
-} from "@/state/editor";
+import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } from "@/state/editor";
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
@@ -58,19 +52,9 @@ import {
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useTitle, whenever } from "@vueuse/core";
+import { useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import {
-  computed,
-  onBeforeUnmount,
-  ref,
-  toRef,
-  watch,
-  watchEffect,
-  type Component,
-  type ComputedRef,
-  type Ref,
-} from "vue";
+import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -97,43 +81,43 @@ const allViews: Ref<View[]> = computed(() => [
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
-  const view = availableViews.value.find((v) => v.id == editor.activeViewId);
+  const view = availableViews.value.find((v) => v.id == bench.activeViewId);
   if (!view) {
-    console.error("invalid view id: " + editor.activeViewId);
-    editor.setActiveView(availableViews.value[0].id);
+    console.error("invalid view id: " + bench.activeViewId);
+    bench.setActiveView(availableViews.value[0].id);
     return availableViews.value[0];
   }
   return view;
 });
 
 function toggleActiveView(viewId: ViewId, ignoreFocus: boolean) {
-  if (editor.activeViewId == viewId && editor.showViewContent && (ignoreFocus || editor.focusedViewId == viewId)) {
-    editor.showViewContent = false;
-    editor.focusedViewId = null;
+  if (bench.activeViewId == viewId && bench.showViewContent && (ignoreFocus || bench.focusedViewId == viewId)) {
+    bench.showViewContent = false;
+    bench.focusedViewId = null;
   } else {
-    editor.focusView(viewId);
+    bench.focusView(viewId);
   }
 }
 provideAction({
-  id: "editor.view.openExplorer",
+  id: "bench.view.openExplorer",
   label: "View Explorer",
   shortcuts: ["alt+1"],
   apply: () => toggleActiveView("explorer", false),
 });
 provideAction({
-  id: "editor.view.openHistory",
+  id: "bench.view.openHistory",
   label: "View History",
   shortcuts: ["alt+2"],
   apply: () => toggleActiveView("history", false),
 });
 const openIssues = provideAction({
-  id: "editor.view.openIssues",
+  id: "bench.view.openIssues",
   label: "View Issues",
   shortcuts: ["alt+3"],
   apply: () => toggleActiveView("issues", false),
 });
 provideAction({
-  id: "editor.view.openInstruction",
+  id: "bench.view.openInstruction",
   label: "View Instruction",
   shortcuts: ["alt+4"],
   apply: () => toggleActiveView("instruction", false),
@@ -194,10 +178,10 @@ const versionToViewId = computed(() => {
   }
 });
 
-// set up editor state
-const editor = useEditorState();
+// set up bench state
+const bench = useBenchState();
 const editorReady = computed(
-  () => editor.currentProjectVersionId != null && editor.currentProjectVersionId == versionToViewId.value
+  () => bench.currentProjectVersionId != null && bench.currentProjectVersionId == versionToViewId.value
 );
 const notifications = useNotifications();
 const router = useRouter();
@@ -208,8 +192,8 @@ watchEffect(() => {
   if (projectError.value) {
     title.value = "Page not found";
   } else {
-    if (editor.focusedEditor != null) {
-      title.value = (editor.focusedEditor.path || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
+    if (bench.focusedEditor != null) {
+      title.value = (bench.focusedEditor.path || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
     } else {
       title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
     }
@@ -276,20 +260,6 @@ const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurr
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
-// sync editor paths
-// TODO @Cleanup: move sync editor paths into EditorInterface
-watchEffect(() => {
-  if (!files.value) return;
-  editor.editors.forEach((editor) => {
-    if (editor.type == "file") {
-      const fileEditor = editor as FileEditor;
-      const file = files.value.find((f) => f.id == fileEditor.fileId);
-      if (!file) return; // ignore
-      editor.path = file.path;
-    }
-  });
-});
-
 // routing
 const consideredUrl = ref(false);
 
@@ -311,7 +281,7 @@ watchEffect(() => {
       file = files.value.find((file) => file.path === "Getting Started");
     }
     if (file) {
-      editor.focusFile(file as any);
+      bench.focusFile(file as any);
     }
     consideredUrl.value = true;
   }
@@ -319,10 +289,10 @@ watchEffect(() => {
 
 // change url if focused editor changes
 watchEffect(() => {
-  if (editor.focusedEditor != null) {
+  if (bench.focusedEditor != null) {
     // set hash to open path
     if (consideredUrl.value) {
-      const prettyPath = prettifyPath(editor.focusedEditor.path);
+      const prettyPath = prettifyPath(bench.focusedEditor.path);
       router.replace({ hash: `#${prettyPath}`, query: router.currentRoute.value.query });
     }
   } else if (editorReady.value && consideredUrl.value) {
@@ -386,39 +356,28 @@ watch(
 // provide Zen mode
 provideAction({
   id: "editor.zenMode",
-  label: computed(() => (editor.zenMode ? "Exit Zen Mode" : "Enter Zen Mode")),
+  label: computed(() => (bench.zenMode ? "Exit Zen Mode" : "Enter Zen Mode")),
   shortcuts: ["alt+z"],
   apply: () => {
-    editor.setZenMode(!editor.zenMode);
+    bench.setZenMode(!bench.zenMode);
     notifications.dismissIf({ type: "zenMode" });
     notifications.show({
       type: "zenMode",
       kind: "notice",
-      message: editor.zenMode ? "Zen Mode on" : "Zen Mode off",
-      description: editor.zenMode ? "Minimize distractions." : "Restored full editor view.",
-      action: () => editor.setZenMode(!editor.zenMode),
+      message: bench.zenMode ? "Zen Mode on" : "Zen Mode off",
+      description: bench.zenMode ? "Minimize distractions." : "Restored full editor view.",
+      action: () => bench.setZenMode(!bench.zenMode),
       actionText: "Toggle",
     });
   },
 });
 
-// left click anywhere clears editor selection
-function clearSelectionIfLeftClick(e: MouseEvent) {
-  if (e.button == 0 && !e.altKey && !e.shiftKey) {
-    editor.clearSelection();
-  }
-}
-document.addEventListener("click", clearSelectionIfLeftClick);
-onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
-// whenever editing -> clears selection
-whenever(toRef(editor, "editingElement"), () => editor.clearSelection());
-
-const { load } = useEditorPersistence();
-const { migrateTo, migrating } = useEditorMigrations();
+const { load } = useBenchPersistence();
+const { migrateTo, migrating } = useBenchMigrations();
 
 // manage read/write access
 watchEffect(() => {
-  editor.readonly =
+  bench.readonly =
     !versionLoaded.value ||
     migrating.value ||
     versionToViewId.value != projectHead.value?.id ||
@@ -426,36 +385,36 @@ watchEffect(() => {
     version.value?.committed == true;
 });
 
-// prepare editor state for project whenever project (head) changes
+// prepare bench state for project whenever project (head) changes
 watchEffect(async () => {
   if (
     !migrating.value &&
     project.value != null &&
     versionToViewId.value != null &&
-    (editor.currentProjectId != project.value.id || editor.currentProjectVersionId != versionToViewId.value)
+    (bench.currentProjectId != project.value.id || bench.currentProjectVersionId != versionToViewId.value)
   ) {
-    // try to load editor state
-    editor.setProject(project.value.id, versionToViewId.value);
+    // try to load bench state
+    bench.setProject(project.value.id, versionToViewId.value);
     load();
-    console.log(`loaded editor state for project ${project.value.id} version ${versionToViewId.value}`);
-    if (editor.currentProjectId == project.value?.id) {
+    console.log(`loaded bench state for project ${project.value.id} version ${versionToViewId.value}`);
+    if (bench.currentProjectId == project.value?.id) {
       // migrate if there is a new version of the same project
-      // (loads overwrites editor state for the entire project,
+      // (loads overwrites bench state for the entire project,
       //  so editor.currentProjectVersionId will point to its last known version)
-      if (editor.currentProjectVersionId != versionToViewId.value) {
-        migrateTo(editor.currentProjectId as string, versionToViewId.value, editor.currentProjectVersionId as string);
+      if (bench.currentProjectVersionId != versionToViewId.value) {
+        migrateTo(bench.currentProjectId as string, versionToViewId.value, bench.currentProjectVersionId as string);
       }
     } else {
-      console.log(`reset editor state for project ${project.value.id}`);
+      console.log(`reset bench state for project ${project.value.id}`);
       // (happens in state.setProject)
     }
   }
 });
 
-// clear editor state when exiting view
+// clear bench state when exiting view
 onBeforeUnmount(() => {
-  if (editor.currentProjectId == project.value?.id) {
-    editor.$reset();
+  if (bench.currentProjectId == project.value?.id) {
+    bench.$reset();
   }
 });
 </script>
@@ -464,7 +423,7 @@ onBeforeUnmount(() => {
   <!-- Root -->
   <div class="relative flex h-full flex-col bg-gray-50">
     <!-- Header with controls and auth -->
-    <FatHeader v-show="editor.showGlobalHeader">
+    <FatHeader v-show="bench.showGlobalHeader">
       <!-- Left side: organizational & status -->
       <template v-slot:left>
         <!-- Home -->
@@ -569,7 +528,7 @@ onBeforeUnmount(() => {
                 {{ runtimeConnected ? "connected" : "connecting" }}
               </span>
             </Transition>
-            <span class="text-sm text-gray-500" v-if="editor.debug && runtimeLastUpdated != null">
+            <span class="text-sm text-gray-500" v-if="bench.debug && runtimeLastUpdated != null">
               {{ getTimeFromNowString(runtimeLastUpdated) }}
             </span>
           </span>
@@ -608,10 +567,10 @@ onBeforeUnmount(() => {
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-4">
-            <SharePopover @show="editor.showGlobalHeader = true" />
-            <DeployPopover :project="project" @show="editor.showGlobalHeader = true" />
-            <OmniCreate @show="editor.showGlobalHeader = true" />
-            <NotificationPopover @show="editor.showGlobalHeader = true" />
+            <SharePopover @show="bench.showGlobalHeader = true" />
+            <DeployPopover :project="project" @show="bench.showGlobalHeader = true" />
+            <OmniCreate @show="bench.showGlobalHeader = true" />
+            <NotificationPopover @show="bench.showGlobalHeader = true" />
           </div>
         </FadeTransition>
         <ClientsPopover v-if="auth.loggedIn.value" class="ml-2" size="large" />
@@ -626,19 +585,19 @@ onBeforeUnmount(() => {
       <aside
         class="flex h-full resize-x"
         :class="{
-          'w-64 lg:w-80': editor.showViewContent && editor.showViewSelection,
-          'w-48 lg:w-64': editor.showViewContent && !editor.showViewSelection,
+          'w-64 lg:w-80': bench.showViewContent && bench.showViewSelection,
+          'w-48 lg:w-64': bench.showViewContent && !bench.showViewSelection,
         }"
       >
         <div
           class="flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%]"
-          v-show="editor.showViewSelection"
+          v-show="bench.showViewSelection"
         >
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
               class="group relative rounded-sm border-l-2 border-gray-50 px-3 py-2.5 text-gray-600 hover:bg-orange-100"
-              :class="view.id == activeView.id && editor.showViewContent ? 'border-orange-600 text-orange-600' : ''"
+              :class="view.id == activeView.id && bench.showViewContent ? 'border-orange-600 text-orange-600' : ''"
               v-for="view in availableViews"
               :key="view.id"
               @click="toggleActiveView(view.id, true)"
@@ -647,7 +606,7 @@ onBeforeUnmount(() => {
               <component :is="view.icon" class="h-6 w-6" aria-hidden="true" />
               <!-- Tooltip -->
               <span
-                v-if="view.id != activeView.id || !editor.showViewContent"
+                v-if="view.id != activeView.id || !bench.showViewContent"
                 class="pointer-events-none absolute left-full top-3 z-10 rounded-sm bg-white px-1 text-sm opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
               >
                 {{ view.label }}
@@ -678,36 +637,36 @@ onBeforeUnmount(() => {
         <div
           ref="viewsContainerRef"
           class="relative h-full flex-1 border-r border-orange-900 border-opacity-[12%]"
-          v-show="editor.showViewContent"
+          v-show="bench.showViewContent"
         >
           <!-- These must be v-show, not v-if, see note above -->
           <ViewExplorer
             v-show="activeView.id == 'explorer'"
-            @show="editor.focusView('explorer')"
-            @blur="editor.blurView('explorer')"
+            @show="bench.focusView('explorer')"
+            @blur="bench.blurView('explorer')"
             :files="files"
-            :focused="editor.focusedViewId == 'explorer'"
+            :focused="bench.focusedViewId == 'explorer'"
           />
           <ViewHistory
             v-show="activeView.id == 'history'"
             v-if="project != null"
-            @show="editor.focusView('history')"
-            @blur="editor.blurView('history')"
+            @show="bench.focusView('history')"
+            @blur="bench.blurView('history')"
             :project="project"
-            :focused="editor.focusedViewId == 'history'"
+            :focused="bench.focusedViewId == 'history'"
             :current-version="version"
           />
           <ViewIssues
             v-show="activeView.id == 'issues'"
-            @show="editor.focusView('issues')"
-            @blur="editor.blurView('issues')"
-            :focused="editor.focusedViewId == 'issues'"
+            @show="bench.focusView('issues')"
+            @blur="bench.blurView('issues')"
+            :focused="bench.focusedViewId == 'issues'"
           />
           <ViewInstruction
             v-show="activeView.id == 'instruction'"
-            @show="editor.focusView('instruction')"
-            @blur="editor.blurView('instruction')"
-            :focused="editor.focusedViewId == 'instruction'"
+            @show="bench.focusView('instruction')"
+            @blur="bench.blurView('instruction')"
+            :focused="bench.focusedViewId == 'instruction'"
             :version="version"
           />
           <!-- Unknown view -->
@@ -733,13 +692,13 @@ onBeforeUnmount(() => {
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="editor.left" class="h-full w-full" />
+            <EditorGroupInterface :group="bench.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
-        <div class="relative flex-1" v-if="editor.right.editors.length > 0">
+        <div class="relative flex-1" v-if="bench.right.editors.length > 0">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="editor.right" class="h-full w-full" />
+            <EditorGroupInterface :group="bench.right" class="h-full w-full" />
           </div>
         </div>
       </main>

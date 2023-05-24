@@ -1,10 +1,10 @@
 import { graphql } from "@/gql";
-import type { SymbolType, File, Project, ProjectVersion, Statement, DatasetRecord, SimpleType } from "@/gql/graphql";
+import type { DatasetRecord, File, Project, ProjectVersion, Scalars, SimpleType, Statement } from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery } from "@vue/apollo-composable";
-import { useElementBounding, useElementSize } from "@vueuse/core";
+import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
 
@@ -37,41 +37,27 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
-export type Editor = {
-  type: "file" | "run" | "runs" | "evaluate";
+export type EditorType = "file";
+
+// note that editor state should be JSON serializable
+export abstract class Editor {
+  type: EditorType;
   id: string;
   path: string;
-  scroll?: { x: number; y: number };
-  localState: Record<string, unknown>; // opaque (JSONable) local state for each editor
   groupId: string | null; // id instead of EditorGroup to avoid circular dependency
-};
+  editing = false;
 
-export const EDITOR_INTERFACE_STATE = Symbol();
-export type EditorInterfaceState = {
-  get<T>(key: string, default_?: T): T;
-  set<T>(key: string, value: T): void;
-};
+  constructor(type: EditorType, id: string, path: string, groupId: string | null) {
+    this.type = type;
+    this.id = id;
+    this.path = path;
+    this.groupId = groupId;
+  }
 
-export type FileEditor = Editor & {
-  type: "file";
-  fileId: string;
-};
-
-export type RunEditor = Editor & {
-  type: "run";
-  symbolId: string;
-  symbolType: SymbolType;
-};
-
-export type RunsEditor = Editor & {
-  type: "runs";
-};
-
-export type EvaluateEditor = Editor & {
-  type: "evaluate";
-  symbolId: string;
-  symbolType: SymbolType;
-};
+  blur() {
+    this.editing = false;
+  }
+}
 
 export type EditorGroup = {
   id: string;
@@ -89,72 +75,21 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
   };
 }
 
-export function makeFileEditor(file: { id: string; path: string }): FileEditor {
-  return {
-    // append random string to enable multiple editors for the same file
-    id: file.id + "-" + Math.random().toString(16).substring(2, 8),
-    type: "file",
-    fileId: file.id,
-    path: file.path,
-    localState: {},
-    groupId: null,
-  } as FileEditor;
-}
-
-export function makeRunEditor(symbol: { id: string; name: string; symbolType: SymbolType }): RunEditor {
-  return {
-    // append random string to enable multiple editors for the same symbol
-    id: symbol.id + "-" + Math.random().toString(16).substring(2, 8),
-    type: "run",
-    symbolId: symbol.id,
-    symbolType: symbol.symbolType,
-    path: "run: " + symbol.name,
-    localState: {},
-    groupId: null,
-  } as RunEditor;
-}
-
-export function makeRunsEditor(): RunsEditor {
-  return {
-    id: "runs-" + Math.random().toString(16).substring(2, 8),
-    type: "runs",
-    localState: {},
-    groupId: null,
-    path: "runs",
-  };
-}
-
-export function makeEvaluateEditor(symbol: { id: string; name: string; symbolType: SymbolType }): EvaluateEditor {
-  return {
-    // append random string to enable multiple editors for the same symbol
-    id: symbol.id + "-" + Math.random().toString(16).substring(2, 8),
-    type: "evaluate",
-    symbolId: symbol.id,
-    symbolType: symbol.symbolType,
-    path: "evaluate: " + symbol.name,
-    localState: {},
-    groupId: null,
-  } as EvaluateEditor;
-}
-
-export const useEditorState = defineStore("editor", {
+export const useBenchState = defineStore("bench", {
   state: () => {
     return {
-      // note that editor state should be JSON serializable
+      // bench state
       currentProjectId: null as string | null,
       currentProjectVersionId: null as string | null,
+      readonly: false,
+      // views
       activeViewId: "explorer" as ViewId,
+      focusedViewId: null as ViewId | null,
+      // editors
       left: makeEditorGroup("left", "Left"),
       right: makeEditorGroup("right", "Right"),
-      focusedViewId: null as ViewId | null,
       focusedEditorId: null as string | null,
-      focusedElementId: null as string | null,
-      focusedElementType: null as string | null,
-      selectedElementIds: [] as string[],
-      mainSymbolId: null as string | null,
-      mainSymbolUnset: false,
-      editingElement: false,
-      readonly: false,
+      // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
       showGenerated: true,
       showLineNumbers: false,
@@ -166,12 +101,12 @@ export const useEditorState = defineStore("editor", {
     };
   },
   getters: {
-    editorGroups(state) {
+    groups(state) {
       return [state.left, state.right];
     },
-    editorGroup(): (id: string) => EditorGroup {
+    group(): (id: string) => EditorGroup {
       return (id: string) => {
-        const group = this.editorGroups.find((g) => g.id == id);
+        const group = this.groups.find((g) => g.id == id);
         if (group == null) throw new Error(`editor group ${id} not found`);
         return group;
       };
@@ -185,24 +120,15 @@ export const useEditorState = defineStore("editor", {
     focusedFileId(): string | null {
       return this.focusedEditor?.type == "file" ? (this.focusedEditor as FileEditor).fileId : null;
     },
-    focusedRunId(): string | null {
-      return this.focusedEditor?.type == "run" ? (this.focusedEditor as RunEditor).symbolId : null;
+    focusedFile(): FileEditor | undefined {
+      return this.focusedEditor?.type == "file" ? (this.focusedEditor as FileEditor) : undefined;
+    },
+    focusedStatementId(): string | null {
+      return this.focusedFile?.activeStatementId ?? null;
     },
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
-      return this.editorGroup(this.focusedEditor?.groupId);
-    },
-    isSelected(): (element: { id: string }) => boolean {
-      return (element) => this.selectedElementIds.includes(element.id);
-    },
-    hasSelection(): boolean {
-      return this.selectedElementIds.length > 0;
-    },
-    currentSelectedElementId(): string | null {
-      return this.selectedElementIds[this.selectedElementIds.length - 1] ?? null;
-    },
-    previousSelectedElementId(): string | null {
-      return this.selectedElementIds[this.selectedElementIds.length - 2] ?? null;
+      return this.group(this.focusedEditor?.groupId);
     },
     theme(): Theme {
       const appearance = useAppearanceState();
@@ -241,17 +167,9 @@ export const useEditorState = defineStore("editor", {
       this.showViewContent = true;
     },
 
-    setEditorScroll(editor: Editor, scroll: { x: number; y: number }): void {
-      editor.scroll = scroll;
-    },
-
-    setEditorState(editor: Editor, key: string, value: unknown): void {
-      editor.localState[key] = value;
-    },
-
     _removeEditorFromGroup(editor: Editor): void {
       if (editor.groupId == null) return;
-      const group = this.editorGroup(editor.groupId);
+      const group = this.group(editor.groupId);
       if (group == null) return;
       group.editors = group.editors.filter((e) => e != editor);
       if (group.activeEditorId == editor.id) {
@@ -260,8 +178,6 @@ export const useEditorState = defineStore("editor", {
         // if editor was focused, focus new active editor
         if (editor.id == this.focusedEditorId) {
           this.focusedEditorId = group.activeEditorId;
-          // blur element
-          this.focusedElementId = null;
         }
       }
       editor.groupId = null;
@@ -305,40 +221,7 @@ export const useEditorState = defineStore("editor", {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       if (!editor || options?.create) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
-        editor = makeFileEditor(file);
-      }
-      return this.openEditor(editor, options?.group);
-    },
-
-    openRun(
-      symbol: { id: string; name: string; symbolType: SymbolType },
-      options?: { group?: EditorGroup; create?: boolean }
-    ): Editor {
-      let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
-      if (!editor || options?.create) {
-        console.log(`create new run editor for ${symbol.id} ${symbol.name}`);
-        editor = makeRunEditor(symbol);
-      }
-      return this.openEditor(editor, options?.group);
-    },
-
-    openRuns(options?: { group?: EditorGroup; create?: boolean }): Editor {
-      let editor = this.editors.find((e) => e.type == "runs");
-      if (!editor || options?.create) {
-        console.log(`create new runs editor`);
-        editor = makeRunsEditor();
-      }
-      return this.openEditor(editor, options?.group);
-    },
-
-    openEvaluate(
-      symbol: { id: string; name: string; symbolType: SymbolType },
-      options?: { group?: EditorGroup; create?: boolean }
-    ): Editor {
-      let editor = this.editors.find((e) => e.type == "evaluate" && (e as EvaluateEditor).symbolId == symbol.id);
-      if (!editor || options?.create) {
-        console.log(`create new evaluate editor for ${symbol.id} ${symbol.name}`);
-        editor = makeEvaluateEditor(symbol);
+        editor = new FileEditor(file);
       }
       return this.openEditor(editor, options?.group);
     },
@@ -347,7 +230,7 @@ export const useEditorState = defineStore("editor", {
       if (viewId == this.focusedViewId) return;
       this.focusedViewId = viewId;
       this.openActiveView(viewId);
-      this.blurElement();
+      this.blur();
       console.log(`focus view ${viewId}`);
     },
 
@@ -366,7 +249,7 @@ export const useEditorState = defineStore("editor", {
         throw new Error("editor must be in a group: " + editor.path);
       }
       this.focusedEditorId = editor.id;
-      this.editorGroup(editor.groupId).activeEditorId = editor.id;
+      this.group(editor.groupId).activeEditorId = editor.id;
     },
 
     focusFile(file: FileHeader, group?: EditorGroup): Editor {
@@ -375,58 +258,8 @@ export const useEditorState = defineStore("editor", {
       return editor;
     },
 
-    focusElement(element: { id: string; __typename: string } | StatementHeader | FileHeader, retainEditing = false) {
-      if (this.focusedElementId == element.id) return;
-      console.debug(`focus element ${element.id}`);
-      this.focusedElementId = element.id;
-      this.focusedElementType = element.__typename || null;
-      this.editingElement = this.editingElement && retainEditing;
-    },
-
-    editElement(element: StatementHeader | FileHeader) {
-      if (this.focusedElementId != element.id || !this.editingElement) {
-        this.focusElement(element);
-        this.editingElement = true;
-        console.debug(`edit element ${element.id}`);
-      }
-    },
-
-    stopEditingElement(element?: StatementHeader | FileHeader) {
-      if (!element || element.id == this.focusedElementId) {
-        this.editingElement = false;
-      }
-      console.debug(`stop editing element ${element?.id}`);
-    },
-
-    blurElement(element?: StatementHeader | FileHeader) {
-      if (!element || element.id == this.focusedElementId) {
-        this.focusedElementId = null;
-        this.focusedElementType = null;
-        this.editingElement = false;
-      }
-    },
-
-    addToSelection(element: { id: string }): void {
-      if (this.selectedElementIds.find((e) => e == element.id)) return;
-      this.selectedElementIds.push(element.id);
-      console.debug("add to selection", element.id, this.selectedElementIds.length);
-    },
-
-    removeFromSelection(element: { id: string }): void {
-      this.selectedElementIds = this.selectedElementIds.filter((id) => id != element.id);
-      console.debug("remove from selection", element.id, this.selectedElementIds.length);
-    },
-
-    clearSelection(): void {
-      if (this.selectedElementIds.length == 0) return;
-      console.debug("clear selection");
-      this.selectedElementIds = [];
-    },
-
-    setMainSymbol(symbol?: { id: string }): void {
-      console.debug("set main symbol", symbol?.id);
-      this.mainSymbolId = symbol?.id ?? null;
-      this.mainSymbolUnset = this.mainSymbolId == null;
+    blur() {
+      this.editors.forEach((e) => e.blur());
     },
 
     setZenMode(zenMode: boolean) {
@@ -458,8 +291,6 @@ export const useEditorState = defineStore("editor", {
         let editorRef = null;
         if (editor.type == "file") {
           editorRef = (editor as FileEditor).fileId;
-        } else if (editor.type == "run") {
-          editorRef = (editor as RunEditor).symbolId;
         }
         if (editorRef != null && !targetRefs.includes(editorRef)) {
           console.debug(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
@@ -471,25 +302,31 @@ export const useEditorState = defineStore("editor", {
   },
 });
 
-export function useEditorPersistence(intervalMs = 1000) {
-  const editor = useEditorState();
+// persistence
+
+export function useBenchPersistence(intervalMs = 1000) {
+  const bench = useBenchState();
 
   const save = () => {
     // save editor state by project id
-    if (editor.currentProjectId == null) return;
-    localStorage.setItem(`editor-state-${editor.currentProjectId}`, JSON.stringify(editor.$state));
+    if (bench.currentProjectId == null) return;
+    localStorage.setItem(`editor-state-${bench.currentProjectId}`, JSON.stringify(bench.$state));
   };
 
   const load = () => {
     // load editor state by project id
-    if (editor.currentProjectId == null) return;
-    const state = localStorage.getItem(`editor-state-${editor.currentProjectId}`);
+    if (bench.currentProjectId == null) return;
+    const state = localStorage.getItem(`editor-state-${bench.currentProjectId}`);
     if (state) {
       try {
-        editor.$patch(JSON.parse(state));
-        console.log(`restored editor state for project ${editor.currentProjectId}`);
+        bench.$patch(JSON.parse(state));
+        // instantiate editors
+        for (const group of bench.groups) {
+          group.editors = group.editors.map(instantiate);
+        }
+        console.log(`restored editor state for project ${bench.currentProjectId}`);
       } catch (e) {
-        console.error(`failed to restore editor state for project ${editor.currentProjectId}`);
+        console.error(`failed to restore editor state for project ${bench.currentProjectId}`);
       }
     }
   };
@@ -501,10 +338,12 @@ export function useEditorPersistence(intervalMs = 1000) {
   return { save, load };
 }
 
-export function useEditorMigrations() {
+// migration
+
+export function useBenchMigrations() {
   const migratingTo: Ref<string | null> = ref(null);
   const notifications = useNotifications();
-  const editor = useEditorState();
+  const bench = useBenchState();
 
   // TODO @Cleanup: project ref migration from vx to vy should be a server-side API endpoint
   const {
@@ -552,7 +391,7 @@ export function useEditorMigrations() {
 
       if (migrationError.value != null) {
         // fail migration
-        editor.currentProjectVersionId = migratingTo.value;
+        bench.currentProjectVersionId = migratingTo.value;
         console.error("unable to migrate, error getting intermediate refs", migrationError.value);
         notifications.show({
           kind: "warning",
@@ -567,7 +406,7 @@ export function useEditorMigrations() {
         for (const mapping of migrationMappings.refMappings) {
           refMappings[mapping.sourceId] = mapping.targetId;
         }
-        await editor._doMigrateTo(migratingTo.value, refMappings);
+        await bench._doMigrateTo(migratingTo.value, refMappings);
         console.log(
           `migrated editor from version ${migrationMappings?.sourceVersion.tag} to ${migrationMappings?.targetVersion.tag}`
         );
@@ -604,7 +443,11 @@ export function useEditorMigrations() {
   };
 }
 
-export type EditorContext = {
+// context
+
+export type EditorContext<T extends Editor> = {
+  editor: Ref<T>;
+  container: Ref<HTMLElement | null>;
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
   actions: Ref<EditorAction[]>;
@@ -612,10 +455,12 @@ export type EditorContext = {
 
 export const EDITOR_CONTEXT = "__editor__";
 
-export function provideEditorContext(editor: Ref<Editor>, el: Ref<HTMLElement | null>) {
-  const editorState = useEditorState();
-  const elementBounding = useElementBounding(el);
-  const context: EditorContext = {
+export function provideEditorContext<T extends Editor>(editor: Ref<T>, container: Ref<HTMLElement | null>) {
+  const editorState = useBenchState();
+  const elementBounding = useElementBounding(container);
+  const context: EditorContext<T> = {
+    editor,
+    container,
     size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
     pos: computed(() => ({
       left: elementBounding.left.value,
@@ -643,13 +488,15 @@ export function provideEditorContext(editor: Ref<Editor>, el: Ref<HTMLElement | 
   return context;
 }
 
-export function useEditorContext(): EditorContext {
-  const context = inject<EditorContext>(EDITOR_CONTEXT);
+export function useEditorContext<T extends Editor>(): EditorContext<T> {
+  const context = inject<EditorContext<T>>(EDITOR_CONTEXT);
   if (context == null) {
     throw new Error("scroll context not provided");
   }
   return context;
 }
+
+// actions
 
 export type Action<T> = {
   label: string;
@@ -665,3 +512,109 @@ export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<SimpleType>;
 export type RecordAction = Action<DatasetRecord>;
 export type EditorAction = Action<Editor>;
+
+// specific editors
+
+export type FileElementType = "Statement" | "SimpleTypeNode" | "DatasetRecord";
+export type FileElement = { id: Scalars["GlobalID"]; __typename?: FileElementType };
+
+export class FileEditor extends Editor {
+  type = "file" as const;
+  fileId: string;
+  activeStatementId?: string;
+  selectedElementType?: FileElementType;
+  selectedElementIds: string[] = [];
+
+  constructor(file: { id: string; path: string }) {
+    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, null);
+    this.fileId = file.id;
+  }
+
+  focusElement(element: FileElement, retainEditing = false) {
+    if (element.__typename != "Statement") {
+      throw new Error(`focusElement only supports Statement elements, got ${element.__typename}`);
+    }
+    if (this.activeStatementId == element.id) return;
+    console.debug(`focus element ${element.id}`);
+    this.activeStatementId = element.id;
+    this.editing = this.editing && retainEditing;
+  }
+
+  blurElement(element?: FileElement) {
+    if (element == null || element.id == this.activeStatementId) {
+      this.activeStatementId = undefined;
+      console.log(`blur element ${element?.id}`);
+    }
+  }
+
+  editElement(element: FileElement) {
+    this.focusElement(element);
+    this.editing = true;
+  }
+
+  stopEditingElement(element?: FileElement) {
+    if (element == null || element.id == this.activeStatementId) {
+      this.editing = false;
+    }
+  }
+
+  get hasSelection(): boolean {
+    return (this.selectedElementIds?.length ?? 0) > 0;
+  }
+
+  get previousSelectedStatementId(): string | null {
+    const selection = this.getSelection("Statement");
+    return selection?.[selection.length - 2] ?? null;
+  }
+
+  get currentSelectedStatementId(): string | null {
+    const selection = this.getSelection("Statement");
+    return selection?.[selection.length - 1] ?? null;
+  }
+
+  getSelection(__typename?: FileElementType): string[] | undefined {
+    if (this.selectedElementType != __typename) return undefined;
+    return this.selectedElementIds;
+  }
+
+  isSelected(element: FileElement): boolean {
+    return this.getSelection(element.__typename)?.includes(element.id) ?? false;
+  }
+
+  addToSelection(element: FileElement): void {
+    const selection = this.getSelection(element.__typename);
+    if (selection == null) return;
+    if (selection.find((e) => e == element.id)) return;
+    console.debug("add to selection", this.path, element.id, selection.length);
+    selection.push(element.id);
+  }
+
+  removeFromSelection(element: FileElement) {
+    const selection = this.getSelection(element.__typename);
+    if (selection == null) return;
+    console.debug("remove from selection", this.path, element.id);
+    this.selectedElementIds = selection.filter((id) => id != element.id);
+  }
+
+  clearSelection(): void {
+    if (!this.hasSelection) return;
+    console.debug("clear selection", this.path);
+    this.selectedElementIds = [];
+  }
+}
+
+const EDITOR_INSTANCES: Record<EditorType, any> = {
+  file: FileEditor,
+};
+
+function instantiate(editorData: any): Editor {
+  const type = editorData.type;
+  const EditorClass = EDITOR_INSTANCES[type as EditorType];
+  if (EditorClass == null) {
+    throw new Error(`unknown editor type ${type}`);
+  }
+  if (!Reflect.setPrototypeOf(editorData, EditorClass.prototype)) {
+    throw new Error(`failed to set prototype of editor ${editorData.id}`);
+  }
+  return editorData;
+}

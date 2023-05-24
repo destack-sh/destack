@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/components/cells/grid";
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";
 import { useRelativeDropZone } from "@/utils/drop";
@@ -22,7 +22,7 @@ const emit = defineEmits<{
 
 const isArray = computed(() => props.type.flags & TypeFlag.IsArray);
 const objects = useObjects();
-const editor = useEditorState();
+const bench = useBenchState();
 const ongoingUploads = ref(0);
 
 const fileRefs = useElementRefs();
@@ -52,7 +52,7 @@ function onDrop(files: File[] | { type: string; id: string } | null) {
 }
 
 async function doUpload(file: File | null) {
-  if (file == null || editor.currentProjectId == null) return;
+  if (file == null || bench.currentProjectId == null) return;
   ongoingUploads.value++;
   function onUpdate(val: ObjectRecord | null) {
     if (val == null) return;
@@ -71,7 +71,7 @@ async function doUpload(file: File | null) {
       }
     }
   }
-  await objects.upload(editor.currentProjectId, file, onUpdate);
+  await objects.upload(bench.currentProjectId, file, onUpdate);
   ongoingUploads.value--;
 }
 

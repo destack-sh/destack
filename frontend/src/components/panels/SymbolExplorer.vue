@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/components/cells/grid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { useEditorState, type ViewId } from "@/state/editor";
+import { useBenchState, type ViewId } from "@/state/editor";
 import { useCurrentInterpModule, useSymbolNavigation } from "@/state/runtime";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
@@ -13,19 +13,19 @@ const emit = defineEmits<{
 }>();
 
 const runtime = useCurrentInterpModule();
-const editor = useEditorState();
+const bench = useBenchState();
 const nav = useSymbolNavigation();
 
 const filteredSymbols = computed(() => {
   const symbols = [];
 
-  if (!props.showAllSymbols && editor.focusedFileId == null) {
+  if (!props.showAllSymbols && bench.focusedFileId == null) {
     return undefined;
   }
 
   // TODO @Cleanup: order and group symbols
   for (const file of runtime.moduleIndex.value?.module.files ?? []) {
-    if (!props.showAllSymbols && file.id != editor.focusedFileId) {
+    if (!props.showAllSymbols && file.id != bench.focusedFileId) {
       continue;
     }
 
@@ -33,7 +33,7 @@ const filteredSymbols = computed(() => {
       if (
         symbol.name == null ||
         symbol.type != StatementType.Definition ||
-        (!editor.showGenerated && symbol.generated)
+        (!bench.showGenerated && symbol.generated)
       ) {
         continue;
       }
@@ -54,9 +54,9 @@ const symbolsGrid = useNavigationGrid<"name", HTMLElement>(
 );
 
 function focusSymbol(symbol: InterpSymbol) {
-  const focusedViewId = editor.focusedViewId;
+  const focusedViewId = bench.focusedViewId;
   nav.focusSymbol(symbol);
-  editor.focusView(focusedViewId as ViewId); // keep focused view
+  bench.focusView(focusedViewId as ViewId); // keep focused view
   nextTick(() => nav.focusSymbol(symbol));
 }
 
@@ -88,8 +88,8 @@ defineExpose({
       class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 hover:text-gray-900 focus:border-orange-600"
       :class="{
         'border-l-2 border-gray-300 pl-2.5': symbol.generated,
-        'bg-orange-100 text-orange-600': symbol.id == editor?.focusedElementId,
-        'text-gray-700 hover:text-orange-600': symbol.id != editor?.focusedElementId,
+        'bg-orange-100 text-orange-600': symbol.id == bench?.focusedStatementId,
+        'text-gray-700 hover:text-orange-600': symbol.id != bench?.focusedStatementId,
       }"
       @click.prevent="focusSymbol(symbol)"
       @mousedown.prevent="focusSymbol(symbol)"
@@ -98,7 +98,7 @@ defineExpose({
       @keydown.down.exact.prevent="symbolsGrid.navigateDown(symbol.id, 'name')"
     >
       <span class="">{{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}</span>
-      <span class="" :class="editor.mainSymbolId == symbol.id ? 'font-bold' : ''">{{ symbol.name }}</span>
+      <span class="">{{ symbol.name }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

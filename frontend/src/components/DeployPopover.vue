@@ -5,7 +5,7 @@ import Switch from "@/components/basic/Switch.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { DeploymentStatus, DeploymentType, StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
-import { useEditorState } from "@/state/editor";
+import { useBenchState } from "@/state/editor";
 import { ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -22,7 +22,7 @@ const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>()
 const emit = defineEmits<{ (e: "show"): void }>();
 
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
-const editor = useEditorState();
+const bench = useBenchState();
 
 const { result: deploymentsResult } = useQuery(
   graphql(/* GraphQL */ `
@@ -48,7 +48,7 @@ const { result: deploymentsResult } = useQuery(
     }
   `),
   () => ({
-    projectVersionId: editor.currentProjectVersionId,
+    projectVersionId: bench.currentProjectVersionId,
   })
 );
 const committed = computed(() => deploymentsResult.value?.projectVersion?.committed);
@@ -94,7 +94,7 @@ function archiveDeployment() {
 
 const endpoints = symbolsLike({
   types: [StatementType.Definition],
-  symbolTypes: [SymbolType.Task, SymbolType.Code, SymbolType.Runconfig],
+  symbolTypes: [SymbolType.Task, SymbolType.Code],
 });
 const deployedEndpoints = computed(() => endpoints.value); // not configurable yet
 
