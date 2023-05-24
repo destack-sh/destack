@@ -60,6 +60,7 @@ defineExpose({
     typeRef.value?.blur();
     descriptionRef.value?.blur();
   },
+  run,
 });
 </script>
 <template>
