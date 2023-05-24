@@ -125,7 +125,15 @@ function focusColumn(kind: "input" | "output", rowIdx: number, columnIdx: number
 }
 
 defineExpose({
-  focus: () => focus("first", "input"),
+  focus: (position: "first" | "last") => {
+    if (position == "first") {
+      focus("first", "input");
+    } else if (addInputRef.value != null) {
+      addInputRef.value.focus();
+    } else {
+      focus("last", "input");
+    }
+  },
   blur: () => {
     inputGrid.blur();
     outputGrid.blur();

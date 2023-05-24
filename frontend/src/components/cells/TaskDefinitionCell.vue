@@ -4,7 +4,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/EditableSpan.vue";
 import { useStatementContext } from "@/components/statement";
-import { useBenchState, type StatementAction } from "@/state/editor";
+import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
@@ -15,6 +15,7 @@ defineProps<{
 }>();
 
 const bench = useBenchState();
+const editor = useEditorContext();
 const context = useStatementContext();
 
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -28,21 +29,32 @@ const addingDescription = ref(false);
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
 
+function run() {
+  const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+  bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+}
+
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
       label: "Run",
       icon: PlayIcon,
-      action: () => {
-        bench.openRun(context.statement.value);
-      },
+      action: run,
     },
   ];
   return inlineActions;
 });
 
 defineExpose({
-  focus: () => declarationRef.value?.focus(),
+  focus: (position: "first" | "last" = "first") => {
+    if (position == "first") {
+      declarationRef.value?.focus();
+    } else if (typeRef.value != null) {
+      typeRef.value?.focus(position);
+    } else {
+      descriptionRef.value?.focus();
+    }
+  },
   blur: () => {
     declarationRef.value?.blur();
     typeRef.value?.blur();
@@ -61,8 +73,8 @@ defineExpose({
         @navigate-right="typeRef?.focus"
       />
       <button
-        tabindex="-1"
         v-if="description.length == 0 && !context.readonly.value && !addingDescription"
+        tabindex="-1"
         @click="
           addingDescription = true;
           descriptionRef?.focus();
@@ -91,8 +103,8 @@ defineExpose({
       @enter="context.insertBelow"
     />
     <button
-      tabindex="-1"
       v-if="description.length == 0 && !context.readonly.value && addingDescription"
+      tabindex="-1"
       @click="descriptionRef?.focus()"
       class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >

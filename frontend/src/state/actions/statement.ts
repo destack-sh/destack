@@ -42,12 +42,14 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     apply: () => {
       editor.value?.clearSelection();
       if (cur.value?.above != null) {
-        editor.value?.focusElement(cur.value.above, true);
+        const above = cur.value.above;
+        editor.value?.focusElement(above, true);
+        file.value?.statementsComponents[above.id]?.focus("last");
       } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus last statement
-        // note: I have disabled auto-focus last since it leads to some annoying behaviour,
-        // particularly when you think something is focused but it's not this leads to jumping
-        // editor.focusElement(statements.value[statements.value.length - 1], true);
+        const last = statements.value[statements.value.length - 1];
+        editor.value?.focusElement(last, true);
+        file.value?.statementsComponents[last.id]?.focus("last");
       } else if (cur.value?.statement != null) {
         // navigate up from statements
         file.value?.navigateUp();
@@ -297,13 +299,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
-  // TODO @Cleanup @Incomplete: provide statement surrounding context to all statements
-  //  deleteAboveCurrent action very specific because we don't have
-  //  the relevant above/below context in the statement and have no way of
-  //  telling other statements what to focus on specifically (start, end, content, etc.)
-  //  We should introduce an intermediate statement local context that statement interfaces
-  //  can use as well, which could also reduce move focus up/down latency.
-  //  :MissingStatementContext
   const deleteAbove = provideGlobalAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
@@ -313,6 +308,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       const current = cur.value?.statement?.id;
       if (cur.value?.above) {
         editor.value?.focusElement(cur.value?.above, true);
+        file.value?.statementsComponents[cur.value?.above.id]?.focus("last");
       }
       await ops.statement.softDelete(null, current);
     },

@@ -346,6 +346,8 @@ const filteredClients = computed(() =>
 );
 
 defineExpose({
+  focus: (position: "first" | "last" = "first") => rootCellRef.value?.focus(position),
+  blur: () => rootCellRef.value?.blur(),
   root: rootCellRef,
 });
 </script>
@@ -489,10 +491,10 @@ defineExpose({
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">A</template>
       <template v-if="isFocused">F</template>
+      <template v-if="isEditing">e</template>
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inRootCellFocused">r*</template>
-      <template v-if="isEditing">e</template>
       <template v-if="isCommented">#</template>
       <template v-if="isStale">S</template>
       <span class="lowercase">

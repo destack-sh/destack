@@ -13,7 +13,13 @@ import { FileEditor, useBenchState, type EditorContext, type FileAction, type St
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon, CodeBracketIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowUturnRightIcon,
+  DocumentDuplicateIcon,
+  TrashIcon,
+  CodeBracketIcon,
+  ChevronRightIcon,
+} from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
@@ -279,21 +285,21 @@ const auth = useAuth();
     <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
-      <!-- Fixed inline header -->
+      <!-- Fixed inline header :EditorInlineHeader -->
       <!-- (for some reason w-full doesn't work here, so set width absolutely..) -->
       <div
-        class="fixed z-10 flex flex-row items-center justify-between gap-1 rounded-md border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
+        class="fixed z-10 flex flex-row items-center justify-between gap-1 border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
         :class="appearance.baseClass"
         :style="{ height: appearance.editorHeaderHeight + 'px', width: props.editor.size?.value?.width + 'px' }"
       >
         <!-- Main info -->
-        <div class="flex flex-row items-center gap-1">
+        <div class="flex flex-row items-center">
           <!-- editor actions -->
           <ActionPopover anchor="left" :thing="file" :actions="props.editor.actions.value" class="">
             <CodeBracketIcon class="mt-1 h-4 w-4 text-gray-700" />
           </ActionPopover>
           <!-- editor path -->
-          <ActionPopover anchor="left" :thing="file" :actions="fileActions" class="">
+          <ActionPopover anchor="left" :thing="file" :actions="fileActions" class="ml-1">
             <span class="text-gray-900">{{ name }}</span>
           </ActionPopover>
           <!-- sub path inside editor -->
@@ -301,12 +307,12 @@ const auth = useAuth();
             <span
               v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null"
               :key="editor.activeStatementId"
-              class="text-gray-900"
-              ><span class="text-gray-700">/</span>
+              class="flex flex-row text-gray-900"
+              ><span class="text-gray-700"><ChevronRightIcon class="mr-0.5 mt-0.5 h-4 w-4 text-gray-400" /></span>
               {{ context?.statementsById[editor.activeStatementId as string].name }}</span
             >
           </FadeTransition>
-          <span v-if="bench.debug" class="bg-red-200 bg-opacity-50 text-gray-900">
+          <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
             {{ editor.editing ? "(editing)" : "" }}
             {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
           </span>

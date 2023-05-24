@@ -205,7 +205,8 @@ const extraInlineActions = computed(() => {
 });
 
 defineExpose({
-  focus: () => declarationRef.value?.focus(),
+  focus: (position: "first" | "last" = "first") =>
+    position == "first" ? declarationRef.value?.focus() : addMemberRef.value?.focus(),
   blur: () => {
     declarationRef.value?.blur();
     descriptionRef.value?.blur();
