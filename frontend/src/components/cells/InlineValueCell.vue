@@ -82,8 +82,7 @@ const valueInterface = computed(() => {
 });
 
 // debounce writes for selected interfaces (then flush on close/enter)
-// TODO @Robustness: value debounce doesn't consider type changes
-const debounce = props.debounced && valueInterface.value?.debounceMs != null;
+const debounce = computed(() => !props.readonly && props.debounced && valueInterface.value?.debounceMs != null);
 const value: Ref<any> = ref<any>(props.modelValue);
 const readValue = computed(() => {
   if (valueInterface.value?.read != null) {
@@ -97,25 +96,28 @@ function writeValue(newValue: any) {
     newValue = valueInterface.value.write(props.type, newValue);
   }
   value.value = newValue;
-  if (!debounce) {
+  if (!debounce.value) {
     emit("update:modelValue", newValue);
   }
 }
-let sync: any = null;
-if (debounce) {
-  sync = syncProperty({
-    value,
-    editing,
-    read: () => (value.value = props.modelValue),
-    write: () => emit("update:modelValue", value.value),
-    debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,
-  });
-} else {
-  watch(
-    () => props.modelValue,
-    (newValue) => (value.value = newValue)
-  );
-}
+// debounced sync
+const sync = syncProperty({
+  value,
+  editing,
+  read: () => (value.value = props.modelValue),
+  write: () => emit("update:modelValue", value.value),
+  debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,
+  enabled: debounce,
+});
+// immediate sync
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (!debounce.value) {
+      value.value = newValue;
+    }
+  }
+);
 
 function edit() {
   if (props.readonly) {
