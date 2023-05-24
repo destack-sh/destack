@@ -16,7 +16,7 @@ import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
-  actions: Action<unknown>[];
+  actions: Action<any>[];
   thing: any;
   anchor: "left" | "right";
 }>();

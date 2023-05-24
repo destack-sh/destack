@@ -4,7 +4,7 @@ import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/MonacoEditor.vue";
 import { useStatementContext } from "@/components/statement";
 import { useTimeFromNow } from "@/composables/useNow";
-import { useBenchState, type StatementAction } from "@/state/editor";
+import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { newExecutionId, useSymbolOps } from "@/state/runtime";
@@ -22,6 +22,7 @@ import { formatDurationSeconds } from "@/composables/useNow";
 import { useOperations } from "@/state/operations";
 
 const context = useStatementContext();
+const editor = useEditorContext();
 
 const ops = useOperations();
 const symbolOps = useSymbolOps();
@@ -101,7 +102,8 @@ async function run() {
     return; // already running
   }
   if (hasTypes.value) {
-    bench.openRun(context.statement.value);
+    const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+    bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
     lastExecutionLocalId.value = newExecutionId();
     hideOutput.value = false;
@@ -111,7 +113,7 @@ async function run() {
     } finally {
       preparingRun.value = false;
     }
-    // TODO @UX: ensure that executed code is exact same as in editor
+    // TODO @Robustness: ensure that executed code is exact same as in editor
     const ret = await symbolOps.run(context.statement.value, lastExecutionLocalId.value);
     if (ret?.data?.run.__typename == "RunState") {
       lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
@@ -129,7 +131,13 @@ async function cancel() {
 }
 
 defineExpose({
-  focus: () => declarationRef.value?.focus(),
+  focus: (position: "first" | "last" = "first") => {
+    if (position == "first") {
+      declarationRef.value?.focus();
+    } else {
+      monacoRef.value?.focus(true);
+    }
+  },
   blur: () => {
     declarationRef.value?.blur();
     typeRef.value?.blur();

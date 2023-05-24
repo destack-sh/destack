@@ -61,6 +61,13 @@ export abstract class Editor {
     return this._bench?.focusedEditorId == this.id;
   }
 
+  get group(): EditorGroup | undefined {
+    if (this.groupId == null) {
+      return undefined;
+    }
+    return this.bench.groups.find((g) => g.id == this.groupId);
+  }
+
   get bench(): ReturnType<typeof useBenchState> {
     if (this._bench == null) {
       throw new Error(`editor ${this.id} has no bench`);
@@ -272,22 +279,38 @@ export const useBenchState = defineStore("bench", {
       }
     },
 
-    openFile(file: { id: string; path: string }, options?: { group?: EditorGroup; create?: boolean }): Editor {
+    openFile(
+      file: { id: string; path: string },
+      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
+    ): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       if (!editor || options?.create) {
         console.log(`create new file editor for ${file.id} ${file.path}`);
         editor = new FileEditor(file);
+        editor.onDeserialized(this);
       }
-      return this.openEditor(editor, options?.group);
+      this.openEditor(editor, options?.group);
+      if (options?.focus) {
+        this.focusEditor(editor);
+      }
+      return editor;
     },
 
-    openRun(symbol: { id: string; name?: string }, options?: { group?: EditorGroup; create?: boolean }): Editor {
+    openRun(
+      symbol: { id: string; name?: string | null },
+      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
+    ): Editor {
       let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
       if (!editor || options?.create) {
         console.log(`create new run editor for ${symbol.name}`);
         editor = new RunEditor(symbol);
+        editor.onDeserialized(this);
       }
-      return this.openEditor(editor, options?.group);
+      this.openEditor(editor, options?.group);
+      if (options?.focus) {
+        this.focusEditor(editor);
+      }
+      return editor;
     },
 
     nextGroup(group: EditorGroup): EditorGroup | undefined {
@@ -717,8 +740,8 @@ export class RunEditor extends Editor {
   symbolId: string;
   arguments: Record<string, any> = {};
 
-  constructor(symbol: { id: string; name: string }) {
-    super("run", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name);
+  constructor(symbol: { id: string; name?: string | null }) {
+    super("run", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
     this.symbolId = symbol.id;
   }
 
@@ -729,6 +752,7 @@ export class RunEditor extends Editor {
 
 const EDITOR_INSTANCES: Record<EditorType, any> = {
   file: FileEditor,
+  run: RunEditor,
 };
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {

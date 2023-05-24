@@ -45,7 +45,7 @@ function deleteModifierOrAbove() {
 const localErrors = localErrorsOf(context.statement);
 
 defineExpose({
-  focus: () => nameRef.value?.focus(),
+  focus: (position: "first" | "last" = "first") => nameRef.value?.focus(),
   blur: () => {
     startRef.value?.blur();
     nameRef.value?.blur();

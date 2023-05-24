@@ -88,7 +88,7 @@ function morphed() {
 }
 
 defineExpose({
-  focus: () => {
+  focus: (position: "first" | "last" = "first") => {
     if (context.statement.value.symbolType == null) {
       // prever gap if we don't have a symbol type declared yet
       gapRef.value?.focus();

@@ -529,7 +529,13 @@ const recordActions: RecordAction[] = [
 ];
 
 defineExpose({
-  focus: () => declarationRef.value?.focus(),
+  focus: (position: "first" | "last" = "first") => {
+    if (position == "first") {
+      declarationRef.value?.focus();
+    } else {
+      (loadMoreRef.value ?? addRecordRef.value ?? addFieldRef.value)?.focus();
+    }
+  },
   blur: () => {
     declarationRef.value?.blur();
     descriptionRef.value?.blur();
