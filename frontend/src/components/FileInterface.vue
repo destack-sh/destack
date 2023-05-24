@@ -19,6 +19,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { whenever } from "@vueuse/core";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -280,12 +281,18 @@ const auth = useAuth();
         <ActionPopover anchor="left" :thing="file" :actions="[...fileActions, ...props.editor.actions.value]" class="">
           <span class="text-gray-900">{{ name }}</span>
         </ActionPopover>
-        <span v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null" class="text-gray-900"
-          ><span class="text-gray-700">/</span>
-          {{ context?.statementsById[editor.activeStatementId as string].name }}</span
-        >
+        <FadeTransition mode="out-in">
+          <span
+            v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null"
+            :key="editor.activeStatementId"
+            class="text-gray-900"
+            ><span class="text-gray-700">/</span>
+            {{ context?.statementsById[editor.activeStatementId as string].name }}</span
+          >
+        </FadeTransition>
         <span v-if="bench.debug" class="bg-red-200 bg-opacity-50 text-gray-900">
           {{ editor.editing ? "(editing)" : "" }}
+          {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
         </span>
       </div>
       <!-- File name & meta actions -->

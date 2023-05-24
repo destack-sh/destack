@@ -122,7 +122,7 @@ async function createFileInEditorGroup() {
           <EditorInterface :editor="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
         <EmptyEditorInterface
-          v-if="bench.currentProjectVersionId != null && group.editors.length === 0"
+          v-if="bench.currentProjectVersionId != null && group.activeEditorId == null"
           class="relative h-full w-full"
           :group="group"
         />

@@ -67,7 +67,7 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; path: string }) {
-  bench.openFile(file, { group: props.group });
+  bench.openFile(file, { group: props.group, create: true });
 }
 </script>
 <template>

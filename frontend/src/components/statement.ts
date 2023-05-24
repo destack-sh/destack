@@ -27,6 +27,7 @@ export type StatementContext = {
   xOffset: Ref<number>;
   lineNumberBase: Ref<number>;
   readonly: Ref<boolean>;
+  active: Ref<boolean>;
   focused: Ref<boolean>;
   editing: Ref<boolean>;
   statement: Ref<FragmentType<typeof StatementContentType>>;

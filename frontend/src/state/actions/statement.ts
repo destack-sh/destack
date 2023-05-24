@@ -277,6 +277,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     enabled: computed(() => cur.value?.statement != null && navigatingFile.value && !editor.value?.hasSelection),
     apply: async () => {
       const current = cur.value?.statement?.id;
+      if (current == null) return;
       if (cur.value?.above) {
         editor.value?.focusElement(cur.value?.above);
       }

@@ -227,7 +227,7 @@ defineExpose({
       />
       <!-- Extended types -->
       <!-- TODO @Cleanup: reduce duplication with data definition cell (and general ugliness of keyboard navigation...) -->
-      <div class="ml-1" v-if="(extendedTypes?.length ?? 0) > 0">
+      <div class="ml-1 whitespace-nowrap" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">is</span>
         <div class="inline-flex flex-row gap-1">
           <InlineTypeCell
