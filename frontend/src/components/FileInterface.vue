@@ -13,7 +13,7 @@ import { useEditorState, type EditorContext, type FileAction, type StatementHead
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon, CodeBracketIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
@@ -245,15 +245,24 @@ const auth = useAuth();
     <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
-      <!-- Fixed file path with actions -->
+      <!-- Fixed editor path with actions -->
       <div
-        class="fixed z-10 ml-1 flex w-full flex-row gap-1 rounded-md bg-white px-1 pt-0.5"
+        class="fixed z-10 flex w-full flex-row items-center gap-1 rounded-md border-b border-orange-900 border-opacity-[12%] bg-white px-1"
         :class="appearance.baseClass"
+        :style="{ height: appearance.headerHeight + 'px' }"
       >
-        <span class="select-all text-gray-700">
-          {{ name }}
+        <!-- editor type -->
+        <span class="p-0.5">
+          <CodeBracketIcon class="h-4 w-4 text-gray-700" />
         </span>
-        <ActionPopover :thing="file" :actions="fileActions" />
+        <!-- editor path -->
+        <ActionPopover anchor="left" :thing="file" :actions="[...fileActions, ...props.context.actions.value]" class="">
+          <span class="text-gray-900">{{ name }}</span>
+        </ActionPopover>
+        <span v-if="context.statementsById[editor.focusedElementId ?? '']?.name != null" class="text-gray-900"
+          ><span class="text-gray-700">/</span>
+          {{ context.statementsById[editor.focusedElementId as string].name }}</span
+        >
       </div>
       <!-- File name & meta actions -->
       <div
@@ -261,8 +270,8 @@ const auth = useAuth();
         :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX + 8}px`, // +8 for :StatementPadding
-          paddingRight: `${appearance.contentMarginX + 8}px`,
+          paddingLeft: `${appearance.contentMarginX + 4}px`, // + for :StatementPadding
+          paddingRight: `${appearance.contentMarginX + 4}px`,
         }"
       >
         <!-- Name & actions -->
@@ -310,7 +319,7 @@ const auth = useAuth();
         class="mx-auto"
         :style="statementAddAreaPositionX"
         position="start"
-        @click="editor.readonly || insertStatementStart()"
+        @click="editor.readonly || insertOrFocusStatementStart()"
         v-if="statements?.length > 0"
       />
       <!-- File's statements -->

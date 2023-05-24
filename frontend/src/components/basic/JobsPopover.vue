@@ -105,7 +105,7 @@ const JOB_VERBS = {
     <!-- All recent jobs -->
     <FadeTransition>
       <PopoverPanel
-        class="absolute left-0 top-10 z-10 mt-0 flex h-60 w-80 flex-col gap-2 overflow-y-scroll rounded-sm bg-white px-4 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute left-0 top-10 z-30 mt-0 flex h-60 w-80 flex-col gap-2 overflow-y-scroll rounded-sm bg-white px-4 pb-4 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Header -->
         <div class="sticky top-0 flex flex-row justify-between bg-white pt-2">

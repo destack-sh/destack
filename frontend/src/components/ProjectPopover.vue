@@ -44,7 +44,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute top-10 left-0 z-10 flex w-52 flex-col gap-1 rounded-sm bg-white px-2 pt-2 pb-4 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute left-0 top-10 z-30 flex w-52 flex-col gap-1 rounded-sm bg-white px-2 pb-4 pt-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <!-- Name -->
         <div class="flex max-w-full flex-col">
@@ -55,7 +55,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
         <div class="px-2">
           <div class="flex flex-row justify-center py-1 text-sm">
             <button
-              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-100"
+              class="flex flex-row items-center justify-center gap-1 rounded-sm px-3 py-1 text-center hover:bg-orange-100"
               :class="{ 'text-orange-600': project.visibility === ProjectVisibility.Private }"
               @click="updateVisibility(ProjectVisibility.Private)"
             >
@@ -63,7 +63,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
               <span>Private</span>
             </button>
             <button
-              class="flex flex-row items-center justify-center gap-1 rounded-sm py-1 px-3 text-center hover:bg-orange-100"
+              class="flex flex-row items-center justify-center gap-1 rounded-sm px-3 py-1 text-center hover:bg-orange-100"
               :class="{ 'text-orange-600': project.visibility === ProjectVisibility.Public }"
               @click="updateVisibility(ProjectVisibility.Public)"
             >
@@ -76,7 +76,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
         <button
           v-for="action in projectActions"
           :key="action.name"
-          class="flex flex-row items-center gap-1.5 py-1 px-2 text-left text-sm"
+          class="flex flex-row items-center gap-1.5 px-2 py-1 text-left text-sm"
           :class="{ 'cursor-not-allowed text-gray-500': !action.enabled, 'hover:bg-orange-100': action.enabled }"
           :disabled="!action.enabled"
         >

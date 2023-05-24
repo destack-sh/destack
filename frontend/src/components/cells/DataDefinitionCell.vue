@@ -696,7 +696,13 @@ defineExpose({
           <div class="relative">
             <div class="absolute right-0 flex flex-row-reverse items-baseline gap-0.5">
               <!-- Standard actions -->
-              <ActionPopover v-if="!context.readonly.value" v-slot="{ open }" :thing="record" :actions="recordActions">
+              <ActionPopover
+                v-if="!context.readonly.value"
+                anchor="right"
+                v-slot="{ open }"
+                :thing="record"
+                :actions="recordActions"
+              >
                 <Squares2X2Icon
                   class="h-4 w-4 text-gray-400 hover:text-gray-700"
                   :class="[

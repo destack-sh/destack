@@ -1,4 +1,8 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
+import { useAppearance } from "@/state/appearance";
+import type { Action } from "@/state/editor";
 import {
   Combobox,
   ComboboxInput,
@@ -8,14 +12,14 @@ import {
   PopoverButton,
   PopoverPanel,
 } from "@headlessui/vue";
-import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { FileAction, RecordAction, StatementAction, TypeAction } from "@/state/editor";
 import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { useAppearance } from "@/state/appearance";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ actions: (FileAction | TypeAction | StatementAction | RecordAction)[]; thing: any }>();
+const props = defineProps<{
+  actions: Action<unknown>[];
+  thing: any;
+  anchor: "left" | "right";
+}>();
 const emit = defineEmits<{
   (e: "mousedown", v: MouseEvent): void;
   (e: "mouseup", v: MouseEvent): void;
@@ -39,6 +43,13 @@ const filteredActions = computed(() =>
   props.actions.filter((action: { label: string }) => action.label.toLowerCase().includes(query.value.toLowerCase()))
 );
 
+const anchor = computed(
+  () =>
+    ({
+      left: "left-0",
+      right: "right-0",
+    }[props.anchor])
+);
 const appearance = useAppearance();
 </script>
 <template>
@@ -67,7 +78,7 @@ const appearance = useAppearance();
         ref="popoverPanelRef"
         as="div"
         class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2 '"
+        :class="[popoverPin.pinned.value ? '' : 'absolute ' + anchor]"
         unmount
       >
         <span ref="popoverOpenRef" class="hidden" />
