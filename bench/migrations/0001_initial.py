@@ -12,12 +12,7 @@ from django.conf import settings
 from django.db import migrations, models
 
 import bench.language.type
-import bench.models.data
-import bench.models.generated
-import bench.models.project
-import bench.models.user
-import bench.models.utils
-import bench.utils.uuidt
+import bench.models
 
 
 class Migration(migrations.Migration):
@@ -425,11 +420,7 @@ class Migration(migrations.Migration):
                 "ordering": ["order_key"],
                 "default_manager_name": "objects",
             },
-            bases=(
-                models.Model,
-                bench.models.data.DatasetContentMixin,
-                bench.models.generated.GeneratedContentMixin,
-            ),
+            bases=(models.Model,),
         ),
         migrations.CreateModel(
             name="SourceMapping",

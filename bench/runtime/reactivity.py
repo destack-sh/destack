@@ -7,15 +7,8 @@ from itertools import chain
 from typing import Callable, Iterator, Optional
 from uuid import UUID
 
-from bench import language
-from bench.language import GeneratedMapping, ModuleIndex
-from bench.language.type import (
-    GeneratedMappingType,
-    GeneratorContent,
-    InterpSymbol,
-    Record,
-    TypeNode,
-)
+from bench.language import ModuleIndex
+from bench.language.type import InterpSymbol, Record, TypeNode
 from bench.language.wire import ModuleData
 from bench.runtime.instruct import InstructionTree, map_instruction
 
@@ -63,15 +56,6 @@ class RevisionMap:
             type=raw_node.type,
             id=raw_node.id,
             revision=self.get(raw_node.id),
-        )
-
-    def map_mapping(self, raw_mapping: RawMapping) -> GeneratedMapping:
-        return GeneratedMapping(
-            type=GeneratedMappingType(raw_mapping.type.value),
-            source_id=raw_mapping.source_id,
-            source_revision=self.get(raw_mapping.source_id),
-            target_id=raw_mapping.target_id,
-            target_revision=self.get(raw_mapping.target_id) if raw_mapping.target_id else None,
         )
 
     @staticmethod
@@ -133,19 +117,6 @@ class TrackedTree:
 
     def __iter__(self) -> Iterator[TrackedNode]:
         return iter(self.nodes.values())
-
-
-def tree_from_mappings(mappings: list[GeneratedMapping]) -> TrackedTree:
-    tree = TrackedTree(nodes={})
-    for mapping in mappings:
-        # we only care about source nodes since they are the dependencies
-        if mapping.source_id and mapping.source_id not in tree.nodes:
-            tree.nodes[mapping.source_id] = TrackedNode(
-                type=TrackedNodeType(mapping.type),
-                id=mapping.source_id,
-                revision=mapping.source_revision,
-            )
-    return tree
 
 
 def tree_from_module(
@@ -222,53 +193,3 @@ def tracked_tree_from_symbol(
     tree = TrackedTree()
     track_interp_symbol(tree, symbol, filter=filter)
     return tree
-
-
-def get_stale_symbols(revmap: RevisionMap, idx: language.ModuleIndex) -> list[language.Statement]:
-    """Gets the stale generated or generator symbols in the given module"""
-
-    # A generated/generator symbol is stale if
-    #  1) one of its dependencies has changed
-    #  2) one of its dependencies is affected by another change
-    # These are because 1) checks for changes in known dependencies,
-    # while 2) checks for new symbols that affect the dependencies.
-
-    # (we exclude generated symbols here because we only need to consider source symbols)
-    # TODO @Robustness: tree_from_module reactivity does not work with imports/redefs (incl. generated)
-    #  TrackedTree assumes that each nodes dependencies are its revisioned children, and
-    #  and any transient dependencies are tracked by walking descendants and adding them
-    #  to the overall dependencies. The tree stores nodes by their source id, so with
-    #  imports and redefs only the first instance of each descendant is tracked.
-    #  This is not a problem with regular refs since you can't refer to refs.
-    #  To solve this, we'll probably invert nodes to track children (instead of parents),
-    #  enabling multiple dependencies per trigger.
-    #  :NaiveTreeTracking
-
-    stale_symbols = []
-    for symbol in idx.symbols.values():
-        if not isinstance(symbol, GeneratorContent):
-            continue
-
-        # new tree excludes the generators output
-        generated_ids = {m.target_id for m in symbol.generated_mappings}
-        new_tree = tree_from_module(revmap, idx, filter=lambda s: s.id not in generated_ids)
-
-        # rebuild old tree for this generator
-        old_tree = tree_from_mappings(symbol.generated_mappings)
-        diff_nodes = list(diff_trees(old_tree, new_tree))
-        if not diff_nodes:
-            # nothing relevant changed
-            continue
-
-        # mark generated statements as stale
-        # also mark generator and the directly mapped source of the generated symbol
-        # ideally we would also track which generator the symbol is stale in?
-        for mapping in symbol.generated_mappings:
-            if mapping.target_id is None:
-                continue
-            generated_target = idx.get_symbol_by_id(mapping.target_id)
-            if generated_target is not None:
-                stale_symbols.append(generated_target.source)
-        stale_symbols.append(symbol.source)
-
-    return stale_symbols

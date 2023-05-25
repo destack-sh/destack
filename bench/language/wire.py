@@ -10,7 +10,6 @@ from bench.language import ErrorType
 from bench.language.parse import get_reference_as_path
 from bench.language.type import (
     BuildSettings,
-    GeneratedMapping,
     StatementModifier,
     StatementPath,
     StatementType,
@@ -236,7 +235,6 @@ class StatementData:
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
-    generated_mappings: Optional[list[GeneratedMapping]] = None
     build_settings: Optional[BuildSettings] = None
     reference_module: Optional[ModuleReference] = None
 
@@ -387,9 +385,6 @@ def rmap_symbol(
     content: language.SymbolContent, data: StatementData, impute_type_references: bool = False
 ) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
-    # generator content is a component of other content types
-    if isinstance(content, language.GeneratorContent):
-        data.generated_mappings = content.generated_mappings
     # type content is also a component
     if isinstance(content, language.TypeContent):
         data.description = content.description
@@ -447,7 +442,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         )
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(
-            generated_mappings=data.generated_mappings,
             tag=data.root_type_tag,
             type_nodes=type_nodes,
             description=data.description,
@@ -456,7 +450,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.ExpectationContent(description=data.description)
     elif data.symbol_type == SymbolType.CODE:
         return language.CodeContent(
-            generated_mappings=data.generated_mappings,
             description=data.description,
             language=data.lang,
             code=data.code,
@@ -483,7 +476,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(
             comment=data.description,
-            generated_mappings=data.generated_mappings,
             settings=data.build_settings,
         )
     elif data.symbol_type == SymbolType.REQUIREMENT:

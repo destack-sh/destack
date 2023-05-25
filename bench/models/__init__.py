@@ -11,7 +11,6 @@ from .deployment import (
 )
 from .evaluation import EvaluationKind, EvaluationResult, EvaluationScope
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
-from .generated import GeneratedMapping, GeneratedMappingType
 from .job import Job, JobStatus, JobType
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -58,8 +57,6 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionTriggerType",
     "File",
-    "GeneratedMapping",
-    "GeneratedMappingType",
     "Job",
     "JobStatus",
     "JobType",

@@ -28,7 +28,6 @@ log = structlog.get_logger(__name__)
 StatementType = gql.enum(models.StatementType)
 StatementModifier = gql.enum(language.StatementModifier)
 SymbolType = gql.enum(models.SymbolType)
-GeneratedMappingType = gql.enum(models.GeneratedMappingType)
 
 
 @gql.django.filter(models.DatasetRecord)
@@ -59,25 +58,6 @@ class XBlockFilter:
         if self.is_visible is not UNSET and self.is_visible is not None:
             queryset = queryset.filter(deleted_at__isnull=self.is_visible)
         return queryset
-
-
-@gql.django.filter(models.GeneratedMapping)
-class GeneratedMappingFilter:
-    type_in: Optional[list[GeneratedMappingType]] = None
-
-    def filter(self, queryset):
-        if self.type_in is not None:
-            queryset = queryset.filter(type__in=self.type_in)
-        return queryset
-
-
-@gql.django.type(models.GeneratedMapping)
-class GeneratedMapping(gql.Node):
-    statement: "Statement"
-    source_id: Optional[GlobalID]
-    source_revision: Optional[int]
-    target_id: Optional[GlobalID]
-    target_revision: Optional[int]
 
 
 @gql.django.type(models.DatasetRecord)
@@ -172,7 +152,6 @@ class Statement(gql.Node, SimplyTyped):
     reference: Optional["Statement"]
     symbol_type: Optional[SymbolType]
     # symbol contents
-    generated_mappings: list[GeneratedMapping] = gql.django.field(filters=GeneratedMappingFilter)
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)

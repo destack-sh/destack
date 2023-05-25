@@ -1,5 +1,4 @@
 import enum
-import textwrap
 import typing
 from dataclasses import asdict, dataclass, is_dataclass
 
@@ -18,7 +17,6 @@ from bench.language.type import (
 )
 from bench.language.typer import check_type
 from bench.runtime.inference import (
-    BASE_SETTINGS_BY_MODALITY,
     EmbeddingSettings,
     ImageGenerationSettings,
     IncapableError,
@@ -27,15 +25,13 @@ from bench.runtime.inference import (
 )
 from bench.runtime.instance import (
     AsyncCodeInstance,
-    CodeInstance,
     CodeTransformation,
     ModelInstance,
     Session,
     TaskInstance,
 )
-from bench.runtime.lsp import parse_code
 from bench.utils.fractional import generate_n_keys_between
-from bench.utils.utils import get_method_source, to_pyidentifier
+from bench.utils.utils import get_method_source
 
 
 class GenerationErrorType(enum.Enum):
@@ -139,7 +135,7 @@ class XBuilder:
     def build(
         self, task: TaskInstance, model: ModelInstance, session: Session
     ) -> AsyncCodeInstance:
-        async def _invoke(*args, **kwargs) -> dict:
+        async def _invoke(*args, **kwargs) -> dict[str, LiteralValue]:
             combined_kwargs = {**kwargs}
             for input_t, input in zip(self.type.inputs, args):
                 combined_kwargs[input_t.name] = input
@@ -163,80 +159,6 @@ class XBuilder:
             ),
             tag=TypeTag.FUNCTION,
         )
-
-    def to_symbol_(self) -> CodeInstance:
-        # TODO @Cleanup @Architecture: build X code instances on demand to avoid stupid strings
-        order_keys = generate_n_keys_between(None, None, len(self.xblocks))
-        # assign order keys
-        for xblock, order_key in zip(self.xblocks, order_keys):
-            xblock.order_key = order_key
-
-        input_dict_def = "from collections import OrderedDict\n" "_input_dict = OrderedDict()"
-        for input in self.type.inputs or []:
-            input_ident = to_pyidentifier(input.name)
-            input_dict_def += f"\n_input_dict['{input_ident}'] = {input_ident}"
-
-        # inline handler methods
-        input_handler_defs: list[str] = []
-        input_handler_calls: list[str] = []
-        output_handler_defs: list[str] = []
-        output_handler_calls: list[str] = []
-        for block in self.dynamic_xblocks:
-            i = self.xblocks.index(block.xblock)
-            if block.xblock.kind == XKind.Input:
-                handler_def = f"def _input_handler_{i}(input, value):\n" + (
-                    textwrap.indent(get_method_source(block.handler), " " * 4)
-                )
-                input_handler_defs.append(handler_def)
-                handler_call = f"_input_handler_{i}(xblocks[{i}], _input_dict)"
-                input_handler_calls.append(handler_call)
-            elif block.xblock.kind == XKind.Output:
-                handler_def = f"def _output_handler_{i}(output):\n" + (
-                    textwrap.indent(get_method_source(block.handler), " " * 4)
-                )
-                output_handler_defs.append(handler_def)
-                if output_handler_calls:
-                    # TODO @Incomplete: support multiple output handlers (multiple paths?)
-                    raise ValueError(f"already have output handler for {self.name}")
-                handler_call = (
-                    f"xblocks[{i}].value = model_output\n"
-                    f"return _output_handler_{i}(xblocks[{i}])"
-                )
-                output_handler_calls.append(handler_call)
-
-        settings_type = BASE_SETTINGS_BY_MODALITY[self.modality]
-        model_call = (
-            f"model = context['{self.model.name}']\n"
-            f"input_blocks = [xblock for xblock in xblocks if xblock.kind in (XKind.Input, XKind.Static)]\n"
-            f"settings = first([xblock.value for xblock in xblocks if xblock.kind == XKind.Settings])\n"
-            # cast settings to right type  :TypeSafeSettings
-            f"settings = {settings_type.__name__}(**settings) if not isinstance(settings, {settings_type.__name__}) else settings\n"
-            f"model_output = await model.{self.modality}(input_blocks, settings)"
-        )
-
-        x_source = (
-            # context
-            input_dict_def,
-            *input_handler_defs,
-            *output_handler_defs,
-            # run input handlers
-            *input_handler_calls,
-            # run model
-            model_call,
-            # run output handlers
-            *output_handler_calls,
-        )
-        x_source = "\n".join(x_source)
-        code = xcode(
-            x_source,
-            name=self.name,
-            type=self.type.deepcopy(keep_id=False, keep_reference=True),
-            xblocks=self.xblocks,
-            language="x",
-        )
-        code.parse = parse_code(code.code)
-        code.context[self.model.ident] = self.model.definition
-        return code
 
 
 class DataBuilder:
