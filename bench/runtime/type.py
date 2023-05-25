@@ -120,7 +120,7 @@ class PyFrameData:
         code_instances_by_method_name: dict[str, CodeInstance] = {
             instance.transform.method_name: cast(CodeInstance, instance)
             for instance in session.instances.values()
-            if instance.symbol_type == SymbolType.CODE
+            if instance.symbol_type == SymbolType.CODE and instance.transform is not None
         }
 
         transform = from_code.transform

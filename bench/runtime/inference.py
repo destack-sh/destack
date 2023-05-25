@@ -92,6 +92,10 @@ class ModelInference:
         modality = Modality(method.__name__)
         return IncapableError(f"{self} is incapable of modality {modality}")
 
+    async def __call__(self, modality: Modality, input: list[XBlock], settings: Any) -> Any:
+        method = getattr(self, modality.value)
+        return await method(input, settings)
+
     async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
         raise self.incapable_error(self.generate_text)
 

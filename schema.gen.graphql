@@ -116,13 +116,6 @@ enum BuildCandidateStatus {
   Cancelled
 }
 
-type BuildSettings implements Node {
-  id: GlobalID!
-  statement: Statement
-  reactive: Boolean!
-  weights: JSON!
-}
-
 input CancelRunInput {
   projectVersionId: GlobalID!
   executionId: GlobalID!
@@ -1839,8 +1832,6 @@ type Statement implements Node & SimplyTyped {
     last: Int = null
     filters: DatasetRecordFilter
   ): DatasetRecordConnection!
-  buildSettings: BuildSettings
-  buildCandidates: [BuildCandidate!]!
   evaluationResults: [EvaluationResult!]!
 }
 

@@ -20,7 +20,7 @@ const now = useTimeFromNow();
       class="group relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
       :class="{
         'px-2.5 py-1': props.size === 'large',
-        'px-2 py-0.5': props.size === 'medium',
+        'px-1.5 py-0.5': props.size === 'medium',
         'px-1 py-0.5': props.size === 'small',
       }"
       :style="{

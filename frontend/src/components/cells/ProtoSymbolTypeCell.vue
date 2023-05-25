@@ -57,6 +57,7 @@ watch(content, (newContent) => {
     morphed = false;
   }
   if (morphed) {
+    content.value = "";
     emit("morphed");
   }
 });
@@ -235,7 +236,7 @@ defineExpose({
     </span>
     <FadeTransition>
       <ComboboxOptions
-        class="absolute top-7 z-20 flex max-h-64 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-40 focus:outline-none"
+        class="absolute top-7 z-20 flex max-h-64 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
       >
         <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
           <span class="text-gray-700">No results</span>

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import asyncio
-import enum
+import itertools
 import json
-from dataclasses import dataclass, field
+import re
+import typing
+from dataclasses import asdict, dataclass, is_dataclass
 from typing import Any, Optional
 
 import structlog
@@ -12,7 +14,7 @@ from bench.language.type import (
     Data,
     Expectation,
     InterpSymbol,
-    Model,
+    LiteralValue,
     StatementModifier,
     Task,
     Type,
@@ -20,10 +22,19 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
     XBlock,
+    XBlockContent,
+    XKind,
     XSource,
 )
-from bench.runtime.inference import Modality
-from bench.runtime.instance import AsyncCodeInstance, ModelInstance, Session, TaskInstance
+from bench.language.typer import check_type
+from bench.runtime.inference import SETTINGS_CLS_BY_MODALITY, Modality
+from bench.runtime.instance import (
+    AsyncCodeInstance,
+    ModelInstance,
+    Session,
+    TaskInstance,
+    TypeInstance,
+)
 from bench.runtime.instruct import (
     InstructionOp,
     SampleDatasetRandom,
@@ -32,34 +43,12 @@ from bench.runtime.instruct import (
     instruction_tree_from_symbol,
 )
 from bench.runtime.model import TextGenerationSettings
-from bench.runtime.x import DynamicXBlock, XBuilder, xinput, xoutput, xsettings, xstatic
 
 logger = structlog.get_logger(__name__)
 
 
-class BuildErrorType(enum.Enum):
-    INTERNAL = 0, "Internal error"
-    RUN = 1, "Error running user code"
-    CONFIG = 2, "Invalid configuration"
-
-    def __new__(cls, value, description):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.description = description
-        return obj
-
-
-class BuildError(ValueError):
-    def __init__(
-        self,
-        _t: BuildErrorType,
-        symbol: Optional[InterpSymbol],
-        cause: Optional[Exception] = None,
-    ):
-        self.type = _t
-        self.symbol = symbol
-        self.cause = cause
-        super().__init__(self.type.description)
+class XGenerationError(ValueError):
+    pass
 
 
 @dataclass(repr=False)
@@ -75,26 +64,43 @@ def xemit(func):
     return dataclass(repr=False, slots=True)(func)
 
 
-@dataclass(repr=False)
-class TaskPlan:
-    task: Task
-    model: Model
-    modality: Modality
-    base_settings: Optional[dict[str, Any]] = None
-    sources: list[SampleSource] = field(default_factory=dict)
-    emits: list[XEmit] = field(default_factory=list)
+ValueT = typing.TypeVar("ValueT", bound=typing.Any)
 
-    def __str__(self):
-        return f"task={self.task}, model={self.model}, modality={self.modality}, sources={len(self.sources)}, targets={len(self.emits)}"
 
-    def __repr__(self):
-        return f"<TaskPlan {self}>"
+def xsettings(
+    value: ValueT, source: XSource = XSource.System, path: str = None
+) -> XBlockContent[ValueT]:
+    if is_dataclass(value):
+        value = asdict(value)
+    return XBlockContent(kind=XKind.Settings, source=source, value=value, path=path)
 
-    def source(self, source: SampleSource):
-        self.sources.append(source)
 
-    def emit(self, *target: XEmit | list[XEmit]):
-        self.emits.extend(target)
+def xstatic(
+    value: ValueT, source: XSource = XSource.Developer, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Static, source=source, value=value, path=path)
+
+
+def xinput(
+    value: ValueT, source: XSource = XSource.User, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Input, source=source, value=value, path=path)
+
+
+def xoutput(
+    value: ValueT, source: XSource = XSource.Model, path: str = None
+) -> XBlockContent[ValueT]:
+    return XBlockContent(kind=XKind.Output, source=source, value=value, path=path)
+
+
+XInputHandler = typing.Callable[[XBlock, typing.Any], None]
+XOutputHandler = typing.Callable[[Any], typing.Any]
+
+
+@dataclass
+class DynamicXBlock:
+    xblock: XBlockContent
+    handler: XInputHandler | XOutputHandler
 
 
 async def build_task_implementation(
@@ -103,8 +109,7 @@ async def build_task_implementation(
     """Build the implementation for a task using some model."""
     # TODO @Broken: consider context length in X prompt planning/building
     if not task.outputs:
-        # cannot build task without output, should be caught before this
-        raise BuildError(BuildErrorType.CONFIG)
+        raise RuntimeError(f"cannot build task {task} without output")
     instruction, tree = instruction_tree_from_symbol(task)
     expectations: list[Expectation] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
@@ -112,57 +117,113 @@ async def build_task_implementation(
     data_samples: list[Data] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
     ]
-    # clarity output label as task completion if we don't have a structured output
-    plan = TaskPlan(task=task, model=model, modality=Modality.GenerateText)
-    # map output type
-    output_label = "Output"
-    # this is obviously hacky and suboptimal and will be replaced
-    plan.emit(
+    x = XBuilder(task=task, model=model, modality=Modality.GenerateText)
+    x.emit(
         XSystem(),
         XTypeSchema(
             type=task.type,
-            type_label=output_label,
+            type_label="Output",
             include_descriptions=True,
             recursive=True,
         ),
     )
     if expectations:
-        plan.emit(XExpectations(task_label=task.name, expectations=expectations))
+        x.emit(XExpectations(task_label=task.name, expectations=expectations))
     for dataset in data_samples:
         if len(dataset) > 0:
-            plan.emit(
+            x.emit(
                 XSamples(
                     source=SampleDatasetRandom(dataset, count=3, seed=0),
                     task_label=task.name,
                     positive=dataset.modifier == StatementModifier.LIKE,
                 )
             )
-    plan.emit(
+    x.emit(
         XTask(task=task),
-        XTypeSample(type=task.type, type_label=output_label),
+        XTypeSample(type=task.type, type_label="Output", is_output=True),
     )
     if task.type.inputs:
-        plan.emit(XInput())
-    plan.emit(
+        x.emit(XInput(type=task.type))
+    x.emit(
         # TODO @Broken: adjust & tune generation settings
         XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-        XOutput(type=task.type, type_label=f"Output for task {task.name}"),
+        XOutputText(type=task.type, type_label=f"output for task {task.name}"),
     )
 
-    xbuilder = XBuilder(
-        name=plan.task.name,
-        type=plan.task.type,
-        model=plan.model,
-        modality=plan.modality,
-    )
-    emissions = await asyncio.gather(*[emit() for emit in plan.emits])
-    for emit in emissions:
-        if isinstance(emit, list):
-            xbuilder.extend(emit)
-        else:
-            xbuilder.append(emit)
+    return await x.build(task, model, session)
 
-    return xbuilder.build(task, model, session)
+
+class XBuilder:
+    """Build a structured X prompt."""
+
+    def __init__(self, task: TaskInstance, model: ModelInstance, modality: Modality):
+        self.task = task
+        self.model = model
+        self.modality = modality
+        self.emits: list[XEmit] = []
+
+    def emit(self, *emits: XEmit):
+        self.emits.extend(emits)
+
+    async def build(
+        self, task: TaskInstance, model: ModelInstance, session: Session
+    ) -> AsyncCodeInstance:
+        emissions = await asyncio.gather(*[emit() for emit in self.emits])
+        emissions = list(
+            itertools.chain.from_iterable([e] if not isinstance(e, list) else e for e in emissions)
+        )
+
+        xblocks = []
+        dynamic_inputs: dict[int, XInputHandler] = {}
+        output_handler: XOutputHandler | None = None
+        # reduce to single settings since that's what most models support right now
+        settings: Any | None = None
+        for x in emissions:
+            if isinstance(x, DynamicXBlock):
+                if x.xblock.kind == XKind.Input:
+                    dynamic_inputs[len(xblocks)] = x.handler
+                    xblocks.append(x.xblock)
+                elif x.xblock.kind == XKind.Output:
+                    if output_handler:
+                        raise RuntimeError("cannot have multiple output handlers")
+                    output_handler = x.handler
+                    # not added to xblocks since it's not a real xblock
+                else:
+                    raise RuntimeError(f"cannot have dynamic x block of kind {x.xblock.kind}")
+            elif x.kind == XKind.Settings:
+                if settings:
+                    raise RuntimeError("cannot have multiple settings")
+                settings_cls = SETTINGS_CLS_BY_MODALITY[self.modality]
+                settings = settings_cls(**x.value)
+            else:
+                xblocks.append(x)
+
+        async def _invoke(*args, retries: int = 2, **kwargs) -> dict[str, LiteralValue]:
+            # TODO @Feature: should definitely retry on invalid output with error message
+            inputs = {**kwargs}  # combine inputs from args/kwargs
+            for input_t, input in zip(self.task.type.inputs, args):
+                inputs[input_t.name] = input
+            # copy x blocks to impute dynamic inputs
+            xblocks_copy = [xblock.copy() for xblock in xblocks]
+            # apply dynamic inputs
+            for i, impute in dynamic_inputs.items():
+                impute(xblocks_copy[i], inputs)
+            outputs = await model.inference(self.modality, xblocks_copy, settings)
+            return output_handler(outputs)
+
+        _invoke.__name__ = self.task.name
+        return AsyncCodeInstance(
+            id=task.id,
+            task=task,
+            name=self.task.name,
+            type=self.task.type,
+            type_nodes=self.task.type_nodes,
+            session=session,
+            tracer=session.tracer,
+            code_callable=_invoke,
+            transform=None,
+            tag=TypeTag.FUNCTION,
+        )
 
 
 @dataclass(repr=False)
@@ -206,7 +267,7 @@ class XExpectations(XEmit):
             f" - {expectation.name}: {expectation.description}" for expectation in self.expectations
         ]
         return xstatic(
-            f"For task {self.task_label}, consider:\n" + "\n".join(expectation_strs),
+            f"For task {self.task_label}, you must consider:\n" + "\n".join(expectation_strs),
             XSource.Developer,
         )
 
@@ -249,7 +310,7 @@ class XTypeSchema(XEmit):
         def _render_simple_type(t: TypeNode):
             if t.flags & TypeFlag.IsNullable:
                 return _render_simple_type(t.type_nodes[0]) + "?"
-            return t.reference.name if t.reference else t.tag.value
+            return t.reference.name if t.reference else (t.hint or t.tag).value
 
         el_strs = []
         while unexplained_types:
@@ -281,16 +342,16 @@ class XTypeSchema(XEmit):
 
 @xemit
 class XTypeSample(XEmit):
-    """Emits a single sample of the given type (default to fabricate)"""
+    """Emits a single sample output of the given type (default to fabricate)"""
 
     type: Type
     type_label: Optional[str]
-    value: Any = None
+    is_output: bool
 
     async def __call__(self) -> list[XBlock]:
-        fabricated_sample = self.value or fabricate_value(self.type)
+        fabricated_sample = fabricate_value(self.type, is_output=self.is_output)
         sample_declaration = xstatic(
-            f"Example {self.type_label or self.type.name}:",
+            f"Example {self.type_label or self.type.name} with fabricated values:",
             XSource.System,
         )
         sample = xstatic(json.dumps(fabricated_sample, sort_keys=True), XSource.Developer)
@@ -301,13 +362,11 @@ class XTypeSample(XEmit):
 class XInput(XEmit):
     """Emits the code to input the given type"""
 
+    type: Type
     type_label: str = "Input"
     path: str = ""
 
-    @staticmethod
-    def impute_input(input: XBlock, value: Any):
-        import json
-
+    def impute_input(self, input: XBlock, value: Any) -> None:
         input.value = json.dumps(value, sort_keys=True)
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
@@ -317,30 +376,26 @@ class XInput(XEmit):
 
 
 @xemit
-class XOutput(XEmit):
+class XOutputText(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
-    type: Type
+    type: TypeInstance
     type_label: str = "Output"
     path: str = ""
 
-    @staticmethod
-    def parse_output(output: XBlock):
-        import json
-        import re
-
+    def parse_output(self, output: str):
         # escape/try to parse the output if needed (handles trivial model confusions)
-        value = output.value.strip()
+        value = output.strip()
         if not value.startswith("{"):
             # sometimes the model prefixes the output with some explanation, find the { ... }
             value = re.compile(r"\{.*?}", re.DOTALL).search(value)
             if value:
                 value = value.group(0)
             else:
-                raise ValueError(f"model generated invalid X output: {output.value}")
+                raise XGenerationError(f"output does not contain JSON object: {output}")
 
         # escape strings with multiline content
-        # these aren't technically valid JSON, but they're very useful for models
+        # these aren't technically valid JSON, but they're very useful for model output
         def sub_multiline_str(match):
             # replace line breaks with \n escape sequence
             modified_string = match.group(1).replace("\n", "\\n").replace("\r", "")
@@ -350,16 +405,15 @@ class XOutput(XEmit):
 
         try:
             ret = json.loads(value)
-            if output.path:
-                ret = ret[output.path]
+            check_type(ret, self.type, is_output=True)
             return ret
         except Exception as e:
-            raise ValueError(f"model generated invalid X output: {e}") from e
+            raise XGenerationError(f"output is invalid for {self.type}: {e}") from e
 
     async def __call__(self) -> list[XBlock | DynamicXBlock]:
         output_keys = ", ".join(t.name for t in self.type.outputs)
         output_request = xstatic(
-            f"{self.type_label} - JSON object with keys [{output_keys}], start with {{",
+            f"Generate {self.type_label} given the inputs and instructions - a JSON object with keys [{output_keys}], starting with {{",
             XSource.System,
         )
         output = xoutput(None, path=self.path)

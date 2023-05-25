@@ -194,8 +194,10 @@ class Session:
             build = self.default_build
         cache_key = (task.id, build.id)
         if cache_key not in self._cached_implementations:
+            model = build.models[0]
+            model_instance = instantiate_model(model, self)
             self._cached_implementations[cache_key] = await build_task_implementation(
-                task, build.models[0], self
+                task, model_instance, self
             )
         return self._cached_implementations[cache_key]
 
