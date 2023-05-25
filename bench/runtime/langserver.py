@@ -59,7 +59,7 @@ from bench.runtime.interp import (
 )
 from bench.runtime.map import map_to_file
 from bench.runtime.mutate import map_mutation_to_public
-from bench.runtime.reactivity import RevisionMap, get_stale_symbols, tree_from_module
+from bench.runtime.reactivity import RevisionMap, tree_from_module
 from bench.runtime.tracing import (
     ExecutionTrackerContext,
     WorkerContext,
@@ -717,7 +717,7 @@ class LanguageWorker:
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
         self.revmap = RevisionMap.from_module(self.source)
         logger.debug("module.interp.stale", module_id=self.module_id)
-        self.stale_symbols = get_stale_symbols(self.revmap, self.interp.module_idx)
+        self.stale_symbols = []
         logger.debug("module.interp.treehash", module_id=self.module_id)
         self.module_hash = tree_from_module(self.revmap, self.idx).stable_hash()
         logger.debug("module.interp.wire", module_id=self.module_id)

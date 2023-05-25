@@ -54,7 +54,6 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
-from bench.runtime.build import build_task_implementation
 from bench.runtime.inference import InferenceProxy, ModelInference
 from bench.runtime.model import get_endpoints
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -66,7 +65,6 @@ from bench.runtime.tracing import (
     ValidationTracer,
 )
 from bench.runtime.unsecure import do_execute_arbitrary_code
-from bench.runtime.x import X_BUILTINS
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
@@ -180,6 +178,8 @@ class Session:
         self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
     ) -> "AsyncCodeInstance":
         """Gets or builds an implementation for a task."""
+        from bench.runtime.build import build_task_implementation
+
         if build is not None:
             if isinstance(build, str):
                 build = self.idx.symbol(build, symbol_t=Build)
@@ -194,8 +194,9 @@ class Session:
             build = self.default_build
         cache_key = (task.id, build.id)
         if cache_key not in self._cached_implementations:
-            implementation = await build_task_implementation(task, build.models[0])
-            self._cached_implementations[cache_key] = instantiate(implementation, session=self)
+            self._cached_implementations[cache_key] = await build_task_implementation(
+                task, build.models[0], self
+            )
         return self._cached_implementations[cache_key]
 
     def open(self):
@@ -932,20 +933,11 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
         "random": Random(code.id.hex.encode()),
     }
 
-    start_offset = 1  # for method signature
     if code.language == "python":
         python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
-    elif code.language == "x":
-        python_code = code.code or "pass"
-        locals = {**STATIC_BUILTINS, **X_BUILTINS, **dynamic_context}
     else:
         raise ValueError(f"unknown code language: {code}")
-
-    # if we have xblocks, add line to copy them to top of method
-    if code.xblocks:
-        python_code = f"xblocks = [x.copy() for x in _xblocks]\n{python_code}"
-        start_offset += 1
 
     # stub fake lines
     python_code_lines = python_code.splitlines()
@@ -972,7 +964,7 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
     transform = CodeTransformation(
         original_code=code.code,
         transformed_code=method_str,
-        start_offset=start_offset,
+        start_offset=1,  # for method signature
         method_name=func_name,
     )
     code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance

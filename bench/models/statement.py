@@ -378,7 +378,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     )
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-    # symbol contents (sync with SYMBOL_CONTENT_*_FIELDS above)
+    # symbol contents
     xblocks: models.QuerySet[XBlock]  # noqa via XBlock.statement
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)

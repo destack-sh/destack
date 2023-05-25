@@ -9,7 +9,6 @@ from typing import Any, Optional
 import structlog
 
 from bench.language.type import (
-    Code,
     Data,
     Expectation,
     InterpSymbol,
@@ -24,6 +23,7 @@ from bench.language.type import (
     XSource,
 )
 from bench.runtime.inference import Modality
+from bench.runtime.instance import AsyncCodeInstance, ModelInstance, Session, TaskInstance
 from bench.runtime.instruct import (
     InstructionOp,
     SampleDatasetRandom,
@@ -111,7 +111,9 @@ class BuildPlan:
         return f"<BuildPlan {self}>"
 
 
-async def build_task_implementation(task: Task, model: Model) -> Code:
+async def build_task_implementation(
+    task: TaskInstance, model: ModelInstance, session: Session
+) -> AsyncCodeInstance:
     """Build the implementation for a task using some model."""
     # TODO @Broken: consider context length in X prompt planning/building
     if not task.outputs:
@@ -130,8 +132,8 @@ async def build_task_implementation(task: Task, model: Model) -> Code:
     output_label = "Output"
     # this is obviously hacky and suboptimal and will be replaced
     plan.emit(
-        XEmitSystem(),
-        XEmitTypeExplanation(
+        XSystem(),
+        XTypeSchema(
             type=task.type,
             type_label=output_label,
             include_descriptions=True,
@@ -139,32 +141,28 @@ async def build_task_implementation(task: Task, model: Model) -> Code:
         ),
     )
     if expectations:
-        plan.emit(XEmitExpectations(task_label=task.name, expectations=expectations))
+        plan.emit(XExpectations(task_label=task.name, expectations=expectations))
     for dataset in data_samples:
         if len(dataset) > 0:
             plan.emit(
-                XEmitSamples(
+                XSamples(
                     source=SampleDatasetRandom(dataset, count=3, seed=0),
                     task_label=task.name,
                     positive=dataset.modifier == StatementModifier.LIKE,
                 )
             )
     plan.emit(
-        XEmitTask(task=task),
-        XEmitTypeSample(type=task.type, type_label=output_label),
+        XTask(task=task),
+        XTypeSample(type=task.type, type_label=output_label),
     )
     if task.type.inputs:
-        plan.emit(XEmitInput())
+        plan.emit(XInput())
     plan.emit(
         # TODO @Broken: adjust & tune generation settings
         XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-        XEmitOutput(type=task.type, type_label=f"Output for task {task.name}"),
+        XOutput(type=task.type, type_label=f"Output for task {task.name}"),
     )
 
-    return await build_task_plan(plan)
-
-
-async def build_task_plan(plan: TaskPlan) -> Code:
     xbuilder = XBuilder(
         name=plan.task.name,
         type=plan.task.type,
@@ -177,17 +175,18 @@ async def build_task_plan(plan: TaskPlan) -> Code:
             xbuilder.extend(emit)
         else:
             xbuilder.append(emit)
-    return xbuilder.to_symbol()
+
+    return xbuilder.build(task, model, session)
 
 
 @dataclass(repr=False)
-class XEmitSystem(XEmit):
+class XSystem(XEmit):
     """Emits the system message about general expectations for JSON."""
 
     message: str = (
-        "You are a precise and helpful assistant."
-        " Perform the given tasks following the instructions to produce outputs."
-        " Only output valid JSON (literal, array or object) as per the type schemas."
+        "You are a precise and concise assistant."
+        " Perform the given tasks following the instructions to the letter."
+        " Output valid JSON as dictated by the type schema."
     )
 
     async def __call__(self) -> XBlock:
@@ -195,7 +194,7 @@ class XEmitSystem(XEmit):
 
 
 @xemit
-class XEmitTask(XEmit):
+class XTask(XEmit):
     """Emits the task exactly as written"""
 
     task: Task
@@ -210,7 +209,7 @@ class XEmitTask(XEmit):
 
 
 @xemit
-class XEmitExpectations(XEmit):
+class XExpectations(XEmit):
     """Emits the expectation exactly as written"""
 
     task_label: str
@@ -227,7 +226,7 @@ class XEmitExpectations(XEmit):
 
 
 @xemit
-class XEmitSamples(XEmit):
+class XSamples(XEmit):
     """Emits fewshot examples in a specific format"""
 
     source: SampleSource
@@ -247,7 +246,7 @@ class XEmitSamples(XEmit):
 
 
 @xemit
-class XEmitTypeExplanation(XEmit):
+class XTypeSchema(XEmit):
     """Emits the type exactly as written"""
 
     type: Type
@@ -295,7 +294,7 @@ class XEmitTypeExplanation(XEmit):
 
 
 @xemit
-class XEmitTypeSample(XEmit):
+class XTypeSample(XEmit):
     """Emits a single sample of the given type (default to fabricate)"""
 
     type: Type
@@ -313,7 +312,7 @@ class XEmitTypeSample(XEmit):
 
 
 @xemit
-class XEmitInput(XEmit):
+class XInput(XEmit):
     """Emits the code to input the given type"""
 
     type_label: str = "Input"
@@ -332,7 +331,7 @@ class XEmitInput(XEmit):
 
 
 @xemit
-class XEmitOutput(XEmit):
+class XOutput(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
     type: Type
