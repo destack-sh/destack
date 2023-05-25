@@ -187,13 +187,9 @@ class ModuleWorker:
         self.queue.put_nowait((job.priority, job))
         qpos = self.queue.qsize()
         # emit queued status immediately
-        if isinstance(runnable_instance, TaskInstance):
-            code_instance = runnable_instance.implementation
-        else:
-            code_instance = runnable_instance
         # notify tracer about queue enter
         run_ctx_token = pub_tracker_ctx.set(job.ctx)
-        session.tracer.queue_enter(code_instance, arguments, qpos)
+        session.tracer.queue_enter(runnable_instance, arguments, qpos)
         pub_tracker_ctx.reset(run_ctx_token)
         return job
 

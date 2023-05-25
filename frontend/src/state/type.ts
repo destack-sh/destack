@@ -129,3 +129,14 @@ export function renderSimpleType(node: SimpleType): string {
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const REMOTE_OBJECT_TYPENAME = "RemoteObject";
 export const SECRET_TYPENAME = "Secret";
+
+export function unkey(fields: SimpleType[], value: Record<string, any>): Record<string, any> {
+  // TODO @Broken: unkey doesn't work with nested types
+  const mapped: Record<string, any> = {};
+  for (const field of fields) {
+    if (field.key in value && field.name != null) {
+      mapped[field.name] = value[field.key];
+    }
+  }
+  return mapped;
+}

@@ -476,7 +476,7 @@ export function makeTypeNode(data: {
   return typeNodeData;
 }
 
-export type SimpleType = Omit<SimpleTypeNode, "statement" | "createdAt" | "updatedAt" | "__typename">;
+export type SimpleType = Omit<SimpleTypeNode, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
 
 export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
 export const NAME_TYPE_NODE = makeTypeNode({ tag: TypeTag.String, hint: TypeHint.Name });
