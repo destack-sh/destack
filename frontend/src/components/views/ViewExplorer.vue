@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import FileExplorer from "@/components/panels/FileExplorer.vue";
-import SymbolExplorer from "@/components/panels/SymbolExplorer.vue";
+import FileExplorer from "@/components/views/FileExplorer.vue";
+import SymbolExplorer from "@/components/views/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import type { FileHeader } from "@/state/editor";

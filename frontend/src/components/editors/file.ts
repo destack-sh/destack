@@ -7,7 +7,7 @@ import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } fro
 import { TypeFlag } from "@/state/runtime";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
-import type StatementInterface from "@/components/StatementInterface.vue";
+import type StatementInterface from "@/components/editors/statementInterface.vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
 

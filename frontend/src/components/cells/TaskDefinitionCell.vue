@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import InlineActions from "@/components/basic/InlineActions.vue";
+import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext } from "@/components/statement";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { useStatementContext } from "@/components/editors/statement";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";

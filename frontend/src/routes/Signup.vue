@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import { SOCIAL_AUTH_PROVIDERS, encodeProviderUrl, useAuth } from "@/state/auth";
 import { useTitle } from "@vueuse/core";
 import { watchEffect } from "vue";
@@ -35,7 +35,7 @@ watchEffect(() => {
       <template v-slot:right>
         <router-link
           :to="{ name: 'Login', query: { next } }"
-          class="mx-2 rounded-sm py-1 px-2 text-sm hover:bg-orange-100"
+          class="mx-2 rounded-sm px-2 py-1 text-sm hover:bg-orange-100"
         >
           Log in
         </router-link>

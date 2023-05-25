@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import InlineActions from "@/components/basic/InlineActions.vue";
+import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
-import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
-import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import { useElementRefs, useNavigationGrid } from "@/composables/useGrid";
+import TypeInterface from "@/components/interfaces/TypeInterface.vue";
+import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/editors/statement";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/editor";
 import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
@@ -39,7 +39,7 @@ const addingDescription = ref(false);
 
 // dynamic member refs for names, values & descriptions for each member
 type ColumnType = "type" | "description";
-const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof TypeInterface>>(
   ref(["type", "description"] as ColumnType[]),
   members,
   {
@@ -47,7 +47,7 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof InlineTypeCell>>(
     gridNavigateDown,
   }
 );
-const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendedTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
@@ -231,7 +231,7 @@ defineExpose({
       <div class="ml-1 whitespace-nowrap" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">is</span>
         <div class="inline-flex flex-row gap-1">
-          <InlineTypeCell
+          <TypeInterface
             v-for="field of extendedTypes"
             :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
@@ -315,7 +315,7 @@ defineExpose({
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Type -->
-      <InlineTypeTupleCell
+      <TypeTupleInterface
         :model-value="member"
         @update:model-value="(val: any) => writeType(member.id, val)"
         :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
@@ -339,7 +339,7 @@ defineExpose({
         "
       />
       <!-- Description -->
-      <InlineValueCell
+      <ValueInterface
         :model-value="member.description"
         @update:model-value="writeDescription(member.id, $event)"
         :ref="(el: any) => grid.registerColumnRef(member.id, 'description', el)"

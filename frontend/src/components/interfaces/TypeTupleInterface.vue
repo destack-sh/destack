@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { useElementRefs } from "@/components/cells/grid";
+import { useElementRefs } from "@/composables/useGrid";
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/components/statement";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/components/editors/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/editor";

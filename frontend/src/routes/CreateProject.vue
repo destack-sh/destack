@@ -4,7 +4,7 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import OwnerSelect from "@/components/basic/OwnerSelect.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import { graphql } from "@/gql";
 import { ProjectType, ProjectVisibility } from "@/gql/graphql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
@@ -167,7 +167,7 @@ async function createProject() {
               class="relative"
             >
               <ListboxButton
-                class="mt-1 rounded-l-none border border-l-0 border-orange-600 py-1.5 px-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+                class="mt-1 rounded-l-none border border-l-0 border-orange-600 px-2 py-1.5 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
               >
                 <span>
                   <component
@@ -191,7 +191,7 @@ async function createProject() {
                       class="flex flex-row items-center gap-3 text-left hover:cursor-pointer"
                       :class="[
                         active ? 'bg-orange-100' : '',
-                        'block py-1.5 px-2 text-sm text-gray-900',
+                        'block px-2 py-1.5 text-sm text-gray-900',
                         selected ? 'text-orange-600' : '',
                       ]"
                     >

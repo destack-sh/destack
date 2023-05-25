@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/components/statement";
+import type { SimpleType } from "@/components/editors/statement";
 import { useAppearance } from "@/state/appearance";
 import { useSecrets, type SecretRecord } from "@/state/secret";
 import { syncProperty } from "@/utils/sync";

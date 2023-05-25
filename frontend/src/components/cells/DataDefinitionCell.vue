@@ -1,32 +1,25 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import InlineActions from "@/components/basic/InlineActions.vue";
+import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import { useElementRefs, useNavigationGrid } from "@/components/cells/grid";
-import InlineTypeCell from "@/components/cells/InlineTypeCell.vue";
-import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { useMagicActions } from "@/components/file";
-import { getInterface } from "@/components/interfaces";
-import {
-  makeTypeNode,
-  useStatementContext,
-  type RecordAction,
-  type SimpleType,
-  type StatementAction,
-} from "@/components/statement";
+import { useElementRefs, useNavigationGrid } from "@/composables/useGrid";
+import TypeInterface from "@/components/interfaces/TypeInterface.vue";
+import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { useMagicActions } from "@/components/editors/file";
+import { getInterface } from "@/components/inputs";
+import { makeTypeNode, useStatementContext, type SimpleType } from "@/components/editors/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useEditorContext, type StatementHeader } from "@/state/editor";
+import { useEditorContext, type StatementAction, type StatementHeader } from "@/state/editor";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
-import { memberExpression } from "@babel/types";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
@@ -59,7 +52,7 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
-const extendedTypesRefs = useElementRefs<InstanceType<typeof InlineTypeCell>>();
+const extendedTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const {
@@ -178,7 +171,7 @@ const allFields = computed(() => [...selfFields.value, ...extendedFields.value])
 
 // grid & grid sizing
 
-const grid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell> | InstanceType<typeof InlineValueCell>>(
+const grid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
   computed(() => {
     if (isTable.value) {
@@ -562,7 +555,7 @@ defineExpose({
       <div class="ml-1 whitespace-nowrap" v-if="(extendedTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">has</span>
         <div class="inline-flex flex-row gap-x-1">
-          <InlineTypeCell
+          <TypeInterface
             v-for="field of extendedTypes"
             :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
@@ -667,7 +660,7 @@ defineExpose({
       <div class="flex flex-row self-start border-b border-orange-900 border-opacity-[12%]">
         <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
-            <InlineTypeTupleCell
+            <TypeTupleInterface
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
@@ -741,7 +734,7 @@ defineExpose({
             height: rowHeights[y] + rowPadding * 2 + 'px',
           }"
         >
-          <InlineValueCell
+          <ValueInterface
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
             :model-value="record.data?.[field.key as string]"
             @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
@@ -772,7 +765,7 @@ defineExpose({
       :class="[y < allFields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
     >
       <td class="w-1/4">
-        <InlineTypeTupleCell
+        <TypeTupleInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
           :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
@@ -796,7 +789,7 @@ defineExpose({
       </td>
       <!-- main record should always exist but just in case? -->
       <td v-if="mainRecord">
-        <InlineValueCell
+        <ValueInterface
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="mainRecord.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"

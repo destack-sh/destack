@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useNavigationGrid } from "@/components/cells/grid";
+import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/editor";
 import { useCurrentInterpModule, useSymbolNavigation } from "@/state/runtime";

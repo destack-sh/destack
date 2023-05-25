@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useElementRefs } from "@/components/cells/grid";
+import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { computed, ref, type Ref } from "vue";

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useMagicActions, useNavigationContext } from "@/components/file";
+import { useMagicActions, useNavigationContext } from "@/components/editors/file";
 import { useRelativeDropZone } from "@/utils/drop";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";

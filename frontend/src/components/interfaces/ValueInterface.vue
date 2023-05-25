@@ -1,17 +1,17 @@
 <script lang="ts" setup>
-import { getInterface } from "@/components/interfaces";
-import CheckboxInterface from "@/components/interfaces/CheckboxInterface.vue";
-import EnumInterface from "@/components/interfaces/EnumInterface.vue";
-import FileInterface from "@/components/interfaces/FileInterface.vue";
-import NumberInterface from "@/components/interfaces/NumberInterface.vue";
-import RatingInterface from "@/components/interfaces/RatingInterface.vue";
-import SecretInterface from "@/components/interfaces/SecretInterface.vue";
-import ShortStringInterface from "@/components/interfaces/ShortStringInterface.vue";
-import StringInterface from "@/components/interfaces/StringInterface.vue";
-import StructInterface from "@/components/interfaces/StructInterface.vue";
-import ThumbsInterface from "@/components/interfaces/ThumbsInterface.vue";
-import ToggleInterface from "@/components/interfaces/ToggleInterface.vue";
-import type { SimpleType } from "@/components/statement";
+import { getInterface } from "@/components/inputs";
+import CheckboxInput from "@/components/inputs/CheckboxInput.vue";
+import EnumInput from "@/components/inputs/EnumInput.vue";
+import FileInput from "@/components/inputs/FileInput.vue";
+import NumberInput from "@/components/inputs/NumberInput.vue";
+import RatingInput from "@/components/inputs/RatingInput.vue";
+import SecretInput from "@/components/inputs/SecretInput.vue";
+import ShortStringInput from "@/components/inputs/ShortStringInput.vue";
+import StringInput from "@/components/inputs/StringInput.vue";
+import StructInput from "@/components/inputs/StructInput.vue";
+import ThumbsInput from "@/components/inputs/ThumbsInput.vue";
+import ToggleInput from "@/components/inputs/ToggleInput.vue";
+import type { SimpleType } from "@/components/editors/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
@@ -22,17 +22,17 @@ import { ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const INTERFACES: Record<string, any> = {
-  "boolean.checkbox": CheckboxInterface,
-  "boolean.toggle": ToggleInterface,
-  "boolean.thumbs": ThumbsInterface,
-  string: StringInterface,
-  "string.short": ShortStringInterface,
-  number: NumberInterface,
-  "number.rating": RatingInterface,
-  enum: EnumInterface,
-  struct: StructInterface,
-  file: FileInterface,
-  secret: SecretInterface,
+  "boolean.checkbox": CheckboxInput,
+  "boolean.toggle": ToggleInput,
+  "boolean.thumbs": ThumbsInput,
+  string: StringInput,
+  "string.short": ShortStringInput,
+  number: NumberInput,
+  "number.rating": RatingInput,
+  enum: EnumInput,
+  struct: StructInput,
+  file: FileInput,
+  secret: SecretInput,
 };
 
 const props = defineProps<{
