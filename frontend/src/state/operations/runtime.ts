@@ -43,6 +43,8 @@ export function useRuntimeOps() {
               duration
               cachedGeneratedAt
               cachedDuration
+              inputs
+              outputs
               errorNice {
                 type
                 message

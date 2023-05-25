@@ -1,5 +1,14 @@
 import { graphql } from "@/gql";
-import type { DatasetRecord, File, Project, ProjectVersion, Scalars, SimpleType, Statement } from "@/gql/graphql";
+import {
+  SymbolType,
+  type DatasetRecord,
+  type File,
+  type Project,
+  type ProjectVersion,
+  type Scalars,
+  type SimpleType,
+  type Statement,
+} from "@/gql/graphql";
 import { useAppearanceState, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
@@ -738,11 +747,19 @@ export class FileEditor extends Editor {
 export class RunEditor extends Editor {
   type = "run" as const;
   symbolId: string;
+  symbolType?: SymbolType.Task | SymbolType.Code;
   arguments: Record<string, any> = {};
+  lastOutput?: Record<string, any> = {};
+  lastExecutionId?: string;
 
-  constructor(symbol: { id: string; name?: string | null }) {
+  constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
     super("run", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
     this.symbolId = symbol.id;
+    if (symbol.__typename == "Task") {
+      this.symbolType = SymbolType.Task;
+    } else if (symbol.__typename == "Code") {
+      this.symbolType = SymbolType.Code;
+    }
   }
 
   clear() {

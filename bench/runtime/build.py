@@ -308,9 +308,10 @@ class XTypeSchema(XEmit):
             return " # " + d if d and self.include_descriptions else ""
 
         def _render_simple_type(t: TypeNode):
+            rendered = t.reference.name if t.reference else (t.hint or t.tag).value
             if t.flags & TypeFlag.IsNullable:
-                return _render_simple_type(t.type_nodes[0]) + "?"
-            return t.reference.name if t.reference else (t.hint or t.tag).value
+                rendered += "?"
+            return rendered
 
         el_strs = []
         while unexplained_types:

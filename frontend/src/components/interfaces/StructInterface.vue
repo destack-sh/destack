@@ -3,7 +3,22 @@ import type { SimpleType } from "@/components/editors/statement";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
-import { computed, ref, toRef } from "vue";
+import { onStartTyping } from "@vueuse/core";
+import { computed, nextTick, ref, toRef } from "vue";
+
+type StructAppearance = {
+  verticalBorders?: boolean;
+  minRowHeight?: number;
+  maxRowHeight?: number;
+  rowPadding?: number;
+};
+
+const DEFAULT_APPEARANCE = {
+  verticalBorders: true,
+  minRowHeight: 32, // incl. padding
+  maxRowHeight: 220,
+  rowPadding: 4,
+};
 
 const props = defineProps<{
   fields: SimpleType[];
@@ -11,6 +26,7 @@ const props = defineProps<{
   readonly: boolean;
   active: boolean;
   debounced?: boolean;
+  appearance?: StructAppearance;
 }>();
 
 const emit = defineEmits<{
@@ -43,13 +59,23 @@ const grid = useNavigationGrid<"type" | "value", InstanceType<typeof ValueInterf
   }
 );
 
-const verticalBorders = true;
-const minRowHeight = 32; // incl. padding
-const maxRowHeight = 220;
-const rowPadding = 4;
+onStartTyping((e) => {
+  if (props.readonly) return;
+  const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
+  if (cell != null && cell.rowId != "type") {
+    const field = props.fields.find((f) => f.key == cell.column);
+    deleteField(field?.key as string);
+    nextTick(() => cell.ref.edit?.());
+  }
+});
+
+const appearance = computed(() => ({ ...DEFAULT_APPEARANCE, ...props.appearance }));
 const rowHeights = computed(() =>
   props.fields.map((field) =>
-    Math.max(minRowHeight, Math.min(maxRowHeight, grid.getRef(field.id, "value").previewSize.height.value ?? 0))
+    Math.max(
+      appearance.value.minRowHeight,
+      Math.min(appearance.value.maxRowHeight, grid.getRef(field.id, "value")?.previewSize.height.value ?? 0)
+    )
   )
 );
 </script>
@@ -73,8 +99,8 @@ const rowHeights = computed(() =>
           @navigate-right="grid.navigateRight(field?.id, 'type')"
           @navigate-left="grid.navigateLeft(field?.id, 'type')"
           :style="{
-            minHeight: minRowHeight + 'px',
-            height: rowHeights[y] + rowPadding * 2 + 'px',
+            minHeight: appearance.minRowHeight + 'px',
+            height: rowHeights[y] + 'px',
           }"
         />
       </td>
@@ -94,8 +120,8 @@ const rowHeights = computed(() =>
         @navigate-right="grid.navigateRight(field.id, 'value')"
         @navigate-left="grid.navigateLeft(field.id, 'value')"
         class="h-full w-full self-start border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-        :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
-        :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
+        :class="[appearance.verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
+        :style="{ 'max-height': appearance.maxRowHeight + appearance.rowPadding * 2 + 'px' }"
       />
     </tr>
   </table>

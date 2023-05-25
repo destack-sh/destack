@@ -1,4 +1,30 @@
-<script lang="ts" setup></script>
+<script lang="ts" setup>
+import type { SimpleType } from "@/components/editors/statement";
+import StructInterface from "@/components/interfaces/StructInterface.vue";
+
+const props = defineProps<{
+  fields: SimpleType[];
+  modelValue: Record<string, any>;
+  readonly?: boolean;
+  active?: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: "update:modelValue", value: Record<string, any>): void;
+  (e: "deleteSelf"): void;
+  (e: "navigateUp"): void;
+  (e: "navigateDown"): void;
+}>();
+</script>
 <template>
-  <div></div>
+  <StructInterface
+    :fields="props.fields"
+    :model-value="props.modelValue"
+    :readonly="props.readonly ?? false"
+    :active="props.active ?? false"
+    @update:modelValue="emit('update:modelValue', $event)"
+    @deleteSelf="emit('deleteSelf')"
+    @navigateUp="emit('navigateUp')"
+    @navigateDown="emit('navigateDown')"
+  />
 </template>
