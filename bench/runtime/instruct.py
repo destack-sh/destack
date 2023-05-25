@@ -213,7 +213,7 @@ def map_instruction(
     if isinstance(node, TypeContent):
         for type_node in node.type_nodes:
             # this will have to change later, see :NaiveTreeTracking
-            if type_node.source_reference is not None:
+            if type_node.reference is not None:
                 if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
                     continue  # ignore unresolved references
                 elif not isinstance(type_node.reference, Type):

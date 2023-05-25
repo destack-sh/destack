@@ -500,14 +500,15 @@ def rmap_simple_type_node(
     statement_id: UUID, node: language.SimpleTypeNode, impute_type_references: bool
 ) -> SimpleTypeNodeData:
     """Maps a simple type node to a simple type node data object."""
+    has_reference = isinstance(node.reference, language.TypeContent)
     return SimpleTypeNodeData(
         id=node.id,
         revision=1,
         name=node.name,
         key=node.key,
         statement_id=statement_id,
-        tag=node.reference.tag if node.reference and impute_type_references else node.tag,
-        hint=node.reference.hint if node.reference and impute_type_references else node.hint,
+        tag=node.reference.tag if has_reference and impute_type_references else node.tag,
+        hint=node.reference.hint if has_reference and impute_type_references else node.hint,
         description=node.description,
         flags=node.flags,
         reference_id=node.reference.id if node.reference else None,

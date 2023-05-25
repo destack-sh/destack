@@ -12,7 +12,7 @@ class TypeError(TypeError):
     def __init__(
         self, value: Any, expected: TypeNode, message: str = None, suberrors: list[TypeError] = None
     ):
-        super().__init__(f"expected {expected}, got {value}")
+        super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value}")
         self.value = value
         self.expected = expected
         self.message = message

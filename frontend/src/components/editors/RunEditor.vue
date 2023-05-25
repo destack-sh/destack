@@ -4,8 +4,8 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type RunEditor, type StatementAction } from "@/state/editor";
 import { symbolOf } from "@/state/runtime";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
-
 const props = defineProps<{ editor: EditorContext<RunEditor>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
@@ -23,7 +23,9 @@ const symbolActions = computed(() => {
   return symbolActions;
 });
 
-const showDots = ref(true);
+// TODO @UX: auto scale grid step based on available width
+//  This is just a crude placeholder to experiment.
+const showDots = ref(false);
 const dotSize = ref(1);
 const gridStepX = ref(36); // p-9
 const gridStepY = ref(18); // p-4.5
@@ -39,8 +41,18 @@ function getTileOffsetX(targetWidth?: number) {
   return (props.editor.size.value.width - getTileWidth(targetWidth)) / 2;
 }
 
+function getTilePositionX(targetWidth?: number) {
+  const tileWidth = getTileWidth(targetWidth);
+  const tileOffsetX = getTileOffsetX(targetWidth);
+  return {
+    width: tileWidth + "px",
+    marginLeft: tileOffsetX + "px",
+    marginRight: tileOffsetX + "px",
+  };
+}
+
 const defaultTileWidth = computed(() => getTileWidth());
-const defaultTileOffsetX = computed(() => getTileOffsetX());
+const defaultTilePositionX = computed(() => getTilePositionX());
 </script>
 <template>
   <div class="relative flex flex-col" :style="{ minHeight: editorSize.height + 'px' }">
@@ -72,8 +84,11 @@ const defaultTileOffsetX = computed(() => getTileOffsetX());
     <!-- Tiles -->
     <div
       class="relative flex h-full w-full flex-col gap-5"
+      :class="appearance.baseClass"
       :style="{
         marginTop: appearance.editorHeaderHeight + 'px',
+        paddingTop: gridStepY + 'px',
+        paddingBottom: gridStepY + 'px',
         minHeight: editorSize.height - appearance.editorHeaderHeight + 'px',
       }"
     >
@@ -96,34 +111,56 @@ const defaultTileOffsetX = computed(() => getTileOffsetX());
         </defs>
         <rect width="100%" height="100%" fill="url(#dots)" />
       </svg>
-      <!-- Foreground -->
       <!-- Header -->
+      <div class="z-[1] flex flex-row items-center justify-between p-2" :style="defaultTilePositionX">
+        <!-- Title -->
+        <h1 class="text-3xl font-extrabold text-gray-900">{{ symbol?.name ?? "" }}&nbsp;</h1>
+        <!-- Run -->
+        <div
+          class=""
+          :style="{
+            height: gridStepY * 2 + 'px',
+            width: getTileWidth(gridStepX * 3) + 'px',
+          }"
+        >
+          <button
+            class="flex h-full w-full flex-row items-center justify-center gap-1 rounded-sm bg-orange-500 text-white hover:bg-orange-400"
+          >
+            Run
+            <PlayIcon class="h-4 w-4" />
+          </button>
+        </div>
+      </div>
       <!-- Input -->
       <div
-        class="z-[1] mt-10 rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
+        class="z-[1] rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
         :style="{
           height: '250px',
-          width: defaultTileWidth + 'px',
-          marginLeft: defaultTileOffsetX + 'px',
-          marginRight: defaultTileOffsetX + 'px',
+          ...defaultTilePositionX,
         }"
       >
         inputs to {{ symbol?.name }}
       </div>
-      <!-- Run button -->
+      <!-- Output -->
       <div
-        class="z-[1] rounded-sm border border-orange-900 border-opacity-[12%] bg-white shadow-sm"
+        class="z-[1] rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
         :style="{
-          height: gridStepY * 2 + 'px',
-          width: getTileWidth(gridStepX * 4) + 'px',
-          marginLeft: getTileOffsetX(gridStepX * 4) + 'px',
-          marginRight: getTileOffsetX(gridStepX * 4) + 'px',
+          height: '250px',
+          ...defaultTilePositionX,
         }"
       >
-        <button class="h-full w-full bg-orange-500 text-white">Run</button>
+        outputs from {{ symbol?.name }}
       </div>
-      <!-- Output -->
       <!-- Executions -->
+      <div
+        class="z-[1] rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
+        :style="{
+          height: '500px',
+          ...defaultTilePositionX,
+        }"
+      >
+        executions of {{ symbol?.name }}
+      </div>
     </div>
   </div>
 </template>

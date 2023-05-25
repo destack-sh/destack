@@ -6,13 +6,13 @@ import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;
-  modelValue: any[];
+  modelValue: Record<string, any>[];
   readonly?: boolean;
   preview?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: any[]): void;
+  (e: "update:modelValue", value: Record<string, any>[]): void;
   (e: "close"): void;
 }>();
 

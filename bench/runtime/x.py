@@ -1,19 +1,17 @@
 import enum
-import inspect
 import textwrap
 import typing
 from dataclasses import asdict, dataclass, is_dataclass
 
 from bench.language import XBlock
 from bench.language.type import (
-    EMPTY_FUNC_TYPE,
-    Code,
     Data,
     LiteralValue,
     Model,
     Record,
     Type,
     TypeNode,
+    TypeTag,
     XBlockContent,
     XKind,
     XSource,
@@ -23,8 +21,17 @@ from bench.runtime.inference import (
     BASE_SETTINGS_BY_MODALITY,
     EmbeddingSettings,
     ImageGenerationSettings,
+    IncapableError,
     Modality,
     TextGenerationSettings,
+)
+from bench.runtime.instance import (
+    AsyncCodeInstance,
+    CodeInstance,
+    CodeTransformation,
+    ModelInstance,
+    Session,
+    TaskInstance,
 )
 from bench.runtime.lsp import parse_code
 from bench.utils.fractional import generate_n_keys_between
@@ -83,28 +90,6 @@ def xoutput(
     return XBlockContent(kind=XKind.Output, source=source, value=value, path=path)
 
 
-def xcode(
-    source: typing.Callable | str,
-    type: TypeNode = EMPTY_FUNC_TYPE,
-    language: str = "python",
-    xblocks: list[XBlock] = None,
-    name: str = None,
-) -> Code:
-    """Creates a Code instance from the source and name of the given callable"""
-    source = inspect.getsource(source) if inspect.isfunction(source) else source
-    name = name or source.__name__
-    return Code(
-        code=source,
-        name=name,
-        type=type,
-        tag=type.tag,
-        type_nodes=type.type_nodes,
-        description=None,
-        language=language,
-        xblocks=xblocks,
-    )
-
-
 X_BUILTINS = {
     "xinput": xinput,
     "xoutput": xoutput,
@@ -151,7 +136,35 @@ class XBuilder:
         for xblock in xblocks:
             self.append(xblock)
 
-    def to_symbol(self) -> Code:
+    def build(
+        self, task: TaskInstance, model: ModelInstance, session: Session
+    ) -> AsyncCodeInstance:
+        async def _invoke(*args, **kwargs) -> dict:
+            combined_kwargs = {**kwargs}
+            for input_t, input in zip(self.type.inputs, args):
+                combined_kwargs[input_t.name] = input
+            raise IncapableError("not yet implemented")  # nocheckin
+
+        _invoke.__name__ = self.name
+        return AsyncCodeInstance(
+            id=task.id,
+            task=task,
+            name=self.name,
+            type=self.type,
+            type_nodes=self.type.type_nodes,
+            session=session,
+            tracer=session.tracer,
+            code_callable=_invoke,
+            transform=CodeTransformation(
+                method_name=_invoke.__name__,
+                original_code=get_method_source(_invoke),
+                transformed_code=get_method_source(_invoke),
+                start_offset=0,
+            ),
+            tag=TypeTag.FUNCTION,
+        )
+
+    def to_symbol_(self) -> CodeInstance:
         # TODO @Cleanup @Architecture: build X code instances on demand to avoid stupid strings
         order_keys = generate_n_keys_between(None, None, len(self.xblocks))
         # assign order keys
