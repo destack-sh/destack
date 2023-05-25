@@ -44,7 +44,7 @@ function freezeNotification(notification: DisplayNotification) {
         <div
           v-for="notification in shownNotifications"
           :key="notification.localId"
-          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+          class="pointer-events-auto flex w-full max-w-sm items-center overflow-hidden rounded-sm bg-white p-3 shadow-md ring-1 ring-orange-900 ring-opacity-[12%]"
           @mouseenter="freezeNotification(notification)"
         >
           <!-- Message body-->

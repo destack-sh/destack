@@ -71,7 +71,6 @@ _TRIVIAL_PUBLIC_TO_INTERNAL = {
 }
 
 _IGNORED_PUBLIC = {
-    MMT.UPDATE_GENERATED_MAPPINGS,  # not used in frontend (yet)
     MMT.CREATE_XBLOCK,  # not supported yet
     MMT.DELETE_XBLOCK,  # not supported yet
 }

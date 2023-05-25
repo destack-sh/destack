@@ -9,7 +9,7 @@ from __future__ import annotations
 import typing
 from dataclasses import asdict
 from datetime import datetime
-from itertools import chain, groupby
+from itertools import groupby
 from uuid import UUID, uuid5
 
 import pytz
@@ -298,17 +298,6 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         relation_cls.objects.bulk_create(relations)
 
     # then process updates
-    if mut[MMT.UPDATE_GENERATED_MAPPINGS]:
-        generator_ids = {m.statement_id for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]}
-        models.GeneratedMapping.objects.filter(statement_id__in=generator_ids).delete()
-        mappings = chain.from_iterable(
-            (
-                wmap_generated_mapping(m.statement_id, mapping)
-                for mapping in m.data.generated_mappings or []
-            )
-            for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]
-        )
-        models.GeneratedMapping.objects.bulk_create(mappings)
     if mut[MMT.UPDATE_RECORD]:
         records = [wmap_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
         models.DatasetRecord.objects.bulk_update(records, ["order_key", "revision", "data"])
@@ -419,14 +408,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
             rmap_simple_type_node(node)
             for node in statement.type_nodes.filter(deleted_at=None).all()
         ]
-    if statement.symbol_type in (
-        SymbolType.TASK,
-        SymbolType.CODE,
-        SymbolType.BUILD,
-    ):
-        data.generated_mappings = [
-            rmap_generated_mapping(m) for m in statement.generated_mappings.all()
-        ]
     if statement.symbol_type == SymbolType.DATA and not flat:
         if (statement.root_type_flags or 0) & TypeFlag.IsArray:
             data.records = [
@@ -491,9 +472,6 @@ def wmap_symbol(
         if data.xblocks:
             model_xblocks = wmap_xblocks(statement, data.xblocks)
             relations.extend(model_xblocks)
-        if data.generated_mappings:
-            mappings = wmap_generated_mappings(statement.id, data.generated_mappings)
-            relations.extend(mappings)
 
     return relations
 
@@ -515,35 +493,6 @@ def wmap_record(statement_id: UUID, record: RecordData) -> models.DatasetRecord:
         order_key=record.order_key,
         revision=record.revision,
         data=record.data,
-    )
-
-
-def wmap_generated_mappings(
-    statement_id: UUID | None, generated_mappings: list[language.GeneratedMapping]
-) -> list[models.GeneratedMapping]:
-    return [wmap_generated_mapping(statement_id, m) for m in generated_mappings]
-
-
-def wmap_generated_mapping(
-    statement_id: UUID | None, source_mapping: language.GeneratedMapping
-) -> models.GeneratedMapping:
-    return models.GeneratedMapping(
-        type=source_mapping.type,
-        statement_id=statement_id,
-        source_id=source_mapping.source_id,
-        source_revision=source_mapping.source_revision,
-        target_id=source_mapping.target_id,
-        target_revision=source_mapping.target_revision,
-    )
-
-
-def rmap_generated_mapping(source_mapping: models.GeneratedMapping) -> language.GeneratedMapping:
-    return language.GeneratedMapping(
-        type=source_mapping.type,
-        source_id=source_mapping.source_id,
-        source_revision=source_mapping.source_revision,
-        target_id=source_mapping.target_id,
-        target_revision=source_mapping.target_revision,
     )
 
 

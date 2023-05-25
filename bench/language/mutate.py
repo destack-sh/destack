@@ -11,7 +11,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from bench.language import ModuleIndex, wire
-from bench.language.type import GeneratedMapping, StatementType
+from bench.language.type import StatementType
 from bench.language.wire import (
     FileData,
     ModuleData,
@@ -52,7 +52,6 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_STATEMENT_CODE = "UPDATE_STATEMENT_CODE"
     UPDATE_STATEMENT_LANGUAGE = "UPDATE_STATEMENT_LANGUAGE"
     UPDATE_STATEMENT = "UPDATE_STATEMENT"
-    UPDATE_GENERATED_MAPPINGS = "UPDATE_GENERATED_MAPPINGS"
     DELETE_STATEMENT = "DELETE_STATEMENT"
     # Types
     CREATE_TYPE_NODE = "CREATE_TYPE_NODE"
@@ -124,7 +123,6 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.DELETE_XBLOCK,
     # other not directly CRUD
     ModuleMutationType.TRUNCATE_RECORDS,
-    ModuleMutationType.UPDATE_GENERATED_MAPPINGS,
 }
 
 MMT = ModuleMutationType
@@ -156,7 +154,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.UPDATE_STATEMENT_CODE: (MMK.UPDATE, MMS.STATEMENT),
     MMT.UPDATE_STATEMENT_LANGUAGE: (MMK.UPDATE, MMS.STATEMENT),
     MMT.UPDATE_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_GENERATED_MAPPINGS: (MMK.UPDATE, MMS.STATEMENT),
     MMT.DELETE_STATEMENT: (MMK.DELETE, MMS.STATEMENT),
     # Types
     MMT.CREATE_TYPE_NODE: (MMK.CREATE, MMS.TYPE_NODE),
@@ -312,13 +309,6 @@ class ModuleMutator:
         self.mutations.append(mutation)
         if type.kind == MMK.CREATE and type.scope == MMS.STATEMENT:
             self._created_statements[statement_id] = obj
-        return self
-
-    def map(self, generator_id: UUID, mappings: list[GeneratedMapping]) -> "ModuleMutator":
-        """Map a list of generated mappings to a statement."""
-        statement = wire.rmap_statement(self.idx.statements[generator_id])
-        statement.generated_mappings = mappings
-        self.do(MMT.UPDATE_GENERATED_MAPPINGS, statement)
         return self
 
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
@@ -478,9 +468,6 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_RECORD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.records, m.data)
-        for m in mut[MMT.UPDATE_GENERATED_MAPPINGS]:
-            statement = statements[m.statement_id]
-            statement.generated_mappings = m.data.generated_mappings
 
         # re-assemble module data
         new_module = replace(module, files=list(files.values()))

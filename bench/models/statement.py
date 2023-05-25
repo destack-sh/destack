@@ -23,8 +23,7 @@ from bench.language.type import (
     new_type_node_key,
 )
 from bench.models.build import BuildSettings
-from bench.models.data import DatasetContentMixin, DatasetRecord
-from bench.models.generated import GeneratedContentMixin, GeneratedMapping
+from bench.models.data import DatasetRecord
 from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
@@ -199,7 +198,6 @@ class StatementManager(models.Manager["Statement"]):
         new_records: dict[UUID, DatasetRecord] = {}
         new_xblocks: dict[UUID, XBlock] = {}
         new_build_settings: list[BuildSettings] = []
-        new_gen_mappings: list[GeneratedMapping] = []
 
         # copy statements
         for statement in statements:
@@ -250,25 +248,6 @@ class StatementManager(models.Manager["Statement"]):
                     build_settings._state.adding = True
                     statement.build_settings_id = build_settings.id  # update manually
                     new_build_settings.append(build_settings)
-
-                # copy generated mappings
-                if copy_generate_info and statement.symbol_type in (
-                    SymbolType.BUILD,
-                    SymbolType.TASK,
-                    SymbolType.CODE,
-                ):
-                    for mapping in statement.generated_mappings.all():
-                        mapping.pk = None
-                        mapping.statement_id = target_statement_ids[mapping.statement_id]
-                        mapping.source_id = ref_mappings_ids.get(
-                            mapping.source_id, mapping.source_id
-                        )
-                        mapping.target_id = ref_mappings_ids.get(
-                            mapping.target_id, mapping.target_id
-                        )
-                        mapping.source_revision = 0
-                        mapping.target_revision = 0
-                        new_gen_mappings.append(mapping)
             # copy statement
             # automatically copies all non-relational columns
             old_id = statement.id
@@ -316,7 +295,6 @@ class StatementManager(models.Manager["Statement"]):
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
         DatasetRecord.objects.bulk_create(new_records.values())
         XBlock.objects.bulk_create(new_xblocks.values())
-        GeneratedMapping.objects.bulk_create(new_gen_mappings)
 
         return ref_mappings
 
@@ -339,7 +317,7 @@ class StatementManager(models.Manager["Statement"]):
         return Statement._base_manager.filter(id__in=RawSQL(query, (statement_ids,)))
 
 
-class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
+class Statement(UUIDModel):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
@@ -380,6 +358,7 @@ class Statement(UUIDModel, DatasetContentMixin, GeneratedContentMixin):
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
     xblocks: models.QuerySet[XBlock]  # noqa via XBlock.statement
+    records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement

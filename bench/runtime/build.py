@@ -97,20 +97,6 @@ class TaskPlan:
         self.emits.extend(target)
 
 
-@dataclass(repr=False)
-class BuildPlan:
-    id: int
-    models: list[Model]
-    # finetunes: list[Finetune] (soon)
-    task_plans: list[TaskPlan] = field(default_factory=list)
-
-    def __str__(self):
-        return f"models={self.models}, task_plans={self.task_plans}"
-
-    def __repr__(self):
-        return f"<BuildPlan {self}>"
-
-
 async def build_task_implementation(
     task: TaskInstance, model: ModelInstance, session: Session
 ) -> AsyncCodeInstance:

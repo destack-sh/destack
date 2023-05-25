@@ -562,26 +562,6 @@ input FileRenameInput {
   path: String!
 }
 
-type GeneratedMapping implements Node {
-  id: GlobalID!
-  statement: Statement!
-  sourceId: GlobalID
-  sourceRevision: Int
-  targetId: GlobalID
-  targetRevision: Int
-}
-
-input GeneratedMappingFilter {
-  typeIn: [GeneratedMappingType!] = null
-}
-
-enum GeneratedMappingType {
-  STATEMENT
-  RECORD
-  XBLOCK
-  TYPE_NODE
-}
-
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -759,7 +739,6 @@ enum ModuleMutationType {
   UPDATE_STATEMENT_CODE
   UPDATE_STATEMENT_LANGUAGE
   UPDATE_STATEMENT
-  UPDATE_GENERATED_MAPPINGS
   DELETE_STATEMENT
   CREATE_TYPE_NODE
   UPDATE_TYPE_NODE
@@ -1840,7 +1819,6 @@ type Statement implements Node & SimplyTyped {
   orderKey: String!
   reference: Statement
   symbolType: SymbolType
-  generatedMappings(filters: GeneratedMappingFilter): [GeneratedMapping!]!
   rootTypeFlags: Int
   lang: String
   code: String

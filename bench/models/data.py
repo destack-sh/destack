@@ -10,12 +10,6 @@ from django.db.models import Q
 from bench.models.utils import UUIDModel
 
 
-class DatasetContentMixin:
-    """Dataset content of JSON records."""
-
-    records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
-
-
 class DatasetRecordManager(models.Manager["DatasetRecord"]):
     def get_queryset(self) -> models.QuerySet[DatasetRecord]:
         # soft-deleted statements are not returned by default

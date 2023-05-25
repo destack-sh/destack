@@ -6,11 +6,9 @@ from django.conf import settings
 from django.db import migrations, models
 
 import bench.models.execution
-import bench.models.generated
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0020_remove_sourcemapping_source_record_and_more"),
     ]
@@ -61,19 +59,6 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="executions+",
                 to=settings.AUTH_USER_MODEL,
-            ),
-        ),
-        migrations.AlterField(
-            model_name="sourcemapping",
-            name="type",
-            field=django_choices_field.fields.TextChoicesField(
-                choices=[
-                    ("statement", "Statement"),
-                    ("record", "Record"),
-                    ("type_node", "Type Node"),
-                ],
-                choices_enum=bench.models.generated.GeneratedMappingType,
-                max_length=9,
             ),
         ),
     ]

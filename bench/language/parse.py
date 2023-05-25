@@ -656,7 +656,7 @@ def _parse_definition_content(
         )
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
-        return BuildContent(generated_mappings=[])
+        return BuildContent()
 
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 

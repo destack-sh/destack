@@ -541,38 +541,6 @@ PRIMITIVE_TYPES = [
 ]
 
 
-class GeneratedMappingType(enum.StrEnum):
-    STATEMENT = "statement"
-    RECORD = "record"
-    XBLOCK = "xblock"
-    TYPE_NODE = "type_node"
-
-
-@dataclass(repr=False)
-class GeneratedMapping:
-    """A mapping between a source and a generated target symbol."""
-
-    type: GeneratedMappingType
-    source_id: Optional[UUID] = None
-    source_revision: Optional[int] = None
-    target_id: Optional[UUID] = None
-    target_revision: Optional[int] = None
-
-    def __str__(self):
-        return f"{self.type} {self.source_id} ({self.source_revision}) -> {self.target_id} ({self.target_revision})"
-
-    def __repr__(self):
-        return f"<GeneratedMapping {self}>"
-
-    def deepcopy(self):
-        return self.__class__(**self.__dict__)
-
-
-@dataclass(repr=False)
-class GeneratorContent:
-    generated_mappings: list[GeneratedMapping] = field(default_factory=list)
-
-
 class TypeFlag(enum.IntFlag):
     # :TypeFlags
     Zero = 0
@@ -816,7 +784,7 @@ class ReactiveSettings:
 
 
 @dataclass(repr=False)
-class TaskContent(TypeContent, GeneratorContent, ReactiveSettings):
+class TaskContent(TypeContent, ReactiveSettings):
     description: str = ""
     root_type_tag = TypeTag.FUNCTION
 
@@ -1024,7 +992,7 @@ class CodeParse:
 
 
 @dataclass(repr=False)
-class CodeContent(TypeContent, GeneratorContent, ReactiveSettings):
+class CodeContent(TypeContent, ReactiveSettings):
     description: Optional[str] = None
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
@@ -1082,19 +1050,9 @@ class BuildSettings(ReactiveSettings):
 
 
 @dataclass(repr=False)
-class BuildContent(SymbolContent, GeneratorContent):
+class BuildContent(SymbolContent):
     settings: BuildSettings = required_field()
     comment: Optional[str] = None  # like description but non-semantic
-
-    @property
-    def targets(self) -> set[UUID]:
-        return {mapping.target_id for mapping in self.generated_mappings if mapping.target_id}
-
-    def get_target(self, source_id: UUID) -> Optional[UUID]:
-        for mapping in self.generated_mappings:
-            if mapping.source_id == source_id:
-                return mapping.target_id
-        return None
 
     def __str__(self):
         return ""
@@ -1102,7 +1060,6 @@ class BuildContent(SymbolContent, GeneratorContent):
 
 @dataclass(repr=False)
 class Build(InterpSymbol, BuildContent):
-    generated_mappings: list[GeneratedMapping] = field(default_factory=list)
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
     weights: dict[str, float] = field(default_factory=dict)
