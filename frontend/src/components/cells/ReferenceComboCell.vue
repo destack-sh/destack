@@ -200,9 +200,10 @@ defineExpose({
       <ComboboxOption v-if="query.length > 0 || canDefineAnonymous" :key="0" :value="null" v-slot="{ active }">
         <li
           :class="[
-            'relative flex cursor-default select-none items-baseline justify-between px-2 py-0.5  text-sm',
+            'relative flex cursor-default select-none items-baseline justify-between px-2 py-0.5',
             active ? 'bg-orange-600 text-white' : 'text-gray-900',
-            editor.fontMono ? 'font-mono' : '',
+            appearance.fontMono ? 'font-mono' : '',
+            appearance.fontSerif ? 'font-serif' : '',
           ]"
         >
           <span v-if="query.trim().length > 0">{{ query }}:</span>

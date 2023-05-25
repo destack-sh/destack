@@ -80,10 +80,6 @@ function morphToReference(symbol: InterpSymbol) {
 }
 
 function morphed() {
-  // ReferenceComboCell for entering name is v-if on symbolType != null
-  // so it's only available in the next frame. Using v-show instead works
-  // immediately but leads to weird runtime directive errors while editing
-  // the input field in ReferenceComboCell.
   nextTick(() => nameRef.value?.focus());
 }
 

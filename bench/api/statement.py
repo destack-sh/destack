@@ -19,7 +19,6 @@ from bench.api.auth import check_can_view_project, check_can_write_project
 from bench.api.sync import MMT, BatchMutationInput, project_mutation
 
 if TYPE_CHECKING:
-    from bench.api.build import BuildCandidate, BuildSettings
     from bench.api.evaluation import EvaluationResult
     from bench.api.project import File, ProjectVersion
 
@@ -163,8 +162,6 @@ class Statement(gql.Node, SimplyTyped):
     records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
         filters=DatasetRecordFilter
     )
-    build_settings: Optional[Annotated["BuildSettings", lazy(".build")]]
-    build_candidates: list[Annotated["BuildCandidate", lazy(".build")]]
     evaluation_results: list[Annotated["EvaluationResult", lazy(".evaluation")]]
 
 

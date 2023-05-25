@@ -23,6 +23,7 @@ from bench.language.type import (
     Type,
     TypeContent,
     TypeFlag,
+    TypeHint,
     TypeNode,
     TypeTag,
 )
@@ -299,7 +300,13 @@ class SampleDatasetRandom(SampleSource):
         n_records = len(self.source_dataset.records)
         sample_indices = rng.sample(range(n_records), min(n_records, self.count))
         for target_i, source_i in enumerate(sample_indices):
-            target_dataset.records[target_i].data = self.source_dataset.records[source_i].data
+            source_data = self.source_dataset.records[source_i].data
+            # not sure where to unkey data.. or should we work with dataset instances here?
+            target_dataset.records[target_i].data = self.source_dataset.type.unkey(source_data)
+            if len(target_dataset.records[target_i].data) != len(self.source_dataset.type_nodes):
+                raise ValueError(
+                    f"sampled data does not match type: {target_dataset.records[target_i].data}"
+                )
         return target_dataset
 
 
@@ -320,10 +327,26 @@ class SampleFabricateRandom(SampleSource):
         return target_dataset
 
 
+SAMPLE_BY_TYPE_HINT = {
+    TypeHint.UUID: str(uuid.uuid4()),
+    TypeHint.NAME: "Max Mustermann",
+    TypeHint.EMAIL: "florian@symbolx.com",
+    TypeHint.PHONE: "+49 123 456 789",
+    TypeHint.URL: "https://symbolx.com",
+    TypeHint.KEY: "sk_test_1234567890",
+    TypeHint.DATE: "2023-01-01",
+    TypeHint.DATETIME: "2023-01-01T10:30:45",
+    TypeHint.TIME: "02:08:00",
+    TypeHint.RATING: 3,
+}
+
+
 def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = None) -> Any:
     """Synthesizes a value of the given type with fake fields."""
     if type.flags & TypeFlag.IsArray and not skip_array:
-        return [fabricate_value(type.type_nodes[0], skip_array=True)]
+        return [fabricate_value(type, skip_array=True)]
+    if SAMPLE_BY_TYPE_HINT.get(type.hint) is not None:
+        return SAMPLE_BY_TYPE_HINT[type.hint]
     elif type.tag == TypeTag.STRING:
         return "lorem ipsum"
     elif type.tag == TypeTag.NUMBER:
