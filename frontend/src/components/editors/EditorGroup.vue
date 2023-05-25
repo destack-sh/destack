@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { useElementRefs } from "@/components/cells/grid";
-import EditorInterface from "@/components/EditorInterface.vue";
-import EmptyEditorInterface from "@/components/EmptyEditorInterface.vue";
+import { useElementRefs } from "@/composables/useGrid";
+import EditorInterface from "@/components/editors/Editor.vue";
+import EmptyEditor from "@/components/editors/EmptyEditor.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type Editor, type EditorGroup } from "@/state/editor";
@@ -122,7 +122,7 @@ async function createFileInEditorGroup() {
         >
           <EditorInterface :editor="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
-        <EmptyEditorInterface
+        <EmptyEditor
           v-if="bench.currentProjectVersionId != null && group.activeEditorId == null"
           class="relative h-full w-full"
           :group="group"

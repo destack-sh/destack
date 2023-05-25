@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import { ANY_TYPE_NODE, type SimpleType } from "@/components/statement";
+import { ANY_TYPE_NODE, type SimpleType } from "@/components/editors/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { SimpleTypeNode } from "@/gql/graphql";
 import { nextTick, ref, watch, type Ref } from "vue";

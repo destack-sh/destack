@@ -4,21 +4,21 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import JobsPopover from "@/components/basic/JobsPopover.vue";
+import JobsPopover from "@/components/interfaces/JobsPopover.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import DeployPopover from "@/components/DeployPopover.vue";
-import EditorGroupInterface from "@/components/EditorGroupInterface.vue";
-import FeedbackPopover from "@/components/FeedbackPopover.vue";
-import HelpPopover from "@/components/HelpPopover.vue";
-import NotificationArea from "@/components/notifications/NotificationArea.vue";
-import NotificationPopover from "@/components/notifications/NotificationPopover.vue";
-import ViewExplorer from "@/components/panels/ViewExplorer.vue";
-import ViewHistory from "@/components/panels/ViewHistory.vue";
-import ViewIssues from "@/components/panels/ViewIssues.vue";
-import ProjectPopover from "@/components/ProjectPopover.vue";
-import SettingsPopover from "@/components/SettingsPopover.vue";
-import SharePopover from "@/components/SharePopover.vue";
+import DeployPopover from "@/components/interfaces/DeployPopover.vue";
+import EditorGroup from "@/components/editors/EditorGroup.vue";
+import FeedbackPopover from "@/components/interfaces/FeedbackPopover.vue";
+import HelpPopover from "@/components/interfaces/HelpPopover.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
+import NotificationPopover from "@/components/interfaces/NotificationPopover.vue";
+import ViewExplorer from "@/components/views/ViewExplorer.vue";
+import ViewHistory from "@/components/views/ViewHistory.vue";
+import ViewIssues from "@/components/views/ViewIssues.vue";
+import ProjectPopover from "@/components/interfaces/ProjectPopover.vue";
+import SettingsPopover from "@/components/interfaces/SettingsPopover.vue";
+import SharePopover from "@/components/interfaces/SharePopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
@@ -698,13 +698,13 @@ onBeforeUnmount(() => {
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="bench.left" class="h-full w-full" />
+            <EditorGroup :group="bench.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
         <div class="relative flex-1" v-if="bench.right.editors.length > 0">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroupInterface :group="bench.right" class="h-full w-full" />
+            <EditorGroup :group="bench.right" class="h-full w-full" />
           </div>
         </div>
       </main>

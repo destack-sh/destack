@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
-import MonacoEditor from "@/components/MonacoEditor.vue";
-import { useStatementContext } from "@/components/statement";
+import MonacoEditor from "@/components/basic/MonacoEditor.vue";
+import { useStatementContext } from "@/components/editors/statement";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { newExecutionId, useSymbolOps } from "@/state/runtime";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
-import InlineActions from "@/components/basic/InlineActions.vue";
+import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,

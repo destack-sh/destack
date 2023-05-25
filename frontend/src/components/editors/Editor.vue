@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import FileInterface from "@/components/FileInterface.vue";
-import RunInterface from "@/components/RunInterface.vue";
+import FileInterface from "@/components/editors/FileEditor.vue";
+import RunInterface from "@/components/editors/RunEditor.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import {
   provideEditorContext,

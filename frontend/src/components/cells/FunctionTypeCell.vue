@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import { useNavigationGrid } from "@/components/cells/grid";
-import InlineTypeTupleCell from "@/components/cells/InlineTypeTupleCell.vue";
-import InlineValueCell from "@/components/cells/InlineValueCell.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/statement";
+import { useNavigationGrid } from "@/composables/useGrid";
+import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/editors/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -28,14 +28,14 @@ const outputNodes = computed(
 
 type ColumnType = "type" | "description";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type", "description"] as ColumnType[]);
-const inputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell>>(columnsInOrder, inputNodes, {
+const inputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface>>(columnsInOrder, inputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addInputRef.value?.focus(),
   gridNavigateRight: (rowIdx) => focusColumn("output", rowIdx, 0),
   nowrapLeft: true,
   nowrapRight: true,
 });
-const outputGrid = useNavigationGrid<string, InstanceType<typeof InlineTypeTupleCell>>(columnsInOrder, outputNodes, {
+const outputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface>>(columnsInOrder, outputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addOutputRef.value?.focus(),
   gridNavigateLeft: (rowIdx) => focusColumn("input", rowIdx, -1),
@@ -153,7 +153,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
+            :is="column == 'type' ? TypeTupleInterface : ValueInterface"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
             :readonly="context.readonly.value"
@@ -203,7 +203,7 @@ defineExpose({
           <!-- Individual column: a bit messy -->
           <component
             :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? InlineTypeTupleCell : InlineValueCell"
+            :is="column == 'type' ? TypeTupleInterface : ValueInterface"
             :model-value="readColumn(member as SimpleTypeNode, column)"
             @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
             :readonly="context.readonly.value"

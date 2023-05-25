@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import { useElementRefs } from "@/components/cells/grid";
+import { useElementRefs } from "@/composables/useGrid";
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useBenchState } from "@/state/editor";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowPathIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 
 const props = defineProps<{
   type: SimpleType;

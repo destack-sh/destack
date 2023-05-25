@@ -1,4 +1,4 @@
-import type { SimpleType } from "@/components/statement";
+import type { SimpleType } from "@/components/editors/statement";
 import { TypeHint, TypeTag } from "@/gql/graphql";
 import { isValidObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";

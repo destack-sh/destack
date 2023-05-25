@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/statement";
+import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/editors/statement";
 import { StatementType, SymbolType, TypeHint, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/type";

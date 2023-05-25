@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import TiptapEditor from "@/components/TiptapEditor.vue";
-import { useStatementContext } from "@/components/statement";
+import TiptapEditor from "@/components/basic/TiptapEditor.vue";
+import { useStatementContext } from "@/components/editors/statement";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();

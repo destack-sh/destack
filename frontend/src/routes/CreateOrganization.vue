@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/notifications/NotificationArea.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import { useValidName, useValidSlug } from "@/composables/useValidation";
 import { useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";

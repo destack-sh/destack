@@ -1,14 +1,13 @@
 <script lang="ts" setup>
+import EditableSpan from "@/components/basic/EditableSpan.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
-import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SelectTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
+import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
-import EditableSpan from "@/components/EditableSpan.vue";
-import { useStatementContext } from "@/components/statement";
+import { useStatementContext } from "@/components/editors/statement";
 import { StatementType } from "@/gql/graphql";
-import { useBenchState } from "@/state/editor";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 

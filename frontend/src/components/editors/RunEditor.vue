@@ -25,8 +25,8 @@ const symbolActions = computed(() => {
 
 const showDots = ref(true);
 const dotSize = ref(1);
-const gridStepX = ref(24);
-const gridStepY = ref(12);
+const gridStepX = ref(36); // p-9
+const gridStepY = ref(18); // p-4.5
 
 function getTileWidth(targetWidth?: number) {
   return Math.min(
@@ -114,10 +114,10 @@ const defaultTileOffsetX = computed(() => getTileOffsetX());
       <div
         class="z-[1] rounded-sm border border-orange-900 border-opacity-[12%] bg-white shadow-sm"
         :style="{
-          height: gridStepY * 3 + 'px',
-          width: getTileWidth(gridStepX * 5) + 'px',
-          marginLeft: getTileOffsetX(gridStepX * 5) + 'px',
-          marginRight: getTileOffsetX(gridStepX * 5) + 'px',
+          height: gridStepY * 2 + 'px',
+          width: getTileWidth(gridStepX * 4) + 'px',
+          marginLeft: getTileOffsetX(gridStepX * 4) + 'px',
+          marginRight: getTileOffsetX(gridStepX * 4) + 'px',
         }"
       >
         <button class="h-full w-full bg-orange-500 text-white">Run</button>
