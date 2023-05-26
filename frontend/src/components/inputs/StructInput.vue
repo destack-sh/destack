@@ -123,6 +123,7 @@ defineExpose({
     </div>
     <!-- Struct preview on hover -->
     <!-- TODO @Broken: fix editability -->
+    <!-- The use of pin & fixed here is not incidental, value interfaces are usually clipped so we can't use absolute. -->
     <div
       v-if="activeIndex != null"
       ref="structRef"

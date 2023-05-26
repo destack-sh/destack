@@ -22,7 +22,7 @@ from bench.language.parse import LookupBy, index_module
 from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
 from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
 from bench.models.project import Project, ProjectVersion
-from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData, RunErrorData
+from bench.runtime.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -420,11 +420,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
                 data.records.append(rmap_record(record))
     if statement.symbol_type == SymbolType.CODE and not flat:
         data.xblocks = rmap_xblocks(statement.xblocks.all())
-    if statement.symbol_type == SymbolType.BUILD:
-        data.build_settings = wire.BuildSettings(
-            reactive=statement.build_settings.reactive,
-            weights=statement.build_settings.weights,
-        )
     if statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
             name=statement.reference_project_version.project.path,
@@ -571,37 +566,6 @@ def wmap_simple_type_node(
     )
 
 
-def rmap_job(job: JobData) -> models.Job:
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return models.Job(
-        id=job.id,
-        type=job.type,
-        status=job.status,
-        project_id=job.project_id,
-        project_version_id=job.project_version_id,
-        deployment_id=job.deployment_id,
-        worker_id=job.worker_id,
-        started_at=job.started_at,
-        terminated_at=job.terminated_at,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def wmap_job(job: models.Job) -> JobData:
-    return JobData(
-        id=job.id,
-        type=job.type,
-        status=job.status,
-        project_id=job.project_id,
-        project_version_id=job.project_version_id,
-        deployment_id=job.deployment_id,
-        worker_id=job.worker_id,
-        started_at=job.started_at,
-        terminated_at=job.terminated_at,
-    )
-
-
 def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     if frame.error:
         status = models.ExecutionStatus.Failed
@@ -675,27 +639,4 @@ def wmap_execution_frame(frame: models.Execution) -> ExecutionFrameData:
         worker_id=frame.worker_id,
         trigger_type=frame.trigger_type,
         trigger_id=frame.user_id or frame.access_token_id,
-    )
-
-
-def rmap_evaluation_result(evaluation: EvaluationResultData) -> models.EvaluationResult:
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return models.EvaluationResult(
-        id=evaluation.id,
-        created_at=now,
-        updated_at=now,
-        kind=evaluation.kind,
-        scope=evaluation.scope,
-        project_id=evaluation.project_id,
-        project_version_id=evaluation.project_version_id,
-        job_id=evaluation.job_id,
-        build_id=evaluation.build_id,
-        build_candidate_id=evaluation.build_candidate_id,
-        statement_id=evaluation.statement_id,
-        record_id=evaluation.record_id,
-        type_node_id=evaluation.type_node_id,
-        system_id=evaluation.system_id,
-        environment_id=evaluation.environment_id,
-        aggregated_metrics=evaluation.aggregated_metrics,
-        self_metrics=evaluation.self_metrics,
     )

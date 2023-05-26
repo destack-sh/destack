@@ -22,7 +22,6 @@ from bench.language.type import (
     TypeTag,
     new_type_node_key,
 )
-from bench.models.build import BuildSettings
 from bench.models.data import DatasetRecord
 from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
@@ -197,7 +196,6 @@ class StatementManager(models.Manager["Statement"]):
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
         new_xblocks: dict[UUID, XBlock] = {}
-        new_build_settings: list[BuildSettings] = []
 
         # copy statements
         for statement in statements:
@@ -241,13 +239,6 @@ class StatementManager(models.Manager["Statement"]):
                         new_xblocks[old_id] = xblock
                         _refmap(RefType.XBLOCK, old_id, old_revision, xblock)
 
-                # copy build settings
-                if statement.symbol_type == SymbolType.BUILD:
-                    build_settings = statement.build_settings
-                    build_settings.id = uuid4()
-                    build_settings._state.adding = True
-                    statement.build_settings_id = build_settings.id  # update manually
-                    new_build_settings.append(build_settings)
             # copy statement
             # automatically copies all non-relational columns
             old_id = statement.id
@@ -272,9 +263,6 @@ class StatementManager(models.Manager["Statement"]):
             statement.reference = None
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
-
-        # create referenced statements relations (FKs in statements)
-        BuildSettings.objects.bulk_create(new_build_settings)
 
         # create statements BFS, starting at roots that are _within_ selection (may not be actual roots)
         for new_statements_batch in walk_children_bfs_batched(new_statements.values(), "parent_id"):
@@ -370,9 +358,6 @@ class Statement(UUIDModel):
     )
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     provider = models.CharField(max_length=64, null=True, blank=True)  # for model
-    build_settings = models.OneToOneField(
-        "BuildSettings", on_delete=models.RESTRICT, null=True, blank=True
-    )
 
     def __str__(self):
         if self.type == StatementType.DEFINITION:

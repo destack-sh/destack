@@ -43,7 +43,6 @@ const executions = useExecutions(
     projectId: toRef(bench, "currentProjectId"),
     projectVersionId: toRef(bench, "currentProjectVersionId"),
     codeIds: ref([context.statement.value.id]),
-    buildIds: ref(null),
     includeAncestorVersions: ref(false),
     taskIds: ref(null),
   },

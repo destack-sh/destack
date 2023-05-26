@@ -5,7 +5,7 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationPopover from "@/components/interfaces/NotificationPopover.vue";
+import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
 import SettingsMembers from "@/components/settings/SettingsMembers.vue";
 import SettingsProfile from "@/components/settings/SettingsProfile.vue";

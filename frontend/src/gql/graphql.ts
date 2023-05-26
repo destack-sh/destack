@@ -87,47 +87,6 @@ export enum AccessTokenStatus {
   Revoked = "REVOKED",
 }
 
-export type BuildCandidate = Node & {
-  __typename?: "BuildCandidate";
-  build: Statement;
-  createdAt: Scalars["DateTime"];
-  file: File;
-  id: Scalars["GlobalID"];
-  project: Project;
-  projectVersion: ProjectVersion;
-  status: BuildCandidateStatus;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** A connection to a list of items. */
-export type BuildCandidateConnection = {
-  __typename?: "BuildCandidateConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<BuildCandidateEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type BuildCandidateEdge = {
-  __typename?: "BuildCandidateEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: BuildCandidate;
-};
-
-export enum BuildCandidateStatus {
-  Building = "Building",
-  Cancelled = "Cancelled",
-  CompletedAbandoned = "CompletedAbandoned",
-  CompletedWon = "CompletedWon",
-  Evaluating = "Evaluating",
-  Planned = "Planned",
-}
-
 export type CancelRunInput = {
   executionId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
@@ -373,55 +332,6 @@ export enum ErrorType {
   UnknownToken = "UNKNOWN_TOKEN",
 }
 
-export enum EvaluationKind {
-  Evaluation = "EVALUATION",
-  Lint = "LINT",
-}
-
-export type EvaluationResult = Node & {
-  __typename?: "EvaluationResult";
-  aggregatedMetrics: Scalars["JSON"];
-  build?: Maybe<Statement>;
-  createdAt: Scalars["DateTime"];
-  file: File;
-  id: Scalars["GlobalID"];
-  kind: EvaluationKind;
-  project: Project;
-  projectVersion: ProjectVersion;
-  record?: Maybe<DatasetRecord>;
-  scope: EvaluationScope;
-  selfMetrics?: Maybe<Scalars["JSON"]>;
-  statement?: Maybe<Statement>;
-  typeNode?: Maybe<SimpleTypeNode>;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** A connection to a list of items. */
-export type EvaluationResultConnection = {
-  __typename?: "EvaluationResultConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<EvaluationResultEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type EvaluationResultEdge = {
-  __typename?: "EvaluationResultEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: EvaluationResult;
-};
-
-export enum EvaluationScope {
-  Build = "BUILD",
-  Instruction = "INSTRUCTION",
-  Module = "MODULE",
-}
-
 export type Execution = Node & {
   __typename?: "Execution";
   accessToken?: Maybe<AccessToken>;
@@ -493,8 +403,6 @@ export enum ExecutionTracingLevel {
 }
 
 export enum ExecutionTriggerType {
-  Job = "JOB",
-  Manual = "MANUAL",
   RestApi = "REST_API",
   UiInteractive = "UI_INTERACTIVE",
 }
@@ -590,7 +498,6 @@ export type InterpModule = {
   files: Array<InterpFile>;
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  staleSymbols: Array<InterpSymbol>;
 };
 
 /**
@@ -620,7 +527,6 @@ export type InterpSimpleType = Node &
 
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
-  availableBuilds?: Maybe<Array<Scalars["GlobalID"]>>;
   file: InterpFile;
   fqn: Scalars["String"];
   generated: Scalars["Boolean"];
@@ -634,59 +540,6 @@ export type InterpSymbol = SimplyTyped & {
   type: StatementType;
   typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
-
-export type Job = Node & {
-  __typename?: "Job";
-  buildCandidate?: Maybe<BuildCandidate>;
-  createdAt: Scalars["DateTime"];
-  deployment: Deployment;
-  id: Scalars["GlobalID"];
-  parent?: Maybe<Job>;
-  project: Project;
-  projectVersion: ProjectVersion;
-  startedAt?: Maybe<Scalars["DateTime"]>;
-  status: JobStatus;
-  terminatedAt?: Maybe<Scalars["DateTime"]>;
-  type: JobType;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** A connection to a list of items. */
-export type JobConnection = {
-  __typename?: "JobConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<JobEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type JobEdge = {
-  __typename?: "JobEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Job;
-};
-
-export enum JobStatus {
-  Cancelled = "Cancelled",
-  Cancelling = "Cancelling",
-  Completed = "Completed",
-  Failed = "Failed",
-  Queued = "Queued",
-  Running = "Running",
-}
-
-export enum JobType {
-  Build = "BUILD",
-  Evaluate = "EVALUATE",
-  Generate = "GENERATE",
-  Interp = "INTERP",
-  Lint = "LINT",
-}
 
 export type Lock = Node & {
   __typename?: "Lock";
@@ -1658,13 +1511,10 @@ export type PyFrame = {
 
 export type Query = {
   __typename?: "Query";
-  buildCandidates: BuildCandidateConnection;
   clients: ClientConnection;
-  evaluations: EvaluationResultConnection;
   executions: ExecutionConnection;
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
-  jobs: JobConnection;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
@@ -1684,17 +1534,6 @@ export type Query = {
   users: UserConnection;
 };
 
-export type QueryBuildCandidatesArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  statusIn?: InputMaybe<Array<BuildCandidateStatus>>;
-};
-
 export type QueryClientsArgs = {
   active?: InputMaybe<Scalars["Boolean"]>;
   after?: InputMaybe<Scalars["String"]>;
@@ -1709,25 +1548,9 @@ export type QueryClientsArgs = {
   userId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
-export type QueryEvaluationsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
-  first?: InputMaybe<Scalars["Int"]>;
-  includeAncestorVersions?: Scalars["Boolean"];
-  kindIn?: InputMaybe<Array<EvaluationKind>>;
-  last?: InputMaybe<Scalars["Int"]>;
-  latestCandidateOnly?: Scalars["Boolean"];
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeIn?: InputMaybe<Array<EvaluationScope>>;
-  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
-};
-
 export type QueryExecutionsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
-  buildIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   first?: InputMaybe<Scalars["Int"]>;
   includeAncestorVersions?: Scalars["Boolean"];
@@ -1748,17 +1571,6 @@ export type QueryFeaturedProjectsArgs = {
 
 export type QueryFileArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type QueryJobsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  statusIn?: InputMaybe<Array<JobStatus>>;
-  typeIn?: InputMaybe<Array<JobType>>;
 };
 
 export type QueryOrganizationArgs = {
@@ -2083,7 +1895,6 @@ export type Statement = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     descendants: Array<Statement>;
     description?: Maybe<Scalars["String"]>;
-    evaluationResults: Array<EvaluationResult>;
     file: File;
     generated: Scalars["Boolean"];
     id: Scalars["GlobalID"];
@@ -2280,19 +2091,10 @@ export type StatementUpdateLanguageInput = {
 
 export type Subscription = {
   __typename?: "Subscription";
-  buildCandidateChanged: BuildCandidate;
   clientsChanged: Client;
-  evaluationsChanged: EvaluationResult;
   executionsChanged: Execution;
   interpChanged: InterpModule;
-  jobsChanged: Job;
   moduleChanged: ModuleChange;
-};
-
-export type SubscriptionBuildCandidateChangedArgs = {
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
 };
 
 export type SubscriptionClientsChangedArgs = {
@@ -2300,19 +2102,7 @@ export type SubscriptionClientsChangedArgs = {
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
-export type SubscriptionEvaluationsChangedArgs = {
-  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
-  includeAncestorVersions?: Scalars["Boolean"];
-  kindIn?: InputMaybe<Array<EvaluationKind>>;
-  latestCandidateOnly?: Scalars["Boolean"];
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeIn?: InputMaybe<Array<EvaluationScope>>;
-  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]>>;
-};
-
 export type SubscriptionExecutionsChangedArgs = {
-  buildIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   includeAncestorVersions?: Scalars["Boolean"];
   projectId: Scalars["GlobalID"];
@@ -2324,12 +2114,6 @@ export type SubscriptionExecutionsChangedArgs = {
 
 export type SubscriptionInterpChangedArgs = {
   projectVersionId: Scalars["GlobalID"];
-};
-
-export type SubscriptionJobsChangedArgs = {
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  typeIn?: InputMaybe<Array<JobType>>;
 };
 
 export type SubscriptionModuleChangedArgs = {
@@ -2616,83 +2400,6 @@ export type MatchingUsersQuery = {
   };
 };
 
-export type RecordsQueryVariables = Exact<{
-  statementId: Scalars["GlobalID"];
-  after?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-}>;
-
-export type RecordsQuery = {
-  __typename?: "Query";
-  statement?: {
-    __typename?: "Statement";
-    id: any;
-    records: {
-      __typename?: "DatasetRecordConnection";
-      totalCount?: number | null;
-      pageInfo: {
-        __typename?: "PageInfo";
-        hasNextPage: boolean;
-        hasPreviousPage: boolean;
-        startCursor?: string | null;
-        endCursor?: string | null;
-      };
-      edges: Array<{
-        __typename?: "DatasetRecordEdge";
-        cursor: string;
-        node: {
-          __typename?: "DatasetRecord";
-          id: any;
-          revision: number;
-          createdAt: any;
-          updatedAt: any;
-          deletedAt?: any | null;
-          orderKey: string;
-          data: any;
-        };
-      }>;
-    };
-  } | null;
-};
-
-export type EmptyEditorSuggestedFilesQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  last: Scalars["Int"];
-}>;
-
-export type EmptyEditorSuggestedFilesQuery = {
-  __typename?: "Query";
-  projectVersion?: {
-    __typename?: "ProjectVersion";
-    files: {
-      __typename?: "FileConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "FileEdge";
-        node: { __typename?: "File"; id: any; name: string; path: string; deletedAt?: any | null; directory: boolean };
-      }>;
-    };
-  } | null;
-};
-
-export type FileContentByIdQueryVariables = Exact<{
-  fileId: Scalars["GlobalID"];
-}>;
-
-export type FileContentByIdQuery = {
-  __typename?: "Query";
-  file?:
-    | ({
-        __typename?: "File";
-        id: any;
-        projectVersion: { __typename?: "ProjectVersion"; id: any };
-        statements: Array<
-          { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
-        >;
-      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
-    | null;
-};
-
 export type ExistingProjectVersionTagQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   tag: Scalars["String"];
@@ -2768,6 +2475,83 @@ export type NotificationsQuery = {
       }>;
     };
   } | null;
+};
+
+export type RecordsQueryVariables = Exact<{
+  statementId: Scalars["GlobalID"];
+  after?: InputMaybe<Scalars["String"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type RecordsQuery = {
+  __typename?: "Query";
+  statement?: {
+    __typename?: "Statement";
+    id: any;
+    records: {
+      __typename?: "DatasetRecordConnection";
+      totalCount?: number | null;
+      pageInfo: {
+        __typename?: "PageInfo";
+        hasNextPage: boolean;
+        hasPreviousPage: boolean;
+        startCursor?: string | null;
+        endCursor?: string | null;
+      };
+      edges: Array<{
+        __typename?: "DatasetRecordEdge";
+        cursor: string;
+        node: {
+          __typename?: "DatasetRecord";
+          id: any;
+          revision: number;
+          createdAt: any;
+          updatedAt: any;
+          deletedAt?: any | null;
+          orderKey: string;
+          data: any;
+        };
+      }>;
+    };
+  } | null;
+};
+
+export type EmptyEditorSuggestedFilesQueryVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  last: Scalars["Int"];
+}>;
+
+export type EmptyEditorSuggestedFilesQuery = {
+  __typename?: "Query";
+  projectVersion?: {
+    __typename?: "ProjectVersion";
+    files: {
+      __typename?: "FileConnection";
+      totalCount?: number | null;
+      edges: Array<{
+        __typename?: "FileEdge";
+        node: { __typename?: "File"; id: any; name: string; path: string; deletedAt?: any | null; directory: boolean };
+      }>;
+    };
+  } | null;
+};
+
+export type FileContentByIdQueryVariables = Exact<{
+  fileId: Scalars["GlobalID"];
+}>;
+
+export type FileContentByIdQuery = {
+  __typename?: "Query";
+  file?:
+    | ({
+        __typename?: "File";
+        id: any;
+        projectVersion: { __typename?: "ProjectVersion"; id: any };
+        statements: Array<
+          { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
+        >;
+      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+    | null;
 };
 
 export type ProfileAccessTokensQueryVariables = Exact<{
@@ -3364,65 +3148,6 @@ export type ProjectMigrationRefsQuery = {
   } | null;
 };
 
-export type EvaluationResultContentFragment = {
-  __typename?: "EvaluationResult";
-  id: any;
-  createdAt: any;
-  updatedAt: any;
-  kind: EvaluationKind;
-  scope: EvaluationScope;
-  selfMetrics?: any | null;
-  aggregatedMetrics: any;
-  project: { __typename?: "Project"; id: any };
-  projectVersion: { __typename?: "ProjectVersion"; id: any };
-  build?: { __typename?: "Statement"; id: any } | null;
-  statement?: { __typename?: "Statement"; id: any } | null;
-  typeNode?: { __typename?: "SimpleTypeNode"; id: any } | null;
-} & { " $fragmentName"?: "EvaluationResultContentFragment" };
-
-export type EvaluationsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
-  kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
-  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-}>;
-
-export type EvaluationsQuery = {
-  __typename?: "Query";
-  evaluations: {
-    __typename?: "EvaluationResultConnection";
-    totalCount?: number | null;
-    edges: Array<{
-      __typename?: "EvaluationResultEdge";
-      node: { __typename?: "EvaluationResult" } & {
-        " $fragmentRefs"?: { EvaluationResultContentFragment: EvaluationResultContentFragment };
-      };
-    }>;
-  };
-};
-
-export type EvaluationsChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  latestCandidateOnly?: InputMaybe<Scalars["Boolean"]>;
-  scopeIn?: InputMaybe<Array<EvaluationScope> | EvaluationScope>;
-  kindIn?: InputMaybe<Array<EvaluationKind> | EvaluationKind>;
-  buildIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  systemIdIn?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-}>;
-
-export type EvaluationsChangedSubscription = {
-  __typename?: "Subscription";
-  evaluationsChanged: { __typename?: "EvaluationResult" } & {
-    " $fragmentRefs"?: { EvaluationResultContentFragment: EvaluationResultContentFragment };
-  };
-};
-
 export type ExecutionContentFragment = {
   __typename?: "Execution";
   id: any;
@@ -3465,7 +3190,6 @@ export type ExecutionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  buildIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
@@ -3502,7 +3226,6 @@ export type ExecutionsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  buildIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
@@ -3642,49 +3365,6 @@ export type StatementContentFragment = {
     }
   >;
 } & { " $fragmentName"?: "StatementContentFragment" };
-
-export type JobContentFragment = {
-  __typename?: "Job";
-  id: any;
-  createdAt: any;
-  updatedAt: any;
-  startedAt?: any | null;
-  terminatedAt?: any | null;
-  status: JobStatus;
-  type: JobType;
-  projectVersion: { __typename?: "ProjectVersion"; id: any };
-} & { " $fragmentName"?: "JobContentFragment" };
-
-export type JobsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  statusIn?: InputMaybe<Array<JobStatus> | JobStatus>;
-  typeIn?: InputMaybe<Array<JobType> | JobType>;
-  first?: InputMaybe<Scalars["Int"]>;
-}>;
-
-export type JobsQuery = {
-  __typename?: "Query";
-  jobs: {
-    __typename?: "JobConnection";
-    totalCount?: number | null;
-    edges: Array<{
-      __typename?: "JobEdge";
-      node: { __typename?: "Job" } & { " $fragmentRefs"?: { JobContentFragment: JobContentFragment } };
-    }>;
-  };
-};
-
-export type JobsChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
-  typeIn?: InputMaybe<Array<JobType> | JobType>;
-}>;
-
-export type JobsChangedSubscription = {
-  __typename?: "Subscription";
-  jobsChanged: { __typename?: "Job" } & { " $fragmentRefs"?: { JobContentFragment: JobContentFragment } };
-};
 
 export type NewNotificationsQueryVariables = Exact<{
   after?: InputMaybe<Scalars["String"]>;
@@ -4907,7 +4587,6 @@ export type InterpSymbolContentFragment = {
   symbolType?: SymbolType | null;
   rootTypeTag?: TypeTag | null;
   generated: boolean;
-  availableBuilds?: Array<any> | null;
   typeNodes?: Array<{
     __typename?: "InterpSimpleType";
     id: any;
@@ -4955,17 +4634,6 @@ export type InterpModuleContentFragment = {
   errors: Array<
     { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
   >;
-  staleSymbols: Array<{
-    __typename?: "InterpSymbol";
-    id: any;
-    name?: string | null;
-    type: StatementType;
-    symbolType?: SymbolType | null;
-    modifier?: StatementModifier | null;
-    parentId?: any | null;
-    rootTypeTag?: TypeTag | null;
-    generated: boolean;
-  }>;
 } & { " $fragmentName"?: "InterpModuleContentFragment" };
 
 export type InterpErrorContentFragment = {
@@ -5116,68 +4784,6 @@ export const ClientStatusFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<ClientStatusFragment, unknown>;
-export const EvaluationResultContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "EvaluationResultContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "EvaluationResult" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "kind" } },
-          { kind: "Field", name: { kind: "Name", value: "scope" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "build" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "typeNode" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          { kind: "Field", name: { kind: "Name", value: "selfMetrics" } },
-          { kind: "Field", name: { kind: "Name", value: "aggregatedMetrics" } },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<EvaluationResultContentFragment, unknown>;
 export const ExecutionContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5670,36 +5276,6 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
-export const JobContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "JobContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Job" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "status" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<JobContentFragment, unknown>;
 export const _OrderKeyFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5733,7 +5309,6 @@ export const InterpSymbolContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "generated" } },
-          { kind: "Field", name: { kind: "Name", value: "availableBuilds" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "typeNodes" },
@@ -5861,23 +5436,6 @@ export const InterpModuleContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpErrorContent" } }],
             },
           },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "staleSymbols" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "symbolType" } },
-                { kind: "Field", name: { kind: "Name", value: "modifier" } },
-                { kind: "Field", name: { kind: "Name", value: "parentId" } },
-                { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
-                { kind: "Field", name: { kind: "Name", value: "generated" } },
-              ],
-            },
-          },
         ],
       },
     },
@@ -5964,6 +5522,273 @@ export const MatchingUsersDocument = {
     },
   ],
 } as unknown as DocumentNode<MatchingUsersQuery, MatchingUsersQueryVariables>;
+export const ExistingProjectVersionTagDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "existingProjectVersionTag" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersionByTag" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "tag" },
+                value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
+export const DeploymentsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "deployments" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "committed" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "deployments" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isOwned" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "status" } },
+                                  { kind: "Field", name: { kind: "Name", value: "deployAllStatements" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<DeploymentsQuery, DeploymentsQueryVariables>;
+export const NotificationsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "notifications" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "NotificationStatus" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "me" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "notifications" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "status" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "status" } },
+                          },
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "notArchived" },
+                            value: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
+                          },
+                        ],
+                      },
+                    },
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "first" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+                    },
+                  ],
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "edges" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "node" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "Field", name: { kind: "Name", value: "id" } },
+                                  { kind: "Field", name: { kind: "Name", value: "type" } },
+                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "readAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "expiresAt" } },
+                                  { kind: "Field", name: { kind: "Name", value: "status" } },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "invite" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                            ],
+                                          },
+                                        },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                      ],
+                                    },
+                                  },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
 export const RecordsDocument = {
   kind: "Document",
   definitions: [
@@ -6265,273 +6090,6 @@ export const FileContentByIdDocument = {
     ...SimpleTypeNodeContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
-export const ExistingProjectVersionTagDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "existingProjectVersionTag" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersionByTag" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "tag" },
-                value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
-export const DeploymentsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "deployments" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "committed" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "deployments" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "isOwned" },
-                            value: { kind: "BooleanValue", value: true },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "edges" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "type" } },
-                                  { kind: "Field", name: { kind: "Name", value: "status" } },
-                                  { kind: "Field", name: { kind: "Name", value: "deployAllStatements" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<DeploymentsQuery, DeploymentsQueryVariables>;
-export const NotificationsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "notifications" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "NotificationStatus" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "me" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "notifications" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "status" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "status" } },
-                          },
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "notArchived" },
-                            value: { kind: "Variable", name: { kind: "Name", value: "notArchived" } },
-                          },
-                        ],
-                      },
-                    },
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "first" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "first" } },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "edges" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "type" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "readAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "archivedAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "expiresAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "status" } },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "invite" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "id" } },
-                                        {
-                                          kind: "Field",
-                                          name: { kind: "Name", value: "organization" },
-                                          selectionSet: {
-                                            kind: "SelectionSet",
-                                            selections: [
-                                              { kind: "Field", name: { kind: "Name", value: "id" } },
-                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
-                                              { kind: "Field", name: { kind: "Name", value: "name" } },
-                                            ],
-                                          },
-                                        },
-                                        { kind: "Field", name: { kind: "Name", value: "level" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
 export const ProfileAccessTokensDocument = {
   kind: "Document",
   definitions: [
@@ -8375,273 +7933,6 @@ export const ProjectMigrationRefsDocument = {
     },
   ],
 } as unknown as DocumentNode<ProjectMigrationRefsQuery, ProjectMigrationRefsQueryVariables>;
-export const EvaluationsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "evaluations" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
-          type: {
-            kind: "ListType",
-            type: {
-              kind: "NonNullType",
-              type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationScope" } },
-            },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationKind" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "evaluations" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "includeAncestorVersions" },
-                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "scopeIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "kindIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "buildIdIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "systemIdIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "first" },
-                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "edges" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "node" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "EvaluationResultContent" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...EvaluationResultContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<EvaluationsQuery, EvaluationsQueryVariables>;
-export const EvaluationsChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "evaluationsChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "latestCandidateOnly" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
-          type: {
-            kind: "ListType",
-            type: {
-              kind: "NonNullType",
-              type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationScope" } },
-            },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "EvaluationKind" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "evaluationsChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "includeAncestorVersions" },
-                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "latestCandidateOnly" },
-                value: { kind: "Variable", name: { kind: "Name", value: "latestCandidateOnly" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "scopeIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "scopeIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "kindIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "kindIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "buildIdIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildIdIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "systemIdIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "systemIdIn" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "EvaluationResultContent" } }],
-            },
-          },
-        ],
-      },
-    },
-    ...EvaluationResultContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<EvaluationsChangedSubscription, EvaluationsChangedSubscriptionVariables>;
 export const ExecutionsDocument = {
   kind: "Document",
   definitions: [
@@ -8664,14 +7955,6 @@ export const ExecutionsDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
         },
         {
           kind: "VariableDefinition",
@@ -8726,11 +8009,6 @@ export const ExecutionsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "includeAncestorVersions" },
                 value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "buildIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
               },
               {
                 kind: "Argument",
@@ -8839,14 +8117,6 @@ export const ExecutionsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
           type: {
             kind: "ListType",
@@ -8891,11 +8161,6 @@ export const ExecutionsChangedDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "buildIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "buildIds" } },
-              },
-              {
-                kind: "Argument",
                 name: { kind: "Name", value: "taskIds" },
                 value: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
               },
@@ -8921,170 +8186,6 @@ export const ExecutionsChangedDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ExecutionsChangedSubscription, ExecutionsChangedSubscriptionVariables>;
-export const JobsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "jobs" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "statusIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobStatus" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobType" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "jobs" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "statusIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "statusIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "typeIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "first" },
-                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "edges" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "node" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "JobContent" } }],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...JobContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<JobsQuery, JobsQueryVariables>;
-export const JobsChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "jobsChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JobType" } } },
-          },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "jobsChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "typeIn" },
-                value: { kind: "Variable", name: { kind: "Name", value: "typeIn" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "JobContent" } }],
-            },
-          },
-        ],
-      },
-    },
-    ...JobContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<JobsChangedSubscription, JobsChangedSubscriptionVariables>;
 export const NewNotificationsDocument = {
   kind: "Document",
   definitions: [

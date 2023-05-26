@@ -339,7 +339,6 @@ class CanViewProject(HasCustomPermDirective):
                 models.ProjectVersion,
                 models.Execution,
                 models.EvaluationResult,
-                models.BuildCandidate,
                 models.Job,
             ),
         ):

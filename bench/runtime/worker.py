@@ -273,12 +273,7 @@ class ModuleWorker:
             if job.cancelled:
                 continue
 
-            job_context = ExecutionTrackerContext(
-                tracing_level=self.master.default_tracing_level,
-                trigger_type=ExecutionTriggerType.JOB,
-                trigger_id=job.id,
-            )
-            job_context_token = pub_tracker_ctx.set(job_context)
+            context_token = pub_tracker_ctx.set(job.ctx)
             try:
                 self.log.debug("run", job=job)
                 with in_memory_traces() as traces:
@@ -296,7 +291,7 @@ class ModuleWorker:
                 self.log.exception("run.failed", job=job, sentry_enabled=sentry_enabled)
             finally:
                 job.terminated.set()
-                pub_tracker_ctx.reset(job_context_token)
+                pub_tracker_ctx.reset(context_token)
                 self.queue.task_done()
 
 

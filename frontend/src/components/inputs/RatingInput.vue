@@ -39,7 +39,7 @@ defineExpose({
       v-for="i in MAX_STARS"
       :key="i"
       class="p-0.5 transition duration-200 hover:bg-orange-100 focus:outline-none"
-      @click.stop="emit('update:modelValue', i)"
+      @click.stop="readonly || emit('update:modelValue', i)"
     >
       <FadeTransition mode="out-in">
         <component

@@ -76,7 +76,6 @@ export function useExecutions(
     projectId: Ref<string>;
     projectVersionId: Ref<string>;
     includeAncestorVersions: Ref<boolean>;
-    buildIds: Ref<string[] | null>;
     taskIds: Ref<string[] | null>;
     codeIds: Ref<string[] | null>;
   },
@@ -91,7 +90,6 @@ export function useExecutions(
         $projectId: GlobalID!
         $projectVersionId: GlobalID
         $includeAncestorVersions: Boolean
-        $buildIds: [GlobalID!]
         $taskIds: [GlobalID!]
         $codeIds: [GlobalID!]
         $rootIdNull: Boolean
@@ -102,7 +100,6 @@ export function useExecutions(
           projectId: $projectId
           projectVersionId: $projectVersionId
           includeAncestorVersions: $includeAncestorVersions
-          buildIds: $buildIds
           taskIds: $taskIds
           codeIds: $codeIds
           rootIdNull: $rootIdNull
@@ -147,7 +144,6 @@ export function useExecutions(
           $projectId: GlobalID!
           $projectVersionId: GlobalID
           $includeAncestorVersions: Boolean
-          $buildIds: [GlobalID!]
           $taskIds: [GlobalID!]
           $codeIds: [GlobalID!]
           $rootIdNull: Boolean
@@ -156,7 +152,6 @@ export function useExecutions(
             projectId: $projectId
             projectVersionId: $projectVersionId
             includeAncestorVersions: $includeAncestorVersions
-            buildIds: $buildIds
             taskIds: $taskIds
             codeIds: $codeIds
             rootIdNull: $rootIdNull
@@ -169,7 +164,6 @@ export function useExecutions(
         projectId: filter.projectId,
         projectVersionId: filter.projectVersionId,
         includeAncestorVersions: filter.includeAncestorVersions,
-        buildIds: filter.buildIds,
         taskIds: filter.taskIds,
         codeIds: filter.codeIds,
         rootIdNull: options.root,
@@ -203,7 +197,6 @@ function _useModuleExecutions() {
       projectId,
       projectVersionId,
       includeAncestorVersions: ref(false),
-      buildIds: ref(null),
       taskIds: ref(null),
       codeIds: ref(null),
     },

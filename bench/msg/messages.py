@@ -17,7 +17,7 @@ from bench.language.wire import (
     SecretData,
 )
 from bench.models.user import ClientData
-from bench.runtime.type import EvaluationResultData, ExecutionFrameData, JobData
+from bench.runtime.type import ExecutionFrameData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
@@ -57,8 +57,6 @@ class NMessageType(StrEnum):
     REPLY_READ_SECRET = "secret.read.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
-    JOB_SAVED = "job.saved"
-    EVALUATION_SAVED = "evaluation.saved"
     EXECUTION_MARKED_DEAD = "execution.marked_dead"
 
     # API <-> Worker
@@ -233,28 +231,6 @@ class ExecutionSavedPayload(BatchablePayload):
         return ExecutionSavedPayload(module_id=messages[0].module_id, frames=frames)
 
 
-@payload(NMessageType.EVALUATION_SAVED)
-class EvaluationSavedPayload(BatchablePayload):
-    module_id: UUID
-    evaluations: list[EvaluationResultData]
-
-    @staticmethod
-    def batch(messages: list["EvaluationSavedPayload"]) -> "EvaluationSavedPayload":
-        evaluations = list(chain.from_iterable(m.evaluations for m in messages))
-        return EvaluationSavedPayload(module_id=messages[0].module_id, evaluations=evaluations)
-
-
-@payload(NMessageType.JOB_SAVED)
-class JobSavedPayload(BatchablePayload):
-    module_id: UUID
-    jobs: list[JobData]
-
-    @staticmethod
-    def batch(messages: list["JobSavedPayload"]) -> "JobSavedPayload":
-        jobs = list(chain.from_iterable(m.jobs for m in messages))
-        return JobSavedPayload(module_id=messages[0].module_id, jobs=jobs)
-
-
 @payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
@@ -320,8 +296,6 @@ class RepInterpPayload:
     module: wire.ModuleData
     dependencies: list[wire.ModuleData]
     errors: list[wire.ErrorData]
-    stale_symbols: list[UUID]
-    builds_by_symbol: Optional[dict[UUID, list[UUID]]]
 
 
 @payload(NMessageType.INTERP_CHANGED)
@@ -332,8 +306,6 @@ class InterpChangedPayload:
     module: Optional[wire.ModuleData | None]
     dependencies: Optional[list[wire.ModuleData]]
     errors: Optional[list[wire.ErrorData]]
-    stale_symbols: Optional[list[UUID]]
-    builds_by_symbol: Optional[dict[UUID, list[UUID]]]
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS
@@ -341,6 +313,15 @@ MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     payload_class: message_type
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
+
+MODULE_SCOPED_PAYLOAD_TYPES = (
+    ModuleChangedPayload,
+    ModuleInternalChangedPayload,
+    InterpChangedPayload,
+    ExecutionChangedPayload,
+    ExecutionSavedPayload,
+    ExecutionMarkedDeadPayload,
+)
 
 
 def to_topic(
@@ -351,19 +332,7 @@ def to_topic(
     Gets the default topic for a message type and payload.
     :NATSTopics
     """
-    if isinstance(
-        payload,
-        (
-            ModuleChangedPayload,
-            ModuleInternalChangedPayload,
-            InterpChangedPayload,
-            ExecutionChangedPayload,
-            ExecutionSavedPayload,
-            JobSavedPayload,
-            EvaluationSavedPayload,
-            ExecutionMarkedDeadPayload,
-        ),
-    ):
+    if isinstance(payload, MODULE_SCOPED_PAYLOAD_TYPES):
         return f"{message_type}.{payload.module_id}"
 
     return message_type

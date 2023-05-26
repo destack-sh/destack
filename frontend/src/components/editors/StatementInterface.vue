@@ -336,7 +336,6 @@ const defaultActions: StatementAction[] = [
 // runtime
 const localErrors = localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
-const isStale = isSymbolStale(statement);
 
 // connected clients / multiplayer
 // TODO @Performance: don't update & render clients per statement (ideally per file?)
@@ -496,7 +495,6 @@ defineExpose({
       <template v-if="inContainerFocused">*</template>
       <template v-if="inRootCellFocused">r*</template>
       <template v-if="isCommented">#</template>
-      <template v-if="isStale">S</template>
       <span class="lowercase">
         {{ statement.modifier }}
         {{ statement.type }}

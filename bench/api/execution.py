@@ -103,7 +103,6 @@ class Execution(gql.Node):
 async def _expand_filter(
     project_version_id: UUID,
     include_ancestor_versions: bool,
-    build_ids: list[UUID] | None,
     code_ids: list[UUID] | None,
     task_ids: list[UUID] | None,
     ancestor_depth: int = 8,
@@ -118,14 +117,14 @@ async def _expand_filter(
             version_id=project_version_id, depth=ancestor_depth
         )
         project_version_ids = [pv.id for pv in project_versions]
-        expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
+        expanded_symbol_ids = [*(task_ids or []), *(code_ids or [])]
         # expand symbols using RefMapping.source_id/target_id up to ancestor_depth
         expanded_symbol_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
             expanded_symbol_ids, ancestor_depth
         )
     else:
         project_version_ids = [project_version_id]
-        expanded_symbol_ids = [*(build_ids or []), *(task_ids or []), *(code_ids or [])]
+        expanded_symbol_ids = [*(task_ids or []), *(code_ids or [])]
     return expanded_symbol_ids, project_version_ids
 
 
@@ -137,7 +136,6 @@ class ExecutionQuery:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID] = None,
         include_ancestor_versions: bool = False,
-        build_ids: list[GlobalID] | None = None,
         task_ids: list[GlobalID] | None = None,
         code_ids: list[GlobalID] | None = None,
         root_id: Optional[GlobalID] = None,
@@ -146,18 +144,15 @@ class ExecutionQuery:
         qs = models.Execution.objects.all()
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
-        build_ids = to_uuids(build_ids)
         task_ids = to_uuids(task_ids)
         code_ids = to_uuids(code_ids)
         # if filtering by a symbol and including multiple versions, expand into mappings
         expanded_symbol_ids, project_version_ids = await _expand_filter(
-            project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+            project_version_id, include_ancestor_versions, code_ids, task_ids
         )
         qs = qs.filter(project_id=project_id.node_id)
         if project_version_ids:
             qs = qs.filter(project_version_id__in=project_version_ids)
-        if build_ids is not None:
-            qs = qs.filter(build_id__in=expanded_symbol_ids)
         if task_ids is not None:
             qs = qs.filter(task_id__in=expanded_symbol_ids)
         if code_ids is not None:
@@ -178,7 +173,6 @@ class ExecutionSubscription:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
-        build_ids: list[GlobalID] | None = None,
         task_ids: list[GlobalID] | None = None,
         code_ids: list[GlobalID] | None = None,
         root_id: Optional[GlobalID] = None,
@@ -190,7 +184,6 @@ class ExecutionSubscription:
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
-            build_ids=build_ids,
             task_ids=task_ids,
             code_ids=code_ids,
             root_id=root_id,
@@ -212,7 +205,6 @@ class ExecutionSubscription:
 
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
-        build_ids = to_uuids(build_ids)
         task_ids = to_uuids(task_ids)
         code_ids = to_uuids(code_ids)
         # If filtering by a symbol and including multiple versions, expand into their mappings.
@@ -220,16 +212,13 @@ class ExecutionSubscription:
         # will not be automatically included in the execution subscription. We could periodically re-check,
         # but that's a bit more complicated and not really worth it for now.
         expanded_symbol_ids, project_version_ids = await _expand_filter(
-            project_version_id, include_ancestor_versions, build_ids, code_ids, task_ids
+            project_version_id, include_ancestor_versions, code_ids, task_ids
         )
         log.debug("executions.listen")
         while True:
             msg: NMessage[ExecutionSavedPayload] = await executions_sub.next_msg()
             for frame_data in msg.payload.frames:
                 # :ExecutionsFilter
-                other_build = (
-                    build_ids is not None and frame_data.build_id not in expanded_symbol_ids
-                )
                 other_task = task_ids is not None and frame_data.task_id not in expanded_symbol_ids
                 other_code = code_ids is not None and frame_data.code_id not in expanded_symbol_ids
                 other_root = (
@@ -238,7 +227,7 @@ class ExecutionSubscription:
                     or root_id_null is True
                     and frame_data.root_id is not None
                 )
-                if other_build or other_task or other_code or other_root:
+                if other_task or other_code or other_root:
                     # TODO @Performance: filter execution frames more precisely via NATS?
                     continue
                 frame = mapper.rmap_execution_frame(frame_data)

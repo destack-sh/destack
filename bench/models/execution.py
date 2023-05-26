@@ -33,8 +33,6 @@ PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
 class ExecutionTriggerType(models.TextChoices):
     REST_API = "rest-api"
     UI_INTERACTIVE = "ui-interactive"
-    JOB = "job"
-    MANUAL = "manual"  # catch-all for old/debug triggers
 
 
 # sync with wire.ExecutionTracingLevel
@@ -59,9 +57,6 @@ class Execution(UUIDTModel):
         "Deployment", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
-    job = models.ForeignKey(
-        "Job", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(
@@ -93,35 +88,16 @@ class Execution(UUIDTModel):
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     build = models.ForeignKey(
-        "Statement",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions+",
-    )
-    build_candidate = models.ForeignKey(
-        "BuildCandidate",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions+",
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     task = models.ForeignKey(
-        "Statement",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions+",
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     code = models.ForeignKey(
-        "Statement",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="executions+",
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     model = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)

@@ -43,7 +43,6 @@ const { executions, totalCount } = useExecutions(
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     includeAncestorVersions: toRef(props, "includeAncestorVersions"),
-    buildIds: ref(null),
     codeIds: computed(() => [props.symbolId]),
   },
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
