@@ -393,7 +393,7 @@ class LanguageWorker:
         if not isinstance(mutator, ModuleMutator):
             mutator = ModuleMutator(self.idx, mutator, source=self.source)
         new_source = mutator.apply()
-        self.interp = await self.interpreter.interp(new_source)
+        await self.do_interp(new_source)
 
     async def write_module(
         self, mutations: list[ModuleMutation] | ModuleMutator, origins: tuple[ClientOrigin] = None

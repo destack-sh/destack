@@ -286,23 +286,26 @@ class StatementManager(models.Manager["Statement"]):
 
         return ref_mappings
 
-    def get_descendants(self, statement_ids: list[UUID]) -> models.QuerySet[Statement]:
+    def get_descendants(
+        self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
+    ) -> models.QuerySet[Statement]:
         """Gets descendants of statements with given ids (including the statements themselves)."""
         query = """
            WITH RECURSIVE descendants(id, parent_id) AS (
                SELECT id, parent_id
                FROM bench_statement
-               WHERE id = ANY(%s) AND deleted_at IS NOT NULL
+               WHERE id = ANY(%s)
                UNION ALL
                SELECT bench_statement.id, bench_statement.parent_id
                FROM bench_statement
                INNER JOIN descendants ON descendants.id = bench_statement.parent_id
-                WHERE bench_statement.deleted_at IS NOT NULL
            )
            SELECT DISTINCT id
            FROM descendants
         """
-        return Statement._base_manager.filter(id__in=RawSQL(query, (statement_ids,)))
+        return Statement._base_manager.filter(
+            id__in=RawSQL(query, (statement_ids,)), deleted_at=deleted_at
+        )
 
 
 class Statement(UUIDModel):

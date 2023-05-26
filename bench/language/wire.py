@@ -497,7 +497,7 @@ def rmap_simple_type_node(
         hint=node.reference.hint if has_reference and impute_type_references else node.hint,
         description=node.description,
         flags=node.flags,
-        reference_id=node.reference.id if node.reference else None,
+        reference_id=node.reference.id if hasattr(node.reference, "id") else node.reference,
         order_key=node.order_key,
         value=node.value,
     )

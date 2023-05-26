@@ -15,7 +15,7 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.util import wrap_exceptions
-from bench.language.mutate import MMT
+from bench.language.mutate import MMT, ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
@@ -107,7 +107,7 @@ def project_mutation(
 
             # save and bump revision (if not new or batched)
             if not batch:
-                is_new = thing._state.adding
+                is_new = thing._state.adding or type.kind == ModuleMutationKind.CREATE
                 if not is_new:
                     thing.revision = F("revision") + 1
                 thing.save()

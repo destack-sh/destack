@@ -217,7 +217,6 @@ def normalize_to_project(obj) -> models.Project:
         (
             models.ProjectVersion,
             models.Deployment,
-            models.EvaluationResult,
             models.RemoteObject,
             models.Secret,
         ),
@@ -335,12 +334,7 @@ class CanViewProject(HasCustomPermDirective):
             prefix = "project_version__project__"
         elif issubclass(
             qs.model,
-            (
-                models.ProjectVersion,
-                models.Execution,
-                models.EvaluationResult,
-                models.Job,
-            ),
+            (models.ProjectVersion, models.Execution),
         ):
             prefix = "project__"
         else:
