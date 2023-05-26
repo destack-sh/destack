@@ -20,6 +20,7 @@ import {
 import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
 import { formatDurationSeconds } from "@/composables/useNow";
 import { useOperations } from "@/state/operations";
+import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -228,41 +229,17 @@ defineExpose({
     +code
   </button>
   <!-- Last output/error (if any) -->
-  <div
+  <ExecutionTraceback
     v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
     :class="[
       context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
-      lastExecution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600',
-      truncateOutput ? 'max-h-[250px] overflow-y-hidden' : '',
+      truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '',
     ]"
     :key="lastExecution?.id"
+    :name="context.statement.value?.name ?? 'run'"
+    :execution="lastExecution"
   >
-    {{ context.statement.value?.name }} {{ lastExecution.status.toLowerCase() }}:
-    <span class="font-bold">{{ lastExecution.errorNice?.message }}</span>
-    <ul class="mt-1 flex flex-col gap-2">
-      <!-- Error traceback -->
-      <li
-        v-for="(frame, i) of lastExecution.errorNice?.traceback"
-        :key="i"
-        class="flex max-w-full flex-col overflow-hidden py-0.5 hover:bg-red-100"
-      >
-        <span>
-          <a class="underline underline-offset-4">{{ frame.filename }}:{{ frame.lineno }}</a> {{ frame.name }}
-        </span>
-        <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
-        <!-- Locals -->
-        <span
-          v-if="Object.keys(frame.locals).length > 0"
-          class="mx-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2"
-        >
-          <template v-for="key in Object.keys(frame.locals)" :key="key">
-            <span>{{ key }}</span>
-            <span class="col-span-3 w-full">{{ frame.locals[key] }}</span>
-          </template>
-        </span>
-      </li>
-    </ul>
     <!-- If truncating, button overlay with fade gradient -->
     <button
       v-if="truncateOutput"
@@ -274,5 +251,5 @@ defineExpose({
     <button v-else class="flex w-full flex-row justify-center bg-gray-100 pt-0.5" @click="truncateOutput = true">
       <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400" />
     </button>
-  </div>
+  </ExecutionTraceback>
 </template>

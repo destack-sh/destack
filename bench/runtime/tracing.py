@@ -18,11 +18,12 @@ from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload
 from bench.runtime.type import ExecutionFrame, ExecutionFrameData
+from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
 if typing.TYPE_CHECKING:
     from bench.runtime.inference import Inference
-    from bench.runtime.instance import CodeInstance
+    from bench.runtime.instance import CodeInstance, TaskInstance
 
 logger = structlog.get_logger(__name__)
 
@@ -233,18 +234,23 @@ class ExecutionTracer(Tracer):
 
     def _update_cached_info(self):
         for frame in self.stacktrace:
+            frame.cached_generated_at = min(
+                f.cached_generated_at for f in frame.walk_descendants() if f.cached_generated_at
+            )
             frame.cached_duration = sum(
                 f.cached_duration for f in frame.walk_descendants() if f.cached_duration
             )
 
     def _create_frame(
         self,
-        code: typing.Optional[CodeInstance] = None,
+        runnable: typing.Optional[CodeInstance | TaskInstance] = None,
         model: typing.Optional[Model] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
     ):
+        from bench.runtime.instance import CodeInstance, TaskInstance  # prevent circular import
+
         if trace:
             root = self.stacktrace[0] if self.stacktrace else None
             parent = self.stacktrace[-1] if self.stacktrace else None
@@ -254,9 +260,9 @@ class ExecutionTracer(Tracer):
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=worker_ctx.get().module_id,
-            build=code.session.default_build if code else parent.build if parent else None,
-            task=code.task if code else None,
-            code=code,
+            build=runnable.session.default_build if runnable else parent.build if parent else None,
+            task=runnable if isinstance(runnable, TaskInstance) else None,
+            code=runnable if isinstance(runnable, CodeInstance) else None,
             model=model,
             root=root,
             parent=parent,
@@ -276,7 +282,7 @@ class ExecutionTracer(Tracer):
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
-            code=code, inputs=inputs, trace=False, queue_position=queue_position
+            runnable=code, inputs=inputs, trace=False, queue_position=queue_position
         )
         self.tracker(frame)
         logger.debug("trace.queue", frame=frame)
@@ -287,7 +293,7 @@ class ExecutionTracer(Tracer):
         for input_t, input in zip(code.inputs, args):
             combined_kwargs[input_t.name] = input
         frame = self._create_frame(
-            code=code, inputs=code.type.rekey(combined_kwargs, is_output=False)
+            runnable=code, inputs=code.type.rekey(combined_kwargs, is_output=False)
         )
         self.stacktrace.append(frame)
         self.tracker(frame)  # tracker may mutate/do other things, so log after it's run
@@ -309,6 +315,7 @@ class ExecutionTracer(Tracer):
 
     def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
         frame = self._create_frame(model=model)
+        frame.inputs = [to_dict(block) for block in blocks]
         self.stacktrace.append(frame)
         self.tracker(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
@@ -327,6 +334,7 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = inference.generated_at
         frame.cached_duration = inference.duration
+        frame.inputs = [to_dict(block) for block in blocks]
         frame.outputs = inference.result
         self._update_cached_info()
         self.tracker(frame)

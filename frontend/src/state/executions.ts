@@ -18,6 +18,7 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
     terminatedAt
     duration
     cachedDuration
+    cachedGeneratedAt
     status
     triggerType
     projectVersion {

@@ -147,7 +147,7 @@ def _parse_message(message_json: str) -> NMessage:
         except (ValueError, TypeError, AttributeError) as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             logger.exception(
-                "message.parsed.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
+                "message.parse.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
             )
             raise
     message_dict["type"] = NMessageType(message_dict["type"])
@@ -175,7 +175,7 @@ async def process_nats_message(
         return await func(message)
     except Exception as e:
         sentry_enabled = sentry_capture_if_enabled(e)
-        log.exception("message_handler_error", exc_info=True, e=e, sentry_enabled=sentry_enabled)
+        log.exception("message.process.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled)
 
 
 def message_handler(func=None):
