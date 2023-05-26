@@ -1406,7 +1406,7 @@ def resolve_statement_reference(
         if resolved_scope is None:
             resolved_scope = lookup_in_module(None, reference, by)
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
+            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path="<id>")
         idx.import_scope(resolved_scope)
     elif reference.path == ".":  # normalize relative :StatementReferencePath
         statement_scope = idx.scopes[for_statement.id]

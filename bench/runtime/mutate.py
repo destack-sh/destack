@@ -122,7 +122,7 @@ def map_mutation_from_public(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
         )
         return internal.mutations, public_mutations
-    elif type == MMT.PASTE_STATEMENT:  # remap to create children
+    elif type in MMT.PASTE_STATEMENT:  # remap to create children
         public_mutation.type = MMT.CREATE_STATEMENT
         statement_data = mapper.rmap_statement(thing, file_id, project_version_id, flat=False)
         internal = ModuleMutator(module_id=project_version_id).create(statement_data)

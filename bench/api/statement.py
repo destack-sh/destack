@@ -501,7 +501,7 @@ class StatementMutation:
         # imitate Statement.soft_delete but for a batch
         deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
-        models.Statement.objects.get_descendants(statement_ids).filter(deleted_at=None).update(
+        models.Statement.objects.get_descendants(statement_ids, deleted_at=None).update(
             deleted_at=deleted_at
         )
         # use base manager since the statements are now deleted
@@ -518,9 +518,9 @@ class StatementMutation:
             id=statement_ids[0]
         )
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
-        models.Statement.objects.get_descendants(statement_ids).filter(
-            deleted_at=deleted_at
-        ).update(deleted_at=None)
+        models.Statement.objects.get_descendants(statement_ids, deleted_at=deleted_at).update(
+            deleted_at=None
+        )
         statements.update(deleted_at=None)
         return StatementBatch(statements=list(statements))
 
@@ -530,7 +530,9 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         statements = models.Statement.objects.filter(id__in=statement_ids)
-        models.Statement.objects.get_descendants(statement_ids).update(commented=input.commented)
+        models.Statement.objects.get_descendants(statement_ids, deleted_at=None).update(
+            commented=input.commented
+        )
         return StatementBatch(statements=list(statements))
 
     @project_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)
