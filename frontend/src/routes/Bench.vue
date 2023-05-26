@@ -4,21 +4,20 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import JobsPopover from "@/components/interfaces/JobsPopover.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import DeployPopover from "@/components/interfaces/DeployPopover.vue";
+import DeployPopover from "@/components/bench/DeployPopover.vue";
 import EditorGroup from "@/components/editors/EditorGroup.vue";
-import FeedbackPopover from "@/components/interfaces/FeedbackPopover.vue";
-import HelpPopover from "@/components/interfaces/HelpPopover.vue";
+import FeedbackPopover from "@/components/bench/FeedbackPopover.vue";
+import HelpPopover from "@/components/bench/HelpPopover.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
-import NotificationPopover from "@/components/interfaces/NotificationPopover.vue";
+import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
-import ProjectPopover from "@/components/interfaces/ProjectPopover.vue";
-import SettingsPopover from "@/components/interfaces/SettingsPopover.vue";
-import SharePopover from "@/components/interfaces/SharePopover.vue";
+import ProjectPopover from "@/components/bench/ProjectPopover.vue";
+import SettingsPopover from "@/components/bench/SettingsPopover.vue";
+import SharePopover from "@/components/bench/SharePopover.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
@@ -547,16 +546,6 @@ onBeforeUnmount(() => {
             <XCircleIcon class="h-5 w-5 text-red-700" />
             <span class="text-sm text-gray-700">{{ visibleErrors?.length }}</span>
           </button>
-        </div>
-        <!-- Jobs -->
-        <div class="ml-2">
-          <FadeTransition>
-            <JobsPopover
-              v-if="versionLoaded && runtimeConnected"
-              :project-id="project.id"
-              :project-version-id="versionToViewId"
-            />
-          </FadeTransition>
         </div>
       </template>
 

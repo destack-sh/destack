@@ -7,7 +7,7 @@ import {
   type InterpModule,
   type InterpSymbol,
 } from "@/gql/graphql";
-import { useBenchState } from "@/state/editor";
+import { FileEditor, useBenchState } from "@/state/editor";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
@@ -15,8 +15,8 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, isRef, ref, watch, type Ref } from "vue";
 import { v4 as uuidv4 } from "uuid";
+import { computed, isRef, ref, watch, type Ref } from "vue";
 
 export enum TypeFlag { // :TypeFlags
   Zero = 0,
@@ -38,7 +38,6 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     symbolType
     rootTypeTag
     generated
-    availableBuilds
     typeNodes {
       # not using SimpleTypeNodeContent fragment because it's for the editable node
       # and using a shared fragment seems overkill
@@ -82,16 +81,6 @@ export const InterpModuleContentType = graphql(/* GraphQL */ `
     }
     errors {
       ...InterpErrorContent
-    }
-    staleSymbols {
-      id
-      name
-      type
-      symbolType
-      modifier
-      parentId
-      rootTypeTag
-      generated
     }
   }
 `);
@@ -264,11 +253,6 @@ export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Re
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
-export function isSymbolStale(symbol: Ref<{ id: string } | undefined>, projectVersionId?: Ref<string | null>) {
-  const { staleSymbols } = useCurrentInterpModule(projectVersionId);
-  return computed(() => (symbol.value == null ? undefined : staleSymbols.value?.some((s) => s.id == symbol.value?.id)));
-}
-
 export type SymbolFilter = {
   types?: StatementType[];
   symbolTypes?: SymbolType[];
@@ -312,26 +296,6 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
   return symbols;
 }
 
-export function buildsOf(
-  symbol: Ref<{ id: string; parentId: string } | undefined>,
-  projectVersionId?: Ref<string | null>
-) {
-  // Gets the builds explicitly referencing this symbol as a child
-  const { moduleIndex } = useCurrentInterpModule(projectVersionId);
-  const builds = symbolsLike(
-    { types: [StatementType.Definition], symbolTypes: [SymbolType.Build], includeGenerated: true },
-    projectVersionId
-  );
-  return computed(() => {
-    if (symbol.value == null) {
-      return builds.value;
-    } else {
-      const availableBuilds = moduleIndex.value?.symbolsById[symbol.value.id].availableBuilds;
-      return builds.value.filter((b) => availableBuilds?.includes(b.id));
-    }
-  });
-}
-
 export function useVisibleErrors() {
   const runtime = useCurrentInterpModule();
   const bench = useBenchState();
@@ -351,8 +315,8 @@ export function useSymbolNavigation() {
     // can't focus external modules yet
     if (context.module.id != bench.currentProjectVersionId) return;
 
-    bench.focusFile(context.file as any);
-    bench.editElement(symbol as any);
+    const editor = bench.focusFile(context.file as any) as FileEditor;
+    editor.editElement(symbol as any);
   }
 
   return { focusSymbol };

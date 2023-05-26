@@ -53,7 +53,6 @@ NOISY_LOG_SOURCES = {
     "bench.api.job",
     "bench.api.build",
     "bench.api.deployment",
-    "bench.api.evaluation",
     "bench.api.execution",
     "bench.api.user",
     "bench.api.multiplayer",

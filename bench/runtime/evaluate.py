@@ -1,17 +1,43 @@
-import asyncio
 import enum
-import uuid
-from collections import defaultdict
 from typing import cast
 
 import structlog
 
 from bench.language import ModuleIndex
 from bench.language.type import Code, Data, Task, Type, TypeTag
-from bench.runtime.instruct import Instruction, InstructionOp, instruction_tree_from_module
-from bench.runtime.type import EvaluationKind, EvaluationMetric, EvaluationResult, EvaluationScope
+from bench.runtime.instruct import Instruction, InstructionOp
 
 logger = structlog.get_logger(__name__)
+
+
+class EvaluationMetric(enum.StrEnum):
+    """
+    Standard evaluation metrics. Custom metrics will be allowed later (probably with a prefix).
+    """
+
+    # Summary (global and build specific)
+    Clarity = "clarity"  # [0, 1]
+    Difficulty = "difficulty"  # [0, inf)
+    Performance = "performance"  # [0, 1]
+    Speed = "speed"  # [0, inf) (estimated run duration)
+    # Clarity (global)
+    InstructionPerplexity = "instruction_perplexity"  # [0, 1]
+    InstructionAgreement = "instruction_agreement"  # [0, 1]
+    InstructionOverlap = "instruction_overlap"  # [0, 1]
+    # Difficulty (global)
+    InstructionCount = "instruction_count"  # [0, inf)
+    InstructionComplexity = "instruction_complexity"  # [0, inf)
+    StepsCount = "steps_count"  # [0, inf)
+    # Difficulty (build specific?)
+    InferencesCount = "inferences_count"  # [0, inf)
+    TokensCount = "tokens_count"  # [0, inf)
+    # Performance (build specific)
+    TypeValidity = "type_validity"  # [0, 1]
+    InstructionSatisfaction = "instruction_satisfaction"  # [0, 1]
+    FeedbackCorrelation = "feedback_correlation"  # [-1, 1]
+    # Speed (build specific)
+    EstimatedRunDuration = "estimated_run_duration"  # [0, inf)
+    AverageRunDuration = "average_run_duration"  # [0, inf)
 
 
 class MetricType(enum.StrEnum):
@@ -34,33 +60,6 @@ HIGHER_IS_BETTER = {
     EvaluationMetric.InstructionOverlap,
 }
 LOWER_IS_BETTER = ALL_METRICS - HIGHER_IS_BETTER
-
-
-def aggregate_metrics(
-    evaluations: list[EvaluationResult], weights: dict[str, float] = None
-) -> dict[str, float]:
-    weights = weights or defaultdict(lambda: 1.0)
-
-    # sum the counts
-    summed_counts = {}
-    for metric in COUNT_METRICS & summed_counts.keys():
-        summed_counts[metric] = sum(
-            evaluation.aggregated_metrics[metric] * weights[metric] for evaluation in evaluations
-        )
-
-    # average the percentages (?)
-    averaged_percentages = defaultdict(float)
-    for evaluation in evaluations:
-        for metric, value in evaluation.aggregated_metrics.items():
-            averaged_percentages[metric] += value * weights[metric]
-    for metric in PERCENTAGE_METRICS & averaged_percentages.keys():
-        averaged_percentages[metric] /= len(evaluations)
-    aggregated_metrics = {**summed_counts, **averaged_percentages}
-
-    # recompute summary metrics
-    aggregated_metrics.update(get_summary_metrics(aggregated_metrics))
-
-    return aggregated_metrics
 
 
 def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, float]:
@@ -105,53 +104,6 @@ def get_summary_metrics(metrics: dict[str, float]) -> dict[EvaluationMetric, flo
         summary_metrics[EvaluationMetric.Speed] = speed
 
     return summary_metrics
-
-
-def compare_evaluations(
-    a: EvaluationResult, b: EvaluationResult, weights: dict[str, float]
-) -> float:
-    """
-    Compares two evaluations using the weights.
-    """
-    a_score = score_evaluation(a, weights)
-    b_score = score_evaluation(b, weights)
-    return a_score - b_score
-
-
-def score_evaluation(a: EvaluationResult, weights: dict[str, float]) -> float:
-    """
-    Returns a score for the evaluation, based on the weights.
-    """
-    score = 0
-    for metric, weight in weights.items():
-        value = a.aggregated_metrics[metric]
-        if metric in HIGHER_IS_BETTER:
-            score += value * weight
-        elif metric in LOWER_IS_BETTER:
-            score += (1 - value) * weight
-    return score
-
-
-def aggregate_metrics_by_system(evaluations: list[EvaluationResult]) -> list[EvaluationResult]:
-    evaluations_by_node = defaultdict(list)
-    for evaluation in evaluations:
-        evaluations_by_node[evaluation.system.id].append(evaluation)
-
-    aggregated: list[EvaluationResult] = []
-    for node_id, evaluations in evaluations_by_node.items():
-        all_children = {
-            child.id: child for evaluation in evaluations for child in evaluation.type_nodes
-        }
-        evaluation = EvaluationResult(
-            kind=evaluations[0].kind,
-            scope=evaluations[0].scope,
-            system=evaluations[0].system,
-            build=evaluations[0].build,
-            aggregated_metrics=aggregate_metrics(evaluations),
-            children=list(all_children.values()),
-        )
-        aggregated.append(evaluation)
-    return aggregated
 
 
 async def lint_instruction(instruction: Instruction) -> dict[str, float]:
@@ -227,44 +179,6 @@ async def lint_instruction(instruction: Instruction) -> dict[str, float]:
     return self_metrics
 
 
-async def lint(idx: ModuleIndex) -> EvaluationResult:
+async def lint(idx: ModuleIndex):
     """Lints an entire module."""
-    tree = instruction_tree_from_module(idx, exclude_generated=True)
-    evaluations: dict[uuid.UUID, EvaluationResult] = {}
-
-    # evaluate nodes individually
-    lintable_instructions = [
-        node
-        for node in tree.walk()
-        if node.op not in (InstructionOp.Pseudo, InstructionOp.BuildDefinition)
-    ]
-    instruction_self_metrics = await asyncio.gather(
-        *[lint_instruction(node) for node in lintable_instructions]
-    )
-    for self_metrics, instruction in zip(instruction_self_metrics, lintable_instructions):
-        evaluation = EvaluationResult(
-            kind=EvaluationKind.LINT,
-            scope=EvaluationScope.INSTRUCTION,
-            system=instruction.node,
-            build=None,
-            self_metrics=self_metrics,
-            aggregated_metrics={**self_metrics},
-        )
-        evaluations[instruction.id] = evaluation
-
-        # aggregate evaluations (incl. self)
-        # this will break when we get cycles :InstructionCircles
-        child_evaluations = [evaluations[child.id] for child in instruction.children]
-        evaluation.aggregated_metrics = aggregate_metrics([evaluation, *child_evaluations])
-        evaluation.children = [c for c in child_evaluations if c.system.id != instruction.node.id]
-
-    root_evaluations = [evaluations[root.id] for root in tree.roots if root.id in evaluations]
-    root_evaluation = EvaluationResult(
-        kind=EvaluationKind.LINT,
-        scope=EvaluationScope.MODULE,
-        system=None,
-        build=None,
-        aggregated_metrics=aggregate_metrics(root_evaluations),
-        children=root_evaluations,
-    )
-    return root_evaluation
+    raise NotImplementedError

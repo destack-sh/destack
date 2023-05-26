@@ -1044,16 +1044,7 @@ class Requirement(InterpSymbol, RequirementContent):
 
 
 @dataclass(repr=False)
-class BuildSettings(ReactiveSettings):
-    weights: dict[str, float] = field(default_factory=dict)
-
-    def deepcopy(self):
-        return BuildSettings(**self.__dict__)
-
-
-@dataclass(repr=False)
 class BuildContent(SymbolContent):
-    settings: BuildSettings = required_field()
     comment: Optional[str] = None  # like description but non-semantic
 
     def __str__(self):

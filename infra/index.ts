@@ -154,7 +154,7 @@ const DB_ENV_VARS = [
   },
   {
     name: "PGCRYPTO_KEY",
-    value: config.requireSecret("pgcryptoKey"),
+    value: config.requireSecret("PGCRYPTO_KEY"),
   },
 ];
 

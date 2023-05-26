@@ -9,7 +9,6 @@ from bench import language
 from bench.language import ErrorType
 from bench.language.parse import get_reference_as_path
 from bench.language.type import (
-    BuildSettings,
     StatementModifier,
     StatementPath,
     StatementType,
@@ -235,7 +234,6 @@ class StatementData:
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
-    build_settings: Optional[BuildSettings] = None
     reference_module: Optional[ModuleReference] = None
 
     @property
@@ -418,7 +416,6 @@ def rmap_symbol(
         data.records = [rmap_record(data.id, r) for r in content.records]
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
-        data.build_settings = content.settings
     elif isinstance(content, language.RequirementContent):
         if content.module_name and content.version:
             data.reference_module = ModuleReference(
@@ -474,10 +471,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             records=[wmap_record(r) for r in (data.records or [])],
         )
     elif data.symbol_type == SymbolType.BUILD:
-        return language.BuildContent(
-            comment=data.description,
-            settings=data.build_settings,
-        )
+        return language.BuildContent(comment=data.description)
     elif data.symbol_type == SymbolType.REQUIREMENT:
         return language.RequirementContent(
             module_name=data.reference_module.name if data.reference_module else None,
@@ -643,8 +637,6 @@ def rmap_error(error: language.Error) -> ErrorData:
 class ExecutionTriggerType(enum.StrEnum):
     REST_API = "rest-api"
     UI_INTERACTIVE = "ui-interactive"
-    JOB = "job"
-    MANUAL = "manual"
 
 
 class ExecutionTracingLevel(enum.StrEnum):

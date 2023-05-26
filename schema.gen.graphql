@@ -75,47 +75,6 @@ enum AccessTokenStatus {
   REVOKED
 }
 
-type BuildCandidate implements Node {
-  id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  project: Project!
-  projectVersion: ProjectVersion!
-  file: File!
-  status: BuildCandidateStatus!
-  build: Statement!
-}
-
-"""A connection to a list of items."""
-type BuildCandidateConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [BuildCandidateEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type BuildCandidateEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: BuildCandidate!
-}
-
-enum BuildCandidateStatus {
-  Planned
-  Building
-  Evaluating
-  CompletedWon
-  CompletedAbandoned
-  Cancelled
-}
-
 input CancelRunInput {
   projectVersionId: GlobalID!
   executionId: GlobalID!
@@ -362,55 +321,6 @@ enum ErrorType {
   MISMATCHED_UNION
 }
 
-enum EvaluationKind {
-  EVALUATION
-  LINT
-}
-
-type EvaluationResult implements Node {
-  id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  project: Project!
-  projectVersion: ProjectVersion!
-  file: File!
-  kind: EvaluationKind!
-  scope: EvaluationScope!
-  build: Statement
-  statement: Statement
-  record: DatasetRecord
-  typeNode: SimpleTypeNode
-  selfMetrics: JSON
-  aggregatedMetrics: JSON!
-}
-
-"""A connection to a list of items."""
-type EvaluationResultConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [EvaluationResultEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type EvaluationResultEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: EvaluationResult!
-}
-
-enum EvaluationScope {
-  INSTRUCTION
-  BUILD
-  MODULE
-}
-
 type Execution implements Node {
   id: GlobalID!
   project: Project!
@@ -486,8 +396,6 @@ enum ExecutionTracingLevel {
 enum ExecutionTriggerType {
   REST_API
   UI_INTERACTIVE
-  JOB
-  MANUAL
 }
 
 type File implements Node {
@@ -579,7 +487,6 @@ type InterpModule {
   files: [InterpFile!]!
   dependencies: [InterpModule!]!
   errors: [InterpError!]!
-  staleSymbols: [InterpSymbol!]!
 }
 
 """
@@ -618,66 +525,12 @@ type InterpSymbol implements SimplyTyped {
   generated: Boolean!
   modifier: StatementModifier
   symbolType: SymbolType
-  availableBuilds: [GlobalID!]
 }
 
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
 scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
-
-type Job implements Node {
-  id: GlobalID!
-  project: Project!
-  projectVersion: ProjectVersion!
-  deployment: Deployment!
-  parent: Job
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  startedAt: DateTime
-  terminatedAt: DateTime
-  type: JobType!
-  status: JobStatus!
-  buildCandidate: BuildCandidate
-}
-
-"""A connection to a list of items."""
-type JobConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [JobEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type JobEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Job!
-}
-
-enum JobStatus {
-  Queued
-  Running
-  Completed
-  Cancelling
-  Cancelled
-  Failed
-}
-
-enum JobType {
-  INTERP
-  GENERATE
-  BUILD
-  EVALUATE
-  LINT
-}
 
 type Lock implements Node {
   id: GlobalID!
@@ -1394,67 +1247,11 @@ type Query {
     projectId: GlobalID!
     projectVersionId: GlobalID = null
     includeAncestorVersions: Boolean! = false
-    buildIds: [GlobalID!] = null
     taskIds: [GlobalID!] = null
     codeIds: [GlobalID!] = null
     rootId: GlobalID = null
     rootIdNull: Boolean! = false
   ): ExecutionConnection! @canViewProject(atRoot: true)
-  evaluations(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    projectId: GlobalID!
-    projectVersionId: GlobalID
-    includeAncestorVersions: Boolean! = false
-    latestCandidateOnly: Boolean! = false
-    kindIn: [EvaluationKind!] = null
-    scopeIn: [EvaluationScope!] = null
-    buildIdIn: [GlobalID!] = null
-    systemIdIn: [GlobalID!] = null
-  ): EvaluationResultConnection! @canViewProject(atRoot: true)
-  jobs(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    projectId: GlobalID!
-    projectVersionId: GlobalID
-    statusIn: [JobStatus!] = null
-    typeIn: [JobType!] = null
-  ): JobConnection! @canViewProject(atRoot: true)
-  buildCandidates(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    projectId: GlobalID!
-    projectVersionId: GlobalID
-    buildId: GlobalID = null
-    statusIn: [BuildCandidateStatus!] = null
-  ): BuildCandidateConnection! @canViewProject(atRoot: true)
   clients(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1832,7 +1629,6 @@ type Statement implements Node & SimplyTyped {
     last: Int = null
     filters: DatasetRecordFilter
   ): DatasetRecordConnection!
-  evaluationResults: [EvaluationResult!]!
 }
 
 type StatementBatch {
@@ -1994,10 +1790,7 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   interpChanged(projectVersionId: GlobalID!): InterpModule!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, buildIds: [GlobalID!] = null, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
-  jobsChanged(projectId: GlobalID!, projectVersionId: GlobalID!, typeIn: [JobType!] = null): Job!
-  evaluationsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, latestCandidateOnly: Boolean! = false, kindIn: [EvaluationKind!] = null, scopeIn: [EvaluationScope!] = null, buildIdIn: [GlobalID!] = null, systemIdIn: [GlobalID!] = null): EvaluationResult!
-  buildCandidateChanged(projectId: GlobalID!, projectVersionId: GlobalID!, buildId: GlobalID = null): BuildCandidate!
+  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""

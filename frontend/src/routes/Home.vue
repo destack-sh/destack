@@ -4,7 +4,7 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
-import NotificationPopover from "@/components/interfaces/NotificationPopover.vue";
+import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";

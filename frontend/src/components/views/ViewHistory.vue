@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import CommitPopover from "@/components/interfaces/CommitPopover.vue";
+import CommitPopover from "@/components/bench/CommitPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";

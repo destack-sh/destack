@@ -21,10 +21,8 @@ from nats.aio.subscription import Subscription
 from bench.msg.messages import (
     REGISTERED_MESSAGE_PAYLOADS,
     REPLY_BY_REQUEST_TYPE,
-    EvaluationSavedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
-    JobSavedPayload,
     NMessageType,
     to_topic,
 )
@@ -271,7 +269,7 @@ _soon_queue_batch_lock: asyncio.Lock | None = None
 def get_batch_key(message: NMessage) -> str | None:
     if isinstance(
         message.payload,
-        (ExecutionChangedPayload, ExecutionSavedPayload, EvaluationSavedPayload, JobSavedPayload),
+        (ExecutionChangedPayload, ExecutionSavedPayload),
     ):
         return f"{message.type.value}:{message.p.module_id}"
     else:

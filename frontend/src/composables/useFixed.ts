@@ -15,7 +15,7 @@ export function pinAbsoluteElement(
 ) {
   // fixes the element at the first available position
   const fixed: Ref<{ x: number; y: number; width: number; height: number } | null> = ref(null);
-  const editorContext = inject<EditorContext>(EDITOR_CONTEXT);
+  const editorContext = inject<EditorContext<any>>(EDITOR_CONTEXT);
   if (fix.keepInView && editorContext == null) {
     throw new Error("keepInView requires editor context");
   }

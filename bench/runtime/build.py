@@ -196,7 +196,7 @@ class XBuilder:
             else:
                 xblocks.append(x)
 
-        async def _invoke(*args, retries: int = 2, **kwargs) -> dict[str, LiteralValue]:
+        async def _invoke_task(*args, retries: int = 2, **kwargs) -> dict[str, LiteralValue]:
             # TODO @Feature: should definitely retry on invalid output with error message
             inputs = {**kwargs}  # combine inputs from args/kwargs
             for input_t, input in zip(self.task.type.inputs, args):
@@ -206,10 +206,13 @@ class XBuilder:
             # apply dynamic inputs
             for i, impute in dynamic_inputs.items():
                 impute(xblocks_copy[i], inputs)
-            outputs = await model.inference(self.modality, xblocks_copy, settings)
+            try:
+                outputs = await model.inference(self.modality, xblocks_copy, settings)
+            except Exception as e:
+                raise XGenerationError("model backend failed") from e
             return output_handler(outputs)
 
-        _invoke.__name__ = self.task.name
+        _invoke_task.__name__ = self.task.name
         return AsyncCodeInstance(
             id=task.id,
             task=task,
@@ -218,7 +221,7 @@ class XBuilder:
             type_nodes=self.task.type_nodes,
             session=session,
             tracer=session.tracer,
-            code_callable=_invoke,
+            code_callable=_invoke_task,
             transform=None,
             tag=TypeTag.FUNCTION,
         )

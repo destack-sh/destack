@@ -43,10 +43,6 @@ class InterpFile:
     symbols: list["InterpSymbol"]
 
 
-JobType = gql.enum(models.JobType)
-JobStatus = gql.enum(models.JobStatus)
-
-
 @gql.type
 class InterpSimpleType(SimpleTypeNode):
     """
@@ -65,7 +61,6 @@ class InterpModule:
     files: list["InterpFile"]
     dependencies: list["InterpModule"]
     errors: list["InterpError"]
-    stale_symbols: list["InterpSymbol"]
 
 
 # not exactly like language.InterpSymbol, but should be eventually
@@ -84,7 +79,6 @@ class InterpSymbol(SimplyTyped):
     symbol_type: Optional[SymbolType]
     root_type_tag: Optional[TypeTag]
     type_nodes: Optional[list[InterpSimpleType]]
-    available_builds: Optional[list[GlobalID]]
 
 
 InterpErrorType = gql.enum(language.ErrorType)
@@ -97,9 +91,7 @@ class InterpError:
     symbol: Optional[InterpSymbol]
 
 
-def rmap_module(
-    wire_module: wire.ModuleData, builds_by_symbol: dict[UUID, list[UUID]]
-) -> InterpModule:
+def rmap_module(wire_module: wire.ModuleData) -> InterpModule:
     interp_module = InterpModule(
         id=GlobalID("ProjectVersion", str(wire_module.id)),
         name=wire_module.name,
@@ -107,16 +99,14 @@ def rmap_module(
         # these are unknown at this point
         dependencies=[],
         errors=[],
-        stale_symbols=[],
     )
-    interp_module.files = rmap_files(wire_module.files, interp_module, builds_by_symbol)
+    interp_module.files = rmap_files(wire_module.files, interp_module)
     return interp_module
 
 
 def rmap_files(
     wire_files: list[wire.FileData],
     interp_module: InterpModule,
-    builds_by_symbol: dict[UUID, list[UUID]],
 ) -> list[InterpFile]:
     """Maps a wire module into a GQL interpreted module"""
     interp_files = []
@@ -138,11 +128,6 @@ def rmap_files(
                 ]
             else:
                 type_nodes = None
-            available_builds = builds_by_symbol.get(statement.id)
-            if available_builds:  # to GlobalID
-                available_builds = [
-                    GlobalID("Statement", str(build_id)) for build_id in available_builds
-                ]
             interp_symbol = InterpSymbol(
                 id=GlobalID("Statement", str(statement.id)),
                 file=interp_file,
@@ -156,7 +141,6 @@ def rmap_files(
                 symbol_type=statement.symbol_type,
                 root_type_tag=statement.root_type_tag,
                 type_nodes=type_nodes,
-                available_builds=available_builds,
             )
             interp_file.symbols.append(interp_symbol)
     return interp_files
@@ -343,18 +327,13 @@ class InterpSubscription:
             RepInterpPayload,
         )
         new_interp = rep.payload
-        module = rmap_module(rep.p.module, rep.p.builds_by_symbol)
+        module = rmap_module(rep.p.module)
         interp = InterpModule(
             id=module.id,
             name=module.name,
             files=module.files,
-            dependencies=[
-                rmap_module(dep, rep.p.builds_by_symbol) for dep in new_interp.dependencies
-            ],
+            dependencies=[rmap_module(dep) for dep in new_interp.dependencies],
             errors=rmap_errors(new_interp.errors, module),
-            stale_symbols=[
-                _get_symbol_from_module(module, symbol_id) for symbol_id in new_interp.stale_symbols
-            ],
         )
         yield interp
 
@@ -368,19 +347,10 @@ class InterpSubscription:
             # :PartialModuleUpdates
             # also the mapping duplication is a bit ugly
             if new_interp.module is not None:
-                interp.files = rmap_files(
-                    new_interp.module.files, interp, new_interp.builds_by_symbol
-                )
+                interp.files = rmap_files(new_interp.module.files, interp)
             if new_interp.dependencies is not None:
-                interp.dependencies = [
-                    rmap_module(dep, new_interp.builds_by_symbol) for dep in new_interp.dependencies
-                ]
+                interp.dependencies = [rmap_module(dep) for dep in new_interp.dependencies]
             if new_interp.errors is not None:
                 interp.errors = rmap_errors(new_interp.errors, interp)
-            if new_interp.stale_symbols is not None:
-                interp.stale_symbols = [
-                    _get_symbol_from_module(interp, symbol_id)
-                    for symbol_id in new_interp.stale_symbols
-                ]
             interp.updated_at = new_interp.updated_at
             yield interp
