@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 import structlog
 
+from bench.language.reconstruct import render_statement
 from bench.language.type import (
     Data,
     Expectation,
@@ -18,8 +19,6 @@ from bench.language.type import (
     StatementModifier,
     Task,
     Type,
-    TypeFlag,
-    TypeNode,
     TypeTag,
     XBlock,
     XBlockContent,
@@ -123,7 +122,6 @@ async def build_task_implementation(
         XTypeSchema(
             type=task.type,
             type_label="Output",
-            include_descriptions=True,
             recursive=True,
         ),
     )
@@ -298,47 +296,19 @@ class XTypeSchema(XEmit):
 
     type: Type
     type_label: Optional[str]
-    include_descriptions: bool
     recursive: bool
 
     async def __call__(self) -> XBlock:
-        unexplained_types = [(self.type_label or self.type.name, self.type)]
-
-        def _render_description(d: str):
-            return " # " + d if d and self.include_descriptions else ""
-
-        def _render_simple_type(t: TypeNode):
-            rendered = t.reference.name if t.reference else (t.hint or t.tag).value
-            if t.flags & TypeFlag.IsNullable:
-                rendered += "?"
-            return rendered
-
-        el_strs = []
-        while unexplained_types:
-            label, type = unexplained_types.pop()
-            if type.tag == TypeTag.ENUM:
-                el_str = f"\n{label} enum:{_render_description(type.description)}\n"
-                for choice in type.type_nodes:
-                    el_str += f"- {choice.name}{_render_description(choice.description)}\n"
-            elif type.tag == TypeTag.STRUCT:
-                el_str = f"\n{label} struct:{_render_description(type.description)}\n"
-                for child in type.type_nodes:
-                    el_str += f"- {child.name}: {_render_simple_type(child)}{_render_description(child.description)}\n"
-            elif type.flags & TypeFlag.IsArray:
-                el_str = f"\n{label} array of {_render_simple_type(type)}{_render_description(type.description)}\n"
-            else:
-                el_str = f"{label}: {_render_simple_type(type)} {_render_description(type.description)}\n"
-            el_strs.append(el_str)
-
-            if self.recursive:
-                for child in type.type_nodes or []:
-                    if isinstance(child.reference, TypeNode):
-                        unexplained_types.append((child.reference.name, child.reference))
-                    elif child.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.UNION):
-                        unexplained_types.append((child.name, child))
-
-        el_str = f"Schemas:\n{''.join(el_strs)}".strip()
-        return xstatic(el_str, XSource.Developer)
+        bench_lines = []
+        for node in self.type.walk(include_references=True):
+            if node.reference is not None:
+                continue  # skip the link
+            if node.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
+                line = render_statement(node.source, include_content=node.tag != TypeTag.FUNCTION)
+                bench_lines.append(line)
+        bench_str = "\n\n".join(bench_lines)
+        schema_str = f"Type schemas to adhere to:\n{bench_str}".strip()
+        return xstatic(schema_str, XSource.Developer)
 
 
 @xemit

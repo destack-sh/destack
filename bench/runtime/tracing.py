@@ -390,11 +390,6 @@ class PubExecutionTracker:
             trigger_id=ctx.trigger_id,
         )
 
-        # wipe code if it doesn't have a source
-        # that happens if newly generated symbols are tracked
-        if frame.code is not None and frame.code.source is None:
-            frame_data.code_id = None
-
         # wipe data if not tracing it
         # TODO @Cleanup: consider not tracking untracked data at all when creating execution frame
         if not trace_data:

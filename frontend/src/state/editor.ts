@@ -9,7 +9,7 @@ import {
   type SimpleType,
   type Statement,
 } from "@/gql/graphql";
-import { useAppearanceState, type Theme } from "@/state/appearance";
+import { useAppearanceState, type EditorAppearance, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { useLazyQuery } from "@vue/apollo-composable";
@@ -55,6 +55,7 @@ export abstract class Editor {
   id: string;
   path: string;
   groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
+  appearance?: EditorAppearance;
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
@@ -64,6 +65,18 @@ export abstract class Editor {
     this.id = id;
     this.path = path;
     this.groupId = groupId;
+  }
+
+  get contentWidth() {
+    return this.appearance?.contentWidth ?? this.bench.appearance.contentWidth;
+  }
+
+  get contentMarginX() {
+    return this.appearance?.contentMarginX ?? this.bench.appearance.contentMarginX;
+  }
+
+  get headerHeight() {
+    return this.appearance?.headerHeight ?? this.bench.appearance.editorHeaderHeight;
   }
 
   get focused() {
@@ -182,6 +195,9 @@ export const useBenchState = defineStore("bench", {
     focusedGroup(): EditorGroup | undefined {
       if (this.focusedEditor?.groupId == null) return undefined;
       return this.group(this.focusedEditor?.groupId);
+    },
+    appearance() {
+      return useAppearanceState();
     },
     theme(): Theme {
       const appearance = useAppearanceState();
@@ -378,7 +394,8 @@ export const useBenchState = defineStore("bench", {
 
     async _doMigrateTo(versionId: string, refMappings: Record<string, string>): Promise<void> {
       // migrate by serializing state and replacing refs
-      let stateJson = JSON.stringify(this.$state);
+      let stateJson = benchStateToJson(this);
+      // TODO @Performance: replace editor refs on migration in a single pass
       for (const [sourceId, targetId] of Object.entries(refMappings)) {
         // replace all matches of ref.source with ref.target
         // (need to use regex to replace *all* matches)
@@ -386,7 +403,7 @@ export const useBenchState = defineStore("bench", {
         stateJson = stateJson.replace(re, `"${targetId}"`);
       }
       this.$reset();
-      this.$patch(JSON.parse(stateJson));
+      benchInitFromJson(this, stateJson);
 
       // remove editors with refs we don't have anymore
       // note that this also closes any module-external refs
@@ -410,33 +427,45 @@ export const useBenchState = defineStore("bench", {
 
 // persistence
 
+function stripEditor(editor: Editor) {
+  const stripped = { ...editor };
+  for (const prop of UNSERIALIZABLE_EDITOR_PROPS) {
+    delete stripped[prop];
+  }
+  return stripped;
+}
+
+function benchStateToJson(bench: ReturnType<typeof useBenchState>): string {
+  // clean up editor state for serialization
+  const state = {
+    ...bench.$state,
+    left: {
+      ...bench.$state.left,
+      editors: bench.$state.left.editors.map((e) => stripEditor(e)),
+    },
+    right: {
+      ...bench.$state.right,
+      editors: bench.$state.right.editors.map((e) => stripEditor(e)),
+    },
+  };
+  return JSON.stringify(state);
+}
+
+function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: string) {
+  bench.$patch(JSON.parse(state));
+  // instantiate editors
+  for (const group of bench.groups) {
+    group.editors = group.editors.map((e) => instantiate(e, bench));
+  }
+}
+
 export function useBenchPersistence(intervalMs = 1000) {
   const bench = useBenchState();
-
-  function cleanEditor(editor: Editor) {
-    const cleaned = { ...editor };
-    for (const prop of UNSERIALIZABLE_EDITOR_PROPS) {
-      delete cleaned[prop];
-    }
-    return cleaned;
-  }
 
   const save = () => {
     // save editor state by project id
     if (bench.currentProjectId == null) return;
-    // clean up editor state for serialization
-    const state = {
-      ...bench.$state,
-      left: {
-        ...bench.$state.left,
-        editors: bench.$state.left.editors.map((e) => cleanEditor(e)),
-      },
-      right: {
-        ...bench.$state.right,
-        editors: bench.$state.right.editors.map((e) => cleanEditor(e)),
-      },
-    };
-    localStorage.setItem(`editor-state-${bench.currentProjectId}`, JSON.stringify(state));
+    localStorage.setItem(`editor-state-${bench.currentProjectId}`, benchStateToJson(bench));
   };
 
   const load = () => {
@@ -445,11 +474,7 @@ export function useBenchPersistence(intervalMs = 1000) {
     const state = localStorage.getItem(`editor-state-${bench.currentProjectId}`);
     if (state) {
       try {
-        bench.$patch(JSON.parse(state));
-        // instantiate editors
-        for (const group of bench.groups) {
-          group.editors = group.editors.map((e) => instantiate(e, bench));
-        }
+        benchInitFromJson(bench, state);
         console.log(`restored editor state for project ${bench.currentProjectId}`);
       } catch (e) {
         console.error(`failed to restore editor state for project ${bench.currentProjectId}`);

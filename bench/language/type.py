@@ -596,12 +596,14 @@ class TypeNode(abc.ABC):
             if child.name == item or child.ident == item or child.key == item
         )
 
-    def walk(self, path: list[TypeNode] | None = None):
+    def walk(self, path: list[TypeNode] | None = None, include_references: bool = False):
         if path is None:
             path = [self]
         else:
             path = path + [self]
         yield self
+        if include_references and self.reference:
+            yield from self.reference.walk(path)
         if self.type_nodes:
             for child in self.type_nodes:
                 if child in path:

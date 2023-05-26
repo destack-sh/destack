@@ -123,7 +123,10 @@ function loadMore() {
 }
 
 const selfFields = computed(
-  () => context.typeNodes.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
+  () =>
+    context.typeNodes.value
+      ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
+      .map((n) => runtimeTypeOf(n as SimpleType)) ?? []
 );
 const extendedTypes = computed(
   () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []

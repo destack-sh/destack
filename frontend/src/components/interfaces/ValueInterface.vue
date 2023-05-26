@@ -182,12 +182,13 @@ defineExpose({
   <div
     class="group/iface relative"
     @click.stop.prevent="editing || (previewButtonRef?.parentNode?.contains($event.target as Node) && edit())"
-    :class="[editing ? '' : 'cursor-pointer']"
+    :class="[editing || readonly ? '' : 'cursor-pointer']"
   >
     <!-- Preview -->
     <div
       ref="previewButtonRef"
-      class="mousetrap-no-tab scroll-hidden relative inline-block w-full cursor-pointer overflow-y-hidden text-left outline-none"
+      class="mousetrap-no-tab scroll-hidden relative inline-block w-full overflow-y-hidden text-left outline-none"
+      :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
       @click.stop="edit"

@@ -243,7 +243,7 @@ defineExpose({
     <!-- If truncating, button overlay with fade gradient -->
     <button
       v-if="truncateOutput"
-      class="absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-gray-100 to-transparent pb-2"
+      class="absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
       @click="truncateOutput = false"
     >
       <ChevronDoubleDownIcon class="h-4 w-4 text-gray-400" />

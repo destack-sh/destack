@@ -325,6 +325,7 @@ async def _process_soon_queue_unbatched(q: Queue[NMessage]):
 
 
 async def _process_soon_queue_batched(q: list[tuple[str, NMessage]], flush_interval: float):
+    # TODO @Robustness: flush message queue on shutdown
     while True:
         await asyncio.sleep(flush_interval)
         if not q:

@@ -1,23 +1,23 @@
 <script lang="ts" setup>
+import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
+import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType, SymbolType } from "@/gql/graphql";
 import { useExecutions } from "@/state/executions";
+import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
   ArrowPathIcon,
+  BoltIcon,
   CheckCircleIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/solid";
-import { BoltIcon } from "@heroicons/vue/24/solid";
-import { computed, ref, toRef } from "vue";
-import StructTile from "@/components/tiles/StructTile.vue";
-import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
-import { symbolOf, TypeFlag } from "@/state/runtime";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
-import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import { useElementSize } from "@vueuse/core";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{
   symbolId: string;
@@ -44,8 +44,7 @@ const { executions, totalCount } = useExecutions(
     projectVersionId: toRef(props, "projectVersionId"),
     includeAncestorVersions: toRef(props, "includeAncestorVersions"),
     buildIds: ref(null),
-    taskIds: computed(() => (props.symbolType === SymbolType.Task ? [props.symbolId] : null)),
-    codeIds: computed(() => (props.symbolType === SymbolType.Code ? [props.symbolId] : null)),
+    codeIds: computed(() => [props.symbolId]),
   },
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
@@ -53,16 +52,23 @@ const executionRefs = useElementRefs<HTMLDivElement>();
 const symbol = computed(() => symbolOf(props.symbolId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.typeNodes?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const expandedExecutionId = ref<string | null>(null);
 
 // navigation
 
 // display
 
+const containerRef: Ref<HTMLDivElement | null> = ref(null);
+const containerSize = useElementSize(containerRef);
 const previewFields = computed(() => [...inputFields.value.slice(0, 1), ...outputFields.value.slice(0, 2)]);
-const executionHeight = 64;
-const expandedExecutionHeight = 500;
-const metaWidth = 140;
-const expandedExecutionId = ref<string | null>(null);
+const headerHeight = 64;
+const bodyHeight = 512;
+const paddingY = 8;
+const paddingX = 4;
+const metadataWidth = 140;
+const previewWidth = computed(() => {
+  return containerSize.width.value - metadataWidth - paddingX * 2;
+});
 
 function toggleExpanded(executionId: string) {
   if (expandedExecutionId.value == executionId) {
@@ -124,43 +130,45 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
 }
 </script>
 <template>
-  <div class="flex flex-col">
+  <div ref="containerRef" class="flex flex-col">
     <!-- Header with filters  -->
-
+    <!-- not yet -->
     <!-- Executions -->
-    <TransitionGroup name="fade" tag="div" class="relative flex flex-col">
+    <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs yet</div>
+    <!-- TODO @UX: animate executions in tile (without interfering with expand/close animation, looks glitchy) -->
+    <div class="relative flex flex-col">
       <div
         :ref="(el: any) => executionRefs.registerRef(execution.id, el)"
         tabindex="-1"
         v-for="(execution, y) in executions"
         :key="execution.id"
-        class="group/execution flex flex-col px-1 pt-2 transition"
-        :class="[
-          y > 0 ? 'border-t border-orange-900 border-opacity-[12%]' : '',
-          isExpanded(execution.id) ? '' : 'hover:cursor-pointer hover:bg-orange-100',
-        ]"
+        class="group/execution flex flex-col"
+        :class="[y > 0 ? 'border-t- border-orange-900 border-opacity-[12%]' : '']"
         :style="{
-          height: isExpanded(execution.id) ? undefined : executionHeight + 'px',
+          paddingTop: paddingY + 'px',
+          paddingBottom: paddingY + 'px',
+          paddingLeft: paddingX + 'px',
+          paddingRight: paddingX + 'px',
+          height: isExpanded(execution.id) ? undefined : headerHeight + 'px',
         }"
         @click.stop="toggleExpanded(execution.id)"
         @keydown.enter.stop="toggleExpanded(execution.id)"
       >
         <!-- Header -->
-        <div class="flex flex-row items-baseline justify-between gap-5 rounded-sm">
+        <div class="flex flex-row justify-between gap-5 rounded-sm">
           <!-- Metadata -->
-          <div class="flex flex-col" :style="{ width: metaWidth + 'px' }">
+          <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
             <span
-              class="transtion flex flex-row items-center gap-1.5 text-sm font-extrabold"
+              class="transtion flex flex-row items-center gap-1.5 font-extrabold"
               :class="getStatusColor(execution.status)"
             >
               <!-- Status -->
-              <!-- <svg class="mr-1.5 mt-2 h-[5px] w-[5px]" fill="currentColor" viewBox="0 0 2 2">
-              <circle cx="1" cy="1" r="1" />
-            </svg> -->
-              <FadeTransition mode="out-in">
-                <component :is="getStatusIcon(execution.status)" class="h-4 w-4" />
-              </FadeTransition>
+              <component
+                :is="getStatusIcon(execution.status)"
+                class="h-4 w-4"
+                :class="[execution.status == ExecutionStatus.Running ? 'animate-spin' : '']"
+              />
               <!-- Duration -->
               <span class="">
                 {{
@@ -176,7 +184,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
                 <BoltIcon class="h-4 w-4 text-orange-500" />
                 <span
                   v-if="execution.duration != null && execution.cachedDuration != null"
-                  class="invisible absolute z-10 -ml-1 mt-1 w-44 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-gray-700 group-hover/cache:visible"
+                  class="invisible absolute z-10 -ml-1 mt-1 w-32 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
                 >
                   Cached
                   {{ now.getTimeFromNowString(execution.cachedGeneratedAt) }} ago<br />
@@ -191,21 +199,37 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
               <span class="truncate">{{ getTriggerLabel(execution) }}</span>
             </span>
           </div>
-          <!-- Selected fields -->
-          <ValueInterface
-            v-for="field in previewFields"
-            :key="field"
-            :type="field"
-            readonly
-            active
-            :model-value="execution.inputs?.[field.key] ?? execution.outputs?.[field.key]"
-            class="w-4 overflow-hidden"
+          <!-- Selected fields as a preview -->
+          <!-- TODO @UX: select and render execution fields preview more intelligently -->
+          <div
+            class="relative flex w-full flex-row justify-normal gap-x-3 overflow-hidden"
             :style="{
-              height: executionHeight + 'px',
+              width: previewWidth + 'px',
+              height: headerHeight - paddingY * 2 - 4 + 'px',
             }"
-          />
+          >
+            <ValueInterface
+              v-for="field in previewFields"
+              :key="field.id"
+              :type="field"
+              readonly
+              active
+              :model-value="execution.inputs?.[field.key] ?? execution.outputs?.[field.key]"
+              class=""
+              :style="{
+                // 12 = gap-x-3
+                width: previewWidth / previewFields.length - (12 * previewFields.length - 1) + 'px',
+              }"
+            />
+            <!-- fade to white towards bottom -->
+            <div
+              class="pointer-events-none absolute bottom-0 left-0 h-5 w-full bg-gradient-to-tl from-white to-transparent"
+            >
+              &nbsp;
+            </div>
+          </div>
           <!-- Controls -->
-          <button class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
+          <button class="self-start p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
             <component :is="isExpanded(execution.id) ? ChevronDoubleUpIcon : ChevronDoubleDownIcon" class="h-4 w-4" />
           </button>
         </div>
@@ -214,7 +238,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           v-if="expandedExecutionId === execution.id"
           class="scroll-hidden my-3 w-full gap-5 overflow-y-auto"
           :style="{
-            maxHeight: expandedExecutionHeight + 'px',
+            maxHeight: bodyHeight + 'px',
           }"
         >
           <StructTile
@@ -227,7 +251,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           <ExecutionTraceback v-if="execution.errorNice" class="w-full p-1" name="run" :execution="execution" />
         </div>
       </div>
-    </TransitionGroup>
+    </div>
     <!-- Load more -->
   </div>
 </template>
