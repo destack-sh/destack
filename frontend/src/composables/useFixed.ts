@@ -10,6 +10,7 @@ export function pinAbsoluteElement(
     width?: boolean;
     height?: boolean;
     keepInView?: boolean;
+    sourcePos?: Ref<{ x: number; y: number } | null>;
   }
 ) {
   // fixes the element at the first available position
@@ -22,12 +23,17 @@ export function pinAbsoluteElement(
     throw new Error("keepInView requires pos");
   }
 
-  watch([el, editorContext?.pos, editorContext?.size], () => {
+  watch([el, () => fix.sourcePos?.value, editorContext?.pos, editorContext?.size], () => {
     if (el.value == null && fixed.value != null) fixed.value = null; // reset
     if (el.value == null) return; // no element
     if (fixed.value != null && !fix.keepInView) return; // already fixed
     // (re)fix element in view
     const rect = el.value.getBoundingClientRect();
+    if (fix.sourcePos?.value != null) {
+      // use given pos
+      rect.x = fix.sourcePos.value.x;
+      rect.y = fix.sourcePos.value.y;
+    }
     fixed.value = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     if (fix.keepInView && editorContext != null) {
       const cpos = editorContext.pos.value;

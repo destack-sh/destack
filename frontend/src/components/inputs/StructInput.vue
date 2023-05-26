@@ -3,8 +3,9 @@ import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 
 const props = defineProps<{
   type: SimpleType;
@@ -19,7 +20,26 @@ const emit = defineEmits<{
 }>();
 
 const addButtonRef = ref<HTMLButtonElement | null>(null);
-const structRefs = useElementRefs();
+const structInlineRefs = useElementRefs();
+const activeIndex = ref<number | null>(null);
+const editingIndex = ref<boolean>(false);
+const structRef = ref<HTMLDivElement | null>(null);
+const structOpenPos = ref<{ x: number; y: number } | null>(null);
+pinAbsoluteElement(structRef, {
+  pos: true,
+  sourcePos: structOpenPos,
+  keepInView: true,
+});
+
+// set open pos when active index changes
+watch(activeIndex, () => {
+  if (activeIndex.value == null) {
+    structOpenPos.value = null;
+  } else {
+    const rect = structInlineRefs.refs.value[activeIndex.value]?.getBoundingClientRect();
+    structOpenPos.value = { x: rect.left, y: rect.top };
+  }
+});
 
 const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => symbolOf(props.type.reference?.id));
@@ -36,14 +56,22 @@ const titleField: Ref<SimpleType | undefined> = computed(() => {
   return undefined;
 });
 
-function open(structIdx: number) {
-  // not implemented
+function open(idx: number) {
+  activeIndex.value = idx;
+  editingIndex.value = true;
 }
 
-function remove(structIdx: number) {
+function update(idx: number, value: Record<string, any>) {
   emit(
     "update:modelValue",
-    props.modelValue.filter((_, j) => j != structIdx)
+    props.modelValue.map((v, j) => (j == idx ? value : v))
+  );
+}
+
+function remove(idx: number) {
+  emit(
+    "update:modelValue",
+    props.modelValue.filter((_, j) => j != idx)
   );
 }
 
@@ -52,7 +80,9 @@ function focus() {
 }
 function blur() {
   addButtonRef.value?.blur();
-  structRefs.refs.value.forEach((r) => r?.blur());
+  structInlineRefs.refs.value.forEach((r) => r?.blur());
+  activeIndex.value = null;
+  editingIndex.value = false;
 }
 
 defineExpose({
@@ -61,14 +91,18 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex h-full w-full flex-row flex-wrap gap-1">
+  <div class="flex h-full w-full flex-row flex-wrap gap-1" @mouseleave="(activeIndex = null), (editingIndex = false)">
     <!-- Inline struct views -->
     <div
       v-for="(struct, i) in modelValue"
-      :ref="(el: any) => structRefs.registerRef(i.toString(), el)"
+      :ref="(el: any) => structInlineRefs.registerRef(i.toString(), el)"
       :key="i"
       class="group/struct relative flex flex-row items-center gap-1.5 bg-gray-100 px-2 hover:cursor-pointer"
-      @click.stop.prevent="open(i)"
+      @click.stop.prevent="readonly || open(i)"
+      @keydown.enter.stop.prevent="readonly || open(i)"
+      @focus="editingIndex || (activeIndex = i)"
+      @blur="editingIndex || (activeIndex = null)"
+      @mouseover="editingIndex || (activeIndex = i)"
     >
       <!-- Struct title -->
       <span v-if="struct[titleField?.key ?? ''] != undefined" class="min-w-[10px] text-gray-900">{{
@@ -76,13 +110,6 @@ defineExpose({
       }}</span>
       <!-- default to type name if we don't have anything -->
       <span v-else class="text-gray-500 group-hover/struct:text-gray-700">{{ runtimeType?.name }}</span>
-      <!-- Struct preview on hover -->
-      <StructInterface
-        :fields="fields"
-        :model-value="struct"
-        readonly
-        class="invisible absolute z-10 m-2 w-[300px] rounded-sm border border-orange-900 border-opacity-[12%] bg-white shadow-sm group-hover/struct:visible"
-      />
       <!-- Delete button -->
       <button
         v-if="!preview"
@@ -94,8 +121,26 @@ defineExpose({
       <!-- Show full struct on hover -->
       <!-- TODO @Feature: show structs properly (also needs struct interface) -->
     </div>
+    <!-- Struct preview on hover -->
+    <!-- TODO @Broken: fix editability -->
+    <div
+      v-if="activeIndex != null"
+      ref="structRef"
+      class="fixed z-20 mt-5 w-[300px] rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm"
+    >
+      <StructInterface
+        :fields="fields"
+        :model-value="modelValue[activeIndex ?? 0]"
+        @update:modelValue="update(activeIndex ?? 0, $event)"
+        @close="(activeIndex = null), (editingIndex = false)"
+        debounced
+        :readonly="!editingIndex && false /* it's broken */"
+        class=""
+      />
+    </div>
+    <!-- Add button -->
     <button
-      v-if="!preview"
+      v-if="!preview && !readonly && (isArray || modelValue.length == 0)"
       ref="addButtonRef"
       class="self-end justify-self-end rounded-sm border-gray-300 px-0.5 transition hover:bg-orange-100 focus:bg-orange-100 focus:outline-none group-focus-within/iface:opacity-100 group-hover/iface:opacity-100"
     >

@@ -187,7 +187,7 @@ defineExpose({
     <!-- Preview -->
     <div
       ref="previewButtonRef"
-      class="mousetrap-no-tab scroll-hidden relative inline-block w-full overflow-y-hidden text-left outline-none"
+      class="mousetrap-no-tab scroll-hidden relative inline-block w-full text-left outline-none"
       :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
