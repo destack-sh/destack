@@ -194,6 +194,7 @@ const baseTilePositionX = computed(() => getTilePositionX());
           :projectVersionId="bench.currentProjectVersionId"
           :symbolId="editor?.symbolId"
           live
+          root-only
         />
       </ContainerTile>
     </div>

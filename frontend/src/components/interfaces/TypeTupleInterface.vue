@@ -144,6 +144,7 @@ function onDrop(thing: File[] | { type: string; id: string } | null) {
 }
 
 function open() {
+  if (props.readonly) return;
   if (!editing.value) {
     editing.value = true;
     if (!props.readonly) {

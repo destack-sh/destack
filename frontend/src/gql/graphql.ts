@@ -3432,6 +3432,7 @@ export type ExecutionContentFragment = {
   terminatedAt?: any | null;
   duration?: number | null;
   cachedDuration?: number | null;
+  cachedGeneratedAt?: any | null;
   status: ExecutionStatus;
   triggerType: ExecutionTriggerType;
   inputs?: any | null;
@@ -5194,6 +5195,7 @@ export const ExecutionContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "duration" } },
           { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
+          { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
           { kind: "Field", name: { kind: "Name", value: "status" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {

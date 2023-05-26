@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import re
 import sys
 import traceback
 from collections import OrderedDict
@@ -194,7 +195,7 @@ class ExecutionFrameData:
     exited_at: Optional[datetime]
     cached_generated_at: Optional[datetime]
     cached_duration: Optional[float]
-    inputs: dict[str, Any]
+    inputs: Optional[Any]
     outputs: Optional[Any]
     error: Optional[RunErrorData]
     queue_position: Optional[int]
@@ -225,6 +226,9 @@ class ExecutionFrameData:
             )
             stack = PyFrameData.from_stack(stack_summary)
             stack = PyFrameData.clean(stack, frame.code)
+            error_str = str(frame.error)
+            # remove (source=...) from error message
+            error_str = re.sub(r"\(source=[^)]+\)", "", error_str)
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.code),

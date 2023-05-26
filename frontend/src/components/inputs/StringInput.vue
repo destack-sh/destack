@@ -25,7 +25,7 @@ defineExpose({
   <textarea
     v-else
     ref="inputRef"
-    class="emin-w-[300px] h-fit max-w-full whitespace-pre-wrap break-words rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
+    class="h-fit w-full min-w-[300px] max-w-full whitespace-pre-wrap break-words rounded-none border-none bg-transparent p-0 outline-none ring-0 focus:ring-0"
     :style="{ minHeight: previewHeight + 'px' }"
     wrap="hard"
     type="text"

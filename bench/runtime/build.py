@@ -389,7 +389,7 @@ class XOutputText(XEmit):
         value = output.strip()
         if not value.startswith("{"):
             # sometimes the model prefixes the output with some explanation, find the { ... }
-            value = re.compile(r"\{.*?}", re.DOTALL).search(value)
+            value = re.compile(r"\{.*}", re.DOTALL).search(value)
             if value:
                 value = value.group(0)
             else:
