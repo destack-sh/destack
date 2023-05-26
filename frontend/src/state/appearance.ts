@@ -4,6 +4,17 @@ import { onBeforeMount, watch } from "vue";
 
 export type Theme = "light" | "dark";
 
+export type EditorAppearance = {
+  contentWidth?: number;
+  contentMarginX?: number;
+  headerHeight?: number;
+};
+
+export const CONTENT_WIDTH_NARROW = 800;
+export const CONTENT_WIDTH_WIDE = 1200;
+export const CONTENT_MARGIN_X_NARROW = 44;
+export const CONTENT_MARGIN_X_WIDE = 72;
+
 export const useAppearanceState = defineStore("appearance", {
   state: () => ({
     fullscreen: false,
@@ -14,7 +25,7 @@ export const useAppearanceState = defineStore("appearance", {
     contentWidth: 800,
     contentMarginX: 70,
     benchHeaderHeight: 52,
-    editorHeaderHeight: 32,
+    editorHeaderHeight: 28,
   }),
   getters: {
     fontMono(state) {

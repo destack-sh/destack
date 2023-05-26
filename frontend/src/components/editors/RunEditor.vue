@@ -188,13 +188,14 @@ const baseTilePositionX = computed(() => getTilePositionX());
         </div>
       </ContainerTile>
       <!-- Executions -->
-      <ContainerTile label="Runs" :style="{ ...baseTilePositionX }">
+      <ContainerTile v-if="symbol != null" label="Runs" :style="{ ...baseTilePositionX }">
         <ExecutionsTile
-          :projectId="bench.currentProjectId"
-          :projectVersionId="bench.currentProjectVersionId"
-          :symbolId="editor?.symbolId"
+          :project-id="bench.currentProjectId"
+          :project-version-id="bench.currentProjectVersionId"
+          include-ancestor-versions
+          :symbol-id="editor?.symbolId"
+          :symbol-type="symbol?.symbolType"
           live
-          root-only
         />
       </ContainerTile>
     </div>

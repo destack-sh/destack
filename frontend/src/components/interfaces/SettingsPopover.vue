@@ -1,7 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
-import { useAppearance } from "@/state/appearance";
+import {
+  CONTENT_MARGIN_X_NARROW,
+  CONTENT_MARGIN_X_WIDE,
+  CONTENT_WIDTH_NARROW,
+  CONTENT_WIDTH_WIDE,
+  useAppearance,
+} from "@/state/appearance";
 import { useBenchState } from "@/state/editor";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, HashtagIcon, MapIcon, MoonIcon } from "@heroicons/vue/24/outline";
@@ -10,10 +16,10 @@ import { computed } from "vue";
 const appearance = useAppearance();
 const bench = useBenchState();
 
-const isContentWide = computed(() => appearance.contentWidth != 800);
+const isContentWide = computed(() => appearance.contentWidth != CONTENT_WIDTH_NARROW);
 function setContentWide(wide: boolean) {
-  appearance.contentWidth = wide ? 1200 : 800;
-  appearance.contentMarginX = wide ? 45 : 72;
+  appearance.contentWidth = wide ? CONTENT_WIDTH_WIDE : CONTENT_WIDTH_NARROW;
+  appearance.contentMarginX = wide ? CONTENT_MARGIN_X_WIDE : CONTENT_MARGIN_X_NARROW;
 }
 
 const fontOptions = [

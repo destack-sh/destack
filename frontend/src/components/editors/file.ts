@@ -44,7 +44,7 @@ export type PositionedStatement = {
 // so we have a global reference here that is automatically set to the focused file.
 // We can't just use singleton actions here because multiple files may have
 // 'focused' set during moves or transition.
-export const activeFileState: Ref<FileState> = ref<FileState | null>(null);
+export const activeFileState: Ref<FileState | null> = ref(null);
 export const fileContexts = ref<Record<string, FileContext>>({});
 export const navigationContexts = ref<Record<string, NavigationContext>>({});
 
@@ -52,7 +52,11 @@ export function provideFileState(file: Ref<FileState | null>) {
   // set active file if focused
   watchEffect(() => {
     if (file.value?.focused) {
-      activeFileState.value = file.value;
+      if (activeFileState.value?.editor.id !== file.value?.editor.id) {
+        activeFileState.value = file.value;
+      }
+    } else if (activeFileState.value?.editor.id === file.value?.editor.id) {
+      activeFileState.value = null;
     }
   });
   onBeforeUnmount(() => {

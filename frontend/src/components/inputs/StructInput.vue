@@ -2,7 +2,9 @@
 import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { symbolOf, TypeFlag } from "@/state/runtime";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
+import StructInterface from "@/components/interfaces/StructInterface.vue";
 
 const props = defineProps<{
   type: SimpleType;
@@ -74,6 +76,13 @@ defineExpose({
       }}</span>
       <!-- default to type name if we don't have anything -->
       <span v-else class="text-gray-500 group-hover/struct:text-gray-700">{{ runtimeType?.name }}</span>
+      <!-- Struct preview on hover -->
+      <StructInterface
+        :fields="fields"
+        :model-value="struct"
+        readonly
+        class="invisible absolute z-10 m-2 w-[300px] rounded-sm border border-orange-900 border-opacity-[12%] bg-white shadow-sm group-hover/struct:visible"
+      />
       <!-- Delete button -->
       <button
         v-if="!preview"

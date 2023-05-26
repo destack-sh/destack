@@ -2,9 +2,9 @@
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/basic/NotificationArea.vue";
 import NotificationPopover from "@/components/interfaces/NotificationPopover.vue";
 import SettingsAccessTokens from "@/components/settings/SettingsAccessTokens.vue";
 import SettingsMembers from "@/components/settings/SettingsMembers.vue";
@@ -18,11 +18,8 @@ import {
   CogIcon,
   CreditCardIcon,
   KeyIcon,
-  LinkIcon,
-  LockClosedIcon,
   UserCircleIcon,
   UserGroupIcon,
-  UsersIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
