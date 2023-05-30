@@ -195,5 +195,7 @@ def get_s3_client():
 
     endpoint_url = os.environ.get("AWS_ENDPOINT_URL")
     return boto3.client(
-        "s3", endpoint_url=endpoint_url, config=Config(s3={"addressing_style": "path"})
+        "s3",
+        endpoint_url=endpoint_url,
+        config=Config(s3={"addressing_style": "path"}, region_name=os.environ.get("AWS_REGION")),
     )
