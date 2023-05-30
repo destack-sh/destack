@@ -896,6 +896,7 @@ STATIC_BUILTINS = {
     "audio": RemoteObject,
     # library builtins
     "numpy": numpy,
+    "np": numpy,
     "asyncio": asyncio,
     # functional builtins
     "itertools": itertools,
