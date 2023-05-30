@@ -1,9 +1,8 @@
 import { graphql } from "@/gql";
-import { TypeTag, type RemoteObject, RemoteObjectStatus } from "@/gql/graphql";
+import { RemoteObjectStatus, TypeTag, type RemoteObject } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { REMOTE_OBJECT_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
-import assert from "assert";
 
 export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
 

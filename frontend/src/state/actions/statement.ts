@@ -1,4 +1,4 @@
-import { activeFileState, navigationContexts, type NavigationContext } from "@/components/editors/file";
+import { activeFileState, navigationContexts, type NavigationContext } from "@/state/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type StatementHeader } from "@/state/editor";

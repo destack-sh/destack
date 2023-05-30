@@ -11,7 +11,7 @@ import StringInput from "@/components/inputs/StringInput.vue";
 import StructInput from "@/components/inputs/StructInput.vue";
 import ThumbsInput from "@/components/inputs/ThumbsInput.vue";
 import ToggleInput from "@/components/inputs/ToggleInput.vue";
-import type { SimpleType } from "@/components/editors/statement";
+import type { SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";

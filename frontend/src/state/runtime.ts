@@ -167,7 +167,6 @@ function _useInterpModule(projectVersionId: Ref<string | null>) {
   const name = computed(() => module.value?.name.split(".").slice(-1)[0]);
   const dependencies = computed(() => module.value?.dependencies.map((m) => useFragment(InterpModuleContentType, m)));
   const errors = computed(() => module.value?.errors.map((e) => useFragment(InterpErrorContentType, e)));
-  const staleSymbols = computed(() => module.value?.staleSymbols);
 
   const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
     if (module.value) {
@@ -187,7 +186,6 @@ function _useInterpModule(projectVersionId: Ref<string | null>) {
     name,
     dependencies,
     errors,
-    staleSymbols,
     moduleIndex,
     dependenciesIndex,
   };

@@ -3,7 +3,7 @@ import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";

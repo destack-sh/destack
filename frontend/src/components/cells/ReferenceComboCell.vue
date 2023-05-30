@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { InterpSymbol } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type StatementHeader } from "@/state/editor";
+import type { StatementHeader } from "@/state/editor";
 import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";

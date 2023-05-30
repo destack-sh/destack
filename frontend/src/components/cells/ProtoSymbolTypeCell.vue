@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { MODIFIER_BY_KEYWORD, SUPPORTED_MODIFIERS, SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";

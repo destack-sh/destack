@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
-import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
+import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
+import TypePreview from "@/components/interfaces/TypePreview.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/components/editors/statement";
+import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/editor";
@@ -231,7 +231,7 @@ defineExpose({
           :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
           >{{ value.name }}</span
         >
-        <SimpleTypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+        <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->
@@ -271,7 +271,7 @@ defineExpose({
             @keydown.enter.stop.prevent="editingType = true"
           >
             <!-- No idea why but this needs to be set absolutely or the icons are too high -->
-            <SimpleTypePreview class="absolute top-0.5" :type="value" hide-reference />
+            <TypePreview class="absolute top-0.5" :type="value" hide-reference />
           </button>
           <!-- Popover position is also pinned -->
           <div
@@ -280,7 +280,7 @@ defineExpose({
             class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
             :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
           >
-            <SelectTypeCell
+            <SelectTypeInterface
               :model-value="value"
               @update:model-value="emit('update:modelValue', $event)"
               @escape="

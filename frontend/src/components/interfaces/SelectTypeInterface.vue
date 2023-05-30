@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/components/editors/statement";
+import TypePreview from "@/components/interfaces/TypePreview.vue";
+import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/state/statement";
 import { StatementType, SymbolType, TypeHint, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/type";
@@ -267,7 +267,7 @@ defineExpose({
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <SimpleTypePreview :type="node" show-type-name hide-flags />
+            <TypePreview :type="node" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
               {{ node.primitive ? "(builtin)" : fileOf(node.reference)?.path }}
