@@ -70,12 +70,8 @@ REMOTE_OBJECT_CONTENT_TYPES = {*DOCUMENT_CONTENT_TYPES}  # only support document
 
 
 def is_allowed_content_type(content_type: str) -> bool:
-    # any application/* and text/*
-    return (
-        content_type.startswith("text/")
-        or content_type.startswith("application/")
-        or content_type in REMOTE_OBJECT_CONTENT_TYPES
-    )
+    # should we check anything here?
+    return True
 
 
 logger = structlog.get_logger(__name__)
@@ -146,11 +142,7 @@ class RemoteObject(UUIDModel):
             Bucket=get_project_bucket_name(self.project_id),
             Key=str(self.id),
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_POST_EXPIRY,
-            Fields={
-                "Content-Type": self.content_type,
-                "Content-Length": str(self.content_length),
-                "Name": self.name,
-            },
+            Fields={},
         )
         if "url" not in response:
             raise RuntimeError(f"failed to generate presigned post for {self}: {response}")

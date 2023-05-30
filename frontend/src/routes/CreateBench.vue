@@ -12,7 +12,7 @@ import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
+import { ArrowPathIcon, ArrowRightIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
@@ -250,11 +250,16 @@ async function createProject() {
 
         <button
           :disabled="!canComplete"
-          class="mt-6 w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
+          class="mt-6 flex w-fit flex-row items-center gap-1 self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
           :class="{ 'pointer-events-none opacity-50': !canComplete }"
           @click="createProject"
         >
-          Craft &rarr;
+          Craft
+          <component
+            :is="creating ? ArrowPathIcon : ArrowRightIcon"
+            class="h-4 w-4 text-gray-700"
+            :class="[creating ? 'animate-spin' : '']"
+          />
         </button>
       </div>
     </div>
