@@ -41,7 +41,7 @@ const { result: suggestedFiles } = useQuery(
 const files = computed(() =>
   suggestedFiles.value?.projectVersion?.files.edges
     .map((edge) => edge.node)
-    .filter((file) => file.deletedAt == null && !file.directory)
+    .filter((file) => file.deletedAt == null && !file.directory && file.name.trim() !== "")
 );
 const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.totalCount);
 
@@ -67,7 +67,7 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; path: string }) {
-  bench.openFile(file, { group: props.group, create: true });
+  bench.openFile(file, { group: props.group, create: true, focus: true });
 }
 </script>
 <template>
