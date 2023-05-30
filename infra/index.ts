@@ -216,8 +216,8 @@ const s3AccessKeySecret = new k8s.core.v1.Secret("s3AccessKeySecret", {
     name: "s3-access-key",
   },
   stringData: {
-    accessKeyId: s3AccessKey.accessKeyId.apply((id) => Buffer.from(id).toString("base64")),
-    secretAccessKey: s3AccessKey.secretAccessKey.apply((secret) => Buffer.from(secret).toString("base64")),
+    accessKeyId: s3AccessKey.accessKeyId,
+    secretAccessKey: s3AccessKey.secretAccessKey,
   },
   type: "Opaque",
 });
