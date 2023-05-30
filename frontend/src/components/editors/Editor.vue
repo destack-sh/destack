@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import FileInterface from "@/components/editors/FileEditor.vue";
-import RunInterface from "@/components/editors/RunEditor.vue";
+import FileEditorInterface from "@/components/editors/FileEditor.vue";
+import RunEditorInterface from "@/components/editors/RunEditor.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import {
   provideEditorContext,
@@ -15,7 +15,7 @@ import { computed, onBeforeUnmount, onMounted, ref, toRef } from "vue";
 
 const bench = useBenchState();
 const props = defineProps<{ editor: Editor; containerEl: HTMLElement | null }>();
-const containerRef = ref<InstanceType<typeof FileInterface> | null>(null);
+const containerRef = ref<InstanceType<typeof FileEditorInterface> | null>(null);
 const containerEl = toRef(props, "containerEl");
 const focused = computed(() => bench.focusedEditorId == props.editor.id);
 
@@ -39,7 +39,7 @@ defineExpose({
 });
 </script>
 <template>
-  <FileInterface
+  <FileEditorInterface
     ref="containerRef"
     v-if="editor.type == 'file'"
     :editor="(context as EditorContext<FileEditor>)"
@@ -47,7 +47,7 @@ defineExpose({
     :focused="focused"
     @close="bench.closeEditor(editor)"
   />
-  <RunInterface
+  <RunEditorInterface
     ref="containerRef"
     v-else-if="editor.type == 'run'"
     :editor="(context as EditorContext<RunEditor>)"
