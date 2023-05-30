@@ -118,7 +118,7 @@ const communityBenches = computed(() => communityBenchesResult.value?.featuredPr
       <div class="mt-4 grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
         <!-- Empty state -->
         <router-link
-          :to="{ name: 'CreateProject' }"
+          :to="{ name: 'CreateBench' }"
           v-if="myBenches == null || myBenches?.length == 0"
           class="col-span-full text-gray-900"
         >
