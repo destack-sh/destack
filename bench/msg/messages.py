@@ -16,7 +16,6 @@ from bench.language.wire import (
     RemoteObjectData,
     SecretData,
 )
-from bench.models.user import ClientData
 from bench.runtime.type import ExecutionFrameData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -118,6 +117,25 @@ class OriginPayload:
         else:
             nonce = nonce if isinstance(nonce, UUID) else UUID(nonce)
             return any(c.id == id and c.nonce == nonce for c in self.origins)
+
+
+@dataclass(repr=False, slots=True)  # not sure where to put this?
+class ClientData:
+    id: UUID
+    created_at: datetime
+    last_seen_at: datetime
+    closed_at: Optional[datetime]
+    user_id: UUID
+    type: str
+    device_name: Optional[str]
+    browser_name: Optional[str]
+    project_id: Optional[UUID]
+    project_version_id: Optional[UUID]
+    file_id: Optional[UUID]
+    statement_id: Optional[UUID]
+    type_node_id: Optional[UUID]
+    record_id: Optional[UUID]
+    path: Optional[str]
 
 
 @payload(NMessageType.CLIENT_CHANGED)
