@@ -267,7 +267,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     enabled: computed(() => navigatingFile.value),
     apply: () => {
       if (editor.value == null) return;
-      statements.value.forEach(editor.value?.addToSelection);
+      statements.value.forEach((s) => editor.value?.addToSelection(s));
     },
   });
 

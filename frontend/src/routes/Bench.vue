@@ -310,7 +310,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
       type: "editor.suppressSave",
       kind: "notice",
       message: "Saving is automatic",
-      description: "All changes are synced automatically.",
+      description: "Changes are automatically synchronized.",
       actionText: "Snapshot",
       action: () => actions.apply("version.commit"),
     },
