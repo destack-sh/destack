@@ -2,7 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/editors/statement";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/state/statement";
 import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";

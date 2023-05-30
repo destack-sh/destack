@@ -4,7 +4,7 @@ import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import ProtoSymbolTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
 import { symbolsLike } from "@/state/runtime";

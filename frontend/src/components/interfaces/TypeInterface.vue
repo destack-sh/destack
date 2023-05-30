@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import SelectTypeCell from "@/components/cells/SelectTypeCell.vue";
-import SimpleTypePreview from "@/components/cells/SimpleTypePreview.vue";
-import { ANY_TYPE_NODE, type SimpleType } from "@/components/editors/statement";
+import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
+import TypePreview from "@/components/interfaces/TypePreview.vue";
+import { ANY_TYPE_NODE, type SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { SimpleTypeNode } from "@/gql/graphql";
 import { nextTick, ref, watch, type Ref } from "vue";
@@ -32,7 +32,7 @@ const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const editing = ref(false);
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
-const valueRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
+const valueRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
 
@@ -102,7 +102,7 @@ defineExpose({
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
-      <SimpleTypePreview :type="value" :hide-icon="hideIcon || value.reference != null" hide-flags />
+      <TypePreview :type="value" :hide-icon="hideIcon || value.reference != null" hide-flags />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
@@ -115,7 +115,7 @@ defineExpose({
       @keydown.escape.exact.prevent.stop="close"
     >
       <span ref="popoverOpenRef" class="hidden" />
-      <SelectTypeCell
+      <SelectTypeInterface
         ref="valueRef"
         as="div"
         :model-value="value"

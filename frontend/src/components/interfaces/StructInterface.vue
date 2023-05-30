@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/components/editors/statement";
+import type { SimpleType } from "@/state/statement";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";

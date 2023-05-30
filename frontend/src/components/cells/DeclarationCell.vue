@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
-import SelectTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
+import SelectTypeInterface from "@/components/cells/ProtoSymbolTypeCell.vue";
 import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { StatementType } from "@/gql/graphql";
 import { localErrorsOf, symbolsLike } from "@/state/runtime";
 import { computed, ref, type Ref } from "vue";
@@ -24,7 +24,7 @@ context.syncName(
 );
 const hasName = computed(() => name.value.trim().length > 0);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const gapRef: Ref<InstanceType<typeof SelectTypeCell> | null> = ref(null);
+const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
 const availableSymbols = symbolsLike({
   types: [StatementType.Definition],
@@ -70,7 +70,7 @@ defineExpose({
     />
     <!-- Modifier -->
     <ModifierCell v-if="context.statement.value.modifier" />
-    <SelectTypeCell
+    <SelectTypeInterface
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"

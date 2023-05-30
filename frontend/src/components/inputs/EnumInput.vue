@@ -3,7 +3,7 @@ import { useAppearance } from "@/state/appearance";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { getEnumColor, type SimpleType } from "@/components/editors/statement";
+import { getEnumColor, type SimpleType } from "@/state/statement";
 
 const props = defineProps<{
   type: SimpleType;

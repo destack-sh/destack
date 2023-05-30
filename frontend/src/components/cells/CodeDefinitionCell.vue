@@ -2,7 +2,7 @@
 import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { useTimeFromNow } from "@/composables/useNow";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
 import { useExecutions } from "@/state/executions";

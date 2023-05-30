@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useStatementContext } from "@/components/editors/statement";
+import { useStatementContext } from "@/state/statement";
 import { MODIFIER_KEYWORD } from "@/state/type";
 import { computed } from "vue";
 

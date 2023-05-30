@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/components/editors/statement";
+import type { SimpleType } from "@/state/statement";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 
 const props = defineProps<{

@@ -6,7 +6,7 @@ import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/components/editors/statement";
+import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/state/statement";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/editor";
 import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
