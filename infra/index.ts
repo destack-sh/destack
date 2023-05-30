@@ -4,6 +4,7 @@ import * as eks from "@pulumi/eks";
 import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver } from "./aws";
+import * as random from "@pulumi/random";
 
 // configuration
 const config = new pulumi.Config();
@@ -191,6 +192,29 @@ const redis = new aws.elasticache.Cluster("redis", {
   securityGroupIds: [redisSecurityGroup.id],
   subnetGroupName: redisSubnetGroup.id,
 });
+// Create full and restricted access users
+const rootRedisPassword = new random.RandomPassword("rootRedisPassword", {
+  length: 32,
+  special: true,
+});
+const rootRedisUser = new aws.elasticache.User("rootRedisUser", {
+  engine: "redis",
+  accessString: "on ~* +@all",
+  userId: "apiuser",
+  userName: "API User",
+  passwords: [rootRedisPassword.result],
+});
+const restrictedRedisPassword = new random.RandomPassword("restrictedRedisPassword", {
+  length: 32,
+  special: true,
+});
+const restrictedRedisUser = new aws.elasticache.User("restrictedRedisUser", {
+  engine: "redis",
+  accessString: "on ~service:* +get +set",
+  userId: "workeruser",
+  userName: "Worker User",
+  passwords: [restrictedRedisPassword.result],
+});
 
 // NATS chart
 const nats = new k8s.helm.v3.Release("nats", {
@@ -259,11 +283,6 @@ const BACKEND_ENV_VARS = [
   {
     name: "NATS_SERVER",
     value: nats.name.apply((name) => `nats://${name}:4222`),
-  },
-  // redis
-  {
-    name: "REDIS_URL",
-    value: redis.cacheNodes[0].address.apply((address) => `redis://${address}:6379`),
   },
 ];
 
@@ -355,6 +374,10 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
                 { name: "WEBAPP_URL", value: config.require("webappUrl") },
                 { name: "RUN_INTSERVER", value: "true" },
+                {
+                  name: "REDIS_URL",
+                  value: pulumi.interpolate`redis://${rootRedisUser.userName}:${rootRedisPassword.result}@${redis.cacheNodes[0].address}:${redis.cacheNodes[0].port}`,
+                },
                 ...SOCIAL_AUTH_ENV_VARS,
               ],
               command: ["sh", "-c"],
@@ -387,7 +410,10 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...BACKEND_ENV_VARS,
-                ...SECRET_MODEL_PROVIDER_VARS,
+                {
+                  name: "REDIS_URL",
+                  value: pulumi.interpolate`redis://${restrictedRedisUser.userName}:${restrictedRedisPassword.result}@${redis.cacheNodes[0].address}:${redis.cacheNodes[0].port}`,
+                },
                 { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
               ],
               command: ["python", "bench/runworker.py"],
