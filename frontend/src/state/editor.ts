@@ -296,6 +296,11 @@ export const useBenchState = defineStore("bench", {
       }
     },
 
+    closeEditorGroup(group: EditorGroup): void {
+      console.log(`close editor group ${group.id}`);
+      group.editors.forEach((e) => this.closeEditor(e));
+    },
+
     moveEditor(editor: Editor, group: EditorGroup): void {
       const wasFocused = editor == this.focusedEditor;
       this.openEditor(editor, group);
@@ -625,6 +630,17 @@ export function provideEditorContext<T extends Editor>(
           label: "Close",
           icon: XCircleIcon,
           action: () => editorState.closeEditor(editor.value),
+        },
+        {
+          label: "Close Others",
+          icon: XCircleIcon,
+          action: () =>
+            editor.value.group?.editors.filter((e) => e != editor.value).forEach((e) => editorState.closeEditor(e)),
+        },
+        {
+          label: "Close All",
+          icon: XCircleIcon,
+          action: () => editorState.closeEditorGroup(editor.value.group as EditorGroup),
         },
       ];
       if (editor.value.groupId == editorState.left.id) {

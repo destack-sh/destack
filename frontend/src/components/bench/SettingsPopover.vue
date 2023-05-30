@@ -60,10 +60,11 @@ const fontOptions = [
               v-for="font in fontOptions"
               :key="font.key"
               class="flex flex-col items-center justify-center rounded-sm px-5 text-center hover:bg-orange-100"
+              :class="font.style"
               @click="appearance.font = font.key"
             >
               <span class="text-2xl" :class="{ 'text-orange-600': appearance.font == font.key }">Ag</span>
-              <span class="text-xs text-gray-500">{{ font.label }}</span>
+              <span class="font-sans text-xs text-gray-500">{{ font.label }}</span>
             </button>
           </div>
         </div>
@@ -106,7 +107,7 @@ const fontOptions = [
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
             <MapIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Editor headers</span>
+            <span class="text-sm text-gray-900">Editor tabs</span>
           </span>
           <Switch v-model="bench.showEditorGroupHeader" />
         </div>
