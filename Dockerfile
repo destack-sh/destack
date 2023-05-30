@@ -1,5 +1,5 @@
 # Use the official Python slim image as the base image
-FROM python:3.11-slim
+FROM python:3.11-slim as base
 
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
 LABEL org.opencontainers.image.description="Bench API"
@@ -15,7 +15,9 @@ ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
 # Copy the requirements file into the container and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY requirements-worker.txt .
+# TODO @Cleanup: use separator worker image
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-worker.txt
 
 # Copy the rest of the application code into the container
 COPY bench/ bench/
