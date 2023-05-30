@@ -70,7 +70,7 @@ export function useStatementContext() {
       if (statement.value.rootTypeTag == TypeTag.Enum) {
         return "choice";
       } else {
-        return "struct";
+        return "type";
       }
     } else if (statement.value.symbolType == SymbolType.Data) {
       if ((statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray) {

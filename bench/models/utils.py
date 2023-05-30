@@ -25,6 +25,25 @@ class UUIDTModel(UUIDModel):
         abstract = True
 
 
+class CrudModel(models.Model):
+    """Versioned CRUD-tracked model."""
+
+    revision = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+    )
+    last_edited_at = models.DateTimeField(auto_now=True)
+    last_edited_by = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+    )
+
+    class Meta:
+        abstract = True
+
+
 NAME_VALIDATOR = RegexValidator(NAME_REGEX)
 
 ModelT = TypeVar("ModelT", bound=models.Model)

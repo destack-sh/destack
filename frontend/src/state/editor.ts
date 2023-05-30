@@ -361,11 +361,7 @@ export const useBenchState = defineStore("bench", {
         throw new Error("editor must be in a group: " + editor.path);
       }
       // blur all other editors
-      this.editors.forEach((e) => {
-        if (e.id != editor.id) {
-          e.blur();
-        }
-      });
+      this.editors.filter((e) => e.id != editor.id).forEach((e) => e.blur());
       this.focusedEditorId = editor.id;
       this.group(editor.groupId).activeEditorId = editor.id;
     },

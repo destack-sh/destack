@@ -23,7 +23,7 @@ from bench.language.type import (
     new_type_node_key,
 )
 from bench.models.data import DatasetRecord
-from bench.models.utils import NAME_VALIDATOR, UUIDModel, walk_children_bfs_batched
+from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -38,16 +38,12 @@ class SimpleTypeNodeManager(models.Manager["SimpleTypeNode"]):
         return super().get_queryset().select_related("statement")
 
 
-class SimpleTypeNode(UUIDModel):
+class SimpleTypeNode(UUIDModel, CrudModel):
     """
     A simplified and interaction-optimized variant of TypeNode
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="type_nodes")
-    revision = models.IntegerField(default=1)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
@@ -114,7 +110,7 @@ class XBlock(UUIDModel):
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="xblocks")
     created_at = models.DateTimeField(auto_now_add=True)
     # not actually revisioned yet (only accessed programmatically)
-    revision = models.IntegerField(default=1)
+    revision = models.IntegerField(default=0)
     order_key = models.CharField(max_length=32)
     kind = TextChoicesField(choices_enum=XKind)
     source = TextChoicesField(choices_enum=XSource)
@@ -308,7 +304,7 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-class Statement(UUIDModel):
+class Statement(UUIDModel, CrudModel):
     """
     A statement in a file to import, define, redefine, reference, comment.. symbols.
     Statements are semantic and may be nested (parent-child relationships, comments, etc.).
@@ -319,15 +315,11 @@ class Statement(UUIDModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="statements"
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
-    revision = models.IntegerField(default=1)
     type = TextChoicesField(choices_enum=StatementType)
     modifier = TextChoicesField(choices_enum=StatementModifier, null=True, blank=True)
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
     commented = models.BooleanField(default=False)
     generated = models.BooleanField(default=False)
 

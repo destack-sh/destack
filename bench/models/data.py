@@ -7,7 +7,7 @@ from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 from django.db.models import Q
 
-from bench.models.utils import UUIDModel
+from bench.models.utils import CrudModel, UUIDModel
 
 
 class DatasetRecordManager(models.Manager["DatasetRecord"]):
@@ -16,16 +16,12 @@ class DatasetRecordManager(models.Manager["DatasetRecord"]):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class DatasetRecord(UUIDModel):
+class DatasetRecord(UUIDModel, CrudModel):
     """
     An individual JSON record.
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="records")
-    revision = models.IntegerField(default=1)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
     order_key = models.CharField(max_length=64)
     data = models.JSONField(blank=True)
 
