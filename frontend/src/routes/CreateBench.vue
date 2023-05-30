@@ -2,9 +2,10 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OwnerSelect from "@/components/basic/OwnerSelect.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import NotificationArea from "@/components/basic/NotificationArea.vue";
+import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { graphql } from "@/gql";
 import { ProjectType, ProjectVisibility } from "@/gql/graphql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
@@ -24,8 +25,8 @@ useRedirectIfNotLoggedIn();
 
 const auth = useAuth();
 const owner: Ref<{ id: string; name: string; slug: string } | null> = ref(null);
-const name: Ref<string> = ref("Sandbox");
-const slug: Ref<string> = ref("sandbox");
+const name: Ref<string> = ref("x");
+const slug: Ref<string> = ref("x");
 const slugModified = ref(false);
 const visibility: Ref<ProjectVisibility> = ref(ProjectVisibility.Private);
 const type: Ref<ProjectType> = ref(ProjectType.Executable);
@@ -58,8 +59,8 @@ function syncSlugIfUnmodified() {
   }
 }
 
-const isValidName = computed(() => (name.value?.length ?? 0) >= 2);
-const isValidSlug = computed(() => /^[a-z0-9_-]{3,}$/.test(slug.value ?? "") && (slug.value?.length ?? 0 >= 4));
+const isValidName = computed(() => (name.value?.length ?? 0) >= 1);
+const isValidSlug = computed(() => /^[a-z0-9_-]{1,}$/.test(slug.value ?? "") && (slug.value?.length ?? 0) >= 1);
 
 // check if project slug is available
 const { result: existingProject, loading: existingProjectLoading } = useQuery(
@@ -139,14 +140,14 @@ async function createProject() {
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-2 mt-4 text-5xl font-bold">Create your Bench</h1>
-      <p class="mx-4 mt-4 text-lg text-orange-700">AI instruction, evaluation and deployment.</p>
-      <p class="mt-1 text-sm text-gray-700">(Think big: a product/team, not a single feature/task)</p>
+      <p class="mx-4 mt-4 text-lg text-orange-700">Where bots work for you.</p>
+      <p class="mt-1 text-sm text-gray-700">(Think big: an entire team, product or life)</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- Full name & visibility -->
         <div class="flex w-full flex-col text-left">
           <!-- Title -->
-          <span class="text-md text-gray-700">Bench name</span>
+          <span class="text-sm font-bold text-gray-900">Name</span>
           <div class="flex flex-row">
             <!-- Name -->
             <input
@@ -205,25 +206,20 @@ async function createProject() {
               </FadeTransition>
             </Listbox>
           </div>
-          <!-- Validation message -->
-          <div class="text-left">
-            <FadeTransition mode="out-in">
-              <span class="mt-1 text-sm text-yellow-600" v-if="!isValidName">That's not a name we can print.</span>
-              <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
-            </FadeTransition>
-          </div>
+          <!-- Validation message :ValidationMessage -->
+          <ValidationMessage name="name" :valid="isValidName" />
         </div>
 
         <!-- Owner & slug -->
         <div class="flex w-full flex-col">
           <!-- Title -->
-          <span class="text-md text-left text-gray-700">Bench location</span>
+          <span class="text-left text-sm font-bold text-gray-900">Location</span>
           <!-- Owner & slug -->
           <div class="flex w-full flex-row">
             <OwnerSelect v-model="owner">
               <template v-slot:button="{ open }">
                 <ListboxButton
-                  class="mt-1 flex flex-row items-center gap-1 rounded-sm rounded-r-none border border-orange-600 px-3 py-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+                  class="mt-1 flex flex-row items-center gap-1 rounded-sm rounded-r-none border border-orange-600 px-3 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
                   :class="open ? 'bg-orange-100' : ''"
                 >
                   <p class="">{{ owner?.slug }}</p>
@@ -235,31 +231,21 @@ async function createProject() {
               type="text"
               minlength="3"
               maxlength="128"
-              pattern="[a-z0-9_-]+"
+              pattern="[a-z0-9_-]"
               :value="slug"
               @input="(event) => ((slug = event.target?.value), (slugModified = true))"
               class="mt-1 w-full rounded-sm rounded-l-none border border-l-0 border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
           </div>
-          <!-- Validation message (below both) -->
-          <div class="text-left">
-            <FadeTransition mode="out-in">
-              <span v-if="!isValidSlug" class="mt-1 text-sm text-orange-600">
-                The bots want something like <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
-              </span>
-              <span v-else-if="existingProjectLoading" class="mt-1">&nbsp;</span>
-              <span v-else-if="!isAvailableSlug" class="mt-1 text-sm text-red-600">
-                That location is
-                <router-link
-                  :to="`/${owner?.slug}/${slug}`"
-                  class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
-                  >taken</router-link
-                >.
-              </span>
-              <span v-else class="mt-1 text-sm text-gray-500">Yours for the taking.</span>
-            </FadeTransition>
-          </div>
+          <!-- Validation message (below both) :ValidationMessage -->
+          <ValidationMessage
+            name="location"
+            :valid="isValidSlug"
+            :loading="existingProjectLoading"
+            :unavailable="!isAvailableSlug"
+            :takenTo="`/${owner?.slug}/${slug}`"
+          />
         </div>
 
         <button
@@ -268,7 +254,7 @@ async function createProject() {
           :class="{ 'pointer-events-none opacity-50': !canComplete }"
           @click="createProject"
         >
-          Build &rarr;
+          Craft &rarr;
         </button>
       </div>
     </div>

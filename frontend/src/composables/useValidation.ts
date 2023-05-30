@@ -6,12 +6,12 @@ export function useValidName(name: Ref<string | null>) {
   return { valid: computed(() => (name.value?.length ?? 0) >= 2) };
 }
 
-export function isValidSlug(slug: string): boolean {
-  return /^[a-z0-9_-]{3,}$/.test(slug ?? "") && (slug.length ?? 0) >= 4;
+export function isValidSlug(slug: string, minLength = 3): boolean {
+  return /^[a-z0-9_-]+$/.test(slug ?? "") && (slug.length ?? 0) >= minLength;
 }
 
-export function useValidSlug(slug: Ref<string | null>, me?: Ref<{ id: string } | null>) {
-  const valid = computed(() => isValidSlug(slug.value ?? ""));
+export function useValidSlug(slug: Ref<string | null>, me?: Ref<{ id: string } | null>, minLength = 3) {
+  const valid = computed(() => isValidSlug(slug.value ?? "", minLength));
   const available = computed(() => owner.value?.ownerBySlug == null || owner.value.ownerBySlug?.id == me?.value?.id);
   const { result: owner, loading } = useQuery(
     graphql(/* GraphQL */ `

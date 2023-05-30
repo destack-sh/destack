@@ -1,7 +1,7 @@
 import NotFound from "@/routes/NotFound.vue";
 import Bench from "@/routes/Bench.vue";
 import Home from "@/routes/Home.vue";
-import CreateProject from "@/routes/CreateProject.vue";
+import CreateBench from "@/routes/CreateBench.vue";
 import Signup from "@/routes/Signup.vue";
 import CompleteSignup from "@/routes/CompleteSignup.vue";
 import Login from "@/routes/Login.vue";
@@ -22,7 +22,7 @@ const routes = [
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
   { path: "/signup/complete", name: "CompleteSignup", component: CompleteSignup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
-  { path: "/new", name: "CreateProject", component: CreateProject, props: forwardQueryAndParams },
+  { path: "/new", name: "CreateBench", component: CreateBench, props: forwardQueryAndParams },
   {
     path: "/organizations/new",
     name: "CreateOrganization",

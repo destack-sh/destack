@@ -10,7 +10,7 @@ const addables = computed(() =>
   [
     {
       name: "New Bench",
-      to: { name: "CreateProject" },
+      to: { name: "CreateBench" },
       icon: SparklesIcon,
     },
     {

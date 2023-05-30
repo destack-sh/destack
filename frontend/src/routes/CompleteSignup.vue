@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
+import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { useValidName, useValidSlug } from "@/composables/useValidation";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useOperations } from "@/state/operations";
@@ -122,12 +122,7 @@ async function completeSignup() {
             @keydown.tab.exact="autofillName"
             spellcheck="false"
           />
-          <FadeTransition mode="out-in">
-            <span class="mt-1 text-sm text-yellow-600" v-if="!nameValidation.valid.value"
-              >The bots don't like this name.</span
-            >
-            <span class="mt-1 text-sm text-gray-500" v-else>Great name.</span>
-          </FadeTransition>
+          <ValidationMessage name="name" :valid="nameValidation.valid.value" />
         </div>
 
         <!-- Username -->
@@ -137,28 +132,21 @@ async function completeSignup() {
             type="text"
             minlength="3"
             maxlength="128"
-            pattern="[a-z0-9_-]+"
+            pattern="[a-z0-9_-]"
             :placeholder="auth.me.value?.username || 'yatima'"
             v-model="username"
             class="mt-1 w-full rounded-sm border border-orange-600 py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             @keydown.tab.exact="autofillUsername"
             spellcheck="false"
           />
-          <FadeTransition mode="out-in">
-            <span v-if="!slugValidation.valid.value" class="mt-1 text-sm text-orange-600">
-              Invalid username. <span class="font-mono text-xs text-gray-500">[a-z0-9_-]{3,}</span>
-            </span>
-            <span v-else-if="slugValidation.loading.value" class="mt-1">&nbsp;</span>
-            <span v-else-if="!slugValidation.available.value" class="mt-1 text-sm text-red-600">
-              That username is
-              <router-link
-                :to="`/${username}`"
-                class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
-                >taken</router-link
-              >.
-            </span>
-            <span v-else class="mt-1 text-sm text-gray-500">Yours for the taking.</span>
-          </FadeTransition>
+          <ValidationMessage
+            name="username"
+            :valid="slugValidation.valid.value"
+            pattern="[a-z0-9_-]{3,}"
+            :loading="slugValidation.loading.value"
+            :unavailable="!slugValidation.available.value"
+            :taken-to="`/${username}`"
+          />
         </div>
 
         <button
