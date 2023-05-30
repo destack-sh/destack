@@ -1,7 +1,5 @@
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID
 
 import pytz
 from django.contrib.auth.base_user import BaseUserManager
@@ -18,6 +16,7 @@ from bench.models.organization import (
 )
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
+from bench.msg.messages import ClientData
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 if TYPE_CHECKING:
@@ -199,25 +198,6 @@ class Client(UUIDModel):
         return f"<Client {self}>"
 
     objects = ClientManager()
-
-
-@dataclass(repr=False, slots=True)  # not sure where to put this?
-class ClientData:
-    id: UUID
-    created_at: datetime
-    last_seen_at: datetime
-    closed_at: Optional[datetime]
-    user_id: UUID
-    type: ClientType
-    device_name: Optional[str]
-    browser_name: Optional[str]
-    project_id: Optional[UUID]
-    project_version_id: Optional[UUID]
-    file_id: Optional[UUID]
-    statement_id: Optional[UUID]
-    type_node_id: Optional[UUID]
-    record_id: Optional[UUID]
-    path: Optional[str]
 
 
 def rmap_client(client: Client) -> ClientData:
