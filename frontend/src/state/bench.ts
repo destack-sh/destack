@@ -760,6 +760,7 @@ export class FileEditor extends Editor {
   }
 
   addToSelection(element: FileElement): void {
+    if (element.__typename == null) throw new Error(`element ${element.id} has no __typename`);
     if (this.selectedElementType != element.__typename) {
       // reset selection
       this.selectedElementType = element.__typename;
