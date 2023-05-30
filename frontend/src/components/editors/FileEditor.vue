@@ -9,7 +9,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
-import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/editor";
+import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";

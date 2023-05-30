@@ -4,7 +4,7 @@ import EditorInterface from "@/components/editors/Editor.vue";
 import EmptyEditor from "@/components/editors/EmptyEditor.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type Editor, type EditorGroup } from "@/state/editor";
+import { useBenchState, type Editor, type EditorGroup } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";

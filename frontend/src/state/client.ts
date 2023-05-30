@@ -1,7 +1,7 @@
 import { graphql, useFragment } from "@/gql";
 import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";

@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import type { Secret } from "@/gql/graphql";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { useSecretOps } from "@/state/operations/secret";
 import { SECRET_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";

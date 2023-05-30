@@ -7,7 +7,7 @@ import {
   type InterpModule,
   type InterpSymbol,
 } from "@/gql/graphql";
-import { FileEditor, useBenchState } from "@/state/editor";
+import { FileEditor, useBenchState } from "@/state/bench";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";

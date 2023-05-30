@@ -8,7 +8,7 @@ import {
   CONTENT_WIDTH_WIDE,
   useAppearance,
 } from "@/state/appearance";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, HashtagIcon, MapIcon, MoonIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";

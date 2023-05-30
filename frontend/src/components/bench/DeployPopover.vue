@@ -5,7 +5,7 @@ import Switch from "@/components/basic/Switch.vue";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { DeploymentStatus, DeploymentType, StatementType, SymbolType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { ProjectHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";

@@ -1,6 +1,6 @@
 import { graphql, useFragment } from "@/gql";
 import { ExecutionStatus } from "@/gql/graphql";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { getUpdatedConnectionQuery } from "@/utils/connection";
 import { wrapValueRefs } from "@/utils/functools";
 import { useQuery } from "@vue/apollo-composable";

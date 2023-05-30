@@ -6,7 +6,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
-import type { TypeAction } from "@/state/editor";
+import type { TypeAction } from "@/state/bench";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { syncProperty } from "@/utils/sync";
 import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";

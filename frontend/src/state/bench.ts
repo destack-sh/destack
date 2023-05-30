@@ -466,19 +466,19 @@ export function useBenchPersistence(intervalMs = 1000) {
   const save = () => {
     // save editor state by project id
     if (bench.currentProjectId == null) return;
-    localStorage.setItem(`editor-state-${bench.currentProjectId}`, benchStateToJson(bench));
+    localStorage.setItem(`bench-state-${bench.currentProjectId}`, benchStateToJson(bench));
   };
 
   const load = () => {
     // load editor state by project id
     if (bench.currentProjectId == null) return;
-    const state = localStorage.getItem(`editor-state-${bench.currentProjectId}`);
+    const state = localStorage.getItem(`bench-state-${bench.currentProjectId}`);
     if (state) {
       try {
         benchInitFromJson(bench, state);
-        console.log(`restored editor state for project ${bench.currentProjectId}`);
+        console.log(`restored bench state for project ${bench.currentProjectId}`);
       } catch (e) {
-        console.error(`failed to restore editor state for project ${bench.currentProjectId}`);
+        console.error(`failed to restore bench state for project ${bench.currentProjectId}`);
       }
     }
   };

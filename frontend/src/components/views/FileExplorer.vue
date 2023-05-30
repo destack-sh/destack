@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
-import { useBenchState, type FileHeader, type ViewId } from "@/state/editor";
+import { useBenchState, type FileHeader, type ViewId } from "@/state/bench";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 

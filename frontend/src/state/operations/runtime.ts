@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 

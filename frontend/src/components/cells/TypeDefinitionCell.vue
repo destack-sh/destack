@@ -8,7 +8,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/state/statement";
 import { TypeTag } from "@/gql/graphql";
-import type { StatementAction } from "@/state/editor";
+import type { StatementAction } from "@/state/bench";
 import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { TypeFlag } from "@/state/runtime";
 import { generateKeyBetween } from "@/utils/fractional";

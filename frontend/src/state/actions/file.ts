@@ -1,5 +1,5 @@
 import { provideGlobalAction } from "@/state/actions";
-import { useBenchState, type FileHeader } from "@/state/editor";
+import { useBenchState, type FileHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newFileId } from "@/state/operations/file";
 import { computed } from "vue";

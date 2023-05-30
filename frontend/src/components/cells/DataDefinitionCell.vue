@@ -15,7 +15,7 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useEditorContext, type StatementAction, type StatementHeader } from "@/state/editor";
+import { useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
