@@ -807,7 +807,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field.id, 'value')"
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="h-full w-full self-start overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
           :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
         />
