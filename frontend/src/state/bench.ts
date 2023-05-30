@@ -760,8 +760,12 @@ export class FileEditor extends Editor {
   }
 
   addToSelection(element: FileElement): void {
-    const selection = this.getSelection(element.__typename);
-    if (selection == null) return;
+    if (this.selectedElementType != element.__typename) {
+      // reset selection
+      this.selectedElementType = element.__typename;
+      this.selectedElementIds = [];
+    }
+    const selection = this.getSelection(element.__typename) as string[];
     if (selection.find((e) => e == element.id)) return;
     console.debug("add to selection", this.path, element.id, selection.length);
     selection.push(element.id);
