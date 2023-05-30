@@ -11,6 +11,7 @@ TEST: bool = (
     or "pytest" in sys.argv[0]
     or get_from_env("TEST", False, type_cast=str_to_bool)
 )
+LOCAL = os.environ.get("LOCAL_ENV", "local") == "local"
 
 PROMETHEUS_EXPORT_MIGRATIONS: bool = get_from_env(
     "PROMETHEUS_EXPORT_MIGRATIONS", False, type_cast=str_to_bool

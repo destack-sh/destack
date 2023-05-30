@@ -112,18 +112,24 @@ export function useObjectOps() {
   async function doUpload(objectId: string, presignedPostUrl: string, file: File) {
     /** Actually upload the given file to the pre-signed URL with POST multipart/form-data */
     const formData = new FormData();
-    formData.append("file", file);
     // strip parameters from the URL and add to the form data (not sure why this is necessary?)
     const url = new URL(presignedPostUrl);
     for (const [key, value] of url.searchParams.entries()) {
       formData.append(key, value);
     }
-    const rep = await fetch(presignedPostUrl, {
-      method: "POST",
-      body: formData,
-    });
-    if (!rep.ok) {
-      throw new Error(`failed to upload file: ${rep.status} ${rep.statusText}`);
+    formData.append("file", file); // must be last
+    try {
+      const urlMain = url.origin + url.pathname;
+      const rep = await fetch(urlMain, {
+        method: "POST",
+        body: formData,
+      });
+      if (!rep.ok) {
+        throw new Error(`failed to upload file: ${rep.status} ${rep.statusText}`);
+      }
+    } catch (e) {
+      console.error(`failed to upload file: ${e}`, e);
+      throw e;
     }
   }
 

@@ -16,7 +16,7 @@ from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
 from bench.models.object import get_project_bucket_name, get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import UUIDModel, walk_children_bfs_batched
-from bench.settings import DEBUG, ENCRYPT_BENCH_S3_BUCKETS
+from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -244,20 +244,8 @@ def create_project_s3_bucket(project: Project):
     )
     if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
         raise RuntimeError(f"failed to create s3 bucket: {response}")
-    # make bucket public
-    response = s3_client.put_public_access_block(
-        Bucket=project.bucket_name,
-        PublicAccessBlockConfiguration={
-            "BlockPublicAcls": False,
-            "IgnorePublicAcls": False,
-            "BlockPublicPolicy": False,
-            "RestrictPublicBuckets": False,
-        },
-    )
-    if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-        raise RuntimeError(f"failed to set public access block on s3 bucket: {response}")
-    # enable cors if not in dev
-    if not DEBUG:
+    if not LOCAL:
+        # enable cors
         response = s3_client.put_bucket_cors(
             Bucket=project.bucket_name,
             CORSConfiguration={
@@ -274,7 +262,6 @@ def create_project_s3_bucket(project: Project):
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise RuntimeError(f"failed to set cors on s3 bucket: {response}")
-    if ENCRYPT_BENCH_S3_BUCKETS:
         # set encryption
         response = s3_client.put_bucket_encryption(
             Bucket=project.bucket_name,

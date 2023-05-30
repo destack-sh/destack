@@ -33,12 +33,7 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Include]: "include",
   [StatementModifier.Magic]: "magic",
 };
-export const SUPPORTED_MODIFIERS = [
-  StatementModifier.Like,
-  StatementModifier.Unlike,
-  StatementModifier.Check,
-  StatementModifier.Local,
-];
+export const SUPPORTED_MODIFIERS = [StatementModifier.Like, StatementModifier.Unlike, StatementModifier.Check];
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
 export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Boolean]: "boolean",

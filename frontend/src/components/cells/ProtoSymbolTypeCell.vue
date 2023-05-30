@@ -63,7 +63,10 @@ watch(content, (newContent) => {
 });
 
 function handleKeyword(newContentTrim: string): boolean {
-  if (SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])) {
+  if (
+    MODIFIER_BY_KEYWORD[newContentTrim] != null &&
+    SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])
+  ) {
     context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
   } else if (SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
     context.morphToDefinition({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
