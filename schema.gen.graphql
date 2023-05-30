@@ -1715,7 +1715,6 @@ enum StatementModifier {
   UNLIKE
   CHECK
   MAGIC
-  LOCAL
 }
 
 input StatementMorphInput {
