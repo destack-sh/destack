@@ -51,7 +51,7 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Video]: "video",
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
-  [TypeTag.Struct]: "struct",
+  [TypeTag.Struct]: "type",
   [TypeTag.Union]: "union",
 };
 export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);

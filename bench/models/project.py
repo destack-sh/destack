@@ -626,7 +626,7 @@ class File(UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
-    revision = models.IntegerField(default=1)
+    revision = models.IntegerField(default=0)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
