@@ -2014,7 +2014,6 @@ export enum StatementModifier {
   Check = "CHECK",
   Include = "INCLUDE",
   Like = "LIKE",
-  Local = "LOCAL",
   Magic = "MAGIC",
   Unlike = "UNLIKE",
   Var = "VAR",
@@ -3897,11 +3896,6 @@ export type CreateStatementMutation = {
         reference?: { __typename?: "Statement"; id: any } | null;
         referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
         typeNodes: Array<{ __typename?: "SimpleTypeNode"; id: any }>;
-        records: {
-          __typename?: "DatasetRecordConnection";
-          totalCount?: number | null;
-          edges: Array<{ __typename?: "DatasetRecordEdge"; node: { __typename?: "DatasetRecord"; id: any } }>;
-        };
       };
 };
 
@@ -10504,49 +10498,6 @@ export const CreateStatementDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "records" },
-                        arguments: [
-                          {
-                            kind: "Argument",
-                            name: { kind: "Name", value: "filters" },
-                            value: {
-                              kind: "ObjectValue",
-                              fields: [
-                                {
-                                  kind: "ObjectField",
-                                  name: { kind: "Name", value: "isVisible" },
-                                  value: { kind: "BooleanValue", value: true },
-                                },
-                              ],
-                            },
-                          },
-                        ],
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "edges" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "node" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
                         },
                       },
                     ],

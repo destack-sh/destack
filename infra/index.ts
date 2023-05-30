@@ -96,7 +96,7 @@ const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
 const db = new aws.rds.Cluster("db", {
   engine: "aurora-postgresql",
   clusterIdentifier: "db",
-  engineVersion: "14.3",
+  engineVersion: "14.5",
   databaseName: "postgres",
   deletionProtection: true,
   masterUsername: "postgres",

@@ -152,7 +152,6 @@ class StatementModifier(models.TextChoices):
     UNLIKE = "unlike"
     CHECK = "check"
     MAGIC = "magic"
-    LOCAL = "local"
 
 
 class SymbolType(models.TextChoices):
@@ -494,10 +493,6 @@ class InterpSymbol:
     @property
     def fqn(self) -> str | None:
         return self.definition.source.fqn if self.definition.source else None
-
-    @property
-    def is_local(self) -> bool:
-        return self.modifier == StatementModifier.LOCAL
 
     @property
     def is_root(self):

@@ -129,14 +129,6 @@ export function useStatementOps() {
             typeNodes(filters: { isVisible: true }) {
               id
             }
-            records(filters: { isVisible: true }) {
-              totalCount
-              edges {
-                node {
-                  id
-                }
-              }
-            }
           }
           ...OperationInfoContent
         }
@@ -184,10 +176,6 @@ export function useStatementOps() {
             description: vars.description,
             code: vars.code,
             referenceProjectVersion: null,
-            records: {
-              totalCount: 0,
-              edges: [],
-            },
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
             typeNodes: [],
