@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
-import { useBenchState } from "@/state/editor";
+import { useBenchState } from "@/state/bench";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/runtime";
 import { useRelativeDropZone } from "@/utils/drop";

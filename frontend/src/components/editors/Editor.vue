@@ -9,7 +9,7 @@ import {
   type Editor,
   type FileEditor,
   RunEditor,
-} from "@/state/editor";
+} from "@/state/bench";
 import { useEventListener } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, toRef } from "vue";
 

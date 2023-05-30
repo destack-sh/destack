@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
-import { useBenchState, type ViewId } from "@/state/editor";
+import { useBenchState, type ViewId } from "@/state/bench";
 import { useCurrentInterpModule, useSymbolNavigation } from "@/state/runtime";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";

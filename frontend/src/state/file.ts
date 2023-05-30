@@ -1,6 +1,6 @@
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
-import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/editor";
+import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";

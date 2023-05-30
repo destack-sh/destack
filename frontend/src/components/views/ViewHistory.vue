@@ -5,7 +5,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import { provideGlobalAction } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type ProjectHeader } from "@/state/editor";
+import { useBenchState, type ProjectHeader } from "@/state/bench";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";

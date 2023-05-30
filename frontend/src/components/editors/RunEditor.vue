@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type EditorContext, type RunEditor, type StatementAction } from "@/state/editor";
+import { useBenchState, type EditorContext, type RunEditor, type StatementAction } from "@/state/bench";
 import { newExecutionId, symbolOf, TypeFlag } from "@/state/runtime";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon } from "@heroicons/vue/24/solid";

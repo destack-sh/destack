@@ -24,7 +24,7 @@ import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
-import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } from "@/state/editor";
+import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";

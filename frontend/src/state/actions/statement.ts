@@ -1,7 +1,7 @@
 import { activeFileState, navigationContexts, type NavigationContext } from "@/state/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
-import { useBenchState, type StatementHeader } from "@/state/editor";
+import { useBenchState, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
 import { useSymbolNavigation } from "@/state/runtime";

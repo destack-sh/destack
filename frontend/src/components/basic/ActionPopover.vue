@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
-import type { Action } from "@/state/editor";
+import type { Action } from "@/state/bench";
 import {
   Combobox,
   ComboboxInput,

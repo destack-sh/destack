@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
-import { useBenchState, type EditorGroup } from "@/state/editor";
+import { useBenchState, type EditorGroup } from "@/state/bench";
 import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";

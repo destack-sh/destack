@@ -1,5 +1,5 @@
 import { provideGlobalAction } from "@/state/actions";
-import { useBenchState, type Editor } from "@/state/editor";
+import { useBenchState, type Editor } from "@/state/bench";
 import { computed } from "vue";
 
 export function useEditorActions() {

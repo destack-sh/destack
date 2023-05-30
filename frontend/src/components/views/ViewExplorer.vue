@@ -3,7 +3,7 @@ import FileExplorer from "@/components/views/FileExplorer.vue";
 import SymbolExplorer from "@/components/views/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import type { FileHeader } from "@/state/editor";
+import type { FileHeader } from "@/state/bench";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";

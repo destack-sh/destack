@@ -1,5 +1,5 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
-import { type EditorContext, EDITOR_CONTEXT } from "@/state/editor";
+import { type EditorContext, EDITOR_CONTEXT } from "@/state/bench";
 
 export const VIEW_MARGIN = 8;
 

@@ -4,7 +4,7 @@ import DeclarationCell from "@/components/cells/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
-import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/editor";
+import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
