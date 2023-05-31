@@ -85,11 +85,11 @@ defineExpose({
       :key="symbol.id"
       :ref="(ref) => symbolsGrid.registerColumnRef(symbol.id, 'name', ref)"
       tabindex="-1"
-      class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 hover:text-gray-900 focus:border-orange-600"
+      class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
         'border-l-2 border-gray-300 pl-2.5': symbol.generated,
         'bg-orange-100 text-orange-600': symbol.id == bench?.focusedStatementId,
-        'text-gray-700 hover:text-orange-600': symbol.id != bench?.focusedStatementId,
+        'text-gray-700 hover:bg-orange-100': symbol.id != bench?.focusedStatementId,
       }"
       @click.prevent="focusSymbol(symbol)"
       @mousedown.prevent="focusSymbol(symbol)"

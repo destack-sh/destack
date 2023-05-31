@@ -32,6 +32,7 @@ providers: list[Provider] = [
         name="OpenAI",
         slug="openai",
         text_models=[
+            "gpt-4",
             ("gpt-3-5-turbo", "gpt-3.5-turbo"),
             "text-davinci-003",
             "text-ada-001",
@@ -39,24 +40,15 @@ providers: list[Provider] = [
         ],
     ),
     Provider(
-        name="Goose AI",
-        slug="gooseai",
-        text_models=["fairseq-13b", "fairseq-6b-7b", "gpt-j-20b", "gpt-j-6b"],
-    ),
-    Provider(
-        name="Cohere",
-        slug="cohere",
-        text_models=["xlarge", ("command-xlarge", "command-xlarge-beta")],
-    ),
-    Provider(
-        name="Forefront",
-        slug="forefront",
-        text_models=["codegen-16b", "gpt-j-6b", "gpt-neox-20b", "codegen-16b-nl"],
-    ),
-    Provider(
         name="Anthropic",
         slug="anthropic",
         text_models=[("claude-instant", "claude-instant-v1.0"), ("claude", "claude-v1.3")],
+    ),
+    Provider(
+        name="Hugging Face",
+        slug="huggingface",
+        text_models=[("starcoder", "bigcode/starcoder")],
+        image_models=[("stable-diffusion", "runwayml/stable-diffusion-v1-5")],
     ),
     Provider(name="Stability AI", slug="stabilityai", text_models=[]),
 ]

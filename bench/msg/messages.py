@@ -15,6 +15,7 @@ from bench.language.wire import (
     ExecutionTriggerType,
     RemoteObjectData,
     SecretData,
+    XBlockData,
 )
 from bench.runtime.type import ExecutionFrameData
 
@@ -54,6 +55,8 @@ class NMessageType(StrEnum):
     REPLY_WRITE_OBJECT = "object.write.rep"
     REQUEST_READ_SECRET = "secret.read"
     REPLY_READ_SECRET = "secret.read.rep"
+    REQUEST_RUN_INFERENCE = "model.inference"
+    REPLY_RUN_INFERENCE = "model.inference.rep"
     EXECUTION_CHANGED = "execution.changed"
     EXECUTION_SAVED = "execution.saved"
     EXECUTION_MARKED_DEAD = "execution.marked_dead"
@@ -73,8 +76,9 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
-    NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
+    NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
+    NMessageType.REQUEST_RUN_INFERENCE: NMessageType.REPLY_RUN_INFERENCE,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_CANCEL_RUN: NMessageType.REPLY_CANCEL_RUN,
     NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
@@ -172,12 +176,6 @@ class RepRegisterWorkerPayload:
 @payload(NMessageType.WORKER_HEARTBEAT)
 class WorkerHeartbeatPayload:
     worker_id: UUID
-
-
-class BuildErrorType(enum.StrEnum):
-    NOT_READY = "not_ready"
-    INVALID_BUILDABLE = "invalid_buildable"
-    COMMITTED = "committed"
 
 
 @payload(NMessageType.REQUEST_RUN)
@@ -300,6 +298,20 @@ class ReqReadSecretPayload:
 @payload(NMessageType.REPLY_READ_SECRET)
 class RepReadSecretPayload:
     secrets: list[SecretData]
+
+
+@payload(NMessageType.REQUEST_RUN_INFERENCE)
+class ReqRunInferencePayload:
+    model_fqn: str
+    model_external_name: str
+    modality: str
+    blocks: list[XBlockData]
+    settings: dict[str, typing.Any]
+
+
+@payload(NMessageType.REPLY_RUN_INFERENCE)
+class RepRunInferencePayload:
+    output: Optional[typing.Any] = None
 
 
 @payload(NMessageType.REQUEST_INTERP)

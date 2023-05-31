@@ -76,7 +76,7 @@ export function useStatementContext() {
       if ((statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray) {
         return "table";
       } else {
-        return "value";
+        return "record";
       }
     }
 

@@ -11,7 +11,9 @@ from typing import Any, Optional
 import pytz
 import structlog
 
-from bench.language import Model, XBlock
+from bench.language import Model, XBlock, wire
+from bench.msg.core import NMessage, request
+from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -85,8 +87,12 @@ SETTINGS_CLS_BY_MODALITY = {
 }
 
 
+@dataclass
 class ModelInference:
     """Generic model with an endpoint for each core modality."""
+
+    external_name: str
+    key: str | None
 
     def incapable_error(self, method):
         modality = Modality(method.__name__)
@@ -154,8 +160,8 @@ class Inference:
 InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
 
 
-class InferenceProxy:
-    """A worker-side proxy for tracing (and caching) a specific inference endpoint."""
+class CachedInferenceEndpoint:
+    """Trace and cache a specific inference endpoint."""
 
     def __init__(
         self,
@@ -227,3 +233,31 @@ class InferenceProxy:
             self.tracer.inference_exception(self.model, blocks, settings, exception)
             log.debug("inference.exception", excinfo=True)
             raise
+
+
+class RemoteInferenceEndpoint:
+    """Proxy an inference endpoint to a remote service."""
+
+    def __init__(
+        self,
+        model: Model,
+        modality: Modality,
+    ):
+        self.model = model
+        self.modality = modality
+
+    async def __call__(self, blocks: list[XBlock], settings: Any) -> Any:
+        rep: NMessage[RepRunInferencePayload] = await request(
+            NMessageType.REQUEST_RUN_INFERENCE,
+            ReqRunInferencePayload(
+                model_fqn=self.model.fqn,
+                model_external_name=self.model.external_name,
+                modality=self.modality,
+                blocks=[wire.rmap_xblock(b) for b in blocks],
+                settings=asdict(settings),
+            ),
+            RepRunInferencePayload,
+        )
+        if rep.p.output is None:
+            raise RuntimeError("remote inference failed")
+        return rep.p.output

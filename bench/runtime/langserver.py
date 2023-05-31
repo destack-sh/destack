@@ -32,15 +32,18 @@ from bench.msg.messages import (
     RepReadObjectPayload,
     RepReadSecretPayload,
     RepRegisterWorkerPayload,
+    RepRunInferencePayload,
     RepWriteModulePayload,
     ReqInterpPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
     ReqReadSecretPayload,
     ReqRegisterWorkerPayload,
+    ReqRunInferencePayload,
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
+from bench.runtime.inference import SETTINGS_CLS_BY_MODALITY, Modality
 from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
@@ -48,6 +51,7 @@ from bench.runtime.interp import (
     get_requirements,
     interp_module,
 )
+from bench.runtime.model import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.mutate import map_mutation_to_public
 from bench.runtime.tracing import WorkerContext
 from bench.runtime.type import ExecutionFrameData
@@ -108,6 +112,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
+            await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
             await subscribe(
                 f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
@@ -216,6 +221,30 @@ class LanguageServer:
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepReadSecretPayload(secrets=secrets))
+
+    @message_handler
+    async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
+        modality = Modality(msg.p.modality)
+        logger.debug("inference.run", msg=msg, model=msg.p.model_fqn, modality=modality)
+        key = get_model_key_from_env(msg.p.model_fqn)
+        inference = get_inference_endpoint(
+            model=msg.p.model_fqn,
+            modality=modality,
+            external_name=msg.p.model_external_name,
+            key=key,
+        )
+        endpoint = getattr(inference, modality.value)
+        try:
+            settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
+            xblocks = [wire.wmap_xblock(xblock) for xblock in msg.p.blocks]
+            output = await endpoint(xblocks, settings)
+        except Exception as e:
+            sentry_enabled = sentry_capture_if_enabled(e)
+            logger.error(
+                "inference.run.failed", msg=msg, exc_info=True, sentry_enabled=sentry_enabled
+            )
+            output = None
+        await msg.reply(RepRunInferencePayload(output=output))
 
     @message_handler
     async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):

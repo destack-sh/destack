@@ -91,7 +91,7 @@ def map_mutation_from_public(
         project_version_id = thing.project_version_id
         file_id = thing.file_id
         statement_id = thing.id
-    elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord, models.XBlock)):
+    elif isinstance(thing, (models.SimpleTypeNode, models.DatasetRecord)):
         project_version_id = thing.statement.project_version_id
         file_id = thing.statement.file_id
         statement_id = thing.statement_id

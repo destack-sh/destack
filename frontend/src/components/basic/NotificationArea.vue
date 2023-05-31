@@ -64,7 +64,7 @@ function freezeNotification(notification: DisplayNotification) {
           <!-- Main message -->
           <div class="m-3 ml-0 flex max-w-full flex-1 flex-col">
             <h3 class="text-sm font-bold text-gray-900">{{ notification.message }}</h3>
-            <p v-if="notification.description" class="min-w-0 max-w-full truncate pt-0.5 text-sm text-gray-500">
+            <p v-if="notification.description" class="min-w-0 max-w-full pt-0.5 text-sm text-gray-500">
               {{ notification.description }}
             </p>
           </div>
