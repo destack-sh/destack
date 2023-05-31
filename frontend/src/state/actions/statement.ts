@@ -44,12 +44,13 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       if (cur.value?.above != null) {
         const above = cur.value.above;
         editor.value?.focusElement(above, true);
-        file.value?.statementsComponents[above.id]?.focus("last");
+        if (editor.value?.editing) {
+          file.value?.statementsComponents[above.id]?.focus("last");
+        }
       } else if (cur.value?.statement == null && statements.value.length > 0) {
         // nothing focused, focus last statement
         const last = statements.value[statements.value.length - 1];
         editor.value?.focusElement(last, true);
-        file.value?.statementsComponents[last.id]?.focus("last");
       } else if (cur.value?.statement != null) {
         // navigate up from statements
         file.value?.navigateUp();
