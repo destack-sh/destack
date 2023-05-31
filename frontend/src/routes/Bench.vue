@@ -490,7 +490,7 @@ onBeforeUnmount(() => {
           </FadeTransition>
           <!-- Read-only project notice -->
           <div
-            v-if="project != null && !project?.canWrite"
+            v-if="project != null && bench.readonly"
             class="ml-2 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
