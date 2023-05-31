@@ -12,17 +12,36 @@ import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
 import { useFullscreen } from "@vueuse/core";
 import { onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
+import { OperationMessageKind, type OperationInfo } from "@/gql/graphql";
 
 // handle errors in operations with notification
 const notifications = useNotifications();
 function onError(operation: Operation<unknown>, error: unknown) {
   // check for error response
   console.error(`operation ${operation.type} ${operation.id} failed`, error);
+  let message = "Operation failed";
+  let description;
+  if ((error as OperationInfo)?.__typename == "OperationInfo") {
+    const operror = error as OperationInfo;
+    if (operror.messages.some((m) => m.kind == OperationMessageKind.Permission)) {
+      message = "Permission denied";
+      description = "The bots won't let you do this.";
+    } else if (operror.messages.some((m) => m.kind == OperationMessageKind.Validation)) {
+      message = "Validation error";
+      description = "The bots don't like this request.";
+    } else {
+      message = "Internal error";
+      description = "The bots are confused.";
+    }
+  } else {
+    message = "Unknown error";
+    description = `${operation.type} failed (id=${operation.id}).`;
+  }
   notifications.show({
     type: "operation.fail",
     kind: "error",
-    message: "Operation failed",
-    description: `Operation ${operation.type} was rejected (id=${operation.id}).`,
+    message,
+    description,
   });
 }
 errorListeners.push(onError);

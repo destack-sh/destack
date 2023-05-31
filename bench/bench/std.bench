@@ -1,5 +1,1 @@
 --- intrinsic ---
-# In-built simple types
-type Rating = number "0-5 stars"
-type Thumbs = boolean "yay or nay"
-type Bytes = number "number in bytes"
