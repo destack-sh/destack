@@ -1438,7 +1438,6 @@ enum RefType {
   FILE
   STATEMENT
   RECORD
-  XBLOCK
   TYPE_NODE
 }
 

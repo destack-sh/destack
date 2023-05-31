@@ -578,7 +578,6 @@ class RefType(models.TextChoices):
     FILE = "file", "File"
     STATEMENT = "statement", "Statement"
     RECORD = "record", "Record"
-    XBLOCK = "xblock", "XBlock"
     TYPE_NODE = "type_node", "TypeNode"
 
 
