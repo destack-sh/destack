@@ -8,13 +8,13 @@ import * as random from "@pulumi/random";
 
 // configuration
 const config = new pulumi.Config();
-const minClusterSize = config.getNumber("minClusterSize") || 2;
-const maxClusterSize = config.getNumber("maxClusterSize") || 3;
-const desiredClusterSize = config.getNumber("desiredClusterSize") || 2;
-const eksNodeInstanceType = config.get("eksNodeInstanceType") || "t3.medium";
-const vpcNetworkCidr = config.get("vpcNetworkCidr") || "10.0.0.0/16";
+const minClusterSize = config.getNumber("minClusterSize");
+const maxClusterSize = config.getNumber("maxClusterSize");
+const desiredClusterSize = config.getNumber("desiredClusterSize");
+const eksNodeInstanceType = config.get("eksNodeInstanceType");
+const vpcNetworkCidr = config.get("vpcNetworkCidr");
 
-// Create a new VPC
+// create a new VPC
 const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
   enableDnsHostnames: true,
   cidrBlock: vpcNetworkCidr,
@@ -24,13 +24,13 @@ const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
   ],
 });
 
-// Create the EKS cluster
+// create the EKS cluster
 const eksCluster = new eks.Cluster("eks-cluster", {
   name: "bench-" + config.require("env"),
   vpcId: eksVpc.vpcId,
-  // Public subnets will be used for load balancers
+  // public subnets for load balancers
   publicSubnetIds: eksVpc.publicSubnetIds,
-  // Private subnets will be used for cluster nodes
+  // private subnets for cluster nodes
   privateSubnetIds: eksVpc.privateSubnetIds,
   instanceType: eksNodeInstanceType,
   desiredCapacity: desiredClusterSize,
@@ -38,9 +38,8 @@ const eksCluster = new eks.Cluster("eks-cluster", {
   maxSize: maxClusterSize,
   nodeAssociatePublicIpAddress: false,
 });
-// add annotations for ALB to subnet tags
 
-// Image pull secrets for GHCR
+// image pull secrets for GHCR
 const ghrcToken = config.requireSecret("ghcrToken");
 const imagePullSecret = new k8s.core.v1.Secret(
   "image-pull-secret",
@@ -183,37 +182,48 @@ const redisSecurityGroup = new aws.ec2.SecurityGroup("redis", {
 const redisSubnetGroup = new aws.elasticache.SubnetGroup("redis", {
   subnetIds: eksVpc.privateSubnetIds,
 });
-const redis = new aws.elasticache.Cluster("redis", {
+// create redis users
+// (default user with no password and no access, root user with full access, restricted user with limited access)
+const redisRootPassword = new random.RandomPassword("redisRootPassword", {
+  length: 32,
+  special: false,
+});
+const redisRootUser = new aws.elasticache.User("redisRootUser", {
+  engine: "REDIS",
+  accessString: "on ~* +@all",
+  userId: "root",
+  userName: "root",
+  passwords: [redisRootPassword.result],
+});
+const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPassword", {
+  length: 32,
+  special: false,
+});
+const redisRestrictedUser = new aws.elasticache.User("redisRestrictedUser", {
+  engine: "REDIS",
+  accessString: "on ~* +get +set",
+  userId: "worker",
+  userName: "worker",
+  passwords: [redisRestrictedPassword.result],
+});
+// user group
+const redisUserGroup = new aws.elasticache.UserGroup("redisUserGroup", {
+  engine: "REDIS",
+  userGroupId: "redis-user-group",
+  userIds: ["default", redisRootUser.userId, redisRestrictedUser.userId],
+});
+// replication group with user ids
+const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
+  description: "Redis cluster",
   engine: "redis",
   nodeType: "cache.t3.micro",
-  numCacheNodes: 1,
+  numCacheClusters: 1,
   port: 6379,
   parameterGroupName: "default.redis7",
   securityGroupIds: [redisSecurityGroup.id],
+  userGroupIds: [redisUserGroup.userGroupId],
   subnetGroupName: redisSubnetGroup.id,
-});
-// Create full and restricted access users
-const rootRedisPassword = new random.RandomPassword("rootRedisPassword", {
-  length: 32,
-  special: true,
-});
-const rootRedisUser = new aws.elasticache.User("rootRedisUser", {
-  engine: "redis",
-  accessString: "on ~* +@all",
-  userId: "apiuser",
-  userName: "API User",
-  passwords: [rootRedisPassword.result],
-});
-const restrictedRedisPassword = new random.RandomPassword("restrictedRedisPassword", {
-  length: 32,
-  special: true,
-});
-const restrictedRedisUser = new aws.elasticache.User("restrictedRedisUser", {
-  engine: "redis",
-  accessString: "on ~service:* +get +set",
-  userId: "workeruser",
-  userName: "Worker User",
-  passwords: [restrictedRedisPassword.result],
+  transitEncryptionEnabled: true,
 });
 
 // NATS chart
@@ -299,7 +309,7 @@ const SECRET_MODEL_PROVIDER_VARS = [
   value: config.requireSecret(name),
 }));
 
-// Public load-balanced API service (also runs internal server)
+// public load-balanced API service (also runs internal server)
 const apiName = "api";
 const apiService = new k8s.core.v1.Service(
   apiName,
@@ -312,11 +322,9 @@ const apiService = new k8s.core.v1.Service(
   },
   { provider: eksCluster.provider }
 );
-
-// Internal worker service
+// internal worker service
 const workerName = "worker";
 
-// Use git commit hashes as version by default
 const version = config.require("version");
 // if version is 'current', get the current commit hash
 let imageVersion;
@@ -376,7 +384,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 { name: "RUN_INTSERVER", value: "true" },
                 {
                   name: "REDIS_URL",
-                  value: pulumi.interpolate`redis://${rootRedisUser.userName}:${rootRedisPassword.result}@${redis.cacheNodes[0].address}:${redis.cacheNodes[0].port}`,
+                  value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
                 },
                 ...SOCIAL_AUTH_ENV_VARS,
               ],
@@ -412,7 +420,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
                 ...BACKEND_ENV_VARS,
                 {
                   name: "REDIS_URL",
-                  value: pulumi.interpolate`redis://${restrictedRedisUser.userName}:${restrictedRedisPassword.result}@${redis.cacheNodes[0].address}:${redis.cacheNodes[0].port}`,
+                  value: pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
                 },
                 { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
               ],

@@ -27,19 +27,19 @@ config:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
   Bench:STABILITYAI_API_KEY:
     secure: AAABAM2Xg3uvdc5mnl9V5usqOYJy1hq5y3kUXUPruoHP3pvzYtZnv4VbXOJCaF3MCIxBSRgj6h5zOoFfu1cNvxFGZV2qBMLqU4AcDythIogFgHI=
-  Bench:apiAllowedHosts: "*"
-  Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
-  Bench:awsRegion: eu-central-1
   Bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
-  Bench:desiredClusterSize: "2"
-  Bench:eksNodeInstanceType: t3.medium
-  Bench:env: prod
   Bench:ghcrToken:
     secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
   Bench:kubecostToken:
     secure: AAABADxhpYcMMG9bqkEvKF/jedva+la5SiCBuNFNl4H+IhrwIxsWlVUYqaljio5+Kxgt4ZBH+I2TDMom2S+EFnTQQbdjB+k=
+  Bench:apiAllowedHosts: "*"
+  Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
+  Bench:awsRegion: eu-central-1
+  Bench:eksNodeInstanceType: t3.medium
+  Bench:env: prod
   Bench:maxClusterSize: "4"
+  Bench:desiredClusterSize: "2"
   Bench:minClusterSize: "2"
   Bench:version: "current"
   Bench:vpcNetworkCidr: 10.0.0.0/16
