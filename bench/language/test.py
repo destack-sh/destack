@@ -159,14 +159,20 @@ for doc in some_documents:
 def test_extract_code_references_shadowed():
     analysis = parse_code(
         """
-import numpy as np
-import pandas
-some_documents = []
-for doc in iter(some_documents):
-    pass
+import os
+test.env = str(list(os.environ.keys()))
+test.cwd = os.getcwd()
+file_paths = []
+# Walk through the directory and its subdirectories
+for root, dirs, files in os.walk(test.cwd):
+    for file in files:
+        file_paths.append(os.path.join(root, file))
+test.files = ",".join(file_paths[:50])
     """
     )
-    assert len(analysis.references) == 0
+    assert analysis.references == {
+        "test": StatementPath(".", "test"),
+    }
     assert not analysis.is_async
 
 

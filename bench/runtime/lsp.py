@@ -110,9 +110,19 @@ def parse_code(code: str | None) -> "CodeParse":
         def visit_For(self, node):
             if isinstance(node.target, ast.Name):
                 self.local_variables.add(node.target.id)
+            elif isinstance(node.target, ast.Tuple):
+                for target in node.target.elts:
+                    if isinstance(target, ast.Name):
+                        self.local_variables.add(target.id)
             self.generic_visit(node)
 
         def visit_AsyncFor(self, node):
+            if isinstance(node.target, ast.Name):
+                self.local_variables.add(node.target.id)
+            elif isinstance(node.target, ast.Tuple):
+                for target in node.target.elts:
+                    if isinstance(target, ast.Name):
+                        self.local_variables.add(target.id)
             self.is_async = True
             self.generic_visit(node)
 
