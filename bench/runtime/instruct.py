@@ -282,7 +282,7 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
 
 @source
 class SampleSource:
-    async def __call__(self) -> Data:
+    def __call__(self) -> Data:
         raise NotImplementedError
 
 
@@ -294,7 +294,7 @@ class SampleDatasetRandom(SampleSource):
     count: int
     seed: int
 
-    async def __call__(self) -> Data:
+    def __call__(self) -> Data:
         rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
         n_records = len(self.source_dataset.records)
@@ -320,7 +320,7 @@ class SampleFabricateRandom(SampleSource):
     type: Type
     count: int
 
-    async def __call__(self) -> Data:
+    def __call__(self) -> Data:
         target_dataset = anonymous_dataset(self.type, self.count)
         for i in range(self.count):
             target_dataset.records[i].data = fabricate_value(self.type)

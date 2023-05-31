@@ -55,6 +55,7 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
+from bench.runtime.build import XGenerationError, XPrompt
 from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
 from bench.runtime.model import get_inference_endpoints_cls
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -122,7 +123,7 @@ class Session:
         self.mutator = ModuleMutator(idx)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
-        self._cached_implementations: dict[tuple[UUID, UUID], AsyncCodeInstance] = {}
+        self._cached_implementations: dict[tuple[UUID, UUID], XPrompt] = {}
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -170,11 +171,11 @@ class Session:
         if self.default_build is not None:
             for instance in list(self.instances.values()):  # copy to avoid concurrent modification
                 if isinstance(instance, TaskInstance):
-                    _ = await self.get_implementations(instance, build=self.default_build)
+                    _ = self.get_implementations(instance, build=self.default_build)
 
-    async def get_implementations(
+    def get_implementations(
         self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
-    ) -> list["AsyncCodeInstance"]:
+    ) -> list[XPrompt]:
         """Gets or builds an implementation for a task."""
         from bench.runtime.build import build_task_implementation
 
@@ -197,7 +198,7 @@ class Session:
             cache_key = (task.id, model.id)
             if cache_key not in self._cached_implementations:
                 model_instance = instantiate_model(model, self)
-                self._cached_implementations[cache_key] = await build_task_implementation(
+                self._cached_implementations[cache_key] = build_task_implementation(
                     task, model_instance, self
                 )
             implementations.append(self._cached_implementations[cache_key])
@@ -467,6 +468,8 @@ class ModelInstance(SymbolInstance, Model):
 @dataclass(repr=False)
 class TaskInstance(SymbolInstance, Task):
     is_async = True
+    # should probably store last good implementation .. in redis?
+    last_good_impl_idx: int = 0
 
     async def __call__(
         self,
@@ -475,13 +478,35 @@ class TaskInstance(SymbolInstance, Task):
         model: Model | str = None,
         retries: int = None,
         cache: bool = None,
+        timeout: float = None,
         **kwargs,
     ):
-        implementations = await self.session.get_implementations(self, build=build, model=model)
+        implementations = self.session.get_implementations(self, build=build, model=model)
         # TODO @Broken: sort/filter implementations
-        implementation = implementations[0]
-        # nocheckin: handle retries/model load balancing
-        return await implementation(*args, **kwargs, cache=cache)
+        impl_idx = self.last_good_impl_idx
+        retries = retries if retries is not None else self.session.inference_retries
+        remaining_retries = retries
+        errors = []
+        while remaining_retries >= 0:
+            try:
+                impl = implementations[impl_idx]
+                ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
+                self.last_good_impl_idx = impl_idx
+                return ret
+            except (XGenerationError, TimeoutError) as e:
+                logger.warning(
+                    "task.failed",
+                    task=self,
+                    exc_info=e,
+                    retries=remaining_retries,
+                    implementation=implementations[impl_idx],
+                )
+                errors.append(e)
+                remaining_retries -= 1
+                # fail over to next implementation
+                impl_idx = (impl_idx + 1) % len(implementations)
+
+        raise RuntimeError(f"{self} failed after {retries} retries") from errors[-1]
 
     def to_sync(self) -> "SyncTaskInstance":
         return SyncTaskInstance(**dict_minus(self.__dict__, ["is_async"]))
@@ -695,7 +720,7 @@ def get_flat_mapping(type: TypeNode) -> TypeMapping:
     (flat because we ignore list and optional types).
     """
     # strip list and optional types
-    stripped_flags = type.flags & ~TypeFlag.IsArray & ~TypeFlag.IsNullable
+    stripped_flags = type.flags & ~TypeFlag.IsArray & ~TypeFlag.IsNullable & ~TypeFlag.IsOutput
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
     mapping = type_mappings.get(exact_signature)
     if mapping is not None:
