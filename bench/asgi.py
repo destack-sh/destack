@@ -23,7 +23,7 @@ from twisted.internet import reactor
 
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
 from bench.runtime import run
-from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_INTSERVER, RUN_WORKER, TEST
+from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_LANGSERVER, RUN_WORKER, TEST
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -69,7 +69,7 @@ reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 # 'soon' publish queue must always run.
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
-if RUN_INTSERVER:
+if RUN_LANGSERVER:
     from bench.runtime.langserver import LanguageServer
 
     server = LanguageServer()
