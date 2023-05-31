@@ -51,10 +51,10 @@ watchEffect(() => {
     promptedUpdate.value = true;
     notifications.show({
       type: "system.upgradeAvailable",
-      kind: "notice",
+      kind: "success",
       icon: ArrowUpCircleIcon,
-      message: "Get a better Bench",
-      description: `Bench version ${systemInfo.value.version} is now available.`,
+      message: "Upgrade your Bench",
+      description: `Bench ${systemInfo.value.version} is now available.`,
       actionText: "Refresh",
       action: () => {
         window.location.reload();

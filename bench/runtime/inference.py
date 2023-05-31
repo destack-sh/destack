@@ -165,21 +165,17 @@ class InferenceProxy:
         tracer: "Tracer",
         cache_inferences: bool,
         timeout: int,
-        retries: int,
     ):
-        if retries < 0:
-            raise ValueError("retries must be >= 0")
         self.model = model
         self.modality = modality
         self.endpoint = endpoint
         self.tracer = tracer
         self.cache_inferences = cache_inferences
         self.timeout = timeout
-        self.retries = retries
 
     # insecure hash is fine here, it's just for caching
     # noinspection InsecureHash
-    async def __call__(self, blocks: list[XBlock], settings: Any) -> Any:
+    async def __call__(self, blocks: list[XBlock], settings: Any, cache: bool = None) -> Any:
         # make hash key
         block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
         blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
@@ -196,7 +192,7 @@ class InferenceProxy:
             cache_inferences=self.cache_inferences,
         )
 
-        if self.cache_inferences:
+        if self.cache_inferences and cache is not False:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await redis.get(cache_key)
             if cached_inference is not None:
@@ -209,33 +205,25 @@ class InferenceProxy:
                     log.warning("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
 
-        remaining_attempts = self.retries + 1
-        while remaining_attempts > 0:
-            remaining_attempts -= 1
-            try:
-                generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                self.tracer.inference_enter(self.model, blocks, settings)
-                log.debug("inference.enter")
-                result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
-                self.tracer.inference_exit(self.model, blocks, settings, result)
-                log.debug("inference.exit", ret=describe_type(result))
-                if self.cache_inferences:
-                    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-                    inference = Inference(
-                        generated_at=generated_at,
-                        duration=(now - generated_at).total_seconds(),
-                        # ret is assumed to be JSON-serializable
-                        # (may not be true when we get to images, but this will error obviously enough)
-                        result=result,
-                    )
-                    await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
-                return result
-            except TimeoutError as exception:
-                self.tracer.inference_exception(self.model, blocks, settings, exception)
-                log.debug("inference.exception", excinfo=True)
-                if remaining_attempts <= 0:
-                    raise
-            except Exception as exception:
-                self.tracer.inference_exception(self.model, blocks, settings, exception)
-                log.debug("inference.exception", excinfo=True)
-                raise
+        try:
+            generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            self.tracer.inference_enter(self.model, blocks, settings)
+            log.debug("inference.enter")
+            result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
+            self.tracer.inference_exit(self.model, blocks, settings, result)
+            log.debug("inference.exit", ret=describe_type(result))
+            if self.cache_inferences and cache is not False:
+                now = datetime.utcnow().replace(tzinfo=pytz.utc)
+                inference = Inference(
+                    generated_at=generated_at,
+                    duration=(now - generated_at).total_seconds(),
+                    # ret is assumed to be JSON-serializable
+                    # (may not be true when we get to images, but this will error obviously enough)
+                    result=result,
+                )
+                await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
+            return result
+        except Exception as exception:
+            self.tracer.inference_exception(self.model, blocks, settings, exception)
+            log.debug("inference.exception", excinfo=True)
+            raise

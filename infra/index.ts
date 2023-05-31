@@ -96,7 +96,7 @@ const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
 const db = new aws.rds.Cluster("db", {
   engine: "aurora-postgresql",
   clusterIdentifier: "db",
-  engineVersion: "14.5",
+  engineVersion: "14.6",
   databaseName: "postgres",
   deletionProtection: true,
   masterUsername: "postgres",
@@ -109,7 +109,7 @@ const dbInstance = new aws.rds.ClusterInstance("db", {
   clusterIdentifier: db.clusterIdentifier,
   instanceClass: "db.t3.medium",
   engine: "aurora-postgresql",
-  engineVersion: "14.3",
+  engineVersion: "14.6",
   publiclyAccessible: true,
   performanceInsightsEnabled: true,
 });
@@ -201,7 +201,7 @@ const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPasswo
 });
 const redisRestrictedUser = new aws.elasticache.User("redisRestrictedUser", {
   engine: "REDIS",
-  accessString: "on ~* +get +set",
+  accessString: "on ~* -@all +get +set",
   userId: "worker",
   userName: "worker",
   passwords: [redisRestrictedPassword.result],

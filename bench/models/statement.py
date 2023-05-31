@@ -92,36 +92,6 @@ class SimpleTypeNode(UUIDModel, CrudModel):
         ]
 
 
-class XKind(models.TextChoices):
-    Settings = "settings"
-    Static = "static"
-    Input = "input"
-    Output = "output"
-
-
-class XSource(models.TextChoices):
-    System = "system"
-    User = "user"
-    Developer = "developer"
-    Model = "model"
-
-
-class XBlock(UUIDModel):
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="xblocks")
-    created_at = models.DateTimeField(auto_now_add=True)
-    # not actually revisioned yet (only accessed programmatically)
-    revision = models.IntegerField(default=0)
-    order_key = models.CharField(max_length=32)
-    kind = TextChoicesField(choices_enum=XKind)
-    source = TextChoicesField(choices_enum=XSource)
-    value = models.JSONField(null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
-    path = models.CharField(max_length=128, null=True, blank=True)
-
-    class Meta:
-        ordering = ["order_key"]
-
-
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
@@ -191,7 +161,6 @@ class StatementManager(models.Manager["Statement"]):
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
         new_records: dict[UUID, DatasetRecord] = {}
-        new_xblocks: dict[UUID, XBlock] = {}
 
         # copy statements
         for statement in statements:
@@ -223,17 +192,6 @@ class StatementManager(models.Manager["Statement"]):
                         record.statement_id = target_statement_ids[statement.id]
                         new_records[old_id] = record
                         _refmap(RefType.RECORD, old_id, old_revision, record)
-
-                # copy xblocks
-                if statement.symbol_type == SymbolType.CODE:
-                    for xblock in statement.xblocks.all():
-                        old_id = xblock.id
-                        old_revision = xblock.revision
-                        xblock.id = uuid4()
-                        xblock._state.adding = True
-                        xblock.statement_id = target_statement_ids[statement.id]
-                        new_xblocks[old_id] = xblock
-                        _refmap(RefType.XBLOCK, old_id, old_revision, xblock)
 
             # copy statement
             # automatically copies all non-relational columns
@@ -278,7 +236,6 @@ class StatementManager(models.Manager["Statement"]):
         # create referencing statement's relations (FKs to statements)
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
         DatasetRecord.objects.bulk_create(new_records.values())
-        XBlock.objects.bulk_create(new_xblocks.values())
 
         return ref_mappings
 
@@ -340,7 +297,6 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    xblocks: models.QuerySet[XBlock]  # noqa via XBlock.statement
     records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)

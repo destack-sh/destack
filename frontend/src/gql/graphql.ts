@@ -110,7 +110,6 @@ export type Client = Node & {
   file?: Maybe<File>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
-  lock?: Maybe<Lock>;
   path?: Maybe<Scalars["String"]>;
   present: Scalars["Boolean"];
   project?: Maybe<Project>;
@@ -541,18 +540,6 @@ export type InterpSymbol = SimplyTyped & {
   typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
 
-export type Lock = Node & {
-  __typename?: "Lock";
-  createdAt: Scalars["DateTime"];
-  id: Scalars["GlobalID"];
-  path: Scalars["String"];
-  projectVersion: ProjectVersion;
-  record?: Maybe<DatasetRecord>;
-  statement?: Maybe<Statement>;
-  typeNode?: Maybe<SimpleTypeNode>;
-  updatedAt: Scalars["DateTime"];
-};
-
 export type ModuleChange = {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
@@ -579,12 +566,10 @@ export enum ModuleMutationType {
   CreateStatement = "CREATE_STATEMENT",
   CreateStatementBlank = "CREATE_STATEMENT_BLANK",
   CreateTypeNode = "CREATE_TYPE_NODE",
-  CreateXblock = "CREATE_XBLOCK",
   DeleteFile = "DELETE_FILE",
   DeleteRecord = "DELETE_RECORD",
   DeleteStatement = "DELETE_STATEMENT",
   DeleteTypeNode = "DELETE_TYPE_NODE",
-  DeleteXblock = "DELETE_XBLOCK",
   MorphStatement = "MORPH_STATEMENT",
   MoveFile = "MOVE_FILE",
   MoveRecord = "MOVE_RECORD",
@@ -1914,7 +1899,6 @@ export type Statement = Node &
     type: StatementType;
     typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
-    xblocks: Array<XBlock>;
   };
 
 export type StatementRecordsArgs = {
@@ -1927,10 +1911,6 @@ export type StatementRecordsArgs = {
 
 export type StatementTypeNodesArgs = {
   filters?: InputMaybe<SimpleTypeNodeFilter>;
-};
-
-export type StatementXblocksArgs = {
-  filters?: InputMaybe<XBlockFilter>;
 };
 
 export type StatementBatch = {
@@ -2350,37 +2330,6 @@ export type UserUpdateInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 };
-
-export type XBlock = Node & {
-  __typename?: "XBlock";
-  createdAt: Scalars["DateTime"];
-  description?: Maybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-  kind: XKind;
-  orderKey: Scalars["String"];
-  revision: Scalars["Int"];
-  source: XSource;
-  statement: Statement;
-  value?: Maybe<Scalars["JSON"]>;
-};
-
-export type XBlockFilter = {
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export enum XKind {
-  Input = "Input",
-  Output = "Output",
-  Settings = "Settings",
-  Static = "Static",
-}
-
-export enum XSource {
-  Developer = "Developer",
-  Model = "Model",
-  System = "System",
-  User = "User",
-}
 
 export type MatchingUsersQueryVariables = Exact<{
   slug?: InputMaybe<Scalars["String"]>;

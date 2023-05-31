@@ -16,8 +16,6 @@ from bench.language.type import (
     TypeFlag,
     TypeHint,
     TypeTag,
-    XKind,
-    XSource,
 )
 from bench.utils.func import describe_type
 
@@ -81,38 +79,6 @@ class RecordData:
 
     def deepcopy(self):
         return RecordData(**self.__dict__)
-
-
-@dataclass(repr=False, slots=True)
-class XBlockData:
-    id: UUID
-    statement_id: UUID
-    order_key: str
-    kind: XKind
-    source: XSource
-    revision: int
-    value: Optional[typing.Any] = None
-    path: Optional[str] = None
-    description: Optional[str] = None
-
-    def __str__(self):
-        return f"{self.order_key} {self.kind.value} {self.source.value}"
-
-    def __repr__(self):
-        return f"<XBlock {str(self)}>"
-
-    def deepcopy(self):
-        return XBlockData(
-            id=self.id,
-            statement_id=self.statement_id,
-            order_key=self.order_key,
-            kind=self.kind,
-            source=self.source,
-            revision=self.revision,
-            value=copy.deepcopy(self.value),
-            path=self.path,
-            description=self.description,
-        )
 
 
 @dataclass(repr=False, slots=True)
@@ -230,7 +196,6 @@ class StatementData:
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
-    xblocks: Optional[list[XBlockData]] = None
     provider: Optional[str] = None
     external_name: Optional[str] = None
     records: Optional[list[RecordData]] = None
@@ -404,7 +369,6 @@ def rmap_symbol(
         data.description = content.description
         data.lang = content.language
         data.code = content.code
-        data.xblocks = [rmap_xblock(data.id, xblock) for xblock in content.xblocks]
     elif isinstance(content, language.ModelContent):
         data.provider = content.provider
         data.external_name = content.external_name
@@ -452,7 +416,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             code=data.code,
             tag=data.root_type_tag,
             type_nodes=type_nodes,
-            xblocks=[wmap_xblock(x) for x in (data.xblocks or [])],
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
@@ -533,34 +496,6 @@ def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
 def wmap_record(data: RecordData) -> language.Record:
     """Maps a record data object to a record."""
     return language.Record(id=data.id, data=data.data, order_key=data.order_key)
-
-
-def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
-    """Maps an xblock data object to an xblock."""
-    return language.XBlockContent(
-        id=xblock.id,
-        order_key=xblock.order_key,
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-        description=xblock.description,
-    )
-
-
-def rmap_xblock(statement_id: UUID, xblock: language.XBlockContent) -> XBlockData:
-    """Maps an xblock to an xblock data object."""
-    return XBlockData(
-        id=xblock.id,
-        statement_id=statement_id,
-        order_key=xblock.order_key,
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-        description=xblock.description,
-        revision=1,
-    )
 
 
 def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:
