@@ -2,7 +2,7 @@
 FROM python:3.11-slim as base
 
 LABEL org.opencontainers.image.source=https://github.com/symbolx/bench
-LABEL org.opencontainers.image.description="Bench API"
+LABEL org.opencontainers.image.description="Bench"
 
 RUN apt-get update
 # Install postgresql-libs

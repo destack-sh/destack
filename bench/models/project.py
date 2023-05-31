@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, TypedDict
 from uuid import UUID, uuid4
 
 import pytz
+import structlog
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
@@ -22,6 +23,8 @@ from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 if TYPE_CHECKING:
     from bench.models.organization import Organization
     from bench.models.user import User
+
+logger = structlog.get_logger(__name__)
 
 
 class ProjectType(models.TextChoices):
@@ -74,16 +77,19 @@ class ProjectManager(models.Manager["Project"]):
                 status=DeploymentStatus.ACTIVE,
             )
         if create_onboarding_files:
-            docs_v = Project.objects.get_by_slug("symbolx", "docs").head
-            # :GettingStarted
-            if not docs_v.files.filter(name="Getting Started").exists():
-                raise ValueError(f"{docs_v} is missing Getting Started file")
-            ProjectVersion.objects.copy_files(
-                docs_v,
-                project.head,
-                docs_v.files.filter(name="Getting Started"),
-                copy_mappings=False,
-            )
+            try:
+                docs_v = Project.objects.get_by_slug("symbolx", "docs").head
+                # :GettingStarted
+                if not docs_v.files.filter(name="Getting Started").exists():
+                    raise ValueError(f"{docs_v} is missing Getting Started file")
+                ProjectVersion.objects.copy_files(
+                    docs_v,
+                    project.head,
+                    docs_v.files.filter(name="Getting Started"),
+                    copy_mappings=False,
+                )
+            except (ValueError, Project.DoesNotExist):
+                logger.warning("project.create.failed_onboarding", exc_info=True)
         if create_blank_file:
             # create empty file
             project.head.create_path("Untitled")
