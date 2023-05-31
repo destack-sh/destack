@@ -282,23 +282,19 @@ const AWS_BACKEND_ENV_VARS = [
   },
 ];
 
-// General backend env vars
-const BACKEND_ENV_VARS = [
-  // sentry
+// general backend env vars
+const PUBLIC_BACKEND_VARS = [
   {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
   },
-  // nats
   {
     name: "NATS_SERVER",
     value: nats.name.apply((name) => `nats://${name}:4222`),
   },
 ];
 
-// SandboxedWorker env vars
-const SECRET_MODEL_PROVIDER_VARS = [
-  // provider secrets
+const MODEL_PROVIDER_VARS = [
   "OPENAI_API_KEY",
   "GOOSEAI_API_KEY",
   "FOREFRONT_API_KEY",
@@ -363,25 +359,24 @@ const apiDeployment = new k8s.apps.v1.Deployment(
             {
               name: apiName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              env: [...BACKEND_ENV_VARS, ...DB_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              env: [...PUBLIC_BACKEND_VARS, ...DB_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
               command: ["python", "manage.py", "migrate"],
             },
           ],
-          // launch daphne
           containers: [
             {
               name: apiName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
               env: [
-                ...BACKEND_ENV_VARS,
+                ...PUBLIC_BACKEND_VARS,
                 ...DB_ENV_VARS,
-                ...SECRET_MODEL_PROVIDER_VARS, // needed for running langserver
+                ...MODEL_PROVIDER_VARS,
                 ...AWS_BACKEND_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
                 { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
                 { name: "WEBAPP_URL", value: config.require("webappUrl") },
-                { name: "RUN_INTSERVER", value: "true" },
+                { name: "RUN_LANGSERVER", value: "true" },
                 {
                   name: "REDIS_URL",
                   value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
@@ -414,10 +409,10 @@ const workerDeployment = new k8s.apps.v1.Deployment(
           containers: [
             {
               name: workerName,
-              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              image: `ghcr.io/symbolx/bench-worker:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
               env: [
-                ...BACKEND_ENV_VARS,
+                ...PUBLIC_BACKEND_VARS,
                 {
                   name: "REDIS_URL",
                   value: pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,

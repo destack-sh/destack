@@ -11,19 +11,25 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 # Get version from 'version' file
 VERSION=$(cat version)
 
-# Build the Docker API image and tag properly (with commit hash)
-docker build . \
-  --platform linux/amd64 \
-  -f Dockerfile \
-  -t symbolx/bench-api:latest \
-  -t symbolx/bench-api:$GIT_COMMIT \
-  -t ghcr.io/symbolx/bench-api:latest \
-  -t ghcr.io/symbolx/bench-api:$GIT_COMMIT \
-  -t ghcr.io/symbolx/bench-api:$VERSION \
-  --build-arg GIT_COMMIT=$GIT_COMMIT \
-  --build-arg VERSION=$VERSION
+# Image names
+IMAGES=("bench-api" "bench-worker")
 
-# push to GHCR
-docker push ghcr.io/symbolx/bench-api:latest
-docker push ghcr.io/symbolx/bench-api:$GIT_COMMIT
-docker push ghcr.io/symbolx/bench-api:$VERSION
+for IMAGE in ${IMAGES[@]}; do
+  # Build the Docker image and tag properly (with commit hash)
+  docker build . \
+    --platform linux/amd64 \
+    --target $IMAGE \
+    -f Dockerfile \
+    -t symbolx/$IMAGE:latest \
+    -t symbolx/$IMAGE:$GIT_COMMIT \
+    -t ghcr.io/symbolx/$IMAGE:latest \
+    -t ghcr.io/symbolx/$IMAGE:$GIT_COMMIT \
+    -t ghcr.io/symbolx/$IMAGE:$VERSION \
+    --build-arg GIT_COMMIT=$GIT_COMMIT \
+    --build-arg VERSION=$VERSION
+
+  # Push to GHCR
+  docker push ghcr.io/symbolx/$IMAGE:latest
+  docker push ghcr.io/symbolx/$IMAGE:$GIT_COMMIT
+  docker push ghcr.io/symbolx/$IMAGE:$VERSION
+done
