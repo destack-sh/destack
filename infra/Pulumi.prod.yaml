@@ -1,48 +1,48 @@
 config:
-  Bench:ANTHROPIC_API_KEY:
+  bench:ANTHROPIC_API_KEY:
     secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
-  Bench:COHERE_API_KEY:
+  bench:COHERE_API_KEY:
     secure: AAABAGwaYpLADp5UUQemDsUFVsu+rb2kihRdZBABFV8/r3qvO6pckT8xY02z7ikfGEpajgeUNacS/Jmd1Q/3lABUAy2OCJ1i
-  Bench:FOREFRONT_API_KEY:
+  bench:FOREFRONT_API_KEY:
     secure: AAABAJMpmqSIqtva9BEBgU4iy5LXFoDaTGVVPnqmikOqNA3mMBiYH/KYPNKHG4t3lXUx8y1xHr4OwZI=
-  Bench:GOOSEAI_API_KEY:
+  bench:GOOSEAI_API_KEY:
     secure: AAABACXsiSBv7A5n5DZE0WOjRbs3+TZpV4hobKMkmlBGpIgsFAgYzKtd2eJI7+a9sjM1873q8tA3ReNIMldmHOg/l3ZYtjaRCasiPEXBsTgxiCI=
-  Bench:OPENAI_API_KEY:
+  bench:OPENAI_API_KEY:
     secure: AAABAPNZUmkJnMERio8jl0beB7jZJktjMP7yxPSKZNNDygwnkIS2hcc1h/oXFZK/oHgduMzD0Hs8HBkkIgo9DUzqtJOUONv/qb0rXhw8Bxk22Vo=
-  Bench:PGCRYPTO_KEY:
+  bench:PGCRYPTO_KEY:
     secure: AAABAA5ya4PoohGOi99WG2nM6k3alA8qx+VaX0Dk8yXlySBciYnCDFBe2ecx6akOW40yw2sPYvFoStp2AqhydDNWOt8cyxN9/eAseA==
-  Bench:SENTRY_DSN:
+  bench:SENTRY_DSN:
     secure: AAABAPr2x2HnBVeoBCFpS2AkZa0HJWnfRHlhML3Reyo8uFnxClxpMNm+fN7xPPUE5o6zFGUgvlErBK/uWPQmjDkwO9tg0tufG56kQa7LFGrFzgp4aTzBHDjCGd6/Xqk9w1rdavoRLltEwYIOdLGeAb6siuqplZPsq+Chuw==
-  Bench:SOCIAL_AUTH_GITHUB_KEY:
+  bench:SOCIAL_AUTH_GITHUB_KEY:
     secure: AAABACXZG9EKm0rUANDB1f4shLDl0hVPwERJ2/GVbXxYZSys5UYxe2fa0NEdQlKJ24Dvzg==
-  Bench:SOCIAL_AUTH_GITHUB_SECRET:
+  bench:SOCIAL_AUTH_GITHUB_SECRET:
     secure: AAABALTUE4BI2csX0KoX7N9hyIbuogh6cXCW4PHNzV2UW/d7Np5x/KnYHrLnras8eAPjm+6NsFUVNT5H8xYlw5rZt46eSTU7
-  Bench:SOCIAL_AUTH_GITLAB_KEY:
+  bench:SOCIAL_AUTH_GITLAB_KEY:
     secure: AAABAI2/yRSUlKLpisfYpTZjqT2hKe0Gny2c209G4BDoYF2UQluSPXvF81Qy8+KbIllxVli878LbYaXxaytGqXa/yQkDhMMfe9kvB3x97SUHFJmRI8JfBUvCXTE6jjAY
-  Bench:SOCIAL_AUTH_GITLAB_SECRET:
+  bench:SOCIAL_AUTH_GITLAB_SECRET:
     secure: AAABAHgUqhr/BhcbUceSlYs/EiZn9+/uPTQIF3Kyrs0koj9mzpOKjkZYRL3YXaqkkK1otT7wiUvajYLz9TP3nSqc6VNq89p0ZPWGfAfhoYR8swzhaowoigaOYnOHkqlu
-  Bench:SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
+  bench:SOCIAL_AUTH_GOOGLE_OAUTH2_KEY:
     secure: AAABAKGJYWYdzK1qSL0JL7dmzsmR55HcceQTZCTm/mtwHJj7bmPxfF1GI+06wXsY7uSISumEejggQqGZv71HrniCm/rMHRLm4/Lola1UsAHdcRrt9OIF+QNvDjLo5+FGQJzic2STT70=
-  Bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
+  bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
-  Bench:STABILITYAI_API_KEY:
+  bench:STABILITYAI_API_KEY:
     secure: AAABAM2Xg3uvdc5mnl9V5usqOYJy1hq5y3kUXUPruoHP3pvzYtZnv4VbXOJCaF3MCIxBSRgj6h5zOoFfu1cNvxFGZV2qBMLqU4AcDythIogFgHI=
-  Bench:dbPassword:
+  bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
-  Bench:ghcrToken:
+  bench:ghcrToken:
     secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
-  Bench:kubecostToken:
+  bench:kubecostToken:
     secure: AAABADxhpYcMMG9bqkEvKF/jedva+la5SiCBuNFNl4H+IhrwIxsWlVUYqaljio5+Kxgt4ZBH+I2TDMom2S+EFnTQQbdjB+k=
-  Bench:apiAllowedHosts: "*"
-  Bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
-  Bench:awsRegion: eu-central-1
-  Bench:eksNodeInstanceType: t3.medium
-  Bench:env: prod
-  Bench:maxClusterSize: "4"
-  Bench:desiredClusterSize: "2"
-  Bench:minClusterSize: "2"
-  Bench:version: "current"
-  Bench:vpcNetworkCidr: 10.0.0.0/16
-  Bench:webappUrl: https://bench.symbolx.com
+  bench:apiAllowedHosts: "*"
+  bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
+  bench:awsRegion: eu-central-1
+  bench:eksNodeInstanceType: t3.medium
+  bench:env: prod
+  bench:maxClusterSize: "4"
+  bench:desiredClusterSize: "2"
+  bench:minClusterSize: "2"
+  bench:version: "current"
+  bench:vpcNetworkCidr: 10.0.0.0/16
+  bench:webappUrl: https://bench.symbolx.com
   aws:region: "eu-central-1"
   pulumi:template: kubernetes-aws-typescript
