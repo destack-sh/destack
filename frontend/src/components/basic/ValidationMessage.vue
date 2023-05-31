@@ -21,16 +21,15 @@ defineProps<{
       <template v-else> The bots don't like this {{ name }}.</template>
     </span>
     <span v-else-if="loading" class="mt-1">&nbsp;</span>
-    <span v-else-if="unavailable" class="mt-1 flex flex-row items-center gap-1 text-sm text-red-600">
+    <span v-else-if="unavailable" class="mt-1 flex flex-row items-center text-sm text-red-600">
       <XCircleIcon class="inline-block h-4 w-4" />
       That {{ name }} is
       <router-link
         v-if="takenTo"
         :to="takenTo"
-        class="underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
+        class="ml-1 underline decoration-dotted underline-offset-2 hover:decoration-solid focus:decoration-solid focus:outline-none"
         >taken</router-link
-      >
-      <template v-else>taken</template>.
+      ><template v-else>taken</template>.
     </span>
     <span v-else class="mt-1 flex flex-row items-center gap-1 text-sm text-green-700">
       <CheckCircleIcon class="inline-block h-4 w-4" />
