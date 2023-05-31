@@ -145,13 +145,20 @@ def _parse_message(message_json: str) -> NMessage:
         except (ValueError, TypeError, AttributeError) as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             logger.exception(
-                "message.parse.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled
+                "message.parse.failed",
+                exc_info=e,
+                sentry_enabled=sentry_enabled,
+                payload_cls=payload_cls,
+                id=message_dict.get("id"),
+                type=message_dict.get("type"),
+                version=message_dict.get("version"),
             )
             raise
     message_dict["type"] = NMessageType(message_dict["type"])
     message_dict["topic"] = message_dict.get("topic")
     message_dict["sent_at"] = datetime.fromisoformat(message_dict["sent_at"])
     message_dict["id"] = UUID(message_dict["id"])
+    message_dict["version"] = message_dict.get("version")
 
     msg = NMessage(**message_dict)
     if payload_cls and msg.payload is None:
@@ -413,9 +420,9 @@ class MessageJSONEncoder(json.JSONEncoder):
         # See "Date Time String Format" in the ECMA-262 specification.
         if isinstance(o, datetime):
             r = o.isoformat()
-            if o.microsecond:
+            if o.microsecond:  # trim microseconds
                 r = r[:23] + r[26:]
-            if r.endswith("+00:00"):
+            if r.endswith("+00:00"):  # trim timezone
                 r = r[:-6] + "Z"
             return r
         elif isinstance(o, UUID):
