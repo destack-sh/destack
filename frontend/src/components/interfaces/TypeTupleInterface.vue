@@ -161,10 +161,12 @@ function blur() {
   buttonRef.value?.blur();
 }
 
-function close() {
+function close(refocus = true) {
   editing.value = false;
   editingType.value = false;
-  nextTick(focus);
+  if (refocus) {
+    nextTick(focus);
+  }
 }
 
 defineExpose({
@@ -235,7 +237,7 @@ defineExpose({
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->
-    <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
+    <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
     <!-- Edit popover -->
     <!-- Popover position is pinned -->
     <div
@@ -243,7 +245,7 @@ defineExpose({
       ref="editablePopoverRef"
       class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
-      @keydown.escape.exact.prevent.stop="close"
+      @keydown.escape.exact.prevent.stop="close()"
     >
       <span ref="popoverOpenRef" class="hidden" />
       <!-- Name & type -->
@@ -256,7 +258,7 @@ defineExpose({
           class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
           @navigate-right="typeButtonRef?.focus()"
           @navigate-down="actionRefs.focus(actions[0].label)"
-          @enter="close"
+          @enter="close(false), emit('enter')"
         />
         <!-- Type popover -->
         <div v-if="!isEnum" class="relative">

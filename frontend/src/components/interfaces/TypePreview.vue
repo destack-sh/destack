@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { renderBuiltinType } from "@/state/type";
 import { symbolOf, TypeFlag } from "@/state/runtime";
+import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,
   ArrowsRightLeftIcon,
@@ -15,6 +15,7 @@ import {
   CodeBracketIcon,
   DocumentIcon,
   FingerPrintIcon,
+  HandThumbUpIcon,
   HashtagIcon,
   IdentificationIcon,
   KeyIcon,
@@ -24,12 +25,11 @@ import {
   MinusSmallIcon,
   PhoneIcon,
   PhotoIcon,
+  RectangleGroupIcon,
   SparklesIcon,
   SpeakerWaveIcon,
-  Squares2X2Icon,
   StarIcon,
   VideoCameraIcon,
-  HandThumbUpIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -66,7 +66,7 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Audio]: SpeakerWaveIcon,
   [TypeTag.Video]: VideoCameraIcon,
   [TypeTag.TypeReference]: ArrowUpRightIcon,
-  [TypeTag.Struct]: Squares2X2Icon,
+  [TypeTag.Struct]: RectangleGroupIcon,
   [TypeTag.Enum]: ChevronDoubleDownIcon,
 };
 const iconsByHint: Record<TypeHint, any> = {
