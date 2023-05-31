@@ -15,9 +15,11 @@ ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
 # Copy the requirements file into the container
 COPY requirements.txt .
+COPY requirements-worker.txt .
 
 # Install dependencies from requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# TODO @Cleanup @Architecture: use separate requirements for worker
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-worker.txt
 
 # Define the API image
 FROM base as bench-api
