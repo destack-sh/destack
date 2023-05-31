@@ -1698,6 +1698,7 @@ def interp(
             return node.type_nodes
         inlined_node_ids.add(node.id)
         if not any(n.flags & TypeFlag.IsUnionWith for n in node.type_nodes):
+            node.self_type_nodes = node.type_nodes
             return node.type_nodes  # skip, no unions
         path = path + [node]
         inlined_nodes = []
