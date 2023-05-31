@@ -34,7 +34,7 @@ class Organization(UUIDModel):
         null=True,
         related_name="organization",
     )
-    owner_slug_id: Optional[str]  # noqa via Statement.reference
+    owner_slug_id: Optional[str]  # noqa
     description: models.CharField = models.CharField(
         max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
     )
