@@ -21,14 +21,14 @@ anthropic==0.2.9
     #   -c requirements.txt
     #   -r requirements-worker.in
     #   -r requirements.in
-anyio==3.6.2
+anyio==3.7.0
     # via
     #   -c requirements.txt
     #   httpcore
     #   starlette
 argilla==1.7.0
     # via unstructured
-asgiref==3.6.0
+asgiref==3.7.2
     # via
     #   -c requirements.txt
     #   -r requirements-worker.in
@@ -123,7 +123,7 @@ constantly==15.1.0
     # via
     #   -c requirements.txt
     #   twisted
-cryptography==40.0.2
+cryptography==41.0.0
     # via
     #   -c requirements.txt
     #   autobahn
@@ -149,7 +149,7 @@ defusedxml==0.7.1
     #   -c requirements.txt
     #   python3-openid
     #   social-auth-core
-deprecated==1.2.13
+deprecated==1.2.14
     # via
     #   -c requirements.txt
     #   argilla
@@ -360,7 +360,7 @@ jsonschema==4.17.3
     #   drf-spectacular
 langchain==0.0.166
     # via -r requirements-worker.in
-libcst==0.4.9
+libcst==1.0.0
     # via
     #   -c requirements.txt
     #   strawberry-graphql
@@ -443,16 +443,16 @@ openapi-schema-pydantic==1.2.4
     # via langchain
 openpyxl==3.1.2
     # via unstructured
-opentelemetry-api==1.17.0
+opentelemetry-api==1.18.0
     # via
     #   -c requirements.txt
     #   opentelemetry-sdk
     #   strawberry-graphql
-opentelemetry-sdk==1.17.0
+opentelemetry-sdk==1.18.0
     # via
     #   -c requirements.txt
     #   strawberry-graphql
-opentelemetry-semantic-conventions==0.38b0
+opentelemetry-semantic-conventions==0.39b0
     # via
     #   -c requirements.txt
     #   opentelemetry-sdk
@@ -492,7 +492,7 @@ posthog==2.3.1
     #   -r requirements.in
 pre-commit==2.20.0
     # via -r requirements-dev.in
-prometheus-client==0.16.0
+prometheus-client==0.17.0
     # via
     #   -c requirements.txt
     #   django-prometheus
@@ -517,7 +517,7 @@ pycparser==2.21
     # via
     #   -c requirements.txt
     #   cffi
-pydantic==1.10.7
+pydantic==1.10.8
     # via
     #   argilla
     #   langchain
@@ -537,7 +537,7 @@ pyjwt==2.7.0
     # via
     #   -c requirements.txt
     #   social-auth-core
-pyopenssl==23.1.1
+pyopenssl==23.2.0
     # via
     #   -c requirements.txt
     #   twisted
@@ -602,7 +602,7 @@ redis[hiredis]==4.5.3
     #   -r requirements.in
 regex==2023.5.5
     # via nltk
-requests==2.30.0
+requests==2.31.0
     # via
     #   -c requirements.txt
     #   anthropic
@@ -662,7 +662,7 @@ social-auth-core==4.4.2
     # via
     #   -c requirements.txt
     #   social-auth-app-django
-sqlalchemy==2.0.13
+sqlalchemy==2.0.15
     # via langchain
 sqlparse==0.4.4
     # via
@@ -727,17 +727,17 @@ types-pygments==2.13.1.1
     # via -r requirements-dev.in
 types-pytz==2023.3.0.0
     # via django-stubs
-types-pyyaml==6.0.12.9
+types-pyyaml==6.0.12.10
     # via
     #   django-stubs
     #   djangorestframework-stubs
-types-requests==2.30.0.0
+types-requests==2.31.0.1
     # via djangorestframework-stubs
-types-setuptools==67.7.0.2
+types-setuptools==67.8.0.0
     # via types-pygments
 types-urllib3==1.26.25.13
     # via types-requests
-typing-extensions==4.5.0
+typing-extensions==4.6.2
     # via
     #   -c requirements.txt
     #   django-stubs
@@ -754,7 +754,7 @@ typing-extensions==4.5.0
     #   twisted
     #   typer
     #   typing-inspect
-typing-inspect==0.8.0
+typing-inspect==0.9.0
     # via
     #   -c requirements.txt
     #   dataclasses-json
@@ -765,7 +765,7 @@ uritemplate==4.1.1
     # via
     #   -c requirements.txt
     #   drf-spectacular
-urllib3==1.26.15
+urllib3==1.26.16
     # via
     #   -c requirements.txt
     #   botocore
@@ -786,7 +786,7 @@ wrapt==1.14.1
     #   -r requirements.in
     #   argilla
     #   deprecated
-xlsxwriter==3.1.0
+xlsxwriter==3.1.2
     # via python-pptx
 yarl==1.9.2
     # via

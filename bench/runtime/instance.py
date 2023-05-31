@@ -16,6 +16,7 @@ from uuid import UUID, uuid4
 
 import aiohttp
 import numpy
+import pandas
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 from more_itertools import first, last
@@ -897,6 +898,8 @@ STATIC_BUILTINS = {
     # library builtins
     "numpy": numpy,
     "np": numpy,
+    "pandas": pandas,
+    "pd": pandas,
     "asyncio": asyncio,
     # functional builtins
     "itertools": itertools,

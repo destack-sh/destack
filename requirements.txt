@@ -13,11 +13,11 @@ aiosignal==1.3.1
     # via aiohttp
 anthropic==0.2.9
     # via -r requirements.in
-anyio==3.6.2
+anyio==3.7.0
     # via
     #   httpcore
     #   starlette
-asgiref==3.6.0
+asgiref==3.7.2
     # via
     #   channels
     #   daphne
@@ -71,7 +71,7 @@ commonmark==0.9.1
     # via rich
 constantly==15.1.0
     # via twisted
-cryptography==40.0.2
+cryptography==41.0.0
     # via
     #   autobahn
     #   pyopenssl
@@ -87,7 +87,7 @@ defusedxml==0.7.1
     # via
     #   python3-openid
     #   social-auth-core
-deprecated==1.2.13
+deprecated==1.2.14
     # via opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
@@ -200,7 +200,7 @@ json-stream-rs-tokenizer==0.4.17
     # via json-stream
 jsonschema==4.17.3
     # via drf-spectacular
-libcst==0.4.9
+libcst==1.0.0
     # via strawberry-graphql
 marshmallow==3.19.0
     # via
@@ -226,13 +226,13 @@ oauthlib==3.2.2
     #   social-auth-core
 openai==0.27.2
     # via -r requirements.in
-opentelemetry-api==1.17.0
+opentelemetry-api==1.18.0
     # via
     #   opentelemetry-sdk
     #   strawberry-graphql
-opentelemetry-sdk==1.17.0
+opentelemetry-sdk==1.18.0
     # via strawberry-graphql
-opentelemetry-semantic-conventions==0.38b0
+opentelemetry-semantic-conventions==0.39b0
     # via opentelemetry-sdk
 packaging==23.1
     # via marshmallow
@@ -240,7 +240,7 @@ pillow==9.4.0
     # via -r requirements.in
 posthog==2.3.1
     # via -r requirements.in
-prometheus-client==0.16.0
+prometheus-client==0.17.0
     # via django-prometheus
 psycopg2==2.9.5
     # via -r requirements.in
@@ -260,7 +260,7 @@ pygments==2.15.1
     #   strawberry-graphql
 pyjwt==2.7.0
     # via social-auth-core
-pyopenssl==23.1.1
+pyopenssl==23.2.0
     # via twisted
 pyrsistent==0.19.3
     # via jsonschema
@@ -285,7 +285,7 @@ pyyaml==6.0
     #   libcst
 redis[hiredis]==4.5.3
     # via -r requirements.in
-requests==2.30.0
+requests==2.31.0
     # via
     #   anthropic
     #   openai
@@ -344,7 +344,7 @@ twisted[tls]==22.10.0
     # via daphne
 txaio==23.1.1
     # via autobahn
-typing-extensions==4.5.0
+typing-extensions==4.6.2
     # via
     #   django-stubs-ext
     #   janus
@@ -354,13 +354,13 @@ typing-extensions==4.5.0
     #   strawberry-graphql
     #   twisted
     #   typing-inspect
-typing-inspect==0.8.0
+typing-inspect==0.9.0
     # via
     #   dataclasses-json
     #   libcst
 uritemplate==4.1.1
     # via drf-spectacular
-urllib3==1.26.15
+urllib3==1.26.16
     # via
     #   botocore
     #   requests
