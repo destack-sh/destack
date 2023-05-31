@@ -1729,7 +1729,6 @@ export enum RefType {
   Record = "RECORD",
   Statement = "STATEMENT",
   TypeNode = "TYPE_NODE",
-  Xblock = "XBLOCK",
 }
 
 export type RemoteObject = Node & {
