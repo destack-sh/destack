@@ -7,6 +7,7 @@ import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
+import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import { useMagicActions } from "@/state/file";
 import { getInterface } from "@/components/inputs";
 import { makeTypeNode, useStatementContext, type SimpleType } from "@/state/statement";
@@ -15,7 +16,7 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
+import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
 import { symbolOf, TypeFlag } from "@/state/runtime";
@@ -26,7 +27,6 @@ import {
   CubeTransparentIcon,
   PlusIcon,
   Square2StackIcon,
-  Squares2X2Icon,
   SquaresPlusIcon,
   TrashIcon,
 } from "@heroicons/vue/24/outline";
@@ -383,8 +383,11 @@ function duplicateField(fieldId: string) {
   }
 }
 
-function updateFieldType(node: SimpleType, changed: SimpleType) {
-  context.updateTypeNode(node, changed);
+function updateFieldType(key: string, changed: SimpleType) {
+  // we use key instead of id here because of the runtimeTypeOf hack (has different id, see above)
+  const old = context.typeNodes.value.find((n) => n.key == key);
+  if (old == null) return;
+  context.updateTypeNode(old, { ...changed, id: old.id });
 }
 
 function deleteField(node: SimpleType) {
@@ -672,7 +675,7 @@ defineExpose({
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
-              @update:model-value="(node: any) => updateFieldType(field, node)"
+              @update:model-value="(node: any) => updateFieldType(field.key, node)"
               @navigate-left="grid.navigateLeft('', field.key as string)"
               @navigate-right="grid.navigateRight('', field.key as string)"
               @navigate-up="grid.navigateUp('', field.key as string)"
@@ -680,6 +683,7 @@ defineExpose({
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
               @drop="(p, v) => dropField(v.id, p, field.id)"
+              @enter="grid.navigateDown('', field.key as string)"
               :style="{
                 width: columnWidths[x] + 'px',
               }"
@@ -705,7 +709,7 @@ defineExpose({
                 :thing="record"
                 :actions="recordActions"
               >
-                <Squares2X2Icon
+                <DragHandleIcon
                   class="h-4 w-4 text-gray-400 hover:text-gray-700"
                   :class="[
                     open
@@ -776,7 +780,7 @@ defineExpose({
           orientation="vertical"
           class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
-          @update:model-value="(node: any) => updateFieldType(field, node)"
+          @update:model-value="(node: any) => updateFieldType(field.key, node)"
           @navigate-up="grid.navigateUp(field?.id, 'type')"
           @navigate-down="grid.navigateDown(field?.id, 'type')"
           @navigate-right="grid.navigateRight(field?.id, 'type')"

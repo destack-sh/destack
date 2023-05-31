@@ -331,6 +331,7 @@ defineExpose({
         @duplicate-self="duplicateMember(member.id)"
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
         @drop="(p, v) => dropMember(v.id, p, member.id)"
+        @enter="grid.navigateDown(member.id, 'type')"
         class="self-start border border-orange-900 border-opacity-0 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         :class="
           isEnum
