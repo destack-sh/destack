@@ -98,9 +98,11 @@ class ModelInference:
         modality = Modality(method.__name__)
         return IncapableError(f"{self} is incapable of modality {modality}")
 
-    async def __call__(self, modality: Modality, input: list[XBlock], settings: Any) -> Any:
+    async def __call__(
+        self, modality: Modality, input: list[XBlock], settings: Any, **kwargs
+    ) -> Any:
         method = getattr(self, modality.value)
-        return await method(input, settings)
+        return await method(input, settings, **kwargs)
 
     async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
         raise self.incapable_error(self.generate_text)
@@ -181,7 +183,9 @@ class CachedInferenceEndpoint:
 
     # insecure hash is fine here, it's just for caching
     # noinspection InsecureHash
-    async def __call__(self, blocks: list[XBlock], settings: Any, cache: bool = None) -> Any:
+    async def __call__(
+        self, blocks: list[XBlock], settings: Any, cache: bool = None, timeout: int = None
+    ) -> Any:
         # make hash key
         block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
         blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
@@ -215,7 +219,8 @@ class CachedInferenceEndpoint:
             generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             self.tracer.inference_enter(self.model, blocks, settings)
             log.debug("inference.enter")
-            result = await asyncio.wait_for(self.endpoint(blocks, settings), self.timeout)
+            timeout = timeout if timeout is not None else self.timeout
+            result = await asyncio.wait_for(self.endpoint(blocks, settings), timeout)
             self.tracer.inference_exit(self.model, blocks, settings, result)
             log.debug("inference.exit", ret=describe_type(result))
             if self.cache_inferences and cache is not False:

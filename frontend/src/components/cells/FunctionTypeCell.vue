@@ -145,7 +145,7 @@ defineExpose({
 <template>
   <div class="flex w-full flex-row flex-wrap items-start justify-evenly gap-4">
     <!-- Inputs -->
-    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
+    <div class="-mx-1 my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of inputNodes" :key="member.id">
         <!-- Columns -->
@@ -169,7 +169,7 @@ defineExpose({
             @navigate-down="inputGrid.navigateDown(member.id, column)"
             @delete-left="deleteMember('input', member.id)"
             @delete-self="deleteMember('input', member.id)"
-            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            class="w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :class="{
               'text-gray-400': column == 'type',
             }"
@@ -195,7 +195,7 @@ defineExpose({
     <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
+    <div class="-mx-1 my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
       <!-- Rows -->
       <template v-for="member of outputNodes" :key="member.id">
         <!-- Columns -->
@@ -218,7 +218,7 @@ defineExpose({
             @navigate-down="outputGrid.navigateDown(member.id, column)"
             @delete-left="deleteMember('output', member.id)"
             @delete-self="deleteMember('output', member.id)"
-            class="w-full self-start border border-transparent py-0.5 pr-2 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            class="w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :class="{
               'text-gray-400': column == 'type',
             }"
