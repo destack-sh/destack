@@ -285,6 +285,10 @@ const AWS_BACKEND_ENV_VARS = [
 // general backend env vars
 const PUBLIC_BACKEND_VARS = [
   {
+    name: "NOISY_LOG_LEVEL",
+    value: "DEBUG",
+  },
+  {
     name: "SENTRY_DSN",
     value: config.requireSecret("SENTRY_DSN"),
   },
@@ -294,13 +298,7 @@ const PUBLIC_BACKEND_VARS = [
   },
 ];
 
-const MODEL_PROVIDER_VARS = [
-  "OPENAI_API_KEY",
-  "GOOSEAI_API_KEY",
-  "FOREFRONT_API_KEY",
-  "COHERE_API_KEY",
-  "ANTHROPIC_API_KEY",
-].map((name) => ({
+const MODEL_PROVIDER_VARS = ["OPENAI_API_KEY", "COHERE_API_KEY", "ANTHROPIC_API_KEY"].map((name) => ({
   name,
   value: config.requireSecret(name),
 }));

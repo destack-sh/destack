@@ -1051,7 +1051,6 @@ class BuildContent(SymbolContent):
 class Build(InterpSymbol, BuildContent):
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
-    weights: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass(repr=False)

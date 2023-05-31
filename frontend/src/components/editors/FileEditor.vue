@@ -142,8 +142,12 @@ async function insertOrFocusStatementStart() {
   if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
-    editor.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
+    focusStatementStart();
   }
+}
+
+function focusStatementStart() {
+  editor.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
 }
 
 async function insertOrFocusStatementEnd() {
@@ -346,6 +350,7 @@ const auth = useAuth();
               v-model="name"
               @enter="goToContent"
               @keyup.up.prevent="() => ({}) /* noop */"
+              @keydown.down.prevent.stop="() => focusStatementStart()"
             />
             <span
               class="cursor-text select-none text-3xl font-extrabold text-gray-300"

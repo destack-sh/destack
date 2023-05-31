@@ -80,7 +80,6 @@ class LanguageInterpreter:
         """Fetch and interpret the requirement module (incl. transitive deps)"""
         if module_id in self.interp_dependencies_cached:
             return self.interp_dependencies_cached[module_id]
-        logger.debug("module.requirement.interp", module_id=module_id)
         source = await self.fetcher(module_id)
         requirements = get_requirements(source)
         dependencies = await asyncio.gather(

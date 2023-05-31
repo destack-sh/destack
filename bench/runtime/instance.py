@@ -55,8 +55,8 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
-from bench.runtime.inference import InferenceProxy, ModelInference
-from bench.runtime.model import get_endpoints
+from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
+from bench.runtime.model import get_inference_endpoints_cls
 from bench.runtime.proxy import proxy_value, unproxy_value
 from bench.runtime.tracing import (
     ExecutionTracer,
@@ -77,7 +77,6 @@ DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), Validation
 
 class SessionMode(enum.StrEnum):
     READ_ONLY = "ro"
-    WRITE_LOCAL = "wl"
     WRITE_GLOBAL = "w"
     WRITE_ONLY = "wo"
 
@@ -123,7 +122,7 @@ class Session:
         self.mutator = ModuleMutator(idx)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
-        self._cached_implementations: dict[Any, AsyncCodeInstance] = {}
+        self._cached_implementations: dict[tuple[UUID, UUID], AsyncCodeInstance] = {}
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -159,8 +158,6 @@ class Session:
     def can_write(self, symbol: InterpSymbol):
         if self.mode == SessionMode.READ_ONLY:
             return False
-        elif self.mode == SessionMode.WRITE_LOCAL:
-            return symbol.is_local
         elif self.mode == SessionMode.WRITE_GLOBAL:
             return True
         else:
@@ -173,34 +170,38 @@ class Session:
         if self.default_build is not None:
             for instance in list(self.instances.values()):  # copy to avoid concurrent modification
                 if isinstance(instance, TaskInstance):
-                    await self.get_implementation(instance, build=self.default_build)
+                    _ = await self.get_implementations(instance, build=self.default_build)
 
-    async def get_implementation(
+    async def get_implementations(
         self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
-    ) -> "AsyncCodeInstance":
+    ) -> list["AsyncCodeInstance"]:
         """Gets or builds an implementation for a task."""
         from bench.runtime.build import build_task_implementation
 
         if build is not None:
             if isinstance(build, str):
                 build = self.idx.symbol(build, symbol_t=Build)
+            models = build.models
         elif model is not None:
             if isinstance(model, str):
                 model = self.idx.symbol(model, symbol_t=Model)
-            # TODO @Feature: find or make build for model
-            raise NotImplementedError("model key for task implementation not yet supported")
+            models = [model]
         else:
             if self.default_build is None:
                 raise RuntimeError(f"no build specified for {task} (no default in {self})")
             build = self.default_build
-        cache_key = (task.id, build.id)
-        if cache_key not in self._cached_implementations:
-            model = build.models[0]
-            model_instance = instantiate_model(model, self)
-            self._cached_implementations[cache_key] = await build_task_implementation(
-                task, model_instance, self
-            )
-        return self._cached_implementations[cache_key]
+            models = build.models
+
+        implementations = []
+        for model in models:
+            cache_key = (task.id, model.id)
+            if cache_key not in self._cached_implementations:
+                model_instance = instantiate_model(model, self)
+                self._cached_implementations[cache_key] = await build_task_implementation(
+                    task, model_instance, self
+                )
+            implementations.append(self._cached_implementations[cache_key])
+        return implementations
 
     def open(self):
         """Opens the session to access and modification."""
@@ -409,7 +410,7 @@ class DataTableInstance(SymbolInstance, Data):
 
 
 @dataclass(repr=False)
-class DataValueInstance(SymbolInstance, Data):
+class DataRecordInstance(SymbolInstance, Data):
     # imitate/proxy record instance
 
     meta: RecordInstanceMeta = field(init=False)
@@ -442,13 +443,13 @@ class DataValueInstance(SymbolInstance, Data):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key in DATA_VALUE_INSTANCE_FIELDS_KEYS:
+        if key in DATA_RECORD_INSTANCE_FIELDS:
             super().__setattr__(key, value)
         else:
             setattr(self.records[0], key, value)
 
 
-DATA_VALUE_INSTANCE_FIELDS_KEYS = {field.name for field in fields(DataValueInstance)}
+DATA_RECORD_INSTANCE_FIELDS = {field.name for field in fields(DataRecordInstance)}
 
 
 @dataclass(repr=False)
@@ -467,9 +468,20 @@ class ModelInstance(SymbolInstance, Model):
 class TaskInstance(SymbolInstance, Task):
     is_async = True
 
-    async def __call__(self, *args, build: Build | str = None, model: Model | str = None, **kwargs):
-        implementation = await self.session.get_implementation(self, build=build, model=model)
-        return await implementation(*args, **kwargs)
+    async def __call__(
+        self,
+        *args,
+        build: Build | str = None,
+        model: Model | str = None,
+        retries: int = None,
+        cache: bool = None,
+        **kwargs,
+    ):
+        implementations = await self.session.get_implementations(self, build=build, model=model)
+        # TODO @Broken: sort/filter implementations
+        implementation = implementations[0]
+        # nocheckin: handle retries/model load balancing
+        return await implementation(*args, **kwargs, cache=cache)
 
     def to_sync(self) -> "SyncTaskInstance":
         return SyncTaskInstance(**dict_minus(self.__dict__, ["is_async"]))
@@ -556,7 +568,7 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
     DataTableInstance: SymbolType.DATA,
-    DataValueInstance: SymbolType.DATA,
+    DataRecordInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
     SyncCodeInstance: SymbolType.CODE,
@@ -609,11 +621,14 @@ class RemoteObjectInstance(RemoteObject):
         return self.read().decode().splitlines()
 
 
+SecretValueT = typing.TypeVar("SecretValueT")
+
+
 @dataclass(repr=False, slots=True)
-class SecretInstance(Secret):
+class SecretInstance(Secret, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
-    async def areveal(self) -> Any:
+    async def areveal(self) -> SecretValueT:
         if self.value is not None:
             return self.value
         rep: NMessage[RepReadSecretPayload] = await request(
@@ -624,7 +639,7 @@ class SecretInstance(Secret):
         self.value = rep.p.secrets[0].value
         return self.value
 
-    def reveal(self) -> Any:
+    def reveal(self) -> SecretValueT:
         return async_to_sync(self.areveal)()
 
 
@@ -858,14 +873,14 @@ def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
     return mapping.from_py_value(type, value)
 
 
-def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataValueInstance:
+def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
     if dataset.flags & TypeFlag.IsArray:
         instance = DataTableInstance(
             **dict_minus(dataset.__dict__, "records"), records=[], session=session
         )
     else:
-        instance = DataValueInstance(
+        instance = DataRecordInstance(
             **dict_minus(dataset.__dict__, "records"), records=[], session=session
         )
     for raw_record in dataset.records:
@@ -984,21 +999,29 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
 
 
 def instantiate_model(model: Model, session: Session) -> ModelInstance:
-    """Instantiates the model inference endpoints for the session."""
-    inference = ModelInference()
-    endpoints = list(get_endpoints(model))
+    """
+    Instantiates the model inference endpoints for the session.
+    If we don't have the key, we proxy to the langserver.
+    """
+
+    key = None  # TODO @Broken: get model key from module? same file? some constant?
+    inference = ModelInference(external_name=model.external_name, key=key)
+    endpoints = list(get_inference_endpoints_cls(model))
+
     if not endpoints:
         raise RuntimeError(f"no endpoints found for model: {model}")
     for modality, endpoint_cls in endpoints:
-        endpoint = getattr(endpoint_cls(model), modality)
-        endpoint_proxy = InferenceProxy(
+        if key is not None:
+            endpoint = getattr(endpoint_cls(**inference.__dict__), modality)
+        else:
+            endpoint = RemoteInferenceEndpoint(model=model, modality=modality)
+        endpoint_proxy = CachedInferenceEndpoint(
             model=model,
             modality=modality,
             endpoint=endpoint,
             tracer=session.tracer,
             cache_inferences=session.cache_inferences,
             timeout=session.inference_timeout,
-            retries=session.inference_retries,
         )
         setattr(inference, modality, endpoint_proxy)
     return ModelInstance(**model.__dict__, inference=inference, session=session)

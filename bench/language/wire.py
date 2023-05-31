@@ -16,6 +16,8 @@ from bench.language.type import (
     TypeFlag,
     TypeHint,
     TypeTag,
+    XKind,
+    XSource,
 )
 from bench.utils.func import describe_type
 
@@ -79,6 +81,20 @@ class RecordData:
 
     def deepcopy(self):
         return RecordData(**self.__dict__)
+
+
+@dataclass(repr=False, slots=True)
+class XBlockData:
+    kind: XKind
+    source: XSource
+    value: Optional[typing.Any] = None
+    path: Optional[str] = None
+
+    def __str__(self):
+        return f"{self.kind.value} {self.source.value}"
+
+    def __repr__(self):
+        return f"<XBlock {str(self)}>"
 
 
 @dataclass(repr=False, slots=True)
@@ -496,6 +512,26 @@ def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
 def wmap_record(data: RecordData) -> language.Record:
     """Maps a record data object to a record."""
     return language.Record(id=data.id, data=data.data, order_key=data.order_key)
+
+
+def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
+    """Maps an xblock data object to an xblock."""
+    return language.XBlockContent(
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        path=xblock.path,
+    )
+
+
+def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
+    """Maps an xblock to an xblock data object."""
+    return XBlockData(
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        path=xblock.path,
+    )
 
 
 def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:

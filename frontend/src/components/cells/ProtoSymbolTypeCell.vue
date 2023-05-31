@@ -125,7 +125,7 @@ const commands = computed(() => {
       ),
     },
     {
-      label: "value",
+      label: "record",
       description: "Configure context and secrets.",
       action: () => (context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
     },

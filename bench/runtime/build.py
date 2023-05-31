@@ -196,10 +196,7 @@ class XBuilder:
             else:
                 xblocks.append(x)
 
-        async def _invoke_task(
-            *args, retries: int = None, cache: bool = None, **kwargs
-        ) -> dict[str, LiteralValue]:
-            # TODO @Feature: should definitely retry on invalid output with error message
+        async def _invoke_task(*args, **kwargs) -> dict[str, LiteralValue]:
             inputs = {**kwargs}  # combine inputs from args/kwargs
             for input_t, input in zip(self.task.type.inputs, args):
                 inputs[input_t.name] = input
@@ -382,7 +379,7 @@ class XOutputText(XEmit):
         try:
             ret = json.loads(value)
             check_type(ret, self.type, is_output=True)
-            return ret
+            return ret  # nocheckin instantiate type
         except Exception as e:
             raise XGenerationError(f"output is invalid for {self.type}: {e}") from e
 

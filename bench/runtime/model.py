@@ -9,7 +9,6 @@ import structlog
 from bench.language.type import Model, XBlock, XSource
 from bench.runtime.inference import (
     ImageGenerationSettings,
-    IncapableError,
     InferenceEndpoint,
     Modality,
     ModelInference,
@@ -17,7 +16,6 @@ from bench.runtime.inference import (
 )
 
 logger = structlog.get_logger(__name__)
-
 
 endpoints: dict[(str, Modality), InferenceEndpoint] = {}
 
@@ -37,22 +35,38 @@ def endpoint(models: list[str], *modalities: Modality):
     return decorator
 
 
-def get_endpoint(model: Model, modality: Modality) -> InferenceEndpoint:
-    key = model.fqn, modality
-    if key not in endpoints:
-        raise IncapableError(f"no endpoint for {key}")
-    return endpoints[key]
+def get_inference_endpoint_cls(model: Model | str, modality: Modality) -> InferenceEndpoint:
+    if not isinstance(model, str):
+        model = model.fqn
+    return endpoints[model, modality]
 
 
-def get_endpoints(model: Model) -> list[tuple[Modality, InferenceEndpoint]]:
+def get_model_key_from_env(model: Model | str) -> str:
+    # maps model fqn to PROVIDER_API_KEY
+    if not isinstance(model, str):
+        model = model.fqn
+    provider = model.split(".")[0]
+    return os.environ[f"{provider.upper()}_API_KEY"]
+
+
+def get_inference_endpoint(
+    model: Model | str, modality: Modality, external_name: str, key: str
+) -> InferenceEndpoint:
+    if not isinstance(model, str):
+        model = model.fqn
+    return get_inference_endpoint_cls(model, modality)(external_name=external_name, key=key)
+
+
+def get_inference_endpoints_cls(model: Model | str) -> list[tuple[Modality, InferenceEndpoint]]:
+    if not isinstance(model, str):
+        model = model.fqn
     for (fqn, modality), endpoint in endpoints.items():
-        if fqn == model.fqn:
+        if fqn == model:
             yield modality, endpoint
 
 
 @endpoint(["openai.std.text.gpt-4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
 class OpenAIChatCompletion(ModelInference):
-    model: Model
     role_map = {
         XSource.System: "system",
         XSource.Developer: "assistant",
@@ -67,13 +81,14 @@ class OpenAIChatCompletion(ModelInference):
     ) -> str:
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
         response = await openai.ChatCompletion.acreate(
-            model=self.model.external_name,
+            model=self.external_name,
             messages=messages,
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
             top_p=settings.top_p,
             stop=settings.stop or None,
             logit_bias=settings.logit_bias,
+            api_key=self.key,
         )
         text = response["choices"][0]["message"]["content"]
         return text
@@ -83,7 +98,6 @@ class OpenAIChatCompletion(ModelInference):
     ["openai.std.text.text-davinci-003", "openai.std.text.text-ada-001"], Modality.GenerateText
 )
 class OpenAITextCompletion(ModelInference):
-    model: Model
     role_map = {
         XSource.System: "System",
         XSource.Developer: "Developer",
@@ -99,13 +113,14 @@ class OpenAITextCompletion(ModelInference):
         messages = [{"role": self.role_map[x.source], "content": x.value} for x in input]
         prompt = "\n\n".join(f"{x['role']}: {x['content']}" for x in messages) + "\n\nAssistant:"
         response = await openai.Completion.acreate(
-            model=self.model.external_name,
+            model=self.external_name,
             prompt=prompt,
             max_tokens=settings.max_tokens,
             temperature=settings.temperature,
             top_p=settings.top_p,
             stop=settings.stop or None,
             logit_bias=settings.logit_bias,
+            api_key=self.key,
         )
         text = response["choices"][0]["text"]
         return text
@@ -113,22 +128,19 @@ class OpenAITextCompletion(ModelInference):
 
 @endpoint(["openai.std.text.text-ada-001"], Modality.Embed)
 class OpenAITextEmbedding(ModelInference):
-    model: Model
-
     async def embed(self, input: list[XBlock[str]], settings: None) -> list[float]:
         prompt = "\n\n".join(x.value for x in input)
-        rep = await openai.Embedding.acreate(prompt, model=self.model.external_name)
+        rep = await openai.Embedding.acreate(prompt, model=self.external_name, api_key=self.key)
         return rep["data"][0]["embedding"]
 
 
 @endpoint(["openai.std.audio.whisper"], Modality.GenerateText)
 class OpenAIAudioTranscription(ModelInference):
-    model: Model
+    pass
 
 
 @endpoint(["anthropic.std.text.claude", "anthropic.std.text.claude-instant"], Modality.GenerateText)
 class AnthropicTextCompletion(ModelInference):
-    model: Model
     role_map = {
         XSource.System: "Human",
         XSource.Developer: "Human",
@@ -137,7 +149,7 @@ class AnthropicTextCompletion(ModelInference):
     }
 
     def __post_init__(self):
-        self.client = anthropic.Client(os.environ["ANTHROPIC_API_KEY"])
+        self.client = anthropic.Client(self.key)
 
         # monkey patch Anthropic's validation (which is broken)
         from anthropic import api
@@ -158,7 +170,7 @@ class AnthropicTextCompletion(ModelInference):
         )
         rep = await self.client.acompletion(
             prompt=prompt,
-            model=self.model.external_name,
+            model=self.external_name,
             stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
             temperature=settings.temperature,
             max_tokens_to_sample=settings.max_tokens,

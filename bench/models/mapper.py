@@ -441,12 +441,6 @@ def wmap_symbol(
         statement.code = data.text
     statement.root_type_tag = data.root_type_tag
     # copy basic normalized data
-    if data.build_settings:
-        build_settings = models.BuildSettings(
-            reactive=data.build_settings.reactive, weights=data.build_settings.weights
-        )
-        statement.build_settings = build_settings
-        relations.append(build_settings)
     if data.reference_module:
         if isinstance(data.reference_module, UUID):
             statement.reference_project_version_id = data.reference_module
