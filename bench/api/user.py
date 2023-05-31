@@ -119,20 +119,8 @@ class Client(gql.relay.Node):
     type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
     record: Optional[Annotated["DatasetRecord", lazy(".statement")]]
     path: auto
-    lock: Optional["Lock"]
     active: bool
     present: bool
-
-
-@gql.django.type(models.Lock)
-class Lock(gql.relay.Node):
-    created_at: auto
-    updated_at: auto
-    project_version: Annotated["ProjectVersion", lazy(".project")]
-    statement: Optional[Annotated["Statement", lazy(".statement")]]
-    type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
-    record: Optional[Annotated["DatasetRecord", lazy(".statement")]]
-    path: auto
 
 
 @gql.input

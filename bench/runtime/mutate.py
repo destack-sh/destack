@@ -18,7 +18,6 @@ MutableThing = Union[
     models.Statement,
     models.SimpleTypeNode,
     models.DatasetRecord,
-    models.XBlock,
 ]
 
 # refer to ModuleMutationType and _MODULE_MUTATION_MAP
@@ -65,22 +64,15 @@ _TRIVIAL_PUBLIC_TO_INTERNAL = {
     MMT.DELETE_RECORD: MMT.DELETE_RECORD,
     MMT.SOFT_DELETE_RECORD: MMT.DELETE_RECORD,
     MMT.RESTORE_RECORD: MMT.UPDATE_RECORD,
-    # X blocks
-    MMT.CREATE_XBLOCK: MMT.CREATE_XBLOCK,
-    MMT.DELETE_XBLOCK: MMT.DELETE_XBLOCK,
 }
 
-_IGNORED_PUBLIC = {
-    MMT.CREATE_XBLOCK,  # not supported yet
-    MMT.DELETE_XBLOCK,  # not supported yet
-}
+_IGNORED_PUBLIC = {}
 
 _SCOPE_TO_TYPE_NAME = {
     MMS.FILE: "File",
     MMS.STATEMENT: "Statement",
     MMS.TYPE_NODE: "TypeNode",
     MMS.RECORD: "DatasetRecord",
-    MMS.XBLOCK: "XBlock",
 }
 
 

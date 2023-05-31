@@ -29,9 +29,9 @@ from .project import (
     RefType,
 )
 from .secret import Secret
-from .statement import SimpleTypeNode, Statement, StatementType, SymbolType, XBlock, XKind, XSource
+from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
-from .user import Client, ClientType, Lock, User
+from .user import Client, ClientType, User
 
 __all__ = [
     "AccessToken",
@@ -48,7 +48,6 @@ __all__ = [
     "ExecutionStatus",
     "ExecutionTriggerType",
     "File",
-    "Lock",
     "Notification",
     "NotificationStatus",
     "NotificationType",
@@ -75,7 +74,4 @@ __all__ = [
     "Worker",
     "WorkerStatus",
     "WorkerType",
-    "XBlock",
-    "XKind",
-    "XSource",
 ]

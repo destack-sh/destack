@@ -12,14 +12,7 @@ from uuid import UUID
 
 from bench.language import ModuleIndex, wire
 from bench.language.type import StatementType
-from bench.language.wire import (
-    FileData,
-    ModuleData,
-    RecordData,
-    SimpleTypeNodeData,
-    StatementData,
-    XBlockData,
-)
+from bench.language.wire import FileData, ModuleData, RecordData, SimpleTypeNodeData, StatementData
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -72,9 +65,6 @@ class ModuleMutationType(enum.StrEnum):
     SOFT_DELETE_RECORD = "SOFT_DELETE_RECORD"
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
-    # X blocks
-    CREATE_XBLOCK = "CREATE_XBLOCK"
-    DELETE_XBLOCK = "DELETE_XBLOCK"
 
     @property
     def kind(self) -> "ModuleMutationKind":
@@ -102,7 +92,6 @@ class ModuleMutationScope(enum.StrEnum):
     STATEMENT = "STATEMENT"
     TYPE_NODE = "TYPE_NODE"
     RECORD = "RECORD"
-    XBLOCK = "XBLOCK"
 
 
 # Basic CRUD mutations with full (flat) data for the model
@@ -119,8 +108,6 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.CREATE_RECORD,
     ModuleMutationType.UPDATE_RECORD,
     ModuleMutationType.DELETE_RECORD,
-    ModuleMutationType.CREATE_XBLOCK,
-    ModuleMutationType.DELETE_XBLOCK,
     # other not directly CRUD
     ModuleMutationType.TRUNCATE_RECORDS,
 }
@@ -174,18 +161,14 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
     MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
     MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
-    # X blocks
-    MMT.CREATE_XBLOCK: (MMK.CREATE, MMS.XBLOCK),
-    MMT.DELETE_XBLOCK: (MMK.DELETE, MMS.XBLOCK),
 }
 
-MutableData = FileData | StatementData | SimpleTypeNodeData | RecordData | XBlockData
+MutableData = FileData | StatementData | SimpleTypeNodeData | RecordData
 SCOPE_BY_CLASS = {
     FileData: MMS.FILE,
     StatementData: MMS.STATEMENT,
     SimpleTypeNodeData: MMS.TYPE_NODE,
     RecordData: MMS.RECORD,
-    XBlockData: MMS.XBLOCK,
 }
 
 
@@ -205,7 +188,6 @@ class ModuleMutation:
     _data_statement: Optional[StatementData] = None
     _data_type_node: Optional[SimpleTypeNodeData] = None
     _data_record: Optional[RecordData] = None
-    _data_xblock: Optional[XBlockData] = None
 
     @property
     def data(self) -> MutableData:
@@ -217,8 +199,6 @@ class ModuleMutation:
             return self._data_type_node
         elif self.type.scope == MMS.RECORD:
             return self._data_record
-        elif self.type.scope == MMS.XBLOCK:
-            return self._data_xblock
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
 
@@ -234,8 +214,6 @@ class ModuleMutation:
             self._data_type_node = value
         elif self.type.scope == MMS.RECORD:
             self._data_record = value
-        elif self.type.scope == MMS.XBLOCK:
-            self._data_xblock = value
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
 
@@ -286,7 +264,7 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             statement_id = obj.id
             file_id = obj.file_id
-        elif isinstance(obj, (SimpleTypeNodeData, RecordData, XBlockData)):
+        elif isinstance(obj, (SimpleTypeNodeData, RecordData)):
             if obj.statement_id in self._created_statements:
                 statement = self._created_statements[obj.statement_id]
                 statement_id = statement.id
@@ -335,14 +313,10 @@ class ModuleMutator:
                     self.create(type_node)
                 for record in obj.records or []:
                     self.create(record)
-                for xblock in obj.xblocks or []:
-                    self.create(xblock)
         elif isinstance(obj, SimpleTypeNodeData):
             self.do(MMT.CREATE_TYPE_NODE, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.CREATE_RECORD, obj)
-        elif isinstance(obj, XBlockData):
-            self.do(MMT.CREATE_XBLOCK, obj)
         else:
             raise ValueError(f"unexpected mutation object: {obj}")
         return self
@@ -379,8 +353,6 @@ class ModuleMutator:
             self.do(MMT.DELETE_TYPE_NODE, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.DELETE_RECORD, obj)
-        elif isinstance(obj, XBlockData):
-            self.do(MMT.DELETE_XBLOCK, obj)
         else:
             raise ValueError(f"unexpected mutation object: {obj}")
         return self
@@ -446,10 +418,6 @@ class ModuleMutator:
             if statements[m.statement_id].records is None:
                 statements[m.statement_id].records = []
             statements[m.statement_id].records.append(m.data)
-        for m in mut[MMT.CREATE_XBLOCK]:
-            if statements[m.statement_id].xblocks is None:
-                statements[m.statement_id].xblocks = []
-            statements[m.statement_id].xblocks.append(m.data)
 
         # apply updates
         for m in mut[MMT.UPDATE_FILE]:
@@ -461,7 +429,6 @@ class ModuleMutator:
             if old_statement is not None:  # otherwise panic?
                 statements[m.statement_id].type_nodes = old_statement.type_nodes
                 statements[m.statement_id].records = old_statement.records
-                statements[m.statement_id].xblocks = old_statement.xblocks
         for m in mut[MMT.UPDATE_TYPE_NODE]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.type_nodes, m.data)

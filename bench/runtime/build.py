@@ -196,7 +196,9 @@ class XBuilder:
             else:
                 xblocks.append(x)
 
-        async def _invoke_task(*args, retries: int = 2, **kwargs) -> dict[str, LiteralValue]:
+        async def _invoke_task(
+            *args, retries: int = None, cache: bool = None, **kwargs
+        ) -> dict[str, LiteralValue]:
             # TODO @Feature: should definitely retry on invalid output with error message
             inputs = {**kwargs}  # combine inputs from args/kwargs
             for input_t, input in zip(self.task.type.inputs, args):

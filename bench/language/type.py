@@ -938,8 +938,9 @@ class XSource(enum.StrEnum):
 ValueT = typing.TypeVar("ValueT", bound=typing.Any)
 
 
+# TODO @Architecture: XBlock should just be a wrapper around a regular value
 @dataclass(repr=False)
-class XBlock(SymbolContent, typing.Generic[ValueT]):
+class XBlock(typing.Generic[ValueT]):
     kind: XKind
     source: XSource
     value: Optional[ValueT]

@@ -48,16 +48,6 @@ class SimpleTypeNodeFilter:
         return queryset
 
 
-@gql.django.filter(models.XBlock)
-class XBlockFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is not UNSET and self.is_visible is not None:
-            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
-        return queryset
-
-
 @gql.django.type(models.DatasetRecord)
 class DatasetRecord(gql.Node):
     statement: "Statement"
@@ -67,23 +57,6 @@ class DatasetRecord(gql.Node):
     deleted_at: auto
     order_key: str
     data: JSON
-
-
-XKind = gql.enum(models.XKind)
-XSource = gql.enum(models.XSource)
-
-
-@gql.django.type(models.XBlock)
-class XBlock(gql.Node):
-    id: GlobalID
-    statement: "Statement"
-    revision: auto
-    created_at: auto
-    kind: XKind
-    source: XSource
-    order_key: str
-    value: Optional[JSON]
-    description: Optional[str]
 
 
 TypeTag = gql.enum(language.type.TypeTag)
@@ -155,7 +128,6 @@ class Statement(gql.Node, SimplyTyped):
     type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)
     lang: auto
     code: auto
-    xblocks: list[XBlock] = gql.django.field(filters=XBlockFilter)
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
@@ -755,22 +727,6 @@ class TypeNodeDeleteInput(gql.NodeInput):
 
 @gql.input
 class TypeNodeRestoreInput(gql.NodeInput):
-    pass
-
-
-@gql.input
-class XBlockCreateInput:
-    id: GlobalID
-    order_key: str
-    statement_id: GlobalID
-    kind: XKind
-    source: XSource
-    value: JSON
-    description: Optional[str]
-
-
-@gql.input
-class XBlockDeleteInput(gql.NodeInput):
     pass
 
 

@@ -125,7 +125,7 @@ def read_module(
     statements = (
         project_v.statements.filter(deleted_at=None, commented=False)
         .select_related("reference")
-        .prefetch_related("records", "type_nodes", "xblocks")
+        .prefetch_related("type_nodes")
     )
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
@@ -152,7 +152,7 @@ def rmap_file_nested(file: models.File, exclude_non_semantic: bool) -> FileData:
     statements = (
         file.statements.filter(deleted_at=None, commented=False)
         .select_related("reference")
-        .prefetch_related("records", "type_nodes", "xblocks")
+        .prefetch_related("type_nodes")
     )
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
@@ -418,8 +418,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
             record = statement.records.filter(deleted_at=None).order_by("order_key").first()
             if record is not None:
                 data.records.append(rmap_record(record))
-    if statement.symbol_type == SymbolType.CODE and not flat:
-        data.xblocks = rmap_xblocks(statement.xblocks.all())
     if statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
             name=statement.reference_project_version.project.path,
@@ -464,9 +462,6 @@ def wmap_symbol(
         if data.records:
             model_records = [wmap_record(statement.id, record) for record in data.records]
             relations.extend(model_records)
-        if data.xblocks:
-            model_xblocks = wmap_xblocks(statement, data.xblocks)
-            relations.extend(model_xblocks)
 
     return relations
 
@@ -489,46 +484,6 @@ def wmap_record(statement_id: UUID, record: RecordData) -> models.DatasetRecord:
         revision=record.revision,
         data=record.data,
     )
-
-
-def rmap_xblocks(xblocks: list[models.XBlock]) -> list[wire.XBlockData]:
-    """Reads a list of database xblocks into a list of wire xblocks."""
-    xblocks = [
-        wire.XBlockData(
-            id=x.id,
-            statement_id=x.statement_id,
-            order_key=x.order_key,
-            kind=x.kind,
-            source=x.source,
-            value=x.value,
-            description=x.description,
-            path=x.path,
-            revision=x.revision,
-        )
-        for x in xblocks
-    ]
-    xblocks.sort(key=lambda x: x.order_key)
-    return xblocks
-
-
-def wmap_xblocks(
-    statement: models.Statement, xblocks: list[wire.XBlockData]
-) -> list[models.XBlock]:
-    """Writes a list of wire xblocks into a list of database xblocks."""
-    return [
-        models.XBlock(
-            id=x.id,
-            statement=statement,
-            order_key=x.order_key,
-            kind=x.kind,
-            source=x.source,
-            value=x.value,
-            description=x.description,
-            revision=x.revision,
-            path=x.path,
-        )
-        for x in xblocks
-    ]
 
 
 def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeData:

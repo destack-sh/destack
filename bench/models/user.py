@@ -170,7 +170,6 @@ class Client(UUIDModel):
     )
     record = models.ForeignKey("DatasetRecord", on_delete=models.SET_NULL, null=True, blank=True)
     path = models.CharField(max_length=256, null=True, blank=True)
-    lock = models.OneToOneField("Lock", on_delete=models.SET_NULL, null=True, blank=True)
 
     @property
     def active(self) -> bool:
@@ -238,35 +237,3 @@ def wmap_client(client_data: ClientData) -> Client:
         record_id=client_data.record_id,
         path=client_data.path,
     )
-
-
-class Lock(UUIDModel):
-    """A client's lock on editing a specific resource."""
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="locks"
-    )
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+")
-    type_node = models.ForeignKey("SimpleTypeNode", on_delete=models.CASCADE, related_name="+")
-    record = models.ForeignKey("DatasetRecord", on_delete=models.CASCADE, related_name="+")
-    path = models.CharField(max_length=256)
-
-    class Meta:
-        constraints = [
-            # unique lock per project version and each resource
-            models.UniqueConstraint(
-                fields=["project_version", "statement", "path"],
-                name="bench_lock_statement_ak",
-                condition=Q(type_node__isnull=True) & Q(record__isnull=True),
-            ),
-            models.UniqueConstraint(
-                fields=["project_version", "type_node", "path"],
-                name="bench_lock_type_node_ak",
-            ),
-            models.UniqueConstraint(
-                fields=["project_version", "record", "path"],
-                name="bench_lock_record_ak",
-            ),
-        ]
