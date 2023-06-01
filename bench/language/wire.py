@@ -604,12 +604,5 @@ def rmap_error(error: language.Error) -> ErrorData:
 
 
 class ExecutionTriggerType(enum.StrEnum):
-    REST_API = "rest-api"
-    UI_INTERACTIVE = "ui-interactive"
-
-
-class ExecutionTracingLevel(enum.StrEnum):
-    ROOT_FRAME = "root-frame"
-    ROOT_FRAME_WITH_DATA = "root-frame-with-data"
-    ALL_FRAMES = "all-frames"
-    ALL_FRAMES_WITH_DATA = "all-frames-with-data"
+    API = "rest"
+    UI = "ui"

@@ -382,16 +382,9 @@ enum ExecutionStatus {
   Completed
 }
 
-enum ExecutionTracingLevel {
-  ROOT_FRAME
-  ROOT_FRAME_WITH_DATA
-  ALL_FRAMES
-  ALL_FRAMES_WITH_DATA
-}
-
 enum ExecutionTriggerType {
-  REST_API
-  UI_INTERACTIVE
+  API
+  UI
 }
 
 type File implements Node {
@@ -1480,7 +1473,7 @@ input RunInput {
   buildId: GlobalID = null
   executionId: GlobalID = null
   arguments: JSON = null
-  trace: ExecutionTracingLevel! = ALL_FRAMES_WITH_DATA
+  trace: Int! = 7
   block: Boolean! = true
   timeoutSeconds: Int = null
 }

@@ -58,14 +58,12 @@ def run_sync(
     code: SyncCodeInstance, arguments: dict[str, LiteralValue] | None = None
 ) -> LiteralValue:
     """Runs the code instance synchronously. Not to be used in production."""
-    from bench.runtime.tracing import tracer_boundary
-
-    arguments = arguments or {}
+    # transform keys to valid python identifiers
+    arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
         if code.is_async:
             raise RuntimeError(f"cannot run async code synchronously: {code}")
-        with tracer_boundary():
-            return code(**arguments)
+        return code(**arguments)
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
 
@@ -77,17 +75,14 @@ async def run(
 ) -> LiteralValue:
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
         raise RunError(RunErrorType.UNTRUSTED, code)
-    from bench.runtime.tracing import tracer_boundary
-
     # transform keys to valid python identifiers
     arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
         await code.session.prepare()
         code.session.open()
-        with tracer_boundary():
-            if not code.is_async:
-                code = code.to_async()
-            ret = await code(**arguments)
+        if not code.is_async:
+            code = code.to_async()
+        ret = await code(**arguments)
         await code.session.aclose()
         return ret
     except Exception as e:

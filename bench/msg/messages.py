@@ -10,13 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language import mutate, wire
-from bench.language.wire import (
-    ExecutionTracingLevel,
-    ExecutionTriggerType,
-    RemoteObjectData,
-    SecretData,
-    XBlockData,
-)
+from bench.language.wire import ExecutionTriggerType, RemoteObjectData, SecretData, XBlockData
 from bench.runtime.type import ExecutionFrameData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -165,7 +159,7 @@ class ReqRegisterWorkerPayload:
     worker_id: UUID
     deployment_id: UUID
     project_id: Optional[UUID]
-    type: str
+    tenancy: str
 
 
 @payload(NMessageType.REPLY_REGISTER_WORKER)
@@ -187,7 +181,7 @@ class ReqRunPayload:
     default_build_id: Optional[UUID]
     arguments: dict[str, typing.Any]
     block: bool
-    tracing_level: ExecutionTracingLevel
+    tracing_level: int
     trigger_type: ExecutionTriggerType
     trigger_id: Optional[UUID]
     execution_id: Optional[UUID]

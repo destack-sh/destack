@@ -307,7 +307,7 @@ defineExpose({
     +description
   </button>
   <!-- Members (enum options or struct fields) -->
-  <div v-if="membersLength > 0" class="my-0.5 flex w-fit flex-col gap-0.5">
+  <div v-if="membersLength > 0" class="my-0.5 flex w-full flex-col gap-0.5">
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Type -->

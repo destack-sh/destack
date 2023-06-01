@@ -391,16 +391,9 @@ export enum ExecutionStatus {
   Scheduled = "Scheduled",
 }
 
-export enum ExecutionTracingLevel {
-  AllFrames = "ALL_FRAMES",
-  AllFramesWithData = "ALL_FRAMES_WITH_DATA",
-  RootFrame = "ROOT_FRAME",
-  RootFrameWithData = "ROOT_FRAME_WITH_DATA",
-}
-
 export enum ExecutionTriggerType {
-  RestApi = "REST_API",
-  UiInteractive = "UI_INTERACTIVE",
+  Api = "API",
+  Ui = "UI",
 }
 
 export type File = Node & {
@@ -1774,7 +1767,7 @@ export type RunInput = {
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
-  trace?: ExecutionTracingLevel;
+  trace?: Scalars["Int"];
 };
 
 export type RunState = {

@@ -31,6 +31,7 @@ from bench.msg.messages import (
     ReqInterpPayload,
     ReqRunPayload,
 )
+from bench.runtime.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -165,9 +166,6 @@ def rmap_errors(wire_errors: list[wire.ErrorData], module: InterpModule) -> list
     return errors
 
 
-ExecutionTracingLevel = gql.enum(wire.ExecutionTracingLevel)
-
-
 @gql.input
 class RunInput:
     project_version_id: GlobalID
@@ -175,7 +173,7 @@ class RunInput:
     build_id: Optional[GlobalID] = None
     execution_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
-    trace: ExecutionTracingLevel = ExecutionTracingLevel.ALL_FRAMES_WITH_DATA
+    trace: int = SessionTracingLevel.ALL
     block: bool = True
     timeout_seconds: Optional[int] = None
 
@@ -234,7 +232,7 @@ class RuntimeMutation:
             block=input.block,
             tracing_level=input.trace,
             deployment_id=deployment_id,
-            trigger_type=ExecutionTriggerType.UI_INTERACTIVE,
+            trigger_type=ExecutionTriggerType.UI,
             trigger_id=user.id,
             execution_id=to_uuid(input.execution_id),
         )

@@ -153,8 +153,7 @@ class DeployedStatement(UUIDModel):
         ]
 
 
-class WorkerType(models.TextChoices):
-    LANGUAGE = "LANGUAGE"
+class WorkerTenancy(models.TextChoices):
     COMMUNITY = "COMMUNITY"
     DEDICATED = "DEDICATED"
 
@@ -173,7 +172,7 @@ class Worker(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True)
     terminated_at = models.DateTimeField(null=True)
-    type = TextChoicesField(choices_enum=WorkerType)
+    tenancy = TextChoicesField(choices_enum=WorkerTenancy)
     status = TextChoicesField(choices_enum=WorkerStatus)
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="workers", null=True
@@ -184,7 +183,7 @@ class Worker(UUIDModel):
     last_seen_at = models.DateTimeField(null=True)
 
     def __str__(self):
-        return f"{self.id} {self.status} ({self.type}, {self.deployment})"
+        return f"{self.id} {self.status} ({self.tenancy}, {self.deployment})"
 
     def __repr__(self):
         return f"<SandboxedWorker {self}>"

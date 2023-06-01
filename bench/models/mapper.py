@@ -525,13 +525,9 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     else:
         status = models.ExecutionStatus.Running
     # additional context
-    user_id = (
-        frame.trigger_id
-        if frame.trigger_type == models.ExecutionTriggerType.UI_INTERACTIVE
-        else None
-    )
+    user_id = frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.UI else None
     access_token_id = (
-        frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.REST_API else None
+        frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.API else None
     )
     return models.Execution(
         id=frame.id,

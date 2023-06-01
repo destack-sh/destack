@@ -14,11 +14,11 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
-from bench.models.execution import ExecutionTracingLevel
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import NMessageType
 from bench.msg.core import request
 from bench.msg.messages import RepRunPayload, ReqRunPayload
+from bench.runtime.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 
@@ -30,9 +30,7 @@ class RunInputSerializer(serializers.Serializer):
     build = serializers.CharField(default=None, allow_null=True)
     inputs = serializers.JSONField(default=None, allow_null=True)
     block = serializers.BooleanField(default=True)
-    trace = serializers.ChoiceField(
-        default=ExecutionTracingLevel.ALL_FRAMES_WITH_DATA, choices=ExecutionTracingLevel.choices
-    )
+    trace = serializers.IntegerField(default=SessionTracingLevel.ALL)
 
 
 class RunOutputSerializer(serializers.Serializer):

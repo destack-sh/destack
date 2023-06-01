@@ -106,6 +106,21 @@ function getTilePositionX(targetWidth?: number) {
 }
 
 const baseTilePositionX = computed(() => getTilePositionX());
+
+// navigation
+
+function focus() {
+  // nothing to do yet
+}
+
+function blur() {
+  // nothing to do yet
+}
+
+defineExpose({
+  focus,
+  blur,
+});
 </script>
 <template>
   <div class="relative flex flex-col" :style="{ minHeight: editorSize.height + 'px' }">
@@ -213,7 +228,7 @@ const baseTilePositionX = computed(() => getTilePositionX());
           :project-id="bench.currentProjectId"
           :project-version-id="bench.currentProjectVersionId"
           include-ancestor-versions
-          :symbol-id="editor?.symbolId"
+          :runnable-id="editor?.symbolId"
           :symbol-type="symbol?.symbolType"
           live
         />

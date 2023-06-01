@@ -65,7 +65,7 @@ def get_inference_endpoints_cls(model: Model | str) -> list[tuple[Modality, Infe
             yield modality, endpoint
 
 
-@endpoint(["openai.std.text.gpt-4", "openai.std.text.gpt-3-5-turbo"], Modality.GenerateText)
+@endpoint(["openai.std.text.gpt4", "openai.std.text.gpt3"], Modality.GenerateText)
 class OpenAIChatCompletion(ModelInference):
     role_map = {
         XSource.System: "system",
@@ -94,9 +94,7 @@ class OpenAIChatCompletion(ModelInference):
         return text
 
 
-@endpoint(
-    ["openai.std.text.text-davinci-003", "openai.std.text.text-ada-001"], Modality.GenerateText
-)
+# no endpoints currently
 class OpenAITextCompletion(ModelInference):
     role_map = {
         XSource.System: "System",
