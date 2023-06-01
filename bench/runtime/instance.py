@@ -21,6 +21,7 @@ import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 from more_itertools import first, last
 
+from bench import language
 from bench.language import (
     Build,
     Code,
@@ -94,7 +95,7 @@ class Session:
         self,
         idx: ModuleIndex,
         instances: list["SymbolInstance"] = None,
-        default_build: Build = None,
+        builds: dict[str, Build] = None,
         cache_inferences: bool = True,
         tracer: Tracer = DEFAULT_TRACER,
         inference_timeout: int = 20,
@@ -107,11 +108,10 @@ class Session:
             raise ValueError("write must be provided for non-readonly sessions")
         self.id = uuid4()
         self.idx = idx
-        self.module = idx.module
         self.instances: dict[UUID, SymbolInstance] = {
             symbol.id: symbol for symbol in (instances or [])
         }
-        self.default_build = default_build
+        self.builds: dict[str, Build] = builds or {}
         self.tracer = tracer
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -133,6 +133,10 @@ class Session:
 
     def __repr__(self):
         return f"<Session {self}>"
+
+    @property
+    def module(self) -> language.Module:
+        return self.idx.module
 
     @property
     def mut(self) -> ModuleMutator:
@@ -167,31 +171,23 @@ class Session:
     async def prepare(self):
         """Prepares instances in the session for execution."""
         logger.debug("session.prepare", session=self)
-        # prepare default implementations for tasks
-        if self.default_build is not None:
-            for instance in list(self.instances.values()):  # copy to avoid concurrent modification
-                if isinstance(instance, TaskInstance):
-                    _ = self.get_implementations(instance, build=self.default_build)
 
     def get_implementations(
-        self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
+        self, task: "TaskInstance", build: Build | str = "balanced", model: Model | str = None
     ) -> list[XPrompt]:
         """Gets or builds an implementation for a task."""
         from bench.runtime.build import build_task_implementation
 
-        if build is not None:
-            if isinstance(build, str):
-                build = self.idx.symbol(build, symbol_t=Build)
-            models = build.models
-        elif model is not None:
+        if model is not None:
             if isinstance(model, str):
                 model = self.idx.symbol(model, symbol_t=Model)
             models = [model]
-        else:
-            if self.default_build is None:
-                raise RuntimeError(f"no build specified for {task} (no default in {self})")
-            build = self.default_build
+        elif build is not None:
+            if isinstance(build, str):
+                build = self.builds[build]
             models = build.models
+        else:
+            raise RuntimeError(f"no implementation specified for {task} (no default in {self})")
 
         implementations = []
         for model in models:

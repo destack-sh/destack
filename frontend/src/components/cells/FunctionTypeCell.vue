@@ -26,8 +26,8 @@ const outputNodes = computed(
   () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as SimpleTypeNode) ?? []
 );
 
-type ColumnType = "type" | "description";
-const columnsInOrder: Ref<ColumnType[]> = ref(["type", "description"] as ColumnType[]);
+type ColumnType = "type";
+const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);
 const inputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface>>(columnsInOrder, inputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addInputRef.value?.focus(),
@@ -143,39 +143,29 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex w-full flex-row flex-wrap items-start justify-evenly gap-4">
+  <div class="flex w-full flex-row flex-wrap items-start gap-4">
     <!-- Inputs -->
-    <div class="-mx-1 my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
-      <!-- Rows -->
+    <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
       <template v-for="member of inputNodes" :key="member.id">
-        <!-- Columns -->
-        <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
-          <!-- Individual column: a bit messy -->
-          <component
-            :ref="(el: any) => inputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? TypeTupleInterface : ValueInterface"
-            :model-value="readColumn(member as SimpleTypeNode, column)"
-            @update:model-value="(val: any) => writeColumn('input', member.id, column, val)"
-            :readonly="context.readonly.value"
-            :active="context.focused.value || context.editing.value"
-            immediate
-            debounced
-            :placeholder-value="context.editing.value ? '+' + column : null"
-            :type="NAME_TYPE_NODE"
-            slim
-            @navigate-left="inputGrid.navigateLeft(member.id, column)"
-            @navigate-right="inputGrid.navigateRight(member.id, column)"
-            @navigate-up="inputGrid.navigateUp(member.id, column)"
-            @navigate-down="inputGrid.navigateDown(member.id, column)"
-            @delete-left="deleteMember('input', member.id)"
-            @delete-self="deleteMember('input', member.id)"
-            class="w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :class="{
-              'text-gray-400': column == 'type',
-            }"
-          />
-          <!-- :EditableCellStyle -->
-        </template>
+        <TypeTupleInterface
+          :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
+          :model-value="readColumn(member as SimpleTypeNode, 'type')"
+          @update:model-value="(val: any) => writeColumn('input', member.id, 'type', val)"
+          :readonly="context.readonly.value"
+          :active="context.focused.value || context.editing.value"
+          immediate
+          debounced
+          :placeholder-value="context.editing.value ? '+' + 'type' : null"
+          :type="NAME_TYPE_NODE"
+          slim
+          @navigate-left="inputGrid.navigateLeft(member.id, 'type')"
+          @navigate-right="inputGrid.navigateRight(member.id, 'type')"
+          @navigate-up="inputGrid.navigateUp(member.id, 'type')"
+          @navigate-down="inputGrid.navigateDown(member.id, 'type')"
+          @delete-left="deleteMember('input', member.id)"
+          @delete-self="deleteMember('input', member.id)"
+          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+        />
       </template>
       <!-- Add a member -->
       <button
@@ -185,7 +175,7 @@ defineExpose({
         class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('input')"
         @enter="insertBelow('input')"
-        @keydown.up.exact.prevent="focus('last', 'input')"
+        @keydown.up.exact.prevent="inputNodes.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
@@ -195,36 +185,27 @@ defineExpose({
     <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="-mx-1 my-1 grid h-fit w-fit flex-1 grid-cols-[minmax(60px,auto)_minmax(60px,1fr)]">
-      <!-- Rows -->
+    <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
       <template v-for="member of outputNodes" :key="member.id">
-        <!-- Columns -->
-        <template v-for="column in columnsInOrder" :key="member.id + '.' + column">
-          <!-- Individual column: a bit messy -->
-          <component
-            :ref="(el: any) => outputGrid.registerColumnRef(member.id, column, el)"
-            :is="column == 'type' ? TypeTupleInterface : ValueInterface"
-            :model-value="readColumn(member as SimpleTypeNode, column)"
-            @update:model-value="(val: any) => writeColumn('output', member.id, column, val)"
-            :readonly="context.readonly.value"
-            :active="context.focused.value || context.editing.value"
-            immediate
-            debounced
-            :placeholder-value="context.editing.value ? '+' + column : null"
-            :type="NAME_TYPE_NODE"
-            @navigate-left="outputGrid.navigateLeft(member.id, column)"
-            @navigate-right="outputGrid.navigateRight(member.id, column)"
-            @navigate-up="outputGrid.navigateUp(member.id, column)"
-            @navigate-down="outputGrid.navigateDown(member.id, column)"
-            @delete-left="deleteMember('output', member.id)"
-            @delete-self="deleteMember('output', member.id)"
-            class="w-full self-start border border-transparent px-1 py-0.5 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :class="{
-              'text-gray-400': column == 'type',
-            }"
-          />
-          <!-- :EditableCellStyle -->
-        </template>
+        <TypeTupleInterface
+          :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"
+          :is="'type' == 'type' ? TypeTupleInterface : ValueInterface"
+          :model-value="readColumn(member as SimpleTypeNode, 'type')"
+          @update:model-value="(val: any) => writeColumn('output', member.id, 'type', val)"
+          :readonly="context.readonly.value"
+          :active="context.focused.value || context.editing.value"
+          immediate
+          debounced
+          :placeholder-value="context.editing.value ? '+' + 'type' : null"
+          :type="NAME_TYPE_NODE"
+          @navigate-left="outputGrid.navigateLeft(member.id, 'type')"
+          @navigate-right="outputGrid.navigateRight(member.id, 'type')"
+          @navigate-up="outputGrid.navigateUp(member.id, 'type')"
+          @navigate-down="outputGrid.navigateDown(member.id, 'type')"
+          @delete-left="deleteMember('output', member.id)"
+          @delete-self="deleteMember('output', member.id)"
+          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+        />
       </template>
       <!-- Add a member -->
       <button
@@ -234,7 +215,7 @@ defineExpose({
         class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('output')"
         @enter="insertBelow('output')"
-        @keydown.up.exact.prevent="focus('last', 'output')"
+        @keydown.up.exact.prevent="outputNodes.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.left.exact.prevent="addInputRef?.focus"
       >

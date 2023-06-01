@@ -32,9 +32,8 @@ providers: list[Provider] = [
         name="OpenAI",
         slug="openai",
         text_models=[
-            "gpt-4",
-            ("gpt-3-5-turbo", "gpt-3.5-turbo"),
-            "text-davinci-003",
+            ("gpt4", "gpt-4"),
+            ("gpt3", "gpt-3.5-turbo"),
             "text-ada-001",
             "whisper",
         ],
@@ -42,7 +41,7 @@ providers: list[Provider] = [
     Provider(
         name="Anthropic",
         slug="anthropic",
-        text_models=[("claude-instant", "claude-instant-v1.0"), ("claude", "claude-v1.3")],
+        text_models=[("claude-instant", "claude-instant-v1.1"), ("claude", "claude-v1.3")],
     ),
     Provider(
         name="Hugging Face",

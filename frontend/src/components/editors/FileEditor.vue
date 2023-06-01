@@ -361,7 +361,9 @@ const auth = useAuth();
             </span>
           </span>
           <!-- Actions -->
-          <span class="ml-4 flex flex-row gap-1">
+          <span
+            class="ml-4 flex flex-row gap-1 opacity-0 transition-opacity group-focus-within/meta:opacity-100 group-hover/meta:opacity-100"
+          >
             <button
               v-for="action in fileActions.filter((action) => !action.hideInline)"
               :key="action.label"

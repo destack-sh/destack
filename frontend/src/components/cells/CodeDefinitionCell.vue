@@ -13,6 +13,7 @@ import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  CommandLineIcon,
   NoSymbolIcon,
   PlayIcon,
   StopIcon,
@@ -42,9 +43,8 @@ const executions = useExecutions(
   {
     projectId: toRef(bench, "currentProjectId"),
     projectVersionId: toRef(bench, "currentProjectVersionId"),
-    codeIds: ref([context.statement.value.id]),
+    runnableIds: ref([context.statement.value.id]),
     includeAncestorVersions: ref(false),
-    taskIds: ref(null),
   },
   { root: true, limit: 3, live: true }
 );
@@ -74,7 +74,16 @@ const extraActions = computed(() => {
       label: "Run",
       icon: PlayIcon,
       active: executionActive.value,
+      disabled: hasTypes.value,
       action: async () => await run(),
+    },
+    {
+      label: "Launch",
+      icon: CommandLineIcon,
+      action: () => {
+        const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+        bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+      },
     },
   ];
   if (executionActive.value) {

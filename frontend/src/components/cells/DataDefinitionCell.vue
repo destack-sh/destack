@@ -819,7 +819,7 @@ defineExpose({
     </tr>
   </table>
   <!-- Bottom actions -->
-  <div class="my-1 flex flex-row gap-2">
+  <div class="my-0.5 flex flex-row gap-2">
     <button
       v-if="pageInfo?.hasNextPage && isTable"
       @click.stop="loadMore()"

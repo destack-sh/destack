@@ -38,15 +38,11 @@ const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
 
 // dynamic member refs for names, values & descriptions for each member
-type ColumnType = "type" | "description";
-const grid = useNavigationGrid<ColumnType, InstanceType<typeof TypeInterface>>(
-  ref(["type", "description"] as ColumnType[]),
-  members,
-  {
-    gridNavigateUp: focusDescriptionFromBottom,
-    gridNavigateDown,
-  }
-);
+type ColumnType = "type";
+const grid = useNavigationGrid<ColumnType, InstanceType<typeof TypeInterface>>(ref(["type"] as ColumnType[]), members, {
+  gridNavigateUp: focusDescriptionFromBottom,
+  gridNavigateDown,
+});
 const extendedTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
@@ -272,7 +268,7 @@ defineExpose({
         @click="() => insertMember(true)"
         class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
       >
-        +extend
+        +base
       </button>
       <button
         tabindex="-1"
@@ -311,7 +307,7 @@ defineExpose({
     +description
   </button>
   <!-- Members (enum options or struct fields) -->
-  <div v-if="membersLength > 0" class="my-1 grid w-fit grid-cols-[minmax(40px,auto)_minmax(160px,1fr)] gap-y-0.5">
+  <div v-if="membersLength > 0" class="my-0.5 flex w-fit flex-col gap-0.5">
     <!-- Rows -->
     <template v-for="member of members" :key="member.id">
       <!-- Type -->
@@ -332,32 +328,13 @@ defineExpose({
         @keydown.delete.exact="isEditing || deleteMember(member.id)"
         @drop="(p, v) => dropMember(v.id, p, member.id)"
         @enter="grid.navigateDown(member.id, 'type')"
-        class="self-start border border-orange-900 border-opacity-0 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
+        class="self-start border border-orange-900 border-opacity-0 py-0.5 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         :class="
           isEnum
             ? 'w-fit focus-within:border-opacity-40 hover:border-opacity-40'
-            : 'w-full py-0.5 focus-within:border-opacity-[15%]'
+            : '-mx-1 w-full px-1 focus-within:border-opacity-[15%]'
         "
       />
-      <!-- Description -->
-      <ValueInterface
-        :model-value="member.description"
-        @update:model-value="writeDescription(member.id, $event)"
-        :ref="(el: any) => grid.registerColumnRef(member.id, 'description', el)"
-        :readonly="context.readonly.value"
-        :active="context.focused.value || context.editing.value"
-        debounced
-        :placeholder-value="context.editing.value ? '+' + 'description' : null"
-        :type="NAME_TYPE_NODE"
-        @navigate-left="grid.navigateLeft(member.id, 'description')"
-        @navigate-right="grid.navigateRight(member.id, 'description')"
-        @navigate-up="grid.navigateUp(member.id, 'description')"
-        @navigate-down="grid.navigateDown(member.id, 'description')"
-        @delete-self="deleteMember(member.id)"
-        @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        class="w-full self-start border border-transparent px-2 py-0.5 focus-within:border-solid focus-within:border-gray-700 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-      />
-      <!-- :EditableCellStyle -->
     </template>
   </div>
   <div class="mb-1">

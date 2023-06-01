@@ -150,9 +150,11 @@ body {
   opacity: 1;
 }
 
-::-webkit-scrollbar-thumb:hover {
+/* turns out visible on hover is annoying, especially without transition */
+/* (causes flickering, e.g. for horizontal scrollbars in datasets) */
+/* ::-webkit-scrollbar-thumb:hover {
   background-color: #fdba74;
-}
+} */
 
 /* TODO @UX: tranistion scrollbar properly on active */
 .scroll-active::-webkit-scrollbar-thumb {

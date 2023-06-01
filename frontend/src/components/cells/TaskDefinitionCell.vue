@@ -5,7 +5,7 @@ import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { PlayIcon } from "@heroicons/vue/24/outline";
+import { CommandLineIcon, PlayIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
@@ -25,6 +25,7 @@ context.syncDescription(
   computed(() => descriptionRef.value?.focused)
 );
 const addingDescription = ref(false);
+const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
@@ -37,24 +38,26 @@ function run() {
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
-      label: "Run",
-      icon: PlayIcon,
+      label: "Launch",
+      icon: CommandLineIcon,
       action: run,
     },
   ];
   return inlineActions;
 });
 
+function focus(position: "first" | "last" = "first") {
+  if (position == "first") {
+    declarationRef.value?.focus();
+  } else if (typeRef.value != null) {
+    typeRef.value?.focus(position);
+  } else {
+    descriptionRef.value?.focus();
+  }
+}
+
 defineExpose({
-  focus: (position: "first" | "last" = "first") => {
-    if (position == "first") {
-      declarationRef.value?.focus();
-    } else if (typeRef.value != null) {
-      typeRef.value?.focus(position);
-    } else {
-      descriptionRef.value?.focus();
-    }
-  },
+  focus,
   blur: () => {
     declarationRef.value?.blur();
     typeRef.value?.blur();
@@ -70,7 +73,7 @@ defineExpose({
       <DeclarationCell
         ref="declarationRef"
         class="inline-flex"
-        @navigate-down="descriptionRef?.focus"
+        @navigate-down="addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')"
         @navigate-right="typeRef?.focus"
       />
       <button
@@ -95,12 +98,12 @@ defineExpose({
   <div>
     <EditableSpan
       ref="descriptionRef"
-      :class="addingDescription ? '' : 'h-0'"
+      :class="showDescription ? '' : 'h-0'"
       v-model="description"
       :readonly="context.readonly.value"
       @navigate-left="declarationRef?.focus()"
       @navigate-up="declarationRef?.focus()"
-      @navigate-down="isTyped ? typeRef?.focus() : context.navigateDown()"
+      @navigate-down="isTyped ? typeRef?.focus('first') : context.navigateDown()"
       @enter="context.insertBelow"
     />
     <button
@@ -115,7 +118,7 @@ defineExpose({
     <FunctionTypeCell
       v-if="isTyped && (context.typeNodes.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
-      @navigate-up="context.navigateUp"
+      @navigate-up="showDescription ? descriptionRef?.focus() : declarationRef?.focus()"
       @navigate-down="context.navigateDown"
       @navigate-left="descriptionRef?.focus"
     />

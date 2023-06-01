@@ -87,17 +87,8 @@ class Execution(UUIDTModel):
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
-    build = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    task = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    code = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
-    )
-    model = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    runnable = models.ForeignKey(
+        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)

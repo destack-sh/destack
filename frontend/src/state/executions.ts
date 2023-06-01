@@ -56,15 +56,7 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
         locals
       }
     }
-    build {
-      id
-      name
-    }
-    task {
-      id
-      name
-    }
-    code {
+    runnable {
       id
       name
     }
@@ -76,8 +68,7 @@ export function useExecutions(
     projectId: Ref<string>;
     projectVersionId: Ref<string>;
     includeAncestorVersions: Ref<boolean>;
-    taskIds: Ref<string[] | null>;
-    codeIds: Ref<string[] | null>;
+    runnableIds: Ref<string[] | null>;
   },
   options: { root: boolean; first?: number; live?: boolean }
 ) {
@@ -90,8 +81,7 @@ export function useExecutions(
         $projectId: GlobalID!
         $projectVersionId: GlobalID
         $includeAncestorVersions: Boolean
-        $taskIds: [GlobalID!]
-        $codeIds: [GlobalID!]
+        $runnableIds: [GlobalID!]
         $rootIdNull: Boolean
         $first: Int
         $last: Int
@@ -100,8 +90,7 @@ export function useExecutions(
           projectId: $projectId
           projectVersionId: $projectVersionId
           includeAncestorVersions: $includeAncestorVersions
-          taskIds: $taskIds
-          codeIds: $codeIds
+          runnableIds: $runnableIds
           rootIdNull: $rootIdNull
           first: $first
           last: $last
@@ -129,9 +118,7 @@ export function useExecutions(
       projectId: filter.projectId,
       projectVersionId: filter.projectVersionId,
       includeAncestorVersions: filter.includeAncestorVersions,
-      buildIds: filter.buildIds,
-      taskIds: filter.taskIds,
-      codeIds: filter.codeIds,
+      runnableIds: filter.runnableIds,
       rootIdNull: options.root,
       first,
     }
@@ -164,8 +151,7 @@ export function useExecutions(
         projectId: filter.projectId,
         projectVersionId: filter.projectVersionId,
         includeAncestorVersions: filter.includeAncestorVersions,
-        taskIds: filter.taskIds,
-        codeIds: filter.codeIds,
+        runnableIds: filter.runnableIds,
         rootIdNull: options.root,
       },
       updateQuery: (prev, { subscriptionData }) => {

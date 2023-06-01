@@ -334,10 +334,8 @@ export enum ErrorType {
 export type Execution = Node & {
   __typename?: "Execution";
   accessToken?: Maybe<AccessToken>;
-  build?: Maybe<Statement>;
   cachedDuration?: Maybe<Scalars["Float"]>;
   cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
-  code?: Maybe<Statement>;
   createdAt: Scalars["DateTime"];
   deployment?: Maybe<Deployment>;
   descendants: Array<Execution>;
@@ -346,16 +344,15 @@ export type Execution = Node & {
   errorNice?: Maybe<RunError>;
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;
-  model?: Maybe<Statement>;
   outputs?: Maybe<Scalars["JSON"]>;
   parent?: Maybe<Execution>;
   project: Project;
   projectVersion: ProjectVersion;
   root?: Maybe<Execution>;
+  runnable?: Maybe<Statement>;
   /** Time of transition to Running status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: ExecutionStatus;
-  task?: Maybe<Statement>;
   /** Time of transition to a terminal status. */
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   triggerType: ExecutionTriggerType;
@@ -1535,15 +1532,13 @@ export type QueryClientsArgs = {
 export type QueryExecutionsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
-  codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   first?: InputMaybe<Scalars["Int"]>;
   includeAncestorVersions?: Scalars["Boolean"];
   last?: InputMaybe<Scalars["Int"]>;
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
-  taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type QueryFeaturedProjectsArgs = {
@@ -3127,17 +3122,14 @@ export type ExecutionContentFragment = {
       locals?: any | null;
     }> | null;
   } | null;
-  build?: { __typename?: "Statement"; id: any; name?: string | null } | null;
-  task?: { __typename?: "Statement"; id: any; name?: string | null } | null;
-  code?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "ExecutionContentFragment" };
 
 export type ExecutionsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
@@ -4832,29 +4824,7 @@ export const ExecutionContentFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "build" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "task" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "code" },
+            name: { kind: "Name", value: "runnable" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -7894,15 +7864,7 @@ export const ExecutionsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
@@ -7948,13 +7910,8 @@ export const ExecutionsDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "taskIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "codeIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+                name: { kind: "Name", value: "runnableIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
               },
               {
                 kind: "Argument",

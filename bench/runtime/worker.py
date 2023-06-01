@@ -157,12 +157,14 @@ class ModuleWorker:
 
         # instantiate
         try:
-            default_build = self.idx.get_symbol("balanced", symbol_t=Build)
+            from bench.runtime.build import get_default_builds
+
+            builds = {b.name: b for b in get_default_builds(self.interp)}
             session = Session(
                 idx=self.idx,
                 mode=SessionMode.WRITE_GLOBAL,
                 write=self.do_write,
-                default_build=default_build,
+                builds=builds,
                 executor=self.executor,
             )
             runnable_instance = instantiate(runnable, session=session)

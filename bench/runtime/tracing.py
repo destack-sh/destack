@@ -30,8 +30,7 @@ logger = structlog.get_logger(__name__)
 
 class Tracer:
     """
-    A worker-side tracer that can be attached to an execution.
-    Tracer will be called in an async context on a worker pod.
+    Trace and track a session with executions, mutations, etc.
     """
 
     def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
@@ -243,14 +242,11 @@ class ExecutionTracer(Tracer):
 
     def _create_frame(
         self,
-        runnable: typing.Optional[CodeInstance | TaskInstance] = None,
-        model: typing.Optional[Model] = None,
+        runnable: typing.Optional[CodeInstance | TaskInstance | Model] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
     ):
-        from bench.runtime.instance import CodeInstance, TaskInstance  # prevent circular import
-
         if trace:
             root = self.stacktrace[0] if self.stacktrace else None
             parent = self.stacktrace[-1] if self.stacktrace else None
@@ -260,10 +256,7 @@ class ExecutionTracer(Tracer):
         frame = ExecutionFrame(
             id=UUIDT(),
             module_id=worker_ctx.get().module_id,
-            build=runnable.session.default_build if runnable else parent.build if parent else None,
-            task=runnable if isinstance(runnable, TaskInstance) else None,
-            code=runnable if isinstance(runnable, CodeInstance) else None,
-            model=model,
+            runnable=runnable,
             root=root,
             parent=parent,
             entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
@@ -314,7 +307,7 @@ class ExecutionTracer(Tracer):
         logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
-        frame = self._create_frame(model=model)
+        frame = self._create_frame(runnable=model)
         frame.inputs = [to_dict(block) for block in blocks]
         self.stacktrace.append(frame)
         self.tracker(frame)
@@ -330,7 +323,7 @@ class ExecutionTracer(Tracer):
         self, model: Model, blocks: list[XBlock], settings: Any, inference: Inference
     ):
         # track a complete frame, don't add to stacktrace
-        frame = self._create_frame(model=model, trace=True)
+        frame = self._create_frame(runnable=model, trace=True)
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = inference.generated_at
         frame.cached_duration = inference.duration
@@ -352,6 +345,8 @@ class ExecutionTracer(Tracer):
 
 @dataclass(slots=True)
 class ExecutionTrackerContext:
+    # nocheckin: should this be generic session / tracing context?
+    # trigger info and such should probably be in session anyway
     tracing_level: ExecutionTracingLevel
     trigger_type: ExecutionTriggerType
     trigger_id: typing.Optional[UUID]

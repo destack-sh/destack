@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import FileEditorInterface from "@/components/editors/FileEditor.vue";
-import RunEditorInterface from "@/components/editors/RunEditor.vue";
+import TerminalEditorInterface from "@/components/editors/TerminalEditor.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import {
   provideEditorContext,
@@ -8,7 +8,7 @@ import {
   type EditorContext,
   type Editor,
   type FileEditor,
-  RunEditor,
+  TerminalEditor,
 } from "@/state/bench";
 import { useEventListener } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, toRef } from "vue";
@@ -47,10 +47,10 @@ defineExpose({
     :focused="focused"
     @close="bench.closeEditor(editor)"
   />
-  <RunEditorInterface
+  <TerminalEditorInterface
     ref="containerRef"
-    v-else-if="editor.type == 'run'"
-    :editor="(context as EditorContext<RunEditor>)"
+    v-else-if="editor.type == 'terminal'"
+    :editor="(context as EditorContext<TerminalEditor>)"
     :focused="focused"
     @close="bench.closeEditor(editor)"
   />
