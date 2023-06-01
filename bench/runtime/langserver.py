@@ -53,7 +53,6 @@ from bench.runtime.interp import (
 )
 from bench.runtime.model import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.mutate import map_mutation_to_public
-from bench.runtime.tracing import WorkerContext
 from bench.runtime.type import ExecutionFrameData
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -123,13 +122,6 @@ class LanguageServer:
             create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10)),
             create_wrapped_task(self.manage_timeouts(interval_seconds=10, timeout_seconds=60)),
         ]
-        # register self as worker
-        await models.Worker.objects.acreate(
-            id=self.id,
-            status=models.WorkerStatus.ACTIVE,
-            type=models.WorkerType.LANGUAGE,
-            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-        )
 
     async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
         worker = self.lang_workers.get(module_id)
@@ -152,7 +144,7 @@ class LanguageServer:
                 status=models.WorkerStatus.ACTIVE,
                 deployment_id=msg.p.deployment_id,
                 project_id=msg.p.project_id,
-                type=msg.p.type,
+                tenancy=msg.p.tenancy,
                 started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             )
             success = True
@@ -375,12 +367,6 @@ class LanguageWorker:
         )
         self.fetcher = fetcher
         self.interpreter = LanguageInterpreter(fetcher)
-        self.worker_ctx = WorkerContext(
-            worker_id=self.worker_id,
-            module_id=self.module_id,
-            project_id=self.project_id,
-            deployment_id=None,
-        )
         # module data
         self.source: wire.ModuleData | None = None
         self.interp: Optional[InterpModule] = None

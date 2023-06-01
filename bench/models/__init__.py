@@ -6,7 +6,7 @@ from .deployment import (
     DeploymentType,
     Worker,
     WorkerStatus,
-    WorkerType,
+    WorkerTenancy,
 )
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .notification import Notification, NotificationStatus, NotificationType
@@ -73,5 +73,5 @@ __all__ = [
     "User",
     "Worker",
     "WorkerStatus",
-    "WorkerType",
+    "WorkerTenancy",
 ]

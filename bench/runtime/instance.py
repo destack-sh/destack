@@ -7,7 +7,7 @@ import enum
 import itertools
 import textwrap
 import typing
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass, field, fields
 from datetime import date, datetime, time
 from random import Random
@@ -47,7 +47,8 @@ from bench.language.type import (
     TypeNode,
     TypeTag,
 )
-from bench.language.typer import check_type, map_rekey_enum, map_unkey_enum, map_value
+from bench.language.typer import map_rekey_enum, map_unkey_enum, map_value
+from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
@@ -60,13 +61,7 @@ from bench.runtime.build import XGenerationError, XPrompt
 from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
 from bench.runtime.model import get_inference_endpoints_cls
 from bench.runtime.proxy import proxy_value, unproxy_value
-from bench.runtime.tracing import (
-    ExecutionTracer,
-    MultiTracer,
-    PubExecutionTracker,
-    Tracer,
-    ValidationTracer,
-)
+from bench.runtime.tracing import SessionTracer, Tracer
 from bench.runtime.unsecure import do_execute_arbitrary_code
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
@@ -74,13 +69,31 @@ from bench.utils.utils import required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
-DEFAULT_TRACER = MultiTracer([ExecutionTracer(PubExecutionTracker()), ValidationTracer()])
-
 
 class SessionMode(enum.StrEnum):
     READ_ONLY = "ro"
     WRITE_GLOBAL = "w"
     WRITE_ONLY = "wo"
+
+
+class SessionTracingLevel(enum.IntFlag):
+    NONE = 0
+    EXECUTION = 1
+    MUTATION = 2
+    VALIDATION = 4
+    ALL = EXECUTION | MUTATION | VALIDATION
+
+
+@dataclass(slots=True)
+class SessionContext:
+    deployment_id: typing.Optional[UUID]
+    module_id: UUID
+    project_id: UUID
+    worker_id: UUID
+    tracing_level: SessionTracingLevel
+    trigger_type: ExecutionTriggerType
+    trigger_id: typing.Optional[UUID]
+    root_id: typing.Optional[UUID] = None
 
 
 active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
@@ -94,25 +107,27 @@ class Session:
     def __init__(
         self,
         idx: ModuleIndex,
+        ctx: SessionContext,
         instances: list["SymbolInstance"] = None,
         builds: dict[str, Build] = None,
         cache_inferences: bool = True,
-        tracer: Tracer = DEFAULT_TRACER,
         inference_timeout: int = 20,
         inference_retries: int = 3,
         mode: SessionMode = SessionMode.READ_ONLY,
         write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
-        executor: ThreadPoolExecutor = None,
+        executor: Executor = None,
     ):
         if mode != SessionMode.READ_ONLY and write is None:
             raise ValueError("write must be provided for non-readonly sessions")
         self.id = uuid4()
+        self.ctx = ctx
         self.idx = idx
         self.instances: dict[UUID, SymbolInstance] = {
             symbol.id: symbol for symbol in (instances or [])
         }
         self.builds: dict[str, Build] = builds or {}
-        self.tracer = tracer
+        self.mutator = ModuleMutator(idx)
+        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
@@ -120,7 +135,6 @@ class Session:
         self.write = write
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
 
-        self.mutator = ModuleMutator(idx)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
         self._cached_implementations: dict[tuple[UUID, UUID], XPrompt] = {}
@@ -205,6 +219,8 @@ class Session:
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
         self.opened_at = datetime.now()
+        if active_session.get() is not None:
+            raise RuntimeError(f"another session is active: {active_session.get()}")
         active_session.set(self)
         logger.debug("session.open", session=self)
 
@@ -297,7 +313,7 @@ class RecordInstanceMeta:
 
     type: TypeInstance
     session: Session
-    owner: InterpSymbol
+    owner: typing.Union["DataRecordInstance", "DataTableInstance"]
 
 
 @dataclass(repr=False)
@@ -330,14 +346,7 @@ class RecordInstance(Record):
         )
 
     def _notify_update(self, key: Optional[str]):
-        if key is None or key == "":
-            check_type(self.data, self._.type)
-        elif key not in self._.type:
-            raise ValueError(f"'{key}' not present in {self._.type}")
-        else:
-            check_type(self.data.get(key), self._.type[key])
-        self._.session.check_can_write(self._.owner)
-        self._.session.mut.update(self._to_wire())
+        self._.session.tracer.record_update(self, self._.owner, key)
 
 
 @dataclass(repr=False)
@@ -352,9 +361,7 @@ class DataTableInstance(SymbolInstance, Data):
         )
 
     def clear(self):
-        self.session.check_can_write(self)
-        # should really be truncate operation
-        self.session.mut.truncate_records(self.id)
+        self.session.tracer.table_clear(self)
         self.records = []
 
     def append(self, record: Record = None, **data):
@@ -363,8 +370,6 @@ class DataTableInstance(SymbolInstance, Data):
                 raise ValueError("cannot pass both record and data")
             data = record.data
         data = unproxy_value(data)  # remove source proxy if any
-        check_type(data, self.type)
-        self.session.check_can_write(self)
         # insert
         last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
         record = RecordInstance(
@@ -373,18 +378,14 @@ class DataTableInstance(SymbolInstance, Data):
             order_key=generate_key_between(last_ok, None),
             data=data,
         )
+        self.session.tracer.table_append(self, record)
         self.records.append(record)
-        self.session.mut.create(record._to_wire())
 
     def extend(self, records: typing.Iterable[Record | dict]):
         datas = [  # remove source proxy if any
             unproxy_value(record.data) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
-        for data in datas:
-            check_type(data, self.type)
-        self.session.check_can_write(self)
-        # insert
         last_ok = self.records[-1].order_key if self.records else INTEGER_ZERO
         oks = generate_n_keys_between(last_ok, None, len(datas))
         records = [
@@ -396,8 +397,8 @@ class DataTableInstance(SymbolInstance, Data):
             )
             for ok, data in zip(oks, datas)
         ]
+        self.session.tracer.table_extend(self, records)
         self.records.extend(records)
-        self.session.mut.create_many(*(record._to_wire() for record in records))
 
     def __getitem__(self, item: int | slice) -> RecordInstance | list[RecordInstance]:
         return self.records[item]
@@ -413,11 +414,7 @@ class DataRecordInstance(SymbolInstance, Data):
     meta: RecordInstanceMeta = field(init=False)
 
     def __post_init__(self):
-        self.meta = RecordInstanceMeta(
-            type=self.type,
-            session=self.session,
-            owner=self,
-        )
+        self.meta = RecordInstanceMeta(type=self.type, session=self.session, owner=self)
 
     @property
     def keys(self):
@@ -470,7 +467,7 @@ class TaskInstance(SymbolInstance, Task):
     async def __call__(
         self,
         *args,
-        build: Build | str = None,
+        build: Build | str = "balanced",
         model: Model | str = None,
         retries: int = None,
         cache: bool = None,

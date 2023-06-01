@@ -20,8 +20,7 @@ import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{
-  symbolId: string;
-  symbolType: SymbolType.Task | SymbolType.Code;
+  runnableId: string;
   projectId: string;
   projectVersionId?: string;
   includeAncestorVersions?: boolean;
@@ -43,12 +42,12 @@ const { executions, totalCount } = useExecutions(
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     includeAncestorVersions: toRef(props, "includeAncestorVersions"),
-    runnableIds: computed(() => [props.symbolId]),
+    runnableIds: computed(() => [props.runnableId]),
   },
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
-const symbol = computed(() => symbolOf(props.symbolId));
+const symbol = computed(() => symbolOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.typeNodes?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const expandedExecutionId = ref<string | null>(null);

@@ -811,7 +811,7 @@ export class TerminalEditor extends Editor {
 
 const EDITOR_INSTANCES: Record<EditorType, any> = {
   file: FileEditor,
-  run: TerminalEditor,
+  terminal: TerminalEditor,
 };
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {

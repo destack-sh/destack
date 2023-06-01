@@ -31,16 +31,8 @@ PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
 
 # sync with wire.ExecutionTriggerType
 class ExecutionTriggerType(models.TextChoices):
-    REST_API = "rest-api"
-    UI_INTERACTIVE = "ui-interactive"
-
-
-# sync with wire.ExecutionTracingLevel
-class ExecutionTracingLevel(models.TextChoices):
-    ROOT_FRAME = "root-frame"
-    ROOT_FRAME_WITH_DATA = "root-frame-with-data"
-    ALL_FRAMES = "all-frames"
-    ALL_FRAMES_WITH_DATA = "all-frames-with-data"
+    API = "rest"
+    UI = "ui"
 
 
 class Execution(UUIDTModel):
@@ -57,19 +49,7 @@ class Execution(UUIDTModel):
         "Deployment", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
     )
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    started_at = models.DateTimeField(
-        null=True, blank=True, help_text="Time of transition to Running status."
-    )
-    terminated_at = models.DateTimeField(
-        null=True, blank=True, help_text="Time of transition to a terminal status."
-    )
-    status = models.CharField(
-        max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
-    )
-
-    tracing_level = TextChoicesField(choices_enum=ExecutionTracingLevel)
+    tracing_level = models.IntegerField(default=0)
     trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)
     user = models.ForeignKey(
         "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
@@ -79,6 +59,17 @@ class Execution(UUIDTModel):
     )
 
     # execution
+    status = models.CharField(
+        max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    started_at = models.DateTimeField(
+        null=True, blank=True, help_text="Time of transition to Running status."
+    )
+    terminated_at = models.DateTimeField(
+        null=True, blank=True, help_text="Time of transition to a terminal status."
+    )
     cached_generated_at = models.DateTimeField(null=True, blank=True)
     cached_duration = models.FloatField(null=True, blank=True)
     root = models.ForeignKey(

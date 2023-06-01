@@ -218,7 +218,7 @@ defineExpose({
     >
       <!-- :EnumStyle -->
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
-      <div ref="previewRef" class="flex flex-row items-center text-left">
+      <div ref="previewRef" class="flex max-w-full flex-row items-center text-left">
         <svg
           v-if="isEnum"
           class="mr-1.5 h-1.5 w-1.5"
@@ -229,8 +229,8 @@ defineExpose({
           <circle cx="3" cy="3" r="3" />
         </svg>
         <span
-          class="mr-2 text-gray-900"
-          :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
+          class="mr-2 max-w-full truncate text-gray-900"
+          :class="[inlined ? ' underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
           >{{ value.name }}</span
         >
         <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />

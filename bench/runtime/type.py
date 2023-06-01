@@ -10,16 +10,11 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language.type import Code, LiteralValue, Model, SymbolType, Task
-from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
+from bench.language.wire import ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.runtime.instance import CodeInstance
-
-
-#
-# Executions
-#
+    from bench.runtime.instance import CodeInstance, Session
 
 
 @dataclass(slots=True)
@@ -181,23 +176,14 @@ class ExecutionFrameData:
     queue_position: Optional[int]
     # additional context data not in ExecutionFrame
     project_id: UUID
-    tracing_level: Optional[ExecutionTracingLevel]
+    tracing_level: Optional[int]
     deployment_id: UUID
     worker_id: UUID
     trigger_type: Optional[ExecutionTriggerType]
     trigger_id: Optional[UUID]
 
     @staticmethod
-    def from_frame(
-        frame: ExecutionFrame,
-        *,
-        project_id: UUID,
-        tracing_level: ExecutionTracingLevel,
-        deployment_id: UUID,
-        worker_id: UUID,
-        trigger_type: Optional[ExecutionTriggerType] = None,
-        trigger_id: Optional[UUID] = None,
-    ) -> ExecutionFrameData:
+    def from_frame(frame: ExecutionFrame, *, session: Session) -> ExecutionFrameData:
         if frame.error:
             if frame.code is None:
                 raise ValueError(f"error outside code: {frame}")
@@ -212,7 +198,7 @@ class ExecutionFrameData:
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.code),
-                message=f"{type(frame.error).__name__}: {frame.error}",
+                message=f"{type(frame.error).__name__}: {error_str}",
                 traceback=stack,
             )
         else:
@@ -231,26 +217,15 @@ class ExecutionFrameData:
             outputs=frame.outputs,
             error=error_data,
             queue_position=frame.queue_position,
-            project_id=project_id,
-            tracing_level=tracing_level,
-            deployment_id=deployment_id,
-            worker_id=worker_id,
-            trigger_type=trigger_type,
-            trigger_id=trigger_id,
+            project_id=session.ctx.project_id,
+            tracing_level=session.ctx.tracing_level,
+            deployment_id=session.ctx.deployment_id,
+            worker_id=session.ctx.worker_id,
+            trigger_type=session.ctx.trigger_type,
+            trigger_id=session.ctx.trigger_id,
         )
 
 
-#
-# Evaluation
-#
-
-
-#
-# Workers
-#
-
-
-class WorkerType(enum.StrEnum):
-    LANGUAGE = "LANGUAGE"
+class WorkerTenancy(enum.StrEnum):
     COMMUNITY = "COMMUNITY"
     DEDICATED = "DEDICATED"
