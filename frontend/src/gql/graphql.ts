@@ -2066,13 +2066,12 @@ export type SubscriptionClientsChangedArgs = {
 };
 
 export type SubscriptionExecutionsChangedArgs = {
-  codeIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   includeAncestorVersions?: Scalars["Boolean"];
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   rootId?: InputMaybe<Scalars["GlobalID"]>;
   rootIdNull?: Scalars["Boolean"];
-  taskIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type SubscriptionInterpChangedArgs = {
@@ -3155,8 +3154,7 @@ export type ExecutionsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  taskIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  codeIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   rootIdNull?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
@@ -8001,15 +7999,7 @@ export const ExecutionsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
@@ -8045,13 +8035,8 @@ export const ExecutionsChangedDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "taskIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "taskIds" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "codeIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "codeIds" } },
+                name: { kind: "Name", value: "runnableIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
               },
               {
                 kind: "Argument",

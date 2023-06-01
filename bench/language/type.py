@@ -674,6 +674,7 @@ class SimpleTypeNode(TypeNode):
         return SimpleTypeNode(
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
+            key=self.key,
             tag=self.tag,
             hint=self.hint,
             order_key=self.order_key,

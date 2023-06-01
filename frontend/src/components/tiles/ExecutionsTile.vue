@@ -63,7 +63,7 @@ const headerHeight = 64;
 const bodyHeight = 512;
 const paddingY = 8;
 const paddingX = 4;
-const metadataWidth = 140;
+const metadataWidth = 180;
 const previewWidth = computed(() => {
   return containerSize.width.value - metadataWidth - paddingX * 2;
 });
@@ -160,7 +160,7 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
           <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
             <span
-              class="transtion flex flex-row items-center gap-1.5 font-extrabold"
+              class="transtion flex max-w-full flex-row items-center font-extrabold"
               :class="getStatusColor(execution.status)"
             >
               <!-- Status -->
@@ -169,19 +169,18 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
                 class="h-4 w-4"
                 :class="[execution.status == ExecutionStatus.Running ? 'animate-spin' : '']"
               />
+              <span class="ml-1 max-w-full truncate font-bold">{{ symbol?.name }}</span>
               <!-- Duration -->
-              <span class="">
+              <span class="ml-1">
                 {{
                   execution.duration != null
                     ? formatDurationSeconds(execution.duration * 1000)
                     : now.getTimeFromNowString(execution.startedAt)
                 }}</span
               >
-              <!-- From -->
-              <span class="text-gray-400">{{ now.getTimeFromNowString(execution.startedAt) }}</span>
               <!-- Cached info -->
-              <span v-if="isMostlyCached(execution as any)" class="group/cache relative">
-                <BoltIcon class="h-4 w-4 text-orange-500" />
+              <span v-if="isMostlyCached(execution as any)" class="group/cache relative p-0.5">
+                <BoltIcon class="h-3 w-3 text-orange-500" />
                 <span
                   v-if="execution.duration != null && execution.cachedDuration != null"
                   class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
@@ -198,6 +197,8 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
             </span>
             <!-- Trigger -->
             <span class="flex w-full flex-row gap-1 text-gray-400">
+              <!-- From -->
+              <span class="text-gray-400">{{ now.getTimeFromNowString(execution.startedAt) }}</span>
               <span class="truncate">{{ getTriggerLabel(execution) }}</span>
             </span>
           </div>

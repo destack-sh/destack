@@ -138,7 +138,6 @@ class ExecutionQuery:
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
         runnable_ids = to_uuids(runnable_ids)
-        # if filtering by a symbol and including multiple versions, expand into mappings
         expanded_symbol_ids, project_version_ids = await _expand_filter(
             project_version_id, include_ancestor_versions, runnable_ids
         )
@@ -161,8 +160,7 @@ class ExecutionSubscription:
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
         include_ancestor_versions: bool = False,
-        task_ids: list[GlobalID] | None = None,
-        code_ids: list[GlobalID] | None = None,
+        runnable_ids: list[GlobalID] | None = None,
         root_id: Optional[GlobalID] = None,
         root_id_null: bool = False,
     ) -> AsyncGenerator[Execution, None]:
@@ -172,8 +170,7 @@ class ExecutionSubscription:
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,
-            task_ids=task_ids,
-            code_ids=code_ids,
+            runnable_ids=runnable_ids,
             root_id=root_id,
             root_id_null=root_id_null,
             user=user,
@@ -183,7 +180,7 @@ class ExecutionSubscription:
                 user, project_id=project_id, project_version_id=project_version_id
             )
         except PermissionDenied:
-            log.debug("executions.subscribe_denied")
+            log.debug("executions.subscribe_denied", exc_info=True)
             return
 
         log.info("executions.subscribe")
@@ -193,14 +190,9 @@ class ExecutionSubscription:
 
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
-        task_ids = to_uuids(task_ids)
-        code_ids = to_uuids(code_ids)
-        # If filtering by a symbol and including multiple versions, expand into their mappings.
-        # We do this once before listening for performance and simplicity, though this means that new versions
-        # will not be automatically included in the execution subscription. We could periodically re-check,
-        # but that's a bit more complicated and not really worth it for now.
+        runnable_ids = to_uuids(runnable_ids)
         expanded_symbol_ids, project_version_ids = await _expand_filter(
-            project_version_id, include_ancestor_versions, code_ids
+            project_version_id, include_ancestor_versions, runnable_ids
         )
         log.debug("executions.listen")
         while True:

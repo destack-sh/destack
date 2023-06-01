@@ -258,7 +258,7 @@ class ModuleWorker:
                 self.log.debug("run", job=job, timeout=self.timeout)
                 await self.do_run(job, self.timeout)
                 if job.session.tracer.execution.frames:
-                    job.execution = job.session.tracer.execution.frames[0]
+                    job.execution = job.session.tracer.execution.frames[job.id]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)

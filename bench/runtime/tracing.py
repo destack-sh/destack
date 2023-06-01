@@ -188,7 +188,7 @@ class ExecutionTracer(Tracer):
         self.session = session
         self.publish = publish
         self.stacktrace = []
-        self.frames = []
+        self.frames = {}
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.frames)} frames"
@@ -210,9 +210,7 @@ class ExecutionTracer(Tracer):
                 NMessageType.EXECUTION_CHANGED,
                 ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
             )
-
-        if not any(f.id == frame.id for f in self.frames):
-            self.frames.append(frame)
+        self.frames[frame.id] = frame
 
     def pop_stacktrace(self) -> ExecutionFrame:
         frame = self.stacktrace.pop()
@@ -265,7 +263,10 @@ class ExecutionTracer(Tracer):
     def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
-            runnable=code, inputs=inputs, trace=False, queue_position=queue_position
+            runnable=code,
+            inputs=code.type.rekey(inputs, is_output=False),
+            trace=False,
+            queue_position=queue_position,
         )
         self.track(frame)
         logger.debug("trace.queue", frame=frame)

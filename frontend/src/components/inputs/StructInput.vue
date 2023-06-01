@@ -127,7 +127,7 @@ defineExpose({
     <div
       v-if="activeIndex != null"
       ref="structRef"
-      class="fixed z-20 mt-5 w-[300px] rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm"
+      class="fixed z-20 mt-5 w-96 rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm"
     >
       <StructInterface
         :fields="fields"
@@ -135,7 +135,7 @@ defineExpose({
         @update:modelValue="update(activeIndex ?? 0, $event)"
         @close="(activeIndex = null), (editingIndex = false)"
         debounced
-        :readonly="!editingIndex && false /* it's broken */"
+        :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
         class=""
       />
     </div>
