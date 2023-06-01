@@ -239,6 +239,7 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
         <!-- Body / execution tile preview -->
         <div
           v-if="expandedExecutionId === execution.id"
+          @click.stop
           class="scroll-hidden my-3 w-full gap-5 overflow-y-auto"
           :style="{
             maxHeight: bodyHeight + 'px',
@@ -251,7 +252,12 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
             :fields="[...inputFields, ...(execution.outputs != null ? outputFields : [])]"
             :model-value="{ ...(execution.inputs ?? {}), ...(execution.outputs ?? {}) }"
           />
-          <ExecutionTraceback v-if="execution.errorNice" class="w-full p-1" name="run" :execution="execution" />
+          <ExecutionTraceback
+            v-if="execution.errorNice"
+            class="w-full rounded-sm bg-gray-100 p-1 font-mono"
+            name="run"
+            :execution="execution"
+          />
         </div>
       </div>
     </div>

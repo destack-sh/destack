@@ -218,7 +218,10 @@ defineExpose({
       </div>
       <!-- Input -->
       <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
-        <StructTile v-model="editor.arguments" :fields="inputFields" class="" />
+        <StructTile v-if="inputFields.length > 0" v-model="editor.arguments" :fields="inputFields" class="" />
+        <div v-else class="flex h-full w-full flex-col items-center justify-center">
+          <span class="text-sm text-gray-400">No input</span>
+        </div>
       </ContainerTile>
       <!-- Output -->
       <ContainerTile label="Output" :style="{ ...baseTilePositionX }">
@@ -230,7 +233,7 @@ defineExpose({
           class=""
         />
         <div v-else class="flex h-full w-full flex-col items-center justify-center">
-          <span class="text-gray-400">No output</span>
+          <span class="text-sm text-gray-400">No output</span>
         </div>
       </ContainerTile>
       <!-- Executions -->
