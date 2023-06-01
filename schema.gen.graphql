@@ -1756,7 +1756,7 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   interpChanged(projectVersionId: GlobalID!): InterpModule!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, taskIds: [GlobalID!] = null, codeIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
+  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, runnableIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
 }
 
 """The type of symbol content."""

@@ -124,7 +124,7 @@ def _map_k_noop(t):
 def map_value(
     value: Any,
     type: TypeNode,
-    map_v: Callable[[Any, TypeNode], Any] = None,
+    map_v: Callable[[Any, TypeNode, bool], Any] = None,
     map_k: Callable[[TypeNode], tuple[str, str]] = None,
     is_output: bool = None,
     ignore_array: bool = False,
@@ -134,14 +134,14 @@ def map_value(
     map_v = map_v or _map_v_noop
     map_k = map_k or _map_k_noop
     # communicate via yield/send
-    if type.tag in PRIMITIVE_TYPES:
-        return map_v(value, type)
-    elif type.tag == TypeTag.ENUM:
-        return map_v(value, type)
-    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
-        raise TypeError(value, type, "expected struct-like")
     if type.flags & TypeFlag.IsArray and not ignore_array:
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+    elif type.tag in PRIMITIVE_TYPES:
+        return map_v(value=value, type=type, ignore_array=ignore_array)
+    elif type.tag == TypeTag.ENUM:
+        return map_v(value=value, type=type, ignore_array=ignore_array)
+    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, Mapping):
         return value  # type error, ignore here
     mapped = {}
@@ -154,17 +154,17 @@ def map_value(
         target_value = map_value(value[source_k], subtype, map_v, map_k)
         mapped[target_k] = target_value
     if not ignore_outer_map:
-        mapped = map_v(mapped, type)
+        mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
     return mapped
 
 
-def map_unkey_enum(value: Any, type: TypeNode):
+def map_unkey_enum(value: Any, type: TypeNode, *args, **kwargs):
     if type.tag == TypeTag.ENUM:
         return type[value].name
     return value
 
 
-def map_rekey_enum(value: Any, type: TypeNode):
+def map_rekey_enum(value: Any, type: TypeNode, *args, **kwargs):
     if type.tag == TypeTag.ENUM:
         return type[value].key
     return value
@@ -202,7 +202,7 @@ def rekey_value(
     value: Any,
     type: TypeNode,
     is_output: bool = None,
-    ignore_array: bool = True,
+    ignore_array: bool = False,
     from_ident: bool = False,
 ) -> Any:
     """Replaces names with keys."""

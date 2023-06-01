@@ -918,14 +918,14 @@ def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     )
 
 
-def instantiate_py_value_flat(value: Any, type: TypeNode) -> Any:
+def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = False) -> Any:
     """Maps to the Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
     mapping = get_flat_mapping(type)
     try:
-        if type.flags & TypeFlag.IsArray:
+        if type.flags & TypeFlag.IsArray and not ignore_array:
             if not isinstance(value, list):
                 value = [value]
             return [mapping.to_py_value(type, v) for v in value]
@@ -938,7 +938,7 @@ def instantiate_py_value_flat(value: Any, type: TypeNode) -> Any:
         return None
 
 
-def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
+def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
     """Maps back to the raw value from the Python representation."""
     # we don't auto-coerce here since that's only needed for external data
     if value is None:

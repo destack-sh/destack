@@ -66,7 +66,7 @@ async function run() {
       });
     } else {
       // notify on success if run took a bit
-      if (ret.data.run?.execution?.duration ?? 0 > 5) {
+      if ((ret.data.run?.execution?.duration ?? 0) > 5) {
         notifications.show({
           kind: "success",
           type: "run.success",

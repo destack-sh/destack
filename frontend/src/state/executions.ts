@@ -131,16 +131,14 @@ export function useExecutions(
           $projectId: GlobalID!
           $projectVersionId: GlobalID
           $includeAncestorVersions: Boolean
-          $taskIds: [GlobalID!]
-          $codeIds: [GlobalID!]
+          $runnableIds: [GlobalID!]
           $rootIdNull: Boolean
         ) {
           executionsChanged(
             projectId: $projectId
             projectVersionId: $projectVersionId
             includeAncestorVersions: $includeAncestorVersions
-            taskIds: $taskIds
-            codeIds: $codeIds
+            runnableIds: $runnableIds
             rootIdNull: $rootIdNull
           ) {
             ...ExecutionContent
