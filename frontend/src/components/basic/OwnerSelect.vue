@@ -15,8 +15,15 @@ const possibleOwners = computed(() => {
     return [];
   } else {
     const writableOrgs =
-      auth.memberships.value?.filter((m) => m.level >= OrganizationMembershipLevel.Member).map((e) => e.organization) ??
-      [];
+      auth.memberships.value
+        ?.filter((m) =>
+          [
+            OrganizationMembershipLevel.Owner,
+            OrganizationMembershipLevel.Administrator,
+            OrganizationMembershipLevel.Member,
+          ].includes(m.level)
+        )
+        .map((e) => e.organization) ?? [];
     return [auth.me.value, ...writableOrgs];
   }
 });
@@ -56,7 +63,7 @@ const possibleOwners = computed(() => {
               class="flex flex-row items-center gap-3 text-left hover:cursor-pointer"
               :class="[
                 active ? 'bg-orange-100' : '',
-                'block py-1.5 px-2 text-sm text-gray-900',
+                'block px-2 py-1.5 text-sm text-gray-900',
                 selected ? 'text-orange-600' : '',
               ]"
             >

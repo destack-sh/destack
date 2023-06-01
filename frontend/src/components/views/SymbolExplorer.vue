@@ -102,6 +102,6 @@ defineExpose({
     </li>
   </ul>
   <div v-else class="my-2 px-3">
-    <span class="text-sm text-gray-700">No file in focus.</span>
+    <span class="text-sm text-gray-500">No active file</span>
   </div>
 </template>

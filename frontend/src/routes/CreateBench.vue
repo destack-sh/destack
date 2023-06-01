@@ -115,7 +115,7 @@ async function createProject() {
       kind: "success",
       type: "project.created",
       message: "Bench crafted",
-      description: "Your brand new Bench is ready for work.",
+      description: "Your brand new Bench is ready.",
     });
   }
 }
@@ -140,8 +140,7 @@ async function createProject() {
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-2 mt-4 text-5xl font-bold">Create your Bench</h1>
-      <p class="mx-4 mt-4 text-lg text-orange-700">Where bots work for you.</p>
-      <p class="mt-1 text-sm text-gray-700">(Think big: an entire team, product or life)</p>
+      <p class="mx-4 mt-4 text-lg text-orange-700">What your bots call home. Think big.</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- Full name & visibility -->

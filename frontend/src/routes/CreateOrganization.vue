@@ -1,9 +1,8 @@
 <script lang="ts" setup>
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
-import ProfileButton from "@/components/basic/ProfileButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
+import ProfileButton from "@/components/basic/ProfileButton.vue";
 import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { useValidName, useValidSlug } from "@/composables/useValidation";
 import { useRedirectIfNotLoggedIn } from "@/state/auth";
@@ -12,7 +11,6 @@ import { useOperations } from "@/state/operations";
 import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import { CheckCircleIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 
 const title = useTitle();
 title.value = "Start your organization";
@@ -98,8 +96,7 @@ async function createOrganization() {
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-32 mt-4 text-5xl font-bold">Start your organization</h1>
-      <p class="-mx-4 mt-4 text-lg text-orange-700">AI is yours for the making - together.</p>
-      <!-- <p class="mt-1 text-sm text-gray-700">(Think big: not just a single feature/task)</p> -->
+      <p class="-mx-4 mt-4 text-lg text-orange-700">A home to your amazing team and bots.</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- TODO @Incomplete: select owner -->
