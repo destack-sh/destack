@@ -350,10 +350,8 @@ export type Execution = Node & {
   projectVersion: ProjectVersion;
   root?: Maybe<Execution>;
   runnable?: Maybe<Statement>;
-  /** Time of transition to Running status. */
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: ExecutionStatus;
-  /** Time of transition to a terminal status. */
   terminatedAt?: Maybe<Scalars["DateTime"]>;
   triggerType: ExecutionTriggerType;
   updatedAt: Scalars["DateTime"];

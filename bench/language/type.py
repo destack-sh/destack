@@ -598,12 +598,12 @@ class TypeNode(abc.ABC):
             path = path + [self]
         yield self
         if include_references and self.reference:
-            yield from self.reference.walk(path)
+            yield from self.reference.walk(path, include_references=include_references)
         if self.type_nodes:
             for child in self.type_nodes:
                 if child in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
-                yield from child.walk(path)
+                yield from child.walk(path, include_references=include_references)
 
     def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "TypeNode":
         raise NotImplementedError

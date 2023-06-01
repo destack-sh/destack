@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import enum
 import json
 import re
 import typing
 from dataclasses import asdict, dataclass, is_dataclass
-from types import SimpleNamespace
+from json import JSONDecodeError
 from typing import Any, Optional
+from uuid import UUID
 
 import structlog
 
@@ -34,6 +36,7 @@ from bench.runtime.instruct import (
     instruction_tree_from_symbol,
 )
 from bench.runtime.model import TextGenerationSettings
+from bench.utils.utils import DotDict
 
 logger = structlog.get_logger(__name__)
 
@@ -42,8 +45,18 @@ if typing.TYPE_CHECKING:
     from bench.runtime.interp import InterpModule
 
 
+class XGenerationErrorType(enum.StrEnum):
+    TIMEOUT = "timeout"
+    INVALID_JSON = "invalid_json"
+    INVALID_TYPE = "invalid_type"
+    UNKNOWN = "unknown"
+
+
 class XGenerationError(ValueError):
-    pass
+    def __init__(self, type: XGenerationErrorType, message: str, path: str = None):
+        super().__init__(message)
+        self.type = type
+        self.path = path
 
 
 @dataclass(repr=False)
@@ -216,8 +229,10 @@ class XPrompt:
             outputs = await self.model.inference(
                 self.modality, blocks_copy, self.settings, cache=cache, timeout=timeout
             )
+        except TimeoutError as e:
+            raise XGenerationError(XGenerationErrorType.TIMEOUT, "model backend timed out") from e
         except Exception as e:
-            raise XGenerationError("model backend failed") from e
+            raise XGenerationError(XGenerationErrorType.UNKNOWN, "model backend failed") from e
         return self.output_handler(outputs)
 
 
@@ -228,6 +243,7 @@ class XSystem(XEmit):
     message: str = (
         "You are a precise and concise assistant."
         " Perform the given tasks following the instructions to the letter."
+        " If the task is underspecified or ambiguous, guess without asking."
         " Output valid JSON as dictated by the type schema."
     )
 
@@ -297,7 +313,11 @@ class XTypeSchema(XEmit):
 
     def __call__(self) -> XBlock:
         bench_lines = []
+        seen_types: set[UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
         for node in self.type.walk(include_references=True):
+            if node.id in seen_types:
+                continue
+            seen_types.add(node.id)
             if node.reference is not None:
                 continue  # skip the link
             if node.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
@@ -362,7 +382,10 @@ class XOutputText(XEmit):
             if value:
                 value = value.group(0)
             else:
-                raise XGenerationError(f"output does not contain JSON object: {output}")
+                raise XGenerationError(
+                    XGenerationErrorType.INVALID_JSON,
+                    f"output does not contain JSON object: {output}",
+                )
 
         # escape strings with multiline content
         # these aren't technically valid JSON, but they're very useful for model output
@@ -383,10 +406,18 @@ class XOutputText(XEmit):
                 ignore_outer_map=True,
             )
             check_type(ret, self.type, is_output=True)
-            ret = SimpleNamespace(**ret)  # behave like a typed dict
+            ret = DotDict(**ret)  # behave like a typed dict
             return ret
         except Exception as e:
-            raise XGenerationError(f"output is invalid for {self.type}: {e}") from e
+            if isinstance(e, JSONDecodeError):
+                error_type = XGenerationErrorType.INVALID_JSON
+            elif isinstance(e, TypeError):
+                error_type = XGenerationErrorType.INVALID_TYPE
+            else:
+                error_type = XGenerationErrorType.UNKOWN
+            raise XGenerationError(
+                type=error_type, message=f"output is invalid for {self.type}: {e}", path=None
+            ) from e
 
     def __call__(self) -> list[XBlock | DynamicXBlock]:
         output_keys = ", ".join(t.name for t in self.type.outputs)

@@ -327,11 +327,7 @@ type Execution implements Node {
   deployment: Deployment
   createdAt: DateTime!
   updatedAt: DateTime!
-
-  """Time of transition to Running status."""
   startedAt: DateTime
-
-  """Time of transition to a terminal status."""
   terminatedAt: DateTime
   cachedGeneratedAt: DateTime
   cachedDuration: Float

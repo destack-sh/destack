@@ -187,13 +187,7 @@ class CachedInferenceEndpoint:
         self, blocks: list[XBlock], settings: Any, cache: bool = None, timeout: int = None
     ) -> Any:
         # make hash key
-        block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
-        blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
-        settings_hash = hashlib.sha256(
-            json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
-        ).hexdigest()
-        cache_key = f"inference.{self.model.fqn}.{self.modality}:{settings_hash}:{blocks_hash}"
-
+        cache_key = get_inference_cache_key(self.model.fqn, self.modality, blocks, settings)
         log = logger.bind(
             model=self.model.fqn,
             modality=self.modality,
@@ -201,7 +195,6 @@ class CachedInferenceEndpoint:
             cache_key=cache_key,
             cache_inferences=self.cache_inferences,
         )
-
         if self.cache_inferences and cache is not False:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await redis.get(cache_key)
@@ -216,7 +209,7 @@ class CachedInferenceEndpoint:
                     # ignore and continue, will be overwritten
 
         try:
-            generated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             self.tracer.inference_enter(self.model, blocks, settings)
             log.debug("inference.enter")
             timeout = timeout if timeout is not None else self.timeout
@@ -226,8 +219,8 @@ class CachedInferenceEndpoint:
             if self.cache_inferences and cache is not False:
                 now = datetime.utcnow().replace(tzinfo=pytz.utc)
                 inference = Inference(
-                    generated_at=generated_at,
-                    duration=(now - generated_at).total_seconds(),
+                    generated_at=now,
+                    duration=(now - started_at).total_seconds(),
                     # ret is assumed to be JSON-serializable
                     # (may not be true when we get to images, but this will error obviously enough)
                     result=result,
@@ -240,6 +233,18 @@ class CachedInferenceEndpoint:
             raise
 
 
+def get_inference_cache_key(
+    model_fqn: str, modality: Modality, blocks: list[XBlock], settings: Any
+):
+    block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
+    blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
+    settings_hash = hashlib.sha256(
+        json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+    cache_key = f"inference.{model_fqn}.{modality}:{settings_hash}:{blocks_hash}"
+    return cache_key
+
+
 class RemoteInferenceEndpoint:
     """Proxy an inference endpoint to a remote service."""
 
@@ -247,11 +252,14 @@ class RemoteInferenceEndpoint:
         self,
         model: Model,
         modality: Modality,
+        timeout: int,
     ):
         self.model = model
         self.modality = modality
+        self.timeout = timeout
 
-    async def __call__(self, blocks: list[XBlock], settings: Any) -> Any:
+    async def __call__(self, blocks: list[XBlock], settings: Any, timeout: int = None) -> Any:
+        timeout = timeout if timeout is not None else self.timeout
         rep: NMessage[RepRunInferencePayload] = await request(
             NMessageType.REQUEST_RUN_INFERENCE,
             ReqRunInferencePayload(
@@ -260,8 +268,10 @@ class RemoteInferenceEndpoint:
                 modality=self.modality,
                 blocks=[wire.rmap_xblock(b) for b in blocks],
                 settings=asdict(settings),
+                timeout=timeout,
             ),
             RepRunInferencePayload,
+            timeout=timeout + 1,  # for network
         )
         if rep.p.output is None:
             raise RuntimeError("remote inference failed")

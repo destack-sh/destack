@@ -4,11 +4,12 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type TerminalEditor, type StatementAction } from "@/state/bench";
 import { newExecutionId, symbolOf, TypeFlag } from "@/state/runtime";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
-import { PlayIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon, ArrowPathIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watchEffect } from "vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import ExecutionsTile from "@/components/tiles/ExecutionsTile.vue";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useOperations } from "@/state/operations";
 import { SymbolType } from "@/gql/graphql";
 import { unkey } from "@/state/type";
@@ -28,6 +29,7 @@ const editorSize = computed(() => props.editor.size.value);
 
 // state
 
+const running = ref(false);
 const symbol = computed(() => symbolOf(props.editor.editor.value.symbolId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.typeNodes?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
@@ -51,7 +53,9 @@ async function run() {
   if (symbol.value == null) return;
   editor.value.lastExecutionId = newExecutionId();
   const unkeyedArguments = unkey(inputFields.value, editor.value.arguments);
+  running.value = true;
   const ret = await ops.runtime.run(editor.value.symbolId, undefined, editor.value.lastExecutionId, unkeyedArguments);
+  running.value = false;
   if (ret?.data?.run?.__typename == "RunState") {
     if (!ret?.data?.run?.success) {
       notifications.show({
@@ -199,9 +203,16 @@ defineExpose({
             class="flex h-full w-full flex-row items-center justify-center gap-1 rounded-sm bg-orange-500 text-white hover:bg-orange-400 focus:bg-orange-400"
             @click="run"
             @keydown.enter.exact.prevent="run"
+            :disabled="running"
           >
             Run
-            <PlayIcon class="h-4 w-4" />
+            <FadeTransition mode="out-in">
+              <component
+                :is="running ? ArrowPathIcon : PlayIcon"
+                class="h-4 w-4"
+                :class="[running ? 'animate-spin' : '']"
+              />
+            </FadeTransition>
           </button>
         </div>
       </div>

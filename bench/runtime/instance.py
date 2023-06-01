@@ -61,13 +61,42 @@ from bench.runtime.build import XGenerationError, XPrompt
 from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
 from bench.runtime.model import get_inference_endpoints_cls
 from bench.runtime.proxy import proxy_value, unproxy_value
-from bench.runtime.tracing import SessionTracer, Tracer
+from bench.runtime.tracing import SessionTracer
 from bench.runtime.unsecure import do_execute_arbitrary_code
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
+
+STATIC_BUILTINS = {
+    # primitive type builtins
+    "string": str,
+    "text": str,
+    "number": float,
+    "file": RemoteObject,
+    "boolean": bool,
+    "image": RemoteObject,
+    "audio": RemoteObject,
+    # library builtins
+    "numpy": numpy,
+    "np": numpy,
+    "pandas": pandas,
+    "pd": pandas,
+    "asyncio": asyncio,
+    # functional builtins
+    "itertools": itertools,
+    "more_itertools": itertools,
+    "first": first,
+    "last": last,
+    "chain": itertools.chain,
+}
+
+DYNAMIC_BUILTINS = {
+    "session",
+    "context",
+    "random",
+}
 
 
 class SessionMode(enum.StrEnum):
@@ -207,7 +236,7 @@ class Session:
         for model in models:
             cache_key = (task.id, model.id)
             if cache_key not in self._cached_implementations:
-                model_instance = instantiate_model(model, self)
+                model_instance = typing.cast(ModelInstance, instantiate(model, self))
                 self._cached_implementations[cache_key] = build_task_implementation(
                     task, model_instance, self
                 )
@@ -354,11 +383,7 @@ class DataTableInstance(SymbolInstance, Data):
     meta: RecordInstanceMeta = field(init=False)
 
     def __post_init__(self):
-        self.meta = RecordInstanceMeta(
-            type=self.type,
-            session=self.session,
-            owner=self,
-        )
+        self.meta = RecordInstanceMeta(type=self.type, session=self.session, owner=self)
 
     def clear(self):
         self.session.tracer.table_clear(self)
@@ -475,16 +500,19 @@ class TaskInstance(SymbolInstance, Task):
         **kwargs,
     ):
         implementations = self.session.get_implementations(self, build=build, model=model)
-        # TODO @Broken: sort/filter implementations
+        # TODO @Broken: sort/filter implementations with some smartness
         impl_idx = self.last_good_impl_idx
         retries = retries if retries is not None else self.session.inference_retries
         remaining_retries = retries
+
+        self.session.tracer.code_enter(self, args, kwargs)
         errors = []
         while remaining_retries >= 0:
             try:
                 impl = implementations[impl_idx]
                 ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
                 self.last_good_impl_idx = impl_idx
+                self.session.tracer.code_exit(self, args, kwargs, ret)
                 return ret
             except (XGenerationError, TimeoutError) as e:
                 logger.warning(
@@ -499,7 +527,10 @@ class TaskInstance(SymbolInstance, Task):
                 # fail over to next implementation
                 impl_idx = (impl_idx + 1) % len(implementations)
 
-        raise RuntimeError(f"{self} failed after {retries} retries") from errors[-1]
+        # give up
+        e = RuntimeError(f"{self} failed after {retries} retries")
+        self.session.tracer.code_exception(self, args, kwargs, e)
+        raise e from errors[-1]
 
     def to_sync(self) -> "SyncTaskInstance":
         return SyncTaskInstance(**dict_minus(self.__dict__, ["is_async"]))
@@ -526,7 +557,6 @@ class CodeInstance(SymbolInstance, Code):
     task: Optional[TaskInstance] = None
     transform: Optional[CodeTransformation] = None
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
-    tracer: Tracer = required_field()
 
 
 @dataclass(repr=False)
@@ -536,14 +566,14 @@ class AsyncCodeInstance(CodeInstance):
     async def __call__(self, *args, **kwargs):
         log = logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
-            self.tracer.code_enter(self, args, kwargs)
+            self.session.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
             result = await self.code_callable(*args, **kwargs)
-            self.tracer.code_exit(self, args, kwargs, result)
+            self.session.tracer.code_exit(self, args, kwargs, result)
             log.debug("code.exit", result=describe_type(result))
             return result
         except Exception as exception:
-            self.tracer.code_exception(self, args, kwargs, exception)
+            self.session.tracer.code_exception(self, args, kwargs, exception)
             log.debug("code.exception", excinfo=True)
             raise
 
@@ -561,14 +591,14 @@ class SyncCodeInstance(CodeInstance):
     def __call__(self, *args, **kwargs):
         log = logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
-            self.tracer.code_enter(self, args, kwargs)
+            self.session.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
             result = self.code_callable(*args, **kwargs)
-            self.tracer.code_exit(self, args, kwargs, result)
+            self.session.tracer.code_exit(self, args, kwargs, result)
             log.debug("code.exit", result=describe_type(result))
             return result
         except Exception as exception:
-            self.tracer.code_exception(self, args, kwargs, exception)
+            self.session.tracer.code_exception(self, args, kwargs, exception)
             log.debug("code.exception", excinfo=True)
             raise
 
@@ -819,7 +849,11 @@ class StructTypeMapping(TypeMapping):
 
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
         if not isinstance(type, TypeInstance):
-            raise ValueError(f"struct type {type} is not an instance")
+            # may be a simple type node
+            if isinstance(type.reference, TypeInstance):
+                type = type.reference
+            else:
+                raise ValueError(f"struct type is not an instance: {type}")
         return type(**value)
 
     def from_py_value(self, type: TypeNode, value: Any) -> Any:
@@ -846,8 +880,10 @@ register_mapping(
 )
 
 
-def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
+def instantiate_py_type(node: TypeNode) -> type | LiteralValue | None:
     """Create the Python-native type for the given type node."""
+    if node.tag == TypeTag.FUNCTION:
+        return None  # functions don't have a pytype
     mapping = get_flat_mapping(node)
     py_type = mapping.to_py_type(node)
     if node.flags & TypeFlag.IsArray:
@@ -856,10 +892,30 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue:
         return py_type
 
 
-def instantiate_type(type: Type, session: Session) -> TypeInstance:
+def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     """Instrument and instantiate a type for use."""
     py_type = instantiate_py_type(type)
-    return TypeInstance(**type.__dict__, py_type=py_type, session=session)
+    # impute Type instances with TypeInstance recursively
+    if type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
+        mapped_nodes = []
+        for node in type.type_nodes:
+            if isinstance(node, Type):
+                mapped = _instantiate_type(node, session)
+            else:  # simple type nodes aren't symbols, but their refs may be
+                if isinstance(node.reference, Type):
+                    mapped = node.deepcopy()
+                    mapped.reference = instantiate(node.reference, session)
+                else:
+                    mapped = node
+            mapped_nodes.append(mapped)
+    else:
+        mapped_nodes = type.type_nodes
+    return TypeInstance(
+        **dict_minus(type.__dict__, "type_nodes"),
+        type_nodes=mapped_nodes,
+        py_type=py_type,
+        session=session,
+    )
 
 
 def instantiate_py_value_flat(value: Any, type: TypeNode) -> Any:
@@ -891,15 +947,17 @@ def strip_py_value_flat(value: Any, type: TypeNode) -> Any:
     return mapping.from_py_value(type, value)
 
 
-def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
+def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
+    dataset_kwargs = dict_minus(dataset.__dict__, "records", "type")
+    dataset_type = instantiate(dataset.type, session)
     if dataset.flags & TypeFlag.IsArray:
         instance = DataTableInstance(
-            **dict_minus(dataset.__dict__, "records"), records=[], session=session
+            **dataset_kwargs, type=dataset_type, records=[], session=session
         )
     else:
         instance = DataRecordInstance(
-            **dict_minus(dataset.__dict__, "records"), records=[], session=session
+            **dataset_kwargs, type=dataset_type, records=[], session=session
         )
     for raw_record in dataset.records:
         py_record_data = map_value(
@@ -919,38 +977,7 @@ def instantiate_data(dataset: Data, session: Session) -> DataTableInstance | Dat
     return instance
 
 
-STATIC_BUILTINS = {
-    # primitive type builtins
-    "string": str,
-    "text": str,
-    "number": float,
-    "file": RemoteObject,
-    "boolean": bool,
-    "image": RemoteObject,
-    "audio": RemoteObject,
-    # library builtins
-    "numpy": numpy,
-    "np": numpy,
-    "pandas": pandas,
-    "pd": pandas,
-    "asyncio": asyncio,
-    # functional builtins
-    "itertools": itertools,
-    "more_itertools": itertools,
-    "first": first,
-    "last": last,
-    "chain": itertools.chain,
-}
-
-DYNAMIC_BUILTINS = {
-    "session",
-    "context",
-    "_xblocks",
-    "random",
-}
-
-
-def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCodeInstance:
+def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCodeInstance:
     """Instantiates code into a Python callable in the context of the session."""
 
     # instantiate context (preserving scoping)
@@ -967,7 +994,6 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
     dynamic_context = {
         "session": session,
         "context": {symbol.name: symbol for symbol in symbol_context.values()},  # by name
-        "_xblocks": code.xblocks,
         **symbol_context,  # inlined
         "random": Random(code.id.hex.encode()),
     }
@@ -976,7 +1002,7 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
         python_code = code.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
     else:
-        raise ValueError(f"unknown code language: {code}")
+        raise ValueError(f"unexpected code language: {code}")
 
     # stub fake lines
     python_code_lines = python_code.splitlines()
@@ -1008,15 +1034,23 @@ def instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncCo
     )
     code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance
     return code_cls(
-        **code.__dict__,
+        **(dict_minus(code.__dict__, "type")),
+        type=instantiate(code.type, session),
         transform=transform,
         code_callable=callable,
-        tracer=session.tracer,
         session=session,
     )
 
 
-def instantiate_model(model: Model, session: Session) -> ModelInstance:
+def _instantiate_task(symbol, session):
+    return TaskInstance(
+        **(dict_minus(symbol.__dict__, "type")),
+        type=instantiate(symbol.type, session),
+        session=session,
+    )
+
+
+def _instantiate_model(model: Model, session: Session) -> ModelInstance:
     """
     Instantiates the model inference endpoints for the session.
     If we don't have the key, we proxy to the langserver.
@@ -1032,7 +1066,9 @@ def instantiate_model(model: Model, session: Session) -> ModelInstance:
         if key is not None:
             endpoint = getattr(endpoint_cls(**inference.__dict__), modality)
         else:
-            endpoint = RemoteInferenceEndpoint(model=model, modality=modality)
+            endpoint = RemoteInferenceEndpoint(
+                model=model, modality=modality, timeout=session.inference_timeout
+            )
         endpoint_proxy = CachedInferenceEndpoint(
             model=model,
             modality=modality,
@@ -1052,15 +1088,15 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
     if symbol.abstract:
         raise ValueError(f"cannot instantiate abstract symbol: {symbol}")
     if isinstance(symbol, Task):
-        return TaskInstance(**symbol.__dict__, session=session)
+        return _instantiate_task(symbol, session)
     elif isinstance(symbol, Code):
-        return instantiate_code(symbol, session)
+        return _instantiate_code(symbol, session)
     elif isinstance(symbol, Model):
-        return instantiate_model(symbol, session)
+        return _instantiate_model(symbol, session)
     elif isinstance(symbol, Data):
-        return instantiate_data(symbol, session)
+        return _instantiate_data(symbol, session)
     elif isinstance(symbol, Type):
-        return instantiate_type(symbol, session)
+        return _instantiate_type(symbol, session)
     else:
         raise ValueError(f"cannot instantiate {symbol} in {session}")
 

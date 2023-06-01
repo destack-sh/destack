@@ -301,11 +301,14 @@ class ReqRunInferencePayload:
     modality: str
     blocks: list[XBlockData]
     settings: dict[str, typing.Any]
+    timeout: int
+    cache: bool
 
 
 @payload(NMessageType.REPLY_RUN_INFERENCE)
 class RepRunInferencePayload:
     output: Optional[typing.Any] = None
+    timeout: bool = False
 
 
 @payload(NMessageType.REQUEST_INTERP)

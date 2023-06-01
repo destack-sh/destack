@@ -116,13 +116,17 @@ function getStatusColor(status: ExecutionStatus) {
   }
 }
 
-function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: { slug?: string } }): string {
+function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: { slug?: string | null } }): string {
   return (
     {
-      [ExecutionTriggerType.UiInteractive]: "by " + execution.user?.slug,
-      [ExecutionTriggerType.RestApi]: "via API",
+      [ExecutionTriggerType.Ui]: "by " + execution.user?.slug,
+      [ExecutionTriggerType.Api]: "via API",
     }[execution.triggerType] ?? "by a ghost"
   );
+}
+
+function getCachedPercentage(execution: { duration?: number | null; cachedDuration?: number | null }) {
+  return 100 - ((execution.duration ?? 0) * 100) / (execution.cachedDuration ?? 0);
 }
 </script>
 <template>
@@ -180,13 +184,15 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
                 <BoltIcon class="h-4 w-4 text-orange-500" />
                 <span
                   v-if="execution.duration != null && execution.cachedDuration != null"
-                  class="invisible absolute z-10 -ml-1 mt-1 w-32 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
+                  class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
                 >
                   Cached
                   {{ now.getTimeFromNowString(execution.cachedGeneratedAt) }} ago<br />
-                  Saved {{ (100 - (execution.duration * 100) / execution.cachedDuration).toFixed() }}% (~{{
-                    formatDurationSeconds((execution.cachedDuration - execution.duration) * 1000)
-                  }})
+                  <template v-if="getCachedPercentage(execution) > 0">
+                    Saved {{ getCachedPercentage(execution).toFixed() }}% (~{{
+                      formatDurationSeconds((execution.cachedDuration - execution.duration) * 1000)
+                    }})
+                  </template>
                 </span>
               </span>
             </span>
