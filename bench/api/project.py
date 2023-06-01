@@ -59,13 +59,10 @@ class StatementFilter:
 @gql.django.filter(models.File)
 class FileFilter:
     is_visible: Optional[bool] = True
-    is_generated: Optional[bool] = None
 
     def filter(self, queryset):
         if self.is_visible is not None:
             queryset = queryset.filter(deleted_at__isnull=self.is_visible)
-        if self.is_generated is not None:
-            queryset = queryset.filter(generated=self.is_generated)
         return queryset
 
 
