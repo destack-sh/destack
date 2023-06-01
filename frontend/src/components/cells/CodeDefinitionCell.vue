@@ -251,13 +251,19 @@ defineExpose({
     <!-- If truncating, button overlay with fade gradient -->
     <button
       v-if="truncateOutput"
-      class="absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
+      class="group/truncate absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
       @click="truncateOutput = false"
     >
-      <ChevronDoubleDownIcon class="h-4 w-4 text-gray-400" />
+      <span class="p-0.5 text-gray-400 group-hover/truncate:animate-bounce group-hover/truncate:text-gray-800">
+        <ChevronDoubleDownIcon class="h-4 w-4" />
+      </span>
     </button>
-    <button v-else class="flex w-full flex-row justify-center bg-gray-100 pt-0.5" @click="truncateOutput = true">
-      <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400" />
+    <button
+      v-else
+      class="group/truncate flex w-full flex-row justify-center bg-gray-100 pt-0.5"
+      @click="truncateOutput = true"
+    >
+      <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
     </button>
   </ExecutionTraceback>
 </template>

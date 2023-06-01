@@ -742,8 +742,8 @@ def get_flat_mapping(type: TypeNode) -> TypeMapping:
     Gets the most appropriate mapping for the given type.
     (flat because we ignore list and optional types).
     """
-    # strip list and optional types
-    stripped_flags = type.flags & ~TypeFlag.IsArray & ~TypeFlag.IsNullable & ~TypeFlag.IsOutput
+    # strip to only relevant flags for mapping
+    stripped_flags = type.flags & TypeFlag.IsSecret
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
     mapping = type_mappings.get(exact_signature)
     if mapping is not None:
@@ -949,7 +949,7 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
 
 def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
-    dataset_kwargs = dict_minus(dataset.__dict__, "records", "type")
+    dataset_kwargs = dict_minus(dataset.__dict__, ("records", "type"))
     dataset_type = instantiate(dataset.type, session)
     if dataset.flags & TypeFlag.IsArray:
         instance = DataTableInstance(
