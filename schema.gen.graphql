@@ -344,10 +344,7 @@ type Execution implements Node {
   root: Execution
   parent: Execution
   descendants: [Execution!]!
-  build: Statement
-  task: Statement
-  code: Statement
-  model: Statement
+  runnable: Statement
   triggerType: ExecutionTriggerType!
   user: User
   accessToken: AccessToken
@@ -1232,9 +1229,7 @@ type Query {
     projectId: GlobalID!
     projectVersionId: GlobalID = null
     includeAncestorVersions: Boolean! = false
-    taskIds: [GlobalID!] = null
-    codeIds: [GlobalID!] = null
-    rootId: GlobalID = null
+    runnableIds: [GlobalID!] = null
     rootIdNull: Boolean! = false
   ): ExecutionConnection! @canViewProject(atRoot: true)
   clients(

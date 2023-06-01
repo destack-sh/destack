@@ -46,7 +46,7 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
-export type EditorType = "file" | "run";
+export type EditorType = "file" | "terminal";
 
 // note that editor state should be JSON serializable (except below)
 const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
@@ -330,10 +330,10 @@ export const useBenchState = defineStore("bench", {
       symbol: { id: string; name?: string | null },
       options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
     ): Editor {
-      let editor = this.editors.find((e) => e.type == "run" && (e as RunEditor).symbolId == symbol.id);
+      let editor = this.editors.find((e) => e.type == "terminal" && (e as TerminalEditor).symbolId == symbol.id);
       if (!editor || options?.create) {
         console.log(`create new run editor for ${symbol.name}`);
-        editor = new RunEditor(symbol);
+        editor = new TerminalEditor(symbol);
         editor.onDeserialized(this);
       }
       this.openEditor(editor, options?.group);
@@ -786,8 +786,8 @@ export class FileEditor extends Editor {
   }
 }
 
-export class RunEditor extends Editor {
-  type = "run" as const;
+export class TerminalEditor extends Editor {
+  type = "terminal" as const;
   symbolId: string;
   symbolType?: SymbolType.Task | SymbolType.Code;
   arguments: Record<string, any> = {};
@@ -795,7 +795,7 @@ export class RunEditor extends Editor {
   lastExecutionId?: string;
 
   constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
-    super("run", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
+    super("terminal", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
     this.symbolId = symbol.id;
     if (symbol.__typename == "Task") {
       this.symbolType = SymbolType.Task;
@@ -811,7 +811,7 @@ export class RunEditor extends Editor {
 
 const EDITOR_INSTANCES: Record<EditorType, any> = {
   file: FileEditor,
-  run: RunEditor,
+  run: TerminalEditor,
 };
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {

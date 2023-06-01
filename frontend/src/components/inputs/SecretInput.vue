@@ -81,9 +81,13 @@ function hide() {
 }
 
 async function copy() {
+  const wasHidden = hidden.value;
   await doReveal();
   if (secretValue.value != null) {
     navigator.clipboard.writeText(secretValue.value);
+  }
+  if (wasHidden) {
+    hide();
   }
 }
 

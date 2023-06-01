@@ -144,7 +144,7 @@ function copyApiUrlToClipboard() {
         <!-- Header -->
         <div class="">
           <h2 class="font-bold text-gray-900">Manage deployment</h2>
-          <p class="pt-2 text-gray-900">Deployments own the resources to run a Bench version.</p>
+          <p class="pt-2 text-gray-900">Deployments own the resources to run a Bench.</p>
           <p v-if="!committed" class="text-gray-900">
             The latest version is always deployed (tagged
             <span class="rounded-sm bg-gray-200 px-0.5 font-mono">x</span>).
@@ -175,22 +175,21 @@ function copyApiUrlToClipboard() {
         </div>
 
         <!-- Endpoints -->
-        <div class="mt-4">
+        <!-- <div class="mt-4">
           <div class="flex w-full flex-row justify-between">
             <h3 class="font-bold text-gray-900">
               Endpoints <span class="rounded-3xl bg-gray-200 px-1.5 font-normal">{{ deployedEndpoints.length }}</span>
             </h3>
-            <!-- Deploy all? -->
             <div class="flex flex-row items-center gap-1">
               <span class="text-gray-500">All</span>
               <Switch :model-value="true" />
             </div>
-          </div>
-          <!-- Deploy specific endpoints -->
-          <ul class="mt-2 flex flex-col">
-            <li v-for="endpoint in endpoints" :key="endpoint.id" class="flex flex-row items-center gap-4">
-              <!-- Endpoint info -->
-              <div class="flex flex-1 items-baseline justify-between gap-1">
+          </div> -->
+        <!-- Deploy specific endpoints -->
+        <!-- <ul class="mt-2 flex flex-col">
+            <li v-for="endpoint in endpoints" :key="endpoint.id" class="flex flex-row items-center gap-4"> -->
+        <!-- Endpoint info -->
+        <!-- <div class="flex flex-1 items-baseline justify-between gap-1">
                 <h3>
                   {{ SYMBOL_TYPE_KEYWORD[endpoint.symbolType as SymbolType] }}
                   {{ endpoint.name }}
@@ -198,12 +197,12 @@ function copyApiUrlToClipboard() {
                 <span class="text-gray-500">
                   {{ fileOf(endpoint)?.path }}
                 </span>
-              </div>
-              <!-- Select for deployment -->
-              <Switch :model-value="true" />
+              </div> -->
+        <!-- Select for deployment -->
+        <!-- <Switch :model-value="true" />
             </li>
           </ul>
-        </div>
+        </div> -->
 
         <!-- Deploy action/notice -->
         <div class="mt-4 text-right">

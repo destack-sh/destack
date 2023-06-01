@@ -11,6 +11,7 @@ import structlog
 
 from bench.language.reconstruct import render_statement
 from bench.language.type import (
+    Build,
     Data,
     Expectation,
     InterpSymbol,
@@ -38,6 +39,7 @@ logger = structlog.get_logger(__name__)
 
 if typing.TYPE_CHECKING:
     from bench.runtime.instance import ModelInstance, Session, TaskInstance, TypeInstance
+    from bench.runtime.interp import InterpModule
 
 
 class XGenerationError(ValueError):
@@ -94,6 +96,18 @@ XOutputHandler = typing.Callable[[Any], typing.Any]
 class DynamicXBlock:
     xblock: XBlockContent
     handler: XInputHandler | XOutputHandler
+
+
+def get_default_builds(interp: InterpModule) -> list[Build]:
+    return [
+        Build(
+            name="balanced",
+            models=[
+                interp.symbol("openai.std.text.gpt3"),
+                interp.symbol("anthropic.std.text.claude-instant"),
+            ],
+        ),
+    ]
 
 
 def build_task_implementation(

@@ -74,7 +74,7 @@ function handleKeyword(newContentTrim: string): boolean {
     context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
   } else if (newContentTrim == "struct") {
     context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
-  } else if (newContentTrim == "value") {
+  } else if (newContentTrim == "record") {
     context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
   } else if (newContentTrim == "table") {
     context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });

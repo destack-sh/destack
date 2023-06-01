@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type EditorContext, type RunEditor, type StatementAction } from "@/state/bench";
+import { useBenchState, type EditorContext, type TerminalEditor, type StatementAction } from "@/state/bench";
 import { newExecutionId, symbolOf, TypeFlag } from "@/state/runtime";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon } from "@heroicons/vue/24/solid";
@@ -12,14 +12,16 @@ import ExecutionsTile from "@/components/tiles/ExecutionsTile.vue";
 import { useOperations } from "@/state/operations";
 import { SymbolType } from "@/gql/graphql";
 import { unkey } from "@/state/type";
+import { useNotifications } from "@/state/notifications";
 
-const props = defineProps<{ editor: EditorContext<RunEditor>; focused: boolean }>();
+const props = defineProps<{ editor: EditorContext<TerminalEditor>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
 const bench = useBenchState();
 const appearance = useAppearance();
+const notifications = useNotifications();
 const ops = useOperations();
 const editor = computed(() => props.editor.editor.value);
 const editorSize = computed(() => props.editor.size.value);
@@ -51,7 +53,25 @@ async function run() {
   const unkeyedArguments = unkey(inputFields.value, editor.value.arguments);
   const ret = await ops.runtime.run(editor.value.symbolId, undefined, editor.value.lastExecutionId, unkeyedArguments);
   if (ret?.data?.run?.__typename == "RunState") {
-    editor.value.lastOutput = ret.data.run.execution?.outputs;
+    if (!ret?.data?.run?.success) {
+      notifications.show({
+        kind: "error",
+        type: "run.failed",
+        message: "Run failed",
+        description: `${symbol.value.name} could not be run.`,
+      });
+    } else {
+      // notify on success if run took a bit
+      if (ret.data.run?.execution?.duration ?? 0 > 5) {
+        notifications.show({
+          kind: "success",
+          type: "run.success",
+          message: "Run completed",
+          description: `${symbol.value.name} completed`,
+        });
+      }
+      editor.value.lastOutput = ret.data.run.execution?.outputs;
+    }
   }
 }
 

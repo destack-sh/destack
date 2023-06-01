@@ -598,8 +598,6 @@ def rmap_error(error: language.Error) -> ErrorData:
     )
 
 
-# TODO @Cleanup: execution data doesn't belong to language wire format
-
 #
 # Executions
 #

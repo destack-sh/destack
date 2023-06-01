@@ -6,10 +6,10 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
-from bench.language.type import Build, Code, LiteralValue, Model, SymbolType, Task
+from bench.language.type import Code, LiteralValue, Model, SymbolType, Task
 from bench.language.wire import ExecutionTracingLevel, ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 
@@ -26,10 +26,7 @@ if TYPE_CHECKING:
 class ExecutionFrame:
     id: UUID
     module_id: UUID
-    build: Optional[Build]
-    task: Optional[Task]
-    code: Optional[Code]
-    model: Optional[Model]
+    runnable: Union[Code, Model, Task]
     root: Optional[ExecutionFrame]
     parent: Optional[ExecutionFrame]
     entered_at: datetime
@@ -63,10 +60,7 @@ class ExecutionFrame:
         # get str of all non-null fields
         fields_strs = [
             f"module={self.module_id}",
-            f"build={self.build}" if self.build else None,
-            f"task={self.task}" if self.task else None,
-            f"code={self.code}" if self.code else None,
-            f"model={self.model}" if self.model else None,
+            f"runnable={self.runnable}" if self.runnable else None,
             f"root={self.root.id}" if self.root else None,
             f"parent={self.parent.id}" if self.parent else None,
         ]
@@ -174,10 +168,7 @@ class ExecutionFrameData:
 
     id: UUID
     module_id: UUID
-    build_id: Optional[UUID]
-    task_id: Optional[UUID]
-    code_id: Optional[UUID]
-    model_id: Optional[UUID]
+    runnable_id: UUID
     root_id: Optional[UUID]
     parent_id: Optional[UUID]
     entered_at: datetime
@@ -229,10 +220,7 @@ class ExecutionFrameData:
         return ExecutionFrameData(
             id=frame.id,
             module_id=frame.module_id,
-            build_id=frame.build.id if frame.build else None,
-            task_id=frame.task.id if frame.task else None,
-            code_id=frame.code.id if frame.code else None,
-            model_id=frame.model.id if frame.model else None,
+            runnable_id=frame.runnable.id if frame.runnable else None,
             root_id=frame.root.id if frame.root else None,
             parent_id=frame.parent.id if frame.parent else None,
             entered_at=frame.entered_at,

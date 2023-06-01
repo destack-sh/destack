@@ -43,7 +43,7 @@ const { executions, totalCount } = useExecutions(
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     includeAncestorVersions: toRef(props, "includeAncestorVersions"),
-    codeIds: computed(() => [props.symbolId]),
+    runnableIds: computed(() => [props.symbolId]),
   },
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
@@ -120,10 +120,8 @@ function getStatusColor(status: ExecutionStatus) {
 function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: { slug?: string } }): string {
   return (
     {
-      [ExecutionTriggerType.Job]: "from job",
       [ExecutionTriggerType.UiInteractive]: "by " + execution.user?.slug,
       [ExecutionTriggerType.RestApi]: "via API",
-      [ExecutionTriggerType.Manual]: "manually",
     }[execution.triggerType] ?? "by a ghost"
   );
 }
@@ -133,7 +131,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
     <!-- Header with filters  -->
     <!-- not yet -->
     <!-- Executions -->
-    <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs yet</div>
+    <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs</div>
     <!-- TODO @UX: animate executions in tile (without interfering with expand/close animation, looks glitchy) -->
     <div class="relative flex flex-col">
       <div

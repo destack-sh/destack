@@ -599,7 +599,8 @@ class RefMappingManager(models.Manager["RefMapping"]):
         last_symbol_ids = expanded_ids
         remaining_depth = depth
         while last_symbol_ids and (depth is None or remaining_depth > 0):
-            remaining_depth -= 1
+            if remaining_depth is not None:
+                remaining_depth -= 1
             last_symbol_ids = self.filter(target_id__in=last_symbol_ids).values_list(
                 "source_id", flat=True
             )
