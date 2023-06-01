@@ -92,10 +92,11 @@ class PyFrameData:
         return [PyFrameData.from_traceback(frame) for frame in stack]
 
     @staticmethod
-    def clean(stack: list[PyFrameData], from_code: "CodeInstance") -> list[PyFrameData]:
+    def clean(
+        stack: list[PyFrameData], from_code: "CodeInstance", session: "Session"
+    ) -> list[PyFrameData]:
         from bench.runtime.instance import CodeInstance
 
-        session = from_code.session
         code_instances_by_method_name: dict[str, CodeInstance] = {
             instance.transform.method_name: cast(CodeInstance, instance)
             for instance in session.instances.values()
@@ -185,19 +186,22 @@ class ExecutionFrameData:
     @staticmethod
     def from_frame(frame: ExecutionFrame, *, session: Session) -> ExecutionFrameData:
         if frame.error:
-            if frame.code is None:
+            if frame.runnable is None:
                 raise ValueError(f"error outside code: {frame}")
             stack_summary = traceback.StackSummary.extract(
                 traceback.walk_tb(frame.error.__traceback__), capture_locals=True
             )
-            stack = PyFrameData.from_stack(stack_summary)
-            stack = PyFrameData.clean(stack, frame.code)
+            if isinstance(frame.runnable, Code):
+                stack = PyFrameData.from_stack(stack_summary)
+                stack = PyFrameData.clean(stack, frame.runnable, session=session)
+            else:
+                stack = []
             error_str = str(frame.error)
             # remove (source=...) from error message
             error_str = re.sub(r"\(source=[^)]+\)", "", error_str)
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
-                symbol=str(frame.code),
+                symbol=str(frame.runnable),
                 message=f"{type(frame.error).__name__}: {error_str}",
                 traceback=stack,
             )

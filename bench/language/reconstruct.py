@@ -230,6 +230,8 @@ def render_type_node(
     elif node.tag == TypeTag.UNION:
         nodes = node.self_type_nodes or node.type_nodes or []
         type_str = " | ".join(render_type_node(e, statement) for e in nodes)
+    elif node.hint is not None:
+        type_str = node.hint
     elif node.tag in PRIMITIVE_TYPES or node.tag == TypeTag.ANY:
         type_str = node.tag.value
     elif node.tag == TypeTag.LITERAL:

@@ -41,35 +41,25 @@ class Execution(UUIDTModel):
     """
 
     # context
-    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="executions+")
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="executions+"
-    )
-    deployment = models.ForeignKey(
-        "Deployment", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
-    )
+    project = models.ForeignKey("Project", on_delete=models.CASCADE)
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
+    deployment = models.ForeignKey("Deployment", null=True, blank=True, on_delete=models.SET_NULL)
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
     tracing_level = models.IntegerField(default=0)
     trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)
-    user = models.ForeignKey(
-        "User", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
-    )
+    user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
     access_token = models.ForeignKey(
-        "AccessToken", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
+        "AccessToken", null=True, blank=True, on_delete=models.SET_NULL
     )
 
-    # execution
+    # content
     status = models.CharField(
         max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    started_at = models.DateTimeField(
-        null=True, blank=True, help_text="Time of transition to Running status."
-    )
-    terminated_at = models.DateTimeField(
-        null=True, blank=True, help_text="Time of transition to a terminal status."
-    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    terminated_at = models.DateTimeField(null=True, blank=True)
     cached_generated_at = models.DateTimeField(null=True, blank=True)
     cached_duration = models.FloatField(null=True, blank=True)
     root = models.ForeignKey(
@@ -78,9 +68,7 @@ class Execution(UUIDTModel):
     parent = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
-    runnable = models.ForeignKey(
-        "Statement", null=True, blank=True, on_delete=models.SET_NULL, related_name="executions+"
-    )
+    runnable = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)

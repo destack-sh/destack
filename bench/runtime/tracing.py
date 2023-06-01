@@ -27,6 +27,8 @@ if typing.TYPE_CHECKING:
         TaskInstance,
     )
 
+    RunnableInstance = CodeInstance | TaskInstance
+
 logger = structlog.get_logger(__name__)
 
 
@@ -35,16 +37,16 @@ class Tracer:
     Trace and track a session with executions, mutations, etc.
     """
 
-    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
         pass
 
-    def code_enter(self, code: CodeInstance, args, kwargs):
+    def code_enter(self, code: RunnableInstance, args, kwargs):
         pass
 
-    def code_exit(self, code: CodeInstance, args, kwargs, result):
+    def code_exit(self, code: RunnableInstance, args, kwargs, result):
         pass
 
-    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
         pass
 
     def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
@@ -107,19 +109,19 @@ class SessionTracer(Tracer):
         if validate:  # validation tracer must be last
             self.tracers.append(ValidationTracer())
 
-    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
         for tracer in self.tracers:
             tracer.queue_enter(code, inputs, queue_position)
 
-    def code_enter(self, code: CodeInstance, args, kwargs):
+    def code_enter(self, code: RunnableInstance, args, kwargs):
         for tracer in self.tracers:
             tracer.code_enter(code, args, kwargs)
 
-    def code_exit(self, code: CodeInstance, args, kwargs, result):
+    def code_exit(self, code: RunnableInstance, args, kwargs, result):
         for tracer in reversed(self.tracers):
             tracer.code_exit(code, args, kwargs, result)
 
-    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
         for tracer in reversed(self.tracers):
             try:
                 tracer.code_exception(code, args, kwargs, exception)
@@ -260,7 +262,7 @@ class ExecutionTracer(Tracer):
             parent.children.append(frame)
         return frame
 
-    def queue_enter(self, code: CodeInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
             runnable=code, inputs=inputs, trace=False, queue_position=queue_position
@@ -268,7 +270,7 @@ class ExecutionTracer(Tracer):
         self.track(frame)
         logger.debug("trace.queue", frame=frame)
 
-    def code_enter(self, code: CodeInstance, args, kwargs):
+    def code_enter(self, code: RunnableInstance, args, kwargs):
         # map args into kwargs
         combined_kwargs = {**kwargs}
         for input_t, input in zip(code.inputs, args):
@@ -280,14 +282,14 @@ class ExecutionTracer(Tracer):
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exit(self, code: CodeInstance, args, kwargs, result):
+    def code_exit(self, code: RunnableInstance, args, kwargs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = code.type.rekey(result, is_output=True)
         self.track(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exception(self, code: CodeInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
@@ -359,27 +361,17 @@ class MutationTracer(Tracer):
         self.mutator.update(record.id, record._to_wire(include_data=True))
 
 
-class ValidationError(RuntimeError):
-    pass
-
-
 class ValidationTracer(Tracer):
     """Validates types (except in inference, which is always checked in the task implementation)."""
 
-    def code_enter(self, code: CodeInstance, args, kwargs):
-        try:
-            combined_kwargs = {**kwargs}
-            for input_t, input in zip(code.inputs, args):
-                combined_kwargs[input_t.name] = input
-            check_type(combined_kwargs, code, is_output=False)
-        except (KeyError, ValueError, TypeError) as e:
-            raise ValidationError(f"invalid arguments for {code.name}: {e}", e)
+    def code_enter(self, code: RunnableInstance, args, kwargs):
+        combined_kwargs = {**kwargs}
+        for input_t, input in zip(code.inputs, args):
+            combined_kwargs[input_t.name] = input
+        check_type(combined_kwargs, code, is_output=False)
 
-    def code_exit(self, code: CodeInstance, args, kwargs, result):
-        try:
-            check_type(result, code, is_output=True)
-        except TypeError as e:
-            raise ValidationError(f"invalid return value for {code.name}: {e}", e)
+    def code_exit(self, code: RunnableInstance, args, kwargs, result):
+        check_type(result, code, is_output=True)
 
     def table_append(self, table: DataTableInstance, record: Record):
         check_type(record.data, table)
@@ -393,7 +385,7 @@ class ValidationTracer(Tracer):
         if key is not None and key != "":
             # validate only this key
             if key not in owner.type:
-                raise ValidationError(f"{key} does not exist on {owner.type}")
+                raise ValueError(f"{key} does not exist on {owner.type}")
             check_type(record.data.get(key), owner.type[key])
         else:
             check_type(record.data, owner.type)

@@ -229,14 +229,16 @@ class LanguageServer:
         try:
             settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
             xblocks = [wire.wmap_xblock(xblock) for xblock in msg.p.blocks]
-            output = await endpoint(xblocks, settings)
+            output = await asyncio.wait_for(endpoint(xblocks, settings), msg.p.timeout)
+            timeout = False
         except Exception as e:
             sentry_enabled = sentry_capture_if_enabled(e)
             logger.error(
                 "inference.run.failed", msg=msg, exc_info=True, sentry_enabled=sentry_enabled
             )
             output = None
-        await msg.reply(RepRunInferencePayload(output=output))
+            timeout = isinstance(e, asyncio.TimeoutError)
+        await msg.reply(RepRunInferencePayload(output=output, timeout=timeout))
 
     @message_handler
     async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):

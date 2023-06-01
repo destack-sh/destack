@@ -81,3 +81,16 @@ def sentry_capture_if_enabled(e: Exception) -> bool:
     if sentry_enabled:
         sentry_sdk.capture_exception(e)
     return sentry_enabled
+
+
+class DotDict(dict):
+    """Access dictionary keys as attributes."""
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name, value):
+        self[name] = value
