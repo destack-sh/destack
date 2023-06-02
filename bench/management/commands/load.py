@@ -48,9 +48,7 @@ class Command(BaseCommand):
                 create_onboarding_files=False,
             )
 
-        project_v = project.create_version(name="Update from CLI")
-        project_v.reset()
-
+        project_v = project.create_new_blank_head(name="Update from CLI")
         if path == "-":
             # read from stdin
             source_files = [SourceFile(path="stdin", content=sys.stdin.read())]

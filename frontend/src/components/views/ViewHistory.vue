@@ -12,11 +12,12 @@ import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { parseSemVer } from "@/utils/semver";
 import { PopoverButton } from "@headlessui/vue";
-import { BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
+import { ArrowPathIcon, BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   project: ProjectHeader;
@@ -53,11 +54,29 @@ const { result: versionsQuery, loading } = useQuery(
     projectId: props.project.id,
   })
 );
-const versions = computed(
-  () => versionsQuery.value?.project?.versions.edges.map((x) => useFragment(ProjectVersionHeaderType, x.node)) || []
-);
-const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
+const versions = computed(() => {
+  const versions =
+    versionsQuery.value?.project?.versions.edges.map((x) => useFragment(ProjectVersionHeaderType, x.node)) || [];
+  if (versions.length == 0 || head.value == null) {
+    return versions;
+  }
+  // order versions by parent, starting at head
+  // TODO @UX: show reverted segments & branches in version history
+  const ordered = [head.value];
+  // just go with first parent for now until we find the root
+  let current = ordered[0];
+  while (current.parents.length > 0) {
+    const parent = versions.find((x) => x.id == current.parents[0].id);
+    if (parent == null) {
+      break;
+    }
+    ordered.push(parent);
+    current = parent;
+  }
+  return ordered;
+});
+const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
 const isAtHead = computed(() => bench.currentProjectVersionId == head.value?.id);
 
 function isCurrent(version: { id: string }): boolean {
@@ -80,8 +99,8 @@ const lastSemVerTag = computed(() => {
   }
   return tag;
 });
-
 const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
+const committing = ref(false);
 
 const commit = provideGlobalAction({
   id: "version.commit",
@@ -91,7 +110,8 @@ const commit = provideGlobalAction({
     () =>
       props.project.canWrite &&
       bench.currentProjectVersionId != null &&
-      !ops.state.hasInflightLike({ types: ["version.commit"] })
+      !ops.state.hasInflightLike({ types: ["version.commit"] }) &&
+      !committing.value
   ),
   apply: () => {
     // just open snapshot history view (view must be visible for popover to render)
@@ -107,6 +127,7 @@ async function doCommit(c: {
   description?: string;
   autoDeploy?: boolean;
 }) {
+  committing.value = true;
   const ret = await ops.version.commit(c);
   if (ret?.data?.commit.__typename == "CommitPayload") {
     notifications.show({
@@ -116,6 +137,7 @@ async function doCommit(c: {
       description: `${c.name ?? "Snapshot"} is safe in the archives.`,
     });
   }
+  committing.value = false;
 }
 
 // instant commit (aka manual autosave)
@@ -221,20 +243,24 @@ defineExpose({
         :version="head"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
+        :is-head="true"
         @commit="(c) => doCommit(c)"
         v-slot="{ open }"
       >
         <PopoverButton
           ref="snapshotButtonRef"
-          :disabled="!commit.enabled"
+          :disabled="!commit.enabled || committing || loading"
           class="inline-flex flex-row rounded-sm p-0.5 outline-none"
           :class="{
-            'text-gray-300': !commit.enabled,
-            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled,
+            'text-gray-300': !commit.enabled && !committing && !loading,
+            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled || committing || loading,
             'bg-orange-100': open,
+            'animate-spin': committing,
           }"
         >
-          <BookmarkIcon class="h-4 w-4" />
+          <FadeTransition mode="out-in">
+            <component :is="committing || loading ? ArrowPathIcon : BookmarkIcon" class="h-4 w-4" />
+          </FadeTransition>
         </PopoverButton>
       </CommitPopover>
     </div>
@@ -280,6 +306,7 @@ defineExpose({
                 :version="version"
                 :projectId="props.project.id"
                 :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
+                :is-head="isHead(version)"
                 as="div"
                 class="flex min-w-0 flex-1 items-baseline justify-between space-x-4"
                 @commit="(c) => doCommit(c)"
@@ -301,7 +328,7 @@ defineExpose({
                     </router-link>
                     <!-- Edit button -->
                     <PopoverButton
-                      v-if="project.canWrite"
+                      v-if="project.canWrite && versionIdx > 0"
                       class="p-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 group-hover:visible"
                       :class="open ? 'visible bg-orange-100 text-gray-700' : 'invisible'"
                     >
@@ -316,7 +343,7 @@ defineExpose({
                       project.canWrite ? 'hover:bg-orange-100 hover:text-gray-700' : '',
                       open ? 'bg-orange-100' : '',
                     ]"
-                    :disabled="!project.canWrite"
+                    :disabled="!project.canWrite || versionIdx == 0"
                   >
                     <TagIcon class="h-4 w-4" />
                     <span :class="version.tag == null ? 'invisible group-hover:visible' : ''">

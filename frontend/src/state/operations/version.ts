@@ -34,11 +34,11 @@ export function useProjectVersionOps() {
           ... on CommitPayload {
             project {
               ...ProjectHeader
+              head {
+                ...ProjectVersionHeader
+              }
             }
             committedVersion {
-              ...ProjectVersionHeader
-            }
-            newWorkingVersion {
               ...ProjectVersionHeader
             }
           }
@@ -66,11 +66,11 @@ export function useProjectVersionOps() {
           ... on CommitPayload {
             project {
               ...ProjectHeader
+              head {
+                ...ProjectVersionHeader
+              }
             }
             committedVersion {
-              ...ProjectVersionHeader
-            }
-            newWorkingVersion {
               ...ProjectVersionHeader
             }
           }

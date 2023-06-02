@@ -15,7 +15,7 @@ from strawberry_django_plus import gql
 
 from bench.models.object import get_project_bucket_name, get_s3_client
 from bench.models.statement import Statement
-from bench.models.utils import UUIDModel, walk_children_bfs_batched
+from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -76,7 +76,6 @@ class ProjectManager(models.Manager["Project"]):
                     docs_v,
                     project.head,
                     docs_v.files.filter(name="Getting Started"),
-                    copy_mappings=False,
                 )
             except (ValueError, Project.DoesNotExist):
                 logger.warning("project.create.failed_onboarding", exc_info=True)
@@ -153,47 +152,30 @@ class Project(UUIDModel):
             raise ValueError(f"project {self} has no head")
         return self.head
 
-    @transaction.atomic
-    def create_version(
+    @transaction.atomic(savepoint=False)
+    def create_new_blank_head(
         self,
         name: Optional[str] = None,
         tag: Optional[str] = None,
         description: Optional[str] = None,
         parent: Optional[ProjectVersion] = None,
-        auto_commit: bool = True,
-        commit_name: Optional[str] = None,
-        commit_tag: Optional[str] = None,
-        commit_description: Optional[str] = None,
     ) -> "ProjectVersion":
         if parent is None:
             if self.head is None:
-                raise ValueError(f"project does not have a head version: {self}")
+                raise ValueError(f"project does not have a head: {self}")
             assigned_parent = self.head
         else:
             assigned_parent = parent
         del parent  # avoid accidental use
-
         if not assigned_parent.committed:
-            if auto_commit:
-                assigned_parent.commit(commit_name, commit_tag, commit_description)
-            else:
-                raise ValueError(f"parent version must be committed: {assigned_parent}")
+            raise ValueError(f"parent must be committed: {assigned_parent}")
 
         new_version = ProjectVersion.objects.create(
             project=self, name=name, tag=tag, description=description
         )
         new_version.parents.add(assigned_parent)
-
-        # copy project content from parent
-        ref_mappings = ProjectVersion.objects.copy_files(assigned_parent, new_version)
-        for mapping in ref_mappings:
-            mapping.kind = RefMappingKind.COMMIT
-        RefMapping.objects.bulk_create(ref_mappings)
-
-        # advance head if it moved
-        if assigned_parent == self.head:
-            self.head = new_version
-            self.save()
+        self.head = new_version
+        self.save()
 
         return new_version
 
@@ -396,13 +378,35 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         return final_ref_mappings, is_reverse
 
+    def copy(
+        self,
+        source: ProjectVersion,
+        target: ProjectVersion,
+        invert_mappings: bool = False,
+        copy_revisions: bool = True,
+    ) -> list["RefMapping"]:
+        ref_mappings = ProjectVersion.objects.copy_files(
+            source, target, copy_revisions=copy_revisions
+        )
+        for mapping in ref_mappings:
+            mapping.kind = RefMappingKind.COMMIT
+        if invert_mappings:
+            for mapping in ref_mappings:
+                mapping.source_id, mapping.target_id = mapping.target_id, mapping.source_id
+                mapping.source_version, mapping.target_version = (
+                    mapping.target_version,
+                    mapping.source_version,
+                )
+        RefMapping.objects.bulk_create(ref_mappings)
+        return ref_mappings
+
     def copy_files(
         self,
         source: ProjectVersion,
         target: ProjectVersion,
         files: Optional[models.QuerySet[File]] = None,
-        copy_mappings: bool = True,
         target_files_ids: dict[UUID, UUID] = None,
+        copy_revisions: bool = True,
     ) -> list["RefMapping"]:
         """Copies the given files from a source version to a target version (by default everything)"""
 
@@ -414,8 +418,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             statements = Statement.objects.filter(file__in=files).filter(deleted_at=None)
 
         # TODO @Performance: copy project version server-side (in SQL)
-        # TODO @Cleanup: created_at/updated_at are not copied correctly (auto-reset to now)
-        #  (could set them manually in project mutation wrapper)
         # copy files
         new_files: dict[UUID, File] = {}
         file_mappings: list[RefMapping] = []
@@ -425,9 +427,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 old_id = file.id
                 old_revision = file.revision
                 file.id = target_files_ids[old_id]
-                file._state.adding = True
                 file.project_version = target
                 file.parent = new_files.get(file.parent_id)
+                file.revision = 0 if copy_revisions else old_revision
+                file._state.adding = True
                 new_files[old_id] = file
                 file_mapping = RefMapping(
                     source_version=source,
@@ -440,15 +443,14 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 )
                 file_mappings.append(file_mapping)
             File.objects.bulk_create(files)
-
         # copy statements
         statement_mappings = Statement.objects.copy_statements(
-            statements, new_files, source, target, copy_mappings
+            statements, new_files, source, target, copy_revisions=copy_revisions
         )
         return [*file_mappings, *statement_mappings]
 
 
-class ProjectVersion(UUIDModel):
+class ProjectVersion(UUIDModel, CrudModel):
     """
     A project version records the state of a project at a specific point in time.
     """
@@ -458,8 +460,6 @@ class ProjectVersion(UUIDModel):
     # single unique tag should be a ProjectVersionTag list later :ProjectVersionTags
     tag = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     committed_at = models.DateTimeField(null=True)
 
     parents = models.ManyToManyField(
@@ -622,7 +622,7 @@ class FileManager(models.Manager):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class File(UUIDModel):
+class File(UUIDModel, CrudModel):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.
@@ -634,9 +634,6 @@ class File(UUIDModel):
     )
     revision = models.IntegerField(default=0)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
     directory = models.BooleanField(default=False)
     generated = models.BooleanField(default=False)
     parent = models.ForeignKey(

@@ -179,7 +179,6 @@ export type CommitInput = {
 export type CommitPayload = {
   __typename?: "CommitPayload";
   committedVersion: ProjectVersion;
-  newWorkingVersion: ProjectVersion;
   project: Project;
 };
 
@@ -4334,11 +4333,13 @@ export type CommitMutation = {
   commit:
     | {
         __typename?: "CommitPayload";
-        project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+        project: {
+          __typename?: "Project";
+          head: { __typename?: "ProjectVersion" } & {
+            " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+          };
+        } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
         committedVersion: { __typename?: "ProjectVersion" } & {
-          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-        };
-        newWorkingVersion: { __typename?: "ProjectVersion" } & {
           " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
         };
       }
@@ -4356,11 +4357,13 @@ export type RestoreMutation = {
   restore:
     | {
         __typename?: "CommitPayload";
-        project: { __typename?: "Project" } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
+        project: {
+          __typename?: "Project";
+          head: { __typename?: "ProjectVersion" } & {
+            " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
+          };
+        } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
         committedVersion: { __typename?: "ProjectVersion" } & {
-          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-        };
-        newWorkingVersion: { __typename?: "ProjectVersion" } & {
           " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
         };
       }
@@ -12957,22 +12960,24 @@ export const CommitDocument = {
                         name: { kind: "Name", value: "project" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "committedVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
                           selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "head" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "newWorkingVersion" },
+                        name: { kind: "Name", value: "committedVersion" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -13045,22 +13050,24 @@ export const RestoreDocument = {
                         name: { kind: "Name", value: "project" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "committedVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
                           selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "head" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
+                                ],
+                              },
+                            },
                           ],
                         },
                       },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "newWorkingVersion" },
+                        name: { kind: "Name", value: "committedVersion" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
