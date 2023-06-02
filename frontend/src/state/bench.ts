@@ -792,6 +792,7 @@ export class TerminalEditor extends Editor {
   symbolType?: SymbolType.Task | SymbolType.Code;
   arguments: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
+  lastExecutionTerminatedAt?: string;
   lastExecutionId?: string;
 
   constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
