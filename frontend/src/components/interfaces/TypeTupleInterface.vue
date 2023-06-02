@@ -44,13 +44,16 @@ const emit = defineEmits<{
 const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
+const description: Ref<string> = ref(props.modelValue?.description ?? "");
 const editing = ref(false);
 const editingType = ref(false);
+const hasDescription = computed(() => description.value.trim().length > 0);
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const previewRef: Ref<HTMLDivElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs = useElementRefs();
 const previewSize = useElementSize(previewRef);
@@ -61,6 +64,7 @@ const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInVie
 const typeEditablePopoverRef = ref<HTMLDivElement | null>(null);
 const typePopoverPin = pinAbsoluteElement(typeEditablePopoverRef, { pos: true, keepInView: true });
 
+// sync name
 syncProperty({
   value: name,
   editing: computed(() => nameRef.value?.focused),
@@ -69,6 +73,19 @@ syncProperty({
     value.value = {
       ...value.value,
       name: name.value,
+    };
+    emit("update:modelValue", value.value);
+  },
+});
+// sync description
+syncProperty({
+  value: description,
+  editing: computed(() => descriptionRef.value?.focused),
+  read: () => (description.value = value.value.description ?? ""),
+  write: () => {
+    value.value = {
+      ...value.value,
+      description: description.value,
     };
     emit("update:modelValue", value.value);
   },
@@ -203,8 +220,7 @@ defineExpose({
     <button
       ref="buttonRef"
       tabindex="-1"
-      class="relative flex h-full w-full flex-col text-left outline-none"
-      :class="[isEnum ? 'bg-gray-100 px-2' : '']"
+      class="group/preview relative flex h-full w-full flex-col text-left outline-none"
       @keydown.left.exact.prevent="emit('navigateLeft')"
       @keydown.right.exact.prevent="emit('navigateRight')"
       @keydown.up.exact.prevent="emit('navigateUp')"
@@ -216,24 +232,32 @@ defineExpose({
       @mousedown="buttonRef?.setAttribute('draggable', 'true')"
       @mouseup="buttonRef?.setAttribute('draggable', 'false')"
     >
-      <!-- :EnumStyle -->
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
-      <div ref="previewRef" class="flex max-w-full flex-row items-center text-left">
-        <svg
-          v-if="isEnum"
-          class="mr-1.5 h-1.5 w-1.5"
-          :style="{ fill: getEnumColor(value) }"
-          viewBox="0 0 6 6"
-          aria-hidden="true"
+      <!-- And measure the inner preview ref size correctly -->
+      <div class="flex max-w-full flex-row">
+        <div
+          ref="previewRef"
+          class="flex max-w-full flex-row items-center text-left"
+          :class="[isEnum ? 'bg-gray-100 px-2' : '']"
         >
-          <circle cx="3" cy="3" r="3" />
-        </svg>
-        <span
-          class="mr-2 max-w-full truncate text-gray-900"
-          :class="[inlined ? ' underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
-          >{{ value.name }}</span
-        >
-        <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+          <!-- :EnumStyle -->
+          <svg
+            v-if="isEnum"
+            class="mr-1.5 h-1.5 w-1.5"
+            :style="{ fill: getEnumColor(value) }"
+            viewBox="0 0 6 6"
+            aria-hidden="true"
+          >
+            <circle cx="3" cy="3" r="3" />
+          </svg>
+          <span
+            class="mr-2 max-w-full truncate text-gray-900"
+            :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
+            >{{ value.name }}</span
+          >
+          <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+        </div>
+        <span v-if="description" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">{{ description }}</span>
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->
@@ -243,7 +267,7 @@ defineExpose({
     <div
       v-if="editing"
       ref="editablePopoverRef"
-      class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="z-50 flex w-64 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
       @keydown.escape.exact.prevent.stop="close()"
     >
@@ -257,7 +281,7 @@ defineExpose({
           :readonly="readonly"
           class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
           @navigate-right="typeButtonRef?.focus()"
-          @navigate-down="actionRefs.focus(actions[0].label)"
+          @navigate-down="descriptionRef?.focus()"
           @enter="close(false), emit('enter')"
         />
         <!-- Type popover -->
@@ -303,8 +327,25 @@ defineExpose({
           </svg>
         </div>
       </div>
+      <!-- Description -->
+      <span
+        class="max-w-fullrounded-sm relative mt-1 w-full p-1 text-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
+      >
+        <EditableSpan
+          ref="descriptionRef"
+          v-model="description"
+          :readonly="readonly"
+          class="w-full max-w-full scroll-m-0 overflow-x-hidden whitespace-normal"
+          @navigate-up="nameRef?.focus()"
+          @navigate-right="typeButtonRef?.focus()"
+          @navigate-down="actionRefs.focus(actions[0].label)"
+          @enter="close(false), emit('enter')"
+        />
+        <!-- Description placeholder -->
+        <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus">Description... </span>
+      </span>
       <!-- Actions -->
-      <div class="mt-0.5 flex flex-col gap-0.5" v-if="actions.length > 0">
+      <div class="mt-1 flex flex-col gap-0.5" v-if="actions.length > 0">
         <button
           v-for="(action, i) in actions"
           :ref="(el: any) => actionRefs.registerRef(action.label, el)"
@@ -318,7 +359,7 @@ defineExpose({
             action.action(value);
             action.keepOpen || close();
           "
-          @keydown.up.exact.stop.prevent="i == 0 ? nameRef?.focus() : actionRefs.focus(actions[i - 1].label)"
+          @keydown.up.exact.stop.prevent="i == 0 ? descriptionRef?.focus() : actionRefs.focus(actions[i - 1].label)"
           @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
         >
           <component :is="action.icon" class="h-4 w-4 text-gray-500" />

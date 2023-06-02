@@ -308,34 +308,28 @@ defineExpose({
   </button>
   <!-- Members (enum options or struct fields) -->
   <div v-if="membersLength > 0" class="my-0.5 flex w-full flex-col gap-0.5">
-    <!-- Rows -->
-    <template v-for="member of members" :key="member.id">
-      <!-- Type -->
-      <TypeTupleInterface
-        :model-value="member"
-        @update:model-value="(val: any) => writeType(member.id, val)"
-        :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
-        :readonly="context.readonly.value"
-        :isEnum="isEnum"
-        :tupleName="isEnum ? 'option' : 'field'"
-        orientation="vertical"
-        @navigate-left="grid.navigateLeft(member.id, 'type')"
-        @navigate-right="grid.navigateRight(member.id, 'type')"
-        @navigate-up="grid.navigateUp(member.id, 'type')"
-        @navigate-down="grid.navigateDown(member.id, 'type')"
-        @delete-self="deleteMember(member.id)"
-        @duplicate-self="duplicateMember(member.id)"
-        @keydown.delete.exact="isEditing || deleteMember(member.id)"
-        @drop="(p, v) => dropMember(v.id, p, member.id)"
-        @enter="grid.navigateDown(member.id, 'type')"
-        class="self-start border border-orange-900 border-opacity-0 py-0.5 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
-        :class="
-          isEnum
-            ? 'w-fit focus-within:border-opacity-40 hover:border-opacity-40'
-            : '-mx-1 w-full px-1 focus-within:border-opacity-[15%]'
-        "
-      />
-    </template>
+    <TypeTupleInterface
+      v-for="member of members"
+      :key="member.id"
+      :model-value="member"
+      @update:model-value="(val: any) => writeType(member.id, val)"
+      :ref="(el: any) => grid.registerColumnRef(member.id, 'type', el)"
+      :readonly="context.readonly.value"
+      :isEnum="isEnum"
+      :tupleName="isEnum ? 'option' : 'field'"
+      orientation="vertical"
+      @navigate-left="grid.navigateLeft(member.id, 'type')"
+      @navigate-right="grid.navigateRight(member.id, 'type')"
+      @navigate-up="grid.navigateUp(member.id, 'type')"
+      @navigate-down="grid.navigateDown(member.id, 'type')"
+      @delete-self="deleteMember(member.id)"
+      @duplicate-self="duplicateMember(member.id)"
+      @keydown.delete.exact="isEditing || deleteMember(member.id)"
+      @drop="(p, v) => dropMember(v.id, p, member.id)"
+      @enter="grid.navigateDown(member.id, 'type')"
+      class="-mx-1 self-start border border-orange-900 border-opacity-0 px-1 py-0.5 text-gray-400 focus-within:border-opacity-[12%] focus-within:bg-orange-100 hover:border-opacity-[12%] hover:bg-orange-100"
+      :class="isEnum ? 'w-fit' : 'w-full '"
+    />
   </div>
   <div class="mb-1">
     <!-- Add a member -->
