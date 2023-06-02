@@ -217,13 +217,13 @@ def map_mutation_to_input(mutation: ModuleMutation) -> Any:
     Maps a simple internal mutation to an input that would cause the same mutation.
     The returned input is already jsonable (not the original input class).
     """
-    from bench.api.sync import INPUT_CLASS_BY_MMT
+    from bench.api.sync import INPUT_CLASS_BY_TYPE
 
     if mutation.data is None:
         raise ValueError(f"mutation has no data: {mutation}")
 
     extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.scope, {})
-    input_cls = INPUT_CLASS_BY_MMT[mutation.type]
+    input_cls = INPUT_CLASS_BY_TYPE[mutation.type]
     input_args = {}
     for field in fields(input_cls):
         s_key, t_key = field.name, field.name

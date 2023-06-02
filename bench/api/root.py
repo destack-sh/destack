@@ -18,7 +18,7 @@ from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery, ExecutionSubscription
-from bench.api.multiplayer import ModuleSubscription
+from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.object import ObjectMutation, RemoteObject
 from bench.api.organization import Organization, OrganizationMutation
@@ -182,7 +182,7 @@ class Mutation(
 class Subscription(
     ClientSubscription,
     InterpSubscription,
-    ModuleSubscription,
+    MultiplayerSubscription,
     ExecutionSubscription,
 ):
     pass

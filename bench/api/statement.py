@@ -16,7 +16,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import check_can_view_project, check_can_write_project
-from bench.api.sync import MMT, BatchMutationInput, project_mutation
+from bench.api.sync import MMT, BatchMutationInput, tracked_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -324,7 +324,7 @@ class StatementBatch(ThingBatch):
 
 @gql.type
 class StatementMutation:
-    @project_mutation(MMT.CREATE_STATEMENT_BLANK)
+    @tracked_mutation(MMT.CREATE_STATEMENT_BLANK)
     def create_statement_blank(self, input: StatementCreateBlankInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
@@ -340,7 +340,7 @@ class StatementMutation:
         )
         return statement
 
-    @project_mutation(MMT.CREATE_STATEMENT)
+    @tracked_mutation(MMT.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         project_version = file.project_version
@@ -366,7 +366,7 @@ class StatementMutation:
         )
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT)
+    @tracked_mutation(MMT.UPDATE_STATEMENT)
     def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
@@ -387,13 +387,13 @@ class StatementMutation:
         statement.code = input.code
         return statement
 
-    @project_mutation(MMT.DELETE_STATEMENT)
+    @tracked_mutation(MMT.DELETE_STATEMENT)
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.delete()
         return statement
 
-    @project_mutation(MMT.MORPH_STATEMENT, atomic=True)
+    @tracked_mutation(MMT.MORPH_STATEMENT, atomic=True)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         if (
@@ -411,26 +411,26 @@ class StatementMutation:
         statement.lang = input.lang
         return statement
 
-    @project_mutation(MMT.RENAME_STATEMENT)
+    @tracked_mutation(MMT.RENAME_STATEMENT)
     def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.name = input.name
         return statement
 
-    @project_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True)
+    @tracked_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.soft_delete()
         return statement
 
-    @project_mutation(MMT.RESTORE_STATEMENT, atomic=True)
+    @tracked_mutation(MMT.RESTORE_STATEMENT, atomic=True)
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT_MODIFIER)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_MODIFIER)
     def update_statement_modifier(
         self, input: StatementSetModifierInput
     ) -> Statement | OperationInfo:
@@ -438,7 +438,7 @@ class StatementMutation:
         statement.modifier = input.modifier
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
     def update_statement_reference(
         self, input: StatementSetReferenceInput
     ) -> Statement | OperationInfo:
@@ -446,13 +446,13 @@ class StatementMutation:
         statement.reference_id = input.reference_id.node_id if input.reference_id else None
         return statement
 
-    @project_mutation(MMT.COMMENT_STATEMENT, atomic=True)
+    @tracked_mutation(MMT.COMMENT_STATEMENT, atomic=True)
     def comment_statement(self, input: StatementCommentedInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.set_commented(input.commented)
         return statement
 
-    @project_mutation(MMT.MOVE_STATEMENT, atomic=True)
+    @tracked_mutation(MMT.MOVE_STATEMENT, atomic=True)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
@@ -465,7 +465,7 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @project_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
+    @tracked_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_soft_delete_statement(
         self, input: StatementBatchSoftDeleteInput
     ) -> StatementBatch | OperationInfo:
@@ -480,7 +480,7 @@ class StatementMutation:
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
+    @tracked_mutation(MMT.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_restore_statement(
         self, input: StatementBatchRestoreInput
     ) -> StatementBatch | OperationInfo:
@@ -496,7 +496,7 @@ class StatementMutation:
         statements.update(deleted_at=None)
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.COMMENT_STATEMENT, atomic=True, batch=True, register=False)
+    @tracked_mutation(MMT.COMMENT_STATEMENT, atomic=True, batch=True, register=False)
     def batch_comment_statement(
         self, input: StatementBatchCommentedInput
     ) -> StatementBatch | OperationInfo:
@@ -507,7 +507,7 @@ class StatementMutation:
         )
         return StatementBatch(statements=list(statements))
 
-    @project_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)
+    @tracked_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_move_statement(
         self, input: StatementBatchMoveInput
     ) -> StatementBatch | OperationInfo:
@@ -531,7 +531,7 @@ class StatementMutation:
         return StatementBatch(statements=list(statements))
 
     # we check auth manually here (simpler for copy/paste across projects & versions)
-    @project_mutation(MMT.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
+    @tracked_mutation(MMT.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
@@ -734,13 +734,13 @@ class TypeNodeRestoreInput(gql.NodeInput):
 class SymbolMutation:
     # both text and code save to code, but UPDATE_STATEMENT_TEXT is more descriptive
     # and allows us to ignore comment updates trivially :StatementCodeTextReuse
-    @project_mutation(MMT.UPDATE_STATEMENT_TEXT)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_TEXT)
     def update_statement_text(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT_DESCRIPTION)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_DESCRIPTION)
     def update_statement_description(
         self, input: StatementUpdateDescriptionInput
     ) -> Statement | OperationInfo:
@@ -748,13 +748,13 @@ class SymbolMutation:
         statement.description = input.description
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT_CODE)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_CODE)
     def update_statement_code(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
         return statement
 
-    @project_mutation(MMT.UPDATE_STATEMENT_LANGUAGE)
+    @tracked_mutation(MMT.UPDATE_STATEMENT_LANGUAGE)
     def update_statement_language(
         self, input: StatementUpdateLanguageInput
     ) -> Statement | OperationInfo:
@@ -762,7 +762,7 @@ class SymbolMutation:
         statement.language = input.language
         return statement
 
-    @project_mutation(MMT.CREATE_RECORD)
+    @tracked_mutation(MMT.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
         record = models.DatasetRecord(
@@ -773,13 +773,13 @@ class SymbolMutation:
         )
         return record
 
-    @project_mutation(MMT.UPDATE_RECORD)
+    @tracked_mutation(MMT.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.data = input.data
         return record
 
-    @project_mutation(MMT.UPDATE_RECORD_PATH)
+    @tracked_mutation(MMT.UPDATE_RECORD_PATH)
     def update_record_path(self, input: RecordUpdatePathInput) -> DatasetRecord | OperationInfo:
         # update record data at the given path
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
@@ -789,32 +789,32 @@ class SymbolMutation:
             record.data[input.path] = input.value
         return record
 
-    @project_mutation(MMT.MOVE_RECORD)
+    @tracked_mutation(MMT.MOVE_RECORD)
     def move_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
         return record
 
-    @project_mutation(MMT.SOFT_DELETE_RECORD)
+    @tracked_mutation(MMT.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.soft_delete()
         return record
 
-    @project_mutation(MMT.DELETE_RECORD)
+    @tracked_mutation(MMT.DELETE_RECORD)
     def delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
         record = models.DatasetRecord.objects.get(id=input.id.node_id)
         record.delete()
         return record
 
-    @project_mutation(MMT.RESTORE_RECORD)
+    @tracked_mutation(MMT.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> DatasetRecord | OperationInfo:
         # use _base_manager since soft deleted records are not visible
         record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
 
-    @project_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
+    @tracked_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
     def batch_soft_delete_record(
         self, input: RecordBatchSoftDeleteInput
     ) -> RecordBatch | OperationInfo:
@@ -826,7 +826,7 @@ class SymbolMutation:
         records = models.DatasetRecord._base_manager.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
 
-    @project_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
+    @tracked_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
     def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
         # imitate restore_record but for a batch
         record_ids = [UUID(i.node_id) for i in input.ids]
@@ -834,13 +834,13 @@ class SymbolMutation:
         records = models.DatasetRecord.objects.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
 
-    @project_mutation(MMT.TRUNCATE_RECORDS)
+    @tracked_mutation(MMT.TRUNCATE_RECORDS)
     def truncate_records(self, input: RecordTruncateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         models.DatasetRecord.objects.filter(statement=statement).delete()
         return statement
 
-    @project_mutation(MMT.CREATE_TYPE_NODE)
+    @tracked_mutation(MMT.CREATE_TYPE_NODE)
     def create_type_node(self, input: TypeNodeCreateInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode(
             id=UUID(input.id.node_id),
@@ -857,7 +857,7 @@ class SymbolMutation:
         )
         return type_node
 
-    @project_mutation(MMT.UPDATE_TYPE_NODE)
+    @tracked_mutation(MMT.UPDATE_TYPE_NODE)
     def update_type_node(self, input: TypeNodeUpdateInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.name = input.name
@@ -869,13 +869,13 @@ class SymbolMutation:
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
 
-    @project_mutation(MMT.RENAME_TYPE_NODE)
+    @tracked_mutation(MMT.RENAME_TYPE_NODE)
     def update_type_node_name(self, input: TypeNodeRenameInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.name = input.name
         return type_node
 
-    @project_mutation(MMT.UPDATE_TYPE_NODE_DESCRIPTION)
+    @tracked_mutation(MMT.UPDATE_TYPE_NODE_DESCRIPTION)
     def update_type_node_description(
         self, input: TypeNodeUpdateDescriptionInput
     ) -> SimpleTypeNode | OperationInfo:
@@ -883,7 +883,7 @@ class SymbolMutation:
         type_node.description = input.description
         return type_node
 
-    @project_mutation(MMT.UPDATE_TYPE_NODE_TYPE)
+    @tracked_mutation(MMT.UPDATE_TYPE_NODE_TYPE)
     def update_type_node_type(
         self, input: TypeNodeUpdateTypeInput
     ) -> SimpleTypeNode | OperationInfo:
@@ -895,26 +895,26 @@ class SymbolMutation:
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
 
-    @project_mutation(MMT.MOVE_TYPE_NODE)
+    @tracked_mutation(MMT.MOVE_TYPE_NODE)
     def move_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.order_key = input.order_key
         return type_node
 
-    @project_mutation(MMT.SOFT_DELETE_TYPE_NODE)
+    @tracked_mutation(MMT.SOFT_DELETE_TYPE_NODE)
     def soft_delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
         type_node = models.SimpleTypeNode._base_manager.get(id=input.id.node_id)
         type_node.soft_delete()
         return type_node
 
-    @project_mutation(MMT.DELETE_TYPE_NODE)
+    @tracked_mutation(MMT.DELETE_TYPE_NODE)
     def delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
         type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
         type_node.delete()
         return type_node
 
-    @project_mutation(MMT.RESTORE_TYPE_NODE)
+    @tracked_mutation(MMT.RESTORE_TYPE_NODE)
     def restore_statement_type_node(
         self, input: TypeNodeRestoreInput
     ) -> SimpleTypeNode | OperationInfo:

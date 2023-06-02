@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import CommitPopover from "@/components/bench/CommitPopover.vue";
+import BookmarkDashedIcon from "@/components/basic/BookmarkDashedIcon.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
@@ -28,10 +29,6 @@ const { getTimeFromNowString } = useTimeFromNow();
 
 const bench = useBenchState();
 const appearance = useAppearance();
-
-function isCurrent(version: { id: string }): boolean {
-  return bench.currentProjectVersionId == version.id;
-}
 
 const { result: versionsQuery, loading } = useQuery(
   graphql(/* GraphQL */ `
@@ -62,6 +59,14 @@ const versions = computed(
 const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
 const isAtHead = computed(() => bench.currentProjectVersionId == head.value?.id);
+
+function isCurrent(version: { id: string }): boolean {
+  return bench.currentProjectVersionId == version.id;
+}
+
+function isHead(version: { id: string }): boolean {
+  return head.value?.id == version.id;
+}
 
 const router = useRouter();
 const notifications = useNotifications();
@@ -108,7 +113,7 @@ async function doCommit(c: {
       type: "commit.success",
       kind: "success",
       message: `Snapshot created`,
-      description: `That version is safe in the archives.`,
+      description: `${c.name ?? "Snapshot"} is safe in the archives.`,
     });
   }
 }
@@ -263,7 +268,8 @@ defineExpose({
               <span
                 class="ring-6 flex h-6 w-6 items-center justify-center rounded-full bg-gray-50 ring-gray-50 group-hover:bg-orange-100"
               >
-                <BookmarkIcon
+                <component
+                  :is="isHead(version) && !version.committed ? BookmarkDashedIcon : BookmarkIcon"
                   class="h-5 w-5"
                   :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-700'"
                   aria-hidden="true"

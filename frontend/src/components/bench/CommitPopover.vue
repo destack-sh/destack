@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 import { getRandomName } from "@/composables/useRandomName";
 import { graphql } from "@/gql";
 import type { ProjectVersion } from "@/gql/graphql";
@@ -28,12 +29,17 @@ const emit = defineEmits<{
 
 // use reference to element inside PopoverPanel to determine if it's open
 const panelHeaderRef = ref<HTMLDivElement | null>(null);
+const panelRef = ref<InstanceType<typeof PopoverPanel> | null>(null);
+const panelRefPin = pinAbsoluteElement(
+  computed(() => panelRef.value?.$el),
+  { pos: true }
+);
 
 const committed = computed(() => props.version != null && props.version.committed);
 
 const suggestedName = getRandomName();
 const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : suggestedName));
-const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "minor"));
+const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
 const autoDeploy = ref(true);
@@ -88,7 +94,9 @@ watch([name, description, tag, availableTag, tagLoading], () => {
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute left-1 top-9 z-10 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        ref="panelRef"
+        class="z-40 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="[panelRefPin.pinned.value ? '' : 'absolute left-1 top-9']"
         unmount
       >
         <!-- Header -->
@@ -138,7 +146,7 @@ watch([name, description, tag, availableTag, tagLoading], () => {
           <textarea
             ref="descriptionRef"
             v-model="description"
-            class="rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="resize-none rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             spellcheck="false"
             rows="3"
             placeholder="Optional details for future you."
@@ -156,18 +164,18 @@ watch([name, description, tag, availableTag, tagLoading], () => {
           <p></p>
         </div>
 
-        <!-- Deployment (if head) -->
-        <div v-if="!committed" class="flex flex-row items-baseline justify-between gap-1">
+        <!-- Deployment (if head) :ConfusedDeployment -->
+        <!-- <div v-if="!committed" class="flex flex-row items-baseline justify-between gap-1">
           <p class="flex-1 whitespace-nowrap">
             <FadeTransition mode="out-in">
               <span v-if="tag.length > 0" class="text-gray-700">
-                <span class="font-bold">Auto-deploy</span> this tagged version.
+                <span class="font-bold">Deploy</span> as version {{ tag }}
               </span>
               <span v-else class="text-yellow-600">Version without a tag cannot be deployed.</span>
             </FadeTransition>
           </p>
           <Switch v-model="autoDeploy" v-if="canAutoDeploy" />
-        </div>
+        </div> -->
 
         <!-- Commit / update action -->
         <div class="mt-4 text-right" v-if="!committed">

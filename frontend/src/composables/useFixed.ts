@@ -1,10 +1,11 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
 import { type EditorContext, EDITOR_CONTEXT } from "@/state/bench";
+import { unrefElement } from "@vueuse/core";
 
 export const VIEW_MARGIN = 8;
 
 export function pinAbsoluteElement(
-  el: Ref<null | HTMLElement>,
+  target: Ref<HTMLElement | any | null>,
   fix: {
     pos?: boolean;
     width?: boolean;
@@ -15,7 +16,7 @@ export function pinAbsoluteElement(
 ) {
   // fixes the element at the first available position
   const fixed: Ref<{ x: number; y: number; width: number; height: number } | null> = ref(null);
-  const editorContext = inject<EditorContext<any>>(EDITOR_CONTEXT);
+  const editorContext = inject<EditorContext<any> | null>(EDITOR_CONTEXT, null);
   if (fix.keepInView && editorContext == null) {
     throw new Error("keepInView requires editor context");
   }
@@ -23,12 +24,13 @@ export function pinAbsoluteElement(
     throw new Error("keepInView requires pos");
   }
 
-  watch([el, () => fix.sourcePos?.value, editorContext?.pos, editorContext?.size], () => {
-    if (el.value == null && fixed.value != null) fixed.value = null; // reset
-    if (el.value == null) return; // no element
+  watch([target, () => fix.sourcePos?.value, () => editorContext?.pos.value, () => editorContext?.size.value], () => {
+    const el = unrefElement(target);
+    if (el == null && fixed.value != null) fixed.value = null; // reset
+    if (el == null) return; // no element
     if (fixed.value != null && !fix.keepInView) return; // already fixed
     // (re)fix element in view
-    const rect = el.value.getBoundingClientRect();
+    const rect = el.getBoundingClientRect();
     if (fix.sourcePos?.value != null) {
       // use given pos
       rect.x = fix.sourcePos.value.x;
@@ -57,12 +59,12 @@ export function pinAbsoluteElement(
     }
 
     if (fix.pos) {
-      el.value.style.position = "fixed";
-      el.value.style.left = `${fixed.value.x}px`;
-      el.value.style.top = `${fixed.value.y}px`;
+      el.style.position = "fixed";
+      el.style.left = `${fixed.value.x}px`;
+      el.style.top = `${fixed.value.y}px`;
     }
-    if (fix.width) el.value.style.width = `${rect.width}px`;
-    if (fix.height) el.value.style.height = `${rect.height}px`;
+    if (fix.width) el.style.width = `${rect.width}px`;
+    if (fix.height) el.style.height = `${rect.height}px`;
   });
 
   return {

@@ -133,3 +133,9 @@ def to_uuid(id: str | UUID | GlobalID | None) -> UUID | None:
 
 def to_uuids(ids: list[UUID | GlobalID] | None) -> list[UUID] | None:
     return [to_uuid(id) for id in ids] if ids else None
+
+
+def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
+    if id is None:
+        return None
+    return GlobalID(type, str(id))
