@@ -341,23 +341,22 @@ class ProjectVersionMutation:
         )
         snapshot.parents.set(head.parents.all())
         head.parents.set([snapshot])
+
+        old_refmaps = list(head.parent_refs.all())
         new_refmaps = models.ProjectVersion.objects.copy(
             head, snapshot, invert_mappings=True, copy_revisions=True
         )
+
         # update previous head's target ref mappings to point to snapshot's refs
-        new_refmaps_by_target_id = {
-            # new target is old source (we inverted the mappings)
-            refmap.source_id: refmap
-            for refmap in new_refmaps
-        }
-        old_refmaps = []
-        for refmap in snapshot.parent_refs.all():
-            refmap.target_version_id = snapshot.id
+        new_refmaps_by_target_id = {refmap.target_id: refmap for refmap in new_refmaps}
+        for refmap in old_refmaps:
             new_refmap = new_refmaps_by_target_id[refmap.target_id]
-            refmap.target_id = new_refmap.target_id
-            refmap.target_revision = new_refmap.revision
-            old_refmaps.append(refmap)
-        models.RefMapping.objects.bulk_update(old_refmaps, ["target_id", "target"])
+            refmap.target_version_id = snapshot.id
+            refmap.target_id = new_refmap.source_id
+            refmap.target_revision = new_refmap.source_revision
+        models.RefMapping.objects.bulk_update(
+            old_refmaps, ["target_version_id", "target_id", "target_revision"]
+        )
 
         # nocheckin publish commit
         return CommitPayload(project=project, committed_version=snapshot)

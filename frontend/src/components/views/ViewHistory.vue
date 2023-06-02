@@ -62,7 +62,7 @@ const versions = computed(() => {
     return versions;
   }
   // order versions by parent, starting at head
-  // TODO @UX: show reverted segments & branches in version history
+  // TODO @UX: show reverted segments & branches in version history  :ProjectBranching
   const ordered = [head.value];
   // just go with first parent for now until we find the root
   let current = ordered[0];

@@ -12,7 +12,7 @@ import {
 import { useAppearanceState, type EditorAppearance, type Theme } from "@/state/appearance";
 import { useNotifications } from "@/state/notifications";
 import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
-import { useLazyQuery } from "@vue/apollo-composable";
+import { useApolloClient, useLazyQuery } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
@@ -393,7 +393,7 @@ export const useBenchState = defineStore("bench", {
 
     // migration
 
-    async _doMigrateTo(versionId: string, refMappings: Record<string, string>): Promise<void> {
+    _doMigrateTo(versionId: string, refMappings: Record<string, string>): void {
       // migrate by serializing state and replacing refs
       let stateJson = benchStateToJson(this);
       // TODO @Performance: replace editor refs on migration in a single pass
@@ -463,15 +463,21 @@ function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: strin
 export function useBenchPersistence(intervalMs = 1000) {
   const bench = useBenchState();
 
-  const save = () => {
-    // save editor state by project id
+  function save(projectId?: string) {
+    if (projectId != null && bench.currentProjectId != projectId) {
+      throw new Error(
+        `cannot save editor state for project ${projectId} (current project is ${bench.currentProjectId})`
+      );
+    }
     if (bench.currentProjectId == null) return;
     localStorage.setItem(`bench-state-${bench.currentProjectId}`, benchStateToJson(bench));
-  };
+  }
 
-  const load = () => {
-    // load editor state by project id
-    if (bench.currentProjectId == null) return;
+  function load(projectId: string) {
+    if (bench.currentProjectId != projectId) {
+      bench.currentProjectId = projectId;
+      bench.currentProjectVersionId = null;
+    }
     const state = localStorage.getItem(`bench-state-${bench.currentProjectId}`);
     if (state) {
       try {
@@ -481,7 +487,7 @@ export function useBenchPersistence(intervalMs = 1000) {
         console.error(`failed to restore bench state for project ${bench.currentProjectId}`);
       }
     }
-  };
+  }
 
   // save every interval
   const interval = setInterval(save, intervalMs);
@@ -493,100 +499,63 @@ export function useBenchPersistence(intervalMs = 1000) {
 // migration
 
 export function useBenchMigrations() {
-  const migratingTo: Ref<string | null> = ref(null);
-  const notifications = useNotifications();
   const bench = useBenchState();
+  const client = useApolloClient();
+  const migratingTo = ref<string | null>(null);
 
-  // TODO @Cleanup: project ref migration from vx to vy should be a server-side API endpoint
-  const {
-    load: getProjectMigrationRefs,
-    loading: migrationLoading,
-    error: migrationError,
-    result: migrationRefs,
-  } = useLazyQuery(
-    graphql(/* GraphQL */ `
-      query projectMigrationRefs($projectId: GlobalID!, $sourceVersionId: GlobalID!, $targetVersionId: GlobalID!) {
-        project(id: $projectId) {
-          migrationMappings(sourceVersionId: $sourceVersionId, targetVersionId: $targetVersionId) {
-            isReverse
-            sourceVersion {
-              id
-              createdAt
-              tag
-              name
-            }
-            targetVersion {
-              id
-              createdAt
-              tag
-              name
-            }
-            refMappings {
-              type
-              sourceId
-              sourceVersionId
-              targetId
-              targetVersionId
+  async function migrateTo(projectId: string, sourceVersionId: string, targetVersionId: string): Promise<boolean> {
+    migratingTo.value = targetVersionId;
+    console.log(`migrate bench ${projectId} from ${sourceVersionId} to ${targetVersionId}`);
+    // get all ref mappings
+    const ret = await client.client.query({
+      query: graphql(/* GraphQL */ `
+        query projectMigrationRefs($projectId: GlobalID!, $sourceVersionId: GlobalID!, $targetVersionId: GlobalID!) {
+          project(id: $projectId) {
+            migrationMappings(sourceVersionId: $sourceVersionId, targetVersionId: $targetVersionId) {
+              isReverse
+              sourceVersion {
+                id
+                createdAt
+                tag
+                name
+              }
+              targetVersion {
+                id
+                createdAt
+                tag
+                name
+              }
+              refMappings {
+                type
+                sourceId
+                sourceVersionId
+                targetId
+                targetVersionId
+              }
             }
           }
         }
-      }
-    `)
-  );
-
-  // perform the migration once we've gotten the refs
-  watch(
-    () => [migrationRefs, migrationLoading, migrationError],
-    async () => {
-      if (migratingTo.value == null) return;
-      if (migrationLoading.value) return;
-
-      if (migrationError.value != null) {
-        // fail migration
-        bench.currentProjectVersionId = migratingTo.value;
-        console.error("unable to migrate, error getting intermediate refs", migrationError.value);
-        notifications.show({
-          kind: "warning",
-          type: "editorMigration.failed",
-          message: "Migrating editor failed",
-          description: "Editor could not be migrated (local only).",
-        });
-        migratingTo.value = null;
-      } else if (migrationRefs.value != null) {
-        const migrationMappings = migrationRefs.value.project.migrationMappings;
-        const refMappings: Record<string, string> = {};
-        for (const mapping of migrationMappings.refMappings) {
-          refMappings[mapping.sourceId] = mapping.targetId;
-        }
-        await bench._doMigrateTo(migratingTo.value, refMappings);
-        console.log(
-          `migrated editor from version ${migrationMappings?.sourceVersion.tag} to ${migrationMappings?.targetVersion.tag}`
-        );
-        migratingTo.value = null;
-      }
-    },
-    { deep: true }
-  );
-
-  function migrateTo(projectId: string, targetVersionId: string, sourceVersionId: string) {
-    if (migratingTo.value != null) {
-      if (migratingTo.value == targetVersionId) {
-        // nothing to do
-        return;
-      } else {
-        throw new Error(`already migrating to another version: ${migratingTo.value} (not ${targetVersionId})`);
-      }
-    }
-    migratingTo.value = targetVersionId;
-    console.log(
-      `migrate editor state for project ${projectId} to version ${targetVersionId} (from version ${sourceVersionId}))`
-    );
-    // get all ref mappings
-    getProjectMigrationRefs(undefined, {
-      projectId: projectId,
-      sourceVersionId: sourceVersionId,
-      targetVersionId: targetVersionId,
+      `),
+      variables: {
+        projectId,
+        sourceVersionId,
+        targetVersionId,
+      },
     });
+    migratingTo.value = null;
+    if (ret.error != null || ret.data?.project?.migrationMappings == null) {
+      console.error("unable to migrate, error getting intermediate refs", ret.error);
+      return false;
+    }
+    // apply migrations
+    const migrationMappings = ret.data?.project.migrationMappings;
+    const refMappings: Record<string, string> = {};
+    for (const mapping of migrationMappings.refMappings) {
+      refMappings[mapping.sourceId] = mapping.targetId;
+    }
+    bench._doMigrateTo(targetVersionId, refMappings);
+    console.log(`migrated bench  ${migrationMappings?.sourceVersion.id} to ${migrationMappings?.targetVersion.id}`);
+    return true;
   }
 
   return {
