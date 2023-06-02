@@ -14,7 +14,7 @@ const desiredClusterSize = config.getNumber("desiredClusterSize");
 const eksNodeInstanceType = config.get("eksNodeInstanceType");
 const vpcNetworkCidr = config.get("vpcNetworkCidr");
 
-// create a new VPC
+// VPC
 const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
   enableDnsHostnames: true,
   cidrBlock: vpcNetworkCidr,
@@ -24,7 +24,7 @@ const eksVpc = new awsx.ec2.Vpc("eks-vpc", {
   ],
 });
 
-// create the EKS cluster
+// EKS cluster
 const eksCluster = new eks.Cluster("eks-cluster", {
   name: "bench-" + config.require("env"),
   vpcId: eksVpc.vpcId,
@@ -62,18 +62,11 @@ const imagePullSecret = new k8s.core.v1.Secret(
   },
   { provider: eksCluster.provider }
 );
-
-// Create AWS ALB Ingress Controller
+// AWS base stuff
 const albIngressController = makeALBController(eksVpc, eksCluster);
-
-// Create AWS EBS CSI Driver
 const ebsCsiDriver = makeEbsCsiDriver(eksVpc, eksCluster);
 
-//
-// Core application
-//
-
-// Create RDS Aurora Postgres cluster/database
+// DB: RDS Aurora Postgres cluster/database
 const dbSecurityGroup = new aws.ec2.SecurityGroup("db", {
   // TODO @Cleanup: pods should connect directly to DB instance (not via publicly accessible)
   ingress: [
@@ -124,7 +117,6 @@ const dbSecret = new k8s.core.v1.Secret(
   },
   { provider: eksCluster.provider }
 );
-
 // db env vars
 const DB_ENV_VARS = [
   {
@@ -158,7 +150,66 @@ const DB_ENV_VARS = [
   },
 ];
 
-// Create persistent ElastiCache Redis cluster
+// ElasticSearch: OpenSearch cluster
+const opensearchDomainName = `bench-${config.require("env")}`;
+const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
+  ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
+  egress: [{ fromPort: 0, toPort: 0, protocol: "-1", cidrBlocks: ["0.0.0.0/0"] }],
+});
+const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
+  domainName: opensearchDomainName,
+  engineVersion: "OpenSearch_1.0",
+  clusterConfig: {
+    instanceType: "t2.small.search",
+    instanceCount: 1,
+  },
+  ebsOptions: {
+    ebsEnabled: true,
+    volumeSize: 10,
+    volumeType: "gpt3",
+  },
+  vpcOptions: {
+    securityGroupIds: [opensearchSecurityGroup.id],
+  },
+});
+const opensearchSecret = new k8s.core.v1.Secret(
+  "opensearch",
+  {
+    metadata: { namespace: "default" },
+    type: "Opaque",
+    data: {
+      password: config
+        .requireSecret("opensearchPassword")
+        .apply((password) => Buffer.from(password).toString("base64")),
+    },
+  },
+  { provider: eksCluster.provider }
+);
+const OPENSEARCH_ENV_VARS = [
+  {
+    name: "ELASTICSEARCH_DOMAIN",
+    value: opensearchDomainName,
+  },
+  {
+    name: "ELASTICSEARCH_URL",
+    value: opensearchDomain.endpoint,
+  },
+  {
+    name: "ELASTICSEARCH_USERNAME",
+    value: "admin",
+  },
+  {
+    name: "ELASTICSEARCH_PASSWORD",
+    valueFrom: {
+      secretKeyRef: {
+        name: opensearchSecret.metadata.name,
+        key: "password",
+      },
+    },
+  },
+];
+
+// Redis: ElasticCache Redis cluster
 const redisSecurityGroup = new aws.ec2.SecurityGroup("redis", {
   ingress: [
     {
@@ -226,7 +277,7 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
   transitEncryptionEnabled: true,
 });
 
-// NATS chart
+// NATS: Helm chart
 const nats = new k8s.helm.v3.Release("nats", {
   namespace: "default",
   chart: "nats",
@@ -373,6 +424,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...DB_ENV_VARS,
+                ...OPENSEARCH_ENV_VARS,
                 ...MODEL_PROVIDER_VARS,
                 ...AWS_BACKEND_ENV_VARS,
                 { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
