@@ -25,6 +25,7 @@ config:
   bench:apiAllowedHosts: "*"
   bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
   bench:awsRegion: eu-central-1
+  bench:bench: ""
   bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
   bench:desiredClusterSize: "2"
@@ -36,6 +37,8 @@ config:
     secure: AAABADxhpYcMMG9bqkEvKF/jedva+la5SiCBuNFNl4H+IhrwIxsWlVUYqaljio5+Kxgt4ZBH+I2TDMom2S+EFnTQQbdjB+k=
   bench:maxClusterSize: "4"
   bench:minClusterSize: "2"
+  bench:opensearchPassword:
+    secure: AAABADfkjNBoDRFr8e5nw8BxpjD5M8XcWByMMIZ5xetIRjzSz8yCAmHelAshmId1WcnBaZQGhW+iHavqe0wSuRHLSeJQgU20P05A1FlnaHST4SPWqm8NyyU/KkCN9B0=
   bench:version: "current"
   bench:vpcNetworkCidr: 10.0.0.0/16
   bench:webappUrl: https://bench.symbolx.com
