@@ -76,3 +76,22 @@ export function wrapValueRefs<T extends Record<string, any>>(obj?: T): RefsToVal
   }
   return result as RefsToValueRefs<T>;
 }
+
+export function startStopIf(
+  predicate: Ref<boolean>,
+  start: () => void,
+  stop: () => void,
+  options?: { immediate?: boolean }
+) {
+  watch(
+    predicate,
+    (value, oldValue) => {
+      if (value && !oldValue) {
+        start();
+      } else if (!value && oldValue) {
+        stop();
+      }
+    },
+    options
+  );
+}

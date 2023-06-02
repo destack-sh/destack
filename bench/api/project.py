@@ -14,7 +14,10 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_mutation
-from bench.api.util import safe_mutation
+from bench.api.util import get_client_origin_from_info, safe_mutation
+from bench.msg import NMessageType
+from bench.msg.core import publish_soon
+from bench.msg.messages import ProjectChangedPayload
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -342,7 +345,7 @@ class ProjectVersionMutation:
         snapshot.parents.set(head.parents.all())
         head.parents.set([snapshot])
 
-        old_refmaps = list(head.parent_refs.all())
+        old_refmaps = list(head.parent_refs.filter(kind=RefMappingKind.COMMIT))
         new_refmaps = models.ProjectVersion.objects.copy(
             head, snapshot, invert_mappings=True, copy_revisions=True
         )
@@ -358,7 +361,12 @@ class ProjectVersionMutation:
             old_refmaps, ["target_version_id", "target_id", "target_revision"]
         )
 
-        # nocheckin publish commit
+        # publish
+        origin = get_client_origin_from_info(info)
+        publish_soon(
+            NMessageType.PROJECT_CHANGED,
+            ProjectChangedPayload(project_id=project.id, origins=[origin]),
+        )
         return CommitPayload(project=project, committed_version=snapshot)
 
     @safe_mutation(atomic=True)
@@ -391,7 +399,14 @@ class ProjectVersionMutation:
         project.head = new_head
         models.ProjectVersion.objects.copy(source=to_restore, target=new_head)
         project.save()
-        # nocheckin publish restore
+
+        # publish
+        origin = get_client_origin_from_info(info)
+        publish_soon(
+            NMessageType.PROJECT_CHANGED,
+            ProjectChangedPayload(project_id=project.id, origins=[origin]),
+        )
+
         return CommitPayload(
             project=project,
             committed_version=old_head,

@@ -951,7 +951,6 @@ type Project implements Node {
 type ProjectChange implements Change {
   id: UUID!
   clientId: GlobalID
-  mutations: [ProjectMutation!]!
 }
 
 """A connection to a list of items."""
@@ -988,20 +987,6 @@ type ProjectMigrationInfo {
   sourceVersion: ProjectVersion!
   targetVersion: ProjectVersion!
   refMappings: [RefMapping!]!
-}
-
-type ProjectMutation {
-  type: ProjectMutationType!
-  projectVersionId: GlobalID!
-  revision: Int
-  input: JSON
-}
-
-enum ProjectMutationType {
-  RENAME_PROJECT
-  MOVE_PROJECT
-  COMMIT_PROJECT
-  RESTORE_PROJECT
 }
 
 union ProjectOperationInfo = Project | OperationInfo

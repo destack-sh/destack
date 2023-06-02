@@ -6,12 +6,14 @@ from uuid import UUID
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
+from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 
 log = structlog.get_logger(__name__)
@@ -139,3 +141,10 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
     if id is None:
         return None
     return GlobalID(type, str(id))
+
+
+def get_client_origin_from_info(info: Info):
+    client_id = info.context.request.scope["session"]["client_id"]
+    client_nonce = info.context.request.headers.get("x-client-nonce")
+    origin = ClientOrigin("user", client_id, client_nonce)
+    return origin

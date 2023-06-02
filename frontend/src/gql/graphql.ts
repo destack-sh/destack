@@ -1239,7 +1239,6 @@ export type ProjectChange = Change & {
   __typename?: "ProjectChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
   id: Scalars["UUID"];
-  mutations: Array<ProjectMutation>;
 };
 
 /** A connection to a list of items. */
@@ -1277,21 +1276,6 @@ export type ProjectMigrationInfo = {
   sourceVersion: ProjectVersion;
   targetVersion: ProjectVersion;
 };
-
-export type ProjectMutation = {
-  __typename?: "ProjectMutation";
-  input?: Maybe<Scalars["JSON"]>;
-  projectVersionId: Scalars["GlobalID"];
-  revision?: Maybe<Scalars["Int"]>;
-  type: ProjectMutationType;
-};
-
-export enum ProjectMutationType {
-  CommitProject = "COMMIT_PROJECT",
-  MoveProject = "MOVE_PROJECT",
-  RenameProject = "RENAME_PROJECT",
-  RestoreProject = "RESTORE_PROJECT",
-}
 
 export type ProjectOperationInfo = OperationInfo | Project;
 
@@ -4482,6 +4466,15 @@ export type ModuleChangedSubscription = {
       input?: any | null;
     }>;
   };
+};
+
+export type ProjectChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type ProjectChangedSubscription = {
+  __typename?: "Subscription";
+  projectChanged: { __typename?: "ProjectChange"; id: any; clientId?: any | null };
 };
 
 export type SystemInfoQueryVariables = Exact<{ [key: string]: never }>;
@@ -13234,6 +13227,46 @@ export const ModuleChangedDocument = {
     },
   ],
 } as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
+export const ProjectChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "projectChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "clientId" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectChangedSubscription, ProjectChangedSubscriptionVariables>;
 export const SystemInfoDocument = {
   kind: "Document",
   definitions: [

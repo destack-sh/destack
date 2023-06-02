@@ -15,7 +15,7 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
-from bench.api.util import wrap_exceptions
+from bench.api.util import get_client_origin_from_info, wrap_exceptions
 from bench.language.mutate import ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
@@ -116,9 +116,7 @@ def tracked_mutation(
                     thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
             # publish and track mutation
-            client_id = info.context.request.scope["session"]["client_id"]
-            client_nonce = info.context.request.headers.get("x-client-nonce")
-            origin = ClientOrigin("user", client_id, client_nonce)
+            origin = get_client_origin_from_info(info)
             publish_tracked_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
             track_mutation_for_analytics(type, project_version, things, batch, info)
 

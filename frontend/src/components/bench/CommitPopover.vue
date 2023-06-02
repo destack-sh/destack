@@ -36,7 +36,7 @@ const panelRefPin = pinAbsoluteElement(
 const committed = computed(() => props.version != null && props.version.committed);
 
 function suggestTag(): string {
-  return renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"))
+  return renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"));
 }
 
 const suggestedName = getRandomName();
