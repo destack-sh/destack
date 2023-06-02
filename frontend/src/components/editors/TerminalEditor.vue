@@ -14,6 +14,7 @@ import { useOperations } from "@/state/operations";
 import { SymbolType } from "@/gql/graphql";
 import { unkey } from "@/state/type";
 import { useNotifications } from "@/state/notifications";
+import { useTimeFromNow } from "@/composables/useNow";
 
 const props = defineProps<{ editor: EditorContext<TerminalEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -26,6 +27,7 @@ const notifications = useNotifications();
 const ops = useOperations();
 const editor = computed(() => props.editor.editor.value);
 const editorSize = computed(() => props.editor.size.value);
+const now = useTimeFromNow();
 
 // state
 
@@ -33,10 +35,10 @@ const running = ref(false);
 const symbol = computed(() => symbolOf(props.editor.editor.value.symbolId));
 const inputFields = computed(() => symbol.value?.typeNodes?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.typeNodes?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
-const symbolActions = computed(() => {
-  const symbolActions: StatementAction[] = [];
+const terminalActions = computed(() => {
+  const actions: StatementAction[] = [];
 
-  return symbolActions;
+  return actions;
 });
 
 // sync symbol type into editor
@@ -75,6 +77,7 @@ async function run() {
         });
       }
       editor.value.lastOutput = ret.data.run.execution?.outputs;
+      editor.value.lastExecutionTerminatedAt = ret.data.run.execution?.terminatedAt;
     }
   }
 }
@@ -142,7 +145,7 @@ defineExpose({
           <CommandLineIcon class="mt-1 h-5 w-5 text-gray-500" />
         </ActionPopover>
         <!-- editor path -->
-        <ActionPopover anchor="left" :thing="symbol" :actions="symbolActions" class="ml-1">
+        <ActionPopover anchor="left" :thing="symbol" :actions="terminalActions" class="ml-1">
           <span class="text-gray-900">{{ symbol?.name }}</span>
         </ActionPopover>
         <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
@@ -224,7 +227,13 @@ defineExpose({
         </div>
       </ContainerTile>
       <!-- Output -->
-      <ContainerTile label="Output" :style="{ ...baseTilePositionX }">
+      <ContainerTile
+        label="Output"
+        :sub-label="
+          editor.lastExecutionTerminatedAt ? now.getTimeFromNowLongString(editor.lastExecutionTerminatedAt) : undefined
+        "
+        :style="{ ...baseTilePositionX }"
+      >
         <StructTile
           v-if="editor.lastOutput"
           :model-value="editor.lastOutput"
