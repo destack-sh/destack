@@ -33,7 +33,7 @@ class Worker(UUIDModel):
     last_seen_at = models.DateTimeField(null=True)
 
     def __str__(self):
-        return f"{self.id} {self.status} ({self.tenancy})"
+        return f"{self.id} {self.status} ({self.tenancy}1)"
 
     def __repr__(self):
         return f"<SandboxedWorker {self}>"
