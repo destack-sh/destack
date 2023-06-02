@@ -359,6 +359,19 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
+                    "status",
+                    django_choices_field.fields.TextChoicesField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("running", "Running"),
+                            ("terminated", "Terminated"),
+                        ],
+                        choices_enum=bench.models.worker.WorkerStatus,
+                        default="pending",
+                        max_length=12,
+                    ),
+                ),
+                (
                     "project",
                     models.ForeignKey(
                         null=True,

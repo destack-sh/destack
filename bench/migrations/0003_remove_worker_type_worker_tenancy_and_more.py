@@ -11,10 +11,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="worker",
-            name="type",
-        ),
         migrations.AddField(
             model_name="worker",
             name="tenancy",
