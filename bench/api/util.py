@@ -84,8 +84,7 @@ def asafe_subscription(func, **kwargs):
             e = map_exception(e)
             if isinstance(e, OperationInfo):
                 yield e
-            sentry_enabled = sentry_capture_if_enabled(e)
-            log.error("subscribe.error", func=func, exc_info=e, sentry_enabled=sentry_enabled)
+            log.error("subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e))
             raise StopAsyncIteration from e
 
     return gql.subscription(wrapped, **kwargs)

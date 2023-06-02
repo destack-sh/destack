@@ -302,7 +302,6 @@ class ReqRunInferencePayload:
     blocks: list[XBlockData]
     settings: dict[str, typing.Any]
     timeout: int
-    cache: bool
 
 
 @payload(NMessageType.REPLY_RUN_INFERENCE)

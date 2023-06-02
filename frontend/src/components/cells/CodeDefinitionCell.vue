@@ -167,7 +167,7 @@ defineExpose({
       />
       <!-- Inline type -->
       <button
-        v-if="!context.readonly.value && context.typeNodes.value.length == 0"
+        v-if="!context.readonly.value && context.typeNodes.value.length == 0 && !addingTypes"
         ref="typeRef"
         class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm hover:bg-orange-100 hover:text-gray-700"
         :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'"

@@ -133,6 +133,8 @@ def map_value(
     map_k = map_k or _map_k_noop
     # communicate via yield/send
     if type.flags & TypeFlag.IsArray and not ignore_array:
+        if not isinstance(value, Collection):
+            return value  # type error, ignore here
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)

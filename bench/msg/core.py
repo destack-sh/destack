@@ -39,8 +39,7 @@ nc_closed = asyncio.Event()
 
 
 async def nats_error_cb(e: Exception) -> None:
-    sentry_enabled = sentry_capture_if_enabled(e)
-    log.error("nats.error", exc_info=e, sentry_enabled=sentry_enabled)
+    log.error("nats.error", exc_info=e, sentry=sentry_capture_if_enabled(e))
 
 
 async def nats_disconnected_cb() -> None:
@@ -143,11 +142,10 @@ def _parse_message(message_json: str) -> NMessage:
                 payload_cls, message_dict["payload"], _path=["payload"]
             )
         except (ValueError, TypeError, AttributeError) as e:
-            sentry_enabled = sentry_capture_if_enabled(e)
             logger.exception(
                 "message.parse.failed",
                 exc_info=e,
-                sentry_enabled=sentry_enabled,
+                sentry=sentry_capture_if_enabled(e),
                 payload_cls=payload_cls,
                 id=message_dict.get("id"),
                 type=message_dict.get("type"),
@@ -179,8 +177,9 @@ async def process_nats_message(
             raise TypeError(f"expected message {expect_t} for {func}, got {message}")
         return await func(message)
     except Exception as e:
-        sentry_enabled = sentry_capture_if_enabled(e)
-        log.exception("message.process.failed", exc_info=True, e=e, sentry_enabled=sentry_enabled)
+        log.exception(
+            "message.process.failed", exc_info=True, e=e, sentry=sentry_capture_if_enabled(e)
+        )
 
 
 def message_handler(func=None):

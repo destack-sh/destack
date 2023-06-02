@@ -43,7 +43,12 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.inference import SETTINGS_CLS_BY_MODALITY, Modality
+from bench.runtime.inference import (
+    SETTINGS_CLS_BY_MODALITY,
+    Modality,
+    get_inference_cache_key,
+    run_inference,
+)
 from bench.runtime.interp import (
     InterpModule,
     LanguageInterpreter,
@@ -217,7 +222,8 @@ class LanguageServer:
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
         modality = Modality(msg.p.modality)
-        logger.debug("inference.run", msg=msg, model=msg.p.model_fqn, modality=modality)
+        log = logger.bind(model=msg.p.model_fqn, modality=modality, msg=msg)
+        log.debug("inference.run")
         key = get_model_key_from_env(msg.p.model_fqn)
         inference = get_inference_endpoint(
             model=msg.p.model_fqn,
@@ -229,13 +235,14 @@ class LanguageServer:
         try:
             settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
             xblocks = [wire.wmap_xblock(xblock) for xblock in msg.p.blocks]
-            output = await asyncio.wait_for(endpoint(xblocks, settings), msg.p.timeout)
+            cache_key = get_inference_cache_key(msg.p.model_fqn, modality, xblocks, settings)
+            output = await asyncio.wait_for(
+                asyncio.shield(run_inference(endpoint, xblocks, settings, cache_key, log)),
+                msg.p.timeout,
+            )
             timeout = False
         except Exception as e:
-            sentry_enabled = sentry_capture_if_enabled(e)
-            logger.error(
-                "inference.run.failed", msg=msg, exc_info=True, sentry_enabled=sentry_enabled
-            )
+            log.error("inference.exception", exc_info=True, sentry=sentry_capture_if_enabled(e))
             output = None
             timeout = isinstance(e, asyncio.TimeoutError)
         await msg.reply(RepRunInferencePayload(output=output, timeout=timeout))
