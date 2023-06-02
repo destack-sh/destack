@@ -391,6 +391,8 @@ export enum ExecutionStatus {
 
 export enum ExecutionTriggerType {
   Api = "API",
+  Reactive = "REACTIVE",
+  Scheduled = "SCHEDULED",
   Ui = "UI",
 }
 
@@ -2084,7 +2086,6 @@ export type SubscriptionModuleChangedArgs = {
 
 /** The type of symbol content. */
 export enum SymbolType {
-  Agent = "AGENT",
   Block = "BLOCK",
   Build = "BUILD",
   Capability = "CAPABILITY",

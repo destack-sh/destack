@@ -10,7 +10,7 @@ from bench import language
 from bench.language import wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType
-from bench.models import ExecutionTriggerType
+from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (

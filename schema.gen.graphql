@@ -381,6 +381,8 @@ enum ExecutionStatus {
 enum ExecutionTriggerType {
   API
   UI
+  REACTIVE
+  SCHEDULED
 }
 
 type File implements Node {
@@ -1767,7 +1769,6 @@ enum SymbolType {
   EXPECTATION
   CODE
   MODEL
-  AGENT
   DATA
   REQUIREMENT
   BUILD

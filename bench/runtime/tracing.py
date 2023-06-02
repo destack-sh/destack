@@ -375,7 +375,7 @@ class ValidationTracer(Tracer):
         check_type(result, code, is_output=True)
 
     def table_append(self, table: DataTableInstance, record: Record):
-        check_type(record.data, table)
+        check_type(record.data, table, ignore_array=True)
 
     def record_update(
         self,
@@ -389,7 +389,7 @@ class ValidationTracer(Tracer):
                 raise ValueError(f"{key} does not exist on {owner.type}")
             check_type(record.data.get(key), owner.type[key])
         else:
-            check_type(record.data, owner.type)
+            check_type(record.data, owner.type, ignore_array=True)
 
 
 class PermissionTracer(Tracer):
