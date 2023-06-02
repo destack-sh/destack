@@ -35,11 +35,27 @@ const panelRefPin = pinAbsoluteElement(
 
 const committed = computed(() => props.version != null && props.version.committed);
 
+function suggestTag(): string {
+  return renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"))
+}
+
 const suggestedName = getRandomName();
+const suggestedTag = suggestTag();
 const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : suggestedName));
-const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
+
+// reset name and tag when popover is opened
+watch(
+  () => panelHeaderRef.value,
+  () => {
+    if (panelHeaderRef.value != null) {
+      name.value = props.version?.name ?? (committed.value ? "" : getRandomName());
+      tag.value = props.version?.tag ?? suggestTag();
+      description.value = props.version?.description ?? "";
+    }
+  }
+);
 
 const validTag = computed(() => parseSemVer(tag.value) != null);
 // check whether the entered tag is available

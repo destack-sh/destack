@@ -272,16 +272,30 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target_version = self.only("id", "project_id").get(id=target_version_id)
         if source_version.project_id != target_version.project_id:
             raise ValueError(
-                f"source and target version must be from the same project: {source_version} {target_version}"
+                f"source and target version must be from the same project: {source_version} </> {target_version}"
             )
 
+        # try both directions
+        versions = self.get_between_unidirectional(source_version, target_version)
+        if versions is not None:
+            return versions
+        versions = self.get_between_unidirectional(target_version, source_version)
+        if versions is not None:
+            return versions
+        raise ValueError(
+            f"source and target version are not connected: {source_version} </> {target_version}"
+        )
+
+    def get_between_unidirectional(
+        self, source_version: ProjectVersion, target_version: ProjectVersion
+    ) -> list[ProjectVersion] | None:
         # start at target version and walk up to source version
         versions = [target_version]
         while versions[-1] != source_version:
             # this only works if there is one parent (no branching) :ProjectBranching
             first_parent = versions[-1].parents.only("id").first()
             if first_parent is None:
-                raise ValueError(f"{target_version} is unreachable from {source_version}")
+                return None
             versions.append(first_parent)
         versions.reverse()
         return versions
@@ -326,14 +340,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         source_version = self.get(id=source_version_id)
         target_version = self.get(id=target_version_id)
 
-        is_reverse = source_version.created_at > target_version.created_at  # :ProjectBranching
-        if is_reverse:
-            # swap, then reverse at the end
-            source_version_id, target_version_id = target_version_id, source_version_id
-
         intermediate_versions = ProjectVersion.objects.get_between(
             source_version_id, target_version_id
         )
+        is_reverse = intermediate_versions[0].id != source_version_id
         # skip first version (source version)
         intermediate_versions = intermediate_versions[1:]
 
@@ -343,9 +353,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         refs: dict[UUID, UUID] = {}
         refs_types: dict[UUID, RefType] = {}
         for ref in ref_mappings:
-            if ref.source_version_id == source_version_id:
-                refs[ref.source_id] = ref.target_id
-                refs_types[ref.source_id] = ref.type
+            refs[ref.source_id] = ref.target_id
+            refs_types[ref.source_id] = ref.type
 
         # iterate through intermediate versions, updating target_id to each new target_id
         for version in intermediate_versions[1:]:
@@ -471,7 +480,7 @@ class ProjectVersion(UUIDModel, CrudModel):
     statements: models.QuerySet["Statement"]  # noqa via Statement
 
     def __str__(self) -> str:
-        return f"{self.project.path}@{self.id.hex}"
+        return f"{self.project.path}@{self.tag or self.id.hex}"
 
     def reset(self):
         """Hard deletes all files (cascades to statements and their contents)."""
@@ -612,8 +621,11 @@ class RefMapping(UUIDModel):
 
     objects = RefMappingManager()
 
-    class Meta:
-        pass
+    def __str__(self):
+        return f"{self.source_version} {self.source_id} -> {self.target_version} {self.target_id}"
+
+    def __repr__(self):
+        return f"<RefMapping {self}>"
 
 
 class FileManager(models.Manager):

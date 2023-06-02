@@ -375,7 +375,7 @@ provideAction({
 });
 
 const { load } = useBenchPersistence();
-const { migrateTo, migrating } = useBenchMigrations();
+const { migrateTo: migrate, migrating } = useBenchMigrations();
 
 // manage read/write access
 watchEffect(() => {
@@ -396,19 +396,39 @@ watchEffect(async () => {
     (bench.currentProjectId != project.value.id || bench.currentProjectVersionId != versionToViewId.value)
   ) {
     // try to load bench state
-    bench.setProject(project.value.id, versionToViewId.value);
-    load();
-    console.log(`loaded bench state for project ${project.value.id} version ${versionToViewId.value}`);
+    console.log(`load bench ${project.value.id} at ${versionToViewId.value}`);
+    load(project.value.id);
     if (bench.currentProjectId == project.value?.id) {
       // migrate if there is a new version of the same project
       // (loads overwrites bench state for the entire project,
       //  so editor.currentProjectVersionId will point to its last known version)
       if (bench.currentProjectVersionId != versionToViewId.value) {
-        migrateTo(bench.currentProjectId as string, versionToViewId.value, bench.currentProjectVersionId as string);
+        const success = migrate(
+          bench.currentProjectId as string,
+          bench.currentProjectVersionId as string,
+          versionToViewId.value
+        );
+        bench.currentProjectVersionId = versionToViewId.value;
+        if (!success) {
+          notifications.dismissIf({ type: "bench.migrate.failed" });
+          notifications.show({
+            kind: "warning",
+            type: "bench.migrate.failed",
+            message: "Bench migration failed",
+            description: "Bench could not be migrated.",
+          });
+        } else {
+          notifications.dismissIf({ type: "bench.migrate.success" });
+          notifications.show({
+            kind: "success",
+            type: "bench.migrate.success",
+            message: "Bench migrated",
+            description: "Bench migrated successfully.",
+          });
+        }
       }
     } else {
-      console.log(`reset bench state for project ${project.value.id}`);
-      // (happens in state.setProject)
+      console.log(`reset bench ${project.value.id}`); // already happened
     }
   }
 });
