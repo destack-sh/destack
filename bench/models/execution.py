@@ -33,6 +33,8 @@ PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
 class ExecutionTriggerType(models.TextChoices):
     API = "rest"
     UI = "ui"
+    REACTIVE = "reactive"
+    SCHEDULED = "scheduled"
 
 
 class Execution(UUIDTModel):

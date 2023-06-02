@@ -414,7 +414,7 @@ class XOutputText(XEmit):
             elif isinstance(e, TypeError):
                 error_type = XGenerationErrorType.INVALID_TYPE
             else:
-                error_type = XGenerationErrorType.UNKOWN
+                error_type = XGenerationErrorType.UNKNOWN
             raise XGenerationError(
                 type=error_type, message=f"output is invalid for {self.type}: {e}", path=None
             ) from e

@@ -28,7 +28,7 @@ const props = defineProps<{
         >
           <template v-for="key in Object.keys(frame.locals)" :key="key">
             <span>{{ key }}</span>
-            <span class="col-span-3 w-full">{{ frame.locals[key] }}</span>
+            <span class="scroll-hidden col-span-3 max-h-40 w-full overflow-y-scroll">{{ frame.locals[key] }}</span>
           </template>
         </span>
       </li>

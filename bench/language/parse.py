@@ -1592,15 +1592,6 @@ def interp(
         # intersect because source_content may be a full InterpSymbol (see below)
         symbol_kwargs = dict_intersect(source_content.__dict__, symbol_keys)
         symbol_kwargs.update(base_symbol.__dict__)
-        if isinstance(source_content, (DataContent, TaskContent, CodeContent)):
-            # for typed symbols we need to create a type symbol as well
-            symbol_kwargs["type"] = Type(
-                name=statement.name,
-                abstract=abstract,
-                source=statement,
-                tag=source_content.tag,
-                type_nodes=source_content.type_nodes,
-            )
         symbol = symbol_cls(**symbol_kwargs)  # type: ignore
 
         # replace source content with symbol (if it's a definition)
@@ -1676,15 +1667,6 @@ def interp(
                     symbol.models.append(child)
                 elif isinstance(child, Task):
                     symbol.tasks.append(child)
-            # add all tasks in module for autobuilds :AutobuildTasks
-            if symbol.source is not None and symbol.source.file.path == "instructors":
-                for task in idx.symbols.values():
-                    if (
-                        isinstance(task, Task)
-                        and task.source is not None
-                        and task.source.file.module.id == symbol.source.file.module.id
-                    ):
-                        symbol.tasks.append(task)
 
     inlined_node_ids: set[UUID] = set()
 
@@ -1695,11 +1677,11 @@ def interp(
             _error(ET.CIRCULAR_UNION, node.source, path=path)
             return []
         if not isinstance(node, (Type, Task, Code, Data)) or node.id in inlined_node_ids:
-            return node.type_nodes
+            return node.type_nodes  # not a type or already inlined
         inlined_node_ids.add(node.id)
         if not any(n.flags & TypeFlag.IsUnionWith for n in node.type_nodes):
             node.self_type_nodes = node.type_nodes
-            return node.type_nodes  # skip, no unions
+            return node.type_nodes  # skip, not a union
         path = path + [node]
         inlined_nodes = []
         node.self_type_nodes = deepcopy_types(node.type_nodes)  # retain originals

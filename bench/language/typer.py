@@ -87,9 +87,7 @@ def check_type(
                 if subvalue is None:
                     _check(bool(field.flags & TypeFlag.IsNullable), "expected non-nullable value")
                 else:
-                    check_type(
-                        subvalue, field, eager_error=eager_error, on_invalid=_on_invalid_collect
-                    )
+                    check_type(subvalue, field, eager_error=eager_error, on_invalid=on_invalid)
     elif expected.tag in (TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO, TypeTag.VIDEO):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:
@@ -146,6 +144,8 @@ def map_value(
         return value  # type error, ignore here
     mapped = {}
     for subtype in type.type_nodes:
+        if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
+            raise RuntimeError(f"unexpected union with {type}->{subtype}")
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
             continue
         source_k, target_k = map_k(subtype)

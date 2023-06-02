@@ -606,3 +606,5 @@ def rmap_error(error: language.Error) -> ErrorData:
 class ExecutionTriggerType(enum.StrEnum):
     API = "rest"
     UI = "ui"
+    REACTIVE = "reactive"
+    SCHEDULED = "scheduled"

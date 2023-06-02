@@ -66,9 +66,6 @@ class ExecutionFrame:
         return f"<ExecutionFrame {self}>"
 
 
-SKIPPED_PYTHON_MODULES = {"bench/runtime/instance.py"}
-
-
 @dataclass(slots=True)
 class PyFrameData:
     filename: str
@@ -107,8 +104,8 @@ class PyFrameData:
         found_start = False
         cleaned_stack = []
         for frame in stack:
-            if any(module in frame.filename for module in SKIPPED_PYTHON_MODULES):
-                continue
+            if "bench/runtime/" in frame.filename or "bench/language/" in frame.filename:
+                continue  # skip support code
             if not found_start:
                 # impute bench source info into instantiated code callables
                 code = code_instances_by_method_name.get(frame.name)
@@ -198,7 +195,7 @@ class ExecutionFrameData:
                 stack = []
             error_str = str(frame.error)
             # remove (source=...) from error message
-            error_str = re.sub(r"\(source=[^)]+\)", "", error_str)
+            error_str = re.sub(r"\(source=.+\)", "", error_str)
             error_data = RunErrorData(
                 type=type(frame.error).__name__,
                 symbol=str(frame.runnable),

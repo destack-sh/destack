@@ -42,6 +42,7 @@ from bench.language.type import (
     RemoteObjectStatus,
     Secret,
     Type,
+    TypeContent,
     TypeFlag,
     TypeHint,
     TypeNode,
@@ -362,7 +363,11 @@ class RecordInstance(Record):
     def _to_wire(self, include_data: bool = True) -> wire.RecordData:
         if include_data:
             raw_data = map_value(
-                self.data, self._.type, map_v=strip_py_value_flat, map_k=lambda t: (t.ident, t.key)
+                self.data,
+                self._.type,
+                map_v=strip_py_value_flat,
+                map_k=lambda t: (t.ident, t.key),
+                ignore_array=bool(self._.owner.flags & TypeFlag.IsArray),
             )
         else:
             raw_data = None
@@ -437,6 +442,7 @@ class DataRecordInstance(SymbolInstance, Data):
     # imitate/proxy record instance
 
     meta: RecordInstanceMeta = field(init=False)
+    py_type = None  # doesn't have a python type
 
     def __post_init__(self):
         self.meta = RecordInstanceMeta(type=self.type, session=self.session, owner=self)
@@ -488,6 +494,7 @@ class TaskInstance(SymbolInstance, Task):
     is_async = True
     # should probably store last good implementation .. in redis?
     last_good_impl_idx: int = 0
+    py_type = None  # doesn't have a python type
 
     async def __call__(
         self,
@@ -557,6 +564,7 @@ class CodeInstance(SymbolInstance, Code):
     task: Optional[TaskInstance] = None
     transform: Optional[CodeTransformation] = None
     code_callable: SyncCodeCallable | AsyncCodeCallable = required_field()
+    py_type = None  # doesn't have a python type
 
 
 @dataclass(repr=False)
@@ -895,7 +903,17 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue | None:
 def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     """Instrument and instantiate a type for use."""
     py_type = instantiate_py_type(type)
-    # impute Type instances with TypeInstance recursively
+    mapped_nodes = _instantiate_type_nodes(type, session)
+    return TypeInstance(
+        **dict_minus(type.__dict__, "type_nodes"),
+        type_nodes=mapped_nodes,
+        py_type=py_type,
+        session=session,
+    )
+
+
+def _instantiate_type_nodes(type: TypeContent, session: Session):
+    """Map/impute type nodes with instances recursively"""
     if type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         mapped_nodes = []
         for node in type.type_nodes:
@@ -910,12 +928,7 @@ def _instantiate_type(type: Type, session: Session) -> TypeInstance:
             mapped_nodes.append(mapped)
     else:
         mapped_nodes = type.type_nodes
-    return TypeInstance(
-        **dict_minus(type.__dict__, "type_nodes"),
-        type_nodes=mapped_nodes,
-        py_type=py_type,
-        session=session,
-    )
+    return mapped_nodes
 
 
 def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = False) -> Any:
@@ -949,15 +962,15 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
 
 def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
-    dataset_kwargs = dict_minus(dataset.__dict__, ("records", "type"))
-    dataset_type = instantiate(dataset.type, session)
+    dataset_kwargs = dict_minus(dataset.__dict__, ("records", "type_nodes"))
+    type_nodes = _instantiate_type_nodes(dataset, session)
     if dataset.flags & TypeFlag.IsArray:
         instance = DataTableInstance(
-            **dataset_kwargs, type=dataset_type, records=[], session=session
+            **dataset_kwargs, type_nodes=type_nodes, records=[], session=session
         )
     else:
         instance = DataRecordInstance(
-            **dataset_kwargs, type=dataset_type, records=[], session=session
+            **dataset_kwargs, type_nodes=type_nodes, records=[], session=session
         )
     for raw_record in dataset.records:
         py_record_data = map_value(
@@ -1033,9 +1046,10 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
         method_name=func_name,
     )
     code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance
+    type_nodes = _instantiate_type_nodes(code, session)
     return code_cls(
-        **(dict_minus(code.__dict__, "type")),
-        type=instantiate(code.type, session),
+        **(dict_minus(code.__dict__, "type_nodes")),
+        type_nodes=type_nodes,
         transform=transform,
         code_callable=callable,
         session=session,
@@ -1044,8 +1058,8 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
 
 def _instantiate_task(symbol, session):
     return TaskInstance(
-        **(dict_minus(symbol.__dict__, "type")),
-        type=instantiate(symbol.type, session),
+        **(dict_minus(symbol.__dict__, "type_nodes")),
+        type_nodes=_instantiate_type_nodes(symbol, session),
         session=session,
     )
 

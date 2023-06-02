@@ -166,7 +166,6 @@ class SymbolType(models.TextChoices):
     EXPECTATION = "expect"
     CODE = "code"
     MODEL = "model"
-    AGENT = "agent"
     DATA = "data"
     REQUIREMENT = "require"
     BUILD = "build"
@@ -789,9 +788,12 @@ class TaskContent(TypeContent, ReactiveSettings):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    type: Type = required_field()
     expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
+
+    @property
+    def type(self) -> TypeContent:
+        return self
 
     @property
     def generated_expectations(self) -> list[Expectation]:
@@ -799,7 +801,7 @@ class Task(InterpSymbol, TaskContent):
 
     @property
     def is_minimally_specified(self) -> bool:
-        return bool(self.name and self.type.inputs and self.type.outputs)
+        return bool(self.name and self.inputs and self.outputs)
 
 
 @dataclass(repr=False)
@@ -905,7 +907,9 @@ class DataContent(TypeContent):
 
 @dataclass(repr=False)
 class Data(InterpSymbol, DataContent):
-    type: Type = required_field()
+    @property
+    def type(self) -> TypeContent:
+        return self
 
 
 @dataclass(repr=False)
@@ -1006,23 +1010,15 @@ class CodeContent(TypeContent, ReactiveSettings):
 
 @dataclass(repr=False)
 class Code(InterpSymbol, CodeContent):
-    type: Type = required_field()
     context: dict[str, InterpSymbol] = field(default_factory=dict)
+
+    @property
+    def type(self) -> TypeContent:
+        return self
 
     @property
     def is_inlinable(self) -> bool:
         return len(self.inputs) == 0
-
-
-@dataclass(repr=False)
-class ProgramContent(SymbolContent):
-    language: Literal["python"] = "python"
-    code: Optional[str] = None
-
-
-@dataclass(repr=False)
-class Program(InterpSymbol, ProgramContent):
-    pass
 
 
 @dataclass(repr=False)
@@ -1069,7 +1065,6 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.CAPABILITY: Capability,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
-    SymbolType.AGENT: Program,
     SymbolType.DATA: Data,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
