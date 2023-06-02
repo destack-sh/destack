@@ -166,7 +166,6 @@ input CommitInput {
 type CommitPayload {
   project: Project!
   committedVersion: ProjectVersion!
-  newWorkingVersion: ProjectVersion!
 }
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo

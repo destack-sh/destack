@@ -126,10 +126,10 @@ class StatementManager(models.Manager["Statement"]):
         target_files: dict[UUID, File],
         source_version: ProjectVersion,
         target_version: ProjectVersion,
-        copy_generate_info: bool,
         target_statement_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
+        copy_revisions: bool = True,
     ) -> list["RefMapping"]:
         """Copies the given source statements into the target version in given new files"""
         # TODO @Performance: copy statements server-side (in SQL)
@@ -210,8 +210,7 @@ class StatementManager(models.Manager["Statement"]):
                 )
             statement.order_key = target_order_keys.get(statement.id, statement.order_key)
             statement.deleted_at = None  # restore in copy if it was deleted
-            statement.revision = 0  # reset revision
-            statement.generated = statement.generated and copy_generate_info
+            statement.revision = old_revision if copy_revisions else 0
             statement.file = target_files[statement.file_id]
             statement.project_version = target_version
             statement.reference = None

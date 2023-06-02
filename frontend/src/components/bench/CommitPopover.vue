@@ -12,7 +12,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { useDebounceFn } from "@vueuse/shared";
 import { computed, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ version: ProjectVersion; projectId: string; prevSemVerTag?: SemVer }>();
+const props = defineProps<{ version: ProjectVersion; projectId: string; isHead?: boolean; prevSemVerTag?: SemVer }>();
 const emit = defineEmits<{
   (
     e: "commit",
@@ -77,8 +77,8 @@ function updateVersion() {
   ops.version.update(props.version.id, name.value, tag.value.length > 0 ? tag.value : undefined, description.value);
 }
 const updateVersionDebounced = useDebounceFn(updateVersion, 500);
-watch([name, description, tag, availableTag, tagLoading], () => {
-  if (availableTag.value && !tagLoading.value) {
+watch([name, description, tag, availableTag, tagLoading, () => props.isHead], () => {
+  if (availableTag.value && !tagLoading.value && !props.isHead) {
     updateVersionDebounced();
   }
 });

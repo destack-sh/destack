@@ -27,6 +27,9 @@ services:
     nats:
         image: nats:2.9
         restart: on-failure
+        environment:
+            # max payload 8MB
+            NATS_MAX_PAYLOAD: 8388608
         ports:
             - '4222:4222'
             - '6222:6222'

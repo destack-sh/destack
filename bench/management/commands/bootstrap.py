@@ -86,8 +86,7 @@ def create_symbolx_std(path: str, overwrite: bool) -> None:
         return
     if exists:
         logger.warn(f"Overwriting library {std_v} at {version_id}")
-    std_v = std.create_version(name=version_id, parent=std_v)
-    std_v.reset()
+    std_v = std.create_new_blank_head(name=version_id, parent=std_v)
     source_file = SourceFile(path=path, content=Path(path).read_text())
     module, idx = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
     wire_module = wire.rmap_module(module)
@@ -112,8 +111,7 @@ def create_model_providers():
             # skip if version already exists
             logger.info(f"Skip updating library {std_v} to {version_id} (already exists)")
             continue
-        std_v = std.create_version(name=version_id, parent=std_v)
-        std_v.reset()
+        std_v = std.create_new_blank_head(name=version_id, parent=std_v)
 
         # add models to library
         # TODO @Cleanup: use bench string instead of DB models to bootstrap model providers

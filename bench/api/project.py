@@ -1,6 +1,8 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
 from uuid import UUID
 
+import pytz
 from django.core.exceptions import ValidationError
 from strawberry import UNSET, lazy
 from strawberry.types import Info
@@ -303,7 +305,6 @@ class RestoreInput:
 class CommitPayload:
     project: Project
     committed_version: ProjectVersion
-    new_working_version: ProjectVersion
 
 
 @gql.type
@@ -322,48 +323,76 @@ class ProjectVersionMutation:
 
     @safe_mutation(atomic=True)
     def commit(self, info, input: CommitInput) -> CommitPayload | OperationInfo:
-        project_v = models.ProjectVersion.objects.select_related("project").get(
+        head = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
-        check_can_write_project(info, project_v)
-        project = project_v.project
-        if project_v.id != project.head_id:
+        project = head.project
+        if head.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
+        check_can_write_project(info, head)
 
-        new_head = project.create_version(
-            parent=project_v,
-            commit_name=input.name,
-            commit_tag=input.tag,
-            commit_description=input.description,
-            auto_commit=True,
-        )
-        return CommitPayload(
+        # 'insert' new head between parents and head
+        snapshot = models.ProjectVersion.objects.create(
             project=project,
-            committed_version=project_v,
-            new_working_version=new_head,
+            name=input.name,
+            tag=input.tag,
+            description=input.description,
+            committed_at=datetime.utcnow().replace(tzinfo=pytz.utc),
         )
+        snapshot.parents.set(head.parents.all())
+        head.parents.set([snapshot])
+        new_refmaps = models.ProjectVersion.objects.copy(
+            head, snapshot, invert_mappings=True, copy_revisions=True
+        )
+        # update previous head's target ref mappings to point to snapshot's refs
+        new_refmaps_by_target_id = {
+            # new target is old source (we inverted the mappings)
+            refmap.source_id: refmap
+            for refmap in new_refmaps
+        }
+        old_refmaps = []
+        for refmap in snapshot.parent_refs.all():
+            refmap.target_version_id = snapshot.id
+            new_refmap = new_refmaps_by_target_id[refmap.target_id]
+            refmap.target_id = new_refmap.target_id
+            refmap.target_revision = new_refmap.revision
+            old_refmaps.append(refmap)
+        models.RefMapping.objects.bulk_update(old_refmaps, ["target_id", "target"])
+
+        # nocheckin publish commit
+        return CommitPayload(project=project, committed_version=snapshot)
 
     @safe_mutation(atomic=True)
     def restore(self, info: Info, input: RestoreInput) -> CommitPayload | OperationInfo:
-        project_v = models.ProjectVersion.objects.select_related("project").get(
+        to_restore = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
-        check_can_write_project(info, project_v)
-        project = project_v.project
-        if project_v.id == project.head_id:
+        check_can_write_project(info, to_restore)
+        project = to_restore.project
+        if to_restore.id == project.head_id:
             raise ValueError("cannot restore version that's already the head")
 
-        # auto-save current head
-        old_head = project_v.project.head
+        # auto-snapshot current head
+        old_head = to_restore.project.head
         if not old_head.committed:
-            old_head.commit(description="Snapshot before restoring another version", tag=None)
+            snapshot = models.ProjectVersion.objects.create(
+                project=project,
+                name="Autosave",
+                tag=None,
+                description="Autosave before restoring version",
+                committed_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            )
+            snapshot.parents.set(old_head.parents.all())
+            models.ProjectVersion.objects.copy(
+                old_head, snapshot, invert_mappings=True, copy_revisions=True
+            )
 
         # then restore working version to the selected version (new head)
-        new_head = project.create_version(
-            parent=project_v, description="Restore", auto_commit=False
-        )
+        new_head = project.create_new_blank_head(parent=to_restore)
         project.head = new_head
+        models.ProjectVersion.objects.copy(source=to_restore, target=new_head)
         project.save()
+        # nocheckin publish restore
         return CommitPayload(
             project=project,
             committed_version=old_head,

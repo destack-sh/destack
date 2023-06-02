@@ -143,7 +143,7 @@ class MultiplayerSubscription:
             return
 
         module_sub = await subscribe(
-            f"{NMessageType.MODULE_CHANGED}.{project_version_id}", ModuleChangedPayload
+            f"{NMessageType.MODULE_CHANGED}.{project_version_id}", payload_t=ModuleChangedPayload
         )
         log.info("module.listen")
         while True:
