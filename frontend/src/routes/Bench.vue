@@ -29,7 +29,7 @@ import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/s
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useCurrentInterpModule, useVisibleErrors } from "@/state/runtime";
-import { useModuleSync } from "@/state/sync";
+import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
@@ -52,7 +52,17 @@ import {
 import { useQuery } from "@vue/apollo-composable";
 import { useElementSize, useTitle } from "@vueuse/core";
 import Mousetrap from "mousetrap";
-import { computed, onBeforeUnmount, ref, watch, watchEffect, type Component, type ComputedRef, type Ref } from "vue";
+import {
+  computed,
+  onBeforeUnmount,
+  ref,
+  toRef,
+  watch,
+  watchEffect,
+  type Component,
+  type ComputedRef,
+  type Ref,
+} from "vue";
 import { useRouter } from "vue-router";
 
 const props = defineProps<{
@@ -320,7 +330,8 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
 });
 
 const runtime = useCurrentInterpModule();
-const sync = useModuleSync(versionToViewId);
+const moduleSync = useModuleSync(versionToViewId);
+const projectSync = useProjectSync(toRef(bench, "currentProjectId"));
 const visibleErrors = useVisibleErrors();
 const auth = useAuth();
 

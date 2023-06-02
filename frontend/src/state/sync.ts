@@ -1,7 +1,7 @@
 import { graphql } from "@/gql";
 import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
-import { dedent, toValueRef } from "@/utils/functools";
+import { dedent, startStopIf, toValueRef } from "@/utils/functools";
 import type {
   ApolloClient,
   DocumentNode,
@@ -17,12 +17,12 @@ import {
   useApolloClient,
 } from "@vue/apollo-composable";
 import { print, parse } from "graphql";
-import { watch, type Ref } from "vue";
+import { computed, watch, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
 type MutationOp = {
-  type: ModuleMutationType;
+  type: ModuleMutationType; // later other change types will be supported
   name: string;
   fragment: DocumentNode | TypedDocumentNode;
   optimisticResponse: (vars: any) => any;
@@ -138,15 +138,10 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
     }
   );
   // enable/disable subscription when projectVersionId changes
-  watch(
-    projectVersionId,
-    () => {
-      if (projectVersionId.value != null) {
-        start();
-      } else {
-        stop();
-      }
-    },
+  startStopIf(
+    computed(() => projectVersionId.value != null),
+    start,
+    stop,
     { immediate: true }
   );
 
@@ -159,6 +154,42 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
         syncedOps.applyMutation(mutation);
       }
     }
+  });
+}
+
+export function useProjectSync(projectId: Ref<string | null>) {
+  projectId = toValueRef(projectId);
+  const {
+    onResult: onProjectChanged,
+    start,
+    stop,
+  } = useSubscription(
+    graphql(/* GraphQL */ `
+      subscription projectChanged($projectId: GlobalID!) {
+        projectChanged(projectId: $projectId) {
+          id
+          clientId
+        }
+      }
+    `),
+    {
+      projectId,
+    }
+  );
+  // enable/disable subscription when projectId changes
+  startStopIf(
+    computed(() => projectId.value != null),
+    start,
+    stop,
+    { immediate: true }
+  );
+
+  const client = useApolloClient();
+  onProjectChanged((result) => {
+    // just reload versions query for now?
+    client.client.refetchQueries({
+      include: ["projectVersions"],
+    });
   });
 }
 

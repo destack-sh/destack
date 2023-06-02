@@ -15,7 +15,7 @@ from bench.api.auth import check_can_view_project_by_id
 from bench.api.type import ProjectMutationType
 from bench.api.util import asafe_subscription, to_global_id, to_uuid
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import ModuleChangedPayload, NMessageType
+from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
 
 logger = structlog.get_logger(__name__)
 
@@ -30,15 +30,13 @@ class Change:
 class ProjectMutation:
     type: ProjectMutationType
     project_version_id: GlobalID
-    revision: Optional[int]
-    input: Optional[JSON]
 
 
 @gql.type
 class ProjectChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
-    mutations: list[ProjectMutation]
+    # individual mutations are not needed for now
 
 
 ModuleMutationType = gql.enum(sync.MMT)
@@ -99,6 +97,13 @@ class ScreenChange(Change):
     mutations: list[ScreenMutation]
 
 
+def rmap_project_mutation(mutation: ProjectMutation) -> ProjectMutation:
+    return ProjectMutation(
+        type=mutation.type,
+        project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
+    )
+
+
 def rmap_module_mutation(mutation: ModuleMutation) -> ModuleMutation:
     return ModuleMutation(
         type=mutation.type,
@@ -119,13 +124,35 @@ class MultiplayerSubscription:
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
         project_id = UUID(project_id.node_id)
         log = logger.bind(project_id=project_id, user=user)
-        to_uuid(info.context.request.scope["session"].get("client_id"))
-        to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+
         try:
             await sync_to_async(check_can_view_project_by_id)(user, project_id)
         except PermissionDenied:
             log.warning("project_changed.subscribe_denied", exc_info=True)
             return
+
+        project_sub = await subscribe(
+            f"{NMessageType.PROJECT_CHANGED}.{project_id}", payload_t=ProjectChangedPayload
+        )
+        log.info("project.listen")
+        while True:
+            change: NMessage[ProjectChangedPayload] = await project_sub.next_msg()
+            if client_id is not None and change.p.has_origin(client_id, client_nonce):
+                continue  # skip self
+            log.debug(
+                "project.update",
+                id=change.id,
+                origin_type=change.p.origin.type,
+                origin_id=change.p.origin.id,
+            )
+            origin_id = (
+                to_global_id("Client", change.p.origin.id)
+                if change.p.origin.type == "user"
+                else None
+            )
+            yield ProjectChange(id=change.id, client_id=origin_id)
 
     @asafe_subscription
     async def module_changed(
