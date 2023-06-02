@@ -4,7 +4,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { ExecutionStatus, ExecutionTriggerType, SymbolType } from "@/gql/graphql";
+import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
 import { useExecutions } from "@/state/executions";
 import { symbolOf, TypeFlag } from "@/state/runtime";
 import {
@@ -63,7 +63,7 @@ const headerHeight = 64;
 const bodyHeight = 512;
 const paddingY = 8;
 const paddingX = 4;
-const metadataWidth = 180;
+const metadataWidth = 200;
 const previewWidth = computed(() => {
   return containerSize.width.value - metadataWidth - paddingX * 2;
 });
@@ -121,6 +121,8 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
     {
       [ExecutionTriggerType.Ui]: "by " + execution.user?.slug,
       [ExecutionTriggerType.Api]: "via API",
+      [ExecutionTriggerType.Reactive]: "reactively",
+      [ExecutionTriggerType.Scheduled]: "scheduled",
     }[execution.triggerType] ?? "by a ghost"
   );
 }
@@ -171,27 +173,27 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
               />
               <span class="ml-1 max-w-full truncate font-bold">{{ symbol?.name }}</span>
               <!-- Duration -->
-              <span class="ml-1">
+              <span class="group/cache ml-1 flex flex-row">
                 {{
                   execution.duration != null
                     ? formatDurationSeconds(execution.duration * 1000)
                     : now.getTimeFromNowString(execution.startedAt)
-                }}</span
-              >
-              <!-- Cached info -->
-              <span v-if="isMostlyCached(execution as any)" class="group/cache relative p-0.5">
-                <BoltIcon class="h-3 w-3 text-orange-500" />
-                <span
-                  v-if="execution.duration != null && execution.cachedDuration != null"
-                  class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
-                >
-                  Cached
-                  {{ now.getTimeFromNowString(execution.cachedGeneratedAt) }} ago<br />
-                  <template v-if="getCachedPercentage(execution) > 0">
-                    Saved {{ getCachedPercentage(execution).toFixed() }}% (~{{
-                      formatDurationSeconds((execution.cachedDuration - execution.duration) * 1000)
-                    }})
-                  </template>
+                }}
+                <!-- Cached info -->
+                <span v-if="isMostlyCached(execution as any)" class="relative px-0.5 py-1">
+                  <BoltIcon class="h-3 w-3 text-orange-500" />
+                  <span
+                    v-if="execution.duration != null && execution.cachedDuration != null"
+                    class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
+                  >
+                    Cached
+                    {{ now.getTimeFromNowString(execution.cachedGeneratedAt) }} ago<br />
+                    <template v-if="getCachedPercentage(execution) > 0">
+                      Saved {{ getCachedPercentage(execution).toFixed() }}% (~{{
+                        formatDurationSeconds((execution.cachedDuration - execution.duration) * 1000)
+                      }})
+                    </template>
+                  </span>
                 </span>
               </span>
             </span>
