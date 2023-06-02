@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useFocus } from "@vueuse/core";
-import { ref, watch } from "vue";
+import { ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
