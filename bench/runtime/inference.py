@@ -6,6 +6,7 @@ import typing
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from json import JSONDecodeError
+from logging import Logger
 from typing import Any, Optional
 
 import pytz
@@ -186,7 +187,6 @@ class CachedInferenceEndpoint:
     async def __call__(
         self, blocks: list[XBlock], settings: Any, cache: bool = None, timeout: int = None
     ) -> Any:
-        # make hash key
         cache_key = get_inference_cache_key(self.model.fqn, self.modality, blocks, settings)
         log = logger.bind(
             model=self.model.fqn,
@@ -195,6 +195,8 @@ class CachedInferenceEndpoint:
             cache_key=cache_key,
             cache_inferences=self.cache_inferences,
         )
+
+        # try to read from cache if enabled
         if self.cache_inferences and cache is not False:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await redis.get(cache_key)
@@ -208,29 +210,45 @@ class CachedInferenceEndpoint:
                     log.warning("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
 
+        #  otherwise run inference
         try:
-            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             self.tracer.inference_enter(self.model, blocks, settings)
-            log.debug("inference.enter")
             timeout = timeout if timeout is not None else self.timeout
-            result = await asyncio.wait_for(self.endpoint(blocks, settings), timeout)
+            result = await asyncio.wait_for(
+                asyncio.shield(run_inference(self.endpoint, blocks, settings, cache_key, log)),
+                timeout,
+            )
             self.tracer.inference_exit(self.model, blocks, settings, result)
-            log.debug("inference.exit", ret=describe_type(result))
-            if self.cache_inferences and cache is not False:
-                now = datetime.utcnow().replace(tzinfo=pytz.utc)
-                inference = Inference(
-                    generated_at=now,
-                    duration=(now - started_at).total_seconds(),
-                    # ret is assumed to be JSON-serializable
-                    # (may not be true when we get to images, but this will error obviously enough)
-                    result=result,
-                )
-                await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
             return result
         except Exception as exception:
             self.tracer.inference_exception(self.model, blocks, settings, exception)
-            log.debug("inference.exception", excinfo=True)
+            log.debug("inference.exception", exc_info=True)
             raise
+
+
+async def run_inference(
+    endpoint: InferenceEndpoint,
+    blocks: list[XBlock],
+    settings: Any,
+    cache_key: str,
+    log: Logger = logger,
+    write_to_cache: bool = True,
+) -> Any:
+    """
+    Runs inference on the given endpoint without timeout.
+    This should be asyncio.shield-ed to ensure we write the result to cache.
+    """
+    started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+    log.debug("inference.enter")
+    result = await endpoint(blocks, settings)
+    now = datetime.utcnow().replace(tzinfo=pytz.utc)
+    duration = (now - started_at).total_seconds()
+    if write_to_cache:
+        # result is assumed to be JSON serializable, will obviously error here if not
+        inference = Inference(generated_at=now, duration=duration, result=result)
+        await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
+    log.debug("inference.exit", ret=describe_type(result), write_to_cache=write_to_cache)
+    return result
 
 
 def get_inference_cache_key(

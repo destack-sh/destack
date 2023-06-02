@@ -72,11 +72,12 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
     try:
         return await coro
     except CancelledError as e:
-        logger.exception("cancelled_task", task_id=task_id, exc_info=e)
+        logger.exception("task.cancelled", task_id=task_id, exc_info=e)
         raise
     except Exception as e:
-        sentry_enabled = sentry_capture_if_enabled(e)
-        logger.exception("errored_task", task_id=task_id, exc_info=e, sentry_enabled=sentry_enabled)
+        logger.exception(
+            "task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture_if_enabled(e)
+        )
         raise
 
 

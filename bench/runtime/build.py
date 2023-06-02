@@ -159,7 +159,7 @@ def build_task_implementation(
             )
     x.emit(
         XTask(task=task),
-        XTypeSample(type=task.type, type_label="Output", is_output=True),
+        XTypeFabricatedSample(type=task.type, type_label="Output", is_output=True),
     )
     if task.type.inputs:
         x.emit(XInput(type=task.type))
@@ -187,6 +187,12 @@ class XPrompt:
         self.input_handlers: dict[int, XInputHandler] = {}
         self.output_handler: XOutputHandler | None = None
         self.settings: Any | None = None
+
+    def __str__(self):
+        return f"{self.model.fqn} {self.modality} ({len(self.blocks)})"
+
+    def __repr__(self):
+        return f"<XPrompt {self}>"
 
     def emit(self, *emits: XEmit):
         blocks = []
@@ -324,12 +330,12 @@ class XTypeSchema(XEmit):
                 line = render_statement(node.source, include_content=node.tag != TypeTag.FUNCTION)
                 bench_lines.append(line)
         bench_str = "\n\n".join(bench_lines)
-        schema_str = f"Type schemas to adhere to:\n{bench_str}".strip()
+        schema_str = f"Type schemas you must adhere to. Do not invent new fields or options. ? = optional:\n{bench_str}".strip()
         return xstatic(schema_str, XSource.Developer)
 
 
 @xemit
-class XTypeSample(XEmit):
+class XTypeFabricatedSample(XEmit):
     """Emits a single sample output of the given type (default to fabricate)"""
 
     type: Type

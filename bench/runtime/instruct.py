@@ -271,7 +271,6 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
     records = [Record(order_key=order_key, data={}) for order_key in order_keys]
     return Data(
         name="",
-        type=type,
         tag=type.tag,
         type_nodes=type.type_nodes,
         description="",
@@ -303,10 +302,6 @@ class SampleDatasetRandom(SampleSource):
             source_data = self.source_dataset.records[source_i].data
             # not sure where to unkey data.. or should we work with dataset instances here?
             target_dataset.records[target_i].data = self.source_dataset.type.unkey(source_data)
-            if len(target_dataset.records[target_i].data) != len(self.source_dataset.type_nodes):
-                raise ValueError(
-                    f"sampled data does not match type: {target_dataset.records[target_i].data}"
-                )
         return target_dataset
 
 

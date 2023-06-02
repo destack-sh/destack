@@ -211,8 +211,7 @@ class ModuleWorker:
             self.log.exception("module.run.failed", exc_info=e)
             return RunErrorType.RUNTIME_ERROR
         except Exception as e:
-            sentry_enabled = sentry_capture_if_enabled(e)
-            self.log.exception("module.run.failed", exc_info=e, sentry_enabled=sentry_enabled)
+            self.log.exception("module.run.failed", exc_info=e, sentry=sentry_capture_if_enabled(e))
             return RunErrorType.INTERNAL_ERROR
         finally:
             if job.id in self.pending_runs:
@@ -264,9 +263,8 @@ class ModuleWorker:
                 self.log.info("run.cancelled", job=job)
                 # keep the queue running?
             except Exception as e:
-                sentry_enabled = sentry_capture_if_enabled(e)
                 job.error = RunErrorType.RUNTIME_ERROR
-                self.log.exception("run.failed", job=job, sentry_enabled=sentry_enabled)
+                self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
             finally:
                 job.terminated.set()
                 self.queue.task_done()
