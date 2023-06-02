@@ -170,7 +170,6 @@ export type ClientUpsertInput = {
 };
 
 export type CommitInput = {
-  autoDeploy?: Scalars["Boolean"];
   description?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -228,79 +227,6 @@ export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
 
-export type DeployInput = {
-  id: Scalars["GlobalID"];
-  status: DeploymentStatus;
-};
-
-export type Deployment = Node & {
-  __typename?: "Deployment";
-  createdAt: Scalars["DateTime"];
-  deployAllStatements: Scalars["Boolean"];
-  deployedStatements: Array<Statement>;
-  id: Scalars["GlobalID"];
-  owner: OrganizationUser;
-  project: Project;
-  projectVersion: ProjectVersion;
-  status: DeploymentStatus;
-  type: DeploymentType;
-  updatedAt: Scalars["DateTime"];
-};
-
-export type DeploymentAddStatementInput = {
-  id: Scalars["GlobalID"];
-  statementId: Scalars["ID"];
-};
-
-/** A connection to a list of items. */
-export type DeploymentConnection = {
-  __typename?: "DeploymentConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<DeploymentEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type DeploymentEdge = {
-  __typename?: "DeploymentEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Deployment;
-};
-
-export type DeploymentFilter = {
-  isOwned?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type DeploymentOperationInfo = Deployment | OperationInfo;
-
-export type DeploymentRemoveStatementInput = {
-  id: Scalars["GlobalID"];
-  statementId: Scalars["ID"];
-};
-
-export type DeploymentSetDeployAllStatementsInput = {
-  deployAllStatements: Scalars["Boolean"];
-  id: Scalars["GlobalID"];
-};
-
-export enum DeploymentStatus {
-  Active = "ACTIVE",
-  Archived = "ARCHIVED",
-  Destroyed = "DESTROYED",
-  Inactive = "INACTIVE",
-  Sleeping = "SLEEPING",
-}
-
-export enum DeploymentType {
-  Adhoc = "ADHOC",
-  Manual = "MANUAL",
-}
-
 export enum ErrorType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
@@ -342,7 +268,6 @@ export type Execution = Node & {
   cachedDuration?: Maybe<Scalars["Float"]>;
   cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
-  deployment?: Maybe<Deployment>;
   descendants: Array<Execution>;
   duration?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
@@ -600,7 +525,6 @@ export enum ModuleMutationType {
 export type Mutation = {
   __typename?: "Mutation";
   acceptOrganizationInvite: UserOperationInfo;
-  addDeployedStatement: DeploymentOperationInfo;
   batchCommentStatement: StatementBatchOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
   batchPasteStatement: StatementBatchOperationInfo;
@@ -638,7 +562,6 @@ export type Mutation = {
   moveStatement: StatementOperationInfo;
   moveTypeNode: SimpleTypeNodeOperationInfo;
   notifyUploadedObject: RemoteObjectOperationInfo;
-  removeDeployedStatement: DeploymentOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
@@ -651,13 +574,11 @@ export type Mutation = {
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
-  setDeployAllStatements: DeploymentOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteRecord: DatasetRecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   softDeleteTypeNode: SimpleTypeNodeOperationInfo;
   truncateRecords: StatementOperationInfo;
-  updateDeployment: DeploymentOperationInfo;
   updateFile: FileOperationInfo;
   updateOrganization: OrganizationOperationInfo;
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
@@ -685,10 +606,6 @@ export type Mutation = {
 
 export type MutationAcceptOrganizationInviteArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type MutationAddDeployedStatementArgs = {
-  input: DeploymentAddStatementInput;
 };
 
 export type MutationBatchCommentStatementArgs = {
@@ -831,10 +748,6 @@ export type MutationNotifyUploadedObjectArgs = {
   input: NotifyUploadedObjectInput;
 };
 
-export type MutationRemoveDeployedStatementArgs = {
-  input: DeploymentRemoveStatementInput;
-};
-
 export type MutationRemoveOrganizationMembershipArgs = {
   input: OrganizationRemoveMembershipInput;
 };
@@ -883,10 +796,6 @@ export type MutationSecretRootLoginArgs = {
   username: Scalars["String"];
 };
 
-export type MutationSetDeployAllStatementsArgs = {
-  input: DeploymentSetDeployAllStatementsInput;
-};
-
 export type MutationSoftDeleteFileArgs = {
   input: NodeInput;
 };
@@ -905,10 +814,6 @@ export type MutationSoftDeleteTypeNodeArgs = {
 
 export type MutationTruncateRecordsArgs = {
   input: RecordTruncateInput;
-};
-
-export type MutationUpdateDeploymentArgs = {
-  input: DeployInput;
 };
 
 export type MutationUpdateFileArgs = {
@@ -1275,8 +1180,6 @@ export type OrganizationUpdateMembershipInput = {
   userId: Scalars["GlobalID"];
 };
 
-export type OrganizationUser = Organization | User;
-
 export type Owner = {
   accessTokens: AccessTokenConnection;
   canViewFull: Scalars["Boolean"];
@@ -1306,7 +1209,6 @@ export type Project = Node & {
   __typename?: "Project";
   canWrite: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
-  deployments: DeploymentConnection;
   description?: Maybe<Scalars["String"]>;
   head: ProjectVersion;
   id: Scalars["GlobalID"];
@@ -1319,14 +1221,6 @@ export type Project = Node & {
   updatedAt: Scalars["DateTime"];
   versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
-};
-
-export type ProjectDeploymentsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  filters?: InputMaybe<DeploymentFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type ProjectMigrationMappingsArgs = {
@@ -1394,8 +1288,10 @@ export type ProjectMutation = {
 };
 
 export enum ProjectMutationType {
-  Commit = "COMMIT",
-  Restore = "RESTORE",
+  CommitProject = "COMMIT_PROJECT",
+  MoveProject = "MOVE_PROJECT",
+  RenameProject = "RENAME_PROJECT",
+  RestoreProject = "RESTORE_PROJECT",
 }
 
 export type ProjectOperationInfo = OperationInfo | Project;
@@ -1422,7 +1318,6 @@ export type ProjectVersion = Node & {
   committed: Scalars["Boolean"];
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
-  deployments: DeploymentConnection;
   description?: Maybe<Scalars["String"]>;
   files: FileConnection;
   id: Scalars["GlobalID"];
@@ -1437,14 +1332,6 @@ export type ProjectVersionChildRefsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<RefMappingFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-};
-
-export type ProjectVersionDeploymentsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  filters?: InputMaybe<DeploymentFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -2371,36 +2258,6 @@ export type ExistingProjectVersionTagQuery = {
   projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
 };
 
-export type DeploymentsQueryVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type DeploymentsQuery = {
-  __typename?: "Query";
-  projectVersion?: {
-    __typename?: "ProjectVersion";
-    id: any;
-    committed: boolean;
-    tag?: string | null;
-    deployments: {
-      __typename?: "DeploymentConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "DeploymentEdge";
-        node: {
-          __typename?: "Deployment";
-          id: any;
-          createdAt: any;
-          updatedAt: any;
-          type: DeploymentType;
-          status: DeploymentStatus;
-          deployAllStatements: boolean;
-        };
-      }>;
-    };
-  } | null;
-};
-
 export type NotificationsQueryVariables = Exact<{
   status?: InputMaybe<NotificationStatus>;
   notArchived?: InputMaybe<Scalars["Boolean"]>;
@@ -3124,7 +2981,6 @@ export type ExecutionContentFragment = {
   inputs?: any | null;
   outputs?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
-  deployment?: { __typename?: "Deployment"; id: any } | null;
   user?: { __typename?: "User"; id: any; slug: string } | null;
   accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
   root?: { __typename?: "Execution"; id: any } | null;
@@ -3430,20 +3286,6 @@ export type UpdatePresenceMutation = {
   __typename?: "Mutation";
   updatePresence:
     | { __typename?: "Client" }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
-};
-
-export type UpdateDeploymentMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  status: DeploymentStatus;
-}>;
-
-export type UpdateDeploymentMutation = {
-  __typename?: "Mutation";
-  updateDeployment:
-    | { __typename?: "Deployment"; id: any; type: DeploymentType; status: DeploymentStatus }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -4485,7 +4327,6 @@ export type CommitMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
-  autoDeploy?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type CommitMutation = {
@@ -4766,14 +4607,6 @@ export const ExecutionContentFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
               ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "deployment" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           {
@@ -5502,97 +5335,6 @@ export const ExistingProjectVersionTagDocument = {
     },
   ],
 } as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
-export const DeploymentsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "deployments" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "committed" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "deployments" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "isOwned" },
-                            value: { kind: "BooleanValue", value: true },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "edges" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "type" } },
-                                  { kind: "Field", name: { kind: "Name", value: "status" } },
-                                  { kind: "Field", name: { kind: "Name", value: "deployAllStatements" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<DeploymentsQuery, DeploymentsQueryVariables>;
 export const NotificationsDocument = {
   kind: "Document",
   definitions: [
@@ -8543,77 +8285,6 @@ export const UpdatePresenceDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdatePresenceMutation, UpdatePresenceMutationVariables>;
-export const UpdateDeploymentDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "updateDeployment" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "status" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "DeploymentStatus" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "updateDeployment" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "status" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "status" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Deployment" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "status" } },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<UpdateDeploymentMutation, UpdateDeploymentMutationVariables>;
 export const CreateFileDocument = {
   kind: "Document",
   definitions: [
@@ -13234,11 +12905,6 @@ export const CommitDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "autoDeploy" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -13272,11 +12938,6 @@ export const CommitDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "description" },
                       value: { kind: "Variable", name: { kind: "Name", value: "description" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "autoDeploy" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "autoDeploy" } },
                     },
                   ],
                 },

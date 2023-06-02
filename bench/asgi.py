@@ -85,7 +85,7 @@ if RUN_WORKER:
 
     local_id = random.randint(0, 2**32)  # just some random number
     run.ALLOW_UNTRUSTED_CODE = True
-    worker = SandboxedWorker(worker_id=uuid4(), deployment_id=None, project_id=None)
+    worker = SandboxedWorker(worker_id=uuid4(), project_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
     reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

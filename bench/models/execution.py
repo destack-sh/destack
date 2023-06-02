@@ -45,7 +45,6 @@ class Execution(UUIDTModel):
     # context
     project = models.ForeignKey("Project", on_delete=models.CASCADE)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
-    deployment = models.ForeignKey("Deployment", null=True, blank=True, on_delete=models.SET_NULL)
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
     tracing_level = models.IntegerField(default=0)
     trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)

@@ -116,7 +116,6 @@ class SessionTracingLevel(enum.IntFlag):
 
 @dataclass(slots=True)
 class SessionContext:
-    deployment_id: typing.Optional[UUID]
     module_id: UUID
     project_id: UUID
     worker_id: UUID

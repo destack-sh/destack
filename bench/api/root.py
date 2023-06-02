@@ -16,7 +16,6 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
-from bench.api.deployment import DeploymentMutation
 from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
@@ -170,7 +169,6 @@ class Mutation(
     StatementMutation,
     SymbolMutation,
     FileMutation,
-    DeploymentMutation,
     RuntimeMutation,
     ObjectMutation,
     SecretMutation,

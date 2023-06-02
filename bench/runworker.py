@@ -18,7 +18,8 @@ if DEPLOYMENT_ID is not None:
     DEPLOYMENT_ID = uuid.UUID(DEPLOYMENT_ID)
 
 worker_id = uuid.UUID(os.environ["WORKER_ID"]) if "WORKER_ID" in os.environ else uuid.uuid4()
-worker = SandboxedWorker(worker_id=worker_id, deployment_id=DEPLOYMENT_ID, project_id=None)
+project_id = uuid.UUID(os.environ["PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
+worker = SandboxedWorker(worker_id=worker_id, project_id=project_id)
 
 init_sentry(django=False)
 

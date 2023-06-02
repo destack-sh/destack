@@ -13,7 +13,6 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.deployment import Deployment, DeploymentStatus, DeploymentType
 from bench.models.object import get_project_bucket_name, get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import UUIDModel, walk_children_bfs_batched
@@ -47,7 +46,6 @@ class ProjectManager(models.Manager["Project"]):
         slug: str,
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
-        create_adhoc_deployment: bool = True,
         create_onboarding_files: bool = False,
         create_blank_file: bool = False,
         create_s3_bucket: bool = True,
@@ -68,14 +66,6 @@ class ProjectManager(models.Manager["Project"]):
         )
         project.head = ProjectVersion.objects.create(project=project)
         project.save()
-        if create_adhoc_deployment:
-            # :SingleOwnedDeployment
-            Deployment.objects.create_deployment(
-                project_version=project.head,
-                owner=owner,
-                type=DeploymentType.ADHOC,
-                status=DeploymentStatus.ACTIVE,
-            )
         if create_onboarding_files:
             try:
                 docs_v = Project.objects.get_by_slug("symbolx", "docs").head
@@ -138,7 +128,6 @@ class Project(UUIDModel):
     user: models.ForeignKey = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
-    deployments: models.QuerySet["Deployment"]  # noqa via Deployment
     remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
 
     def __str__(self):
@@ -200,15 +189,6 @@ class Project(UUIDModel):
         for mapping in ref_mappings:
             mapping.kind = RefMappingKind.COMMIT
         RefMapping.objects.bulk_create(ref_mappings)
-
-        # copy owned deployments from parent
-        for source_deployment in assigned_parent.deployments.filter(owned=True):
-            target_deployment = Deployment.objects.copy(
-                source_deployment, new_version, ref_mappings
-            )
-            target_deployment.type = DeploymentType.ADHOC
-            target_deployment.status = DeploymentStatus.INACTIVE  # reset status
-            target_deployment.save()
 
         # advance head if it moved
         if assigned_parent == self.head:
@@ -489,7 +469,6 @@ class ProjectVersion(UUIDModel):
     child_refs: models.QuerySet["RefMapping"]  # noqa via RefMapping.target_version
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
-    deployments: models.QuerySet["Deployment"]  # noqa via Deployment
 
     def __str__(self) -> str:
         return f"{self.project.path}@{self.id.hex}"

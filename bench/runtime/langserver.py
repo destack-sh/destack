@@ -147,7 +147,6 @@ class LanguageServer:
             worker = await models.Worker.objects.acreate(
                 id=msg.payload.worker_id,
                 status=models.WorkerStatus.ACTIVE,
-                deployment_id=msg.p.deployment_id,
                 project_id=msg.p.project_id,
                 tenancy=msg.p.tenancy,
                 started_at=datetime.utcnow().replace(tzinfo=pytz.utc),

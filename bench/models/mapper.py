@@ -548,7 +548,6 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
         error=asdict(frame.error) if frame.error else None,
         # additional context
         tracing_level=frame.tracing_level,
-        deployment_id=frame.deployment_id,
         worker_id=frame.worker_id,
         trigger_type=frame.trigger_type,
         user_id=user_id,
@@ -574,7 +573,6 @@ def wmap_execution_frame(frame: models.Execution) -> ExecutionFrameData:
         error=RunErrorData.from_dict(frame.error) if frame.error else None,
         # additional context
         tracing_level=frame.tracing_level,
-        deployment_id=frame.deployment_id,
         worker_id=frame.worker_id,
         trigger_type=frame.trigger_type,
         trigger_id=frame.user_id or frame.access_token_id,

@@ -26,9 +26,6 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
       tag
       name
     }
-    deployment {
-      id
-    }
     user {
       id
       slug
