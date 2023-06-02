@@ -14,8 +14,9 @@ from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.auth import check_can_write_project
+from bench.api.type import MMT, PMT
 from bench.api.util import wrap_exceptions
-from bench.language.mutate import MMT, ModuleMutationKind
+from bench.language.mutate import ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
@@ -25,7 +26,7 @@ from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
 
-INPUT_CLASS_BY_MMT = {}
+INPUT_CLASS_BY_TYPE = {}
 
 
 class BatchMutationInput:
@@ -33,8 +34,8 @@ class BatchMutationInput:
         raise NotImplementedError
 
 
-def project_mutation(
-    type: MMT,
+def tracked_mutation(
+    type: MMT | PMT,
     *,
     atomic: bool = False,
     batch: bool = False,
@@ -60,10 +61,10 @@ def project_mutation(
 
         # register mutation type to input class
         if register:
-            if type in INPUT_CLASS_BY_MMT:
-                raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_MMT[type]}")
+            if type in INPUT_CLASS_BY_TYPE:
+                raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_TYPE[type]}")
             input_class = func.__annotations__["input"]
-            INPUT_CLASS_BY_MMT[type] = input_class
+            INPUT_CLASS_BY_TYPE[type] = input_class
 
         @functools.wraps(func)
         def wrapped_mutation(self, info: Info, *args, **kwargs):
@@ -118,8 +119,8 @@ def project_mutation(
             client_id = info.context.request.scope["session"]["client_id"]
             client_nonce = info.context.request.headers.get("x-client-nonce")
             origin = ClientOrigin("user", client_id, client_nonce)
-            pub_project_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
-            track_project_mutation(type, project_version, things, batch, info)
+            publish_tracked_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
+            track_mutation_for_analytics(type, project_version, things, batch, info)
 
             return ret
 
@@ -152,7 +153,7 @@ def project_mutation(
     return make_resolver
 
 
-def pub_project_mutation(
+def publish_tracked_mutation(
     origin: ClientOrigin, type: MMT, original_input: Any, things: list[MutableThing], batch: bool
 ):
     """Publish mutations."""
@@ -187,7 +188,7 @@ def pub_project_mutation(
         )
 
 
-def track_project_mutation(
+def track_mutation_for_analytics(
     type: MMT, project_version: ProjectVersion, things, batch: bool, info: Info
 ):
     """Tracks a project mutation for Posthog analytics."""
@@ -212,8 +213,6 @@ def track_project_mutation(
         }
     elif "RECORD" in type.value:
         properties = {"dataset_record_id": things[0].id, "order_key": things[0].order_key}
-    elif type == MMT.COMMIT:
-        properties = {}
     else:
         properties = {}
         logger.warning("unknown_project_mutation", type=type)

@@ -18,7 +18,6 @@ from bench.language.wire import FileData, ModuleData, RecordData, SimpleTypeNode
 class ModuleMutationType(enum.StrEnum):
     """Fine-grained atomic mutations for multiplayer modules."""
 
-    COMMIT = "COMMIT"
     # Files
     CREATE_FILE = "CREATE_FILE"
     PASTE_FILE = "PASTE_FILE"
@@ -176,7 +175,7 @@ SCOPE_BY_CLASS = {
 class ModuleMutation:
     type: MMT
     project_version_id: UUID
-    file_id: Optional[UUID] = None
+    file_id: UUID
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
@@ -509,7 +508,6 @@ class MutationBundle:
 
 
 NON_SEMANTIC_MUTATION_TYPES = {
-    MMT.COMMIT,
     MMT.CREATE_FILE,
     MMT.CREATE_STATEMENT_BLANK,
     MMT.UPDATE_STATEMENT_TEXT,  # for comments

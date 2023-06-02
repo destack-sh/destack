@@ -100,6 +100,11 @@ export type CancelRunPayload = {
 
 export type CancelRunPayloadOperationInfo = CancelRunPayload | OperationInfo;
 
+export type Change = {
+  clientId?: Maybe<Scalars["GlobalID"]>;
+  id: Scalars["UUID"];
+};
+
 export type Client = Node & {
   __typename?: "Client";
   active: Scalars["Boolean"];
@@ -529,7 +534,7 @@ export type InterpSymbol = SimplyTyped & {
   typeNodes?: Maybe<Array<InterpSimpleType>>;
 };
 
-export type ModuleChange = {
+export type ModuleChange = Change & {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
   id: Scalars["UUID"];
@@ -538,7 +543,7 @@ export type ModuleChange = {
 
 export type ModuleMutation = {
   __typename?: "ModuleMutation";
-  fileId?: Maybe<Scalars["GlobalID"]>;
+  fileId: Scalars["GlobalID"];
   input?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   revision?: Maybe<Scalars["Int"]>;
@@ -549,7 +554,6 @@ export type ModuleMutation = {
 /** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
   CommentStatement = "COMMENT_STATEMENT",
-  Commit = "COMMIT",
   CreateFile = "CREATE_FILE",
   CreateRecord = "CREATE_RECORD",
   CreateStatement = "CREATE_STATEMENT",
@@ -1338,6 +1342,13 @@ export type ProjectVersionsArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type ProjectChange = Change & {
+  __typename?: "ProjectChange";
+  clientId?: Maybe<Scalars["GlobalID"]>;
+  id: Scalars["UUID"];
+  mutations: Array<ProjectMutation>;
+};
+
 /** A connection to a list of items. */
 export type ProjectConnection = {
   __typename?: "ProjectConnection";
@@ -1373,6 +1384,19 @@ export type ProjectMigrationInfo = {
   sourceVersion: ProjectVersion;
   targetVersion: ProjectVersion;
 };
+
+export type ProjectMutation = {
+  __typename?: "ProjectMutation";
+  input?: Maybe<Scalars["JSON"]>;
+  projectVersionId: Scalars["GlobalID"];
+  revision?: Maybe<Scalars["Int"]>;
+  type: ProjectMutationType;
+};
+
+export enum ProjectMutationType {
+  Commit = "COMMIT",
+  Restore = "RESTORE",
+}
 
 export type ProjectOperationInfo = OperationInfo | Project;
 
@@ -2060,6 +2084,7 @@ export type Subscription = {
   executionsChanged: Execution;
   interpChanged: InterpModule;
   moduleChanged: ModuleChange;
+  projectChanged: ProjectChange;
 };
 
 export type SubscriptionClientsChangedArgs = {
@@ -2082,6 +2107,10 @@ export type SubscriptionInterpChangedArgs = {
 
 export type SubscriptionModuleChangedArgs = {
   projectVersionId: Scalars["GlobalID"];
+};
+
+export type SubscriptionProjectChangedArgs = {
+  projectId: Scalars["GlobalID"];
 };
 
 /** The type of symbol content. */
@@ -4603,7 +4632,7 @@ export type ModuleChangedSubscription = {
     mutations: Array<{
       __typename?: "ModuleMutation";
       type: ModuleMutationType;
-      fileId?: any | null;
+      fileId: any;
       statementId?: any | null;
       revision?: number | null;
       input?: any | null;

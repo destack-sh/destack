@@ -32,6 +32,7 @@ class NMessageType(StrEnum):
 
     # Bench sync
     CLIENT_CHANGED = "client.changed"
+    PROJECT_CHANGED = "project.changed"  # for API
     MODULE_CHANGED = "module.changed"  # for API
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
 
@@ -140,6 +141,11 @@ class ClientData:
 class ClientChangedPayload:
     origin: ClientOrigin
     client: ClientData
+
+
+@payload(NMessageType.PROJECT_CHANGED)
+class ProjectChangedPayload(OriginPayload):
+    project_id: UUID
 
 
 @payload(NMessageType.MODULE_CHANGED)

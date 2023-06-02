@@ -12,11 +12,34 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
-from bench.api.util import asafe_subscription, to_uuid
+from bench.api.type import ProjectMutationType
+from bench.api.util import asafe_subscription, to_global_id, to_uuid
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType
 
 logger = structlog.get_logger(__name__)
+
+
+@gql.interface
+class Change:
+    id: UUID
+    client_id: Optional[GlobalID]
+
+
+@gql.type
+class ProjectMutation:
+    type: ProjectMutationType
+    project_version_id: GlobalID
+    revision: Optional[int]
+    input: Optional[JSON]
+
+
+@gql.type
+class ProjectChange(Change):
+    id: UUID
+    client_id: Optional[GlobalID]
+    mutations: list[ProjectMutation]
+
 
 ModuleMutationType = gql.enum(sync.MMT)
 
@@ -25,26 +48,58 @@ ModuleMutationType = gql.enum(sync.MMT)
 class ModuleMutation:
     type: ModuleMutationType
     project_version_id: GlobalID
-    file_id: Optional[GlobalID]
+    file_id: GlobalID
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
 
 
 @gql.type
-class ModuleChange:
+class ModuleChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
     mutations: list[ModuleMutation]
 
 
-def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
-    if id is None:
-        return None
-    return GlobalID(type, str(id))
+# some (yet unused) scaffolding to understand project change sync interface
 
 
-def rmap_mutation(mutation: ModuleMutation) -> ModuleMutation:
+@gql.type
+class CommentMutation:
+    project_version_id: GlobalID
+    comment_id: GlobalID
+    file_id: Optional[GlobalID]
+    statement_id: Optional[GlobalID]
+    screen_id: Optional[GlobalID]
+    tile_id: Optional[GlobalID]
+    revision: Optional[int]
+    input: Optional[JSON]
+
+
+@gql.type
+class CommentChange(Change):
+    id: UUID
+    client_id: Optional[GlobalID]
+    mutations: list[CommentMutation]
+
+
+@gql.type
+class ScreenMutation:
+    project_version_id: GlobalID
+    screen_id: GlobalID
+    tile_id: Optional[GlobalID]
+    revision: Optional[int]
+    input: Optional[JSON]
+
+
+@gql.type
+class ScreenChange(Change):
+    id: UUID
+    client_id: Optional[GlobalID]
+    mutations: list[ScreenMutation]
+
+
+def rmap_module_mutation(mutation: ModuleMutation) -> ModuleMutation:
     return ModuleMutation(
         type=mutation.type,
         project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
@@ -56,33 +111,40 @@ def rmap_mutation(mutation: ModuleMutation) -> ModuleMutation:
 
 
 @gql.type
-class ModuleSubscription:
+class MultiplayerSubscription:
+    @asafe_subscription
+    async def project_changed(
+        self, info: Info, project_id: GlobalID
+    ) -> AsyncGenerator[ProjectChange, None]:
+        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        project_id = UUID(project_id.node_id)
+        log = logger.bind(project_id=project_id, user=user)
+        to_uuid(info.context.request.scope["session"].get("client_id"))
+        to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        try:
+            await sync_to_async(check_can_view_project_by_id)(user, project_id)
+        except PermissionDenied:
+            log.warning("project_changed.subscribe_denied", exc_info=True)
+            return
+
     @asafe_subscription
     async def module_changed(
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleChange, None]:
-        project_version_id = UUID(project_version_id.node_id)
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        project_version_id = UUID(project_version_id.node_id)
+        log = logger.bind(project_version_id=project_version_id, user=user)
         client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
         client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
-        log = logger.bind(
-            project_version_id=project_version_id,
-            user=user,
-        )
         try:
-            await sync_to_async(check_can_view_project_by_id)(
-                user, project_version_id=project_version_id
-            )
+            await sync_to_async(check_can_view_project_by_id)(user, project_version_id)
         except PermissionDenied:
-            log.debug("runtime.subscribe_denied", project_version_id=project_version_id)
+            log.warning("module_changed.subscribe_denied", exc_info=True)
             return
 
-        log.info("module.subscribe")
         module_sub = await subscribe(
-            f"{NMessageType.MODULE_CHANGED}.{project_version_id}",
-            payload_t=ModuleChangedPayload,
+            f"{NMessageType.MODULE_CHANGED}.{project_version_id}", ModuleChangedPayload
         )
-
         log.info("module.listen")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
@@ -103,5 +165,5 @@ class ModuleSubscription:
             yield ModuleChange(
                 id=change.id,
                 client_id=origin_id,
-                mutations=[rmap_mutation(m) for m in change.p.mutations],
+                mutations=[rmap_module_mutation(m) for m in change.p.mutations],
             )
