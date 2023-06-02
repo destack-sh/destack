@@ -170,28 +170,6 @@ class Migration(migrations.Migration):
                         default=uuid.uuid4, editable=False, primary_key=True, serialize=False
                     ),
                 ),
-                (
-                    "type",
-                    django_choices_field.fields.TextChoicesField(
-                        choices=[("ADHOC", "Adhoc"), ("MANUAL", "Manual")],
-                        choices_enum=bench.models.deployment.DeploymentType,
-                        max_length=6,
-                    ),
-                ),
-                (
-                    "status",
-                    django_choices_field.fields.TextChoicesField(
-                        choices=[
-                            ("INACTIVE", "Inactive"),
-                            ("SLEEPING", "Sleeping"),
-                            ("ACTIVE", "Active"),
-                            ("ARCHIVED", "Archived"),
-                            ("DESTROYED", "Destroyed"),
-                        ],
-                        choices_enum=bench.models.deployment.DeploymentStatus,
-                        max_length=9,
-                    ),
-                ),
                 ("owned", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
@@ -370,31 +348,6 @@ class Migration(migrations.Migration):
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 ("started_at", models.DateTimeField(null=True)),
                 ("terminated_at", models.DateTimeField(null=True)),
-                (
-                    "type",
-                    django_choices_field.fields.TextChoicesField(
-                        choices=[
-                            ("LANGUAGE", "Language"),
-                            ("COMMUNITY", "Community"),
-                            ("DEDICATED", "Dedicated"),
-                        ],
-                        choices_enum=bench.models.deployment.WorkerTenancy,
-                        max_length=9,
-                    ),
-                ),
-                (
-                    "status",
-                    django_choices_field.fields.TextChoicesField(
-                        choices=[
-                            ("STARTING", "Starting"),
-                            ("ACTIVE", "Active"),
-                            ("STOPPING", "Stopping"),
-                            ("TERMINATED", "Terminated"),
-                        ],
-                        choices_enum=bench.models.deployment.WorkerStatus,
-                        max_length=10,
-                    ),
-                ),
                 ("last_seen_at", models.DateTimeField(null=True)),
                 (
                     "deployment",

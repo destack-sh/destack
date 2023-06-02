@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import Switch from "@/components/basic/Switch.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { getRandomName } from "@/composables/useRandomName";
 import { graphql } from "@/gql";
@@ -22,7 +21,6 @@ const emit = defineEmits<{
       name?: string;
       tag?: string;
       description?: string;
-      autoDeploy?: boolean;
     }
   ): void;
 }>();
@@ -42,8 +40,6 @@ const name: Ref<string> = ref(props.version?.name ?? (committed.value ? "" : sug
 const suggestedTag = renderSemVer(bumpSemVer(props.prevSemVerTag ?? FIRST_SEMVER, "patch"));
 const tag: Ref<string> = ref(props.version?.tag ?? suggestedTag);
 const description: Ref<string> = ref(props.version?.description ?? "");
-const autoDeploy = ref(true);
-const canAutoDeploy = computed(() => tag.value.length > 0);
 
 const validTag = computed(() => parseSemVer(tag.value) != null);
 // check whether the entered tag is available
@@ -163,20 +159,6 @@ watch([name, description, tag, availableTag, tagLoading], () => {
           </FadeTransition>
           <p></p>
         </div>
-
-        <!-- Deployment (if head) :ConfusedDeployment -->
-        <!-- <div v-if="!committed" class="flex flex-row items-baseline justify-between gap-1">
-          <p class="flex-1 whitespace-nowrap">
-            <FadeTransition mode="out-in">
-              <span v-if="tag.length > 0" class="text-gray-700">
-                <span class="font-bold">Deploy</span> as version {{ tag }}
-              </span>
-              <span v-else class="text-yellow-600">Version without a tag cannot be deployed.</span>
-            </FadeTransition>
-          </p>
-          <Switch v-model="autoDeploy" v-if="canAutoDeploy" />
-        </div> -->
-
         <!-- Commit / update action -->
         <div class="mt-4 text-right" v-if="!committed">
           <button
@@ -189,7 +171,6 @@ watch([name, description, tag, availableTag, tagLoading], () => {
                 name,
                 tag,
                 description,
-                autoDeploy: canAutoDeploy && autoDeploy,
               });
               close();
             "

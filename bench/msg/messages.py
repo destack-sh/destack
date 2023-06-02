@@ -32,8 +32,10 @@ class NMessageType(StrEnum):
 
     # Bench sync
     CLIENT_CHANGED = "client.changed"
-    PROJECT_CHANGED = "project.changed"  # for API
-    MODULE_CHANGED = "module.changed"  # for API
+    PROJECT_CHANGED = "project.changed"
+    COMMENT_CHANGED = "comment.changed"
+    SCREEN_CHANGED = "screen.changed"
+    MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
 
     # Worker <-> Internal
@@ -163,7 +165,6 @@ class ModuleInternalChangedPayload(OriginPayload):
 @payload(NMessageType.REQUEST_REGISTER_WORKER)
 class ReqRegisterWorkerPayload:
     worker_id: UUID
-    deployment_id: UUID
     project_id: Optional[UUID]
     tenancy: str
 
@@ -180,7 +181,6 @@ class WorkerHeartbeatPayload:
 
 @payload(NMessageType.REQUEST_RUN)
 class ReqRunPayload:
-    deployment_id: UUID
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]

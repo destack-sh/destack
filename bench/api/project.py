@@ -15,7 +15,6 @@ from bench.api.sync import MMT, tracked_mutation
 from bench.api.util import safe_mutation
 
 if TYPE_CHECKING:
-    from bench.api.deployment import Deployment
     from bench.api.organization import Organization
     from bench.api.statement import Statement
     from bench.api.user import User
@@ -66,16 +65,6 @@ class FileFilter:
         return queryset
 
 
-@gql.django.filter(models.Deployment)
-class DeploymentFilter:
-    is_owned: Optional[bool] = None
-
-    def filter(self, queryset):
-        if self.is_owned is not None:
-            queryset = queryset.filter(owned=self.is_owned)
-        return queryset
-
-
 ProjectVisibility = gql.enum(models.ProjectVisibility)
 ProjectType = gql.enum(models.ProjectType)
 
@@ -111,9 +100,6 @@ class Project(gql.Node):
     versions: gql.relay.Connection["ProjectVersion"] = gql.django.connection(
         filters=ProjectVersionFilter
     )
-    deployments: gql.relay.Connection[
-        Annotated["Deployment", lazy(".deployment")]
-    ] = gql.django.connection(filters=DeploymentFilter)
 
     # TODO @Performance: specify only/select_related for can_write field
     @gql.field
@@ -213,9 +199,6 @@ class ProjectVersion(gql.Node):
     committed: auto
     committed_at: auto
     files: gql.relay.Connection["File"] = gql.django.connection(filters=FileFilter)
-    deployments: gql.relay.Connection[
-        Annotated["Deployment", lazy(".deployment")]
-    ] = gql.django.connection(filters=DeploymentFilter)
     child_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
     parent_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
 
@@ -273,7 +256,6 @@ class ProjectMutation:
             slug=input.slug,
             type=input.type,
             visibility=input.visibility,
-            create_adhoc_deployment=True,
             create_onboarding_files=True,
         )
         return project
@@ -310,7 +292,6 @@ class CommitInput:
     name: Optional[str] = None
     tag: Optional[str] = None  # :ProjectVersionTags
     description: Optional[str] = None
-    auto_deploy: bool = False
 
 
 @gql.input
@@ -348,12 +329,6 @@ class ProjectVersionMutation:
         project = project_v.project
         if project_v.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
-
-        # auto-deploy in commit is probably (?) not a great solution
-        if input.auto_deploy:
-            models.Deployment.objects.filter(project_version=project_v).update(
-                type=models.DeploymentType.MANUAL, status=models.DeploymentStatus.ACTIVE
-            )
 
         new_head = project.create_version(
             parent=project_v,

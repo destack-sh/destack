@@ -175,7 +175,6 @@ class ExecutionFrameData:
     # additional context data not in ExecutionFrame
     project_id: UUID
     tracing_level: Optional[int]
-    deployment_id: UUID
     worker_id: UUID
     trigger_type: Optional[ExecutionTriggerType]
     trigger_id: Optional[UUID]
@@ -220,7 +219,6 @@ class ExecutionFrameData:
             queue_position=frame.queue_position,
             project_id=session.ctx.project_id,
             tracing_level=session.ctx.tracing_level,
-            deployment_id=session.ctx.deployment_id,
             worker_id=session.ctx.worker_id,
             trigger_type=session.ctx.trigger_type,
             trigger_id=session.ctx.trigger_id,

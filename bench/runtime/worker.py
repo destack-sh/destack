@@ -78,14 +78,10 @@ class RunJob:
 class ModuleWorker:
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
-    def __init__(
-        self, module_id: UUID, master: "SandboxedWorker", deployment_id: UUID, timeout: float
-    ):
+    def __init__(self, module_id: UUID, master: "SandboxedWorker", timeout: float):
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires langserver fetch)
-        # TODO @Broken: track module worker deployment id, make Execution.deployment non-nullable
-        self.deployment_id: UUID = deployment_id
         self.timeout = timeout
         self.ready = asyncio.Event()
 
@@ -161,7 +157,6 @@ class ModuleWorker:
 
             builds = {b.name: b for b in get_default_builds(self.interp)}
             session_ctx = SessionContext(
-                deployment_id=self.deployment_id,
                 module_id=self.module_id,
                 project_id=self.project_id,
                 worker_id=self.master.worker_id,
@@ -273,11 +268,10 @@ class ModuleWorker:
 class SandboxedWorker:
     """A sandboxed runtime worker to execute arbitrary code (community or dedicated)."""
 
-    def __init__(self, worker_id: UUID, deployment_id: UUID | None, project_id: UUID | None):
+    def __init__(self, worker_id: UUID, project_id: UUID | None):
         self.worker_id = worker_id
-        self.deployment_id = deployment_id
         self.project_id = project_id
-        self.tenancy = WorkerTenancy.COMMUNITY if deployment_id is None else WorkerTenancy.DEDICATED
+        self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
         self.tasks = []
@@ -293,19 +287,11 @@ class SandboxedWorker:
 
     async def run(self):
         await nc_init.wait()
-        logger.info(
-            "start",
-            worker_id=self.worker_id,
-            deployment_id=self.deployment_id,
-            tenancy=self.tenancy,
-        )
+        logger.info("start", worker_id=self.worker_id, tenancy=self.tenancy)
         register_rep: NMessage[RepRegisterWorkerPayload] = await request(
             NMessageType.REQUEST_REGISTER_WORKER,
             ReqRegisterWorkerPayload(
-                worker_id=self.worker_id,
-                deployment_id=self.deployment_id,
-                project_id=self.project_id,
-                tenancy=self.tenancy,
+                worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
             ),
             RepRegisterWorkerPayload,
         )
@@ -340,7 +326,7 @@ class SandboxedWorker:
         if module_id not in self.workers:
             # start module worker if not already started
             # TODO @Broken: assign workers to deployments
-            worker = ModuleWorker(module_id, self, self.deployment_id, timeout=WORKER_RUN_TIMEOUT)
+            worker = ModuleWorker(module_id, self, timeout=WORKER_RUN_TIMEOUT)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]

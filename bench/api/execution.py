@@ -20,7 +20,6 @@ from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ExecutionSavedPayload
 
 if TYPE_CHECKING:
-    from bench.api.deployment import Deployment
     from bench.api.project import Project, ProjectVersion
     from bench.api.token import AccessToken
     from bench.api.user import User
@@ -74,7 +73,6 @@ def get_error_nice(root: "Execution") -> Optional[RunError]:
 class Execution(gql.Node):
     project: Annotated["Project", lazy(".project")]
     project_version: Annotated["ProjectVersion", lazy(".project")]
-    deployment: Optional[Annotated["Deployment", lazy(".deployment")]]
     created_at: auto
     updated_at: auto
     started_at: auto

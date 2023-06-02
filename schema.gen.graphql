@@ -161,7 +161,6 @@ input CommitInput {
   name: String = null
   tag: String = null
   description: String = null
-  autoDeploy: Boolean! = false
 }
 
 type CommitPayload {
@@ -217,79 +216,6 @@ input DeleteObjectInput {
   id: GlobalID!
 }
 
-input DeployInput {
-  id: GlobalID!
-  status: DeploymentStatus!
-}
-
-type Deployment implements Node {
-  id: GlobalID!
-  owner: OrganizationUser!
-  project: Project!
-  projectVersion: ProjectVersion!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  status: DeploymentStatus!
-  type: DeploymentType!
-  deployAllStatements: Boolean!
-  deployedStatements: [Statement!]!
-}
-
-input DeploymentAddStatementInput {
-  id: GlobalID!
-  statementId: ID!
-}
-
-"""A connection to a list of items."""
-type DeploymentConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [DeploymentEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type DeploymentEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Deployment!
-}
-
-input DeploymentFilter {
-  isOwned: Boolean = null
-}
-
-union DeploymentOperationInfo = Deployment | OperationInfo
-
-input DeploymentRemoveStatementInput {
-  id: GlobalID!
-  statementId: ID!
-}
-
-input DeploymentSetDeployAllStatementsInput {
-  id: GlobalID!
-  deployAllStatements: Boolean!
-}
-
-enum DeploymentStatus {
-  INACTIVE
-  SLEEPING
-  ACTIVE
-  ARCHIVED
-  DESTROYED
-}
-
-enum DeploymentType {
-  ADHOC
-  MANUAL
-}
-
 enum ErrorType {
   INTERNAL
   UNKNOWN_TOKEN
@@ -329,7 +255,6 @@ type Execution implements Node {
   id: GlobalID!
   project: Project!
   projectVersion: ProjectVersion!
-  deployment: Deployment
   createdAt: DateTime!
   updatedAt: DateTime!
   startedAt: DateTime
@@ -655,10 +580,6 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
-  setDeployAllStatements(input: DeploymentSetDeployAllStatementsInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
-  addDeployedStatement(input: DeploymentAddStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
-  removeDeployedStatement(input: DeploymentRemoveStatementInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
-  updateDeployment(input: DeployInput!): DeploymentOperationInfo! @canWriteProject(atRoot: true)
   run(input: RunInput!): RunStateOperationInfo!
   cancelRun(input: CancelRunInput!): CancelRunPayloadOperationInfo!
   requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
@@ -971,8 +892,6 @@ input OrganizationUpdateMembershipInput {
   level: OrganizationMembershipLevel!
 }
 
-union OrganizationUser = Organization | User
-
 interface Owner {
   id: GlobalID!
   slug: String!
@@ -1026,20 +945,6 @@ type Project implements Node {
     last: Int = null
     filters: ProjectVersionFilter
   ): ProjectVersionConnection!
-  deployments(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    filters: DeploymentFilter
-  ): DeploymentConnection!
   canWrite: Boolean!
   migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
 }
@@ -1094,8 +999,10 @@ type ProjectMutation {
 }
 
 enum ProjectMutationType {
-  COMMIT
-  RESTORE
+  RENAME_PROJECT
+  MOVE_PROJECT
+  COMMIT_PROJECT
+  RESTORE_PROJECT
 }
 
 union ProjectOperationInfo = Project | OperationInfo
@@ -1140,20 +1047,6 @@ type ProjectVersion implements Node {
     last: Int = null
     filters: FileFilter
   ): FileConnection!
-  deployments(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    filters: DeploymentFilter
-  ): DeploymentConnection!
   childRefs(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null

@@ -90,7 +90,6 @@ AccessInfo = NamedTuple(
     "AccessInfo",
     [
         ("project_version_id", UUID),
-        ("deployment_id", UUID),
         ("access_token_id", UUID),
         ("organization_id", Optional[UUID]),
         ("user_id", Optional[UUID]),
@@ -98,12 +97,11 @@ AccessInfo = NamedTuple(
 )
 
 
-def get_deployment_access(
+def get_access(
     owner: str, project: str, tag: str, token_digest: str, scope=AccessTokenScope.RUN
 ) -> AccessInfo:
     # TODO @Feature: implement semver range tags? https://devhints.io/semver
-    # TODO @Performance: cache get_deployment_access
-    # TODO @Performance: fetch get_deployment_access in one SQL query (incl. access token check)
+    # TODO @Performance: cache get_access & fetch in one SQL query (incl. access token check)
     if tag in ("*", "^", "x"):
         # use latest version
         project_version = Project.objects.get_by_slug(owner, project).head
@@ -121,11 +119,8 @@ def get_deployment_access(
     )
     if access_token is None:
         raise PermissionDenied("cannot access this deployment")
-    # should only be one deployment :SingleOwnedDeployment
-    deployment = project_version.deployments.get(owned=True)
     return AccessInfo(
         project_version.id,
-        deployment.id,
         access_token.id,
         access_token.organization_id,
         access_token.user_id,
@@ -165,12 +160,11 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     token_digest = digest_raw_token(access_token)
     del access_token
 
-    access = await sync_to_async(get_deployment_access)(
+    access = await sync_to_async(get_access)(
         owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
 
     run = ReqRunPayload(
-        deployment_id=access.deployment_id,
         module_id=access.project_version_id,
         runnable=runnable,
         runnable_type=runnable_type,

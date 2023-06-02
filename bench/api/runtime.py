@@ -212,16 +212,6 @@ class RuntimeMutation:
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write_project)(info, project_version)
-        # :SingleOwnedDeployment
-        deployment_id = (
-            await models.Deployment.objects.filter(
-                owned=True, project_version_id=project_version_id
-            )
-            .values_list("id", flat=True)
-            .afirst()
-        )
-        if deployment_id is None:
-            raise ValueError("no available deployment found")
 
         run = ReqRunPayload(
             module_id=project_version_id,
@@ -231,7 +221,6 @@ class RuntimeMutation:
             arguments=input.arguments,
             block=input.block,
             tracing_level=input.trace,
-            deployment_id=deployment_id,
             trigger_type=ExecutionTriggerType.UI,
             trigger_id=user.id,
             execution_id=to_uuid(input.execution_id),

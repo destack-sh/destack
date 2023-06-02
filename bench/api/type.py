@@ -11,8 +11,10 @@ MMT = ModuleMutationType
 
 
 class ProjectMutationType(enum.StrEnum):
-    COMMIT = "commit"
-    RESTORE = "restore"
+    RENAME_PROJECT = "RENAME_PROJECT"
+    MOVE_PROJECT = "MOVE_PROJECT"
+    COMMIT_PROJECT = "COMMIT_PROJECT"
+    RESTORE_PROJECT = "RESTORE_PROJECT"
 
 
 ProjectMutationType = gql.enum(ProjectMutationType)

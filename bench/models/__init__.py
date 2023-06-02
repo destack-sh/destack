@@ -1,13 +1,4 @@
 from .data import DatasetRecord
-from .deployment import (
-    DeployedStatement,
-    Deployment,
-    DeploymentStatus,
-    DeploymentType,
-    Worker,
-    WorkerStatus,
-    WorkerTenancy,
-)
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -32,6 +23,7 @@ from .secret import Secret
 from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User
+from .worker import Worker, WorkerStatus, WorkerTenancy
 
 __all__ = [
     "AccessToken",
@@ -40,10 +32,6 @@ __all__ = [
     "Client",
     "ClientType",
     "DatasetRecord",
-    "DeployedStatement",
-    "Deployment",
-    "DeploymentStatus",
-    "DeploymentType",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",

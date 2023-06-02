@@ -1,5 +1,4 @@
 import { useClientOps } from "@/state/operations/client";
-import { useDeploymentOps } from "@/state/operations/deployment";
 import { useFileOps } from "@/state/operations/file";
 import { useObjectOps } from "@/state/operations/object";
 import { useOrganizationOps } from "@/state/operations/organization";
@@ -301,7 +300,6 @@ export function _useOperations() {
     symbol: useSymbolContentOps(),
     runtime: useRuntimeOps(),
     version: useProjectVersionOps(),
-    deployment: useDeploymentOps(),
     object: useObjectOps(),
     secret: useSecretOps(),
     state,
