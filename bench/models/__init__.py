@@ -1,4 +1,4 @@
-from .data import DatasetRecord
+from .data import Record
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -31,7 +31,7 @@ __all__ = [
     "AccessTokenStatus",
     "Client",
     "ClientType",
-    "DatasetRecord",
+    "Record",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",

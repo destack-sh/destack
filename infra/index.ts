@@ -150,7 +150,7 @@ const DB_ENV_VARS = [
   },
 ];
 
-// ElasticSearch: OpenSearch cluster
+// Opensearch: OpenSearch cluster
 const opensearchDomainName = `bench-${config.require("env")}`;
 const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
   ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
@@ -168,8 +168,36 @@ const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
     volumeSize: 10,
     volumeType: "gpt3",
   },
+  encryptAtRest: {
+    enabled: true,
+  },
+  nodeToNodeEncryption: {
+    enabled: true,
+  },
   vpcOptions: {
     securityGroupIds: [opensearchSecurityGroup.id],
+  },
+  // public access with fine grained access control
+  accessPolicies: JSON.stringify({
+    Version: "2012-10-17",
+    Statement: [
+      {
+        Effect: "Allow",
+        Principal: {
+          AWS: "*",
+        },
+        Action: "es:*",
+        Resource: `arn:aws:es:${config.require("awsRegion")}:*:domain/${opensearchDomainName}/*`,
+      },
+    ],
+  }),
+  advancedSecurityOptions: {
+    enabled: true,
+    internalUserDatabaseEnabled: true,
+    masterUserOptions: {
+      masterUserName: "opensearch",
+      masterUserPassword: config.requireSecret("opensearchPassword"),
+    },
   },
 });
 const opensearchSecret = new k8s.core.v1.Secret(
@@ -187,19 +215,19 @@ const opensearchSecret = new k8s.core.v1.Secret(
 );
 const OPENSEARCH_ENV_VARS = [
   {
-    name: "ELASTICSEARCH_DOMAIN",
+    name: "OPENSEARCH_DOMAIN",
     value: opensearchDomainName,
   },
   {
-    name: "ELASTICSEARCH_URL",
+    name: "OPENSEARCH_URL",
     value: opensearchDomain.endpoint,
   },
   {
-    name: "ELASTICSEARCH_USERNAME",
-    value: "admin",
+    name: "OPENSEARCH_USERNAME",
+    value: "password",
   },
   {
-    name: "ELASTICSEARCH_PASSWORD",
+    name: "OPENSEARCH_PASSWORD",
     valueFrom: {
       secretKeyRef: {
         name: opensearchSecret.metadata.name,

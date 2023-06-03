@@ -179,9 +179,6 @@ class TypeTag(models.TextChoices):
     NUMBER = "number"
     BOOLEAN = "boolean"
     EMBEDDING = "embedding"
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
     FILE = "file"
     STRUCT = "struct"
     JSON = "json"
@@ -221,6 +218,12 @@ class TypeHint(models.TextChoices):
     TOGGLE = "toggle"
     CHECKBOX = "checkbox"
     THUMBS = "thumbs"
+    # file
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+    # json
+    SHAPE = "shape"  # ?
 
 
 TYPE_TAG_BY_TYPE_HINT = {
@@ -248,6 +251,12 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.TOGGLE: TypeTag.BOOLEAN,
     TypeHint.CHECKBOX: TypeTag.BOOLEAN,
     TypeHint.THUMBS: TypeTag.BOOLEAN,
+    # file
+    TypeHint.IMAGE: TypeTag.FILE,
+    TypeHint.VIDEO: TypeTag.FILE,
+    TypeHint.AUDIO: TypeTag.FILE,
+    # json
+    TypeHint.SHAPE: TypeTag.JSON,
 }
 
 
@@ -527,9 +536,6 @@ PRIMITIVE_TYPES = [
     TypeTag.BOOLEAN,
     TypeTag.NUMBER,
     TypeTag.STRING,
-    TypeTag.IMAGE,
-    TypeTag.AUDIO,
-    TypeTag.VIDEO,
     TypeTag.FILE,
     TypeTag.EMBEDDING,
 ]

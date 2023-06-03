@@ -49,9 +49,9 @@ cachetools==5.2.0
     # via -r requirements.in
 certifi==2023.5.7
     # via
-    #   elastic-transport
     #   httpcore
     #   httpx
+    #   opensearch-py
     #   requests
     #   sentry-sdk
 cffi==1.15.1
@@ -151,10 +151,6 @@ drf-nested-routers==0.93.4
     # via -r requirements.in
 drf-spectacular==0.24.2
     # via -r requirements.in
-elastic-transport==8.4.0
-    # via elasticsearch
-elasticsearch==8.8.0
-    # via -r requirements.in
 frozenlist==1.3.3
     # via
     #   aiohttp
@@ -231,6 +227,8 @@ oauthlib==3.2.2
     #   social-auth-core
 openai==0.27.2
     # via -r requirements.in
+opensearch-py==2.2.0
+    # via -r requirements.in
 opentelemetry-api==1.18.0
     # via
     #   opentelemetry-sdk
@@ -272,6 +270,7 @@ pyrsistent==0.19.3
 python-dateutil==2.8.2
     # via
     #   botocore
+    #   opensearch-py
     #   posthog
     #   strawberry-graphql
 python-dotenv==0.21.0
@@ -294,6 +293,7 @@ requests==2.31.0
     # via
     #   anthropic
     #   openai
+    #   opensearch-py
     #   posthog
     #   requests-oauthlib
     #   social-auth-core
@@ -314,6 +314,7 @@ service-identity==21.1.0
 six==1.16.0
     # via
     #   automat
+    #   opensearch-py
     #   posthog
     #   python-dateutil
     #   service-identity
@@ -368,7 +369,7 @@ uritemplate==4.1.1
 urllib3==1.26.16
     # via
     #   botocore
-    #   elastic-transport
+    #   opensearch-py
     #   requests
     #   sentry-sdk
 uvicorn==0.19.0

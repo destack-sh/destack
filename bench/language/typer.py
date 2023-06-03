@@ -88,7 +88,7 @@ def check_type(
                     _check(bool(field.flags & TypeFlag.IsNullable), "expected non-nullable value")
                 else:
                     check_type(subvalue, field, eager_error=eager_error, on_invalid=on_invalid)
-    elif expected.tag in (TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO, TypeTag.VIDEO):
+    elif expected.tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:
         for option in expected.type_nodes:

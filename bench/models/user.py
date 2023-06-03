@@ -168,7 +168,7 @@ class Client(UUIDModel):
     type_node = models.ForeignKey(
         "SimpleTypeNode", on_delete=models.SET_NULL, null=True, blank=True
     )
-    record = models.ForeignKey("DatasetRecord", on_delete=models.SET_NULL, null=True, blank=True)
+    record = models.ForeignKey("Record", on_delete=models.SET_NULL, null=True, blank=True)
     path = models.CharField(max_length=256, null=True, blank=True)
 
     @property

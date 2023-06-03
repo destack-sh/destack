@@ -119,7 +119,7 @@ export type Client = Node & {
   present: Scalars["Boolean"];
   project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
-  record?: Maybe<DatasetRecord>;
+  record?: Maybe<Record>;
   statement?: Maybe<Statement>;
   type: ClientType;
   typeNode?: Maybe<SimpleTypeNode>;
@@ -183,44 +183,6 @@ export type CommitPayload = {
 };
 
 export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
-
-export type DatasetRecord = Node & {
-  __typename?: "DatasetRecord";
-  createdAt: Scalars["DateTime"];
-  data: Scalars["JSON"];
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
-  revision: Scalars["Int"];
-  statement: Statement;
-  updatedAt: Scalars["DateTime"];
-};
-
-/** A connection to a list of items. */
-export type DatasetRecordConnection = {
-  __typename?: "DatasetRecordConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<DatasetRecordEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type DatasetRecordEdge = {
-  __typename?: "DatasetRecordEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: DatasetRecord;
-};
-
-export type DatasetRecordFilter = {
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type DatasetRecordOperationInfo = DatasetRecord | OperationInfo;
 
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
@@ -542,14 +504,14 @@ export type Mutation = {
   createOrganization: OrganizationOperationInfo;
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
-  createRecord: DatasetRecordOperationInfo;
+  createRecord: RecordOperationInfo;
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementBlank: StatementOperationInfo;
   createTypeNode: SimpleTypeNodeOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
-  deleteRecord: DatasetRecordOperationInfo;
+  deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
   deleteTypeNode: SimpleTypeNodeOperationInfo;
@@ -557,7 +519,7 @@ export type Mutation = {
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
   moveFile: FileOperationInfo;
-  moveRecord: DatasetRecordOperationInfo;
+  moveRecord: RecordOperationInfo;
   moveStatement: StatementOperationInfo;
   moveTypeNode: SimpleTypeNodeOperationInfo;
   notifyUploadedObject: RemoteObjectOperationInfo;
@@ -567,14 +529,14 @@ export type Mutation = {
   requestUploadObject: RemoteObjectOperationInfo;
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
-  restoreRecord: DatasetRecordOperationInfo;
+  restoreRecord: RecordOperationInfo;
   restoreStatement: StatementOperationInfo;
   restoreStatementTypeNode: SimpleTypeNodeOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
   softDeleteFile: FileOperationInfo;
-  softDeleteRecord: DatasetRecordOperationInfo;
+  softDeleteRecord: RecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   softDeleteTypeNode: SimpleTypeNodeOperationInfo;
   truncateRecords: StatementOperationInfo;
@@ -585,8 +547,8 @@ export type Mutation = {
   updateProjectName: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
-  updateRecord: DatasetRecordOperationInfo;
-  updateRecordPath: DatasetRecordOperationInfo;
+  updateRecord: RecordOperationInfo;
+  updateRecordPath: RecordOperationInfo;
   updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
   updateStatementCode: StatementOperationInfo;
@@ -1510,9 +1472,21 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
+export type Record = Node & {
+  __typename?: "Record";
+  createdAt: Scalars["DateTime"];
+  data: Scalars["JSON"];
+  deletedAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  revision: Scalars["Int"];
+  statement: Statement;
+  updatedAt: Scalars["DateTime"];
+};
+
 export type RecordBatch = {
   __typename?: "RecordBatch";
-  records: Array<DatasetRecord>;
+  records: Array<Record>;
 };
 
 export type RecordBatchOperationInfo = OperationInfo | RecordBatch;
@@ -1523,6 +1497,17 @@ export type RecordBatchRestoreInput = {
 
 export type RecordBatchSoftDeleteInput = {
   ids: Array<Scalars["GlobalID"]>;
+};
+
+/** A connection to a list of items. */
+export type RecordConnection = {
+  __typename?: "RecordConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<RecordEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 export type RecordCreateInput = {
@@ -1536,10 +1521,25 @@ export type RecordDeleteInput = {
   id: Scalars["GlobalID"];
 };
 
+/** An edge in a connection. */
+export type RecordEdge = {
+  __typename?: "RecordEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Record;
+};
+
+export type RecordFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
 export type RecordMoveInput = {
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
 };
+
+export type RecordOperationInfo = OperationInfo | Record;
 
 export type RecordRestoreInput = {
   id: Scalars["GlobalID"];
@@ -1769,7 +1769,7 @@ export type Statement = Node &
     orderKey: Scalars["String"];
     parent?: Maybe<Statement>;
     projectVersion: ProjectVersion;
-    records: DatasetRecordConnection;
+    records: RecordConnection;
     reference?: Maybe<Statement>;
     referenceProjectVersion?: Maybe<ProjectVersion>;
     revision: Scalars["Int"];
@@ -1784,7 +1784,7 @@ export type Statement = Node &
 export type StatementRecordsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
-  filters?: InputMaybe<DatasetRecordFilter>;
+  filters?: InputMaybe<RecordFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
@@ -2005,6 +2005,7 @@ export type SystemInfo = {
 
 /** The representation of a type node */
 export enum TypeHint {
+  Audio = "AUDIO",
   Checkbox = "CHECKBOX",
   Code = "CODE",
   Date = "DATE",
@@ -2013,6 +2014,7 @@ export enum TypeHint {
   Email = "EMAIL",
   Float = "FLOAT",
   Html = "HTML",
+  Image = "IMAGE",
   Integer = "INTEGER",
   Key = "KEY",
   Markdown = "MARKDOWN",
@@ -2020,12 +2022,14 @@ export enum TypeHint {
   Phone = "PHONE",
   Rating = "RATING",
   RichText = "RICH_TEXT",
+  Shape = "SHAPE",
   Slider = "SLIDER",
   Thumbs = "THUMBS",
   Time = "TIME",
   Toggle = "TOGGLE",
   Url = "URL",
   Uuid = "UUID",
+  Video = "VIDEO",
 }
 
 export type TypeNodeCreateInput = {
@@ -2088,13 +2092,11 @@ export type TypeNodeUpdateTypeInput = {
 /** The actual value type of a type node. */
 export enum TypeTag {
   Any = "ANY",
-  Audio = "AUDIO",
   Boolean = "BOOLEAN",
   Embedding = "EMBEDDING",
   Enum = "ENUM",
   File = "FILE",
   Function = "FUNCTION",
-  Image = "IMAGE",
   Json = "JSON",
   Literal = "LITERAL",
   Null = "NULL",
@@ -2103,7 +2105,6 @@ export enum TypeTag {
   Struct = "STRUCT",
   TypeReference = "TYPE_REFERENCE",
   Union = "UNION",
-  Video = "VIDEO",
 }
 
 export type UpdateProjectVersion = {
@@ -2290,7 +2291,7 @@ export type RecordsQuery = {
     __typename?: "Statement";
     id: any;
     records: {
-      __typename?: "DatasetRecordConnection";
+      __typename?: "RecordConnection";
       totalCount?: number | null;
       pageInfo: {
         __typename?: "PageInfo";
@@ -2300,10 +2301,10 @@ export type RecordsQuery = {
         endCursor?: string | null;
       };
       edges: Array<{
-        __typename?: "DatasetRecordEdge";
+        __typename?: "RecordEdge";
         cursor: string;
         node: {
-          __typename?: "DatasetRecord";
+          __typename?: "Record";
           id: any;
           revision: number;
           createdAt: any;
@@ -3980,8 +3981,11 @@ export type CreateRecordMutationVariables = Exact<{
 export type CreateRecordMutation = {
   __typename?: "Mutation";
   createRecord:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
     | {
-        __typename?: "DatasetRecord";
+        __typename?: "Record";
         id: any;
         createdAt: any;
         updatedAt: any;
@@ -3990,13 +3994,10 @@ export type CreateRecordMutation = {
         orderKey: string;
         data: any;
         statement: { __typename?: "Statement"; id: any };
-      }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      };
 };
 
-export type _OrderKeyFragment = { __typename?: "DatasetRecord"; orderKey: string } & {
+export type _OrderKeyFragment = { __typename?: "Record"; orderKey: string } & {
   " $fragmentName"?: "_OrderKeyFragment";
 };
 
@@ -4008,10 +4009,10 @@ export type UpdateRecordMutationVariables = Exact<{
 export type UpdateRecordMutation = {
   __typename?: "Mutation";
   updateRecord:
-    | { __typename?: "DatasetRecord"; id: any; updatedAt: any; revision: number; data: any }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      })
+    | { __typename?: "Record"; id: any; updatedAt: any; revision: number; data: any };
 };
 
 export type DeleteRecordMutationVariables = Exact<{
@@ -4021,10 +4022,10 @@ export type DeleteRecordMutationVariables = Exact<{
 export type DeleteRecordMutation = {
   __typename?: "Mutation";
   deleteRecord:
-    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      })
+    | { __typename?: "Record"; id: any; deletedAt?: any | null };
 };
 
 export type SoftDeleteRecordMutationVariables = Exact<{
@@ -4034,10 +4035,10 @@ export type SoftDeleteRecordMutationVariables = Exact<{
 export type SoftDeleteRecordMutation = {
   __typename?: "Mutation";
   softDeleteRecord:
-    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      })
+    | { __typename?: "Record"; id: any; deletedAt?: any | null };
 };
 
 export type RestoreRecordMutationVariables = Exact<{
@@ -4047,10 +4048,10 @@ export type RestoreRecordMutationVariables = Exact<{
 export type RestoreRecordMutation = {
   __typename?: "Mutation";
   restoreRecord:
-    | { __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      })
+    | { __typename?: "Record"; id: any; deletedAt?: any | null };
 };
 
 export type BatchSoftDeleteRecordMutationVariables = Exact<{
@@ -4063,7 +4064,7 @@ export type BatchSoftDeleteRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }> };
+    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "Record"; id: any; deletedAt?: any | null }> };
 };
 
 export type BatchRestoreRecordMutationVariables = Exact<{
@@ -4076,7 +4077,7 @@ export type BatchRestoreRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "DatasetRecord"; id: any; deletedAt?: any | null }> };
+    | { __typename?: "RecordBatch"; records: Array<{ __typename?: "Record"; id: any; deletedAt?: any | null }> };
 };
 
 export type TruncateRecordsMutationVariables = Exact<{
@@ -5041,7 +5042,7 @@ export const _OrderKeyFragmentDoc = {
     {
       kind: "FragmentDefinition",
       name: { kind: "Name", value: "_orderKey" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [{ kind: "Field", name: { kind: "Name", value: "orderKey" } }],
@@ -11529,7 +11530,7 @@ export const CreateRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11612,7 +11613,7 @@ export const UpdateRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11674,7 +11675,7 @@ export const DeleteRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11734,7 +11735,7 @@ export const SoftDeleteRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11794,7 +11795,7 @@ export const RestoreRecordDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "DatasetRecord" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [

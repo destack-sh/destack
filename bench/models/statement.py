@@ -22,7 +22,7 @@ from bench.language.type import (
     TypeTag,
     new_type_node_key,
 )
-from bench.models.data import DatasetRecord
+from bench.models.data import Record
 from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
@@ -160,7 +160,7 @@ class StatementManager(models.Manager["Statement"]):
         target_order_keys = target_order_keys or {}
         new_statements: dict[UUID, Statement] = {}
         new_type_nodes: dict[UUID, SimpleTypeNode] = {}
-        new_records: dict[UUID, DatasetRecord] = {}
+        new_records: dict[UUID, Record] = {}
 
         # copy statements
         for statement in statements:
@@ -234,7 +234,7 @@ class StatementManager(models.Manager["Statement"]):
 
         # create referencing statement's relations (FKs to statements)
         SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
-        DatasetRecord.objects.bulk_create(new_records.values())
+        Record.objects.bulk_create(new_records.values())
 
         return ref_mappings
 
@@ -296,7 +296,7 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    records: models.QuerySet["DatasetRecord"]  # noqa via DatasetRecord.dataset
+    records: models.QuerySet["Record"]  # noqa via DatasetRecord.dataset
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
     type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement

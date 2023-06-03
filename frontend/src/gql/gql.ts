@@ -173,17 +173,17 @@ const documents = {
     types.UpdateStatementCodeDocument,
   "\n      mutation updateStatementText($id: GlobalID!, $code: String) {\n        updateStatementText(input: { id: $id, code: $code }) {\n          ... on Statement {\n            id\n            code\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateStatementTextDocument,
-  "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateRecordDocument,
-  "\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            ":
+  "\n              fragment _orderKey on Record {\n                orderKey\n              }\n            ":
     types._OrderKeyFragmentDoc,
-  "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on DatasetRecord {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on Record {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateRecordDocument,
-  "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteRecordDocument,
-  "\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.SoftDeleteRecordDocument,
-  "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreRecordDocument,
   "\n      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {\n        batchSoftDeleteRecord(input: { ids: $ids }) {\n          ... on RecordBatch {\n            records {\n              id\n              deletedAt\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.BatchSoftDeleteRecordDocument,
@@ -731,38 +731,38 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on DatasetRecord {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statement {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            "
-): typeof documents["\n              fragment _orderKey on DatasetRecord {\n                orderKey\n              }\n            "];
+  source: "\n              fragment _orderKey on Record {\n                orderKey\n              }\n            "
+): typeof documents["\n              fragment _orderKey on Record {\n                orderKey\n              }\n            "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on DatasetRecord {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on DatasetRecord {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on Record {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateRecord($id: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, data: $data }) {\n          ... on Record {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation deleteRecord($id: GlobalID!) {\n        deleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation softDeleteRecord($id: GlobalID!) {\n        softDeleteRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on DatasetRecord {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreRecord($id: GlobalID!) {\n        restoreRecord(input: { id: $id }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

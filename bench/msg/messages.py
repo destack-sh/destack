@@ -346,6 +346,8 @@ MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
 
+PROJECT_SCOPED_PAYLOAD_TYPES = (ProjectChangedPayload,)
+
 MODULE_SCOPED_PAYLOAD_TYPES = (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
@@ -364,7 +366,9 @@ def to_topic(
     Gets the default topic for a message type and payload.
     :NATSTopics
     """
-    if isinstance(payload, MODULE_SCOPED_PAYLOAD_TYPES):
+    if isinstance(payload, PROJECT_SCOPED_PAYLOAD_TYPES):
+        return f"{message_type}.{payload.project_id}"
+    elif isinstance(payload, MODULE_SCOPED_PAYLOAD_TYPES):
         return f"{message_type}.{payload.module_id}"
 
     return message_type

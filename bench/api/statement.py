@@ -28,8 +28,8 @@ StatementModifier = gql.enum(language.StatementModifier)
 SymbolType = gql.enum(models.SymbolType)
 
 
-@gql.django.filter(models.DatasetRecord)
-class DatasetRecordFilter:
+@gql.django.filter(models.Record)
+class RecordFilter:
     is_visible: Optional[bool] = True
 
     def filter(self, queryset):
@@ -48,8 +48,8 @@ class SimpleTypeNodeFilter:
         return queryset
 
 
-@gql.django.type(models.DatasetRecord)
-class DatasetRecord(gql.Node):
+@gql.django.type(models.Record)
+class Record(gql.Node):
     statement: "Statement"
     revision: auto
     created_at: auto
@@ -130,9 +130,7 @@ class Statement(gql.Node, SimplyTyped):
     code: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
-    records: gql.relay.Connection[DatasetRecord] = gql.django.connection(
-        filters=DatasetRecordFilter
-    )
+    records: gql.relay.Connection[Record] = gql.django.connection(filters=RecordFilter)
 
 
 #
@@ -663,7 +661,7 @@ class RecordTruncateInput(gql.NodeInput):
 
 @gql.type
 class RecordBatch(ThingBatch):
-    records: list[DatasetRecord]
+    records: list[Record]
 
     @property
     def things(self):
@@ -763,9 +761,9 @@ class SymbolMutation:
         return statement
 
     @tracked_mutation(MMT.CREATE_RECORD)
-    def create_record(self, input: RecordCreateInput) -> DatasetRecord | OperationInfo:
+    def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = models.DatasetRecord(
+        record = models.Record(
             statement=statement,
             id=UUID(input.id.node_id),
             data=input.data,
@@ -774,15 +772,15 @@ class SymbolMutation:
         return record
 
     @tracked_mutation(MMT.UPDATE_RECORD)
-    def update_record(self, input: RecordUpdateInput) -> DatasetRecord | OperationInfo:
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+    def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=input.id.node_id)
         record.data = input.data
         return record
 
     @tracked_mutation(MMT.UPDATE_RECORD_PATH)
-    def update_record_path(self, input: RecordUpdatePathInput) -> DatasetRecord | OperationInfo:
+    def update_record_path(self, input: RecordUpdatePathInput) -> Record | OperationInfo:
         # update record data at the given path
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+        record = models.Record.objects.get(id=input.id.node_id)
         if input.value is None:
             del record.data[input.path]
         else:
@@ -790,27 +788,27 @@ class SymbolMutation:
         return record
 
     @tracked_mutation(MMT.MOVE_RECORD)
-    def move_record(self, input: RecordMoveInput) -> DatasetRecord | OperationInfo:
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+    def move_record(self, input: RecordMoveInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=input.id.node_id)
         record.order_key = input.order_key
         return record
 
     @tracked_mutation(MMT.SOFT_DELETE_RECORD)
-    def soft_delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+    def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=input.id.node_id)
         record.soft_delete()
         return record
 
     @tracked_mutation(MMT.DELETE_RECORD)
-    def delete_record(self, input: RecordDeleteInput) -> DatasetRecord | OperationInfo:
-        record = models.DatasetRecord.objects.get(id=input.id.node_id)
+    def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=input.id.node_id)
         record.delete()
         return record
 
     @tracked_mutation(MMT.RESTORE_RECORD)
-    def restore_record(self, input: RecordRestoreInput) -> DatasetRecord | OperationInfo:
+    def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         # use _base_manager since soft deleted records are not visible
-        record = models.DatasetRecord._base_manager.get(id=input.id.node_id)
+        record = models.Record._base_manager.get(id=input.id.node_id)
         record.restore()
         return record
 
@@ -821,23 +819,23 @@ class SymbolMutation:
         # imitate soft_delete_record but for a batch
         record_ids = [UUID(i.node_id) for i in input.ids]
         deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        models.DatasetRecord.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
+        models.Record.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
         # use base manager since the records are now deleted
-        records = models.DatasetRecord._base_manager.filter(id__in=record_ids)
+        records = models.Record._base_manager.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
 
     @tracked_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
     def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
         # imitate restore_record but for a batch
         record_ids = [UUID(i.node_id) for i in input.ids]
-        models.DatasetRecord._base_manager.filter(id__in=record_ids).update(deleted_at=None)
-        records = models.DatasetRecord.objects.filter(id__in=record_ids)
+        models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)
+        records = models.Record.objects.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
 
     @tracked_mutation(MMT.TRUNCATE_RECORDS)
     def truncate_records(self, input: RecordTruncateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        models.DatasetRecord.objects.filter(statement=statement).delete()
+        models.Record.objects.filter(statement=statement).delete()
         return statement
 
     @tracked_mutation(MMT.CREATE_TYPE_NODE)

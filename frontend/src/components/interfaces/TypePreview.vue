@@ -63,13 +63,14 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Null]: MinusSmallIcon,
   [TypeTag.File]: DocumentIcon,
   [TypeTag.Image]: PhotoIcon,
-  [TypeTag.Audio]: SpeakerWaveIcon,
-  [TypeTag.Video]: VideoCameraIcon,
   [TypeTag.TypeReference]: ArrowUpRightIcon,
   [TypeTag.Struct]: RectangleGroupIcon,
   [TypeTag.Enum]: ChevronDoubleDownIcon,
 };
 const iconsByHint: Record<TypeHint, any> = {
+  // file
+  [TypeHint.Audio]: SpeakerWaveIcon,
+  [TypeHint.Video]: VideoCameraIcon,
   // string
   [TypeHint.Name]: IdentificationIcon,
   [TypeHint.Uuid]: FingerPrintIcon,
