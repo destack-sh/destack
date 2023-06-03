@@ -84,8 +84,7 @@ def asafe_subscription(func, **kwargs):
                 yield item
         except Exception as e:
             e = map_exception(e)
-            if isinstance(e, OperationInfo):
-                yield e
+            # no way to propagate exception to client here?
             log.error("subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e))
             raise StopAsyncIteration from e
 

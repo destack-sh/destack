@@ -872,7 +872,7 @@ register_mapping(StaticTypeMapping(str), tags=[TypeTag.STRING])
 register_mapping(StaticTypeMapping(float), tags=[TypeTag.NUMBER])
 register_mapping(StaticTypeMapping(type(None)), tags=[TypeTag.NULL])
 register_mapping(StaticTypeMapping(bool), tags=[TypeTag.BOOLEAN])
-register_mapping(FileMapping(), tags=[TypeTag.FILE, TypeTag.IMAGE, TypeTag.AUDIO])
+register_mapping(FileMapping(), tags=[TypeTag.FILE])
 register_mapping(EnumMapping(), tags=[TypeTag.ENUM])
 register_mapping(StructTypeMapping(), tags=[TypeTag.STRUCT])
 # type hints

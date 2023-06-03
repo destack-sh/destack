@@ -1,30 +1,29 @@
 import { graphql } from "@/gql";
 import {
+  ModuleMutationType,
+  TypeHint,
+  TypeTag,
+  type BatchRestoreRecordMutation,
+  type BatchSoftDeleteRecordMutation,
   type CreateRecordMutation,
   type DeleteRecordMutation,
+  type DeleteTypeNodeMutation,
+  type RestoreRecordMutation,
+  type RestoreTypeNodeMutation,
+  type Scalars,
+  type SoftDeleteRecordMutation,
+  type SoftDeleteTypeNodeMutation,
+  type TruncateRecordsMutation,
+  type TypeNodeCreateInput,
+  type TypeNodeUpdateInput,
   type UpdateRecordMutation,
   type UpdateStatementCodeMutation,
   type UpdateStatementDescriptionMutation,
   type UpdateStatementTextMutation,
-  type RestoreRecordMutation,
-  type SoftDeleteRecordMutation,
-  ModuleMutationType,
-  type BatchSoftDeleteRecordMutation,
-  type BatchRestoreRecordMutation,
-  type RestoreTypeNodeMutation,
-  type TypeNodeCreateInput,
-  type TypeNodeUpdateInput,
-  TypeTag,
-  type TruncateRecordsMutation,
-  type DeleteTypeNodeMutation,
-  type SoftDeleteTypeNodeMutation,
   type UpdateTypeNodeMutation,
-  type Scalars,
-  TypeHint,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
-import { ArrowDownCircleIcon, ArrowDownIcon } from "@heroicons/vue/24/outline";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
@@ -169,7 +168,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
         createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
-          ... on DatasetRecord {
+          ... on Record {
             id
             createdAt
             updatedAt
@@ -190,7 +189,7 @@ export function useSymbolContentOps() {
         ({
           __typename: "Mutation",
           createRecord: {
-            __typename: "DatasetRecord",
+            __typename: "Record",
             id: vars.id,
             statement: {
               __typename: "Statement",
@@ -205,7 +204,7 @@ export function useSymbolContentOps() {
           },
         } as CreateRecordMutation),
       update(cache, { data }) {
-        if (data?.createRecord.__typename != "DatasetRecord") {
+        if (data?.createRecord.__typename != "Record") {
           return; // error
         }
 
@@ -213,7 +212,7 @@ export function useSymbolContentOps() {
           const record = cache.readFragment({
             id: recordRef,
             fragment: graphql(/* GraphQL */ `
-              fragment _orderKey on DatasetRecord {
+              fragment _orderKey on Record {
                 orderKey
               }
             `),
@@ -226,7 +225,7 @@ export function useSymbolContentOps() {
 
         // extend relevant records views with the new record
         const newEdge = {
-          __typename: "DatasetRecordEdge",
+          __typename: "RecordEdge",
           // cursor is set below
           node: { __ref: cache.identify(data?.createRecord) },
         };
@@ -305,7 +304,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation updateRecord($id: GlobalID!, $data: JSON!) {
         updateRecord(input: { id: $id, data: $data }) {
-          ... on DatasetRecord {
+          ... on Record {
             id
             updatedAt
             revision
@@ -319,7 +318,7 @@ export function useSymbolContentOps() {
       optimisticResponse: (vars: { id: string; data: any }) =>
         ({
           updateRecord: {
-            __typename: "DatasetRecord",
+            __typename: "Record",
             id: vars.id,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
@@ -334,7 +333,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation deleteRecord($id: GlobalID!) {
         deleteRecord(input: { id: $id }) {
-          ... on DatasetRecord {
+          ... on Record {
             id
             deletedAt
           }
@@ -347,7 +346,7 @@ export function useSymbolContentOps() {
         ({
           __typename: "Mutation",
           deleteRecord: {
-            __typename: "DatasetRecord",
+            __typename: "Record",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
@@ -360,7 +359,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation softDeleteRecord($id: GlobalID!) {
         softDeleteRecord(input: { id: $id }) {
-          ... on DatasetRecord {
+          ... on Record {
             id
             deletedAt
           }
@@ -373,7 +372,7 @@ export function useSymbolContentOps() {
         ({
           __typename: "Mutation",
           softDeleteRecord: {
-            __typename: "DatasetRecord",
+            __typename: "Record",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
@@ -386,7 +385,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation restoreRecord($id: GlobalID!) {
         restoreRecord(input: { id: $id }) {
-          ... on DatasetRecord {
+          ... on Record {
             id
             deletedAt
           }
@@ -399,7 +398,7 @@ export function useSymbolContentOps() {
         ({
           __typename: "Mutation",
           restoreRecord: {
-            __typename: "DatasetRecord",
+            __typename: "Record",
             id: vars.id,
             deletedAt: null,
           },
@@ -427,7 +426,7 @@ export function useSymbolContentOps() {
           batchSoftDeleteRecord: {
             __typename: "RecordBatch",
             records: vars.ids.map((id) => ({
-              __typename: "DatasetRecord",
+              __typename: "Record",
               id: id,
               deletedAt: new Date().toISOString(),
             })),
@@ -456,7 +455,7 @@ export function useSymbolContentOps() {
           batchRestoreRecord: {
             __typename: "RecordBatch",
             records: vars.ids.map((id) => ({
-              __typename: "DatasetRecord",
+              __typename: "Record",
               id: id,
               deletedAt: null,
             })),

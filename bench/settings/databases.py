@@ -59,3 +59,9 @@ else:
     raise ImproperlyConfigured(
         "A Postgres-compatible database must be configured via 'DATABASE_URL' or 'BENCH_DB_NAME'"
     )
+
+# Opensearch settings
+
+OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "http://localhost:9200")
+OPENSEARCH_USERNAME = os.getenv("OPENSEARCH_USERNAME", "bench")
+OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD", "bench")

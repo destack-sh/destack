@@ -126,9 +126,8 @@ class MultiplayerSubscription:
         log = logger.bind(project_id=project_id, user=user)
         client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
         client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
-
         try:
-            await sync_to_async(check_can_view_project_by_id)(user, project_id)
+            await sync_to_async(check_can_view_project_by_id)(user, project_id=project_id)
         except PermissionDenied:
             log.warning("project_changed.subscribe_denied", exc_info=True)
             return
@@ -152,6 +151,7 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
+            # individual mutations aren't needed yet
             yield ProjectChange(id=change.id, client_id=origin_id)
 
     @asafe_subscription

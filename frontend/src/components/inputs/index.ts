@@ -166,7 +166,7 @@ registerInterface("struct", {
   grow: 1.0,
 });
 registerInterface("file", {
-  tags: [TypeTag.File, TypeTag.Audio, TypeTag.Image, TypeTag.Video],
+  tags: [TypeTag.File],
   read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
   write: (t, v) => toArrayIfFlagged(t, v),
   supportsList: true,

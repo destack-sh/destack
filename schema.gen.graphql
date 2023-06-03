@@ -107,7 +107,7 @@ type Client implements Node {
   file: File
   statement: Statement
   typeNode: SimpleTypeNode
-  record: DatasetRecord
+  record: Record
   path: String
   active: Boolean!
   present: Boolean!
@@ -169,44 +169,6 @@ type CommitPayload {
 }
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
-
-type DatasetRecord implements Node {
-  id: GlobalID!
-  statement: Statement!
-  revision: Int!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
-  orderKey: String!
-  data: JSON!
-}
-
-"""A connection to a list of items."""
-type DatasetRecordConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [DatasetRecordEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type DatasetRecordEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: DatasetRecord!
-}
-
-input DatasetRecordFilter {
-  isVisible: Boolean = true
-}
-
-union DatasetRecordOperationInfo = DatasetRecord | OperationInfo
 
 """Date with time (isoformat)"""
 scalar DateTime
@@ -553,13 +515,13 @@ type Mutation {
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
-  createRecord(input: RecordCreateInput!): DatasetRecordOperationInfo!
-  updateRecord(input: RecordUpdateInput!): DatasetRecordOperationInfo!
-  updateRecordPath(input: RecordUpdatePathInput!): DatasetRecordOperationInfo!
-  moveRecord(input: RecordMoveInput!): DatasetRecordOperationInfo!
-  softDeleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
-  deleteRecord(input: RecordDeleteInput!): DatasetRecordOperationInfo!
-  restoreRecord(input: RecordRestoreInput!): DatasetRecordOperationInfo!
+  createRecord(input: RecordCreateInput!): RecordOperationInfo!
+  updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
+  updateRecordPath(input: RecordUpdatePathInput!): RecordOperationInfo!
+  moveRecord(input: RecordMoveInput!): RecordOperationInfo!
+  softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
+  deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
+  restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
   batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
   batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   truncateRecords(input: RecordTruncateInput!): StatementOperationInfo!
@@ -1224,8 +1186,19 @@ type Query {
   ): ProjectConnection!
 }
 
+type Record implements Node {
+  id: GlobalID!
+  statement: Statement!
+  revision: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  orderKey: String!
+  data: JSON!
+}
+
 type RecordBatch {
-  records: [DatasetRecord!]!
+  records: [Record!]!
 }
 
 union RecordBatchOperationInfo = RecordBatch | OperationInfo
@@ -1236,6 +1209,18 @@ input RecordBatchRestoreInput {
 
 input RecordBatchSoftDeleteInput {
   ids: [GlobalID!]!
+}
+
+"""A connection to a list of items."""
+type RecordConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RecordEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
 }
 
 input RecordCreateInput {
@@ -1249,10 +1234,25 @@ input RecordDeleteInput {
   id: GlobalID!
 }
 
+"""An edge in a connection."""
+type RecordEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Record!
+}
+
+input RecordFilter {
+  isVisible: Boolean = true
+}
+
 input RecordMoveInput {
   id: GlobalID!
   orderKey: String!
 }
+
+union RecordOperationInfo = Record | OperationInfo
 
 input RecordRestoreInput {
   id: GlobalID!
@@ -1495,8 +1495,8 @@ type Statement implements Node & SimplyTyped {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: DatasetRecordFilter
-  ): DatasetRecordConnection!
+    filters: RecordFilter
+  ): RecordConnection!
 }
 
 type StatementBatch {
@@ -1703,6 +1703,10 @@ enum TypeHint {
   TOGGLE
   CHECKBOX
   THUMBS
+  IMAGE
+  VIDEO
+  AUDIO
+  SHAPE
 }
 
 input TypeNodeCreateInput {
@@ -1768,9 +1772,6 @@ enum TypeTag {
   NUMBER
   BOOLEAN
   EMBEDDING
-  IMAGE
-  VIDEO
-  AUDIO
   FILE
   STRUCT
   JSON

@@ -84,9 +84,9 @@ cachetools==5.2.0
 certifi==2023.5.7
     # via
     #   -c requirements.txt
-    #   elastic-transport
     #   httpcore
     #   httpx
+    #   opensearch-py
     #   requests
     #   sentry-sdk
     #   unstructured
@@ -260,15 +260,6 @@ drf-nested-routers==0.93.4
 drf-spectacular==0.24.2
     # via
     #   -c requirements.txt
-    #   -r requirements.in
-elastic-transport==8.4.0
-    # via
-    #   -c requirements.txt
-    #   elasticsearch
-elasticsearch==8.8.0
-    # via
-    #   -c requirements.txt
-    #   -r requirements-worker.in
     #   -r requirements.in
 et-xmlfile==1.1.0
     # via openpyxl
@@ -453,6 +444,11 @@ openapi-schema-pydantic==1.2.4
     # via langchain
 openpyxl==3.1.2
     # via unstructured
+opensearch-py==2.2.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements-worker.in
+    #   -r requirements.in
 opentelemetry-api==1.18.0
     # via
     #   -c requirements.txt
@@ -572,6 +568,7 @@ python-dateutil==2.8.2
     # via
     #   -c requirements.txt
     #   botocore
+    #   opensearch-py
     #   pandas
     #   posthog
     #   strawberry-graphql
@@ -619,6 +616,7 @@ requests==2.31.0
     #   djangorestframework-stubs
     #   langchain
     #   openai
+    #   opensearch-py
     #   posthog
     #   requests-oauthlib
     #   social-auth-core
@@ -655,6 +653,7 @@ six==1.16.0
     # via
     #   -c requirements.txt
     #   automat
+    #   opensearch-py
     #   posthog
     #   python-dateutil
     #   service-identity
@@ -779,7 +778,7 @@ urllib3==1.26.16
     # via
     #   -c requirements.txt
     #   botocore
-    #   elastic-transport
+    #   opensearch-py
     #   requests
     #   sentry-sdk
 uvicorn==0.19.0
