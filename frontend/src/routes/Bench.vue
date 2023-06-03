@@ -28,7 +28,7 @@ import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } f
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { useCurrentInterpModule, useVisibleErrors } from "@/state/runtime";
+import { useCurrentInterpModule, useVisibleErrors } from "@/state/module";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";

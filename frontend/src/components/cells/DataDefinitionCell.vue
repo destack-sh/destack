@@ -10,7 +10,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import { useMagicActions } from "@/state/file";
 import { getInterface } from "@/components/inputs";
-import { makeTypeNode, useStatementContext, type SimpleType } from "@/state/statement";
+import { makeField, useStatementContext, type SimpleType } from "@/state/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
@@ -18,8 +18,8 @@ import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
-import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { symbolOf, TypeFlag } from "@/state/runtime";
+import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
+import { symbolOf, TypeFlag } from "@/state/module";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
   ArrowDownIcon,
@@ -124,12 +124,11 @@ function loadMore() {
 
 const selfFields = computed(
   () =>
-    context.typeNodes.value
-      ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
-      .map((n) => runtimeTypeOf(n as SimpleType)) ?? []
+    context.fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => runtimeTypeOf(n as SimpleType)) ??
+    []
 );
 const extendedTypes = computed(
-  () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
 );
 const columnsInOrder: Ref<string[]> = computed(() => {
   if (isTable.value) {
@@ -146,7 +145,7 @@ const rowIdsInOrder: Ref<string[]> = computed(() => {
   }
 });
 // map the field type to its actual runtime type
-// children cannot be imputed into SimpleTypeNode but we still want to know the actual type
+// children cannot be imputed into Field but we still want to know the actual type
 const selfSymbol = computed(() => symbolOf(context.statement.value.id));
 function runtimeTypeOf(field: SimpleType) {
   if (field.tag != TypeTag.TypeReference) {
@@ -154,7 +153,7 @@ function runtimeTypeOf(field: SimpleType) {
     // this is really a hack until we get rid of separate interp state
     return field;
   } else {
-    return selfSymbol.value?.typeNodes?.find((n) => n.key == field.key) ?? field;
+    return selfSymbol.value?.fields?.find((n) => n.key == field.key) ?? field;
   }
 }
 
@@ -165,7 +164,7 @@ const extendedFields = computed(() => {
     return [];
   }
   return (
-    selfSymbol.value?.typeNodes
+    selfSymbol.value?.fields
       ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
       .map((n) => n as SimpleType) ?? []
   );
@@ -328,26 +327,26 @@ const ops = useOperations();
 
 function insertField(isUnionWith?: boolean) {
   const nextOrderKey = generateKeyBetween(
-    context.typeNodes.value?.[context.typeNodes.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
+    context.fields.value?.[context.fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
     null
   );
   if (!isUnionWith) {
-    const typeNode = makeTypeNode({
+    const field = makeField({
       name: "field " + selfFields.value?.length,
       tag: TypeTag.String,
       orderKey: nextOrderKey,
       flags: TypeFlag.IsNullable, // :DefaultTypeOptional
     });
     grid.beginBatchChange();
-    context.createTypeNode(typeNode);
+    context.createField(field);
     if (isTable.value) {
-      nextTick(() => (grid.flush(), grid.focus("", typeNode.key)));
+      nextTick(() => (grid.flush(), grid.focus("", field.key)));
     } else {
-      nextTick(() => (grid.flush(), grid.focus(typeNode.id, "type")));
+      nextTick(() => (grid.flush(), grid.focus(field.id, "type")));
     }
   } else {
-    context.createTypeNode(
-      makeTypeNode({
+    context.createField(
+      makeField({
         name: "",
         tag: TypeTag.TypeReference,
         orderKey: nextOrderKey,
@@ -359,7 +358,7 @@ function insertField(isUnionWith?: boolean) {
 }
 
 function duplicateField(fieldId: string) {
-  // :DuplicateTypeNode
+  // :DuplicateField
   const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
   if (fieldIdx < 0) return;
   const field = selfFields.value?.[fieldIdx];
@@ -369,13 +368,13 @@ function duplicateField(fieldId: string) {
     field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
   const newFieldNode = {
     ...field,
-    id: newTypeNodeId(),
+    id: newFieldId(),
     name: newName,
-    key: newTypeNodeKey(),
+    key: newFieldKey(),
     orderKey,
     referenceId: field.reference?.id,
   };
-  context.createTypeNode(newFieldNode);
+  context.createField(newFieldNode);
   if (isTable.value) {
     nextTick(() => grid.focus("", newFieldNode.key ?? ""));
   } else {
@@ -385,15 +384,15 @@ function duplicateField(fieldId: string) {
 
 function updateFieldType(key: string, changed: SimpleType) {
   // we use key instead of id here because of the runtimeTypeOf hack (has different id, see above)
-  const old = context.typeNodes.value.find((n) => n.key == key);
+  const old = context.fields.value.find((n) => n.key == key);
   if (old == null) return;
-  context.updateTypeNode(old, { ...changed, id: old.id });
+  context.updateField(old, { ...changed, id: old.id });
 }
 
 function deleteField(node: SimpleType) {
   const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
   grid.beginBatchChange();
-  context.deleteTypeNode(node);
+  context.deleteField(node);
   grid.focus(fieldIdx - 1, "name");
   nextTick(() => grid.flush());
 }
@@ -402,10 +401,10 @@ function moveField(node: SimpleType, position: "before" | "after", other: Simple
   const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveTypeNode(node, orderKey);
+    context.moveField(node, orderKey);
   } else {
     const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveTypeNode(node, orderKey);
+    context.moveField(node, orderKey);
   }
 }
 
@@ -565,8 +564,8 @@ defineExpose({
             v-for="field of extendedTypes"
             :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
-            @update:model-value="(val) => context.updateTypeNode(field, val)"
-            @delete-self="context.deleteTypeNode(field)"
+            @update:model-value="(val) => context.updateField(field, val)"
+            @delete-self="context.deleteField(field)"
             @navigate-left="
               field.id == extendedTypes[0].id
                 ? declarationRef?.focus()

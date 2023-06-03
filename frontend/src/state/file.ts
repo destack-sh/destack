@@ -3,8 +3,8 @@ import { StatementType, SymbolType, type StatementContentFragment, TypeTag } fro
 import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newDatasetRecordId, newStatementId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { TypeFlag } from "@/state/runtime";
+import { newDatasetRecordId, newStatementId, newFieldId, newFieldKey } from "@/state/operations/statement";
+import { TypeFlag } from "@/state/module";
 import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
 import type StatementInterface from "@/components/editors/StatementInterface.vue";
@@ -887,10 +887,10 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
     ops.statement.createDefinition(tx, dataset);
     // create 'content' column with file type
-    const contentKey = newTypeNodeKey();
-    ops.symbol.createTypeNode(tx, dataset.id, {
+    const contentKey = newFieldKey();
+    ops.symbol.createField(tx, dataset.id, {
       statementId: dataset.id,
-      id: newTypeNodeId(),
+      id: newFieldId(),
       key: contentKey,
       name: "content",
       tag: TypeTag.File,

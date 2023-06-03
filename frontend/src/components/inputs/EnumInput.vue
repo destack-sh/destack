@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
-import { symbolOf, TypeFlag } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { getEnumColor, type SimpleType } from "@/state/statement";
@@ -20,7 +20,7 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => symbolOf(props.type.reference?.id));
 
 const members = computed(() => {
-  return runtimeType.value?.typeNodes ?? [];
+  return runtimeType.value?.fields ?? [];
 });
 const selectedMembers = computed(
   () =>

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import TypePreview from "@/components/interfaces/TypePreview.vue";
-import { ANY_TYPE_NODE, type SimpleType } from "@/state/statement";
+import { ANY_FIELD, type SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { SimpleTypeNode } from "@/gql/graphql";
+import type { Field } from "@/gql/graphql";
 import { nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: "focus", event: FocusEvent): void;
 }>();
 
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
+const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
 const editing = ref(false);
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -36,7 +36,7 @@ const valueRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null)
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
 
-function writeValue(type: SimpleTypeNode) {
+function writeValue(type: Field) {
   nextTick(() => buttonRef.value?.focus());
   // keep flags (they're configured in a separate interface)
   type = {
@@ -53,7 +53,7 @@ watch(
   () => [props.modelValue],
   () => {
     if (props.modelValue != value.value) {
-      value.value = props.modelValue ?? ANY_TYPE_NODE;
+      value.value = props.modelValue ?? ANY_FIELD;
     }
   }
 );

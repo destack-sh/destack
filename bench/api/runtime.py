@@ -15,7 +15,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import language, models
 from bench.api.auth import check_can_view_project_by_id, check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
-from bench.api.statement import SimpleTypeNode, SimplyTyped, StatementType, SymbolType, TypeTag
+from bench.api.statement import Field, SimplyTyped, StatementType, SymbolType, TypeTag
 from bench.api.util import asafe_mutation, asafe_subscription, to_uuid
 from bench.language import wire
 from bench.language.type import StatementModifier
@@ -45,7 +45,7 @@ class InterpFile:
 
 
 @gql.type
-class InterpSimpleType(SimpleTypeNode):
+class InterpSimpleType(Field):
     """
     Proxy type to SimpleType to avoid overwriting source SimpleType references
     (no extra fields yet but needed since (SimpleType, id) global id would be the same
@@ -122,11 +122,8 @@ def rmap_files(
         for statement in file.statements:
             if statement.type in (StatementType.COMMENT, StatementType.BLANK):
                 continue  # ignore non-symbol statements
-            if statement.type_nodes is not None:
-                type_nodes = [
-                    mapper.wmap_simple_type_node(statement.id, node)
-                    for node in statement.type_nodes
-                ]
+            if statement.fields is not None:
+                type_nodes = [mapper.wmap_field(statement.id, node) for node in statement.fields]
             else:
                 type_nodes = None
             interp_symbol = InterpSymbol(

@@ -7,7 +7,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
 import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
 import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
-import { symbolsLike } from "@/state/runtime";
+import { symbolsLike } from "@/state/module";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();

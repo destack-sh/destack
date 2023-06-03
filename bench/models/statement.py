@@ -13,14 +13,14 @@ from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language.type import (
-    TYPE_NODE_KEY_LENGTH,
+    FIELD_KEY_LENGTH,
     StatementModifier,
     StatementType,
     SymbolType,
     TypeFlag,
     TypeHint,
     TypeTag,
-    new_type_node_key,
+    new_field_key,
 )
 from bench.models.data import Record
 from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, walk_children_bfs_batched
@@ -32,22 +32,22 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class SimpleTypeNodeManager(models.Manager["SimpleTypeNode"]):
+class FieldManager(models.Manager["Field"]):
     def get_queryset(self):
         # soft-deleted statements are not returned by default
         return super().get_queryset().select_related("statement")
 
 
-class SimpleTypeNode(UUIDModel, CrudModel):
+class Field(UUIDModel, CrudModel):
     """
     A simplified and interaction-optimized variant of TypeNode
     """
 
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="type_nodes")
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="fields")
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
-    key = models.CharField(max_length=TYPE_NODE_KEY_LENGTH, default=new_type_node_key)
+    key = models.CharField(max_length=FIELD_KEY_LENGTH, default=new_field_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = TextChoicesField(choices_enum=TypeTag)
     hint = TextChoicesField(choices_enum=TypeHint, null=True, blank=True)
@@ -69,7 +69,7 @@ class SimpleTypeNode(UUIDModel, CrudModel):
         return f"{self.statement} {name_str}{self.tag.value}{flags_str}"
 
     def __repr__(self):
-        return f"<SimpleTypeNode {str(self)}>"
+        return f"<Field {str(self)}>"
 
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -77,7 +77,7 @@ class SimpleTypeNode(UUIDModel, CrudModel):
     def restore(self):
         self.deleted_at = None
 
-    objects = SimpleTypeNodeManager()
+    objects = FieldManager()
 
     class Meta:
         ordering = ["order_key"]
@@ -86,7 +86,7 @@ class SimpleTypeNode(UUIDModel, CrudModel):
         constraints = [
             models.UniqueConstraint(
                 fields=["statement", "order_key"],
-                name="bench_statement_type_node_order_key_ak",
+                name="bench_statement_field_order_key_ak",
                 condition=Q(deleted_at__isnull=True),
             ),
         ]
@@ -159,7 +159,7 @@ class StatementManager(models.Manager["Statement"]):
         target_parent_ids = target_parent_ids or {}
         target_order_keys = target_order_keys or {}
         new_statements: dict[UUID, Statement] = {}
-        new_type_nodes: dict[UUID, SimpleTypeNode] = {}
+        new_fields: dict[UUID, Field] = {}
         new_records: dict[UUID, Record] = {}
 
         # copy statements
@@ -168,19 +168,19 @@ class StatementManager(models.Manager["Statement"]):
                 # the relations are saved below after statement creation
                 # copy type nodes
                 if statement.root_type_tag is not None:
-                    for type_node in statement.type_nodes.all():
-                        old_id = type_node.id
-                        old_revision = type_node.revision
-                        type_node.id = uuid4()
-                        type_node._state.adding = True
-                        type_node.statement_id = target_statement_ids[statement.id]
-                        if type_node.reference_id is not None:
+                    for field in statement.fields.all():
+                        old_id = field.id
+                        old_revision = field.revision
+                        field.id = uuid4()
+                        field._state.adding = True
+                        field.statement_id = target_statement_ids[statement.id]
+                        if field.reference_id is not None:
                             # replace type node reference if it was copied (default to same for externals)
-                            type_node.reference_id = target_statement_ids.get(
-                                type_node.reference_id, type_node.reference_id
+                            field.reference_id = target_statement_ids.get(
+                                field.reference_id, field.reference_id
                             )
-                        new_type_nodes[old_id] = type_node
-                        _refmap(RefType.TYPE_NODE, old_id, old_revision, type_node)
+                        new_fields[old_id] = field
+                        _refmap(RefType.FIELD, old_id, old_revision, field)
 
                 # copy records (obviously very inefficient)
                 if statement.symbol_type == SymbolType.DATA:
@@ -233,7 +233,7 @@ class StatementManager(models.Manager["Statement"]):
         Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
 
         # create referencing statement's relations (FKs to statements)
-        SimpleTypeNode.objects.bulk_create(new_type_nodes.values())
+        Field.objects.bulk_create(new_fields.values())
         Record.objects.bulk_create(new_records.values())
 
         return ref_mappings
@@ -299,7 +299,7 @@ class Statement(UUIDModel, CrudModel):
     records: models.QuerySet["Record"]  # noqa via DatasetRecord.dataset
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
-    type_nodes: models.QuerySet[SimpleTypeNode]  # noqa via SimpleTypeNode.statement
+    fields: models.QuerySet[Field]  # noqa via SimpleTypeNode.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)

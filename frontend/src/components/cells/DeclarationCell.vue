@@ -6,7 +6,7 @@ import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
 import { StatementType } from "@/gql/graphql";
-import { localErrorsOf, symbolsLike } from "@/state/runtime";
+import { localErrorsOf, symbolsLike } from "@/state/module";
 import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();

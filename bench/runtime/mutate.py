@@ -16,7 +16,7 @@ from bench.models import mapper
 MutableThing = Union[
     models.File,
     models.Statement,
-    models.SimpleTypeNode,
+    models.Field,
     models.Record,
 ]
 
@@ -47,15 +47,15 @@ _TRIVIAL_PUBLIC_TO_INTERNAL = {
     MMT.SOFT_DELETE_STATEMENT: MMT.DELETE_STATEMENT,
     # (non-trivial: restore, comment)
     # Types
-    MMT.CREATE_TYPE_NODE: MMT.CREATE_TYPE_NODE,
-    MMT.UPDATE_TYPE_NODE: MMT.UPDATE_TYPE_NODE,
-    MMT.RENAME_TYPE_NODE: MMT.UPDATE_TYPE_NODE,
-    MMT.UPDATE_TYPE_NODE_DESCRIPTION: MMT.UPDATE_TYPE_NODE,
-    MMT.UPDATE_TYPE_NODE_TYPE: MMT.UPDATE_TYPE_NODE,
-    MMT.MOVE_TYPE_NODE: MMT.UPDATE_TYPE_NODE,
-    MMT.DELETE_TYPE_NODE: MMT.DELETE_TYPE_NODE,
-    MMT.SOFT_DELETE_TYPE_NODE: MMT.DELETE_TYPE_NODE,
-    MMT.RESTORE_TYPE_NODE: MMT.CREATE_TYPE_NODE,
+    MMT.CREATE_FIELD: MMT.CREATE_FIELD,
+    MMT.UPDATE_FIELD: MMT.UPDATE_FIELD,
+    MMT.RENAME_FIELD: MMT.UPDATE_FIELD,
+    MMT.UPDATE_FIELD_DESCRIPTION: MMT.UPDATE_FIELD,
+    MMT.UPDATE_FIELD_TYPE: MMT.UPDATE_FIELD,
+    MMT.MOVE_FIELD: MMT.UPDATE_FIELD,
+    MMT.DELETE_FIELD: MMT.DELETE_FIELD,
+    MMT.SOFT_DELETE_FIELD: MMT.DELETE_FIELD,
+    MMT.RESTORE_FIELD: MMT.CREATE_FIELD,
     # Records
     MMT.CREATE_RECORD: MMT.CREATE_RECORD,
     MMT.UPDATE_RECORD: MMT.UPDATE_RECORD,
@@ -71,7 +71,7 @@ _IGNORED_PUBLIC = {}
 _SCOPE_TO_TYPE_NAME = {
     MMS.FILE: "File",
     MMS.STATEMENT: "Statement",
-    MMS.TYPE_NODE: "TypeNode",
+    MMS.FIELD: "TypeNode",
     MMS.RECORD: "Record",
 }
 
@@ -91,7 +91,7 @@ def map_mutation_from_public(
         project_version_id = thing.project_version_id
         file_id = thing.file_id
         statement_id = thing.id
-    elif isinstance(thing, (models.SimpleTypeNode, models.Record)):
+    elif isinstance(thing, (models.Field, models.Record)):
         project_version_id = thing.statement.project_version_id
         file_id = thing.statement.file_id
         statement_id = thing.statement_id

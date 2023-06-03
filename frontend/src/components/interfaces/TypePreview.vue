@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { symbolOf, TypeFlag } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/module";
 import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,

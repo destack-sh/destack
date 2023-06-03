@@ -17,7 +17,7 @@ export function useClientOps() {
         $projectVersionId: GlobalID
         $fileId: GlobalID
         $statementId: GlobalID
-        $typeNodeId: GlobalID
+        $fieldId: GlobalID
         $recordId: GlobalID
         $path: String
       ) {
@@ -31,7 +31,7 @@ export function useClientOps() {
             projectVersionId: $projectVersionId
             fileId: $fileId
             statementId: $statementId
-            typeNodeId: $typeNodeId
+            fieldId: $fieldId
             recordId: $recordId
             path: $path
           }
@@ -60,7 +60,7 @@ export function useClientOps() {
     projectVersionId: string | null,
     fileId: string | null,
     statementId: string | null,
-    typeNodeId: string | null,
+    fieldId: string | null,
     recordId: string | null,
     path: string | null
   ) {
@@ -77,7 +77,7 @@ export function useClientOps() {
           projectVersionId,
           fileId,
           statementId,
-          typeNodeId,
+          fieldId,
           recordId,
           path,
         });

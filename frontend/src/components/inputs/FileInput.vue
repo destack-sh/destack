@@ -3,7 +3,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
-import { TypeFlag } from "@/state/runtime";
+import { TypeFlag } from "@/state/module";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowPathIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref } from "vue";

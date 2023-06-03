@@ -7,20 +7,20 @@ import {
   type BatchSoftDeleteRecordMutation,
   type CreateRecordMutation,
   type DeleteRecordMutation,
-  type DeleteTypeNodeMutation,
+  type DeleteFieldMutation,
   type RestoreRecordMutation,
-  type RestoreTypeNodeMutation,
+  type RestoreFieldMutation,
   type Scalars,
   type SoftDeleteRecordMutation,
-  type SoftDeleteTypeNodeMutation,
+  type SoftDeleteFieldMutation,
   type TruncateRecordsMutation,
-  type TypeNodeCreateInput,
-  type TypeNodeUpdateInput,
+  type FieldCreateInput,
+  type FieldUpdateInput,
   type UpdateRecordMutation,
   type UpdateStatementCodeMutation,
   type UpdateStatementDescriptionMutation,
   type UpdateStatementTextMutation,
-  type UpdateTypeNodeMutation,
+  type UpdateFieldMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -607,10 +607,10 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: createTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.CreateTypeNode,
+  const { mutate: createFieldMut } = registry.useMutation(
+    ModuleMutationType.CreateField,
     graphql(/* GraphQL */ `
-      mutation createTypeNode(
+      mutation createField(
         $id: GlobalID!
         $statementId: GlobalID!
         $tag: TypeTag!
@@ -623,7 +623,7 @@ export function useSymbolContentOps() {
         $value: JSON
         $referenceId: GlobalID
       ) {
-        createTypeNode(
+        createField(
           input: {
             id: $id
             statementId: $statementId
@@ -638,8 +638,8 @@ export function useSymbolContentOps() {
             referenceId: $referenceId
           }
         ) {
-          ... on SimpleTypeNode {
-            # should match SimpleTypeNodeContent fragment
+          ... on Field {
+            # should match FieldContent fragment
             id
             createdAt
             updatedAt
@@ -680,8 +680,8 @@ export function useSymbolContentOps() {
       }) =>
         ({
           __typename: "Mutation",
-          createTypeNode: {
-            __typename: "SimpleTypeNode",
+          createField: {
+            __typename: "Field",
             id: vars.id,
             statement: {
               __typename: "Statement",
@@ -703,18 +703,18 @@ export function useSymbolContentOps() {
           },
         } as any),
       update(cache, { data }) {
-        const createStatementTypeNode = data?.createTypeNode;
-        if (createStatementTypeNode?.__typename != "SimpleTypeNode") {
+        const createStatementField = data?.createField;
+        if (createStatementField?.__typename != "Field") {
           return; // error
         }
-        // extend Statement.type_nodes with (ref to) new type node
+        // extend Statement.fields with (ref to) new type node
         cache.modify({
-          id: cache.identify(createStatementTypeNode.statement),
+          id: cache.identify(createStatementField.statement),
           fields: {
-            typeNodes(existingTypeNodes = []) {
-              const newRef = cache.identify(createStatementTypeNode);
+            fields(existingFields = []) {
+              const newRef = cache.identify(createStatementField);
               return [
-                ...existingTypeNodes.filter((t: any) => t.__ref != newRef), // remove old type node if exists
+                ...existingFields.filter((t: any) => t.__ref != newRef), // remove old type node if exists
                 { __ref: newRef },
               ];
             },
@@ -725,12 +725,12 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: deleteTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.DeleteTypeNode,
+  const { mutate: deleteFieldMut } = registry.useMutation(
+    ModuleMutationType.DeleteField,
     graphql(/* GraphQL */ `
-      mutation deleteTypeNode($id: GlobalID!) {
-        deleteTypeNode(input: { id: $id }) {
-          ... on SimpleTypeNode {
+      mutation deleteField($id: GlobalID!) {
+        deleteField(input: { id: $id }) {
+          ... on Field {
             id
             deletedAt
           }
@@ -741,21 +741,21 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string }) =>
         ({
-          deleteTypeNode: {
-            __typename: "SimpleTypeNode",
+          deleteField: {
+            __typename: "Field",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
-        } as DeleteTypeNodeMutation),
+        } as DeleteFieldMutation),
     }
   );
 
-  const { mutate: softDeleteTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.SoftDeleteTypeNode,
+  const { mutate: softDeleteFieldMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteField,
     graphql(/* GraphQL */ `
-      mutation softDeleteTypeNode($id: GlobalID!) {
-        softDeleteTypeNode(input: { id: $id }) {
-          ... on SimpleTypeNode {
+      mutation softDeleteField($id: GlobalID!) {
+        softDeleteField(input: { id: $id }) {
+          ... on Field {
             id
             deletedAt
           }
@@ -766,21 +766,21 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string }) =>
         ({
-          softDeleteTypeNode: {
-            __typename: "SimpleTypeNode",
+          softDeleteField: {
+            __typename: "Field",
             id: vars.id,
             deletedAt: new Date().toISOString(),
           },
-        } as SoftDeleteTypeNodeMutation),
+        } as SoftDeleteFieldMutation),
     }
   );
 
-  const { mutate: restoreTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.RestoreTypeNode,
+  const { mutate: restoreFieldMut } = registry.useMutation(
+    ModuleMutationType.RestoreField,
     graphql(/* GraphQL */ `
-      mutation restoreTypeNode($id: GlobalID!) {
-        restoreStatementTypeNode(input: { id: $id }) {
-          ... on SimpleTypeNode {
+      mutation restoreField($id: GlobalID!) {
+        restoreStatementField(input: { id: $id }) {
+          ... on Field {
             id
             deletedAt
           }
@@ -791,16 +791,16 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string }) =>
         ({
-          restoreStatementTypeNode: {
-            __typename: "SimpleTypeNode",
+          restoreStatementField: {
+            __typename: "Field",
             id: vars.id,
             deletedAt: null,
           },
-        } as RestoreTypeNodeMutation),
+        } as RestoreFieldMutation),
     }
   );
 
-  function _toTypeNodeInput(input: TypeNodeCreateInput) {
+  function _toFieldInput(input: FieldCreateInput) {
     return {
       ...input,
       // set optional values to null if not provided
@@ -809,52 +809,52 @@ export function useSymbolContentOps() {
       value: input.value ?? null,
       referenceId: input.referenceId ?? null,
       flags: input.flags ?? 0,
-    } as TypeNodeCreateInput;
+    } as FieldCreateInput;
   }
 
-  async function createTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+  async function createField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
     await ops.perform({
       tx,
-      type: "symbol.createTypeNode",
+      type: "symbol.createField",
       do: async () => {
-        return await createTypeNodeMut(_toTypeNodeInput(typeNode));
+        return await createFieldMut(_toFieldInput(field));
       },
       undo: async () => {
-        return await softDeleteTypeNodeMut({ id: typeNode.id });
+        return await softDeleteFieldMut({ id: field.id });
       },
       redo: async () => {
-        return await restoreTypeNodeMut({ id: typeNode.id });
+        return await restoreFieldMut({ id: field.id });
       },
     });
   }
 
-  async function deleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+  async function deleteField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
     await ops.perform({
       tx,
-      type: "symbol.deleteTypeNode",
+      type: "symbol.deleteField",
       do: async () => {
-        return await deleteTypeNodeMut({ id: typeNode.id });
+        return await deleteFieldMut({ id: field.id });
       },
     });
   }
 
-  async function softDeleteTypeNode(tx: Transaction | null, statementId: string, typeNode: TypeNodeCreateInput) {
+  async function softDeleteField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
     await ops.perform({
       tx,
-      type: "symbol.softDeleteTypeNode",
+      type: "symbol.softDeleteField",
       do: async () => {
-        return await softDeleteTypeNodeMut({ id: typeNode.id });
+        return await softDeleteFieldMut({ id: field.id });
       },
       undo: async () => {
-        return await restoreTypeNodeMut({ id: typeNode.id });
+        return await restoreFieldMut({ id: field.id });
       },
     });
   }
 
-  const { mutate: updateTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.UpdateTypeNode,
+  const { mutate: updateFieldMut } = registry.useMutation(
+    ModuleMutationType.UpdateField,
     graphql(/* GraphQL */ `
-      mutation updateTypeNode(
+      mutation updateField(
         $id: GlobalID!
         $tag: TypeTag!
         $hint: TypeHint
@@ -864,7 +864,7 @@ export function useSymbolContentOps() {
         $value: JSON
         $referenceId: GlobalID
       ) {
-        updateTypeNode(
+        updateField(
           input: {
             id: $id
             tag: $tag
@@ -876,7 +876,7 @@ export function useSymbolContentOps() {
             referenceId: $referenceId
           }
         ) {
-          ... on SimpleTypeNode {
+          ... on Field {
             id
             tag
             hint
@@ -906,8 +906,8 @@ export function useSymbolContentOps() {
         referenceId?: string;
       }) => {
         return {
-          updateTypeNode: {
-            __typename: "SimpleTypeNode",
+          updateField: {
+            __typename: "Field",
             id: vars.id,
             tag: vars.tag,
             hint: vars.hint ?? null,
@@ -919,34 +919,30 @@ export function useSymbolContentOps() {
             value: vars.value,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
           },
-        } as UpdateTypeNodeMutation;
+        } as UpdateFieldMutation;
       },
     }
   );
 
-  async function updateTypeNode(
-    tx: Transaction | null,
-    oldTypeNode: TypeNodeUpdateInput,
-    newTypeNode: TypeNodeUpdateInput
-  ) {
+  async function updateField(tx: Transaction | null, oldField: FieldUpdateInput, newField: FieldUpdateInput) {
     await ops.perform({
       tx,
-      type: "symbol.updateTypeNode",
+      type: "symbol.updateField",
       do: async () => {
-        return await updateTypeNodeMut(newTypeNode);
+        return await updateFieldMut(newField);
       },
       undo: async () => {
-        return await updateTypeNodeMut(oldTypeNode);
+        return await updateFieldMut(oldField);
       },
     });
   }
 
-  const { mutate: moveTypeNodeMut } = registry.useMutation(
-    ModuleMutationType.MoveTypeNode,
+  const { mutate: moveFieldMut } = registry.useMutation(
+    ModuleMutationType.MoveField,
     graphql(/* GraphQL */ `
-      mutation moveTypeNode($id: GlobalID!, $orderKey: String!) {
-        moveTypeNode(input: { id: $id, orderKey: $orderKey }) {
-          ... on SimpleTypeNode {
+      mutation moveField($id: GlobalID!, $orderKey: String!) {
+        moveField(input: { id: $id, orderKey: $orderKey }) {
+          ... on Field {
             id
             orderKey
           }
@@ -957,8 +953,8 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string; orderKey: string }) =>
         ({
-          moveTypeNode: {
-            __typename: "SimpleTypeNode",
+          moveField: {
+            __typename: "Field",
             id: vars.id,
             orderKey: vars.orderKey,
           },
@@ -966,15 +962,15 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function moveTypeNode(tx: Transaction | null, id: string, oldOrderKey: string, newOrderKey: string) {
+  async function moveField(tx: Transaction | null, id: string, oldOrderKey: string, newOrderKey: string) {
     await ops.perform({
       tx,
-      type: "symbol.moveTypeNode",
+      type: "symbol.moveField",
       do: async () => {
-        return await moveTypeNodeMut({ id, orderKey: newOrderKey });
+        return await moveFieldMut({ id, orderKey: newOrderKey });
       },
       undo: async () => {
-        return await moveTypeNodeMut({ id, orderKey: oldOrderKey });
+        return await moveFieldMut({ id, orderKey: oldOrderKey });
       },
     });
   }
@@ -991,10 +987,10 @@ export function useSymbolContentOps() {
     batchSoftDeleteRecord,
     batchRestoreRecord,
     truncateRecords,
-    createTypeNode,
-    updateTypeNode,
-    moveTypeNode,
-    deleteTypeNode,
-    softDeleteTypeNode,
+    createField,
+    updateField,
+    moveField,
+    deleteField,
+    softDeleteField,
   };
 }

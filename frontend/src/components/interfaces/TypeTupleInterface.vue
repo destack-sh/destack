@@ -3,7 +3,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import TypePreview from "@/components/interfaces/TypePreview.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { ANY_TYPE_NODE, getEnumColor, type SimpleType } from "@/state/statement";
+import { ANY_FIELD, getEnumColor, type SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/bench";
@@ -42,7 +42,7 @@ const emit = defineEmits<{
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
+const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 const description: Ref<string> = ref(props.modelValue?.description ?? "");
 const editing = ref(false);
@@ -95,7 +95,7 @@ syncProperty({
 watch(
   () => [props.modelValue],
   () => {
-    value.value = props.modelValue ?? ANY_TYPE_NODE;
+    value.value = props.modelValue ?? ANY_FIELD;
   }
 );
 

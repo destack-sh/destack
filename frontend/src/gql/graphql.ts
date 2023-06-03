@@ -112,6 +112,7 @@ export type Client = Node & {
   closedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
+  field?: Maybe<Field>;
   file?: Maybe<File>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
@@ -122,7 +123,6 @@ export type Client = Node & {
   record?: Maybe<Record>;
   statement?: Maybe<Statement>;
   type: ClientType;
-  typeNode?: Maybe<SimpleTypeNode>;
   updatedAt: Scalars["DateTime"];
   user: User;
 };
@@ -158,6 +158,7 @@ export enum ClientType {
 export type ClientUpsertInput = {
   browserName?: InputMaybe<Scalars["String"]>;
   deviceName?: InputMaybe<Scalars["String"]>;
+  fieldId?: InputMaybe<Scalars["GlobalID"]>;
   fileId?: InputMaybe<Scalars["GlobalID"]>;
   id: Scalars["GlobalID"];
   path?: InputMaybe<Scalars["String"]>;
@@ -166,7 +167,6 @@ export type ClientUpsertInput = {
   recordId?: InputMaybe<Scalars["GlobalID"]>;
   statementId?: InputMaybe<Scalars["GlobalID"]>;
   type: ClientType;
-  typeNodeId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type CommitInput = {
@@ -287,6 +287,89 @@ export enum ExecutionTriggerType {
   Ui = "UI",
 }
 
+export type Field = Node &
+  SimpleType & {
+    __typename?: "Field";
+    createdAt: Scalars["DateTime"];
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    description?: Maybe<Scalars["String"]>;
+    flags: Scalars["Int"];
+    hint?: Maybe<TypeHint>;
+    id: Scalars["GlobalID"];
+    key: Scalars["String"];
+    name?: Maybe<Scalars["String"]>;
+    orderKey: Scalars["String"];
+    reference?: Maybe<Statement>;
+    revision: Scalars["Int"];
+    statement: Statement;
+    tag: TypeTag;
+    updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
+  };
+
+export type FieldCreateInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
+  id: Scalars["GlobalID"];
+  key: Scalars["String"];
+  name?: InputMaybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId: Scalars["GlobalID"];
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type FieldDeleteInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type FieldFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export type FieldMoveInput = {
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+};
+
+export type FieldOperationInfo = Field | OperationInfo;
+
+export type FieldRenameInput = {
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+};
+
+export type FieldRestoreInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type FieldUpdateDescriptionInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+};
+
+export type FieldUpdateInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
+  id: Scalars["GlobalID"];
+  name?: InputMaybe<Scalars["String"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type FieldUpdateTypeInput = {
+  flags?: Scalars["Int"];
+  hint?: InputMaybe<TypeHint>;
+  id: Scalars["GlobalID"];
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  tag: TypeTag;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
 export type File = Node & {
   __typename?: "File";
   createdAt: Scalars["DateTime"];
@@ -406,6 +489,7 @@ export type InterpSimpleType = Node &
 
 export type InterpSymbol = SimplyTyped & {
   __typename?: "InterpSymbol";
+  fields?: Maybe<Array<SimpleType>>;
   file: InterpFile;
   fqn: Scalars["String"];
   generated: Scalars["Boolean"];
@@ -440,34 +524,37 @@ export type ModuleMutation = {
 /** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
   CommentStatement = "COMMENT_STATEMENT",
+  CreateField = "CREATE_FIELD",
   CreateFile = "CREATE_FILE",
   CreateRecord = "CREATE_RECORD",
   CreateStatement = "CREATE_STATEMENT",
   CreateStatementBlank = "CREATE_STATEMENT_BLANK",
-  CreateTypeNode = "CREATE_TYPE_NODE",
+  DeleteField = "DELETE_FIELD",
   DeleteFile = "DELETE_FILE",
   DeleteRecord = "DELETE_RECORD",
   DeleteStatement = "DELETE_STATEMENT",
-  DeleteTypeNode = "DELETE_TYPE_NODE",
   MorphStatement = "MORPH_STATEMENT",
+  MoveField = "MOVE_FIELD",
   MoveFile = "MOVE_FILE",
   MoveRecord = "MOVE_RECORD",
   MoveStatement = "MOVE_STATEMENT",
-  MoveTypeNode = "MOVE_TYPE_NODE",
   PasteFile = "PASTE_FILE",
   PasteStatement = "PASTE_STATEMENT",
+  RenameField = "RENAME_FIELD",
   RenameFile = "RENAME_FILE",
   RenameStatement = "RENAME_STATEMENT",
-  RenameTypeNode = "RENAME_TYPE_NODE",
+  RestoreField = "RESTORE_FIELD",
   RestoreFile = "RESTORE_FILE",
   RestoreRecord = "RESTORE_RECORD",
   RestoreStatement = "RESTORE_STATEMENT",
-  RestoreTypeNode = "RESTORE_TYPE_NODE",
+  SoftDeleteField = "SOFT_DELETE_FIELD",
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
-  SoftDeleteTypeNode = "SOFT_DELETE_TYPE_NODE",
   TruncateRecords = "TRUNCATE_RECORDS",
+  UpdateField = "UPDATE_FIELD",
+  UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
+  UpdateFieldType = "UPDATE_FIELD_TYPE",
   UpdateFile = "UPDATE_FILE",
   UpdateRecord = "UPDATE_RECORD",
   UpdateRecordPath = "UPDATE_RECORD_PATH",
@@ -478,9 +565,6 @@ export enum ModuleMutationType {
   UpdateStatementModifier = "UPDATE_STATEMENT_MODIFIER",
   UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
-  UpdateTypeNode = "UPDATE_TYPE_NODE",
-  UpdateTypeNodeDescription = "UPDATE_TYPE_NODE_DESCRIPTION",
-  UpdateTypeNodeType = "UPDATE_TYPE_NODE_TYPE",
 }
 
 export type Mutation = {
@@ -500,6 +584,7 @@ export type Mutation = {
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
   createAccessToken: AccessTokenCreatePayloadOperationInfo;
+  createField: FieldOperationInfo;
   createFile: FileOperationInfo;
   createOrganization: OrganizationOperationInfo;
   createOrganizationInvites: OrganizationOperationInfo;
@@ -508,20 +593,19 @@ export type Mutation = {
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
   createStatementBlank: StatementOperationInfo;
-  createTypeNode: SimpleTypeNodeOperationInfo;
+  deleteField: FieldOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
   deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
-  deleteTypeNode: SimpleTypeNodeOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
+  moveField: FieldOperationInfo;
   moveFile: FileOperationInfo;
   moveRecord: RecordOperationInfo;
   moveStatement: StatementOperationInfo;
-  moveTypeNode: SimpleTypeNodeOperationInfo;
   notifyUploadedObject: RemoteObjectOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
@@ -531,15 +615,19 @@ export type Mutation = {
   restoreFile: FileOperationInfo;
   restoreRecord: RecordOperationInfo;
   restoreStatement: StatementOperationInfo;
-  restoreStatementTypeNode: SimpleTypeNodeOperationInfo;
+  restoreStatementField: FieldOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
+  softDeleteField: FieldOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteRecord: RecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
-  softDeleteTypeNode: SimpleTypeNodeOperationInfo;
   truncateRecords: StatementOperationInfo;
+  updateField: FieldOperationInfo;
+  updateFieldDescription: FieldOperationInfo;
+  updateFieldName: FieldOperationInfo;
+  updateFieldType: FieldOperationInfo;
   updateFile: FileOperationInfo;
   updateOrganization: OrganizationOperationInfo;
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
@@ -557,10 +645,6 @@ export type Mutation = {
   updateStatementModifier: StatementOperationInfo;
   updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
-  updateTypeNode: SimpleTypeNodeOperationInfo;
-  updateTypeNodeDescription: SimpleTypeNodeOperationInfo;
-  updateTypeNodeName: SimpleTypeNodeOperationInfo;
-  updateTypeNodeType: SimpleTypeNodeOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -621,6 +705,10 @@ export type MutationCreateAccessTokenArgs = {
   input: AccessTokenCreateInput;
 };
 
+export type MutationCreateFieldArgs = {
+  input: FieldCreateInput;
+};
+
 export type MutationCreateFileArgs = {
   input: FileCreateInput;
 };
@@ -653,8 +741,8 @@ export type MutationCreateStatementBlankArgs = {
   input: StatementCreateBlankInput;
 };
 
-export type MutationCreateTypeNodeArgs = {
-  input: TypeNodeCreateInput;
+export type MutationDeleteFieldArgs = {
+  input: FieldDeleteInput;
 };
 
 export type MutationDeleteFileArgs = {
@@ -677,16 +765,16 @@ export type MutationDeleteStatementArgs = {
   input: StatementDeleteInput;
 };
 
-export type MutationDeleteTypeNodeArgs = {
-  input: TypeNodeDeleteInput;
-};
-
 export type MutationMarkNotificationArgs = {
   input: NotificationMarkInput;
 };
 
 export type MutationMorphStatementArgs = {
   input: StatementMorphInput;
+};
+
+export type MutationMoveFieldArgs = {
+  input: FieldMoveInput;
 };
 
 export type MutationMoveFileArgs = {
@@ -699,10 +787,6 @@ export type MutationMoveRecordArgs = {
 
 export type MutationMoveStatementArgs = {
   input: StatementMoveInput;
-};
-
-export type MutationMoveTypeNodeArgs = {
-  input: TypeNodeMoveInput;
 };
 
 export type MutationNotifyUploadedObjectArgs = {
@@ -741,8 +825,8 @@ export type MutationRestoreStatementArgs = {
   input: StatementRestoreInput;
 };
 
-export type MutationRestoreStatementTypeNodeArgs = {
-  input: TypeNodeRestoreInput;
+export type MutationRestoreStatementFieldArgs = {
+  input: FieldRestoreInput;
 };
 
 export type MutationRevokeAccessTokenArgs = {
@@ -757,6 +841,10 @@ export type MutationSecretRootLoginArgs = {
   username: Scalars["String"];
 };
 
+export type MutationSoftDeleteFieldArgs = {
+  input: FieldDeleteInput;
+};
+
 export type MutationSoftDeleteFileArgs = {
   input: NodeInput;
 };
@@ -769,12 +857,24 @@ export type MutationSoftDeleteStatementArgs = {
   input: StatementSoftDeleteInput;
 };
 
-export type MutationSoftDeleteTypeNodeArgs = {
-  input: TypeNodeDeleteInput;
-};
-
 export type MutationTruncateRecordsArgs = {
   input: RecordTruncateInput;
+};
+
+export type MutationUpdateFieldArgs = {
+  input: FieldUpdateInput;
+};
+
+export type MutationUpdateFieldDescriptionArgs = {
+  input: FieldUpdateDescriptionInput;
+};
+
+export type MutationUpdateFieldNameArgs = {
+  input: FieldRenameInput;
+};
+
+export type MutationUpdateFieldTypeArgs = {
+  input: FieldUpdateTypeInput;
 };
 
 export type MutationUpdateFileArgs = {
@@ -839,22 +939,6 @@ export type MutationUpdateStatementReferenceArgs = {
 
 export type MutationUpdateStatementTextArgs = {
   input: StatementUpdateCodeInput;
-};
-
-export type MutationUpdateTypeNodeArgs = {
-  input: TypeNodeUpdateInput;
-};
-
-export type MutationUpdateTypeNodeDescriptionArgs = {
-  input: TypeNodeUpdateDescriptionInput;
-};
-
-export type MutationUpdateTypeNodeNameArgs = {
-  input: TypeNodeRenameInput;
-};
-
-export type MutationUpdateTypeNodeTypeArgs = {
-  input: TypeNodeUpdateTypeInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1606,10 +1690,10 @@ export enum RefMappingKind {
 }
 
 export enum RefType {
+  Field = "FIELD",
   File = "FILE",
   Record = "RECORD",
   Statement = "STATEMENT",
-  TypeNode = "TYPE_NODE",
 }
 
 export type RemoteObject = Node & {
@@ -1718,36 +1802,10 @@ export type SimpleType = {
   value?: Maybe<Scalars["JSON"]>;
 };
 
-export type SimpleTypeNode = Node &
-  SimpleType & {
-    __typename?: "SimpleTypeNode";
-    createdAt: Scalars["DateTime"];
-    deletedAt?: Maybe<Scalars["DateTime"]>;
-    description?: Maybe<Scalars["String"]>;
-    flags: Scalars["Int"];
-    hint?: Maybe<TypeHint>;
-    id: Scalars["GlobalID"];
-    key: Scalars["String"];
-    name?: Maybe<Scalars["String"]>;
-    orderKey: Scalars["String"];
-    reference?: Maybe<Statement>;
-    revision: Scalars["Int"];
-    statement: Statement;
-    tag: TypeTag;
-    updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
-  };
-
-export type SimpleTypeNodeFilter = {
-  isVisible?: InputMaybe<Scalars["Boolean"]>;
-};
-
-export type SimpleTypeNodeOperationInfo = OperationInfo | SimpleTypeNode;
-
 /** Anything typed using SimpleType nodes. */
 export type SimplyTyped = {
+  fields?: Maybe<Array<SimpleType>>;
   rootTypeTag?: Maybe<TypeTag>;
-  typeNodes?: Maybe<Array<SimpleType>>;
 };
 
 export type Statement = Node &
@@ -1760,6 +1818,7 @@ export type Statement = Node &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     descendants: Array<Statement>;
     description?: Maybe<Scalars["String"]>;
+    fields: Array<Field>;
     file: File;
     generated: Scalars["Boolean"];
     id: Scalars["GlobalID"];
@@ -1777,9 +1836,12 @@ export type Statement = Node &
     rootTypeTag?: Maybe<TypeTag>;
     symbolType?: Maybe<SymbolType>;
     type: StatementType;
-    typeNodes: Array<SimpleTypeNode>;
     updatedAt: Scalars["DateTime"];
   };
+
+export type StatementFieldsArgs = {
+  filters?: InputMaybe<FieldFilter>;
+};
 
 export type StatementRecordsArgs = {
   after?: InputMaybe<Scalars["String"]>;
@@ -1787,10 +1849,6 @@ export type StatementRecordsArgs = {
   filters?: InputMaybe<RecordFilter>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
-};
-
-export type StatementTypeNodesArgs = {
-  filters?: InputMaybe<SimpleTypeNodeFilter>;
 };
 
 export type StatementBatch = {
@@ -2031,63 +2089,6 @@ export enum TypeHint {
   Uuid = "UUID",
   Video = "VIDEO",
 }
-
-export type TypeNodeCreateInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  flags?: Scalars["Int"];
-  hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  key: Scalars["String"];
-  name?: InputMaybe<Scalars["String"]>;
-  orderKey: Scalars["String"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
-  statementId: Scalars["GlobalID"];
-  tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
-
-export type TypeNodeDeleteInput = {
-  id: Scalars["GlobalID"];
-};
-
-export type TypeNodeMoveInput = {
-  id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
-};
-
-export type TypeNodeRenameInput = {
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-};
-
-export type TypeNodeRestoreInput = {
-  id: Scalars["GlobalID"];
-};
-
-export type TypeNodeUpdateDescriptionInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  id: Scalars["GlobalID"];
-};
-
-export type TypeNodeUpdateInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  flags?: Scalars["Int"];
-  hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  name?: InputMaybe<Scalars["String"]>;
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
-  tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
-
-export type TypeNodeUpdateTypeInput = {
-  flags?: Scalars["Int"];
-  hint?: InputMaybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
-  tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
 
 /** The actual value type of a type node. */
 export enum TypeTag {
@@ -3116,8 +3117,8 @@ export type StatementHeaderFragment = {
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
-export type SimpleTypeNodeContentFragment = {
-  __typename?: "SimpleTypeNode";
+export type FieldContentFragment = {
+  __typename?: "Field";
   id: any;
   createdAt: any;
   updatedAt: any;
@@ -3132,7 +3133,7 @@ export type SimpleTypeNodeContentFragment = {
   orderKey: string;
   flags: number;
   reference?: { __typename?: "Statement"; id: any } | null;
-} & { " $fragmentName"?: "SimpleTypeNodeContentFragment" };
+} & { " $fragmentName"?: "FieldContentFragment" };
 
 export type StatementContentFragment = {
   __typename?: "Statement";
@@ -3156,12 +3157,105 @@ export type StatementContentFragment = {
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
-  typeNodes: Array<
-    { __typename?: "SimpleTypeNode" } & {
-      " $fragmentRefs"?: { SimpleTypeNodeContentFragment: SimpleTypeNodeContentFragment };
-    }
-  >;
+  fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "StatementContentFragment" };
+
+export type InterpSymbolContentFragment = {
+  __typename?: "InterpSymbol";
+  id: any;
+  name?: string | null;
+  type: StatementType;
+  orderKey: string;
+  parentId?: any | null;
+  modifier?: StatementModifier | null;
+  symbolType?: SymbolType | null;
+  rootTypeTag?: TypeTag | null;
+  generated: boolean;
+  fields?: Array<
+    | {
+        __typename?: "Field";
+        id: any;
+        name?: string | null;
+        key: string;
+        tag: TypeTag;
+        hint?: TypeHint | null;
+        description?: string | null;
+        value?: any | null;
+        orderKey: string;
+        flags: number;
+        reference?: { __typename?: "Statement"; id: any } | null;
+      }
+    | {
+        __typename?: "InterpSimpleType";
+        id: any;
+        name?: string | null;
+        key: string;
+        tag: TypeTag;
+        hint?: TypeHint | null;
+        description?: string | null;
+        value?: any | null;
+        orderKey: string;
+        flags: number;
+        reference?: { __typename?: "Statement"; id: any } | null;
+      }
+  > | null;
+} & { " $fragmentName"?: "InterpSymbolContentFragment" };
+
+export type InterpModuleContentFragment = {
+  __typename?: "InterpModule";
+  id: any;
+  name: string;
+  files: Array<{
+    __typename?: "InterpFile";
+    id: any;
+    path: string;
+    symbols: Array<
+      { __typename?: "InterpSymbol" } & {
+        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
+      }
+    >;
+  }>;
+  dependencies: Array<{
+    __typename?: "InterpModule";
+    id: any;
+    name: string;
+    files: Array<{
+      __typename?: "InterpFile";
+      id: any;
+      path: string;
+      symbols: Array<
+        { __typename?: "InterpSymbol" } & {
+          " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
+        }
+      >;
+    }>;
+  }>;
+  errors: Array<
+    { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
+  >;
+} & { " $fragmentName"?: "InterpModuleContentFragment" };
+
+export type InterpErrorContentFragment = {
+  __typename?: "InterpError";
+  type: ErrorType;
+  message: string;
+  symbol?:
+    | ({ __typename?: "InterpSymbol" } & {
+        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
+      })
+    | null;
+} & { " $fragmentName"?: "InterpErrorContentFragment" };
+
+export type InterpChangedSubscriptionVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type InterpChangedSubscription = {
+  __typename?: "Subscription";
+  interpChanged: { __typename?: "InterpModule" } & {
+    " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
+  };
+};
 
 export type NewNotificationsQueryVariables = Exact<{
   after?: InputMaybe<Scalars["String"]>;
@@ -3231,7 +3325,7 @@ export type UpsertClientMutationVariables = Exact<{
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   fileId?: InputMaybe<Scalars["GlobalID"]>;
   statementId?: InputMaybe<Scalars["GlobalID"]>;
-  typeNodeId?: InputMaybe<Scalars["GlobalID"]>;
+  fieldId?: InputMaybe<Scalars["GlobalID"]>;
   recordId?: InputMaybe<Scalars["GlobalID"]>;
   path?: InputMaybe<Scalars["String"]>;
 }>;
@@ -3679,7 +3773,7 @@ export type CreateStatementMutation = {
         parent?: { __typename?: "Statement"; id: any } | null;
         reference?: { __typename?: "Statement"; id: any } | null;
         referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
-        typeNodes: Array<{ __typename?: "SimpleTypeNode"; id: any }>;
+        fields: Array<{ __typename?: "Field"; id: any }>;
       };
 };
 
@@ -4093,7 +4187,7 @@ export type TruncateRecordsMutation = {
     | { __typename?: "Statement"; id: any };
 };
 
-export type CreateTypeNodeMutationVariables = Exact<{
+export type CreateFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
@@ -4107,14 +4201,11 @@ export type CreateTypeNodeMutationVariables = Exact<{
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
-export type CreateTypeNodeMutation = {
+export type CreateFieldMutation = {
   __typename?: "Mutation";
-  createTypeNode:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
+  createField:
     | {
-        __typename?: "SimpleTypeNode";
+        __typename?: "Field";
         id: any;
         createdAt: any;
         updatedAt: any;
@@ -4130,49 +4221,52 @@ export type CreateTypeNodeMutation = {
         flags: number;
         statement: { __typename?: "Statement"; id: any };
         reference?: { __typename?: "Statement"; id: any } | null;
-      };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
-export type DeleteTypeNodeMutationVariables = Exact<{
+export type DeleteFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type DeleteTypeNodeMutation = {
+export type DeleteFieldMutation = {
   __typename?: "Mutation";
-  deleteTypeNode:
+  deleteField:
+    | { __typename?: "Field"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
+      });
 };
 
-export type SoftDeleteTypeNodeMutationVariables = Exact<{
+export type SoftDeleteFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type SoftDeleteTypeNodeMutation = {
+export type SoftDeleteFieldMutation = {
   __typename?: "Mutation";
-  softDeleteTypeNode:
+  softDeleteField:
+    | { __typename?: "Field"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
+      });
 };
 
-export type RestoreTypeNodeMutationVariables = Exact<{
+export type RestoreFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type RestoreTypeNodeMutation = {
+export type RestoreFieldMutation = {
   __typename?: "Mutation";
-  restoreStatementTypeNode:
+  restoreStatementField:
+    | { __typename?: "Field"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "SimpleTypeNode"; id: any; deletedAt?: any | null };
+      });
 };
 
-export type UpdateTypeNodeMutationVariables = Exact<{
+export type UpdateFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   tag: TypeTag;
   hint?: InputMaybe<TypeHint>;
@@ -4183,14 +4277,11 @@ export type UpdateTypeNodeMutationVariables = Exact<{
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
-export type UpdateTypeNodeMutation = {
+export type UpdateFieldMutation = {
   __typename?: "Mutation";
-  updateTypeNode:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
+  updateField:
     | {
-        __typename?: "SimpleTypeNode";
+        __typename?: "Field";
         id: any;
         tag: TypeTag;
         hint?: TypeHint | null;
@@ -4201,21 +4292,24 @@ export type UpdateTypeNodeMutation = {
         flags: number;
         value?: any | null;
         reference?: { __typename?: "Statement"; id: any } | null;
-      };
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
-export type MoveTypeNodeMutationVariables = Exact<{
+export type MoveFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
 }>;
 
-export type MoveTypeNodeMutation = {
+export type MoveFieldMutation = {
   __typename?: "Mutation";
-  moveTypeNode:
+  moveField:
+    | { __typename?: "Field"; id: any; orderKey: string }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "SimpleTypeNode"; id: any; orderKey: string };
+      });
 };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
@@ -4355,88 +4449,6 @@ export type RestoreMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
-};
-
-export type InterpSymbolContentFragment = {
-  __typename?: "InterpSymbol";
-  id: any;
-  name?: string | null;
-  type: StatementType;
-  orderKey: string;
-  parentId?: any | null;
-  modifier?: StatementModifier | null;
-  symbolType?: SymbolType | null;
-  rootTypeTag?: TypeTag | null;
-  generated: boolean;
-  typeNodes?: Array<{
-    __typename?: "InterpSimpleType";
-    id: any;
-    name?: string | null;
-    key: string;
-    tag: TypeTag;
-    hint?: TypeHint | null;
-    description?: string | null;
-    value?: any | null;
-    orderKey: string;
-    flags: number;
-    reference?: { __typename?: "Statement"; id: any } | null;
-  }> | null;
-} & { " $fragmentName"?: "InterpSymbolContentFragment" };
-
-export type InterpModuleContentFragment = {
-  __typename?: "InterpModule";
-  id: any;
-  name: string;
-  files: Array<{
-    __typename?: "InterpFile";
-    id: any;
-    path: string;
-    symbols: Array<
-      { __typename?: "InterpSymbol" } & {
-        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
-      }
-    >;
-  }>;
-  dependencies: Array<{
-    __typename?: "InterpModule";
-    id: any;
-    name: string;
-    files: Array<{
-      __typename?: "InterpFile";
-      id: any;
-      path: string;
-      symbols: Array<
-        { __typename?: "InterpSymbol" } & {
-          " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
-        }
-      >;
-    }>;
-  }>;
-  errors: Array<
-    { __typename?: "InterpError" } & { " $fragmentRefs"?: { InterpErrorContentFragment: InterpErrorContentFragment } }
-  >;
-} & { " $fragmentName"?: "InterpModuleContentFragment" };
-
-export type InterpErrorContentFragment = {
-  __typename?: "InterpError";
-  type: ErrorType;
-  message: string;
-  symbol?:
-    | ({ __typename?: "InterpSymbol" } & {
-        " $fragmentRefs"?: { InterpSymbolContentFragment: InterpSymbolContentFragment };
-      })
-    | null;
-} & { " $fragmentName"?: "InterpErrorContentFragment" };
-
-export type InterpChangedSubscriptionVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type InterpChangedSubscription = {
-  __typename?: "Subscription";
-  interpChanged: { __typename?: "InterpModule" } & {
-    " $fragmentRefs"?: { InterpModuleContentFragment: InterpModuleContentFragment };
-  };
 };
 
 export type RevealSecretQueryVariables = Exact<{
@@ -4920,13 +4932,13 @@ export const StatementHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementHeaderFragment, unknown>;
-export const SimpleTypeNodeContentFragmentDoc = {
+export const FieldContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "SimpleTypeNodeContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+      name: { kind: "Name", value: "FieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -4955,7 +4967,7 @@ export const SimpleTypeNodeContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<SimpleTypeNodeContentFragment, unknown>;
+} as unknown as DocumentNode<FieldContentFragment, unknown>;
 export const StatementContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5009,7 +5021,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "typeNodes" },
+            name: { kind: "Name", value: "fields" },
             arguments: [
               {
                 kind: "Argument",
@@ -5028,7 +5040,7 @@ export const StatementContentFragmentDoc = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "SimpleTypeNodeContent" } }],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
             },
           },
         ],
@@ -5036,20 +5048,6 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
-export const _OrderKeyFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "_orderKey" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [{ kind: "Field", name: { kind: "Name", value: "orderKey" } }],
-      },
-    },
-  ],
-} as unknown as DocumentNode<_OrderKeyFragment, unknown>;
 export const InterpSymbolContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5071,7 +5069,7 @@ export const InterpSymbolContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "generated" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "typeNodes" },
+            name: { kind: "Name", value: "fields" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -5201,6 +5199,20 @@ export const InterpModuleContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpModuleContentFragment, unknown>;
+export const _OrderKeyFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "_orderKey" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [{ kind: "Field", name: { kind: "Name", value: "orderKey" } }],
+      },
+    },
+  ],
+} as unknown as DocumentNode<_OrderKeyFragment, unknown>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [
@@ -5751,7 +5763,7 @@ export const FileContentByIdDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const ProfileAccessTokensDocument = {
@@ -7824,6 +7836,46 @@ export const ExecutionsChangedDocument = {
     ...ExecutionContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ExecutionsChangedSubscription, ExecutionsChangedSubscriptionVariables>;
+export const InterpChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "interpChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "interpChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...InterpModuleContentFragmentDoc.definitions,
+    ...InterpSymbolContentFragmentDoc.definitions,
+    ...InterpErrorContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<InterpChangedSubscription, InterpChangedSubscriptionVariables>;
 export const NewNotificationsDocument = {
   kind: "Document",
   definitions: [
@@ -8114,7 +8166,7 @@ export const UpsertClientDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "typeNodeId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "fieldId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
         {
@@ -8183,8 +8235,8 @@ export const UpsertClientDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "typeNodeId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "typeNodeId" } },
+                      name: { kind: "Name", value: "fieldId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fieldId" } },
                     },
                     {
                       kind: "ObjectField",
@@ -10051,7 +10103,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "typeNodes" },
+                        name: { kind: "Name", value: "fields" },
                         arguments: [
                           {
                             kind: "Argument",
@@ -11069,7 +11121,7 @@ export const BatchPasteStatementDocument = {
       },
     },
     ...StatementContentFragmentDoc.definitions,
-    ...SimpleTypeNodeContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
@@ -12021,13 +12073,13 @@ export const TruncateRecordsDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<TruncateRecordsMutation, TruncateRecordsMutationVariables>;
-export const CreateTypeNodeDocument = {
+export const CreateFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "createTypeNode" },
+      name: { kind: "Name", value: "createField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12090,7 +12142,7 @@ export const CreateTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "createTypeNode" },
+            name: { kind: "Name", value: "createField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12162,7 +12214,7 @@ export const CreateTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12207,14 +12259,14 @@ export const CreateTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<CreateTypeNodeMutation, CreateTypeNodeMutationVariables>;
-export const DeleteTypeNodeDocument = {
+} as unknown as DocumentNode<CreateFieldMutation, CreateFieldMutationVariables>;
+export const DeleteFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "deleteTypeNode" },
+      name: { kind: "Name", value: "deleteField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12227,7 +12279,7 @@ export const DeleteTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "deleteTypeNode" },
+            name: { kind: "Name", value: "deleteField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12249,7 +12301,7 @@ export const DeleteTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12267,14 +12319,14 @@ export const DeleteTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<DeleteTypeNodeMutation, DeleteTypeNodeMutationVariables>;
-export const SoftDeleteTypeNodeDocument = {
+} as unknown as DocumentNode<DeleteFieldMutation, DeleteFieldMutationVariables>;
+export const SoftDeleteFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "softDeleteTypeNode" },
+      name: { kind: "Name", value: "softDeleteField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12287,7 +12339,7 @@ export const SoftDeleteTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "softDeleteTypeNode" },
+            name: { kind: "Name", value: "softDeleteField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12309,7 +12361,7 @@ export const SoftDeleteTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12327,14 +12379,14 @@ export const SoftDeleteTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<SoftDeleteTypeNodeMutation, SoftDeleteTypeNodeMutationVariables>;
-export const RestoreTypeNodeDocument = {
+} as unknown as DocumentNode<SoftDeleteFieldMutation, SoftDeleteFieldMutationVariables>;
+export const RestoreFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "restoreTypeNode" },
+      name: { kind: "Name", value: "restoreField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12347,7 +12399,7 @@ export const RestoreTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "restoreStatementTypeNode" },
+            name: { kind: "Name", value: "restoreStatementField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12369,7 +12421,7 @@ export const RestoreTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12387,14 +12439,14 @@ export const RestoreTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<RestoreTypeNodeMutation, RestoreTypeNodeMutationVariables>;
-export const UpdateTypeNodeDocument = {
+} as unknown as DocumentNode<RestoreFieldMutation, RestoreFieldMutationVariables>;
+export const UpdateFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateTypeNode" },
+      name: { kind: "Name", value: "updateField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12442,7 +12494,7 @@ export const UpdateTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateTypeNode" },
+            name: { kind: "Name", value: "updateField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12499,7 +12551,7 @@ export const UpdateTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12532,14 +12584,14 @@ export const UpdateTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<UpdateTypeNodeMutation, UpdateTypeNodeMutationVariables>;
-export const MoveTypeNodeDocument = {
+} as unknown as DocumentNode<UpdateFieldMutation, UpdateFieldMutationVariables>;
+export const MoveFieldDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "moveTypeNode" },
+      name: { kind: "Name", value: "moveField" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -12557,7 +12609,7 @@ export const MoveTypeNodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "moveTypeNode" },
+            name: { kind: "Name", value: "moveField" },
             arguments: [
               {
                 kind: "Argument",
@@ -12584,7 +12636,7 @@ export const MoveTypeNodeDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SimpleTypeNode" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Field" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -12602,7 +12654,7 @@ export const MoveTypeNodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<MoveTypeNodeMutation, MoveTypeNodeMutationVariables>;
+} as unknown as DocumentNode<MoveFieldMutation, MoveFieldMutationVariables>;
 export const LogoutDocument = {
   kind: "Document",
   definitions: [
@@ -13084,46 +13136,6 @@ export const RestoreDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreMutation, RestoreMutationVariables>;
-export const InterpChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "interpChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "interpChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpModuleContent" } }],
-            },
-          },
-        ],
-      },
-    },
-    ...InterpModuleContentFragmentDoc.definitions,
-    ...InterpSymbolContentFragmentDoc.definitions,
-    ...InterpErrorContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<InterpChangedSubscription, InterpChangedSubscriptionVariables>;
 export const RevealSecretDocument = {
   kind: "Document",
   definitions: [

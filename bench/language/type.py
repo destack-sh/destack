@@ -559,8 +559,8 @@ class TypeNode(abc.ABC):
     hint: Optional[TypeHint]
     flags: TypeFlag
     description: Optional[str]
-    type_nodes: list["TypeNode"]
-    self_type_nodes: list["TypeNode"]
+    fields: list["TypeNode"]
+    self_fields: list["TypeNode"]  # original fields excluding resolved fields
     value: Optional[LiteralValue]
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
 
@@ -570,17 +570,17 @@ class TypeNode(abc.ABC):
 
     @property
     def inputs(self) -> list["TypeNode"]:
-        return [child for child in self.type_nodes if not child.flags & TypeFlag.IsOutput]
+        return [child for child in self.fields if not child.flags & TypeFlag.IsOutput]
 
     @property
     def outputs(self) -> list["TypeNode"]:
-        return [child for child in self.type_nodes if child.flags & TypeFlag.IsOutput]
+        return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
     def __getitem__(self, item: str) -> "TypeNode":
         node = first(
             (
                 child
-                for child in self.type_nodes
+                for child in self.fields
                 if child.name == item or child.ident == item or child.key == item
             ),
             None,
@@ -592,7 +592,7 @@ class TypeNode(abc.ABC):
     def __contains__(self, item):
         return any(
             child
-            for child in self.type_nodes
+            for child in self.fields
             if child.name == item or child.ident == item or child.key == item
         )
 
@@ -604,8 +604,8 @@ class TypeNode(abc.ABC):
         yield self
         if include_references and self.reference:
             yield from self.reference.walk(path, include_references=include_references)
-        if self.type_nodes:
-            for child in self.type_nodes:
+        if self.fields:
+            for child in self.fields:
                 if child in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
                 yield from child.walk(path, include_references=include_references)
@@ -627,23 +627,23 @@ class TypeNode(abc.ABC):
 
 
 # :TypeNodeKeys
-TYPE_NODE_KEY_LENGTH = 8
+FIELD_KEY_LENGTH = 8
 
 
-def new_type_node_key() -> str:
+def new_field_key() -> str:
     """Gets a random alphabetic key as a persistent key for a type node."""
     # (upper and lower case letters only)
-    return "".join(random.choices(string.ascii_letters, k=TYPE_NODE_KEY_LENGTH))
+    return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
 
 
 @dataclass(repr=False)
-class SimpleTypeNode(TypeNode):
+class Field(TypeNode):
     name: Optional[str]
     tag: TypeTag
     hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
     id: UUID = field(default_factory=uuid.uuid4)
-    key: str = field(default_factory=new_type_node_key)
+    key: str = field(default_factory=new_field_key)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     value: Optional[LiteralValue] = None  # for literal types
@@ -658,16 +658,16 @@ class SimpleTypeNode(TypeNode):
         return f"<SimpleTypeNode {self}>"
 
     @property
-    def type_nodes(self) -> list[TypeNode]:
+    def fields(self) -> list[TypeNode]:
         if isinstance(self.reference, TypeContent):
-            return self.reference.type_nodes
+            return self.reference.fields
         return []
 
-    self_type_nodes = type_nodes  # always the same for simple type nodes
+    self_fields = fields  # the same by default
 
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
-    ) -> "SimpleTypeNode":
+    ) -> "Field":
         if not keep_reference or self.reference is None:
             reference = self.source_reference
         elif deepcopy_reference and isinstance(self.reference, TypeContent):
@@ -676,7 +676,7 @@ class SimpleTypeNode(TypeNode):
             )
         else:
             reference = self.reference
-        return SimpleTypeNode(
+        return Field(
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
             key=self.key,
@@ -695,10 +695,10 @@ class SimpleTypeNode(TypeNode):
 class TypeContent(SymbolContent, TypeNode):
     name: Optional[str] = None
     tag: TypeTag = required_field()
-    type_nodes: list[SimpleTypeNode] = field(default_factory=list)
-    self_type_nodes: list[SimpleTypeNode] = None
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
+    fields: list[TypeNode] = field(default_factory=list)
+    self_fields: list[TypeNode] = None
     # not directly configurable for types
     hint = None
     key = None
@@ -715,20 +715,20 @@ class TypeContent(SymbolContent, TypeNode):
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
     ) -> "TypeContent":
-        type_nodes = [
-            type_node.deepcopy(
+        fields = [
+            field.deepcopy(
                 keep_id=keep_id,
                 keep_reference=keep_reference,
                 deepcopy_reference=deepcopy_reference,
             )
-            for type_node in self.type_nodes
+            for field in self.fields
         ]
         return TypeContent(
             name=self.name,
             tag=self.tag,
             flags=self.flags,
             description=self.description,
-            type_nodes=type_nodes,
+            fields=fields,
         )
 
 
@@ -739,20 +739,20 @@ class Type(InterpSymbol, TypeContent):
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
     ) -> "Type":
-        type_nodes = [
-            type_node.deepcopy(
+        fields = [
+            field.deepcopy(
                 keep_id=keep_id,
                 keep_reference=keep_reference,
                 deepcopy_reference=deepcopy_reference,
             )
-            for type_node in self.type_nodes
+            for field in self.fields
         ]
         return Type(
             id=self.id if keep_id else uuid.uuid4(),
             name=self.name,
             tag=self.tag,
             description=self.description,
-            type_nodes=type_nodes,
+            fields=fields,
             expectations=self.expectations,
             flags=self.flags,
             source=self.source,
@@ -1120,9 +1120,7 @@ def make_struct_type(
     )
 
 
-def deepcopy_types(
-    nodes: list[SimpleTypeNode] | None, keep_id: bool = True
-) -> list[SimpleTypeNode]:
+def deepcopy_types(nodes: list[Field] | None, keep_id: bool = True) -> list[Field]:
     nodes = nodes or []
     return [node.deepcopy(keep_id=keep_id) for node in nodes]
 
@@ -1133,5 +1131,5 @@ def flatten_func_type(func_type: TypeContent) -> TypeContent:
     return TypeContent(
         name=func_type.name,
         tag=TypeTag.STRUCT,
-        type_nodes=[*deepcopy_types(func_type.type_nodes, keep_id=False)],
+        fields=[*deepcopy_types(func_type.fields, keep_id=False)],
     )

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { symbolOf, TypeFlag } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
@@ -45,7 +45,7 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => symbolOf(props.type.reference?.id));
 
 const fields = computed(() => {
-  return runtimeType.value?.typeNodes ?? [];
+  return runtimeType.value?.fields ?? [];
 });
 const titleField: Ref<SimpleType | undefined> = computed(() => {
   // get first name or string field

@@ -2,7 +2,7 @@
 import type { InterpSymbol } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import type { StatementHeader } from "@/state/bench";
-import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/runtime";
+import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";

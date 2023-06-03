@@ -6,15 +6,15 @@ import {
   TypeHint,
   TypeTag,
   type InterpSymbol,
-  type SimpleTypeNode,
-  type TypeNodeCreateInput,
-  type TypeNodeUpdateInput,
+  type Field,
+  type FieldCreateInput,
+  type FieldUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { FileHeaderType, SimpleTypeNodeType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { FileHeaderType, FieldType, StatementContentType, StatementHeaderType } from "@/state/fragments";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { newDatasetRecordId, newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { TypeFlag } from "@/state/runtime";
+import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
+import { TypeFlag } from "@/state/module";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { computed, inject, type Ref } from "vue";
@@ -49,20 +49,20 @@ export function useStatementContext() {
   const reference = computed(() => useFragment(StatementHeaderType, context.reference.value));
 
   const rootTypeTag = computed(() => statement.value.rootTypeTag);
-  const typeNodes = computed(() =>
-    statement.value.typeNodes
-      ?.map((n) => useFragment(SimpleTypeNodeType, n))
+  const fields = computed(() =>
+    statement.value.fields
+      ?.map((n) => useFragment(FieldType, n))
       .filter((n) => n.deletedAt == null)
       .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
   );
-  const typeNodesByName = computed(() => {
-    const typeNodesByName: Record<string, FragmentType<typeof SimpleTypeNodeType>> = {};
-    for (const typeNode of typeNodes.value) {
-      if (typeNode.name != null) {
-        typeNodesByName[typeNode.name] = typeNode;
+  const fieldsByName = computed(() => {
+    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    for (const field of fields.value) {
+      if (field.name != null) {
+        fieldsByName[field.name] = field;
       }
     }
-    return typeNodesByName;
+    return fieldsByName;
   });
 
   const symbolSubtype: Ref<string | null> = computed(() => {
@@ -297,46 +297,42 @@ export function useStatementContext() {
 
   // type node helpers
 
-  async function createTypeNode(typeNode: SimpleType) {
-    await ops.symbol.createTypeNode(null, statement.value.id, { ...typeNode, statementId: statement.value.id });
+  async function createField(field: SimpleType) {
+    await ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
   }
 
-  async function updateTypeNode(typeNode: SimpleType, newTypeNode: SimpleType) {
-    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
-    if (!oldTypeNode) {
+  async function updateField(field: SimpleType, newField: SimpleType) {
+    const oldField = fields.value?.find((n) => n.id == field.id);
+    if (!oldField) {
       throw new Error("cannot update type node that doesn't exist");
     }
-    newTypeNode = {
-      ...oldTypeNode,
-      tag: newTypeNode.tag ?? oldTypeNode.tag,
-      hint: newTypeNode.hint ?? null,
-      name: newTypeNode.name ?? oldTypeNode.name,
-      description: newTypeNode.description ?? oldTypeNode.description,
-      value: newTypeNode.value,
-      reference: newTypeNode.reference,
-      flags: newTypeNode.flags,
+    newField = {
+      ...oldField,
+      tag: newField.tag ?? oldField.tag,
+      hint: newField.hint ?? null,
+      name: newField.name ?? oldField.name,
+      description: newField.description ?? oldField.description,
+      value: newField.value,
+      reference: newField.reference,
+      flags: newField.flags,
     };
-    await ops.symbol.updateTypeNode(
-      null,
-      makeTypeNodeUpdate(oldTypeNode as SimpleTypeNode),
-      makeTypeNodeUpdate(newTypeNode as SimpleTypeNode)
-    );
+    await ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
   }
 
-  async function moveTypeNode(typeNode: SimpleType, orderKey: string) {
-    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
-    if (!oldTypeNode) {
+  async function moveField(field: SimpleType, orderKey: string) {
+    const oldField = fields.value?.find((n) => n.id == field.id);
+    if (!oldField) {
       throw new Error("cannot move type node that doesn't exist");
     }
-    await ops.symbol.moveTypeNode(null, typeNode.id, oldTypeNode.orderKey, orderKey);
+    await ops.symbol.moveField(null, field.id, oldField.orderKey, orderKey);
   }
 
-  async function deleteTypeNode(typeNode: { id: string }) {
-    const oldTypeNode = typeNodes.value?.find((n) => n.id == typeNode.id);
-    if (!oldTypeNode) {
+  async function deleteField(field: { id: string }) {
+    const oldField = fields.value?.find((n) => n.id == field.id);
+    if (!oldField) {
       throw new Error("cannot delete type node that doesn't exist");
     }
-    await ops.symbol.softDeleteTypeNode(null, statement.value.id, makeTypeNodeInput(statement.value.id, oldTypeNode));
+    await ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField));
   }
 
   // basic inline actions
@@ -352,8 +348,8 @@ export function useStatementContext() {
     xOffset: context.xOffset,
     typeRootTag: rootTypeTag,
     symbolSubtype,
-    typeNodes,
-    typeNodesByName,
+    fields,
+    fieldsByName,
     // actions
     actions,
     navigateUp,
@@ -371,10 +367,10 @@ export function useStatementContext() {
     syncName,
     syncCode,
     syncDescription,
-    createTypeNode,
-    updateTypeNode,
-    moveTypeNode,
-    deleteTypeNode,
+    createField,
+    updateField,
+    moveField,
+    deleteField,
     deleteSelf,
     tryDeleteLeft,
     insertAbove,
@@ -382,32 +378,32 @@ export function useStatementContext() {
   };
 }
 
-function makeTypeNodeInput(id: string, typeNode: SimpleType): TypeNodeCreateInput {
+function makeFieldInput(id: string, field: SimpleType): FieldCreateInput {
   return {
     statementId: id,
-    id: typeNode.id,
-    tag: typeNode.tag,
-    hint: typeNode.hint ?? null,
-    key: newTypeNodeKey(),
-    orderKey: typeNode.orderKey,
-    referenceId: typeNode.reference?.id ?? null,
-    description: typeNode.description ?? null,
-    name: typeNode.name ?? null,
-    value: typeNode.value ?? null,
-    flags: typeNode.flags,
+    id: field.id,
+    tag: field.tag,
+    hint: field.hint ?? null,
+    key: newFieldKey(),
+    orderKey: field.orderKey,
+    referenceId: field.reference?.id ?? null,
+    description: field.description ?? null,
+    name: field.name ?? null,
+    value: field.value ?? null,
+    flags: field.flags,
   };
 }
 
-function makeTypeNodeUpdate(typeNode: SimpleType): TypeNodeUpdateInput {
+function makeFieldUpdate(field: SimpleType): FieldUpdateInput {
   return {
-    id: typeNode.id,
-    tag: typeNode.tag,
-    hint: typeNode.hint ?? null,
-    referenceId: typeNode.reference?.id ?? null,
-    description: typeNode.description ?? null,
-    name: typeNode.name ?? null,
-    value: typeNode.value ?? null,
-    flags: typeNode.flags,
+    id: field.id,
+    tag: field.tag,
+    hint: field.hint ?? null,
+    referenceId: field.reference?.id ?? null,
+    description: field.description ?? null,
+    name: field.name ?? null,
+    value: field.value ?? null,
+    flags: field.flags,
   };
 }
 
@@ -452,7 +448,7 @@ export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boole
   }
 }
 
-export function makeTypeNode(data: {
+export function makeField(data: {
   name?: string | null;
   tag: TypeTag;
   hint?: TypeHint | null;
@@ -462,25 +458,25 @@ export function makeTypeNode(data: {
   reference?: { id: string; name?: string };
   flags?: number;
 }): SimpleType {
-  const typeNodeData: SimpleType = {
-    id: newTypeNodeId(),
+  const fieldData: SimpleType = {
+    id: newFieldId(),
     name: data.name ?? null,
     tag: data.tag,
     hint: data.hint ?? null,
-    key: data.key ?? newTypeNodeKey(),
+    key: data.key ?? newFieldKey(),
     orderKey: data.orderKey ?? INTEGER_ZERO,
     value: data.value ?? null,
     reference: data.reference,
     flags: data.flags ?? 0,
   };
-  return typeNodeData;
+  return fieldData;
 }
 
-export type SimpleType = Omit<SimpleTypeNode, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
+export type SimpleType = Omit<Field, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
 
-export const STRING_TYPE_NODE = makeTypeNode({ tag: TypeTag.String });
-export const NAME_TYPE_NODE = makeTypeNode({ tag: TypeTag.String, hint: TypeHint.Name });
-export const ANY_TYPE_NODE = makeTypeNode({ tag: TypeTag.Any });
+export const STRING_FIELD = makeField({ tag: TypeTag.String });
+export const NAME_FIELD = makeField({ tag: TypeTag.String, hint: TypeHint.Name });
+export const ANY_FIELD = makeField({ tag: TypeTag.Any });
 
 export function getEnumColor(type: { key: string }) {
   /* Generate a strong color for the type */

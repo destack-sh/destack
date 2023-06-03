@@ -2,9 +2,9 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/state/statement";
-import { TypeTag, type SimpleTypeNode } from "@/gql/graphql";
-import { TypeFlag } from "@/state/runtime";
+import { makeField, NAME_FIELD, useStatementContext, type SimpleType } from "@/state/statement";
+import { TypeTag, type Field } from "@/gql/graphql";
+import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -18,12 +18,12 @@ const emit = defineEmits<{
   (e: "navigateLeft"): void;
 }>();
 
-const nodes = computed(() => context.typeNodes.value ?? []);
+const nodes = computed(() => context.fields.value ?? []);
 const inputNodes = computed(
-  () => context.typeNodes.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as SimpleTypeNode) ?? []
+  () => context.fields.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as Field) ?? []
 );
 const outputNodes = computed(
-  () => context.typeNodes.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as SimpleTypeNode) ?? []
+  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as Field) ?? []
 );
 
 type ColumnType = "type";
@@ -46,7 +46,7 @@ const outputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterf
 const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
 const addOutputRef: Ref<HTMLButtonElement | null> = ref(null);
 
-function readColumn(member: SimpleTypeNode, column: ColumnType) {
+function readColumn(member: Field, column: ColumnType) {
   if (column == "type") {
     return member;
   } else {
@@ -60,9 +60,9 @@ function writeColumn(kind: "input" | "output", memberId: string, column: ColumnT
   }
   const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    context.updateTypeNode(member as SimpleType, { ...value, flags } as SimpleType);
+    context.updateField(member as SimpleType, { ...value, flags } as SimpleType);
   } else {
-    context.updateTypeNode(member as SimpleType, { ...member, [column]: value, flags } as SimpleType);
+    context.updateField(member as SimpleType, { ...member, [column]: value, flags } as SimpleType);
   }
 }
 
@@ -76,13 +76,13 @@ function insertBelow(kind: "input" | "output", memberId?: string) {
     orderKey = generateKeyBetween(member?.orderKey ?? null, null);
   }
   const membersOfKind = kind == "input" ? inputNodes.value : outputNodes.value;
-  const newMemberNode = makeTypeNode({
+  const newMemberNode = makeField({
     name: membersOfKind.length == 0 ? kind : kind + " " + (membersOfKind.length + 1),
     tag: TypeTag.String,
     orderKey,
     flags: kind == "output" ? TypeFlag.IsOutput : 0,
   });
-  context.createTypeNode(newMemberNode);
+  context.createField(newMemberNode);
   nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "type"));
 }
 
@@ -93,7 +93,7 @@ function deleteMember(kind: "input" | "output", memberId: string) {
     return;
   }
   const member = members[memberIdx];
-  context.deleteTypeNode(member as any); // must exist
+  context.deleteField(member as any); // must exist
   (kind == "input" ? inputGrid : outputGrid).focus(memberIdx - 1, "type"); // move focus above
 }
 
@@ -149,14 +149,14 @@ defineExpose({
       <template v-for="member of inputNodes" :key="member.id">
         <TypeTupleInterface
           :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
-          :model-value="readColumn(member as SimpleTypeNode, 'type')"
+          :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('input', member.id, 'type', val)"
           :readonly="context.readonly.value"
           :active="context.focused.value || context.editing.value"
           immediate
           debounced
           :placeholder-value="context.editing.value ? '+' + 'type' : null"
-          :type="NAME_TYPE_NODE"
+          :type="NAME_FIELD"
           slim
           @navigate-left="inputGrid.navigateLeft(member.id, 'type')"
           @navigate-right="inputGrid.navigateRight(member.id, 'type')"
@@ -190,14 +190,14 @@ defineExpose({
         <TypeTupleInterface
           :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"
           :is="'type' == 'type' ? TypeTupleInterface : ValueInterface"
-          :model-value="readColumn(member as SimpleTypeNode, 'type')"
+          :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', member.id, 'type', val)"
           :readonly="context.readonly.value"
           :active="context.focused.value || context.editing.value"
           immediate
           debounced
           :placeholder-value="context.editing.value ? '+' + 'type' : null"
-          :type="NAME_TYPE_NODE"
+          :type="NAME_FIELD"
           @navigate-left="outputGrid.navigateLeft(member.id, 'type')"
           @navigate-right="outputGrid.navigateRight(member.id, 'type')"
           @navigate-up="outputGrid.navigateUp(member.id, 'type')"

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { InterpError } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/runtime";
+import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 

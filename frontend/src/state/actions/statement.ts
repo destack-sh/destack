@@ -4,7 +4,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
-import { useSymbolNavigation } from "@/state/runtime";
+import { useSymbolNavigation } from "@/state/module";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";

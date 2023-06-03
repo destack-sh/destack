@@ -14,9 +14,9 @@ from bench.language.type import (
     Code,
     Data,
     Expectation,
+    Field,
     InterpSymbol,
     Record,
-    SimpleTypeNode,
     StatementModifier,
     SymbolType,
     Task,
@@ -161,7 +161,7 @@ def map_instruction(
     if op is None:
         # if not explicitly given, figure out instruction type from symbol
         # yeah this kind of feels like it should be in the symbol/language, see :InstructionOps
-        if isinstance(node, SimpleTypeNode):
+        if isinstance(node, Field):
             op = InstructionOp.TypeDefinition
         elif node.symbol_type == SymbolType.BUILD:
             op = InstructionOp.BuildDefinition
@@ -212,7 +212,7 @@ def map_instruction(
 
     # track types and their sub-symbols
     if isinstance(node, TypeContent):
-        for type_node in node.type_nodes:
+        for type_node in node.fields:
             # this will have to change later, see :NaiveTreeTracking
             if type_node.reference is not None:
                 if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
@@ -272,7 +272,7 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
     return Data(
         name="",
         tag=type.tag,
-        type_nodes=type.type_nodes,
+        fields=type.fields,
         description="",
         records=records,
         language="jsonl",
@@ -349,17 +349,17 @@ def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = 
     elif type.tag == TypeTag.BOOLEAN:
         return False
     elif type.tag == TypeTag.ENUM:
-        if len(type.type_nodes) == 0:
+        if len(type.fields) == 0:
             return None
-        return type.type_nodes[0].value
+        return type.fields[0].value
     elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         return {
             subtype.name: fabricate_value(subtype)
-            for subtype in type.type_nodes
+            for subtype in type.fields
             if is_output is None or bool(subtype.flags & TypeFlag.IsOutput) == is_output
         }
     elif type.tag == TypeTag.UNION:
-        return fabricate_value(type.type_nodes[0])
+        return fabricate_value(type.fields[0])
     elif type.tag == TypeTag.NULL:
         return None
     elif type.tag == TypeTag.LITERAL:
