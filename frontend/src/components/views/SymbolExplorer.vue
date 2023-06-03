@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
-import { StatementType, type InterpSymbol } from "@/gql/graphql";
+import { StatementType } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
-import { useCurrentModule, useNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
 
-const props = defineProps<{ showAllSymbols?: boolean }>();
+const props = defineProps<{ showAllStatements?: boolean }>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
@@ -16,89 +16,69 @@ const runtime = useCurrentModule();
 const bench = useBenchState();
 const nav = useNavigation();
 
-const filteredSymbols = computed(() => {
-  const symbols = [];
-
-  if (!props.showAllSymbols && bench.focusedFileId == null) {
+const filteredStatements = computed(() => {
+  if (bench.focusedFileId == null) {
     return undefined;
   }
-
-  // TODO @Cleanup: order and group symbols
-  for (const file of runtime.moduleIndex.value?.module.files ?? []) {
-    if (!props.showAllSymbols && file.id != bench.focusedFileId) {
-      continue;
-    }
-
-    for (const symbol of file.symbols) {
-      if (
-        symbol.name == null ||
-        symbol.type != StatementType.Definition ||
-        (!bench.showGenerated && symbol.generated)
-      ) {
-        continue;
-      }
-      symbols.push(symbol);
-    }
-  }
-
-  return symbols;
+  return Object.values(runtime.moduleIndex.value?.statementsById ?? {}).filter(
+    (s) => s.file.id == bench.focusedFileId && s.type == StatementType.Definition
+  );
 });
 
-const symbolsGrid = useNavigationGrid<"name", HTMLElement>(
+const statementsGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
-  computed(() => filteredSymbols.value ?? []),
+  computed(() => filteredStatements.value ?? []),
   {
     gridNavigateUp: () => emit("navigateUp"),
     gridNavigateDown: () => emit("navigateDown"),
   }
 );
 
-function focusSymbol(symbol: InterpSymbol) {
+function focusStatement(statement: InterpStatement) {
   const focusedViewId = bench.focusedViewId;
-  nav.focus(symbol);
+  nav.focus(statement);
   bench.focusView(focusedViewId as ViewId); // keep focused view
-  nextTick(() => nav.focus(symbol));
+  nextTick(() => nav.focus(statement));
 }
 
-function focusSymbolAndGoThere(symbol: InterpSymbol) {
-  nav.focus(symbol);
+function focusStatementAndGoThere(statement: InterpStatement) {
+  nav.focus(statement);
 }
 
 function focus(target: "first" | "last" = "first") {
-  symbolsGrid.focus(target == "first" ? 0 : -1, "name");
+  statementsGrid.focus(target == "first" ? 0 : -1, "name");
 }
 
 function blur() {
-  symbolsGrid.blur();
+  statementsGrid.blur();
 }
 
 defineExpose({
-  count: computed(() => filteredSymbols.value?.length),
+  count: computed(() => filteredStatements.value?.length),
   focus,
   blur,
 });
 </script>
 <template>
-  <ul v-if="filteredSymbols != null" role="list" class="flex flex-col py-1 text-sm">
+  <ul v-if="filteredStatements != null" role="list" class="flex flex-col py-1 text-sm">
     <li
-      v-for="symbol in filteredSymbols"
-      :key="symbol.id"
-      :ref="(ref) => symbolsGrid.registerColumnRef(symbol.id, 'name', ref)"
+      v-for="statement in filteredStatements"
+      :key="statement.id"
+      :ref="(ref) => statementsGrid.registerColumnRef(statement.id, 'name', ref)"
       tabindex="-1"
       class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'border-l-2 border-gray-300 pl-2.5': symbol.generated,
-        'bg-orange-100 text-orange-600': symbol.id == bench?.focusedStatementId,
-        'text-gray-700 hover:bg-orange-100': symbol.id != bench?.focusedStatementId,
+        'bg-orange-100 text-orange-600': statement.id == bench?.focusedStatementId,
+        'text-gray-700 hover:bg-orange-100': statement.id != bench?.focusedStatementId,
       }"
-      @click.prevent="focusSymbol(symbol)"
-      @mousedown.prevent="focusSymbol(symbol)"
-      @keydown.enter.exact.prevent="focusSymbolAndGoThere(symbol)"
-      @keydown.up.exact.prevent="symbolsGrid.navigateUp(symbol.id, 'name')"
-      @keydown.down.exact.prevent="symbolsGrid.navigateDown(symbol.id, 'name')"
+      @click.prevent="focusStatement(statement)"
+      @mousedown.prevent="focusStatement(statement)"
+      @keydown.enter.exact.prevent="focusStatementAndGoThere(statement)"
+      @keydown.up.exact.prevent="statementsGrid.navigateUp(statement.id, 'name')"
+      @keydown.down.exact.prevent="statementsGrid.navigateDown(statement.id, 'name')"
     >
-      <span class="">{{ SYMBOL_TYPE_KEYWORD[symbol.symbolType] }}</span>
-      <span class="">{{ symbol.name }}</span>
+      <span class="">{{ SYMBOL_TYPE_KEYWORD[statement.symbolType] }}</span>
+      <span class="">{{ statement.name }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

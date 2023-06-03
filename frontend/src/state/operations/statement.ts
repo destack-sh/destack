@@ -129,6 +129,13 @@ export function useStatementOps() {
             fields(filters: { isVisible: true }) {
               id
             }
+            # interp
+            resolvedFields {
+              id
+            }
+            issues {
+              id
+            }
           }
           ...OperationInfoContent
         }
@@ -183,6 +190,9 @@ export function useStatementOps() {
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             generated: vars.generated,
             commented: vars.commented,
+            // interp
+            resolvedFields: [],
+            issues: [],
           },
         } as CreateStatementMutation),
       update(cache, { data }) {
