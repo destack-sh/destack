@@ -16,6 +16,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import check_can_view_project, check_can_write_project
+from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_mutation
 
 if TYPE_CHECKING:
@@ -131,6 +132,9 @@ class Statement(gql.Node, SimplyTyped):
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     records: gql.relay.Connection[Record] = gql.django.connection(filters=RecordFilter)
+    # interp
+    issues: Optional[list[Issue]]
+    resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)
 
 
 #

@@ -15,7 +15,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language.error import ErrorType, ParseError, SemanticError
+from bench.language.error import IssueType, ParseError, SemanticError
 from bench.language.lex import lex, lex_string
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
@@ -91,7 +91,7 @@ class ErrorCollector(typing.Generic[ErrorT]):
             self.on_error(error)
 
 
-ET = ErrorType
+ET = IssueType
 TT = TokenType
 
 

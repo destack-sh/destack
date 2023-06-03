@@ -11,7 +11,7 @@ from bench.language import TypeTag, parse
 from bench.language.lex import SourceFile, lex
 from bench.language.parse import (
     ErrorCollector,
-    ErrorType,
+    IssueType,
     ParseError,
     SemanticError,
     parse_code,
@@ -36,7 +36,7 @@ def _raise_if(test: Callable):
 
 
 def _raise_if_not_external():
-    return _raise_if(lambda e: e.type != ErrorType.EXTERNAL_LOOKUP_FAILED)
+    return _raise_if(lambda e: e.type != IssueType.EXTERNAL_LOOKUP_FAILED)
 
 
 @pytest.mark.parametrize("path", demo_paths)
@@ -272,4 +272,4 @@ type B:
         on_error=collector,
     )
     assert len(collector.errors) == 1
-    assert collector.errors[0].type == ErrorType.CIRCULAR_UNION
+    assert collector.errors[0].type == IssueType.CIRCULAR_UNION

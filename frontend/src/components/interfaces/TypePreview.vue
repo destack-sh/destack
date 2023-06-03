@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { symbolOf, TypeFlag } from "@/state/module";
+import { statementOf, TypeFlag } from "@/state/module";
 import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,
@@ -49,7 +49,7 @@ const resolvedReference = computed(() => {
   } else if (props.type.reference.name != null) {
     return props.type.reference;
   } else {
-    return symbolOf(props.type.reference.id);
+    return statementOf(props.type.reference.id);
   }
 });
 

@@ -132,7 +132,6 @@ def create_model_providers():
                     type=StatementType.DEFINITION,
                     symbol_type=SymbolType.MODEL,
                     name=model_id,
-                    provider=provider.slug,
                     external_name=external_name,
                 )
 

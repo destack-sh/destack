@@ -4,7 +4,7 @@ import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
-import { useSymbolNavigation } from "@/state/module";
+import { useNavigation } from "@/state/module";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";
@@ -316,7 +316,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   });
 
   // jump to reference
-  const { focusSymbol } = useSymbolNavigation();
+  const { focus: focusSymbol } = useNavigation();
   const jumpToReference = provideGlobalAction({
     id: "statement.jumpToReference",
     label: "Jump to reference",

@@ -262,9 +262,7 @@ class StatementManager(models.Manager["Statement"]):
 
 class Statement(UUIDModel, CrudModel):
     """
-    A statement in a file to import, define, redefine, reference, comment.. symbols.
-    Statements are semantic and may be nested (parent-child relationships, comments, etc.).
-    Statements and the files that contain them can be soft-deleted.
+    A nested statement in a file for working with Bench symbols and other stuff.
     """
 
     project_version = models.ForeignKey(
@@ -296,10 +294,10 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    records: models.QuerySet["Record"]  # noqa via DatasetRecord.dataset
+    records: models.QuerySet["Record"]  # noqa via Record.statement
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
-    fields: models.QuerySet[Field]  # noqa via SimpleTypeNode.statement
+    fields: models.QuerySet[Field]  # noqa via Field.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
@@ -307,7 +305,9 @@ class Statement(UUIDModel, CrudModel):
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
-    provider = models.CharField(max_length=64, null=True, blank=True)  # for model
+    # interp state
+    issues: models.QuerySet["Issue"]  # noqa via Issue.statement
+    resolved_fields = models.ManyToManyField("Field", related_name="resolved_by")
 
     def __str__(self):
         if self.type == StatementType.DEFINITION:

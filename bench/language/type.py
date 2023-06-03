@@ -920,11 +920,10 @@ class Data(InterpSymbol, DataContent):
 
 @dataclass(repr=False)
 class ModelContent(SymbolContent):
-    provider: str
     external_name: str
 
     def __str__(self):
-        return f"provider={self.provider}/{self.external_name}"
+        return f"{self.external_name}"
 
 
 @dataclass(repr=False)

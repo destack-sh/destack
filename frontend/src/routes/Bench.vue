@@ -28,7 +28,7 @@ import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } f
 import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { useCurrentInterpModule, useVisibleErrors } from "@/state/module";
+import { useCurrentModule } from "@/state/module";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
@@ -268,7 +268,7 @@ const files = computed(
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
-const { connected: runtimeConnected, lastUpdated: runtimeLastUpdated } = useCurrentInterpModule();
+const module = useCurrentModule();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const { getTimeFromNowString } = useTimeFromNow();
 
@@ -329,19 +329,18 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   return false;
 });
 
-const runtime = useCurrentInterpModule();
+const runtime = useCurrentModule();
 const moduleSync = useModuleSync(versionToViewId);
 const projectSync = useProjectSync(toRef(bench, "currentProjectId"));
-const visibleErrors = useVisibleErrors();
 const auth = useAuth();
 
 // show notification if disconnected/reconnected
 const connectionLost = ref(false);
 const wasEverConnected = ref(false);
 watch(
-  () => [WS_CONNECTED.value, runtime.connected.value],
+  () => [WS_CONNECTED.value],
   () => {
-    if (WS_CONNECTED.value && runtime.connected.value) {
+    if (WS_CONNECTED.value) {
       wasEverConnected.value = true;
     }
 
@@ -353,7 +352,7 @@ watch(
         description: "Bench is disconnected.",
       });
       connectionLost.value = true;
-    } else if (WS_CONNECTED.value && connectionLost.value && runtime.connected.value) {
+    } else if (WS_CONNECTED.value && connectionLost.value) {
       connectionLost.value = false;
       notifications.show({
         type: "runtime.reconnected",
@@ -552,18 +551,15 @@ onBeforeUnmount(() => {
             <svg
               viewBox="0 0 10 10"
               class="h-1 w-1"
-              :class="{ 'text-orange-600': runtimeConnected, 'text-gray-400': !runtimeConnected }"
+              :class="{ 'text-orange-600': WS_CONNECTED, 'text-gray-400': !WS_CONNECTED }"
             >
               <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
             </svg>
             <Transition appear>
-              <span class="text-sm text-gray-500" v-show="!runtimeConnected">
-                {{ runtimeConnected ? "connected" : "connecting" }}
+              <span class="text-sm text-gray-500" v-show="!WS_CONNECTED">
+                {{ WS_CONNECTED ? "connected" : "connecting" }}
               </span>
             </Transition>
-            <span class="text-sm text-gray-500" v-if="bench.debug && runtimeLastUpdated != null">
-              {{ getTimeFromNowString(runtimeLastUpdated) }}
-            </span>
           </span>
         </div>
         <!-- Comments/notes, issues/warnings/lints, errors -->
@@ -571,11 +567,11 @@ onBeforeUnmount(() => {
           <!-- Errors -->
           <button
             class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-            v-if="visibleErrors?.length || 0 > 0"
+            v-if="module.issues.value?.length || 0 > 0"
             @click="openIssues.apply"
           >
             <XCircleIcon class="h-5 w-5 text-red-700" />
-            <span class="text-sm text-gray-700">{{ visibleErrors?.length }}</span>
+            <span class="text-sm text-gray-700">{{ module.issues.value?.length }}</span>
           </button>
         </div>
       </template>

@@ -6,7 +6,7 @@ from typing import Optional, Union
 from uuid import UUID
 
 from bench import language
-from bench.language import ErrorType
+from bench.language import IssueType
 from bench.language.parse import get_reference_as_path
 from bench.language.type import (
     StatementModifier,
@@ -247,6 +247,28 @@ class StatementData:
 _STATEMENT_DATA_FIELDS = fields(StatementData)
 
 
+class IssueKind(enum.StrEnum):
+    ERROR = "error"
+    WARNING = "warning"
+    SUGGESTION = "suggestion"
+
+
+@dataclass(repr=False, slots=True)
+class IssueData:
+    id: UUID
+    statement_id: UUID
+    kind: IssueKind
+    type: IssueType
+    message: Optional[str]
+
+
+@dataclass(repr=False, slots=True)
+class InterpData:
+    statement_id: UUID
+    issues: list[IssueData] | None = None
+    resolved_fields: list[FieldData] | None = None
+
+
 def rmap_module(module: language.Module, impute_type_references: bool = False) -> ModuleData:
     return ModuleData(
         id=module.id,
@@ -382,7 +404,6 @@ def rmap_symbol(
         data.lang = content.language
         data.code = content.code
     elif isinstance(content, language.ModelContent):
-        data.provider = content.provider
         data.external_name = content.external_name
     elif isinstance(content, language.CapabilityContent):
         data.description = content.description
@@ -431,7 +452,6 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
-            provider=data.provider,
             external_name=data.external_name,
         )
     elif data.symbol_type == SymbolType.CAPABILITY:
@@ -571,7 +591,7 @@ def wmap_secret(secret: SecretData) -> language.Secret:
 
 @dataclass(repr=False)
 class ErrorData:
-    type: ErrorType
+    type: IssueType
     statement_id: Optional[UUID]
     message: str
     verbose_message: Optional[str]

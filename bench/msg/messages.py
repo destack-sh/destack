@@ -65,7 +65,6 @@ class NMessageType(StrEnum):
     REPLY_CANCEL_RUN = "run.cancel.rep"
     REQUEST_INTERP = "interp.get"
     REPLY_INTERP = "interp.get.rep"
-    INTERP_CHANGED = "interp.changed"
 
 
 REPLY_BY_REQUEST_TYPE = {
@@ -330,16 +329,6 @@ class RepInterpPayload:
     errors: list[wire.ErrorData]
 
 
-@payload(NMessageType.INTERP_CHANGED)
-class InterpChangedPayload:
-    # unfortunately full data :PartialModuleUpdates
-    module_id: UUID
-    updated_at: datetime
-    module: Optional[wire.ModuleData | None]
-    dependencies: Optional[list[wire.ModuleData]]
-    errors: Optional[list[wire.ErrorData]]
-
-
 # invert REGISTERED_MESSAGE_PAYLOADS
 MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     payload_class: message_type
@@ -351,7 +340,6 @@ PROJECT_SCOPED_PAYLOAD_TYPES = (ProjectChangedPayload,)
 MODULE_SCOPED_PAYLOAD_TYPES = (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
-    InterpChangedPayload,
     ExecutionChangedPayload,
     ExecutionSavedPayload,
     ExecutionMarkedDeadPayload,

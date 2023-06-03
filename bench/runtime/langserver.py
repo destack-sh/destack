@@ -23,7 +23,6 @@ from bench.msg.messages import (
     ExecutionChangedPayload,
     ExecutionMarkedDeadPayload,
     ExecutionSavedPayload,
-    InterpChangedPayload,
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
@@ -461,39 +460,14 @@ class LanguageWorker:
         await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
-        # TODO @Performance: don't send full interp change on every interp
-        # (module hash is not reliable enough to detect changes yet)
-        # notify clients
-        payload = make_full_change_payload(self, InterpChangedPayload)
+        # notify clients if anything changed
+        # nocheckin do it
         await publish(NMessageType.INTERP_CHANGED, payload)
 
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)
         await self.do_interp(source)
         self.ready.set()
-
-
-def make_change_payload(
-    worker: LanguageWorker,
-    cls,
-    include_module: bool = False,
-    include_dependencies: bool = False,
-):
-    """Builds a complete runtime change message from the module worker's state"""
-    dependencies = (
-        list(worker.wire_dependencies.values()) if worker.wire_dependencies is not None else None
-    )
-    return cls(
-        module_id=worker.module_id,
-        updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-        module=worker.wire_module if include_module else None,
-        dependencies=dependencies if include_dependencies else None,
-        errors=worker.wire_errors if include_module else None,
-    )
-
-
-def make_full_change_payload(worker: LanguageWorker, cls):
-    return make_change_payload(worker, cls, include_module=True, include_dependencies=True)
 
 
 def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:

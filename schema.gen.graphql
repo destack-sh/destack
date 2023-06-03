@@ -177,41 +177,6 @@ input DeleteObjectInput {
   id: GlobalID!
 }
 
-enum ErrorType {
-  INTERNAL
-  UNKNOWN_TOKEN
-  MISSING_TOKEN
-  UNEXPECTED_TOKEN_TYPE
-  UNEXPECTED_TOKEN_VALUE
-  UNEXPECTED_INDENT
-  EXPECTED_BLANK
-  MISSING_EXTRA
-  UNEXPECTED_EXTRA
-  INVALID_TOKEN_VALUE
-  INVALID_STATEMENT
-  UNKNOWN_IMPORT_SOURCE
-  MISSING_REFERENCE
-  UNDEFINED_LOCAL_REFERENCE
-  UNDEFINED_EXTERNAL_REFERENCE
-  EXTERNAL_LOOKUP_FAILED
-  REFERENCE_TYPE_MISMATCH
-  AMBIGUOUS_DEFINITION
-  AMBIGUOUS_REQUIREMENT
-  UNEXPECTED_PARENT
-  EXPECTED_PARENT
-  EXPECTED_PROPER_CHILDREN
-  UNEXPECTED_CHILDREN
-  EXPECTED_PARAMETERS
-  UNEXPECTED_PARAMETERS
-  EXPECTED_ARGUMENTS
-  UNEXPECTED_STATEMENT
-  BUILD_MISSING_MODEL
-  BUILD_MISSING_TASK
-  CIRCULAR_ANCESTRY
-  CIRCULAR_UNION
-  MISMATCHED_UNION
-}
-
 type Execution implements Node {
   id: GlobalID!
   project: Project!
@@ -426,64 +391,59 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
-type InterpError {
-  type: ErrorType!
-  message: String!
-  symbol: InterpSymbol
+type InterpData {
+  statementId: UUID!
+  issues: [Issue!]
+  resolvedFields: [Field!]
 }
 
-type InterpFile {
+type Issue implements Node {
   id: GlobalID!
-  module: InterpModule!
-  path: String!
-  symbols: [InterpSymbol!]!
+  kind: IssueKind!
+  type: IssueType!
+  statement: Statement
+  message: String
 }
 
-type InterpModule {
-  id: GlobalID!
-  name: String!
-  files: [InterpFile!]!
-  dependencies: [InterpModule!]!
-  errors: [InterpError!]!
+enum IssueKind {
+  ERROR
+  WARNING
+  SUGGESTION
 }
 
-"""
-Proxy type to SimpleType to avoid overwriting source SimpleType references
-(no extra fields yet but needed since (SimpleType, id) global id would be the same
- for the simple types output by the runtime and by the source types put in).
-"""
-type InterpSimpleType implements Node & SimpleType {
-  id: GlobalID!
-  name: String
-  key: String!
-  orderKey: String!
-  tag: TypeTag!
-  hint: TypeHint
-  flags: Int!
-  description: String
-  value: JSON
-  reference: Statement
-  statement: Statement!
-  revision: Int!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
-}
-
-type InterpSymbol implements SimplyTyped {
-  rootTypeTag: TypeTag
-  fields: [SimpleType!]
-  id: GlobalID!
-  file: InterpFile!
-  orderKey: String!
-  parentId: GlobalID
-  name: String
-  fqn: String!
-  type: StatementType!
-  generated: Boolean!
-  modifier: StatementModifier
-  symbolType: SymbolType
-  typeNodes: [InterpSimpleType!]
+enum IssueType {
+  INTERNAL
+  UNKNOWN_TOKEN
+  MISSING_TOKEN
+  UNEXPECTED_TOKEN_TYPE
+  UNEXPECTED_TOKEN_VALUE
+  UNEXPECTED_INDENT
+  EXPECTED_BLANK
+  MISSING_EXTRA
+  UNEXPECTED_EXTRA
+  INVALID_TOKEN_VALUE
+  INVALID_STATEMENT
+  UNKNOWN_IMPORT_SOURCE
+  MISSING_REFERENCE
+  UNDEFINED_LOCAL_REFERENCE
+  UNDEFINED_EXTERNAL_REFERENCE
+  EXTERNAL_LOOKUP_FAILED
+  REFERENCE_TYPE_MISMATCH
+  AMBIGUOUS_DEFINITION
+  AMBIGUOUS_REQUIREMENT
+  UNEXPECTED_PARENT
+  EXPECTED_PARENT
+  EXPECTED_PROPER_CHILDREN
+  UNEXPECTED_CHILDREN
+  EXPECTED_PARAMETERS
+  UNEXPECTED_PARAMETERS
+  EXPECTED_ARGUMENTS
+  UNEXPECTED_STATEMENT
+  BUILD_MISSING_MODEL
+  BUILD_MISSING_TASK
+  CIRCULAR_ANCESTRY
+  CIRCULAR_UNION
+  MISMATCHED_UNION
 }
 
 """
@@ -504,6 +464,7 @@ type ModuleMutation {
   statementId: GlobalID
   revision: Int
   input: JSON
+  data: InterpData
 }
 
 """Fine-grained atomic mutations for multiplayer modules."""
@@ -550,6 +511,7 @@ enum ModuleMutationType {
   SOFT_DELETE_RECORD
   DELETE_RECORD
   RESTORE_RECORD
+  UPDATE_INTERP
 }
 
 type Mutation {
@@ -1555,6 +1517,8 @@ type Statement implements Node & SimplyTyped {
     last: Int = null
     filters: RecordFilter
   ): RecordConnection!
+  issues: [Issue!]
+  resolvedFields(filters: FieldFilter): [Field!]
 }
 
 type StatementBatch {
@@ -1713,7 +1677,6 @@ input StatementUpdateLanguageInput {
 
 type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
-  interpChanged(projectVersionId: GlobalID!): InterpModule!
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
   executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, runnableIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!

@@ -397,7 +397,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.description = statement.description
     data.lang = statement.lang
     data.code = statement.code
-    data.provider = statement.provider
     data.external_name = statement.external_name
     data.root_type_tag = statement.root_type_tag
     data.root_type_flags = statement.root_type_flags
@@ -430,7 +429,6 @@ def wmap_symbol(
     statement.description = data.description
     statement.lang = data.lang
     statement.code = data.code
-    statement.provider = data.provider
     statement.external_name = data.external_name
     if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
         statement.code = data.text

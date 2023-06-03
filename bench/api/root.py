@@ -30,7 +30,7 @@ from bench.api.project import (
     ProjectVersionMutation,
     ProjectVisibility,
 )
-from bench.api.runtime import InterpSubscription, RuntimeMutation
+from bench.api.runtime import RuntimeMutation
 from bench.api.secret import Secret, SecretMutation
 from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation
@@ -179,7 +179,6 @@ class Mutation(
 @strawberry.type
 class Subscription(
     ClientSubscription,
-    InterpSubscription,
     MultiplayerSubscription,
     ExecutionSubscription,
 ):

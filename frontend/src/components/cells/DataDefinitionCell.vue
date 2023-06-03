@@ -19,7 +19,7 @@ import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { symbolOf, TypeFlag } from "@/state/module";
+import { statementOf, TypeFlag } from "@/state/module";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
   ArrowDownIcon,
@@ -146,7 +146,7 @@ const rowIdsInOrder: Ref<string[]> = computed(() => {
 });
 // map the field type to its actual runtime type
 // children cannot be imputed into Field but we still want to know the actual type
-const selfSymbol = computed(() => symbolOf(context.statement.value.id));
+const selfSymbol = computed(() => statementOf(context.statement.value.id));
 function runtimeTypeOf(field: SimpleType) {
   if (field.tag != TypeTag.TypeReference) {
     // prevent slow round-trip updates for non-references

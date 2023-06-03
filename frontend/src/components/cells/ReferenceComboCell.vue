@@ -2,7 +2,7 @@
 import type { InterpSymbol } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import type { StatementHeader } from "@/state/bench";
-import { fileOf, relativePath, symbolOf, useSymbolNavigation } from "@/state/module";
+import { fileOf, relativePath, statementOf, useNavigation } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
@@ -109,7 +109,7 @@ function open() {
 }
 
 // alt-click focuses source reference
-const { focusSymbol } = useSymbolNavigation();
+const { focus: focusSymbol } = useNavigation();
 function clickOpen(click: MouseEvent) {
   if (click.altKey) {
     if (props.reference != null) {
@@ -133,7 +133,7 @@ function clearQuery() {
   (inputRef.value?.$el as HTMLInputElement).value = "";
 }
 
-const selfSymbol = computed(() => symbolOf(props.self?.id));
+const selfSymbol = computed(() => statementOf(props.self?.id));
 
 function importSourceTo(symbol: InterpSymbol): string | undefined {
   const localFile = fileOf(symbol);

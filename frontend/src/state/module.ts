@@ -1,15 +1,16 @@
-import { graphql, useFragment } from "@/gql";
-import type { StatementType, SymbolType, InterpError, InterpFile, InterpModule, InterpSymbol } from "@/gql/graphql";
+import { graphql } from "@/gql";
+import type { InterpFileFragment, InterpStatementFragment, StatementType, SymbolType } from "@/gql/graphql";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
-import { WS_CONNECTED } from "@/utils/globals";
-import { useSubscription } from "@vue/apollo-composable";
+import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { DateTime } from "luxon";
 import { v4 as uuidv4 } from "uuid";
-import { computed, isRef, ref, watch, type Ref } from "vue";
+import { computed, isRef, ref, type Ref } from "vue";
+
+export type InterpFile = InterpFileFragment;
+export type InterpStatement = InterpStatementFragment;
 
 export enum TypeFlag { // :TypeFlags
   Zero = 0,
@@ -20,227 +21,157 @@ export enum TypeFlag { // :TypeFlags
   IsSecret = 1 << 4,
 }
 
-export const InterpSymbolContentType = graphql(/* GraphQL */ `
-  fragment InterpSymbolContent on InterpSymbol {
-    id
-    name
-    type
-    orderKey
-    parentId
-    modifier
-    symbolType
-    rootTypeTag
-    generated
-    fields {
-      # not using FieldContent fragment because it's for the editable node
-      # and using a shared fragment seems overkill
-      id
-      name
-      key
-      tag
-      hint
-      description
-      value
-      orderKey
-      reference {
-        id
-      }
-      flags
-    }
-  }
-`);
-
-export const InterpModuleContentType = graphql(/* GraphQL */ `
-  fragment InterpModuleContent on InterpModule {
-    id
-    name
-    files {
-      id
-      path
-      symbols {
-        ...InterpSymbolContent
-      }
-    }
-    dependencies {
-      id
-      name
-      files {
-        id
-        path
-        symbols {
-          ...InterpSymbolContent
-        }
-      }
-    }
-    errors {
-      ...InterpErrorContent
-    }
-  }
-`);
-
-export const InterpErrorContentType = graphql(/* GraphQL */ `
-  fragment InterpErrorContent on InterpError {
-    type
-    message
-    symbol {
-      ...InterpSymbolContent
-    }
-  }
-`);
-
 type ModuleIndex = {
   id: string;
-  module: InterpModule;
-  symbolsById: Record<string, InterpSymbol>;
-  fileByStatementId: Record<string, InterpFile>;
+  name: string;
+  path: string;
+  statementsById: Record<string, InterpStatement>;
+  filesById: Record<string, InterpFile>;
 };
 
-function indexModule(module: InterpModule): ModuleIndex {
-  const symbolsById: Record<string, InterpSymbol> = {};
-  const fileByStatementId: Record<string, InterpFile> = {};
-  for (const file of module.files) {
-    for (const symbol of file.symbols) {
-      symbolsById[symbol.id] = symbol;
-      fileByStatementId[symbol.id] = file;
-    }
-  }
-  return { id: module.id, module, symbolsById, fileByStatementId };
-}
-
 // TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
-function _useInterpModule(projectVersionId: Ref<string | null>) {
+function _useModule(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
-  const {
-    result: fetchedRuntime,
-    loading,
-    error,
-    start,
-    stop,
-    onResult: runtimeUpdated,
-  } = useSubscription(
+
+  const { result: module } = useQuery(
     graphql(/* GraphQL */ `
-      subscription interpChanged($projectVersionId: GlobalID!) {
-        interpChanged(projectVersionId: $projectVersionId) {
-          ...InterpModuleContent
+      query module($projectVersionId: GlobalID!) {
+        projectVersion(id: $projectVersionId) {
+          id
+          project {
+            path
+            name
+          }
+          files {
+            edges {
+              node {
+                ...InterpFile
+                statements {
+                  ...InterpStatement
+                  issues {
+                    ...IssueContent
+                  }
+                }
+              }
+            }
+          }
         }
       }
     `),
-    { projectVersionId },
-    {}
+    () => ({ projectVersionId: projectVersionId.value }),
+    () => ({ enabled: !!projectVersionId.value })
   );
-  // enable/disable subscription when projectVersionId changes
-  watch(
-    projectVersionId,
-    () => {
-      if (projectVersionId.value != null) {
-        start();
-      } else {
-        stop();
+
+  const issues = computed(() => {
+    if (module.value?.projectVersion == null) return [];
+    const issues = [];
+    for (const file of module.value.projectVersion.files.edges.map((e: any) => e.node)) {
+      for (const statement of file.statements) {
+        for (const issue of statement.issues) {
+          issues.push({
+            ...issue,
+            statement: statement,
+          });
+        }
       }
-    },
-    { immediate: true }
-  );
-
-  // cache last runtime
-  const runtime: Ref<typeof fetchedRuntime.value | null> = ref(null);
-  watch(fetchedRuntime, (newRuntime) => {
-    if (newRuntime != null) {
-      runtime.value = newRuntime;
     }
+    return issues;
   });
-
-  const connected = computed(
-    () => WS_CONNECTED.value && fetchedRuntime.value && !error.value && !loading.value && projectVersionId.value != null
-  );
-  const lastUpdated: Ref<string | null> = ref(null);
-  runtimeUpdated(() => (lastUpdated.value = DateTime.now().toISO()));
-
-  const module = computed(() => useFragment(InterpModuleContentType, runtime.value?.interpChanged));
-  const path = computed(() => module.value?.name);
-  const name = computed(() => module.value?.name.split(".").slice(-1)[0]);
-  const dependencies = computed(() => module.value?.dependencies.map((m) => useFragment(InterpModuleContentType, m)));
-  const errors = computed(() => module.value?.errors.map((e) => useFragment(InterpErrorContentType, e)));
 
   const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
-    if (module.value) {
-      return indexModule(module.value as InterpModule);
+    if (module.value?.projectVersion == null) return null;
+    const statementsById: Record<string, InterpStatement> = {};
+    const filesById: Record<string, InterpFile> = {};
+    for (const file of module.value.projectVersion.files.edges.map((e: any) => e.node)) {
+      for (const symbol of file.symbols) {
+        statementsById[symbol.id] = symbol;
+      }
+      filesById[file.id] = file;
     }
-    return null;
-  });
-  const dependenciesIndex: Ref<ModuleIndex[]> = computed(() => {
-    return dependencies.value?.map((idx) => indexModule(idx as InterpModule)) ?? [];
+    return {
+      id: module.value.projectVersion.id,
+      name: module.value.projectVersion.project.name,
+      path: module.value.projectVersion.project.path,
+      statementsById: statementsById,
+      filesById: filesById,
+    } as ModuleIndex;
   });
 
+  // TODO @Broken: get dependencies
+  const dependencies = computed(() => []);
+  const dependenciesIndex: Ref<ModuleIndex[]> = computed(() => []);
+
   return {
-    connected,
-    lastUpdated,
     module,
-    path,
-    name,
-    dependencies,
-    errors,
+    id: computed(() => module.value?.projectVersion?.id),
+    name: computed(() => module.value?.projectVersion?.project.name),
+    path: computed(() => module.value?.projectVersion?.project.path),
+    issues,
     moduleIndex,
     dependenciesIndex,
   };
 }
 
-function _useCurrentInterpModule(projectVersionId?: Ref<string | null>) {
+export const useModule = createSharedComposable(_useModule);
+
+export function useCurrentModule(projectVersionId?: Ref<string | null>) {
   const bench = useBenchState();
   const activeVersionId = computed(() =>
     projectVersionId?.value != null ? projectVersionId.value : bench.currentProjectVersionId
   );
-  return _useInterpModule(activeVersionId);
+  return _useModule(activeVersionId);
 }
 
-export const useCurrentInterpModule = createSharedComposable(_useCurrentInterpModule);
-
-export function fileOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
-  const { moduleIndex } = useCurrentInterpModule(projectVersionId);
-  return moduleIndex.value?.fileByStatementId[symbol.id];
+export function fileOf(statement: { id: string }, projectVersionId?: Ref<string | null>) {
+  const { moduleIndex } = useCurrentModule(projectVersionId);
+  return moduleIndex.value?.filesById[moduleIndex.value?.statementsById[statement.id]?.file?.id];
 }
 
 export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
-  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
-    if (idx && symbol.id in idx.fileByStatementId) {
+    if (idx && symbol.id in idx.filesById) {
+      const statement = idx.statementsById[symbol.id];
       return {
-        module: idx.module,
-        file: idx.fileByStatementId[symbol.id],
-        symbol: idx.symbolsById[symbol.id],
+        id: idx.id,
+        name: idx.name,
+        path: idx.path,
+        file: idx.filesById[statement.file?.id],
+        statement,
       };
     }
   }
   return undefined;
 }
 
-export function symbolOf(id: string, projectVersionId?: Ref<string | null>) {
+export function statementOf(id: string, projectVersionId?: Ref<string | null>) {
   if (id == undefined) {
     return undefined;
   }
   // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
-  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
-    if (idx && id in idx.symbolsById) {
-      return idx.symbolsById[id];
+    if (idx && id in idx.statementsById) {
+      return idx.statementsById[id];
     }
   }
   return undefined;
 }
 
-export function relativePath(from_: InterpSymbol, to_: InterpSymbol, projectVersionId?: Ref<string | null>) {
+export function relativePath(from_: InterpStatement, to_: InterpStatement, projectVersionId?: Ref<string | null>) {
   const from = contextOf(from_, projectVersionId);
   const to = contextOf(to_, projectVersionId);
   if (!from || !to) {
     return undefined;
-  } else if (from.module.id == to.module.id) {
+  } else if (from.path == to.path) {
     return `.${to.file.path}`;
   } else {
-    return `${to.module.name}.${to.file.path}`;
+    return `${to.path}.${to.file.path}`;
   }
 }
 
 export function localErrorsOf(symbol: Ref<{ id: string }>, projectVersionId?: Ref<string | null>) {
-  const { errors } = useCurrentInterpModule(projectVersionId);
+  const { issues: errors } = useCurrentModule(projectVersionId);
   return computed(() => errors.value?.filter((e) => e.symbol?.id == symbol.value.id));
 }
 
@@ -248,27 +179,23 @@ export type SymbolFilter = {
   types?: StatementType[];
   symbolTypes?: SymbolType[];
   includeAnonymous?: boolean;
-  includeGenerated?: boolean;
   includeDependencies?: boolean;
 };
 export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVersionId?: Ref<string | null>) {
   const filterRef = isRef(filter) ? filter : ref(filter);
-  const { moduleIndex, dependenciesIndex } = useCurrentInterpModule(projectVersionId);
+  const { moduleIndex, dependenciesIndex } = useCurrentModule(projectVersionId);
   const symbols = computed(() => {
     if (!moduleIndex.value) {
       return [];
     }
-    const allSymbols = Object.values(moduleIndex.value.symbolsById);
+    const allSymbols = Object.values(moduleIndex.value.statementsById);
     if (filterRef.value.includeDependencies) {
       for (const dependencyIndex of dependenciesIndex.value) {
-        allSymbols.push(...Object.values(dependencyIndex.symbolsById));
+        allSymbols.push(...Object.values(dependencyIndex.statementsById));
       }
     }
     return allSymbols.filter((s) => {
       if (filterRef.value.includeAnonymous || (s.name?.length ?? 0) == 0) {
-        return false;
-      }
-      if (!filterRef.value.includeGenerated && s.generated) {
         return false;
       }
       if (filterRef.value.types != null && !filterRef.value.types.includes(s.type)) {
@@ -287,30 +214,20 @@ export function symbolsLike(filter: Ref<SymbolFilter> | SymbolFilter, projectVer
   return symbols;
 }
 
-export function useVisibleErrors() {
-  const runtime = useCurrentInterpModule();
-  const bench = useBenchState();
-  return computed(() =>
-    (runtime.errors.value ?? [])
-      .map((e) => e as InterpError)
-      .filter((e: InterpError) => e.symbol == null || bench.showGenerated || !e.symbol.generated)
-  );
-}
-
-export function useSymbolNavigation() {
+export function useNavigation() {
   const bench = useBenchState();
 
   function focusSymbol(symbol: { id: string }) {
     const context = contextOf(symbol);
     if (!context?.file) return;
     // can't focus external modules yet
-    if (context.module.id != bench.currentProjectVersionId) return;
+    if (context.id != bench.currentProjectVersionId) return;
 
     const editor = bench.focusFile(context.file as any) as FileEditor;
     editor.editElement(symbol as any);
   }
 
-  return { focusSymbol };
+  return { focus: focusSymbol };
 }
 
 export function newExecutionId(): string {
