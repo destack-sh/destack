@@ -19,7 +19,7 @@ import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { statementOf, TypeFlag } from "@/state/module";
+import { statementOf, TypeFlag, useCurrentModule } from "@/state/module";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
   ArrowDownIcon,
@@ -41,6 +41,7 @@ const addingDescription = ref(false);
 const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
 
 const appearance = useAppearance();
+const module = useCurrentModule();
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -146,25 +147,17 @@ const rowIdsInOrder: Ref<string[]> = computed(() => {
 });
 // map the field type to its actual runtime type
 // children cannot be imputed into Field but we still want to know the actual type
-const selfSymbol = computed(() => statementOf(context.statement.value.id));
 function runtimeTypeOf(field: SimpleType) {
   if (field.tag != TypeTag.TypeReference) {
-    // prevent slow round-trip updates for non-references
-    // this is really a hack until we get rid of separate interp state
     return field;
   } else {
-    return selfSymbol.value?.fields?.find((n) => n.key == field.key) ?? field;
+    return context.resolvedFields?.value.find((n) => n.key == field.key) ?? field;
   }
 }
 
 const extendedFields = computed(() => {
-  if (extendedTypes.value.length == 0) {
-    // shouldn't be needed but because interp state and module state are separate right now,
-    // this prevents flickering changes at least if you're not using unions
-    return [];
-  }
   return (
-    selfSymbol.value?.fields
+    context.resolvedFields.value
       ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
       .map((n) => n as SimpleType) ?? []
   );

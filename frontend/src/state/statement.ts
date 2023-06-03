@@ -49,15 +49,32 @@ export function useStatementContext() {
   const reference = computed(() => useFragment(StatementHeaderType, context.reference.value));
 
   const rootTypeTag = computed(() => statement.value.rootTypeTag);
-  const fields = computed(() =>
-    statement.value.fields
-      ?.map((n) => useFragment(FieldType, n))
-      .filter((n) => n.deletedAt == null)
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
+  const fields = computed(
+    () =>
+      statement.value.fields
+        ?.map((n) => useFragment(FieldType, n))
+        .filter((n) => n.deletedAt == null)
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+  );
+  const resolvedFields = computed(
+    () =>
+      statement.value.resolvedFields
+        ?.map((n) => useFragment(FieldType, n))
+        .filter((n) => n.deletedAt == null)
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
   );
   const fieldsByName = computed(() => {
     const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
     for (const field of fields.value) {
+      if (field.name != null) {
+        fieldsByName[field.name] = field;
+      }
+    }
+    return fieldsByName;
+  });
+  const resolvedFieldsByName = computed(() => {
+    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    for (const field of resolvedFields.value) {
       if (field.name != null) {
         fieldsByName[field.name] = field;
       }
@@ -350,6 +367,8 @@ export function useStatementContext() {
     symbolSubtype,
     fields,
     fieldsByName,
+    resolvedFields,
+    resolvedFieldsByName,
     // actions
     actions,
     navigateUp,

@@ -3171,6 +3171,7 @@ export type InterpStatementFragment = {
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
+  fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
 export type ModuleQueryVariables = Exact<{
@@ -3720,6 +3721,8 @@ export type CreateStatementMutation = {
         reference?: { __typename?: "Statement"; id: any } | null;
         referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
         fields: Array<{ __typename?: "Field"; id: any }>;
+        resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
+        issues?: Array<{ __typename?: "Issue"; id: any }> | null;
       };
 };
 
@@ -5159,6 +5162,30 @@ export const InterpStatementFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "fields" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
             },
           },
         ],
@@ -7902,6 +7929,7 @@ export const ModuleDocument = {
     },
     ...InterpFileFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleQuery, ModuleQueryVariables>;
@@ -10149,6 +10177,22 @@ export const CreateStatementDocument = {
                             },
                           },
                         ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "resolvedFields" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "issues" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],

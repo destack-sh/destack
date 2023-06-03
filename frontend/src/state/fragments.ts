@@ -198,7 +198,7 @@ export const InterpDataContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export const InterpFile = graphql(/* GraphQL */ `
+export const InterpFileType = graphql(/* GraphQL */ `
   fragment InterpFile on File {
     id
     revision
@@ -213,7 +213,7 @@ export const InterpFile = graphql(/* GraphQL */ `
   }
 `);
 
-export const InterpStatement = graphql(/* GraphQL */ `
+export const InterpStatementType = graphql(/* GraphQL */ `
   fragment InterpStatement on Statement {
     id
     type
@@ -236,6 +236,9 @@ export const InterpStatement = graphql(/* GraphQL */ `
     }
     referenceProjectVersion {
       id
+    }
+    fields(filters: { isVisible: true }) {
+      ...FieldContent
     }
   }
 `);

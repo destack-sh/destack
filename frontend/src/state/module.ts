@@ -1,6 +1,7 @@
-import { graphql } from "@/gql";
-import type { InterpFileFragment, InterpStatementFragment, StatementType, SymbolType } from "@/gql/graphql";
+import { graphql, useFragment } from "@/gql";
+import type { InterpFileFragment, InterpStatementFragment, SymbolType, StatementType } from "@/gql/graphql";
 import { FileEditor, useBenchState } from "@/state/bench";
+import { InterpFileType, InterpStatementType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
@@ -82,11 +83,14 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (module.value?.projectVersion == null) return null;
     const statementsById: Record<string, InterpStatement> = {};
     const filesById: Record<string, InterpFile> = {};
-    for (const file of module.value.projectVersion.files.edges.map((e: any) => e.node)) {
-      for (const symbol of file.symbols) {
-        statementsById[symbol.id] = symbol;
+    for (const fileEdge of module.value.projectVersion.files.edges) {
+      const file = useFragment(InterpFileType, fileEdge.node);
+      if (file.deletedAt != null) continue;
+      filesById[fileEdge.node.id] = file;
+      for (const statement of fileEdge.node.statements) {
+        if (statement.deletedAt != null) continue;
+        statementsById[statement.id] = useFragment(InterpStatementType, statement);
       }
-      filesById[file.id] = file;
     }
     return {
       id: module.value.projectVersion.id,
@@ -127,7 +131,7 @@ export function fileOf(statement: { id: string }, projectVersionId?: Ref<string 
   return moduleIndex.value?.filesById[moduleIndex.value?.statementsById[statement.id]?.file?.id];
 }
 
-export function contextOf(symbol: Pick<InterpSymbol, "id">, projectVersionId?: Ref<string | null>) {
+export function contextOf(symbol: { id: string }, projectVersionId?: Ref<string | null>) {
   const { moduleIndex, dependenciesIndex } = useCurrentModule(projectVersionId);
   for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
     if (idx && symbol.id in idx.filesById) {

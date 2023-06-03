@@ -329,7 +329,6 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   return false;
 });
 
-const runtime = useCurrentModule();
 const moduleSync = useModuleSync(versionToViewId);
 const projectSync = useProjectSync(toRef(bench, "currentProjectId"));
 const auth = useAuth();
@@ -343,7 +342,6 @@ watch(
     if (WS_CONNECTED.value) {
       wasEverConnected.value = true;
     }
-
     if (!WS_CONNECTED.value && !connectionLost.value && wasEverConnected.value) {
       notifications.show({
         type: "runtime.disconnected",
@@ -412,7 +410,7 @@ watchEffect(async () => {
       // migrate if there is a new version of the same project
       // (loads overwrites bench state for the entire project,
       //  so editor.currentProjectVersionId will point to its last known version)
-      if (bench.currentProjectVersionId != versionToViewId.value) {
+      if (bench.currentProjectVersionId != versionToViewId.value && bench.currentProjectVersionId != null) {
         const success = migrate(
           bench.currentProjectId as string,
           bench.currentProjectVersionId as string,
