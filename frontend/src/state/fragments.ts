@@ -108,8 +108,8 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   }
 `);
 
-export const SimpleTypeNodeType = graphql(/* GraphQL */ `
-  fragment SimpleTypeNodeContent on SimpleTypeNode {
+export const FieldType = graphql(/* GraphQL */ `
+  fragment FieldContent on Field {
     id
     createdAt
     updatedAt
@@ -158,8 +158,8 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     rootTypeTag
     rootTypeFlags
-    typeNodes(filters: { isVisible: true }) {
-      ...SimpleTypeNodeContent
+    fields(filters: { isVisible: true }) {
+      ...FieldContent
     }
   }
 `);

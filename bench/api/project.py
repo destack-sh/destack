@@ -86,7 +86,7 @@ REF_TYPE_TO_TYPE_NAME = {
     models.RefType.FILE: "File",
     models.RefType.STATEMENT: "Statement",
     models.RefType.RECORD: "Record",
-    models.RefType.TYPE_NODE: "SimpleTypeNode",
+    models.RefType.FIELD: "Field",
 }
 
 

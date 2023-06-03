@@ -19,8 +19,8 @@ from bench.language.type import (
     CodeContent,
     DataContent,
     ExpectationContent,
+    Field,
     RequirementContent,
-    SimpleTypeNode,
     StatementPath,
     StatementType,
     SymbolContent,
@@ -120,7 +120,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
             postfix = f" :: {type_str}:"
         elif statement.symbol_type == SymT.DATA:
             content = cast(DataContent, statement.content)
-            nodes = content.self_type_nodes or content.type_nodes or []
+            nodes = content.self_fields or content.fields or []
             type_str = render_type_struct(nodes, statement)
             postfix = f" :: {type_str}:"
         else:
@@ -165,7 +165,7 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
         elif content.language == "json":
             rendered_data = render_literal(json.dumps(records_data), lang="json")
         elif content.language == "csv":
-            field_names = [field.name for field in content.type_nodes]
+            field_names = [field.name for field in content.fields]
             csv_output = io.StringIO()
             csv_writer = csv.DictWriter(
                 csv_output,
@@ -184,10 +184,10 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
     elif isinstance(content, TypeContent):
         if content.tag == TypeTag.STRUCT:
             rendered_type = render_type_struct_inner(
-                content.self_type_nodes, statement, "\n", inline=False
+                content.self_fields or content.fields, statement, "\n", inline=False
             )
         elif content.tag == TypeTag.ENUM:
-            rendered_type = render_type_enum(content.self_type_nodes)
+            rendered_type = render_type_enum(content.self_fields or content.fields)
         elif content.tag == TypeTag.FUNCTION:
             rendered_type = render_type_func(content, statement)
         else:
@@ -228,7 +228,7 @@ def render_type_node(
     if node.tag == TypeTag.TYPE_REFERENCE or (node.reference is not None and not ignore_reference):
         type_str = render_reference(node.reference, statement)
     elif node.tag == TypeTag.UNION:
-        nodes = node.self_type_nodes or node.type_nodes or []
+        nodes = node.self_fields or node.fields or []
         type_str = " | ".join(render_type_node(e, statement) for e in nodes)
     elif node.hint is not None:
         type_str = node.hint
@@ -248,7 +248,7 @@ def render_type_node(
 
 
 def render_type_func(node: TypeContent, statement: Statement) -> str:
-    nodes = node.self_type_nodes or node.type_nodes or []
+    nodes = node.self_fields or node.fields or []
     inputs = [n for n in nodes if not (n.flags & TypeFlag.IsOutput)]
     outputs = [n for n in nodes if n.flags & TypeFlag.IsOutput]
     input_str = render_type_struct(inputs, statement)
@@ -291,7 +291,7 @@ def render_type_struct_inner(
     return seperator.join(field_strs)
 
 
-def render_type_enum(nodes: list[SimpleTypeNode]) -> str:
+def render_type_enum(nodes: list[Field]) -> str:
     members_strs = []
     for m in nodes:
         member_str = f"- {escape_identifier(m.name)}"

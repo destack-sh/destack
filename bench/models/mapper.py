@@ -20,7 +20,7 @@ from bench.language import wire
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.parse import LookupBy, index_module
 from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
-from bench.language.wire import FileData, RecordData, SimpleTypeNodeData, StatementData
+from bench.language.wire import FieldData, FileData, RecordData, StatementData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
@@ -125,7 +125,7 @@ def read_module(
     statements = (
         project_v.statements.filter(deleted_at=None, commented=False)
         .select_related("reference")
-        .prefetch_related("type_nodes")
+        .prefetch_related("fields")
     )
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
@@ -152,7 +152,7 @@ def rmap_file_nested(file: models.File, exclude_non_semantic: bool) -> FileData:
     statements = (
         file.statements.filter(deleted_at=None, commented=False)
         .select_related("reference")
-        .prefetch_related("type_nodes")
+        .prefetch_related("fields")
     )
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
@@ -175,15 +175,15 @@ def rmap_statement_nested(statement: models.Statement) -> list[StatementData]:
 
 # (all module contents are used for tracking changes)
 def rmap_flat(
-    obj: models.File | models.Statement | models.SimpleTypeNode | models.Record,
-) -> wire.FileData | wire.StatementData | wire.SimpleTypeNodeData | wire.RecordData:
+    obj: models.File | models.Statement | models.Field | models.Record,
+) -> wire.FileData | wire.StatementData | wire.FieldData | wire.RecordData:
     """Read a DB object into a wire object without any children."""
     if isinstance(obj, models.File):
         return rmap_file_flat(obj, module_id=obj.project_version_id)
     elif isinstance(obj, models.Statement):
         return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
-    elif isinstance(obj, models.SimpleTypeNode):
-        return rmap_simple_type_node(obj)
+    elif isinstance(obj, models.Field):
+        return rmap_field(obj)
     elif isinstance(obj, models.Record):
         return rmap_record(obj)
     else:
@@ -212,9 +212,9 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     if mut[MMT.TRUNCATE_RECORDS]:
         statement_ids = [m.statement_id for m in mut[MMT.TRUNCATE_RECORDS]]
         models.Record.objects.filter(statement_id__in=statement_ids).delete()
-    if mut[MMT.DELETE_TYPE_NODE]:  # batch delete since no dependent models
-        type_node_ids = [m.data.id for m in mut[MMT.DELETE_TYPE_NODE]]
-        models.SimpleTypeNode.objects.filter(id__in=type_node_ids).delete()
+    if mut[MMT.DELETE_FIELD]:  # batch delete since no dependent models
+        field_ids = [m.data.id for m in mut[MMT.DELETE_FIELD]]
+        models.Field.objects.filter(id__in=field_ids).delete()
     if mut[MMT.DELETE_STATEMENT]:
         statement_ids = [m.statement_id for m in mut[MMT.DELETE_STATEMENT]]
         for statement in models.Statement.objects.filter(id__in=statement_ids):
@@ -289,10 +289,8 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         model_contents_relations.append(
             wmap_record(m.statement_id, typing.cast(RecordData, m.data))
         )
-    for m in mut[MMT.CREATE_TYPE_NODE]:
-        model_contents_relations.append(
-            wmap_simple_type_node(m.statement_id, typing.cast(SimpleTypeNodeData, m.data))
-        )
+    for m in mut[MMT.CREATE_FIELD]:
+        model_contents_relations.append(wmap_field(m.statement_id, typing.cast(FieldData, m.data)))
     # create content relations
     for relation_cls, relations in groupby(model_contents_relations, key=type):
         relation_cls.objects.bulk_create(relations)
@@ -304,8 +302,8 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     # :WriteModuleUpdates
     if mut[MMT.UPDATE_STATEMENT]:
         raise NotImplementedError(f"statement updates not implemented: {mut[MMT.UPDATE_STATEMENT]}")
-    if mut[MMT.UPDATE_TYPE_NODE]:
-        raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_TYPE_NODE]}")
+    if mut[MMT.UPDATE_FIELD]:
+        raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_FIELD]}")
 
 
 def write_files(
@@ -404,10 +402,7 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.root_type_tag = statement.root_type_tag
     data.root_type_flags = statement.root_type_flags
     if not flat:
-        data.type_nodes = [
-            rmap_simple_type_node(node)
-            for node in statement.type_nodes.filter(deleted_at=None).all()
-        ]
+        data.fields = [rmap_field(node) for node in statement.fields.filter(deleted_at=None).all()]
     if statement.symbol_type == SymbolType.DATA and not flat:
         if (statement.root_type_flags or 0) & TypeFlag.IsArray:
             data.records = [
@@ -450,9 +445,9 @@ def wmap_symbol(
             )
     if not flat:
         # copy nested relations
-        if data.type_nodes:
-            type_nodes = [wmap_simple_type_node(statement.id, node) for node in data.type_nodes]
-            relations.extend(type_nodes)
+        if data.fields:
+            fields = [wmap_field(statement.id, node) for node in data.fields]
+            relations.extend(fields)
         if data.records:
             model_records = [wmap_record(statement.id, record) for record in data.records]
             relations.extend(model_records)
@@ -480,8 +475,8 @@ def wmap_record(statement_id: UUID, record: RecordData) -> models.Record:
     )
 
 
-def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeData:
-    return wire.SimpleTypeNodeData(
+def rmap_field(node: models.Field) -> wire.FieldData:
+    return wire.FieldData(
         id=node.id,
         revision=node.revision,
         name=node.name,
@@ -497,10 +492,8 @@ def rmap_simple_type_node(node: models.SimpleTypeNode) -> wire.SimpleTypeNodeDat
     )
 
 
-def wmap_simple_type_node(
-    statement_id: UUID, node: wire.SimpleTypeNodeData
-) -> models.SimpleTypeNode:
-    return models.SimpleTypeNode(
+def wmap_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
+    return models.Field(
         id=node.id,
         statement_id=statement_id,
         key=node.key,

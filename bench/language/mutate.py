@@ -12,7 +12,7 @@ from uuid import UUID
 
 from bench.language import ModuleIndex, wire
 from bench.language.type import StatementType
-from bench.language.wire import FileData, ModuleData, RecordData, SimpleTypeNodeData, StatementData
+from bench.language.wire import FieldData, FileData, ModuleData, RecordData, StatementData
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -46,15 +46,15 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_STATEMENT = "UPDATE_STATEMENT"
     DELETE_STATEMENT = "DELETE_STATEMENT"
     # Types
-    CREATE_TYPE_NODE = "CREATE_TYPE_NODE"
-    UPDATE_TYPE_NODE = "UPDATE_TYPE_NODE"
-    RENAME_TYPE_NODE = "RENAME_TYPE_NODE"
-    UPDATE_TYPE_NODE_DESCRIPTION = "UPDATE_TYPE_NODE_DESCRIPTION"
-    UPDATE_TYPE_NODE_TYPE = "UPDATE_TYPE_NODE_TYPE"
-    MOVE_TYPE_NODE = "MOVE_TYPE_NODE"
-    SOFT_DELETE_TYPE_NODE = "SOFT_DELETE_TYPE_NODE"
-    DELETE_TYPE_NODE = "DELETE_TYPE_NODE"
-    RESTORE_TYPE_NODE = "RESTORE_TYPE_NODE"
+    CREATE_FIELD = "CREATE_FIELD"
+    UPDATE_FIELD = "UPDATE_FIELD"
+    RENAME_FIELD = "RENAME_FIELD"
+    UPDATE_FIELD_DESCRIPTION = "UPDATE_FIELD_DESCRIPTION"
+    UPDATE_FIELD_TYPE = "UPDATE_FIELD_TYPE"
+    MOVE_FIELD = "MOVE_FIELD"
+    SOFT_DELETE_FIELD = "SOFT_DELETE_FIELD"
+    DELETE_FIELD = "DELETE_FIELD"
+    RESTORE_FIELD = "RESTORE_FIELD"
     # Records
     TRUNCATE_RECORDS = "TRUNCATE_RECORDS"
     CREATE_RECORD = "CREATE_RECORD"
@@ -89,7 +89,7 @@ class ModuleMutationScope(enum.StrEnum):
 
     FILE = "FILE"
     STATEMENT = "STATEMENT"
-    TYPE_NODE = "TYPE_NODE"
+    FIELD = "FIELD"
     RECORD = "RECORD"
 
 
@@ -101,9 +101,9 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.CREATE_STATEMENT,
     ModuleMutationType.UPDATE_STATEMENT,
     ModuleMutationType.DELETE_STATEMENT,
-    ModuleMutationType.CREATE_TYPE_NODE,
-    ModuleMutationType.UPDATE_TYPE_NODE,
-    ModuleMutationType.DELETE_TYPE_NODE,
+    ModuleMutationType.CREATE_FIELD,
+    ModuleMutationType.UPDATE_FIELD,
+    ModuleMutationType.DELETE_FIELD,
     ModuleMutationType.CREATE_RECORD,
     ModuleMutationType.UPDATE_RECORD,
     ModuleMutationType.DELETE_RECORD,
@@ -142,15 +142,15 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.UPDATE_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
     MMT.DELETE_STATEMENT: (MMK.DELETE, MMS.STATEMENT),
     # Types
-    MMT.CREATE_TYPE_NODE: (MMK.CREATE, MMS.TYPE_NODE),
-    MMT.UPDATE_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
-    MMT.RENAME_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
-    MMT.UPDATE_TYPE_NODE_DESCRIPTION: (MMK.UPDATE, MMS.TYPE_NODE),
-    MMT.UPDATE_TYPE_NODE_TYPE: (MMK.UPDATE, MMS.TYPE_NODE),
-    MMT.MOVE_TYPE_NODE: (MMK.UPDATE, MMS.TYPE_NODE),
-    MMT.DELETE_TYPE_NODE: (MMK.DELETE, MMS.TYPE_NODE),
-    MMT.SOFT_DELETE_TYPE_NODE: (MMK.DELETE, MMS.TYPE_NODE),
-    MMT.RESTORE_TYPE_NODE: (MMK.CREATE, MMS.TYPE_NODE),
+    MMT.CREATE_FIELD: (MMK.CREATE, MMS.FIELD),
+    MMT.UPDATE_FIELD: (MMK.UPDATE, MMS.FIELD),
+    MMT.RENAME_FIELD: (MMK.UPDATE, MMS.FIELD),
+    MMT.UPDATE_FIELD_DESCRIPTION: (MMK.UPDATE, MMS.FIELD),
+    MMT.UPDATE_FIELD_TYPE: (MMK.UPDATE, MMS.FIELD),
+    MMT.MOVE_FIELD: (MMK.UPDATE, MMS.FIELD),
+    MMT.DELETE_FIELD: (MMK.DELETE, MMS.FIELD),
+    MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MMS.FIELD),
+    MMT.RESTORE_FIELD: (MMK.CREATE, MMS.FIELD),
     # Records
     MMT.TRUNCATE_RECORDS: (MMK.DELETE, MMS.STATEMENT),
     MMT.CREATE_RECORD: (MMK.CREATE, MMS.RECORD),
@@ -162,11 +162,11 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
 }
 
-MutableData = FileData | StatementData | SimpleTypeNodeData | RecordData
+MutableData = FileData | StatementData | FieldData | RecordData
 SCOPE_BY_CLASS = {
     FileData: MMS.FILE,
     StatementData: MMS.STATEMENT,
-    SimpleTypeNodeData: MMS.TYPE_NODE,
+    FieldData: MMS.FIELD,
     RecordData: MMS.RECORD,
 }
 
@@ -185,7 +185,7 @@ class ModuleMutation:
 
     _data_file: Optional[FileData] = None
     _data_statement: Optional[StatementData] = None
-    _data_type_node: Optional[SimpleTypeNodeData] = None
+    _data_field: Optional[FieldData] = None
     _data_record: Optional[RecordData] = None
 
     @property
@@ -194,8 +194,8 @@ class ModuleMutation:
             return self._data_file
         elif self.type.scope == MMS.STATEMENT:
             return self._data_statement
-        elif self.type.scope == MMS.TYPE_NODE:
-            return self._data_type_node
+        elif self.type.scope == MMS.FIELD:
+            return self._data_field
         elif self.type.scope == MMS.RECORD:
             return self._data_record
         else:
@@ -209,8 +209,8 @@ class ModuleMutation:
             self._data_file = value
         elif self.type.scope == MMS.STATEMENT:
             self._data_statement = value
-        elif self.type.scope == MMS.TYPE_NODE:
-            self._data_type_node = value
+        elif self.type.scope == MMS.FIELD:
+            self._data_field = value
         elif self.type.scope == MMS.RECORD:
             self._data_record = value
         else:
@@ -263,7 +263,7 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             statement_id = obj.id
             file_id = obj.file_id
-        elif isinstance(obj, (SimpleTypeNodeData, RecordData)):
+        elif isinstance(obj, (FieldData, RecordData)):
             if obj.statement_id in self._created_statements:
                 statement = self._created_statements[obj.statement_id]
                 statement_id = statement.id
@@ -308,12 +308,12 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             self.do(MMT.CREATE_STATEMENT, obj)
             if not flat:
-                for type_node in obj.type_nodes or []:
+                for type_node in obj.fields or []:
                     self.create(type_node)
                 for record in obj.records or []:
                     self.create(record)
-        elif isinstance(obj, SimpleTypeNodeData):
-            self.do(MMT.CREATE_TYPE_NODE, obj)
+        elif isinstance(obj, FieldData):
+            self.do(MMT.CREATE_FIELD, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.CREATE_RECORD, obj)
         else:
@@ -330,8 +330,8 @@ class ModuleMutator:
             self.do(MMT.UPDATE_FILE, obj)
         elif isinstance(obj, StatementData):
             self.do(MMT.UPDATE_STATEMENT, obj)
-        elif isinstance(obj, SimpleTypeNodeData):
-            self.do(MMT.UPDATE_TYPE_NODE, obj)
+        elif isinstance(obj, FieldData):
+            self.do(MMT.UPDATE_FIELD, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.UPDATE_RECORD, obj)
         else:
@@ -348,8 +348,8 @@ class ModuleMutator:
             self.do(MMT.DELETE_FILE, obj)
         elif isinstance(obj, StatementData):
             self.do(MMT.DELETE_STATEMENT, obj)
-        elif isinstance(obj, SimpleTypeNodeData):
-            self.do(MMT.DELETE_TYPE_NODE, obj)
+        elif isinstance(obj, FieldData):
+            self.do(MMT.DELETE_FIELD, obj)
         elif isinstance(obj, RecordData):
             self.do(MMT.DELETE_RECORD, obj)
         else:
@@ -377,14 +377,12 @@ class ModuleMutator:
         }
 
         # apply deletes
-        deleted_type_nodes = {m.data.id for m in mut[MMT.DELETE_TYPE_NODE]}
+        deleted_type_nodes = {m.data.id for m in mut[MMT.DELETE_FIELD]}
         deleted_records = {m.data.id for m in mut[MMT.DELETE_RECORD]}
-        for m in chain(mut[MMT.DELETE_TYPE_NODE], mut[MMT.DELETE_RECORD]):
+        for m in chain(mut[MMT.DELETE_FIELD], mut[MMT.DELETE_RECORD]):
             statement = statements[m.statement_id]
-            if statement.type_nodes:
-                statement.type_nodes = [
-                    t for t in statement.type_nodes if t.id not in deleted_type_nodes
-                ]
+            if statement.fields:
+                statement.fields = [t for t in statement.fields if t.id not in deleted_type_nodes]
             if statement.records:
                 statement.records = [r for r in statement.records if r.id not in deleted_records]
         for m in mut[MMT.TRUNCATE_RECORDS]:
@@ -409,10 +407,10 @@ class ModuleMutator:
             files[m.data.id] = m.data
         for m in mut[MMT.CREATE_STATEMENT]:
             statements[m.data.id] = m.data
-        for m in mut[MMT.CREATE_TYPE_NODE]:
-            if statements[m.statement_id].type_nodes is None:
-                statements[m.statement_id].type_nodes = []
-            statements[m.statement_id].type_nodes.append(m.data)
+        for m in mut[MMT.CREATE_FIELD]:
+            if statements[m.statement_id].fields is None:
+                statements[m.statement_id].fields = []
+            statements[m.statement_id].fields.append(m.data)
         for m in mut[MMT.CREATE_RECORD]:
             if statements[m.statement_id].records is None:
                 statements[m.statement_id].records = []
@@ -426,11 +424,11 @@ class ModuleMutator:
             statements[m.statement_id] = m.data
             # keep statement's relations
             if old_statement is not None:  # otherwise panic?
-                statements[m.statement_id].type_nodes = old_statement.type_nodes
+                statements[m.statement_id].fields = old_statement.fields
                 statements[m.statement_id].records = old_statement.records
-        for m in mut[MMT.UPDATE_TYPE_NODE]:
+        for m in mut[MMT.UPDATE_FIELD]:
             statement = statements[m.statement_id]
-            _replace_by_id(statement.type_nodes, m.data)
+            _replace_by_id(statement.fields, m.data)
         for m in mut[MMT.UPDATE_RECORD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.records, m.data)
@@ -511,7 +509,7 @@ NON_SEMANTIC_MUTATION_TYPES = {
     MMT.CREATE_FILE,
     MMT.CREATE_STATEMENT_BLANK,
     MMT.UPDATE_STATEMENT_TEXT,  # for comments
-    MMT.MOVE_TYPE_NODE,
+    MMT.MOVE_FIELD,
     MMT.MOVE_RECORD,
 }
 NON_SEMANTIC_STATEMENT_TYPES = {

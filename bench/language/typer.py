@@ -74,12 +74,12 @@ def check_type(
         _check(isinstance(value, bool), "expected boolean")
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
-        _check(any(member.value == value for member in expected.type_nodes), "expected enum member")
+        _check(any(member.value == value for member in expected.fields), "expected enum member")
     elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
         if _check(isinstance(value, Mapping), "expected struct"):
-            for field in expected.type_nodes:
+            for field in expected.fields:
                 if is_output is not None and bool(field.flags & TypeFlag.IsOutput) != is_output:
                     continue
                 alt_name = to_pyidentifier(field.name)
@@ -91,7 +91,7 @@ def check_type(
     elif expected.tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:
-        for option in expected.type_nodes:
+        for option in expected.fields:
             try:
                 check_type(value, option)
                 return
@@ -145,7 +145,7 @@ def map_value(
     if not isinstance(value, Mapping):
         return value  # type error, ignore here
     mapped = {}
-    for subtype in type.type_nodes:
+    for subtype in type.fields:
         if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
             raise RuntimeError(f"unexpected union with {type}->{subtype}")
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:

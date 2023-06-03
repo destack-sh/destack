@@ -66,6 +66,7 @@ class AccessToken(UUIDModel):
     token_key = models.CharField(max_length=ACCESS_TOKEN_KEY_LENGTH)
     scopes = ArrayField(TextChoicesField(choices_enum=AccessTokenScope))
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
+    secret = models.ForeignKey("Secret", on_delete=models.CASCADE, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -5,7 +5,7 @@ import { useStatementContext } from "@/state/statement";
 import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { MODIFIER_BY_KEYWORD, SUPPORTED_MODIFIERS, SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
-import { TypeFlag } from "@/state/runtime";
+import { TypeFlag } from "@/state/module";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";

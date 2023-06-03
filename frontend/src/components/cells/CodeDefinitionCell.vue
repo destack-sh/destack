@@ -7,7 +7,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
-import { newExecutionId, useSymbolOps } from "@/state/runtime";
+import { newExecutionId, useSymbolOps } from "@/state/module";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import InlineActions from "@/components/cells/InlineActionsCell.vue";
 import {
@@ -56,7 +56,7 @@ const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecuti
 
 const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
-const hasTypes = computed(() => context.typeNodes.value.length > 0);
+const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const hideOutput = ref(false);
 const truncateOutput = ref(true);
@@ -167,7 +167,7 @@ defineExpose({
       />
       <!-- Inline type -->
       <button
-        v-if="!context.readonly.value && context.typeNodes.value.length == 0 && !addingTypes"
+        v-if="!context.readonly.value && context.fields.value.length == 0 && !addingTypes"
         ref="typeRef"
         class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm hover:bg-orange-100 hover:text-gray-700"
         :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'"

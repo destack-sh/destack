@@ -35,7 +35,7 @@ from bench.settings import DEBUG, TEST
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
     from bench.api.project import File, Project, ProjectVersion
-    from bench.api.statement import Record, SimpleTypeNode, Statement
+    from bench.api.statement import Field, Record, Statement
     from bench.api.token import AccessToken
 
 logger = structlog.get_logger(__name__)
@@ -116,7 +116,7 @@ class Client(gql.relay.Node):
     project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     file: Optional[Annotated["File", lazy(".project")]]
     statement: Optional[Annotated["Statement", lazy(".statement")]]
-    type_node: Optional[Annotated["SimpleTypeNode", lazy(".statement")]]
+    field: Optional[Annotated["Field", lazy(".statement")]]
     record: Optional[Annotated["Record", lazy(".statement")]]
     path: auto
     active: bool
@@ -149,7 +149,7 @@ class ClientUpsertInput(gql.NodeInput):
     project_version_id: Optional[GlobalID]
     file_id: Optional[GlobalID]
     statement_id: Optional[GlobalID]
-    type_node_id: Optional[GlobalID]
+    field_id: Optional[GlobalID]
     record_id: Optional[GlobalID]
     path: Optional[str]
 
@@ -231,7 +231,7 @@ class UserMutation:
         )
         client.file_id = input.file_id.node_id if input.file_id else None
         client.statement_id = input.statement_id.node_id if input.statement_id else None
-        client.type_node_id = input.type_node_id.node_id if input.type_node_id else None
+        client.field_id = input.field_id.node_id if input.field_id else None
         client.record_id = input.record_id.node_id if input.record_id else None
         client.path = input.path
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)

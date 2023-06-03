@@ -20,7 +20,7 @@ from .project import (
     RefType,
 )
 from .secret import Secret
-from .statement import SimpleTypeNode, Statement, StatementType, SymbolType
+from .statement import Field, Statement, StatementType, SymbolType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User
 from .worker import Worker, WorkerStatus, WorkerTenancy
@@ -53,7 +53,7 @@ __all__ = [
     "RefType",
     "RemoteObject",
     "RemoteObjectStatus",
-    "SimpleTypeNode",
+    "Field",
     "Statement",
     "StatementType",
     "SymbolType",

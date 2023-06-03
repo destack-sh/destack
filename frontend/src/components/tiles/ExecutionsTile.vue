@@ -6,7 +6,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
 import { useExecutions } from "@/state/executions";
-import { symbolOf, TypeFlag } from "@/state/runtime";
+import { symbolOf, TypeFlag } from "@/state/module";
 import {
   ArrowPathIcon,
   BoltIcon,
@@ -48,8 +48,8 @@ const { executions, totalCount } = useExecutions(
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
 const symbol = computed(() => symbolOf(props.runnableId));
-const inputFields = computed(() => symbol.value?.typeNodes?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => symbol.value?.typeNodes?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
+const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const expandedExecutionId = ref<string | null>(null);
 
 // navigation

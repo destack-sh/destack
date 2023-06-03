@@ -1,5 +1,5 @@
 import { StatementModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { symbolOf } from "@/state/runtime";
+import { symbolOf } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
 
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {

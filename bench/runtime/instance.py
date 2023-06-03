@@ -792,7 +792,7 @@ class IsoDtTypeMapping(StaticTypeMapping):
 
 class EnumMapping(TypeMapping):
     def to_py_type(self, type: TypeNode) -> Any:
-        members = {to_pyidentifier(child.name): child.name for child in type.type_nodes}
+        members = {to_pyidentifier(child.name): child.name for child in type.fields}
         enum_name = type.name or "_anon_" + uuid4().hex
         return enum.StrEnum(enum_name, members)
 
@@ -851,7 +851,7 @@ class StructTypeMapping(TypeMapping):
     def to_py_type(self, type: TypeNode) -> typing.TypedDict:
         return typing.TypedDict(
             type.name,
-            {member.ident: instantiate_py_type(member) for member in type.type_nodes},
+            {member.ident: instantiate_py_type(member) for member in type.fields},
         )
 
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
@@ -904,8 +904,8 @@ def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     py_type = instantiate_py_type(type)
     mapped_nodes = _instantiate_type_nodes(type, session)
     return TypeInstance(
-        **dict_minus(type.__dict__, "type_nodes"),
-        type_nodes=mapped_nodes,
+        **dict_minus(type.__dict__, "fields"),
+        fields=mapped_nodes,
         py_type=py_type,
         session=session,
     )
@@ -915,7 +915,7 @@ def _instantiate_type_nodes(type: TypeContent, session: Session):
     """Map/impute type nodes with instances recursively"""
     if type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         mapped_nodes = []
-        for node in type.type_nodes:
+        for node in type.fields:
             if isinstance(node, Type):
                 mapped = _instantiate_type(node, session)
             else:  # simple type nodes aren't symbols, but their refs may be
@@ -926,7 +926,7 @@ def _instantiate_type_nodes(type: TypeContent, session: Session):
                     mapped = node
             mapped_nodes.append(mapped)
     else:
-        mapped_nodes = type.type_nodes
+        mapped_nodes = type.fields
     return mapped_nodes
 
 
@@ -961,15 +961,15 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
 
 def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
-    dataset_kwargs = dict_minus(dataset.__dict__, ("records", "type_nodes"))
+    dataset_kwargs = dict_minus(dataset.__dict__, ("records", "fields"))
     type_nodes = _instantiate_type_nodes(dataset, session)
     if dataset.flags & TypeFlag.IsArray:
         instance = DataTableInstance(
-            **dataset_kwargs, type_nodes=type_nodes, records=[], session=session
+            **dataset_kwargs, fields=type_nodes, records=[], session=session
         )
     else:
         instance = DataRecordInstance(
-            **dataset_kwargs, type_nodes=type_nodes, records=[], session=session
+            **dataset_kwargs, fields=type_nodes, records=[], session=session
         )
     for raw_record in dataset.records:
         py_record_data = map_value(
@@ -1047,7 +1047,7 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
     code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance
     type_nodes = _instantiate_type_nodes(code, session)
     return code_cls(
-        **(dict_minus(code.__dict__, "type_nodes")),
+        **(dict_minus(code.__dict__, "fields")),
         type_nodes=type_nodes,
         transform=transform,
         code_callable=callable,
@@ -1057,8 +1057,8 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
 
 def _instantiate_task(symbol, session):
     return TaskInstance(
-        **(dict_minus(symbol.__dict__, "type_nodes")),
-        type_nodes=_instantiate_type_nodes(symbol, session),
+        **(dict_minus(symbol.__dict__, "fields")),
+        fields=_instantiate_type_nodes(symbol, session),
         session=session,
     )
 

@@ -1,12 +1,5 @@
 import { graphql, useFragment } from "@/gql";
-import {
-  StatementType,
-  SymbolType,
-  type InterpError,
-  type InterpFile,
-  type InterpModule,
-  type InterpSymbol,
-} from "@/gql/graphql";
+import type { StatementType, SymbolType, InterpError, InterpFile, InterpModule, InterpSymbol } from "@/gql/graphql";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -38,8 +31,8 @@ export const InterpSymbolContentType = graphql(/* GraphQL */ `
     symbolType
     rootTypeTag
     generated
-    typeNodes {
-      # not using SimpleTypeNodeContent fragment because it's for the editable node
+    fields {
+      # not using FieldContent fragment because it's for the editable node
       # and using a shared fragment seems overkill
       id
       name

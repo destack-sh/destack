@@ -85,7 +85,7 @@ def tracked_mutation(
                 project_version = models.ProjectVersion.objects.only("committed_at").get(
                     id=thing.project_version_id
                 )
-            elif isinstance(thing, (models.SimpleTypeNode, models.Record)):
+            elif isinstance(thing, (models.Field, models.Record)):
                 # TODO @Performance: fetching project_version for statement mutation is inefficient
                 project_version = models.ProjectVersion.objects.only("committed_at").get(
                     id=thing.statement.project_version_id
@@ -203,14 +203,14 @@ def track_mutation_for_analytics(
             "order_key": things[0].order_key,
             "file_id": things[0].file_id,
         }
-    elif "TYPE_NODE" in type.value:
+    elif "FIELD" in type.value:
         properties = {
-            "simple_type_node_id": things[0].id,
+            "field_id": things[0].id,
             "name": things[0].name,
             "order_key": things[0].order_key,
         }
     elif "RECORD" in type.value:
-        properties = {"dataset_record_id": things[0].id, "order_key": things[0].order_key}
+        properties = {"record_id": things[0].id, "order_key": things[0].order_key}
     else:
         properties = {}
         logger.warning("unknown_project_mutation", type=type)

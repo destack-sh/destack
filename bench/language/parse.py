@@ -29,13 +29,13 @@ from bench.language.type import (
     DataContent,
     Expectation,
     ExpectationContent,
+    Field,
     File,
     InterpSymbol,
     Model,
     Module,
     Record,
     RequirementContent,
-    SimpleTypeNode,
     SourceFile,
     Statement,
     StatementModifier,
@@ -604,7 +604,7 @@ def _parse_definition_content(
             name=name.value,
             description=description.value,
             tag=TypeTag.FUNCTION,
-            type_nodes=type.type_nodes,
+            fields=type.fields,
         )
     elif symbol_type.value == SymbolType.EXPECTATION:
         tokens.eat_separator(":")
@@ -633,7 +633,7 @@ def _parse_definition_content(
             language=lang,  # noqa
             code=code_text,
             tag=TypeTag.FUNCTION,
-            type_nodes=type.type_nodes,
+            fields=type.fields,
             xblocks=[],  # not parsed yet
         )
     elif symbol_type.value == SymbolType.DATA:
@@ -652,7 +652,7 @@ def _parse_definition_content(
             language=lang,
             records=records,
             tag=TypeTag.STRUCT,
-            type_nodes=type.type_nodes,
+            fields=type.fields,
         )
     elif symbol_type.value == SymbolType.BUILD:
         tokens.eat_separator(":")
@@ -674,7 +674,7 @@ def _parse_dataset_records(
         elif lang == "json":
             records_data = json.loads(value_str)
         elif lang == "csv":
-            field_names = [element.name for element in type.type_nodes]
+            field_names = [element.name for element in type.fields]
             csv_reader = csv.DictReader(
                 value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
             )
@@ -744,7 +744,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
     description = _parse_description_line_optional(tokens)
 
     # parse members (assumes literal members only)
-    members: list[SimpleTypeNode] = []
+    members: list[Field] = []
     while tokens.peek_separator("-"):
         tokens.eat_separator("-")
         tokens.eat_space()
@@ -754,7 +754,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             tokens.eat_space()
             member_description = tokens.eat_description().value
         last_order_key = members[-1].order_key if members else INTEGER_ZERO
-        member = SimpleTypeNode(
+        member = Field(
             order_key=generate_key_between(None, last_order_key),
             name=member_name,
             tag=TypeTag.LITERAL,
@@ -770,7 +770,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         name=name.value,
         description=description,
         tag=TypeTag.ENUM,
-        type_nodes=[*members],
+        fields=[*members],
     )
     definition = Statement(
         type=StatementType.DEFINITION,
@@ -782,15 +782,15 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
     return definition
 
 
-def parse_simple_type_node(tokens: TokenParser) -> SimpleTypeNode:
+def parse_field(tokens: TokenParser) -> Field:
     """Parse single tuple like <name>: <type>[ "<description>"]"""
     name = tokens.eat_identifier()
     tokens.eat_separator(":")
     tokens.eat_space()
-    return parse_simple_type_node_inline(tokens, name.value)
+    return parse_field_inline(tokens, name.value)
 
 
-def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> SimpleTypeNode:
+def parse_field_inline(tokens: TokenParser, name: str | None) -> Field:
     """Parse a type node type including description, handling simple nesting.."""
 
     flags = TypeFlag.Zero
@@ -829,7 +829,7 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
     else:
         description = None
 
-    return SimpleTypeNode(
+    return Field(
         name=name,
         tag=type,
         value=value,
@@ -839,7 +839,7 @@ def parse_simple_type_node_inline(tokens: TokenParser, name: str | None) -> Simp
     )
 
 
-def assign_type_node_oks(nodes: list[SimpleTypeNode]) -> list[SimpleTypeNode]:
+def assign_type_node_oks(nodes: list[Field]) -> list[Field]:
     """Assign order keys to type nodes and return the list of nodes."""
     oks = generate_n_keys_between(None, None, len(nodes))
     for node, ok in zip(nodes, oks):
@@ -854,22 +854,22 @@ def parse_type_struct_def(tokens: TokenParser, name: str | None) -> TypeContent:
         sep = tokens.eat()
         tokens.eat_space()
         if sep.value == "&":
-            node = SimpleTypeNode(
+            node = Field(
                 name=None,
                 tag=TypeTag.TYPE_REFERENCE,
                 reference=(_parse_reference_slot(tokens)),
                 flags=TypeFlag.IsUnionWith,
             )
         else:
-            node = parse_simple_type_node(tokens)
-        struct.type_nodes.append(node)
+            node = parse_field(tokens)
+        struct.fields.append(node)
         if not tokens.peek_type(TokenType.NEWLINE):
             break
         tokens.eat_newline_or_eos()
         if not (tokens.peek_separator("-") or tokens.peek_separator("&")):
             tokens.advance(-1)  # go back one token to leave newline separator
             break
-    assign_type_node_oks(struct.type_nodes)
+    assign_type_node_oks(struct.fields)
     return struct
 
 
@@ -901,16 +901,16 @@ def parse_type_struct(
         struct = TypeContent(name=name, tag=TypeTag.STRUCT)
 
     while expect_union:
-        node = SimpleTypeNode(
+        node = Field(
             name=None,
             tag=TypeTag.TYPE_REFERENCE,
             flags=TypeFlag.IsUnionWith | (TypeFlag.IsOutput if is_output else 0),
             reference=_parse_reference_slot(tokens),
         )
-        struct.type_nodes.append(node)
+        struct.fields.append(node)
         expect_union = _parse_union_join()
 
-    assign_type_node_oks(struct.type_nodes)
+    assign_type_node_oks(struct.fields)
 
     return struct
 
@@ -921,28 +921,28 @@ def parse_type_struct_inline(
     """Parse the inner part of an inline struct like name1: type1, name2: type2, ..."""
     struct = TypeContent(name=name, tag=TypeTag.STRUCT)
     while not tokens.peek_bracket(")"):
-        tuple = parse_simple_type_node(tokens)
+        tuple = parse_field(tokens)
         if is_output:
             tuple.flags = tuple.flags | TypeFlag.IsOutput
-        struct.type_nodes.append(tuple)
+        struct.fields.append(tuple)
         if not tokens.peek_separator(","):
             break
         tokens.eat_separator(",")
         tokens.eat_space()
-    assign_type_node_oks(struct.type_nodes)
+    assign_type_node_oks(struct.fields)
     return struct
 
 
 def parse_type_func(tokens: TokenParser, name: str | None) -> TypeContent:
     # parse signature like (<tuple1>, <tuple2>, ...) -> (<tuple1>, <tuple2>, ...)
-    nodes = parse_type_struct(tokens, name=None).type_nodes
+    nodes = parse_type_struct(tokens, name=None).fields
     if tokens.peek_separator(" "):
         tokens.eat_space()
         tokens.eat_separator("->")
         tokens.eat_space()
-        nodes.extend(parse_type_struct(tokens, name=None, is_output=True).type_nodes)
+        nodes.extend(parse_type_struct(tokens, name=None, is_output=True).fields)
     assign_type_node_oks(nodes)
-    return TypeContent(name=name, tag=TypeTag.FUNCTION, type_nodes=nodes)
+    return TypeContent(name=name, tag=TypeTag.FUNCTION, fields=nodes)
 
 
 def _parse_redefinition(tokens: TokenParser, **kwargs) -> Statement:
@@ -979,7 +979,7 @@ def _parse_redefinition_as_type_alias(tokens: TokenParser, **kwargs) -> Statemen
     tokens.eat_space()
     tokens.eat_separator("=")
     tokens.eat_space()
-    node = parse_simple_type_node_inline(tokens, name=None)
+    node = parse_field_inline(tokens, name=None)
     tokens.eat_newline_or_eos()
 
     # like other "redefinitions", type aliases are just syntactic sugar for definitions
@@ -1632,7 +1632,7 @@ def interp(
             node.tag = node.reference.tag
             if node.source_reference is None:
                 node.source_reference = node.reference.name
-        for child in node.type_nodes:
+        for child in node.fields:
             _interp_type_rec(child)
 
     # first impute all the references
@@ -1677,15 +1677,15 @@ def interp(
             _error(ET.CIRCULAR_UNION, node.source, path=path)
             return []
         if not isinstance(node, (Type, Task, Code, Data)) or node.id in inlined_node_ids:
-            return node.type_nodes  # not a type or already inlined
+            return node.fields  # not a type or already inlined
         inlined_node_ids.add(node.id)
-        if not any(n.flags & TypeFlag.IsUnionWith for n in node.type_nodes):
-            node.self_type_nodes = node.type_nodes
-            return node.type_nodes  # skip, not a union
+        if not any(n.flags & TypeFlag.IsUnionWith for n in node.fields):
+            node.fields = node.fields
+            return node.fields  # skip, not a union
         path = path + [node]
         inlined_nodes = []
-        node.self_type_nodes = deepcopy_types(node.type_nodes)  # retain originals
-        for child in node.type_nodes:
+        node.self_fields = deepcopy_types(node.fields)  # retain originals
+        for child in node.fields:
             if not child.flags & TypeFlag.IsUnionWith:
                 inlined_nodes.append(child)
                 continue
@@ -1706,8 +1706,8 @@ def interp(
                 inlined_nodes.append(to_inline)
             if isinstance(node, Type):  # extend expectations
                 node.expectations.extend(child.reference.expectations)
-        node.type_nodes = inlined_nodes
-        return node.type_nodes
+        node.fields = inlined_nodes
+        return node.fields
 
     for node_id in interped_type_nodes:
         if node_id in idx.symbols:

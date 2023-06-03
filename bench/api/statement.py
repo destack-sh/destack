@@ -38,8 +38,8 @@ class RecordFilter:
         return queryset
 
 
-@gql.django.filter(models.SimpleTypeNode)
-class SimpleTypeNodeFilter:
+@gql.django.filter(models.Field)
+class FieldFilter:
     is_visible: Optional[bool] = True
 
     def filter(self, queryset):
@@ -68,7 +68,7 @@ class SimplyTyped:
     """Anything typed using SimpleType nodes."""
 
     root_type_tag: Optional[TypeTag]
-    type_nodes: Optional[list["SimpleType"]]
+    fields: Optional[list["SimpleType"]]
 
 
 @gql.interface
@@ -85,8 +85,8 @@ class SimpleType:
     reference: Optional["Statement"]
 
 
-@gql.django.type(models.SimpleTypeNode)
-class SimpleTypeNode(gql.Node, SimpleType):
+@gql.django.type(models.Field)
+class Field(gql.Node, SimpleType):
     statement: "Statement"
     revision: auto
     created_at: auto
@@ -125,7 +125,7 @@ class Statement(gql.Node, SimplyTyped):
     # symbol contents
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
-    type_nodes: list[SimpleTypeNode] = gql.django.field(filters=SimpleTypeNodeFilter)
+    fields: list[Field] = gql.django.field(filters=FieldFilter)
     lang: auto
     code: auto
     description: auto
@@ -535,7 +535,7 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         source_ids = [UUID(i.node_id) for i in input.source_ids]
         source_statements = models.Statement._base_manager.prefetch_related(
-            "records", "type_nodes"
+            "records", "fields"
         ).filter(id__in=source_ids)
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
@@ -669,7 +669,7 @@ class RecordBatch(ThingBatch):
 
 
 @gql.input
-class TypeNodeCreateInput:
+class FieldCreateInput:
     id: GlobalID
     key: str
     order_key: str
@@ -684,7 +684,7 @@ class TypeNodeCreateInput:
 
 
 @gql.input
-class TypeNodeUpdateInput(gql.NodeInput):
+class FieldUpdateInput(gql.NodeInput):
     name: Optional[str] = None
     tag: TypeTag
     hint: Optional[TypeHint] = None
@@ -695,17 +695,17 @@ class TypeNodeUpdateInput(gql.NodeInput):
 
 
 @gql.input
-class TypeNodeRenameInput(gql.NodeInput):
+class FieldRenameInput(gql.NodeInput):
     name: Optional[str] = None
 
 
 @gql.input
-class TypeNodeUpdateDescriptionInput(gql.NodeInput):
+class FieldUpdateDescriptionInput(gql.NodeInput):
     description: Optional[str] = None
 
 
 @gql.input
-class TypeNodeUpdateTypeInput(gql.NodeInput):
+class FieldUpdateTypeInput(gql.NodeInput):
     tag: TypeTag
     hint: Optional[TypeHint] = None
     flags: int = 0
@@ -714,17 +714,17 @@ class TypeNodeUpdateTypeInput(gql.NodeInput):
 
 
 @gql.input
-class TypeNodeMoveInput(gql.NodeInput):
+class FieldMoveInput(gql.NodeInput):
     order_key: str
 
 
 @gql.input
-class TypeNodeDeleteInput(gql.NodeInput):
+class FieldDeleteInput(gql.NodeInput):
     pass
 
 
 @gql.input
-class TypeNodeRestoreInput(gql.NodeInput):
+class FieldRestoreInput(gql.NodeInput):
     pass
 
 
@@ -838,9 +838,9 @@ class SymbolMutation:
         models.Record.objects.filter(statement=statement).delete()
         return statement
 
-    @tracked_mutation(MMT.CREATE_TYPE_NODE)
-    def create_type_node(self, input: TypeNodeCreateInput) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode(
+    @tracked_mutation(MMT.CREATE_FIELD)
+    def create_field(self, input: FieldCreateInput) -> Field | OperationInfo:
+        type_node = models.Field(
             id=UUID(input.id.node_id),
             statement_id=UUID(input.statement_id.node_id),
             key=input.key,
@@ -855,9 +855,9 @@ class SymbolMutation:
         )
         return type_node
 
-    @tracked_mutation(MMT.UPDATE_TYPE_NODE)
-    def update_type_node(self, input: TypeNodeUpdateInput) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.UPDATE_FIELD)
+    def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.name = input.name
         type_node.description = input.description
         type_node.tag = input.tag
@@ -867,25 +867,21 @@ class SymbolMutation:
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
 
-    @tracked_mutation(MMT.RENAME_TYPE_NODE)
-    def update_type_node_name(self, input: TypeNodeRenameInput) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.RENAME_FIELD)
+    def update_field_name(self, input: FieldRenameInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.name = input.name
         return type_node
 
-    @tracked_mutation(MMT.UPDATE_TYPE_NODE_DESCRIPTION)
-    def update_type_node_description(
-        self, input: TypeNodeUpdateDescriptionInput
-    ) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.UPDATE_FIELD_DESCRIPTION)
+    def update_field_description(self, input: FieldUpdateDescriptionInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.description = input.description
         return type_node
 
-    @tracked_mutation(MMT.UPDATE_TYPE_NODE_TYPE)
-    def update_type_node_type(
-        self, input: TypeNodeUpdateTypeInput
-    ) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.UPDATE_FIELD_TYPE)
+    def update_field_type(self, input: FieldUpdateTypeInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.tag = input.tag
         type_node.hint = input.hint
         type_node.flags = input.flags
@@ -893,29 +889,27 @@ class SymbolMutation:
         type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return type_node
 
-    @tracked_mutation(MMT.MOVE_TYPE_NODE)
-    def move_type_node(self, input: TypeNodeMoveInput) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.MOVE_FIELD)
+    def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.order_key = input.order_key
         return type_node
 
-    @tracked_mutation(MMT.SOFT_DELETE_TYPE_NODE)
-    def soft_delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
+    @tracked_mutation(MMT.SOFT_DELETE_FIELD)
+    def soft_delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
-        type_node = models.SimpleTypeNode._base_manager.get(id=input.id.node_id)
+        type_node = models.Field._base_manager.get(id=input.id.node_id)
         type_node.soft_delete()
         return type_node
 
-    @tracked_mutation(MMT.DELETE_TYPE_NODE)
-    def delete_type_node(self, input: TypeNodeDeleteInput) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.DELETE_FIELD)
+    def delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.delete()
         return type_node
 
-    @tracked_mutation(MMT.RESTORE_TYPE_NODE)
-    def restore_statement_type_node(
-        self, input: TypeNodeRestoreInput
-    ) -> SimpleTypeNode | OperationInfo:
-        type_node = models.SimpleTypeNode.objects.get(id=input.id.node_id)
+    @tracked_mutation(MMT.RESTORE_FIELD)
+    def restore_statement_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
+        type_node = models.Field.objects.get(id=input.id.node_id)
         type_node.restore()
         return type_node

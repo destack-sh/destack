@@ -242,9 +242,7 @@ pass
 """.strip()
     module, idx = parse_string(bench)
     # members should include inherited members
-    github_connection_names = (
-        i.name for i in idx.symbol(".test:GithubConnection", Type).type_nodes
-    )
+    github_connection_names = (i.name for i in idx.symbol(".test:GithubConnection", Type).fields)
     assert set(github_connection_names) == {
         "name",
         "username",

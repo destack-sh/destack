@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import TypePreview from "@/components/interfaces/TypePreview.vue";
-import { ANY_TYPE_NODE, makeTypeNode, type SimpleType } from "@/state/statement";
-import { StatementType, SymbolType, TypeHint, TypeTag, type SimpleTypeNode } from "@/gql/graphql";
+import { ANY_FIELD, makeField, type SimpleType } from "@/state/statement";
+import { StatementType, SymbolType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/type";
-import { fileOf, symbolsLike, TypeFlag } from "@/state/runtime";
+import { fileOf, symbolsLike, TypeFlag } from "@/state/module";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import {
   ExclamationCircleIcon,
@@ -27,7 +27,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
 }>();
 
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_TYPE_NODE);
+const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
 const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
@@ -41,9 +41,9 @@ const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
 ];
 const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
   if (Object.values(TypeTag).includes(tag as TypeTag)) {
-    return makeTypeNode({ tag: tag as TypeTag });
+    return makeField({ tag: tag as TypeTag });
   } else if (tag in SUPPORTED_TYPEHINTS) {
-    return makeTypeNode({ tag: SUPPORTED_TYPEHINTS[tag as TypeHint] as TypeTag, hint: tag as TypeHint });
+    return makeField({ tag: SUPPORTED_TYPEHINTS[tag as TypeHint] as TypeTag, hint: tag as TypeHint });
   } else {
     throw new Error(`unknown primitive ${tag} ${typeof tag} ${Object.keys(TypeTag)}`);
   }
@@ -65,7 +65,7 @@ const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() 
       continue;
     }
     basicTypes.push(
-      makeTypeNode({
+      makeField({
         tag: TypeTag.TypeReference,
         reference: symbol as { id: string; name: string },
       })
@@ -77,7 +77,7 @@ const filteredTypes = computed(() =>
   availableTypes.value.filter((t) => renderSimpleType(t).toLowerCase().includes(query.value.toLowerCase()))
 );
 
-function writeValue(type: SimpleTypeNode) {
+function writeValue(type: Field) {
   // keep supported flags
   let newFlags = TypeFlag.Zero;
   for (let flag of Object.values(TypeFlag)) {
@@ -100,7 +100,7 @@ watch(
   () => [props.modelValue],
   () => {
     if (props.modelValue != value.value) {
-      value.value = props.modelValue ?? ANY_TYPE_NODE;
+      value.value = props.modelValue ?? ANY_FIELD;
     }
   }
 );

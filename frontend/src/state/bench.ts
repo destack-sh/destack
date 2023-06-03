@@ -659,7 +659,7 @@ export type EditorAction = Action<Editor>;
 
 // specific editors
 
-export type FileElementType = "Statement" | "SimpleTypeNode" | "DatasetRecord";
+export type FileElementType = "Statement" | "Field" | "DatasetRecord";
 export type FileElement = { id: Scalars["GlobalID"]; __typename?: FileElementType };
 
 export class FileEditor extends Editor {

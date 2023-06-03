@@ -15,7 +15,7 @@ import type { SimpleType } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
-import { TypeFlag } from "@/state/runtime";
+import { TypeFlag } from "@/state/module";
 import { IS_DEBUG } from "@/utils/globals";
 import { syncProperty } from "@/utils/sync";
 import { ArrowPathIcon } from "@heroicons/vue/24/outline";

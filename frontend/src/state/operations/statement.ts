@@ -30,16 +30,16 @@ export function newStatementId(): string {
   return btoa(`Statement:${nodeId}`);
 }
 
-export function newTypeNodeId(): string {
+export function newFieldId(): string {
   /* Generates a new type node data global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
-  return btoa(`SimpleTypeNode:${nodeId}`);
+  return btoa(`Field:${nodeId}`);
 }
 
 const ALPHA_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-export function newTypeNodeKey(): string {
-  /* Generates an 8-character alphabetic random key :TypeNodeKeys */
+export function newFieldKey(): string {
+  /* Generates an 8-character alphabetic random key :FieldKeys */
   return Array.from({ length: 8 }, () => ALPHA_CHARS.charAt(Math.floor(Math.random() * ALPHA_CHARS.length))).join("");
 }
 
@@ -126,7 +126,7 @@ export function useStatementOps() {
             }
             rootTypeTag
             rootTypeFlags
-            typeNodes(filters: { isVisible: true }) {
+            fields(filters: { isVisible: true }) {
               id
             }
           }
@@ -178,7 +178,7 @@ export function useStatementOps() {
             referenceProjectVersion: null,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
-            typeNodes: [],
+            fields: [],
             lang: vars.lang,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             generated: vars.generated,

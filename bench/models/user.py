@@ -165,9 +165,7 @@ class Client(UUIDModel):
     )
     file = models.ForeignKey("File", on_delete=models.SET_NULL, null=True, blank=True)
     statement = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
-    type_node = models.ForeignKey(
-        "SimpleTypeNode", on_delete=models.SET_NULL, null=True, blank=True
-    )
+    field = models.ForeignKey("Field", on_delete=models.SET_NULL, null=True, blank=True)
     record = models.ForeignKey("Record", on_delete=models.SET_NULL, null=True, blank=True)
     path = models.CharField(max_length=256, null=True, blank=True)
 
@@ -213,7 +211,7 @@ def rmap_client(client: Client) -> ClientData:
         project_version_id=client.project_version_id,
         file_id=client.file_id,
         statement_id=client.statement_id,
-        type_node_id=client.type_node_id,
+        field_id=client.field_id,
         record_id=client.record_id,
         path=client.path,
     )
@@ -233,7 +231,7 @@ def wmap_client(client_data: ClientData) -> Client:
         project_version_id=client_data.project_version_id,
         file_id=client_data.file_id,
         statement_id=client_data.statement_id,
-        type_node_id=client_data.type_node_id,
+        field_id=client_data.field_id,
         record_id=client_data.record_id,
         path=client_data.path,
     )

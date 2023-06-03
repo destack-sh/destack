@@ -106,7 +106,7 @@ type Client implements Node {
   projectVersion: ProjectVersion
   file: File
   statement: Statement
-  typeNode: SimpleTypeNode
+  field: Field
   record: Record
   path: String
   active: Boolean!
@@ -151,7 +151,7 @@ input ClientUpsertInput {
   projectVersionId: GlobalID
   fileId: GlobalID
   statementId: GlobalID
-  typeNodeId: GlobalID
+  fieldId: GlobalID
   recordId: GlobalID
   path: String
 }
@@ -276,6 +276,87 @@ enum ExecutionTriggerType {
   SCHEDULED
 }
 
+type Field implements Node & SimpleType {
+  id: GlobalID!
+  name: String
+  key: String!
+  orderKey: String!
+  tag: TypeTag!
+  hint: TypeHint
+  flags: Int!
+  description: String
+  value: JSON
+  reference: Statement
+  statement: Statement!
+  revision: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+}
+
+input FieldCreateInput {
+  id: GlobalID!
+  key: String!
+  orderKey: String!
+  statementId: GlobalID!
+  name: String = null
+  tag: TypeTag!
+  hint: TypeHint = null
+  description: String = null
+  flags: Int! = 0
+  value: JSON = null
+  referenceId: GlobalID = null
+}
+
+input FieldDeleteInput {
+  id: GlobalID!
+}
+
+input FieldFilter {
+  isVisible: Boolean = true
+}
+
+input FieldMoveInput {
+  id: GlobalID!
+  orderKey: String!
+}
+
+union FieldOperationInfo = Field | OperationInfo
+
+input FieldRenameInput {
+  id: GlobalID!
+  name: String = null
+}
+
+input FieldRestoreInput {
+  id: GlobalID!
+}
+
+input FieldUpdateDescriptionInput {
+  id: GlobalID!
+  description: String = null
+}
+
+input FieldUpdateInput {
+  id: GlobalID!
+  name: String = null
+  tag: TypeTag!
+  hint: TypeHint = null
+  description: String = null
+  flags: Int! = 0
+  value: JSON = null
+  referenceId: GlobalID = null
+}
+
+input FieldUpdateTypeInput {
+  id: GlobalID!
+  tag: TypeTag!
+  hint: TypeHint = null
+  flags: Int! = 0
+  value: JSON = null
+  referenceId: GlobalID = null
+}
+
 type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
@@ -391,7 +472,7 @@ type InterpSimpleType implements Node & SimpleType {
 
 type InterpSymbol implements SimplyTyped {
   rootTypeTag: TypeTag
-  typeNodes: [InterpSimpleType!]
+  fields: [SimpleType!]
   id: GlobalID!
   file: InterpFile!
   orderKey: String!
@@ -402,6 +483,7 @@ type InterpSymbol implements SimplyTyped {
   generated: Boolean!
   modifier: StatementModifier
   symbolType: SymbolType
+  typeNodes: [InterpSimpleType!]
 }
 
 """
@@ -451,15 +533,15 @@ enum ModuleMutationType {
   UPDATE_STATEMENT_LANGUAGE
   UPDATE_STATEMENT
   DELETE_STATEMENT
-  CREATE_TYPE_NODE
-  UPDATE_TYPE_NODE
-  RENAME_TYPE_NODE
-  UPDATE_TYPE_NODE_DESCRIPTION
-  UPDATE_TYPE_NODE_TYPE
-  MOVE_TYPE_NODE
-  SOFT_DELETE_TYPE_NODE
-  DELETE_TYPE_NODE
-  RESTORE_TYPE_NODE
+  CREATE_FIELD
+  UPDATE_FIELD
+  RENAME_FIELD
+  UPDATE_FIELD_DESCRIPTION
+  UPDATE_FIELD_TYPE
+  MOVE_FIELD
+  SOFT_DELETE_FIELD
+  DELETE_FIELD
+  RESTORE_FIELD
   TRUNCATE_RECORDS
   CREATE_RECORD
   UPDATE_RECORD
@@ -525,15 +607,15 @@ type Mutation {
   batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
   batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   truncateRecords(input: RecordTruncateInput!): StatementOperationInfo!
-  createTypeNode(input: TypeNodeCreateInput!): SimpleTypeNodeOperationInfo!
-  updateTypeNode(input: TypeNodeUpdateInput!): SimpleTypeNodeOperationInfo!
-  updateTypeNodeName(input: TypeNodeRenameInput!): SimpleTypeNodeOperationInfo!
-  updateTypeNodeDescription(input: TypeNodeUpdateDescriptionInput!): SimpleTypeNodeOperationInfo!
-  updateTypeNodeType(input: TypeNodeUpdateTypeInput!): SimpleTypeNodeOperationInfo!
-  moveTypeNode(input: TypeNodeMoveInput!): SimpleTypeNodeOperationInfo!
-  softDeleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo!
-  deleteTypeNode(input: TypeNodeDeleteInput!): SimpleTypeNodeOperationInfo!
-  restoreStatementTypeNode(input: TypeNodeRestoreInput!): SimpleTypeNodeOperationInfo!
+  createField(input: FieldCreateInput!): FieldOperationInfo!
+  updateField(input: FieldUpdateInput!): FieldOperationInfo!
+  updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
+  updateFieldDescription(input: FieldUpdateDescriptionInput!): FieldOperationInfo!
+  updateFieldType(input: FieldUpdateTypeInput!): FieldOperationInfo!
+  moveField(input: FieldMoveInput!): FieldOperationInfo!
+  softDeleteField(input: FieldDeleteInput!): FieldOperationInfo!
+  deleteField(input: FieldDeleteInput!): FieldOperationInfo!
+  restoreStatementField(input: FieldRestoreInput!): FieldOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   updateFile(input: FileCreateInput!): FileOperationInfo!
   deleteFile(input: NodeInput!): FileOperationInfo!
@@ -1322,7 +1404,7 @@ enum RefType {
   FILE
   STATEMENT
   RECORD
-  TYPE_NODE
+  FIELD
 }
 
 type RemoteObject implements Node {
@@ -1427,40 +1509,16 @@ interface SimpleType {
   reference: Statement
 }
 
-type SimpleTypeNode implements Node & SimpleType {
-  id: GlobalID!
-  name: String
-  key: String!
-  orderKey: String!
-  tag: TypeTag!
-  hint: TypeHint
-  flags: Int!
-  description: String
-  value: JSON
-  reference: Statement
-  statement: Statement!
-  revision: Int!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
-}
-
-input SimpleTypeNodeFilter {
-  isVisible: Boolean = true
-}
-
-union SimpleTypeNodeOperationInfo = SimpleTypeNode | OperationInfo
-
 """Anything typed using SimpleType nodes."""
 interface SimplyTyped {
   rootTypeTag: TypeTag
-  typeNodes: [SimpleType!]
+  fields: [SimpleType!]
 }
 
 type Statement implements Node & SimplyTyped {
   id: GlobalID!
   rootTypeTag: TypeTag
-  typeNodes(filters: SimpleTypeNodeFilter): [SimpleTypeNode!]!
+  fields(filters: FieldFilter): [Field!]!
   projectVersion: ProjectVersion!
   file: File!
   revision: Int!
@@ -1707,63 +1765,6 @@ enum TypeHint {
   VIDEO
   AUDIO
   SHAPE
-}
-
-input TypeNodeCreateInput {
-  id: GlobalID!
-  key: String!
-  orderKey: String!
-  statementId: GlobalID!
-  name: String = null
-  tag: TypeTag!
-  hint: TypeHint = null
-  description: String = null
-  flags: Int! = 0
-  value: JSON = null
-  referenceId: GlobalID = null
-}
-
-input TypeNodeDeleteInput {
-  id: GlobalID!
-}
-
-input TypeNodeMoveInput {
-  id: GlobalID!
-  orderKey: String!
-}
-
-input TypeNodeRenameInput {
-  id: GlobalID!
-  name: String = null
-}
-
-input TypeNodeRestoreInput {
-  id: GlobalID!
-}
-
-input TypeNodeUpdateDescriptionInput {
-  id: GlobalID!
-  description: String = null
-}
-
-input TypeNodeUpdateInput {
-  id: GlobalID!
-  name: String = null
-  tag: TypeTag!
-  hint: TypeHint = null
-  description: String = null
-  flags: Int! = 0
-  value: JSON = null
-  referenceId: GlobalID = null
-}
-
-input TypeNodeUpdateTypeInput {
-  id: GlobalID!
-  tag: TypeTag!
-  hint: TypeHint = null
-  flags: Int! = 0
-  value: JSON = null
-  referenceId: GlobalID = null
 }
 
 """The actual value type of a type node."""

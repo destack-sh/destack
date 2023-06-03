@@ -116,7 +116,7 @@ defineExpose({
     </button>
     <!-- Inline type -->
     <FunctionTypeCell
-      v-if="isTyped && (context.typeNodes.value.length > 0 || !context.readonly.value)"
+      v-if="isTyped && (context.fields.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
       @navigate-up="showDescription ? descriptionRef?.focus() : declarationRef?.focus()"
       @navigate-down="context.navigateDown"

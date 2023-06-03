@@ -20,7 +20,7 @@ export const TYPE_POLICIES = {
   },
   Statement: {
     fields: {
-      typeNodes: useIncoming,
+      fields: useIncoming,
       records: {
         // proxy read/merge for filtered relay pagination to also store args for cache.modify  :StatementRecordsView
         // we need the arguments (filters & pagination args) to modify the cache properly
@@ -40,7 +40,7 @@ export const TYPE_POLICIES = {
   },
   InterpSymbol: {
     fields: {
-      typeNodes: useIncoming,
+      fields: useIncoming,
     },
   },
   InterpFile: {

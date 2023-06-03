@@ -6,11 +6,11 @@ import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { makeTypeNode, NAME_TYPE_NODE, useStatementContext, type SimpleType } from "@/state/statement";
+import { makeField, NAME_FIELD, useStatementContext, type SimpleType } from "@/state/statement";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
-import { newTypeNodeId, newTypeNodeKey } from "@/state/operations/statement";
-import { TypeFlag } from "@/state/runtime";
+import { newFieldId, newFieldKey } from "@/state/operations/statement";
+import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
@@ -28,11 +28,11 @@ context.syncDescription(
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
 const members = computed(
-  () => context.typeNodes.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
+  () => context.fields.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
 );
 const membersLength = computed(() => members.value?.length ?? 0);
 const extendedTypes = computed(
-  () => context.typeNodes.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+  () => context.fields.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
 );
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
@@ -51,43 +51,43 @@ const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 // perhaps move into statement context?
 
 function insertMember(isUnionWith?: boolean) {
-  const lastMember = context.typeNodes.value?.[context.typeNodes.value.length - 1];
+  const lastMember = context.fields.value?.[context.fields.value.length - 1];
   const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   if (isEnum.value) {
     // enum member
     const name = "Option " + (membersLength.value + 1);
-    const newMemberNode = makeTypeNode({
+    const newMemberNode = makeField({
       name,
       tag: TypeTag.Literal,
       value: name, // :LiteralStringEnum
       orderKey,
     });
-    context.createTypeNode(newMemberNode);
+    context.createField(newMemberNode);
     nextTick(() => grid.focus(newMemberNode.id, "type"));
   } else if (!isUnionWith) {
     // struct field
-    const newMemberNode = makeTypeNode({
+    const newMemberNode = makeField({
       name: "field " + (membersLength.value + 1),
       tag: TypeTag.String,
       orderKey,
       flags: TypeFlag.IsNullable, // :DefaultTypeFlags
     });
-    context.createTypeNode(newMemberNode);
+    context.createField(newMemberNode);
     nextTick(() => grid.focus(newMemberNode.id, "type"));
   } else {
-    const newMemberNode = makeTypeNode({
+    const newMemberNode = makeField({
       name: "",
       tag: TypeTag.TypeReference,
       orderKey,
       flags: TypeFlag.IsUnionWith,
     });
-    context.createTypeNode(newMemberNode);
+    context.createField(newMemberNode);
     nextTick(() => extendedTypesRefs.focus(extendedTypes.value.slice(-1)[0].id));
   }
 }
 
 function duplicateMember(memberId: string) {
-  // :DuplicateTypeNode
+  // :DuplicateField
   const memberIdx = members.value?.findIndex((m) => m.id === memberId);
   if (memberIdx < 0) return;
   const member = members.value?.[memberIdx];
@@ -97,12 +97,12 @@ function duplicateMember(memberId: string) {
     member.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? member.name + " 2";
   const newMemberNode = {
     ...member,
-    id: newTypeNodeId(),
-    key: newTypeNodeKey(),
+    id: newFieldId(),
+    key: newFieldKey(),
     name: newName,
     orderKey,
   };
-  context.createTypeNode(newMemberNode);
+  context.createField(newMemberNode);
   nextTick(() => grid.focus(memberIdx + 1, "type"));
 }
 
@@ -112,7 +112,7 @@ function deleteMember(memberId: string) {
     return;
   }
   const member = members.value?.[memberIdx];
-  context.deleteTypeNode(member as any); // must exist
+  context.deleteField(member as any); // must exist
   grid.focus(memberIdx - 1, "type"); // move focus above
 }
 
@@ -120,10 +120,10 @@ function moveMember(node: SimpleType, position: "before" | "after", other: Simpl
   const otherIndex = members.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(members.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveTypeNode(node, orderKey);
+    context.moveField(node, orderKey);
   } else {
     const orderKey = generateKeyBetween(other.orderKey, members.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveTypeNode(node, orderKey);
+    context.moveField(node, orderKey);
   }
 }
 
@@ -138,13 +138,13 @@ function dropMember(droppedId: string, position: "above" | "below", memberId: st
 function writeType(memberId: string, newType: SimpleType) {
   const oldType = members.value?.find((m) => m.id === memberId);
   if (!oldType) return;
-  context.updateTypeNode(oldType, { ...oldType, ...newType, id: memberId });
+  context.updateField(oldType, { ...oldType, ...newType, id: memberId });
 }
 
 function writeDescription(memberId: string, newDescription: string) {
   const oldType = members.value?.find((m) => m.id === memberId);
   if (!oldType) return;
-  context.updateTypeNode(oldType, { ...oldType, description: newDescription });
+  context.updateField(oldType, { ...oldType, description: newDescription });
 }
 
 function focusDescriptionFromTop() {
@@ -231,8 +231,8 @@ defineExpose({
             v-for="field of extendedTypes"
             :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
             :model-value="field"
-            @update:model-value="(val) => context.updateTypeNode(field, val)"
-            @delete-self="context.deleteTypeNode(field)"
+            @update:model-value="(val) => context.updateField(field, val)"
+            @delete-self="context.deleteField(field)"
             @navigate-left="
               field.id == extendedTypes[0].id
                 ? declarationRef?.focus()

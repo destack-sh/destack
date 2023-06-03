@@ -15,7 +15,7 @@ import { getClientColor, useCurrentClients } from "@/state/client";
 import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { localErrorsOf, symbolOf } from "@/state/runtime";
+import { localErrorsOf, symbolOf } from "@/state/module";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";

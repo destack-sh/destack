@@ -134,7 +134,7 @@ class ClientData:
     project_version_id: Optional[UUID]
     file_id: Optional[UUID]
     statement_id: Optional[UUID]
-    type_node_id: Optional[UUID]
+    field_id: Optional[UUID]
     record_id: Optional[UUID]
     path: Optional[str]
 

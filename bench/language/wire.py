@@ -27,7 +27,7 @@ from bench.utils.func import describe_type
 
 
 @dataclass(repr=False, slots=True)
-class SimpleTypeNodeData:
+class FieldData:
     id: UUID
     revision: int
     name: Optional[str]
@@ -49,7 +49,7 @@ class SimpleTypeNodeData:
         return f"<SimpleTypeNode {str(self)}>"
 
     def deepcopy(self):
-        return SimpleTypeNodeData(
+        return FieldData(
             id=self.id,
             revision=self.revision,
             name=self.name,
@@ -208,7 +208,7 @@ class StatementData:
     # symbol contents
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[TypeFlag] = None
-    type_nodes: Union[list[SimpleTypeNodeData], None] = None
+    fields: Union[list[FieldData], None] = None
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
@@ -370,13 +370,9 @@ def rmap_symbol(
         data.root_type_tag = content.tag
         data.root_type_flags = content.flags
         source_nodes = (
-            content.type_nodes
-            if impute_type_references
-            else (content.self_type_nodes or content.type_nodes)
+            content.fields if impute_type_references else (content.fields or content.fields)
         )
-        data.type_nodes = [
-            rmap_simple_type_node(data.id, node, impute_type_references) for node in source_nodes
-        ]
+        data.fields = [rmap_field(data.id, node, impute_type_references) for node in source_nodes]
     if isinstance(content, language.TaskContent):
         data.description = content.description
     elif isinstance(content, language.ExpectationContent):
@@ -406,21 +402,21 @@ def rmap_symbol(
 def wmap_symbol(data: StatementData) -> language.SymbolContent:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.root_type_tag:
-        type_nodes = [wmap_simple_type_node(t) for t in (data.type_nodes or [])]
+        fields = [wmap_field(t) for t in (data.fields or [])]
     else:
-        type_nodes = []
+        fields = []
 
     if data.symbol_type == SymbolType.TYPE:
         return language.TypeContent(
             name=data.name,
             description=data.description,
             tag=data.root_type_tag,
-            type_nodes=type_nodes,
+            fields=fields,
         )
     elif data.symbol_type == SymbolType.TASK:
         return language.TaskContent(
             tag=data.root_type_tag,
-            type_nodes=type_nodes,
+            fields=fields,
             description=data.description,
         )
     elif data.symbol_type == SymbolType.EXPECTATION:
@@ -431,7 +427,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             language=data.lang,
             code=data.code,
             tag=data.root_type_tag,
-            type_nodes=type_nodes,
+            fields=fields,
         )
     elif data.symbol_type == SymbolType.MODEL:
         return language.ModelContent(
@@ -445,7 +441,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             description=data.description,
             language=data.lang,
             tag=data.root_type_tag,
-            type_nodes=type_nodes,
+            fields=fields,
             flags=data.root_type_flags,
             records=[wmap_record(r) for r in (data.records or [])],
         )
@@ -461,12 +457,10 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 
 
-def rmap_simple_type_node(
-    statement_id: UUID, node: language.SimpleTypeNode, impute_type_references: bool
-) -> SimpleTypeNodeData:
-    """Maps a simple type node to a simple type node data object."""
+def rmap_field(statement_id: UUID, node: language.Field, impute_type_references: bool) -> FieldData:
+    """Maps a field to a field data object."""
     has_reference = isinstance(node.reference, language.TypeContent)
-    return SimpleTypeNodeData(
+    return FieldData(
         id=node.id,
         revision=1,
         name=node.name,
@@ -482,9 +476,9 @@ def rmap_simple_type_node(
     )
 
 
-def wmap_simple_type_node(node: SimpleTypeNodeData) -> language.SimpleTypeNode:
-    """Maps a simple type node data object to a simple type node."""
-    return language.SimpleTypeNode(
+def wmap_field(node: FieldData) -> language.Field:
+    """Maps a field data object to a field."""
+    return language.Field(
         id=node.id,
         name=node.name,
         key=node.key,

@@ -604,7 +604,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "key",
-                    models.CharField(default=bench.language.type.new_type_node_key, max_length=8),
+                    models.CharField(default=bench.language.type.new_field_key, max_length=8),
                 ),
                 ("order_key", models.CharField(max_length=256)),
                 (

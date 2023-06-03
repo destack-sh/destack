@@ -572,7 +572,7 @@ class RefType(models.TextChoices):
     FILE = "file", "File"
     STATEMENT = "statement", "Statement"
     RECORD = "record", "Record"
-    TYPE_NODE = "type_node", "TypeNode"
+    FIELD = "field", "Field"
 
 
 class RefMappingKind(models.TextChoices):
