@@ -1,5 +1,5 @@
 import { StatementModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { symbolOf } from "@/state/module";
+import { statementOf } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
 
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
@@ -113,7 +113,7 @@ export function renderSimpleType(node: SimpleType): string {
   if (builtin != null) return builtin;
   if (node.tag == TypeTag.TypeReference || node.reference != null) {
     if (node.reference != null) {
-      return symbolOf(node.reference.id)?.name ?? "???";
+      return statementOf(node.reference.id)?.name ?? "???";
     } else {
       return node.reference?.name ?? "...";
     }

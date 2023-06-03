@@ -25,6 +25,7 @@ class Dataset(UUIDModel):
     backend = models.CharField(max_length=64, choices=DatasetBackend.choices)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    versioned = models.BooleanField(default=True)
     os_index_name = models.CharField(max_length=256, null=True)
     os_pending_task_id = models.CharField(max_length=256, null=True)
 

@@ -12,7 +12,14 @@ from uuid import UUID
 
 from bench.language import ModuleIndex, wire
 from bench.language.type import StatementType
-from bench.language.wire import FieldData, FileData, ModuleData, RecordData, StatementData
+from bench.language.wire import (
+    FieldData,
+    FileData,
+    InterpData,
+    ModuleData,
+    RecordData,
+    StatementData,
+)
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -64,6 +71,8 @@ class ModuleMutationType(enum.StrEnum):
     SOFT_DELETE_RECORD = "SOFT_DELETE_RECORD"
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
+    # Interp
+    UPDATE_INTERP = "UPDATE_INTERP"
 
     @property
     def kind(self) -> "ModuleMutationKind":
@@ -91,6 +100,7 @@ class ModuleMutationScope(enum.StrEnum):
     STATEMENT = "STATEMENT"
     FIELD = "FIELD"
     RECORD = "RECORD"
+    INTERP = "INTERP"
 
 
 # Basic CRUD mutations with full (flat) data for the model
@@ -162,7 +172,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
 }
 
-MutableData = FileData | StatementData | FieldData | RecordData
+MutableData = FileData | StatementData | FieldData | RecordData | InterpData
 SCOPE_BY_CLASS = {
     FileData: MMS.FILE,
     StatementData: MMS.STATEMENT,
@@ -187,6 +197,7 @@ class ModuleMutation:
     _data_statement: Optional[StatementData] = None
     _data_field: Optional[FieldData] = None
     _data_record: Optional[RecordData] = None
+    _data_interp: Optional[InterpData] = None
 
     @property
     def data(self) -> MutableData:
@@ -198,6 +209,8 @@ class ModuleMutation:
             return self._data_field
         elif self.type.scope == MMS.RECORD:
             return self._data_record
+        elif self.type.scope == MMS.INTERP:
+            return self._data_interp
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
 
@@ -213,6 +226,8 @@ class ModuleMutation:
             self._data_field = value
         elif self.type.scope == MMS.RECORD:
             self._data_record = value
+        elif self.type.scope == MMS.INTERP:
+            self._data_interp = value
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
 
@@ -432,6 +447,7 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_RECORD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.records, m.data)
+        # ignore interp changes (they're not semantic so far)
 
         # re-assemble module data
         new_module = replace(module, files=list(files.values()))

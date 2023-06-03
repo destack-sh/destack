@@ -20,20 +20,6 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(repr=False, slots=True)
 class InterpModule:
-    # TODO @Cleanup @Architecture: reconsider interp module as distinct from DB module state
-    #  errors, warnings/lints, inferred types, etc. also belong in the DB eventually probably.
-    #  The original reasons for separating interp state from DB module state:
-    #   1) Interp state updated in real-time from server-side (no multi-player yet).
-    #   2) Interp state is complete (includes all symbols/dependencies), which is fast and simple.
-    #   3) Interp state is well, interpreted, so it may not map 1:1 to DB state (variables?).
-    #   4) Interp state need not be persisted since it's only accessed through the runtime (?).
-    #   5) DB is not the only source of modules (esp. in testing, but also for programs).
-    #  -
-    #  Ultimately, as often, some tighter integration may prove simpler and more flexible.
-    #  Specifically, we may be able to remove some complexity around data mapping with
-    #  the language <-> wire <-> DB representations. It is still useful to have separate
-    #  representations on the language & runtime (for performance, testing, simplicity, etc.),
-    #  and we do need the sandboxed worker runtime to use the language representation.
     module_idx: Optional[language.ModuleIndex]
     errors: list[language.Error]
     dependencies: list[language.ModuleIndex]

@@ -2,7 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType, type InterpSymbol } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
-import { useCurrentInterpModule, useSymbolNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
 
@@ -12,9 +12,9 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
 }>();
 
-const runtime = useCurrentInterpModule();
+const runtime = useCurrentModule();
 const bench = useBenchState();
-const nav = useSymbolNavigation();
+const nav = useNavigation();
 
 const filteredSymbols = computed(() => {
   const symbols = [];
@@ -55,13 +55,13 @@ const symbolsGrid = useNavigationGrid<"name", HTMLElement>(
 
 function focusSymbol(symbol: InterpSymbol) {
   const focusedViewId = bench.focusedViewId;
-  nav.focusSymbol(symbol);
+  nav.focus(symbol);
   bench.focusView(focusedViewId as ViewId); // keep focused view
-  nextTick(() => nav.focusSymbol(symbol));
+  nextTick(() => nav.focus(symbol));
 }
 
 function focusSymbolAndGoThere(symbol: InterpSymbol) {
-  nav.focusSymbol(symbol);
+  nav.focus(symbol);
 }
 
 function focus(target: "first" | "last" = "first") {

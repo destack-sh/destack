@@ -161,5 +161,81 @@ export const StatementContentType = graphql(/* GraphQL */ `
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }
+    # interp
+    resolvedFields {
+      ...FieldContent
+    }
+    issues {
+      ...IssueContent
+    }
+  }
+`);
+
+export const IssueContentType = graphql(/* GraphQL */ `
+  fragment IssueContent on Issue {
+    id
+    kind
+    type
+    message
+    statement {
+      id
+    }
+  }
+`);
+
+export const InterpDataContentType = graphql(/* GraphQL */ `
+  fragment InterpDataContent on InterpData {
+    statementId
+    issues {
+      id
+      kind
+      type
+      message
+    }
+    resolvedFields {
+      ...FieldContent
+    }
+  }
+`);
+
+export const InterpFile = graphql(/* GraphQL */ `
+  fragment InterpFile on File {
+    id
+    revision
+    name
+    path
+    parent {
+      id
+    }
+    createdAt
+    updatedAt
+    deletedAt
+  }
+`);
+
+export const InterpStatement = graphql(/* GraphQL */ `
+  fragment InterpStatement on Statement {
+    id
+    type
+    symbolType
+    name
+    modifier
+    revision
+    createdAt
+    updatedAt
+    deletedAt
+    file {
+      id
+    }
+    parent {
+      id
+    }
+    orderKey
+    reference {
+      id
+    }
+    referenceProjectVersion {
+      id
+    }
   }
 `);

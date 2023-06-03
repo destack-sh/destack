@@ -129,6 +129,11 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
             statementId
             revision
             input
+            data {
+              ... on InterpData {
+                ...InterpDataContent
+              }
+            }
           }
         }
       }
@@ -151,7 +156,12 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       console.debug("accept sync change", result.data?.moduleChanged.clientId);
       // apply all mutations
       for (const mutation of result.data.moduleChanged.mutations) {
-        syncedOps.applyMutation(mutation);
+        if (mutation.input != null) {
+          // apply as op
+          syncedOps.applyMutation(mutation);
+        } else {
+          // apply from data
+        }
       }
     }
   });

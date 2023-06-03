@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from bench.language.error import ErrorType, SyntaxError
+from bench.language.error import IssueType, SyntaxError
 from bench.language.type import (
     SourceFile,
     StatementModifier,
@@ -114,7 +114,7 @@ def lex(source: SourceFile) -> list[Token]:
 
         token = _lex_token(source, current_pos)
         if token is None:
-            raise SyntaxError(ErrorType.UNKNOWN_TOKEN, source, line_number, start_column)
+            raise SyntaxError(IssueType.UNKNOWN_TOKEN, source, line_number, start_column)
         tokens.append(token)
         prev_token = token
 

@@ -86,9 +86,9 @@ export function startStopIf(
   watch(
     predicate,
     (value, oldValue) => {
-      if (value && !oldValue) {
+      if (value) {
         start();
-      } else if (!value && oldValue) {
+      } else if (!oldValue) {
         stop();
       }
     },

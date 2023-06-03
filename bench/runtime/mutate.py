@@ -66,8 +66,6 @@ _TRIVIAL_PUBLIC_TO_INTERNAL = {
     MMT.RESTORE_RECORD: MMT.UPDATE_RECORD,
 }
 
-_IGNORED_PUBLIC = {}
-
 _SCOPE_TO_TYPE_NAME = {
     MMS.FILE: "File",
     MMS.STATEMENT: "Statement",
@@ -184,9 +182,12 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
     if not mutation.type.simple:
         raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
-    if mutation.type in _IGNORED_PUBLIC:
-        return []
-    input = map_mutation_to_input(mutation)
+    if mutation.type.scope == MMS.INTERP:
+        input = None
+        data = mutation.data
+    else:
+        input = map_mutation_to_input(mutation)
+        data = None
     public_mutation = ModuleMutation(
         type=mutation.type,
         project_version_id=mutation.project_version_id,
@@ -195,6 +196,7 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
         revision=mutation.revision,
         input=input,
     )
+    public_mutation.data = data
     return [public_mutation]
 
 

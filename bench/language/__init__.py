@@ -1,4 +1,4 @@
-from bench.language.error import Error, ErrorType
+from bench.language.error import Error, IssueType
 from bench.language.lex import Token, TokenType, lex
 from bench.language.parse import ModuleIndex, Scope, parse
 from bench.language.type import (
@@ -47,7 +47,7 @@ __all__ = [
     "Data",
     "DataContent",
     "Error",
-    "ErrorType",
+    "IssueType",
     "Expectation",
     "ExpectationContent",
     "File",

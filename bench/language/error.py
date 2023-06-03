@@ -45,7 +45,7 @@ def get_location_range_pointer(
     return context
 
 
-class ErrorType(enum.Enum):
+class IssueType(enum.Enum):
     INTERNAL = 0, "Internal error"
     # syntax errors
     UNKNOWN_TOKEN = 1, "unknown token"
@@ -96,7 +96,7 @@ class ErrorType(enum.Enum):
 class SyntaxError(ValueError):
     def __init__(
         self,
-        _t: ErrorType,
+        _t: IssueType,
         source_file: SourceFile,
         line_number: int,
         column: int,
@@ -110,7 +110,7 @@ class SyntaxError(ValueError):
 
     def _format_message(
         self,
-        type: ErrorType,
+        type: IssueType,
         file: SourceFile,
         line_number: int,
         column: int,
@@ -132,7 +132,7 @@ class SyntaxError(ValueError):
 class ParseError(ValueError):
     def __init__(
         self,
-        _t: ErrorType,
+        _t: IssueType,
         token: Optional[Token],
         cause: Optional[Exception] = None,
         parser: Optional[str] = None,
@@ -149,7 +149,7 @@ class ParseError(ValueError):
         self.error_args = error_args
 
     def _format_message(
-        self, type: ErrorType, error_args: dict, token: Optional[Token], cause: Optional[dict]
+        self, type: IssueType, error_args: dict, token: Optional[Token], cause: Optional[dict]
     ) -> tuple[str, str]:
         # noinspection StrFormat
         short_message = type.description.format(**error_args)
@@ -189,7 +189,7 @@ class ParseError(ValueError):
 class SemanticError(ValueError):
     def __init__(
         self,
-        _t: ErrorType,
+        _t: IssueType,
         subject: File | Statement | None,
         cause: Optional[Exception] = None,
         **error_args,
@@ -203,7 +203,7 @@ class SemanticError(ValueError):
 
     def _format_message(
         self,
-        error_type: ErrorType,
+        error_type: IssueType,
         error_args: dict,
         subject: File | Statement | None,
         cause: Exception | None,
@@ -262,7 +262,7 @@ class SemanticError(ValueError):
 
 @dataclass
 class Error:
-    type: ErrorType
+    type: IssueType
     message: str
     verbose_message: Optional[str] = None
     source_file: Optional[SourceFile] = None

@@ -2,7 +2,7 @@
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type TerminalEditor, type StatementAction } from "@/state/bench";
-import { newExecutionId, symbolOf, TypeFlag } from "@/state/module";
+import { newExecutionId, statementOf, TypeFlag } from "@/state/module";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon, ArrowPathIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watchEffect } from "vue";
@@ -32,7 +32,7 @@ const now = useTimeFromNow();
 // state
 
 const running = ref(false);
-const symbol = computed(() => symbolOf(props.editor.editor.value.symbolId));
+const symbol = computed(() => statementOf(props.editor.editor.value.symbolId));
 const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const terminalActions = computed(() => {

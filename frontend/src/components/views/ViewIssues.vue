@@ -1,18 +1,20 @@
 <script lang="ts" setup>
-import type { InterpError } from "@/gql/graphql";
+import type { IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { fileOf, useSymbolNavigation, useVisibleErrors } from "@/state/module";
+import { fileOf, useCurrentModule, useNavigation } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { computed } from "vue";
 
 const appearance = useAppearance();
-const errors = useVisibleErrors();
-const { focusSymbol } = useSymbolNavigation();
+const module = useCurrentModule();
+const nav = useNavigation();
+const issues = computed(() => module.issues.value);
 
-function focusError(error: InterpError) {
-  console.log("focus error", error);
-  if (error.symbol != null) {
-    focusSymbol(error.symbol);
+function focusError(error: IssueContentFragment) {
+  console.debug("focus error", error);
+  if (error.statement != null) {
+    nav.focus(error.statement);
   }
 }
 </script>
@@ -27,20 +29,20 @@ function focusError(error: InterpError) {
     >
       <span class="text-xs font-bold uppercase">
         Issues
-        <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="errors.length">
-          {{ errors.length }}
+        <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="issues.length">
+          {{ issues.length }}
         </span>
       </span>
     </div>
     <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
       <li
-        v-for="(error, i) in errors ?? []"
+        v-for="(error, i) in issues ?? []"
         :key="i"
         class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-100"
-        @click="focusError(error as InterpError)"
+        @click="focusError(error)"
       >
         <div v-if="error.symbol != null" class="px-3">
-          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.symbol.symbolType] }}</span>
+          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.statement.symbolType] }}</span>
           <span class="pl-1 text-gray-900">{{ fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
@@ -48,7 +50,7 @@ function focusError(error: InterpError) {
           <span>{{ error.message }}</span>
         </span>
       </li>
-      <div v-if="errors.length == 0" class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center">
+      <div v-if="issues.length == 0" class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center">
         <FaceSmileIcon class="h-7 w-7 text-gray-500" />
         <span class="text-sm text-gray-700">A tidy Bench. The bots like it.</span>
       </div>

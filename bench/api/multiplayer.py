@@ -12,6 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
+from bench.api.interp import InterpData
 from bench.api.type import ProjectMutationType
 from bench.api.util import asafe_subscription, to_global_id, to_uuid
 from bench.msg.core import NMessage, subscribe
@@ -50,6 +51,7 @@ class ModuleMutation:
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
+    data: Optional[InterpData]
 
 
 @gql.type
