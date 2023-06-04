@@ -3,6 +3,19 @@ from django.db import models
 from bench.models.utils import UUIDModel
 
 
+class ResolvedField(models.Model):
+    """A field that has been resolved to a statement."""
+
+    id = models.IntegerField(primary_key=True)
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="+"
+    )
+    statement = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="resolved_fields+"
+    )
+    field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="+")
+
+
 class IssueKind(models.TextChoices):
     ERROR = "error"
     WARNING = "warning"

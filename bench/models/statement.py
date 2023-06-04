@@ -40,7 +40,7 @@ class FieldManager(models.Manager["Field"]):
 
 class Field(UUIDModel, CrudModel):
     """
-    A simplified and interaction-optimized variant of TypeNode
+    A (usually) named type of something.
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="fields")
@@ -307,7 +307,7 @@ class Statement(UUIDModel, CrudModel):
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     # interp state
     issues: models.QuerySet["Issue"]  # noqa via Issue.statement
-    resolved_fields = models.ManyToManyField("Field", related_name="resolved_by")
+    resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")
 
     def __str__(self):
         if self.type == StatementType.DEFINITION:

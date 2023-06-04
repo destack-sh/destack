@@ -1,5 +1,4 @@
 import { StatementModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { statementOf } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
 
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
@@ -41,9 +40,6 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Number]: "number",
   [TypeTag.File]: "file",
   [TypeTag.Embedding]: "embedding",
-  [TypeTag.Image]: "image",
-  [TypeTag.Audio]: "audio",
-  [TypeTag.Video]: "video",
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
   [TypeTag.Struct]: "type",
@@ -75,6 +71,10 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.Toggle]: "toggle",
   [TypeHint.Checkbox]: "checkbox",
   [TypeHint.Thumbs]: "thumbs",
+  // file
+  [TypeHint.Image]: "image",
+  [TypeHint.Audio]: "audio",
+  [TypeHint.Video]: "video",
 };
 export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
   // string
@@ -106,19 +106,6 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
     return null;
   }
   return builtin.slice(0, 1).toUpperCase() + builtin.slice(1); // always uppercase first letter
-}
-
-export function renderSimpleType(node: SimpleType): string {
-  const builtin = renderBuiltinType(node.tag, node.hint ?? null);
-  if (builtin != null) return builtin;
-  if (node.tag == TypeTag.TypeReference || node.reference != null) {
-    if (node.reference != null) {
-      return statementOf(node.reference.id)?.name ?? "???";
-    } else {
-      return node.reference?.name ?? "...";
-    }
-  }
-  throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
 }
 
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel

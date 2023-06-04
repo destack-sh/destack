@@ -5,10 +5,10 @@ import ProtoSymbolTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
-import { StatementType, SymbolType, type InterpSymbol } from "@/gql/graphql";
+import { StatementType, SymbolType } from "@/gql/graphql";
 import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
-import { symbolsLike } from "@/state/module";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { useCurrentModule, type InterpStatement } from "@/state/module";
 
 defineProps<{ showDots?: boolean }>();
 
@@ -19,7 +19,8 @@ const gapRef: Ref<InstanceType<typeof ProtoSymbolTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
 
 // symbols available for reference
-const availableSymbols = symbolsLike(
+const module = useCurrentModule()
+const availableSymbols = module.statementsLike(
   computed(() => ({
     types: [StatementType.Definition],
     symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
@@ -71,7 +72,7 @@ function morphToDefinition(name: string) {
   context.morphToDefinition(context.statement.value.symbolType ?? null, name);
 }
 
-function morphToReference(symbol: InterpSymbol) {
+function morphToReference(symbol: InterpStatement) {
   if (symbol.symbolType == null || symbol.name == null) {
     throw new Error("cannot set reference to: " + symbol);
   }

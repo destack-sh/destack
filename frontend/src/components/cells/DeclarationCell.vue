@@ -6,8 +6,8 @@ import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
 import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
 import { StatementType } from "@/gql/graphql";
-import { localErrorsOf, symbolsLike } from "@/state/module";
 import { computed, ref, type Ref } from "vue";
+import { useCurrentModule } from "@/state/module";
 
 const context = useStatementContext();
 
@@ -26,7 +26,8 @@ const hasName = computed(() => name.value.trim().length > 0);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
-const availableSymbols = symbolsLike({
+const module = useCurrentModule();
+const availableSymbols = module.statementsLike({
   types: [StatementType.Definition],
   symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
   includeDependencies: true,
@@ -41,7 +42,7 @@ function deleteModifierOrAbove() {
 }
 
 // runtime
-const localErrors = localErrorsOf(context.statement);
+const localErrors = module.localErrorsOf(context.statement);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => nameRef.value?.focus(),

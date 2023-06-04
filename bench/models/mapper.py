@@ -304,6 +304,11 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         raise NotImplementedError(f"statement updates not implemented: {mut[MMT.UPDATE_STATEMENT]}")
     if mut[MMT.UPDATE_FIELD]:
         raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_FIELD]}")
+    if mut[MMT.UPDATE_INTERP]:
+        statement_ids = [m.statement_id for m in mut[MMT.UPDATE_INTERP]]
+        models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
+        models.Issue.objects.filter(statement_id__in=statement_ids).delete()
+        raise NotImplementedError(f"nocheckin: {mut[MMT.UPDATE_INTERP]}")
 
 
 def write_files(

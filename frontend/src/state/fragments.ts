@@ -237,6 +237,8 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     referenceProjectVersion {
       id
     }
+    rootTypeTag
+    rootTypeFlags
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }

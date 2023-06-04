@@ -1,6 +1,6 @@
 from .data import Record
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
-from .interp import Issue, IssueKind
+from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
 from .organization import (
@@ -56,6 +56,7 @@ __all__ = [
     "RefType",
     "RemoteObject",
     "RemoteObjectStatus",
+    "ResolvedField",
     "Field",
     "Statement",
     "StatementType",

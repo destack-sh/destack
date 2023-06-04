@@ -15,12 +15,12 @@ import { getClientColor, useCurrentClients } from "@/state/client";
 import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { localErrorsOf, statementOf } from "@/state/module";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
+import { useCurrentModule } from "@/state/module";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -37,6 +37,7 @@ const bench = useBenchState();
 const appearance = useAppearance();
 const nav = useNavigationContext();
 const editor = useEditorContext();
+const module = useCurrentModule();
 
 const isActive = computed(() => nav.value.editor.activeStatementId == statement.value?.id);
 const isFocused = computed(() => isActive.value && nav.value.editor.focused);
@@ -75,7 +76,7 @@ provide(STATEMENT_CONTEXT, {
   xOffset: contentOffsetX,
   lineNumberBase: lineNumber,
   statement,
-  reference: computed(() => statementOf(statement.value.reference?.id) ?? null),
+  reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
   file,
   destroyed,
 } as StatementContext);
@@ -334,7 +335,7 @@ const defaultActions: StatementAction[] = [
 ];
 
 // runtime
-const localErrors = localErrorsOf(statement);
+const localErrors = module.localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 
 // connected clients / multiplayer

@@ -22,6 +22,8 @@ from bench.msg.messages import (
     RepRunPayload,
     ReqCancelRunPayload,
     ReqRunPayload,
+    ReqLangserverPayload,
+    RepLangserverPayload,
 )
 from bench.runtime.instance import SessionTracingLevel
 
@@ -29,6 +31,11 @@ logger = structlog.get_logger(__name__)
 
 
 InterpErrorType = gql.enum(language.IssueType)
+
+
+@gql.input
+class LangserverWakeInput:
+    project_version_id: GlobalID
 
 
 @gql.input
@@ -70,6 +77,20 @@ class CancelRunPayload:
 
 @gql.type
 class RuntimeMutation:
+    @asafe_mutation
+    async def langserver_wake(
+        self, info: Info, input: LangserverWakeInput
+    ) -> Optional[OperationInfo]:
+        project_version_id = UUID(input.project_version_id.node_id)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version)
+        await request(
+            NMessageType.REQUEST_LANGSERVER,
+            ReqLangserverPayload(module_id=project_version_id),
+            reply_t=RepLangserverPayload,
+        )
+        return None
+
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)

@@ -1,8 +1,7 @@
 <script lang="ts" setup>
-import type { InterpSymbol } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import type { StatementHeader } from "@/state/bench";
-import { fileOf, relativePath, statementOf, useNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { onClickOutside, onStartTyping, useFocus } from "@vueuse/core";
@@ -10,10 +9,10 @@ import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   self?: StatementHeader;
-  reference?: StatementHeader | InterpSymbol | null;
+  reference?: StatementHeader | InterpStatement | null;
   canDefineInPlace?: boolean;
   canDefineAnonymous?: boolean;
-  availableSymbols: InterpSymbol[];
+  availableSymbols: InterpStatement[];
 }>();
 const emit = defineEmits<{
   (e: "navigateLeft"): void;
@@ -24,7 +23,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "defineInPlace", name: string): void;
-  (e: "setReference", ref: InterpSymbol | null): void;
+  (e: "setReference", ref: InterpStatement | null): void;
 }>();
 
 const inputRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -133,14 +132,15 @@ function clearQuery() {
   (inputRef.value?.$el as HTMLInputElement).value = "";
 }
 
-const selfSymbol = computed(() => statementOf(props.self?.id));
+const module = useCurrentModule();
+const selfSymbol = computed(() => module.statementOf(props.self?.id));
 
-function importSourceTo(symbol: InterpSymbol): string | undefined {
-  const localFile = fileOf(symbol);
+function importSourceTo(symbol: InterpStatement): string | undefined {
+  const localFile = module.fileOf(symbol);
   if (localFile != null) {
     return localFile.path;
   } else if (selfSymbol.value != null) {
-    return relativePath(selfSymbol.value, symbol);
+    return module.relativePath(selfSymbol.value, symbol);
   }
   return undefined;
 }

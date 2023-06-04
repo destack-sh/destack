@@ -3,8 +3,8 @@ import TypePreview from "@/components/interfaces/TypePreview.vue";
 import { ANY_FIELD, makeField, type SimpleType } from "@/state/statement";
 import { StatementType, SymbolType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { renderSimpleType, SUPPORTED_TYPEHINTS } from "@/state/type";
-import { fileOf, symbolsLike, TypeFlag } from "@/state/module";
+import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import {
   ExclamationCircleIcon,
@@ -31,6 +31,8 @@ const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
 const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
+const module = useCurrentModule();
+
 const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.String,
   TypeTag.Boolean,
@@ -49,29 +51,29 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
   }
 });
 
-const availableSymbols = symbolsLike({
+const availableSymbols = module.statementsLike({
   types: [StatementType.Definition],
   symbolTypes: [SymbolType.Type],
 });
 const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {
-  const basicTypes = [];
+  const types = [];
   // builtin types
   if (!props.structrefOnly) {
-    basicTypes.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, primitive: true })));
+    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, primitive: true })));
   }
   // references
   for (const symbol of availableSymbols.value) {
     if (symbol.name == null || (symbol.rootTypeTag != TypeTag.Struct && props.structrefOnly)) {
       continue;
     }
-    basicTypes.push(
+    types.push(
       makeField({
         tag: TypeTag.TypeReference,
         reference: symbol as { id: string; name: string },
       })
     );
   }
-  return basicTypes;
+  return types;
 });
 const filteredTypes = computed(() =>
   availableTypes.value.filter((t) => renderSimpleType(t).toLowerCase().includes(query.value.toLowerCase()))
@@ -140,22 +142,24 @@ const flagButtons: FlagButton[] = [
 // constraint list & secret flags to UX-sensible types
 // (internally we could support any permutation)
 const NONNULL_TAGS = [TypeTag.Boolean];
-const LISTABLE_TAGS = [
-  TypeTag.Audio,
-  TypeTag.Video,
-  TypeTag.Image,
-  TypeTag.File,
-  TypeTag.TypeReference,
-  TypeTag.Struct,
-  TypeTag.Enum,
+const LISTABLE_TAGS = [TypeTag.File, TypeTag.TypeReference, TypeTag.Struct, TypeTag.Enum];
+const LISTABLE_HINTS = [
+  TypeHint.Name,
+  TypeHint.Email,
+  TypeHint.Phone,
+  TypeHint.Url,
+  TypeHint.Uuid,
+  TypeHint.Audio,
+  TypeHint.Image,
+  TypeHint.Video,
 ];
-const LISTABLE_HINTS = [TypeHint.Name, TypeHint.Email, TypeHint.Phone, TypeHint.Url, TypeHint.Uuid];
 const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
 function isFlagSupported(type: SimpleType, flag: TypeFlag) {
   if (flag == TypeFlag.IsNullable) {
     return !isFlagSet(TypeFlag.IsArray) && !NONNULL_TAGS.includes(type.tag);
   } else if (flag == TypeFlag.IsArray) {
     return (
+      isFlagSet(TypeFlag.IsNullable) &&
       !isFlagSet(TypeFlag.IsSecret) &&
       ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
     );
@@ -177,6 +181,19 @@ function toggleFlag(flag: TypeFlag) {
     flags: newFlags,
   };
   emit("update:modelValue", value.value);
+}
+
+function renderSimpleType(node: SimpleType): string {
+  const builtin = renderBuiltinType(node.tag, node.hint ?? null);
+  if (builtin != null) return builtin;
+  if (node.tag == TypeTag.TypeReference || node.reference != null) {
+    if (node.reference != null) {
+      return module.statementOf(node.reference.id)?.name ?? "???";
+    } else {
+      return node.reference?.name ?? "...";
+    }
+  }
+  throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
 }
 
 // use 'combobox id' as a stable id
@@ -270,7 +287,7 @@ defineExpose({
             <TypePreview :type="node" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ node.primitive ? "(builtin)" : fileOf(node.reference)?.path }}
+              {{ node.primitive ? "(builtin)" : module.fileOf(node.reference)?.path }}
             </span>
           </div>
         </li>

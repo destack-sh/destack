@@ -460,6 +460,10 @@ export enum IssueType {
   UnknownToken = "UNKNOWN_TOKEN",
 }
 
+export type LangserverWakeInput = {
+  projectVersionId: Scalars["GlobalID"];
+};
+
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
@@ -557,6 +561,7 @@ export type Mutation = {
   deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
+  langserverWake?: Maybe<OperationInfo>;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -721,6 +726,10 @@ export type MutationDeleteSecretArgs = {
 
 export type MutationDeleteStatementArgs = {
   input: StatementDeleteInput;
+};
+
+export type MutationLangserverWakeArgs = {
+  input: LangserverWakeInput;
 };
 
 export type MutationMarkNotificationArgs = {
@@ -3167,6 +3176,8 @@ export type InterpStatementFragment = {
   updatedAt: any;
   deletedAt?: any | null;
   orderKey: string;
+  rootTypeTag?: TypeTag | null;
+  rootTypeFlags?: number | null;
   file: { __typename?: "File"; id: any };
   parent?: { __typename?: "Statement"; id: any } | null;
   reference?: { __typename?: "Statement"; id: any } | null;
@@ -3183,6 +3194,7 @@ export type ModuleQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
+    committed: boolean;
     project: { __typename?: "Project"; path: string; name: string };
     files: {
       __typename?: "FileConnection";
@@ -3549,6 +3561,19 @@ export type UpdateProjectNameMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Project"; id: any; name: string };
+};
+
+export type WakeLangserverMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type WakeLangserverMutation = {
+  __typename?: "Mutation";
+  langserverWake?:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | null;
 };
 
 export type RunMutationVariables = Exact<{
@@ -5164,6 +5189,8 @@ export const InterpStatementFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+          { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "fields" },
@@ -7862,6 +7889,7 @@ export const ModuleDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "committed" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "project" },
@@ -9450,6 +9478,53 @@ export const UpdateProjectNameDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateProjectNameMutation, UpdateProjectNameMutationVariables>;
+export const WakeLangserverDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "wakeLangserver" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "langserverWake" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<WakeLangserverMutation, WakeLangserverMutationVariables>;
 export const RunDocument = {
   kind: "Document",
   definitions: [

@@ -6,7 +6,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
 import { useExecutions } from "@/state/executions";
-import { statementOf, TypeFlag } from "@/state/module";
+import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
   ArrowPathIcon,
   BoltIcon,
@@ -36,6 +36,7 @@ const emit = defineEmits<{
 
 // state
 
+const module = useCurrentModule();
 const now = useTimeFromNow(100);
 const { executions, totalCount } = useExecutions(
   {
@@ -47,7 +48,7 @@ const { executions, totalCount } = useExecutions(
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
-const symbol = computed(() => statementOf(props.runnableId));
+const symbol = computed(() => module.statementOf(props.runnableId));
 const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const expandedExecutionId = ref<string | null>(null);

@@ -22,12 +22,13 @@ import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
 import { formatDurationSeconds } from "@/composables/useNow";
 import { useOperations } from "@/state/operations";
 import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
+import { useNotifications } from "@/state/notifications";
 
 const context = useStatementContext();
 const editor = useEditorContext();
-
 const ops = useOperations();
-const symbolOps = useSymbolOps();
+const notifications = useNotifications();
+
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const codeSync = context.syncCode(
@@ -123,7 +124,15 @@ async function run() {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is exact same as in editor
-    const ret = await symbolOps.run(context.statement.value, lastExecutionLocalId.value);
+    const ret = await ops.runtime.run(symbol.id, undefined, executionId);
+    if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
+      notifications.show({
+        type: "run.fail",
+        kind: "error",
+        message: "Run failed",
+        description: `Failed to run ${symbol.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+      });
+    }
     if (ret?.data?.run.__typename == "RunState") {
       lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
     }
@@ -136,7 +145,7 @@ async function cancel() {
   }
   lastExecutionLocal.value = null;
   lastExecutionLocalId.value = null;
-  await symbolOps.cancel(lastExecutionId.value);
+  await ops.runtime.cancel(lastExecutionId.value);
 }
 
 defineExpose({
