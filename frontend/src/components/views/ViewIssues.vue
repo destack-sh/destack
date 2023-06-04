@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { fileOf, useCurrentModule, useNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
@@ -43,7 +43,7 @@ function focusError(error: IssueContentFragment) {
       >
         <div v-if="error.symbol != null" class="px-3">
           <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.statement.symbolType] }}</span>
-          <span class="pl-1 text-gray-900">{{ fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span>
+          <span class="pl-1 text-gray-900">{{ module.fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
           <XCircleIcon class="mt-0.5 h-4 w-4" />

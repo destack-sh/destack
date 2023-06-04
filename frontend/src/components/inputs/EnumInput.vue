@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
-import { statementOf, TypeFlag } from "@/state/module";
+import { useCurrentModule, TypeFlag } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { getEnumColor, type SimpleType } from "@/state/statement";
@@ -16,8 +16,9 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
+const module = useCurrentModule();
 const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
-const runtimeType = computed(() => statementOf(props.type.reference?.id));
+const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
 
 const members = computed(() => {
   return runtimeType.value?.fields ?? [];

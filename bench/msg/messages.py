@@ -63,8 +63,8 @@ class NMessageType(StrEnum):
     REPLY_RUN = "run.rep"
     REQUEST_CANCEL_RUN = "run.cancel"
     REPLY_CANCEL_RUN = "run.cancel.rep"
-    REQUEST_INTERP = "interp.get"
-    REPLY_INTERP = "interp.get.rep"
+    REQUEST_LANGSERVER = "langserver.get"
+    REPLY_LANGSERVER = "langserver.get.rep"
 
 
 REPLY_BY_REQUEST_TYPE = {
@@ -77,7 +77,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_RUN_INFERENCE: NMessageType.REPLY_RUN_INFERENCE,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
     NMessageType.REQUEST_CANCEL_RUN: NMessageType.REPLY_CANCEL_RUN,
-    NMessageType.REQUEST_INTERP: NMessageType.REPLY_INTERP,
+    NMessageType.REQUEST_LANGSERVER: NMessageType.REPLY_LANGSERVER,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -315,18 +315,14 @@ class RepRunInferencePayload:
     timeout: bool = False
 
 
-@payload(NMessageType.REQUEST_INTERP)
-class ReqInterpPayload:
+@payload(NMessageType.REQUEST_LANGSERVER)
+class ReqLangserverPayload:
     module_id: UUID
 
 
-@payload(NMessageType.REPLY_INTERP)
-class RepInterpPayload:
+@payload(NMessageType.REPLY_LANGSERVER)
+class RepLangserverPayload:
     module_id: UUID
-    updated_at: datetime
-    module: wire.ModuleData
-    dependencies: list[wire.ModuleData]
-    errors: list[wire.ErrorData]
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

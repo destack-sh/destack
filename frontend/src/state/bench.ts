@@ -1,21 +1,20 @@
 import { graphql } from "@/gql";
 import {
-  SymbolType,
-  type DatasetRecord,
-  type File,
-  type Project,
-  type ProjectVersion,
-  type Scalars,
-  type SimpleType,
-  type Statement,
+SymbolType,
+type DatasetRecord,
+type File,
+type Project,
+type ProjectVersion,
+type Scalars,
+type SimpleType,
+type Statement
 } from "@/gql/graphql";
 import { useAppearanceState, type EditorAppearance, type Theme } from "@/state/appearance";
-import { useNotifications } from "@/state/notifications";
 import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
-import { useApolloClient, useLazyQuery } from "@vue/apollo-composable";
+import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, ref, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<

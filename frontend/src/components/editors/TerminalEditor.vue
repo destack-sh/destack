@@ -2,7 +2,7 @@
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type TerminalEditor, type StatementAction } from "@/state/bench";
-import { newExecutionId, statementOf, TypeFlag } from "@/state/module";
+import { newExecutionId, useCurrentModule, TypeFlag } from "@/state/module";
 import { CommandLineIcon } from "@heroicons/vue/24/outline";
 import { PlayIcon, ArrowPathIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watchEffect } from "vue";
@@ -32,9 +32,10 @@ const now = useTimeFromNow();
 // state
 
 const running = ref(false);
-const symbol = computed(() => statementOf(props.editor.editor.value.symbolId));
-const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const module = useCurrentModule()
+const statement = computed(() => module.statementOf(props.editor.editor.value.symbolId));
+const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
+const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [];
 
@@ -43,16 +44,16 @@ const terminalActions = computed(() => {
 
 // sync symbol type into editor
 watchEffect(() => {
-  if (symbol.value?.symbolType != null && symbol.value.symbolType != editor.value.symbolType) {
-    if (![SymbolType.Code, SymbolType.Task].includes(symbol.value.symbolType)) {
-      throw new Error(`unexpected symbol type ${symbol.value.symbolType}`);
+  if (statement.value?.symbolType != null && statement.value.symbolType != editor.value.symbolType) {
+    if (![SymbolType.Code, SymbolType.Task].includes(statement.value.symbolType)) {
+      throw new Error(`unexpected symbol type ${statement.value.symbolType}`);
     }
-    editor.value.symbolType = symbol.value.symbolType;
+    editor.value.symbolType = statement.value.symbolType;
   }
 });
 
 async function run() {
-  if (symbol.value == null) return;
+  if (statement.value == null) return;
   editor.value.lastExecutionId = newExecutionId();
   const unkeyedArguments = unkey(inputFields.value, editor.value.arguments);
   running.value = true;
@@ -64,7 +65,7 @@ async function run() {
         kind: "error",
         type: "run.failed",
         message: "Run failed",
-        description: `${symbol.value.name} could not be run.`,
+        description: `${statement.value.name} could not be run.`,
       });
     } else {
       // notify on success if run took a bit
@@ -73,7 +74,7 @@ async function run() {
           kind: "success",
           type: "run.success",
           message: "Run completed",
-          description: `${symbol.value.name} completed`,
+          description: `${statement.value.name} completed`,
         });
       }
       editor.value.lastOutput = ret.data.run.execution?.outputs;
@@ -145,8 +146,8 @@ defineExpose({
           <CommandLineIcon class="mt-1 h-5 w-5 text-gray-500" />
         </ActionPopover>
         <!-- editor path -->
-        <ActionPopover anchor="left" :thing="symbol" :actions="terminalActions" class="ml-1">
-          <span class="text-gray-900">{{ symbol?.name }}</span>
+        <ActionPopover anchor="left" :thing="statement" :actions="terminalActions" class="ml-1">
+          <span class="text-gray-900">{{ statement?.name }}</span>
         </ActionPopover>
         <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
           {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
@@ -191,8 +192,8 @@ defineExpose({
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
         <div class="flex flex-col">
-          <h1 class="text-3xl font-extrabold text-gray-900">{{ symbol?.name ?? "" }}&nbsp;</h1>
-          <h3 class="text-sm text-gray-700">{{ symbol?.file?.path }}</h3>
+          <h1 class="text-3xl font-extrabold text-gray-900">{{ statement?.name ?? "" }}&nbsp;</h1>
+          <h3 class="text-sm text-gray-700">{{ statement?.file?.path }}</h3>
         </div>
         <!-- Run button -->
         <div
@@ -246,13 +247,13 @@ defineExpose({
         </div>
       </ContainerTile>
       <!-- Executions -->
-      <ContainerTile v-if="symbol != null" label="Runs" :style="{ ...baseTilePositionX }">
+      <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
         <ExecutionsTile
           :project-id="bench.currentProjectId"
           :project-version-id="bench.currentProjectVersionId"
           include-ancestor-versions
           :runnable-id="editor?.symbolId"
-          :symbol-type="symbol?.symbolType"
+          :symbol-type="statement?.symbolType"
           live
         />
       </ContainerTile>

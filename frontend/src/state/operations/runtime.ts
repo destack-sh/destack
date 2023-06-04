@@ -7,6 +7,28 @@ export function useRuntimeOps() {
   const bench = useBenchState();
   const ops = useOperationsStore();
 
+  const { mutate: wakeLangserver } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation wakeLangserver($projectVersionId: GlobalID!) {
+        langserverWake(input: { projectVersionId: $projectVersionId }) {
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function wake() {
+    return await ops.perform({
+      type: "runtime.wake",
+      stateless: true,
+      do: async () => {
+        return await wakeLangserver({
+          projectVersionId: bench.currentProjectVersionId,
+        });
+      },
+    });
+  }
+
   const { mutate: runMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation run(
@@ -127,6 +149,7 @@ export function useRuntimeOps() {
   }
 
   return {
+    wake,
     run,
     cancel,
   };

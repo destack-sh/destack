@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
-import { statementOf, TypeFlag } from "@/state/module";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,
@@ -25,6 +25,7 @@ import {
   MinusSmallIcon,
   PhoneIcon,
   PhotoIcon,
+  QuestionMarkCircleIcon,
   RectangleGroupIcon,
   SparklesIcon,
   SpeakerWaveIcon,
@@ -41,15 +42,14 @@ const props = defineProps<{
   hideReference?: boolean;
 }>();
 
-// resolve type since the type reference is likely not included
-// (this hack will be removed once the special interp state finally dies)
+const module = useCurrentModule();
 const resolvedReference = computed(() => {
   if (props.type.reference == null) {
     return;
   } else if (props.type.reference.name != null) {
     return props.type.reference;
   } else {
-    return statementOf(props.type.reference.id);
+    return module.statementOf(props.type.reference.id);
   }
 });
 
@@ -62,15 +62,10 @@ const iconsByTag: Record<TypeTag, any> = {
   [TypeTag.Embedding]: SparklesIcon,
   [TypeTag.Null]: MinusSmallIcon,
   [TypeTag.File]: DocumentIcon,
-  [TypeTag.Image]: PhotoIcon,
-  [TypeTag.TypeReference]: ArrowUpRightIcon,
   [TypeTag.Struct]: RectangleGroupIcon,
   [TypeTag.Enum]: ChevronDoubleDownIcon,
 };
 const iconsByHint: Record<TypeHint, any> = {
-  // file
-  [TypeHint.Audio]: SpeakerWaveIcon,
-  [TypeHint.Video]: VideoCameraIcon,
   // string
   [TypeHint.Name]: IdentificationIcon,
   [TypeHint.Uuid]: FingerPrintIcon,
@@ -94,13 +89,19 @@ const iconsByHint: Record<TypeHint, any> = {
   [TypeHint.Toggle]: ArrowsRightLeftIcon,
   [TypeHint.Checkbox]: CheckIcon,
   [TypeHint.Thumbs]: HandThumbUpIcon,
+  // file
+  [TypeHint.Audio]: SpeakerWaveIcon,
+  [TypeHint.Video]: VideoCameraIcon,
+  [TypeHint.Image]: PhotoIcon,
 };
 
 const icon = computed(() => {
   if (props.type.hint != null && iconsByHint[props.type.hint] != null) {
     return iconsByHint[props.type.hint];
-  } else {
+  } else if (iconsByTag[resolvedTag.value] != null) {
     return iconsByTag[resolvedTag.value];
+  } else {
+    return QuestionMarkCircleIcon;
   }
 });
 </script>

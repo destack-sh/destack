@@ -26,14 +26,14 @@ from bench.msg.messages import (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
-    RepInterpPayload,
+    RepLangserverPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
     RepReadSecretPayload,
     RepRegisterWorkerPayload,
     RepRunInferencePayload,
     RepWriteModulePayload,
-    ReqInterpPayload,
+    ReqLangserverPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
     ReqReadSecretPayload,
@@ -112,7 +112,7 @@ class LanguageServer:
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
-            await handle_reply(NMessageType.REQUEST_INTERP, self.request_module_interp),
+            await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
@@ -246,11 +246,10 @@ class LanguageServer:
         await msg.reply(RepRunInferencePayload(output=output, timeout=timeout))
 
     @message_handler
-    async def request_module_interp(self, msg: NMessage[ReqInterpPayload]):
-        logger.debug("module.interp", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
-        payload = make_full_change_payload(worker, RepInterpPayload)
-        await msg.reply(payload)
+    async def request_langserver(self, msg: NMessage[ReqLangserverPayload]):
+        logger.debug("langserver.wake", msg=msg)
+        await self._get_ready_worker(msg.p.module_id)
+        await msg.reply(RepLangserverPayload(module_id=msg.p.module_id))
 
     @message_handler
     async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
@@ -287,9 +286,8 @@ class LanguageServer:
         if msg.p.has_origin(self.id):
             return  # ignore own changes
         # update language worker
-        if msg.p.module_id in self.lang_workers:
-            worker = self.lang_workers[msg.p.module_id]
-            await worker.on_module_changed(msg.p.mutations)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        await worker.on_module_changed(msg.p.mutations)
 
     async def manage_sandboxed_workers(self, interval_seconds: int):
         """Update last seens and mark any unresponsive workers as inactive."""
@@ -462,7 +460,7 @@ class LanguageWorker:
         )
         # notify clients if anything changed
         # nocheckin do it
-        await publish(NMessageType.INTERP_CHANGED, payload)
+        await publish(NMessageType.MODULE_CHANGED, payload)
 
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)
