@@ -72,6 +72,7 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
     # Interp
+    TRUNCATE_INTERP = "TRUNCATE_INTERP"
     UPDATE_INTERP = "UPDATE_INTERP"
 
     @property
@@ -170,6 +171,9 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
     MMT.DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
     MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
     MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
+    # Interp
+    MMT.TRUNCATE_INTERP: (MMK.DELETE, MMS.INTERP),
+    MMT.UPDATE_INTERP: (MMK.UPDATE, MMS.INTERP),
 }
 
 MutableData = FileData | StatementData | FieldData | RecordData | InterpData
@@ -178,6 +182,7 @@ SCOPE_BY_CLASS = {
     StatementData: MMS.STATEMENT,
     FieldData: MMS.FIELD,
     RecordData: MMS.RECORD,
+    InterpData: MMS.INTERP,
 }
 
 
@@ -447,7 +452,6 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_RECORD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.records, m.data)
-        # ignore interp changes (they're not semantic so far)
 
         # re-assemble module data
         new_module = replace(module, files=list(files.values()))
@@ -473,7 +477,10 @@ class MutationBundle:
 
     @cached_property
     def simple(self) -> bool:
-        return not any(m.type not in SIMPLE_MUTATIONS for m in self.mutations)
+        # interp changes are 'simple' because we don't apply them here
+        return not any(
+            m.type not in SIMPLE_MUTATIONS and m.type.scope != MMS.INTERP for m in self.mutations
+        )
 
     @property
     def complex_mutations(self):
