@@ -669,7 +669,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
             break
         tokens.eat_newline_or_eos()
 
-    enum_type_node = TypeContent(
+    enum_field = TypeContent(
         name=name.value,
         description=description,
         tag=TypeTag.ENUM,
@@ -679,7 +679,7 @@ def _parse_definition_enum(tokens: TokenParser, **kwargs) -> Statement:
         type=StatementType.DEFINITION,
         symbol_type=SymbolType.TYPE,
         name=name.value,
-        content=enum_type_node,
+        content=enum_field,
         **kwargs,
     )
     return definition
@@ -742,7 +742,7 @@ def parse_field_inline(tokens: TokenParser, name: str | None) -> Field:
     )
 
 
-def assign_type_node_oks(nodes: list[Field]) -> list[Field]:
+def assign_field_oks(nodes: list[Field]) -> list[Field]:
     """Assign order keys to type nodes and return the list of nodes."""
     oks = generate_n_keys_between(None, None, len(nodes))
     for node, ok in zip(nodes, oks):
@@ -772,7 +772,7 @@ def parse_type_struct_def(tokens: TokenParser, name: str | None) -> TypeContent:
         if not (tokens.peek_separator("-") or tokens.peek_separator("&")):
             tokens.advance(-1)  # go back one token to leave newline separator
             break
-    assign_type_node_oks(struct.fields)
+    assign_field_oks(struct.fields)
     return struct
 
 
@@ -813,7 +813,7 @@ def parse_type_struct(
         struct.fields.append(node)
         expect_union = _parse_union_join()
 
-    assign_type_node_oks(struct.fields)
+    assign_field_oks(struct.fields)
 
     return struct
 
@@ -832,7 +832,7 @@ def parse_type_struct_inline(
             break
         tokens.eat_separator(",")
         tokens.eat_space()
-    assign_type_node_oks(struct.fields)
+    assign_field_oks(struct.fields)
     return struct
 
 
@@ -844,7 +844,7 @@ def parse_type_func(tokens: TokenParser, name: str | None) -> TypeContent:
         tokens.eat_separator("->")
         tokens.eat_space()
         nodes.extend(parse_type_struct(tokens, name=None, is_output=True).fields)
-    assign_type_node_oks(nodes)
+    assign_field_oks(nodes)
     return TypeContent(name=name, tag=TypeTag.FUNCTION, fields=nodes)
 
 

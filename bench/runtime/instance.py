@@ -260,7 +260,7 @@ class Session:
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
         logger.debug("session.flush", session=self, mutator=self.mutator)
-        success = await self.write(self.mutator.bundle().collapse())
+        success = await self.write(self.mutator.bundle().compact())
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
         self.mutator.reset()
@@ -902,7 +902,7 @@ def instantiate_py_type(node: TypeNode) -> type | LiteralValue | None:
 def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     """Instrument and instantiate a type for use."""
     py_type = instantiate_py_type(type)
-    mapped_nodes = _instantiate_type_nodes(type, session)
+    mapped_nodes = _instantiate_fields(type, session)
     return TypeInstance(
         **dict_minus(type.__dict__, "fields"),
         fields=mapped_nodes,
@@ -911,7 +911,7 @@ def _instantiate_type(type: Type, session: Session) -> TypeInstance:
     )
 
 
-def _instantiate_type_nodes(type: TypeContent, session: Session):
+def _instantiate_fields(type: TypeContent, session: Session):
     """Map/impute type nodes with instances recursively"""
     if type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         mapped_nodes = []
@@ -962,15 +962,11 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
 def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
     """Instrument and instantiate a data symbol."""
     dataset_kwargs = dict_minus(dataset.__dict__, ("records", "fields"))
-    type_nodes = _instantiate_type_nodes(dataset, session)
+    fields = _instantiate_fields(dataset, session)
     if dataset.flags & TypeFlag.IsArray:
-        instance = DataTableInstance(
-            **dataset_kwargs, fields=type_nodes, records=[], session=session
-        )
+        instance = DataTableInstance(**dataset_kwargs, fields=fields, records=[], session=session)
     else:
-        instance = DataRecordInstance(
-            **dataset_kwargs, fields=type_nodes, records=[], session=session
-        )
+        instance = DataRecordInstance(**dataset_kwargs, fields=fields, records=[], session=session)
     for raw_record in dataset.records:
         py_record_data = map_value(
             raw_record.data,
@@ -1045,10 +1041,10 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
         method_name=func_name,
     )
     code_cls = AsyncCodeInstance if code.parse.is_async else SyncCodeInstance
-    type_nodes = _instantiate_type_nodes(code, session)
+    fields = _instantiate_fields(code, session)
     return code_cls(
         **(dict_minus(code.__dict__, "fields")),
-        type_nodes=type_nodes,
+        fields=fields,
         transform=transform,
         code_callable=callable,
         session=session,
@@ -1058,7 +1054,7 @@ def _instantiate_code(code: Code, session: Session) -> SyncCodeInstance | AsyncC
 def _instantiate_task(symbol, session):
     return TaskInstance(
         **(dict_minus(symbol.__dict__, "fields")),
-        fields=_instantiate_type_nodes(symbol, session),
+        fields=_instantiate_fields(symbol, session),
         session=session,
     )
 

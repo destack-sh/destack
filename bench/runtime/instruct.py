@@ -212,15 +212,15 @@ def map_instruction(
 
     # track types and their sub-symbols
     if isinstance(node, TypeContent):
-        for type_node in node.fields:
+        for field_ in node.fields:
             # this will have to change later, see :NaiveTreeTracking
-            if type_node.reference is not None:
-                if type_node.reference is None or isinstance(type_node.reference, uuid.UUID):
+            if field_.reference is not None:
+                if field_.reference is None or isinstance(field_.reference, uuid.UUID):
                     continue  # ignore unresolved references
-                elif not isinstance(type_node.reference, Type):
-                    raise RuntimeError(f"type node references must be imputed: {type_node}")
-                type_node = type_node.reference
-            _map_child(type_node)
+                elif not isinstance(field_.reference, Type):
+                    raise RuntimeError(f"type node references must be imputed: {field_}")
+                field_ = field_.reference
+            _map_child(field_)
 
     # context
     if isinstance(node, Code):

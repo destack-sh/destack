@@ -172,7 +172,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         arguments=data["inputs"],
         block=data["block"],
         tracing_level=data["trace"],
-        trigger_type=ExecutionTriggerType.REST_API,
+        trigger_type=ExecutionTriggerType.API,
         trigger_id=access.access_token_id,
     )
     rep = await request(NMessageType.REQUEST_RUN, run, RepRunPayload, timeout=60)

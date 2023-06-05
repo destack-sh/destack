@@ -844,7 +844,7 @@ class SymbolMutation:
 
     @tracked_mutation(MMT.CREATE_FIELD)
     def create_field(self, input: FieldCreateInput) -> Field | OperationInfo:
-        type_node = models.Field(
+        field = models.Field(
             id=UUID(input.id.node_id),
             statement_id=UUID(input.statement_id.node_id),
             key=input.key,
@@ -857,63 +857,63 @@ class SymbolMutation:
             value=input.value,
             reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
         )
-        return type_node
+        return field
 
     @tracked_mutation(MMT.UPDATE_FIELD)
     def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.name = input.name
-        type_node.description = input.description
-        type_node.tag = input.tag
-        type_node.hint = input.hint
-        type_node.flags = input.flags
-        type_node.value = input.value
-        type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.name = input.name
+        field.description = input.description
+        field.tag = input.tag
+        field.hint = input.hint
+        field.flags = input.flags
+        field.value = input.value
+        field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        return field
 
     @tracked_mutation(MMT.RENAME_FIELD)
     def update_field_name(self, input: FieldRenameInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.name = input.name
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.name = input.name
+        return field
 
     @tracked_mutation(MMT.UPDATE_FIELD_DESCRIPTION)
     def update_field_description(self, input: FieldUpdateDescriptionInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.description = input.description
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.description = input.description
+        return field
 
     @tracked_mutation(MMT.UPDATE_FIELD_TYPE)
     def update_field_type(self, input: FieldUpdateTypeInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.tag = input.tag
-        type_node.hint = input.hint
-        type_node.flags = input.flags
-        type_node.value = input.value
-        type_node.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.tag = input.tag
+        field.hint = input.hint
+        field.flags = input.flags
+        field.value = input.value
+        field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        return field
 
     @tracked_mutation(MMT.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.order_key = input.order_key
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.order_key = input.order_key
+        return field
 
     @tracked_mutation(MMT.SOFT_DELETE_FIELD)
     def soft_delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
-        type_node = models.Field._base_manager.get(id=input.id.node_id)
-        type_node.soft_delete()
-        return type_node
+        field = models.Field._base_manager.get(id=input.id.node_id)
+        field.soft_delete()
+        return field
 
     @tracked_mutation(MMT.DELETE_FIELD)
     def delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.delete()
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.delete()
+        return field
 
     @tracked_mutation(MMT.RESTORE_FIELD)
     def restore_statement_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
-        type_node = models.Field.objects.get(id=input.id.node_id)
-        type_node.restore()
-        return type_node
+        field = models.Field.objects.get(id=input.id.node_id)
+        field.restore()
+        return field
