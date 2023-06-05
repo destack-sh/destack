@@ -45,7 +45,7 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
-export type EditorType = "file" | "terminal";
+export type EditorType = "file" | "statement" | "terminal";
 
 // note that editor state should be JSON serializable (except below)
 const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
@@ -325,14 +325,33 @@ export const useBenchState = defineStore("bench", {
       return editor;
     },
 
-    openRun(
-      symbol: { id: string; name?: string | null },
+    openStatement(
+      statement: { id: string; name?: string | null },
       options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
     ): Editor {
-      let editor = this.editors.find((e) => e.type == "terminal" && (e as TerminalEditor).symbolId == symbol.id);
+      let editor = this.editors.find(
+        (e) => e.type == "statement" && (e as StatementEditor).statementId == statement.id
+      );
       if (!editor || options?.create) {
-        console.log(`create new run editor for ${symbol.name}`);
-        editor = new TerminalEditor(symbol);
+        console.log(`create new statement editor for ${statement.name}`);
+        editor = new StatementEditor(statement);
+        editor.onDeserialized(this);
+      }
+      this.openEditor(editor, options?.group);
+      if (options?.focus) {
+        this.focusEditor(editor);
+      }
+      return editor;
+    },
+
+    openRun(
+      statement: { id: string; name?: string | null },
+      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
+    ): Editor {
+      let editor = this.editors.find((e) => e.type == "terminal" && (e as TerminalEditor).statementId == statement.id);
+      if (!editor || options?.create) {
+        console.log(`create new terminal editor for ${statement.name}`);
+        editor = new TerminalEditor(statement);
         editor.onDeserialized(this);
       }
       this.openEditor(editor, options?.group);
@@ -658,23 +677,16 @@ export type EditorAction = Action<Editor>;
 
 // specific editors
 
-export type FileElementType = "Statement" | "Field" | "DatasetRecord";
-export type FileElement = { id: Scalars["GlobalID"]; __typename?: FileElementType };
+export type NavElementType = "Statement" | "Field" | "DatasetRecord";
+export type NavElement = { id: Scalars["GlobalID"]; __typename?: NavElementType };
 
-export class FileEditor extends Editor {
-  type = "file" as const;
-  fileId: string;
+export class NavigableEditor extends Editor {
   activeStatementId?: string;
-  selectedElementType?: FileElementType;
+  selectedElementType?: NavElementType;
   selectedElementIds: string[] = [];
   editing = false;
 
-  constructor(file: { id: string; path: string }) {
-    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, null);
-    this.fileId = file.id;
-  }
-
-  focusElement(element: FileElement, retainEditing = false) {
+  focusElement(element: NavElement, retainEditing = false) {
     if (element.__typename != "Statement") {
       throw new Error(`focusElement only supports Statement elements, got ${element.__typename}`);
     }
@@ -684,7 +696,7 @@ export class FileEditor extends Editor {
     this.editing = this.editing && retainEditing;
   }
 
-  blurElement(element?: FileElement) {
+  blurElement(element?: NavElement) {
     if (element == null || element.id == this.activeStatementId) {
       this.activeStatementId = undefined;
       this.editing = false;
@@ -692,13 +704,13 @@ export class FileEditor extends Editor {
     }
   }
 
-  editElement(element: FileElement) {
+  editElement(element: NavElement) {
     this.focusElement(element);
     this.editing = true;
     console.debug(`edit element ${element.id}`);
   }
 
-  stopEditingElement(element?: FileElement) {
+  stopEditingElement(element?: NavElement) {
     if (element == null || element.id == this.activeStatementId) {
       this.editing = false;
     }
@@ -718,16 +730,16 @@ export class FileEditor extends Editor {
     return selection?.[selection.length - 1] ?? null;
   }
 
-  getSelection(__typename?: FileElementType): string[] | undefined {
+  getSelection(__typename?: NavElementType): string[] | undefined {
     if (this.selectedElementType != __typename) return undefined;
     return this.selectedElementIds;
   }
 
-  isSelected(element: FileElement): boolean {
+  isSelected(element: NavElement): boolean {
     return this.getSelection(element.__typename)?.includes(element.id) ?? false;
   }
 
-  addToSelection(element: FileElement): void {
+  addToSelection(element: NavElement): void {
     if (element.__typename == null) throw new Error(`element ${element.id} has no __typename`);
     if (this.selectedElementType != element.__typename) {
       // reset selection
@@ -740,7 +752,7 @@ export class FileEditor extends Editor {
     selection.push(element.id);
   }
 
-  removeFromSelection(element: FileElement) {
+  removeFromSelection(element: NavElement) {
     const selection = this.getSelection(element.__typename);
     if (selection == null) return;
     console.debug("remove from selection", this.path, element.id);
@@ -754,10 +766,30 @@ export class FileEditor extends Editor {
   }
 }
 
+export class FileEditor extends NavigableEditor {
+  type = "file" as const;
+  fileId: string;
+
+  constructor(file: { id: string; path: string }) {
+    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, null);
+    this.fileId = file.id;
+  }
+}
+
+export class StatementEditor extends NavigableEditor {
+  type = "statement" as const;
+  statementId: string;
+
+  constructor(statement: { id: string; name?: string | null }) {
+    super("statement", statement.id + "-" + Math.random().toString(16).substring(2, 8), statement.name ?? "", null);
+    this.statementId = statement.id;
+  }
+}
+
 export class TerminalEditor extends Editor {
   type = "terminal" as const;
-  symbolId: string;
-  symbolType?: SymbolType.Task | SymbolType.Code;
+  statementId: string;
+  statementType?: SymbolType.Task | SymbolType.Code;
   arguments: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
   lastExecutionTerminatedAt?: string;
@@ -765,11 +797,11 @@ export class TerminalEditor extends Editor {
 
   constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
     super("terminal", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
-    this.symbolId = symbol.id;
+    this.statementId = symbol.id;
     if (symbol.__typename == "Task") {
-      this.symbolType = SymbolType.Task;
+      this.statementType = SymbolType.Task;
     } else if (symbol.__typename == "Code") {
-      this.symbolType = SymbolType.Code;
+      this.statementType = SymbolType.Code;
     }
   }
 
@@ -780,6 +812,7 @@ export class TerminalEditor extends Editor {
 
 const EDITOR_INSTANCES: Record<EditorType, any> = {
   file: FileEditor,
+  statement: StatementEditor,
   terminal: TerminalEditor,
 };
 

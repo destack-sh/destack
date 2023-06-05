@@ -690,9 +690,9 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   return context;
 }
 
-export function useNavigationContext(): Ref<NavigationContext> {
-  const context = inject(NAVIGATION_CONTEXT) as Ref<NavigationContext> | undefined;
-  if (context == null) {
+export function useNavigationContext(required = true): Ref<NavigationContext> | null {
+  const context = inject(NAVIGATION_CONTEXT, null) as Ref<NavigationContext> | null;
+  if (context == null && required) {
     throw new Error("File context not provided");
   }
   return context;

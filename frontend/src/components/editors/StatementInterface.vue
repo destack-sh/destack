@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
+import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
 import CommentCell from "@/components/cells/CommentCell.vue";
 import DataDefinitionCell from "@/components/cells/DataDefinitionCell.vue";
@@ -17,7 +18,14 @@ import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
-import { PencilIcon, PlusIcon, Square2StackIcon, TrashIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowsPointingOutIcon,
+  PencilIcon,
+  PlusIcon,
+  Square2StackIcon,
+  TrashIcon,
+  XCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 import { useCurrentModule } from "@/state/module";
@@ -28,6 +36,7 @@ const props = defineProps<{
   depth: number;
   ancestors: FragmentType<typeof StatementContentType>[];
   readonly: boolean;
+  standalone: boolean;
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -39,24 +48,24 @@ const nav = useNavigationContext();
 const editor = useEditorContext();
 const module = useCurrentModule();
 
-const isActive = computed(() => nav.value.editor.activeStatementId == statement.value?.id);
-const isFocused = computed(() => isActive.value && nav.value.editor.focused);
-const isEditing = computed(() => isFocused.value && nav.value.editor.editing);
-const isSelected = computed(() => nav.value.editor.isSelected(statement.value));
+const isActive = computed(() => nav?.value.editor.activeStatementId == statement.value?.id);
+const isFocused = computed(() => isActive.value && nav?.value.editor.focused);
+const isEditing = computed(() => isFocused.value && nav?.value.editor.editing);
+const isSelected = computed(() => nav?.value.editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
 const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
-const lineNumber = computed(() => nav.value?.statementPositions[statement.value.id] + 1 ?? 0);
+const lineNumber = computed(() => (nav?.value?.statementPositions[statement.value.id] ?? -2) + 1);
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
   ancestors.value.findIndex(
-    (s) => nav.value.editor.activeStatementId == s.id || nav.value.editor.selectedElementIds.includes(s.id)
+    (s) => nav?.value.editor.activeStatementId == s.id || nav?.value.editor.selectedElementIds.includes(s.id)
   )
 );
-const isAncestorHighlight = computed(() => !nav.value.editor.editing && ancestorHighlightDepth.value > -1);
+const isAncestorHighlight = computed(() => !nav?.value.editor.editing && ancestorHighlightDepth.value > -1);
 const contentOffsetX = computed(() => props.depth * 20);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
@@ -202,8 +211,8 @@ onClickOutside(containerRef, (e) => {
     !shiftKeyState.value &&
     editor.container.value?.parentNode?.contains(e.target as Node)
   ) {
-    // We don't blur the root cell here because the focus is already elsewhere.
-    nav.value.editor.blurElement(statement.value as StatementHeader);
+    // we don't blur the root cell here because the focus is already elsewhere
+    nav?.value.editor.blurElement(statement.value as StatementHeader);
   }
 });
 
@@ -217,13 +226,13 @@ whenever(inRootCellFocused, () => {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
-    nav.value.editor.editElement(statement.value as StatementHeader);
+    nav?.value.editor.editElement(statement.value as StatementHeader);
   }
 });
 
 function focusInEditor() {
   bench.focusFile(file.value as any);
-  nav.value.editor.focusElement(statement.value as StatementHeader);
+  nav?.value.editor.focusElement(statement.value as StatementHeader);
 }
 
 function onClickContainer(e: MouseEvent) {
@@ -232,7 +241,7 @@ function onClickContainer(e: MouseEvent) {
     return;
   }
   // create selection to here if shift was pressed
-  if (e.shiftKey) {
+  if (e.shiftKey && nav != null) {
     const index = nav.value.statementPositions[statement.value.id];
     const lastIndex = nav.value.statementPositions[nav.value.editor.activeStatementId ?? ""];
     console.log("select all statements between", index, lastIndex);
@@ -252,7 +261,7 @@ function onClickContainer(e: MouseEvent) {
     focusInEditor();
   }
   if (!bench.readonly) {
-    nav.value.editor.editElement(statement.value as StatementHeader);
+    nav?.value.editor.editElement(statement.value as StatementHeader);
   }
   if (!inContainerFocused.value) {
     rootCellRef.value?.focus();
@@ -288,7 +297,7 @@ function onDragStart(e: DragEvent) {
 }
 
 async function onDrop(thing: File[] | { type: string; id: string } | null) {
-  if (thing == null) return;
+  if (thing == null || nav == null) return;
   if (Array.isArray(thing)) {
     console.log("drop insert files into new statement", thing);
     await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
@@ -315,10 +324,18 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
 // actions
 const defaultActions: StatementAction[] = [
   {
+    label: "Open in Tab",
+    icon: ArrowsPointingOutIcon,
+    disabled: props.standalone,
+    action: () => {
+      nav?.value.editor.bench.openStatement(statement.value as StatementHeader);
+    },
+  },
+  {
     label: "Rename",
     icon: PencilIcon,
     action: () => {
-      nav.value.editor.editElement(statement.value as StatementHeader);
+      nav?.value.editor.editElement(statement.value as StatementHeader);
       nextTick(() => rootCellRef.value?.focus());
     },
   },
@@ -401,7 +418,9 @@ defineExpose({
                   ...appearance.baseClass,
                 }"
               >
-                {{ lineNumber }}
+                <!-- Line number only exists in file context -->
+                <template v-if="lineNumber >= 0">{{ lineNumber }}</template>
+                <DragHandleIcon v-else class="h-4 w-4" />
               </span>
             </ActionPopover>
             <!-- Add statement below button -->
