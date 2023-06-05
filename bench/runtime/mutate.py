@@ -151,6 +151,9 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create(file_data).mutations
     elif mutation.type == MMT.RESTORE_STATEMENT:
+        # TODO @Robustness @Cleanup: restore statement includes the nested objects
+        #  both as separate create mutations and in the StatementData
+        #  this is not an error but not pretty and kind of inefficient
         descendants_datas = mapper.rmap_statement_nested(thing)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*descendants_datas).mutations

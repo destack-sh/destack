@@ -328,8 +328,8 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             self.do(MMT.CREATE_STATEMENT, obj)
             if not flat:
-                for type_node in obj.fields or []:
-                    self.create(type_node)
+                for field in obj.fields or []:
+                    self.create(field)
                 for record in obj.records or []:
                     self.create(record)
         elif isinstance(obj, FieldData):
@@ -397,12 +397,12 @@ class ModuleMutator:
         }
 
         # apply deletes
-        deleted_type_nodes = {m.data.id for m in mut[MMT.DELETE_FIELD]}
+        deleted_fields = {m.data.id for m in mut[MMT.DELETE_FIELD]}
         deleted_records = {m.data.id for m in mut[MMT.DELETE_RECORD]}
         for m in chain(mut[MMT.DELETE_FIELD], mut[MMT.DELETE_RECORD]):
             statement = statements[m.statement_id]
             if statement.fields:
-                statement.fields = [t for t in statement.fields if t.id not in deleted_type_nodes]
+                statement.fields = [t for t in statement.fields if t.id not in deleted_fields]
             if statement.records:
                 statement.records = [r for r in statement.records if r.id not in deleted_records]
         for m in mut[MMT.TRUNCATE_RECORDS]:
@@ -428,13 +428,15 @@ class ModuleMutator:
         for m in mut[MMT.CREATE_STATEMENT]:
             statements[m.data.id] = m.data
         for m in mut[MMT.CREATE_FIELD]:
-            if statements[m.statement_id].fields is None:
-                statements[m.statement_id].fields = []
-            statements[m.statement_id].fields.append(m.data)
+            statement = statements[m.statement_id]
+            if statement.fields is None:
+                statement.fields = []
+            _replace_by_id(statement.fields, m.data, append=True)
         for m in mut[MMT.CREATE_RECORD]:
-            if statements[m.statement_id].records is None:
-                statements[m.statement_id].records = []
-            statements[m.statement_id].records.append(m.data)
+            statement = statements[m.statement_id]
+            if statement.records is None:
+                statement.records = []
+            _replace_by_id(statement.records, m.data, append=True)
 
         # apply updates
         for m in mut[MMT.UPDATE_FILE]:
@@ -500,9 +502,9 @@ class MutationBundle:
         self._cache[type] = mutations
         return mutations
 
-    def collapse(self) -> list[ModuleMutation]:
+    def compact(self) -> list[ModuleMutation]:
         """
-        Collapse simple mutations into fewer semantically identical mutations.
+        Compact simple mutations into fewer semantically identical mutations.
 
         Reduces:
          1. Successive updates to same object to the last update
@@ -551,8 +553,12 @@ def is_semantic_mutation(mutation: ModuleMutation) -> bool:
     return mutation.type not in NON_SEMANTIC_MUTATION_TYPES
 
 
-def _replace_by_id(things, new_thing) -> None:
+def _replace_by_id(things, new_thing, append: bool = False) -> bool:
     for i, t in enumerate(things):
         if t.id == new_thing.id:
             things[i] = new_thing
-            break
+            return True
+    if append:
+        things.append(new_thing)
+        return True
+    return False

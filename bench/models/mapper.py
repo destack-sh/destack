@@ -155,7 +155,7 @@ def read_module(
     return wire_module
 
 
-def rmap_file_nested(file: models.File, exclude_non_semantic: bool) -> FileData:
+def rmap_file_nested(file: models.File, exclude_non_semantic: bool = False) -> FileData:
     """Reads a file and its statements (and their contents)."""
     statements = (
         file.statements.filter(deleted_at=None, commented=False)
