@@ -215,9 +215,9 @@ defineExpose({
       />
       <!-- Not found (mainly for dev mode (hopefully)) -->
       <div v-else-if="IS_DEBUG" class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
-        {{ props.type.tag }} ({{ props.type.hint }})
-        <template v-if="props.type.flags & TypeFlag.IsSecret">(secret)</template>
-        <template v-if="props.type.flags & TypeFlag.IsArray">(array)</template>
+        {{ type.tag }} ({{ type.hint }})
+        <template v-if="type.flags & TypeFlag.IsSecret">(secret)</template>
+        <template v-if="type.flags & TypeFlag.IsArray">(array)</template>
       </div>
       <div v-else>
         <!-- damn it -->

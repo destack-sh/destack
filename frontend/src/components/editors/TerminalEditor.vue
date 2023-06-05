@@ -14,7 +14,7 @@ import { useOperations } from "@/state/operations";
 import { SymbolType } from "@/gql/graphql";
 import { unkey } from "@/state/type";
 import { useNotifications } from "@/state/notifications";
-import { useTimeFromNow } from "@/composables/useNow";
+import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 
 const props = defineProps<{ editor: EditorContext<TerminalEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -32,10 +32,14 @@ const now = useTimeFromNow();
 // state
 
 const running = ref(false);
-const module = useCurrentModule()
+const module = useCurrentModule();
 const statement = computed(() => module.statementOf(props.editor.editor.value.symbolId));
-const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const inputFields = computed(
+  () => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)).map((t) => module.runtimeTypeOf(t)) ?? []
+);
+const outputFields = computed(
+  () => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput).map((t) => module.runtimeTypeOf(t)) ?? []
+);
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [];
 
@@ -74,7 +78,9 @@ async function run() {
           kind: "success",
           type: "run.success",
           message: "Run completed",
-          description: `${statement.value.name} completed`,
+          description: `${statement.value.name} finished after ${formatDurationSeconds(
+            ret.data.run?.execution?.duration ?? 5
+          )}.`,
         });
       }
       editor.value.lastOutput = ret.data.run.execution?.outputs;

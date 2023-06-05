@@ -46,7 +46,7 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
 
 const fields = computed(() => {
-  return runtimeType.value?.fields ?? [];
+  return runtimeType.value?.fields.map((f) => module.runtimeTypeOf(f)) ?? [];
 });
 const titleField: Ref<SimpleType | undefined> = computed(() => {
   // get first name or string field
@@ -79,6 +79,7 @@ function remove(idx: number) {
 function focus() {
   addButtonRef.value?.focus();
 }
+
 function blur() {
   addButtonRef.value?.blur();
   structInlineRefs.refs.value.forEach((r) => r?.blur());

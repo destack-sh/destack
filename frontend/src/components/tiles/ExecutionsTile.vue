@@ -49,8 +49,12 @@ const { executions, totalCount } = useExecutions(
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
 const symbol = computed(() => module.statementOf(props.runnableId));
-const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const inputFields = computed(
+  () => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)).map((t) => module.runtimeTypeOf(t)) ?? []
+);
+const outputFields = computed(
+  () => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput).map((t) => module.runtimeTypeOf(t)) ?? []
+);
 const expandedExecutionId = ref<string | null>(null);
 
 // navigation

@@ -19,7 +19,7 @@ import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { statementOf, TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
   ArrowDownIcon,
@@ -122,21 +122,11 @@ function loadMore() {
 }
 
 // typing
-function runtimeTypeOf(field: SimpleType): SimpleType {
-  if (field.tag != TypeTag.TypeReference) {
-    return field;
-  } else {
-    // impute reference type (not sure if this is a good place to do this)
-    const reference = module.statementOf(field.reference?.id);
-    if (reference == null) return field;
-    return { ...field, tag: reference.rootTypeTag };
-  }
-}
-
 const selfFields = computed(
   () =>
-    context.fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => runtimeTypeOf(n as SimpleType)) ??
-    []
+    context.fields.value
+      ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
+      .map((n) => module.runtimeTypeOf(n as SimpleType)) ?? []
 );
 const extendedTypes = computed(
   () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
@@ -145,7 +135,7 @@ const extendedFields = computed(() => {
   return (
     context.resolvedFields.value
       ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
-      .map((n) => runtimeTypeOf(n) as SimpleType) ?? []
+      .map((n) => module.runtimeTypeOf(n as SimpleType) as SimpleType) ?? []
   );
 });
 const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
@@ -376,7 +366,7 @@ function duplicateField(fieldId: string) {
 }
 
 function updateFieldType(key: string, changed: SimpleType) {
-  // we use key instead of id here because of the runtimeTypeOf hack (has different id, see above)
+  // we use key instead of id here because of the module.runtimeTypeOf hack (has different id, see above)
   const old = context.fields.value.find((n) => n.key == key);
   if (old == null) return;
   context.updateField(old, { ...changed, id: old.id });

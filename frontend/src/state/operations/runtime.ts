@@ -17,13 +17,13 @@ export function useRuntimeOps() {
     `)
   );
 
-  async function wake() {
+  async function wake(moduleId: string) {
     return await ops.perform({
       type: "runtime.wake",
       stateless: true,
       do: async () => {
         return await wakeLangserver({
-          projectVersionId: bench.currentProjectVersionId,
+          projectVersionId: moduleId,
         });
       },
     });
