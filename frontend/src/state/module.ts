@@ -1,4 +1,4 @@
-import { graphql, useFragment } from "@/gql";
+import { graphql, useFragment, type FragmentType } from "@/gql";
 import {
   TypeTag,
   type InterpFileFragment,
@@ -17,7 +17,8 @@ import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
-// @Broken type this properly
+// TODO @Cleanup: type InterpFile/InterpStatement more properly
+//  apollo fragment typing is annoying..
 export type InterpFile = InterpFileFragment;
 export type InterpStatement = InterpStatementFragment;
 
@@ -101,13 +102,13 @@ function _useModule(projectVersionId: Ref<string | null>) {
       const file = useFragment(InterpFileType, fileEdge.node);
       if (file.deletedAt != null) continue;
       filesById[fileEdge.node.id] = file;
-      for (const statement of fileEdge.node.statements) {
+      for (const statement of fileEdge.node.statements.map((s) => useFragment(InterpStatementType, s))) {
         if (statement.deletedAt != null) continue;
-        statementsById[statement.id] = useFragment(InterpStatementType, statement);
+        statementsById[statement.id] = statement;
       }
       statementsByFileId[fileEdge.node.id] = fileEdge.node.statements
-        .filter((s) => s.deletedAt == null)
-        .map((s) => useFragment(InterpStatementType, s));
+        .map((s) => useFragment(InterpStatementType, s))
+        .filter((s) => s.deletedAt == null);
     }
     return {
       id: module.value.projectVersion.id,
@@ -140,7 +141,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       // impute reference type (not sure if this is a good place to do this)
       const reference = statementOf(field.reference?.id);
       if (reference == null) return field;
-      return { ...field, tag: reference.rootTypeTag };
+      return { ...field, tag: reference.rootTypeTag as TypeTag };
     }
   }
 
