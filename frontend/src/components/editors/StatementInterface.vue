@@ -472,8 +472,8 @@ defineExpose({
           'text-sm': bench.textSmall,
         }"
       >
-        <!-- Errors/warnings -->
-        <div>
+        <!-- Issues -->
+        <div class="group/issues">
           <!-- Errors -->
           <button
             v-if="hasLocalErrors"
@@ -483,6 +483,15 @@ defineExpose({
             <XCircleIcon class="h-5 w-5" />
           </button>
           <!-- Warnings (don't exist yet) -->
+          <!-- Preview on hover -->
+          <div
+            v-if="hasLocalErrors"
+            class="invisible absolute flex w-52 flex-col gap-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+          >
+            <span v-for="error in localErrors" :key="error.id" class="text-red-700">
+              {{ error.message }}
+            </span>
+          </div>
         </div>
       </div>
     </div>

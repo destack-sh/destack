@@ -12,8 +12,8 @@ from asgiref.sync import sync_to_async
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.mutate import ModuleMutation, ModuleMutator, MMT
-from bench.language.wire import InterpScope, InterpData
+from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
+from bench.language.wire import InterpData, InterpScope
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.mapper import read_module, write_mutations
@@ -466,7 +466,7 @@ class LanguageWorker:
                 continue  # not sure what to do here
             if interp.issues is None:
                 interp.issues = []
-            interp.issues.append(error)
+            interp.issues.append(wire.rmap_issue(error))
         return interp_by_scope
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
@@ -481,30 +481,30 @@ class LanguageWorker:
         mutations = []
         for interp_data in interp_by_scope.values():
             last_interp = self.last_interp_by_statement.get(interp_data.statement_id)
-            if last_interp is not None and last_interp == interp_data:
-                # nocheckin diff properly
+            if last_interp is not None and last_interp.hash_content() == interp_data.hash_content():
                 continue
             mutation = ModuleMutation(
                 type=MMT.UPDATE_INTERP,
                 project_version_id=self.module_id,
                 file_id=interp_data.file_id,
+                statement_id=interp_data.statement_id,
             )
             mutation.data = interp_data
             mutations.append(mutation)
-        self.last_interp_by_statement = {
-            k: v for k, v in interp_by_scope.items() if v.issues or v.resolved_fields
-        }
-
+        self.last_interp_by_statement = interp_by_scope
         # save and notify
-        await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
-        await publish(
-            NMessageType.MODULE_CHANGED,
-            ModuleChangedPayload(
-                module_id=self.module_id,
-                origins=(self.client,),
-                mutations=mutations,
-            ),
-        )
+        if mutations:
+            await sync_to_async(write_mutations)(
+                project_v=self.project_version, mutations=mutations
+            )
+            await publish(
+                NMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(
+                    module_id=self.module_id,
+                    origins=(self.client,),
+                    mutations=mutations,
+                ),
+            )
 
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)

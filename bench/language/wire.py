@@ -2,8 +2,9 @@ import copy
 import enum
 import typing
 from dataclasses import asdict, dataclass, fields
+from hashlib import md5
 from typing import Optional, Union
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from bench import language
 from bench.language import IssueType
@@ -20,7 +21,6 @@ from bench.language.type import (
     XSource,
 )
 from bench.utils.func import describe_type
-
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -276,8 +276,17 @@ class InterpData:
     scope: InterpScope
     file_id: Optional[UUID]
     statement_id: Optional[UUID]
-    issues: list[IssueData] | None = None
-    resolved_fields: list[FieldData] | None = None
+    issues: Optional[list[IssueData]] = None
+    resolved_fields: Optional[list[FieldData]] = None
+
+    def hash_content(self) -> str:
+        content = (
+            self.statement_id,
+            *(issue.id for issue in (self.issues or [])),
+            *(field.id for field in (self.resolved_fields or [])),
+        )
+        content = str(content).encode("utf-8")
+        return md5(content).hexdigest()
 
 
 def rmap_module(module: language.Module, impute_type_references: bool = False) -> ModuleData:
@@ -559,6 +568,26 @@ def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
     )
 
 
+def rmap_issue(issue: language.Error) -> IssueData:
+    if issue.statement is not None:
+        id = uuid5(issue.statement.id, issue.type.name)
+        scope = InterpScope.STATEMENT
+    elif issue.file is not None:
+        id = uuid5(issue.file.id, issue.type.name)
+        scope = InterpScope.FILE
+    else:
+        raise ValueError(f"cannot handle unscoped issue yet: {issue}")
+    return IssueData(
+        id=id,
+        kind=IssueKind.ERROR,
+        scope=scope,
+        type=issue.type,
+        file_id=issue.file.id if issue.file else None,
+        statement_id=issue.statement.id if issue.statement else None,
+        message=issue.message,
+    )
+
+
 def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:
     return RemoteObjectData(
         id=object.id,
@@ -592,34 +621,6 @@ def wmap_secret(secret: SecretData) -> language.Secret:
         id=secret.id,
         sha512=secret.sha512,
         value=secret.value,
-    )
-
-
-#
-# Errors
-#
-
-
-@dataclass(repr=False)
-class ErrorData:
-    type: IssueType
-    statement_id: Optional[UUID]
-    message: str
-    verbose_message: Optional[str]
-
-    def __str__(self):
-        return f"{self.type.name}: {self.message}"
-
-    def __repr__(self):
-        return f"<Error {str(self)}>"
-
-
-def rmap_error(error: language.Error) -> ErrorData:
-    return ErrorData(
-        type=error.type,
-        statement_id=error.statement.id if error.statement is not None else None,
-        message=error.message,
-        verbose_message=error.verbose_message,
     )
 
 

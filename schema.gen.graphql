@@ -411,7 +411,7 @@ type Issue implements Node {
   file: File
   statement: Statement
   kind: IssueKind!
-  type: IssueType!
+  type: String!
   message: String
 }
 
@@ -419,41 +419,6 @@ enum IssueKind {
   ERROR
   WARNING
   SUGGESTION
-}
-
-enum IssueType {
-  INTERNAL
-  UNKNOWN_TOKEN
-  MISSING_TOKEN
-  UNEXPECTED_TOKEN_TYPE
-  UNEXPECTED_TOKEN_VALUE
-  UNEXPECTED_INDENT
-  EXPECTED_BLANK
-  MISSING_EXTRA
-  UNEXPECTED_EXTRA
-  INVALID_TOKEN_VALUE
-  INVALID_STATEMENT
-  UNKNOWN_IMPORT_SOURCE
-  MISSING_REFERENCE
-  UNDEFINED_LOCAL_REFERENCE
-  UNDEFINED_EXTERNAL_REFERENCE
-  EXTERNAL_LOOKUP_FAILED
-  REFERENCE_TYPE_MISMATCH
-  AMBIGUOUS_DEFINITION
-  AMBIGUOUS_REQUIREMENT
-  UNEXPECTED_PARENT
-  EXPECTED_PARENT
-  EXPECTED_PROPER_CHILDREN
-  UNEXPECTED_CHILDREN
-  EXPECTED_PARAMETERS
-  UNEXPECTED_PARAMETERS
-  EXPECTED_ARGUMENTS
-  UNEXPECTED_STATEMENT
-  BUILD_MISSING_MODEL
-  BUILD_MISSING_TASK
-  CIRCULAR_ANCESTRY
-  CIRCULAR_UNION
-  MISMATCHED_UNION
 }
 
 """
@@ -464,6 +429,12 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 input LangserverWakeInput {
   projectVersionId: GlobalID!
 }
+
+type LangserverWakePayload {
+  success: Boolean!
+}
+
+union LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo
 
 type ModuleChange implements Change {
   id: UUID!
@@ -600,7 +571,7 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
-  langserverWake(input: LangserverWakeInput!): OperationInfo
+  langserverWake(input: LangserverWakeInput!): LangserverWakePayloadOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
   cancelRun(input: CancelRunInput!): CancelRunPayloadOperationInfo!
   requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!

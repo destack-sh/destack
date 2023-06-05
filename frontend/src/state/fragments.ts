@@ -110,6 +110,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
 
 export const FieldType = graphql(/* GraphQL */ `
   fragment FieldContent on Field {
+    # :FieldContent
     id
     createdAt
     updatedAt
@@ -173,10 +174,15 @@ export const StatementContentType = graphql(/* GraphQL */ `
 
 export const IssueContentType = graphql(/* GraphQL */ `
   fragment IssueContent on Issue {
+    # :IssueContent
     id
+    scope
     kind
     type
     message
+    file {
+      id
+    }
     statement {
       id
     }
@@ -185,12 +191,11 @@ export const IssueContentType = graphql(/* GraphQL */ `
 
 export const InterpDataContentType = graphql(/* GraphQL */ `
   fragment InterpDataContent on InterpData {
+    scope
+    fileId
     statementId
     issues {
-      id
-      kind
-      type
-      message
+      ...IssueContent
     }
     resolvedFields {
       ...FieldContent
@@ -241,6 +246,46 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     rootTypeFlags
     fields(filters: { isVisible: true }) {
       ...FieldContent
+    }
+  }
+`);
+
+export const InterpStatementDataType = graphql(/* GraphQL */ `
+  fragment InterpStatementData on Statement {
+    id
+    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found for some reason)
+    resolvedFields {
+      # :FieldContent
+      id
+      createdAt
+      updatedAt
+      deletedAt
+      revision
+      name
+      key
+      tag
+      hint
+      description
+      value
+      orderKey
+      reference {
+        id
+      }
+      flags
+    }
+    issues {
+      # :IssueContent
+      id
+      kind
+      scope
+      type
+      message
+      file {
+        id
+      }
+      statement {
+        id
+      }
     }
   }
 `);

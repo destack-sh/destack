@@ -5,12 +5,12 @@ import { InterpFileType, InterpStatementType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
-import { useApolloClient, useQuery } from "@vue/apollo-composable";
+import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
-import { computed, isRef, ref, watchEffect, type Ref } from "vue";
+import { computed, isRef, ref, watch, type Ref } from "vue";
 
-// @Broken nocheckin type this properly
+// @Broken type this properly
 export type InterpFile = InterpFileFragment;
 export type InterpStatement = InterpStatementFragment;
 
@@ -68,13 +68,13 @@ function _useModule(projectVersionId: Ref<string | null>) {
   // wake langserver
   const woken = ref(false);
   const ops = useOperations();
-  watchEffect(async () => {
+  watch([module, WS_CONNECTED], async () => {
     if (!WS_CONNECTED.value) {
       woken.value = false; // reset woken state
     }
     if (!woken.value && module.value != null && module.value?.projectVersion?.committed == false) {
-      await ops.runtime.wake();
       woken.value = true;
+      await ops.runtime.wake();
     }
   });
 
@@ -82,7 +82,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (module.value?.projectVersion == null) return [];
     const issues = [];
     for (const file of module.value.projectVersion.files.edges.map((e: any) => e.node)) {
+      if (file.deletedAt != null) continue;
       for (const statement of file.statements) {
+        if (statement.issues == null || statement.deletedAt != null) continue;
         for (const issue of statement.issues) {
           issues.push({
             ...issue,
@@ -167,8 +169,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  function localErrorsOf(symbol: Ref<{ id: string }>) {
-    return computed(() => issues.value?.filter((e) => e.symbol?.id == symbol.value.id));
+  function localErrorsOf(statement: Ref<{ id: string }>) {
+    return computed(() => issues.value?.filter((e) => e.statement?.id == statement.value.id));
   }
 
   function statementsLike(filter: Ref<StatementFilter> | StatementFilter) {

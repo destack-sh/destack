@@ -12,9 +12,10 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
-from bench.api.interp import InterpData
+from bench.api.interp import InterpData, rmap_interp_data
 from bench.api.type import ProjectMutationType
 from bench.api.util import asafe_subscription, to_global_id, to_uuid
+from bench.language import mutate
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
 
@@ -106,7 +107,7 @@ def rmap_project_mutation(mutation: ProjectMutation) -> ProjectMutation:
     )
 
 
-def rmap_module_mutation(mutation: ModuleMutation) -> ModuleMutation:
+def rmap_module_mutation(mutation: mutate.ModuleMutation, module_id: UUID) -> ModuleMutation:
     return ModuleMutation(
         type=mutation.type,
         project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
@@ -114,6 +115,7 @@ def rmap_module_mutation(mutation: ModuleMutation) -> ModuleMutation:
         statement_id=to_global_id("Statement", mutation.statement_id),
         revision=mutation.revision,
         input=mutation.input,
+        data=rmap_interp_data(mutation.data, module_id) if mutation.data else None,
     )
 
 
@@ -191,8 +193,5 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            yield ModuleChange(
-                id=change.id,
-                client_id=origin_id,
-                mutations=[rmap_module_mutation(m) for m in change.p.mutations],
-            )
+            mutations = [rmap_module_mutation(m, project_version_id) for m in change.p.mutations]
+            yield ModuleChange(id=change.id, client_id=origin_id, mutations=mutations)
