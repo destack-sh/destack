@@ -35,6 +35,7 @@ export type ModuleIndex = {
   name: string;
   path: string;
   statementsById: Record<string, InterpStatement>;
+  statementsByFileId: Record<string, InterpStatement[]>;
   filesById: Record<string, InterpFile>;
 };
 
@@ -90,28 +91,12 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   });
 
-  const issues = computed(() => {
-    if (module.value?.projectVersion == null) return [];
-    const issues = [];
-    for (const file of module.value.projectVersion.files.edges.map((e: any) => e.node)) {
-      if (file.deletedAt != null) continue;
-      for (const statement of file.statements) {
-        if (statement.issues == null || statement.deletedAt != null) continue;
-        for (const issue of statement.issues) {
-          issues.push({
-            ...issue,
-            statement: statement,
-          });
-        }
-      }
-    }
-    return issues;
-  });
-
   const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
     const statementsById: Record<string, InterpStatement> = {};
+    const statementsByFileId: Record<string, InterpStatement[]> = {};
     const filesById: Record<string, InterpFile> = {};
+
     for (const fileEdge of module.value.projectVersion.files.edges) {
       const file = useFragment(InterpFileType, fileEdge.node);
       if (file.deletedAt != null) continue;
@@ -120,6 +105,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
         if (statement.deletedAt != null) continue;
         statementsById[statement.id] = useFragment(InterpStatementType, statement);
       }
+      statementsByFileId[fileEdge.node.id] = fileEdge.node.statements
+        .filter((s) => s.deletedAt == null)
+        .map((s) => useFragment(InterpStatementType, s));
     }
     return {
       id: module.value.projectVersion.id,
@@ -128,6 +116,15 @@ function _useModule(projectVersionId: Ref<string | null>) {
       statementsById: statementsById,
       filesById: filesById,
     } as ModuleIndex;
+  });
+
+  const issues = computed(() => {
+    const issues = [];
+    for (const statement of Object.values(moduleIndex.value?.statementsById ?? {})) {
+      if (statement.issues == null) continue;
+      issues.push(...statement.issues);
+    }
+    return issues;
   });
 
   // TODO @Broken: get dependencies
@@ -256,6 +253,45 @@ export function useCurrentModule(projectVersionId?: Ref<string | null>) {
     projectVersionId?.value != null ? projectVersionId.value : bench.currentProjectVersionId
   );
   return useModule(activeVersionId);
+}
+
+type OrderableStatement = Pick<InterpStatement, "id" | "orderKey" | "parent">;
+export type OrderedStatement<T extends OrderableStatement> = {
+  id: string;
+  depth: number;
+  ancestors: string[];
+  statement: T;
+};
+
+export function orderStatements<T extends OrderableStatement>(statements: T[]): OrderedStatement<T>[] {
+  const ordered: OrderedStatement<T>[] = [];
+  const statementsByParentId: Record<string, T[]> = {};
+  // group by parent
+  statements.forEach((statement) => {
+    if (statementsByParentId[statement.parent?.id ?? ""] != null) {
+      statementsByParentId[statement.parent?.id ?? ""].push(statement);
+    } else {
+      statementsByParentId[statement.parent?.id ?? ""] = [statement];
+    }
+  });
+  // walk from root
+  function walkDfs(parentId: string | undefined, depth: number, ancestors: string[]) {
+    const children = statementsByParentId[parentId ?? ""];
+    if (children) {
+      children.sort((a, b) => (a.orderKey > b.orderKey ? 1 : -1));
+      for (const child of children) {
+        ordered.push({
+          id: child.id,
+          depth: depth,
+          ancestors: ancestors,
+          statement: child,
+        });
+        walkDfs(child.id, depth + 1, [...ancestors, child.id]);
+      }
+    }
+  }
+  walkDfs(undefined, 0, []);
+  return ordered;
 }
 
 export type StatementFilter = {
