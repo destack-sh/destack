@@ -2,7 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
-import { useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
+import { orderStatements, useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
 import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
 
@@ -16,18 +16,20 @@ const runtime = useCurrentModule();
 const bench = useBenchState();
 const nav = useNavigation();
 
-const filteredStatements = computed(() => {
+const orderedStatements = computed(() => {
   if (bench.focusedFileId == null) {
     return undefined;
   }
-  return Object.values(runtime.moduleIndex.value?.statementsById ?? {}).filter(
-    (s) => s.file.id == bench.focusedFileId && s.type == StatementType.Definition
+  const statements = Object.values(runtime.moduleIndex.value?.statementsById ?? {}).filter(
+    (s) =>
+      s.file.id == bench.focusedFileId && (s.type == StatementType.Definition || s.type == StatementType.Redefinition)
   );
+  return orderStatements(statements);
 });
 
 const statementsGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
-  computed(() => filteredStatements.value ?? []),
+  computed(() => orderedStatements.value?.map((s) => s.statement) ?? []),
   {
     gridNavigateUp: () => emit("navigateUp"),
     gridNavigateDown: () => emit("navigateDown"),
@@ -54,31 +56,34 @@ function blur() {
 }
 
 defineExpose({
-  count: computed(() => filteredStatements.value?.length),
+  count: computed(() => orderedStatements.value?.length),
   focus,
   blur,
 });
 </script>
 <template>
-  <ul v-if="filteredStatements != null" role="list" class="flex flex-col py-1 text-sm">
+  <ul v-if="orderedStatements != null" role="list" class="flex flex-col py-1 text-sm">
     <li
-      v-for="statement in filteredStatements"
-      :key="statement.id"
-      :ref="(ref) => statementsGrid.registerColumnRef(statement.id, 'name', ref)"
+      v-for="ordered in orderedStatements"
+      :key="ordered.id"
+      :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref)"
       tabindex="-1"
       class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'bg-orange-100 text-orange-600': statement.id == bench?.focusedStatementId,
-        'text-gray-700 hover:bg-orange-100': statement.id != bench?.focusedStatementId,
+        'bg-orange-100 text-orange-600': ordered.id == bench?.focusedStatementId,
+        'text-gray-700 hover:bg-orange-100': ordered.id != bench?.focusedStatementId,
       }"
-      @click.prevent="focusStatement(statement)"
-      @mousedown.prevent="focusStatement(statement)"
-      @keydown.enter.exact.prevent="focusStatementAndGoThere(statement)"
-      @keydown.up.exact.prevent="statementsGrid.navigateUp(statement.id, 'name')"
-      @keydown.down.exact.prevent="statementsGrid.navigateDown(statement.id, 'name')"
+      :style="{
+        marginLeft: ordered.depth * 6 + 'px',
+      }"
+      @click.prevent="focusStatement(ordered.statement)"
+      @mousedown.prevent="focusStatement(ordered.statement)"
+      @keydown.enter.exact.prevent="focusStatementAndGoThere(ordered.statement)"
+      @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
+      @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
     >
-      <span class="">{{ SYMBOL_TYPE_KEYWORD[statement.symbolType] }}</span>
-      <span class="">{{ statement.name }}</span>
+      <span class="">{{ SYMBOL_TYPE_KEYWORD[ordered.statement.symbolType] }}</span>
+      <span class="">{{ ordered.statement.name }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

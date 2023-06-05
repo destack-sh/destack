@@ -1,13 +1,13 @@
+import type StatementInterface from "@/components/editors/StatementInterface.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
-import { StatementType, SymbolType, type StatementContentFragment, TypeTag } from "@/gql/graphql";
+import { SymbolType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
+import { orderStatements, TypeFlag, type OrderedStatement } from "@/state/module";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newDatasetRecordId, newStatementId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { TypeFlag } from "@/state/module";
-import { INTEGER_ZERO, generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
-import { onBeforeUnmount, watchEffect, type Ref, ref, computed, inject, provide } from "vue";
-import type StatementInterface from "@/components/editors/StatementInterface.vue";
+import { newDatasetRecordId, newFieldId, newFieldKey, newStatementId } from "@/state/operations/statement";
+import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref } from "vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
@@ -27,17 +27,8 @@ export type FileContext = FileState & {
   statementsComponents: Record<string, InstanceType<typeof StatementInterface>>;
   statementsByParentId: Record<string, StatementHeader[]>;
   statementPositions: Record<string, number>;
-  positionedStatements: PositionedStatement[];
+  positionedStatements: OrderedStatement<StatementContentFragment>[];
   depths: number[];
-};
-
-export type PositionedStatement = {
-  depth: number;
-  lineNumberBase: number;
-  isFirstInGroup: boolean;
-  isLastInGroup: boolean;
-  statement: StatementContentFragment;
-  ancestors: string[];
 };
 
 // There can only be one active file to provide file shortcuts,
@@ -67,8 +58,6 @@ export function provideFileState(file: Ref<FileState | null>) {
 
   // file context
   const statementsUnordered = computed(() => file.value?.statementsUnordered ?? []);
-  const rootStatements = computed(() => statementsUnordered.value.filter((statement) => statement.parent == null));
-
   const statementsById = computed(() => {
     const statementsById = {};
     statementsUnordered.value.forEach((statement) => {
@@ -96,63 +85,8 @@ export function provideFileState(file: Ref<FileState | null>) {
     return result;
   });
 
-  /* Statements are hierarchical but laid out linearly (in one column) */
-
-  const positionedStatements = computed(() => {
-    const positionedStatements: PositionedStatement[] = [];
-    let lineNumberBase = 0;
-
-    // depth first traversal
-    function walkDfs(statement: StatementContentFragment, ancestors: string[], isLast: boolean) {
-      if (statement?.id == null) {
-        // bail in case a bad statement ends in here due to some other bug to prevent recursion death
-        console.warn("got bad statement with null id", statement, ancestors, isLast);
-        return;
-      }
-
-      const children = statementsUnordered.value.filter((child) => child.parent?.id == statement.id);
-      const isFirstInGroup = ancestors.length == 0;
-      const isLastInRoot = isLast && children.length == 0;
-
-      positionedStatements.push({
-        depth: ancestors.length,
-        lineNumberBase,
-        statement,
-        ancestors,
-        isFirstInGroup,
-        isLastInGroup: isLastInRoot,
-      });
-      lineNumberBase += 1;
-
-      // walk children, sorted by order key
-      ancestors = [...ancestors, statement.id];
-      children.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
-      children.forEach((child, i) => walkDfs(child, ancestors, isLast && i == children.length - 1));
-    }
-
-    // start with roots sorted by order key
-    const roots = rootStatements.value;
-    roots.sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1));
-    roots.forEach((root) => walkDfs(root, [], true));
-
-    // group groupable sibling statements at root
-    for (const [i, positioned] of positionedStatements.entries()) {
-      if (
-        positioned.statement.type == StatementType.Import ||
-        positioned.statement.type == StatementType.Comment ||
-        positioned.statement.type == StatementType.Blank ||
-        positioned.statement.symbolType == SymbolType.Requirement
-      ) {
-        const next = positionedStatements[i + 1];
-        if (next && next.depth == 0 && next?.statement.type == positioned.statement.type) {
-          positioned.isLastInGroup = false;
-          next.isFirstInGroup = false;
-        }
-      }
-    }
-
-    return positionedStatements;
-  });
+  // TODO @Cleanup: use module.orderStatements here (like in SymbolExplorer)
+  const positionedStatements = computed(() => orderStatements(file.value?.statementsUnordered ?? []));
   const statements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
   const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
 
