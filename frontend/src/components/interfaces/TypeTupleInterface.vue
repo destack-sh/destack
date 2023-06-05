@@ -342,7 +342,7 @@ defineExpose({
           @enter="close(false), emit('enter')"
         />
         <!-- Description placeholder -->
-        <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus">Description... </span>
+        <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus">Add description</span>
       </span>
       <!-- Actions -->
       <div class="mt-1 flex flex-col gap-0.5" v-if="actions.length > 0">
