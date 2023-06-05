@@ -18,8 +18,8 @@ from django.db.models import Q
 
 from bench import language, models
 from bench.language import wire
+from bench.language.interp import LookupBy, index_module
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
-from bench.language.parse import LookupBy, index_module
 from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
 from bench.language.wire import (
     FieldData,

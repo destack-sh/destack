@@ -10,7 +10,8 @@ from more_itertools import first
 
 from bench import language
 from bench.language import wire
-from bench.language.parse import REFERENCE_REGEX, ErrorCollector, LookupBy, interp, resolve, sort
+from bench.language.interp import ErrorCollector, LookupBy, interp, resolve, sort
+from bench.language.parse import REFERENCE_REGEX
 from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import ModuleReference
 from bench.utils.func import wrap_task

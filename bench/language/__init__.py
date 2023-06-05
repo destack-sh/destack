@@ -1,6 +1,6 @@
 from bench.language.error import Error, IssueType
+from bench.language.interp import ModuleIndex, Scope, parse
 from bench.language.lex import Token, TokenType, lex
-from bench.language.parse import ModuleIndex, Scope, parse
 from bench.language.type import (
     Build,
     BuildContent,

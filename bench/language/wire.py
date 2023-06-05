@@ -8,7 +8,7 @@ from uuid import UUID, uuid5
 
 from bench import language
 from bench.language import IssueType
-from bench.language.parse import get_reference_as_path
+from bench.language.interp import get_reference_as_path
 from bench.language.type import (
     StatementModifier,
     StatementPath,

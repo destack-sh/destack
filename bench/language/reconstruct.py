@@ -10,8 +10,8 @@ from typing import Iterable, Optional, cast
 from uuid import UUID
 
 from bench.language import File, Statement
+from bench.language.interp import get_reference_as_path
 from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS, LINE_COMMENT_REGEX
-from bench.language.parse import get_reference_as_path
 from bench.language.type import (
     PRIMITIVE_TYPES,
     BuildContent,
