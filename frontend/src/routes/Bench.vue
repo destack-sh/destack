@@ -347,7 +347,7 @@ watch(
         type: "runtime.disconnected",
         kind: "warning",
         message: "Disconnected",
-        description: "Bench is disconnected.",
+        description: "Bench has disconnected.",
       });
       connectionLost.value = true;
     } else if (WS_CONNECTED.value && connectionLost.value) {

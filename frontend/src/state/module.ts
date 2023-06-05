@@ -1,8 +1,15 @@
 import { graphql, useFragment } from "@/gql";
-import type { InterpFileFragment, InterpStatementFragment, StatementType, SymbolType } from "@/gql/graphql";
+import {
+  TypeTag,
+  type InterpFileFragment,
+  type InterpStatementFragment,
+  type StatementType,
+  type SymbolType,
+} from "@/gql/graphql";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
+import type { SimpleType } from "@/state/statement";
 import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
@@ -72,9 +79,14 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (!WS_CONNECTED.value) {
       woken.value = false; // reset woken state
     }
-    if (!woken.value && module.value != null && module.value?.projectVersion?.committed == false) {
+    if (
+      !woken.value &&
+      projectVersionId.value != null &&
+      module.value != null &&
+      !module.value?.projectVersion?.committed
+    ) {
       woken.value = true;
-      await ops.runtime.wake();
+      await ops.runtime.wake(projectVersionId.value);
     }
   });
 
@@ -123,6 +135,17 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() => []);
 
   // utils
+
+  function runtimeTypeOf(field: SimpleType): SimpleType {
+    if (field.tag != TypeTag.TypeReference) {
+      return field;
+    } else {
+      // impute reference type (not sure if this is a good place to do this)
+      const reference = statementOf(field.reference?.id);
+      if (reference == null) return field;
+      return { ...field, tag: reference.rootTypeTag };
+    }
+  }
 
   function fileOf(statement: { id: string }) {
     return moduleIndex.value?.filesById[moduleIndex.value?.statementsById[statement.id]?.file?.id];
@@ -215,6 +238,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     dependencies,
     dependenciesIndex,
     // utils
+    runtimeTypeOf,
     fileOf,
     contextOf,
     statementOf,
