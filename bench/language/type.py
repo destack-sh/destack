@@ -655,7 +655,7 @@ class Field(TypeNode):
         return f"{name_str}{self.tag}"
 
     def __repr__(self):
-        return f"<SimpleTypeNode {self}>"
+        return f"<Field {self}>"
 
     @property
     def fields(self) -> list[TypeNode]:

@@ -4,6 +4,7 @@ import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { toValueRef } from "@/utils/functools";
+import { WS_CONNECTED } from "@/utils/globals";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
@@ -68,6 +69,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const woken = ref(false);
   const ops = useOperations();
   watchEffect(async () => {
+    if (!WS_CONNECTED.value) {
+      woken.value = false; // reset woken state
+    }
     if (!woken.value && module.value != null && module.value?.projectVersion?.committed == false) {
       await ops.runtime.wake();
       woken.value = true;

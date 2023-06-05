@@ -392,16 +392,26 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
 type InterpData {
-  statementId: UUID!
+  scope: InterpScope!
+  fileId: GlobalID
+  statementId: GlobalID
   issues: [Issue!]
   resolvedFields: [Field!]
 }
 
+enum InterpScope {
+  MODULE
+  FILE
+  STATEMENT
+}
+
 type Issue implements Node {
   id: GlobalID!
+  scope: InterpScope!
+  file: File
+  statement: Statement
   kind: IssueKind!
   type: IssueType!
-  statement: Statement
   message: String
 }
 
@@ -515,6 +525,7 @@ enum ModuleMutationType {
   SOFT_DELETE_RECORD
   DELETE_RECORD
   RESTORE_RECORD
+  TRUNCATE_INTERP
   UPDATE_INTERP
 }
 

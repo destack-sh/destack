@@ -12,6 +12,7 @@ from datetime import datetime
 from itertools import groupby
 from uuid import UUID, uuid5
 
+from opensearchpy import Q
 import pytz
 from django.db import transaction
 
@@ -20,7 +21,14 @@ from bench.language import wire
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.parse import LookupBy, index_module
 from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
-from bench.language.wire import FieldData, FileData, RecordData, StatementData
+from bench.language.wire import (
+    FieldData,
+    FileData,
+    RecordData,
+    StatementData,
+    InterpScope,
+    InterpData,
+)
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
@@ -305,9 +313,33 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     if mut[MMT.UPDATE_FIELD]:
         raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_FIELD]}")
     if mut[MMT.UPDATE_INTERP]:
-        statement_ids = [m.statement_id for m in mut[MMT.UPDATE_INTERP]]
+        # delete and re-create interp data
+        file_ids = [m.file_id for m in mut[MMT.UPDATE_INTERP] if m.data.scope == InterpScope.FILE]
+        statement_ids = [
+            m.statement_id for m in mut[MMT.UPDATE_INTERP] if m.data.scope == InterpScope.STATEMENT
+        ]
         models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
-        models.Issue.objects.filter(statement_id__in=statement_ids).delete()
+        models.Issue.objects.filter(
+            Q(statement_id__in=statement_ids, file_id__in=file_ids)
+        ).delete()
+
+        issues = []
+        for m in mut[MMT.UPDATE_INTERP]:
+            interp_data = typing.cast(InterpData, m.data)
+            for issue_data in interp_data.issues or []:
+                issue = models.Issue(
+                    project_version=project_v,
+                    scope=interp_data.scope,
+                    kind=issue_data.kind,
+                    type=issue_data.type,
+                    message=issue_data.message,
+                    file_id=m.file_id,
+                    statement_id=m.statement_id,
+                )
+                issues.append(issue)
+            for resolved_field_data in interp_data.resolved_fields or []:
+                pass
+
         raise NotImplementedError(f"nocheckin: {mut[MMT.UPDATE_INTERP]}")
 
 

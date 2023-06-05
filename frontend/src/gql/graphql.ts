@@ -405,16 +405,26 @@ export type FileRenameInput = {
 
 export type InterpData = {
   __typename?: "InterpData";
+  fileId?: Maybe<Scalars["GlobalID"]>;
   issues?: Maybe<Array<Issue>>;
   resolvedFields?: Maybe<Array<Field>>;
-  statementId: Scalars["UUID"];
+  scope: InterpScope;
+  statementId?: Maybe<Scalars["GlobalID"]>;
 };
+
+export enum InterpScope {
+  File = "FILE",
+  Module = "MODULE",
+  Statement = "STATEMENT",
+}
 
 export type Issue = Node & {
   __typename?: "Issue";
+  file?: Maybe<File>;
   id: Scalars["GlobalID"];
   kind: IssueKind;
   message?: Maybe<Scalars["String"]>;
+  scope: InterpScope;
   statement?: Maybe<Statement>;
   type: IssueType;
 };
@@ -512,6 +522,7 @@ export enum ModuleMutationType {
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  TruncateInterp = "TRUNCATE_INTERP",
   TruncateRecords = "TRUNCATE_RECORDS",
   UpdateField = "UPDATE_FIELD",
   UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
@@ -3145,7 +3156,7 @@ export type IssueContentFragment = {
 
 export type InterpDataContentFragment = {
   __typename?: "InterpData";
-  statementId: any;
+  statementId?: any | null;
   issues?: Array<{ __typename?: "Issue"; id: any; kind: IssueKind; type: IssueType; message?: string | null }> | null;
   resolvedFields?: Array<
     { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }

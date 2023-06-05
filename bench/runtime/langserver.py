@@ -12,7 +12,8 @@ from asgiref.sync import sync_to_async
 
 from bench import language, models
 from bench.language import ModuleIndex, wire
-from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.mutate import ModuleMutation, ModuleMutator, MMT
+from bench.language.wire import InterpScope, InterpData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.mapper import read_module, write_mutations
@@ -374,11 +375,8 @@ class LanguageWorker:
         self.interpreter = LanguageInterpreter(fetcher)
         # module data
         self.source: wire.ModuleData | None = None
+        self.last_interp_by_statement: dict[UUID, InterpData] = {}
         self.interp: Optional[InterpModule] = None
-        # wire-able data of interpreted module
-        self.wire_module: wire.ModuleData | None = None
-        self.wire_errors: list[wire.ErrorData] | None = None
-        self.wire_dependencies: dict[UUID, wire.ModuleData] | None = None
 
     @property
     def client(self) -> ClientOrigin:
@@ -437,30 +435,76 @@ class LanguageWorker:
             ),
         )
 
-    def _do_interp_sync(self, new_source: wire.ModuleData, dependencies) -> None:
+    def _do_interp_sync(self, new_source: wire.ModuleData, dependencies) -> dict[UUID, InterpData]:
         self.source = new_source
         self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
-        if self.interp.module_idx:
-            self.wire_module = wire.rmap_module(
-                self.interp.module_idx.module, impute_type_references=True
+
+        # get new interp data
+        interp_by_scope: dict[UUID, InterpData] = {}
+        for symbol in self.interp.module_idx.symbols.values():
+            # only include resolved fields if they are actually different
+            if isinstance(symbol, language.TypeContent) and symbol.self_fields is not None:
+                resolved_fields = [
+                    wire.rmap_field(symbol.id, field, impute_type_references=True)
+                    for field in symbol.fields
+                ]
+            else:
+                resolved_fields = None
+            interp_by_scope[symbol.id] = InterpData(
+                scope=InterpScope.STATEMENT,
+                file_id=symbol.source.file.id,
+                statement_id=symbol.source.id,
+                issues=None,
+                resolved_fields=resolved_fields,
             )
-        else:  # re-use source (if failed to parse or not yet parsed)
-            self.wire_module = self.source
-        self.wire_errors = [wire.rmap_error(e) for e in self.interp.errors]
-        self.wire_dependencies = {
-            m.module.id: wire.rmap_module(m.module) for m in self.interp.dependencies
-        }
+        for error in self.interp.errors:
+            if error.statement is not None:
+                interp = interp_by_scope[error.statement.id]
+            elif error.file is not None:
+                interp = interp_by_scope[error.file.id]
+            else:
+                continue  # not sure what to do here
+            if interp.issues is None:
+                interp.issues = []
+            interp.issues.append(error)
+        return interp_by_scope
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
         dependencies = await self.interpreter.interp_requirements(requirements)
-        await asyncio.get_event_loop().run_in_executor(
+        interp_by_scope = await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
-        # notify clients if anything changed
-        # nocheckin do it
-        await publish(NMessageType.MODULE_CHANGED, payload)
+
+        # track any interp changes
+        mutations = []
+        for interp_data in interp_by_scope.values():
+            last_interp = self.last_interp_by_statement.get(interp_data.statement_id)
+            if last_interp is not None and last_interp == interp_data:
+                # nocheckin diff properly
+                continue
+            mutation = ModuleMutation(
+                type=MMT.UPDATE_INTERP,
+                project_version_id=self.module_id,
+                file_id=interp_data.file_id,
+            )
+            mutation.data = interp_data
+            mutations.append(mutation)
+        self.last_interp_by_statement = {
+            k: v for k, v in interp_by_scope.items() if v.issues or v.resolved_fields
+        }
+
+        # save and notify
+        await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
+        await publish(
+            NMessageType.MODULE_CHANGED,
+            ModuleChangedPayload(
+                module_id=self.module_id,
+                origins=(self.client,),
+                mutations=mutations,
+            ),
+        )
 
     async def run(self) -> None:
         source = await self.fetcher(self.module_id)

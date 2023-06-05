@@ -21,6 +21,7 @@ from bench.language.type import (
 )
 from bench.utils.func import describe_type
 
+
 #
 # Stable, concise and flat language data structures for transit and storage.
 #
@@ -46,7 +47,7 @@ class FieldData:
         return f"{self.statement_id}:{self.order_key} {name_str}{self.tag.value}"
 
     def __repr__(self):
-        return f"<SimpleTypeNode {str(self)}>"
+        return f"<Field {str(self)}>"
 
     def deepcopy(self):
         return FieldData(
@@ -247,6 +248,12 @@ class StatementData:
 _STATEMENT_DATA_FIELDS = fields(StatementData)
 
 
+class InterpScope(enum.StrEnum):
+    MODULE = "module"
+    FILE = "file"
+    STATEMENT = "statement"
+
+
 class IssueKind(enum.StrEnum):
     ERROR = "error"
     WARNING = "warning"
@@ -256,7 +263,9 @@ class IssueKind(enum.StrEnum):
 @dataclass(repr=False, slots=True)
 class IssueData:
     id: UUID
-    statement_id: UUID
+    scope: InterpScope
+    file_id: Optional[UUID]
+    statement_id: Optional[UUID]
     kind: IssueKind
     type: IssueType
     message: Optional[str]
@@ -264,7 +273,9 @@ class IssueData:
 
 @dataclass(repr=False, slots=True)
 class InterpData:
-    statement_id: UUID
+    scope: InterpScope
+    file_id: Optional[UUID]
+    statement_id: Optional[UUID]
     issues: list[IssueData] | None = None
     resolved_fields: list[FieldData] | None = None
 
