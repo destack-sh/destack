@@ -221,7 +221,7 @@ class ModuleMutation:
 
     @data.setter
     def data(self, value: MutableData):
-        if self.type.scope != SCOPE_BY_CLASS[type(value)]:
+        if value is not None and self.type.scope != SCOPE_BY_CLASS[type(value)]:
             raise ValueError(f"type mismatch: {self.type} {self.type.scope}: {value}")
         if self.type.scope == MMS.FILE:
             self._data_file = value

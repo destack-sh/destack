@@ -119,18 +119,18 @@ async function run() {
     hideOutput.value = false;
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
     try {
-      await codeSync.flushNow(); // flush any pending changes to the code (debounced)
+      await codeSync.flushNow(); // flush any pending changes to the code (which is debounced)
     } finally {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is exact same as in editor
-    const ret = await ops.runtime.run(symbol.id, undefined, executionId);
+    const ret = await ops.runtime.run(context.statement.value.id, undefined, lastExecutionLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",
         kind: "error",
         message: "Run failed",
-        description: `Failed to run ${symbol.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+        description: `Failed to run ${context.statement.value.name}: ${ret?.data?.run?.error ?? "rejected"}`,
       });
     }
     if (ret?.data?.run.__typename == "RunState") {

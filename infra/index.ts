@@ -100,7 +100,7 @@ const db = new aws.rds.Cluster("db", {
 });
 const dbInstance = new aws.rds.ClusterInstance("db", {
   clusterIdentifier: db.clusterIdentifier,
-  instanceClass: "db.t3.medium",
+  instanceClass: "db.t4g.large",
   engine: "aurora-postgresql",
   engineVersion: "14.6",
   publiclyAccessible: true,
@@ -155,18 +155,23 @@ const opensearchDomainName = `bench-${config.require("env")}`;
 const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
   ingress: [{ fromPort: 443, toPort: 443, protocol: "tcp", cidrBlocks: ["0.0.0.0/0"] }],
   egress: [{ fromPort: 0, toPort: 0, protocol: "-1", cidrBlocks: ["0.0.0.0/0"] }],
+  vpcId: eksVpc.vpcId,
 });
 const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
   domainName: opensearchDomainName,
-  engineVersion: "OpenSearch_1.0",
+  engineVersion: "OpenSearch_2.5",
   clusterConfig: {
-    instanceType: "t2.small.search",
+    instanceType: "m5.large.search",
     instanceCount: 1,
+  },
+  domainEndpointOptions: {
+    enforceHttps: true,
+    tlsSecurityPolicy: "Policy-Min-TLS-1-2-2019-07",
   },
   ebsOptions: {
     ebsEnabled: true,
     volumeSize: 10,
-    volumeType: "gpt3",
+    volumeType: "gp3",
   },
   encryptAtRest: {
     enabled: true,
@@ -175,6 +180,7 @@ const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
     enabled: true,
   },
   vpcOptions: {
+    subnetIds: eksVpc.privateSubnetIds.apply((ids) => ids.slice(0, 1)),
     securityGroupIds: [opensearchSecurityGroup.id],
   },
   // public access with fine grained access control
@@ -191,6 +197,9 @@ const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
       },
     ],
   }),
+  advancedOptions: {
+    "rest.action.multi.allow_explicit_index": "true",
+  },
   advancedSecurityOptions: {
     enabled: true,
     internalUserDatabaseEnabled: true,
@@ -295,7 +304,7 @@ const redisUserGroup = new aws.elasticache.UserGroup("redisUserGroup", {
 const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
   description: "Redis cluster",
   engine: "redis",
-  nodeType: "cache.t3.micro",
+  nodeType: "cache.t3.medium",
   numCacheClusters: 1,
   port: 6379,
   parameterGroupName: "default.redis7",

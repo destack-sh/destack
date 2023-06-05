@@ -164,6 +164,10 @@ import os
 test.env = str(list(os.environ.keys()))
 test.cwd = os.getcwd()
 file_paths = []
+
+def test(page):
+    print(page)
+
 # Walk through the directory and its subdirectories
 for root, dirs, files in os.walk(test.cwd):
     for file in files:

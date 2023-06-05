@@ -82,6 +82,15 @@ def parse_code(code: str | None) -> "CodeParse":
             self.is_async = True
             self.generic_visit(node)
 
+        def visit_arg(self, node):
+            self.local_variables.add(node.arg)
+            self.generic_visit(node)
+
+        def visit_arguments(self, node):
+            for arg in node.args:
+                self.local_variables.add(arg.arg)
+            self.generic_visit(node)
+
         def visit_Await(self, node):
             self.is_async = True
             self.generic_visit(node)
