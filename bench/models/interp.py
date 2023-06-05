@@ -9,10 +9,9 @@ class InterpScope(models.TextChoices):
     STATEMENT = "statement"
 
 
-class ResolvedField(models.Model):
+class ResolvedField(UUIDModel):
     """A field that has been resolved to a statement."""
 
-    id = models.IntegerField(primary_key=True)
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
     )

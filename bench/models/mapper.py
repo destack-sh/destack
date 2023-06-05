@@ -12,9 +12,9 @@ from datetime import datetime
 from itertools import groupby
 from uuid import UUID, uuid5
 
-from opensearchpy import Q
 import pytz
 from django.db import transaction
+from django.db.models import Q
 
 from bench import language, models
 from bench.language import wire
@@ -24,10 +24,10 @@ from bench.language.type import StatementPath, StatementType, SymbolType, TypeFl
 from bench.language.wire import (
     FieldData,
     FileData,
+    InterpData,
+    InterpScope,
     RecordData,
     StatementData,
-    InterpScope,
-    InterpData,
 )
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.type import ExecutionFrameData, RunErrorData
@@ -209,6 +209,28 @@ def rmap_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
     )
 
 
+def wmap_resolved_field(statement_id: UUID, field: FieldData, module_id: UUID):
+    return models.ResolvedField(
+        id=uuid5(statement_id, str(field.id)),
+        project_version_id=module_id,
+        statement_id=statement_id,
+        field_id=field.id,
+    )
+
+
+def wmap_issue(issue: wire.IssueData, module_id: UUID):
+    return models.Issue(
+        id=issue.id,
+        project_version_id=module_id,
+        scope=issue.scope,
+        kind=issue.kind,
+        type=issue.type.name,
+        message=issue.message,
+        file_id=issue.file_id,
+        statement_id=issue.statement_id,
+    )
+
+
 @transaction.atomic
 def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
     mut = MutationBundle(mutations)
@@ -320,27 +342,21 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         ]
         models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
         models.Issue.objects.filter(
-            Q(statement_id__in=statement_ids, file_id__in=file_ids)
+            Q(statement_id__in=statement_ids) | Q(file_id__in=file_ids)
         ).delete()
-
+        # create new interp data
         issues = []
+        resolved_fields = []
         for m in mut[MMT.UPDATE_INTERP]:
             interp_data = typing.cast(InterpData, m.data)
             for issue_data in interp_data.issues or []:
-                issue = models.Issue(
-                    project_version=project_v,
-                    scope=interp_data.scope,
-                    kind=issue_data.kind,
-                    type=issue_data.type,
-                    message=issue_data.message,
-                    file_id=m.file_id,
-                    statement_id=m.statement_id,
-                )
-                issues.append(issue)
+                issues.append(wmap_issue(issue_data, project_v.id))
             for resolved_field_data in interp_data.resolved_fields or []:
-                pass
-
-        raise NotImplementedError(f"nocheckin: {mut[MMT.UPDATE_INTERP]}")
+                resolved_fields.append(
+                    wmap_resolved_field(interp_data.statement_id, resolved_field_data, project_v.id)
+                )
+        models.Issue.objects.bulk_create(issues)
+        models.ResolvedField.objects.bulk_create(resolved_fields)
 
 
 def write_files(

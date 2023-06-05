@@ -1,5 +1,6 @@
 import { graphql } from "@/gql";
-import type { ModuleMutation, ModuleMutationType } from "@/gql/graphql";
+import { ModuleMutationType, type ModuleMutation } from "@/gql/graphql";
+import { InterpStatementDataType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { dedent, startStopIf, toValueRef } from "@/utils/functools";
 import type {
@@ -10,14 +11,14 @@ import type {
   TypedDocumentNode,
 } from "@apollo/client";
 import {
+  useApolloClient,
   useMutation,
   useSubscription,
   type UseMutationOptions,
   type UseMutationReturn,
-  useApolloClient,
 } from "@vue/apollo-composable";
-import { print, parse } from "graphql";
-import { computed, watch, type Ref } from "vue";
+import { parse, print } from "graphql";
+import { computed, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
@@ -83,7 +84,7 @@ export class OpRegistry {
     document: DocumentParameter<TResult, TVariables>,
     options?: OptionsParameter<TResult, TVariables>
   ): UseMutationReturn<TResult, TVariables> {
-    /* Registers a mutation for multiplayer  */
+    /* Registers a GQL mutation for multiplayer  */
 
     const operationName = document.definitions[0].name.value; // fails if op could not be parsed, but this is usually obvious
     const mutationString = print(document);
@@ -157,11 +158,11 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       // apply all mutations
       for (const mutation of result.data.moduleChanged.mutations) {
         if (mutation.input != null) {
-          // apply as op
-          syncedOps.applyMutation(mutation);
+          // apply like regular input op
+          syncedOps.applyInputMutation(mutation);
         } else {
-          // apply from data
-          // nocheckin
+          // apply manually
+          syncedOps.applyDataMutation(mutation);
         }
       }
     }
@@ -209,14 +210,37 @@ function useSyncedOps() {
   const { client } = useApolloClient();
   const opRegistry = OpRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
 
-  function applyMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
+  function applyInputMutation(
+    mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">
+  ) {
+    // mutations that we just pass through to the regular op with the original input
     const registeredOp = opRegistry.ops[mutation.type];
     if (registeredOp == null) {
-      throw new Error(`cannt apply unknown: ${mutation.type}`);
+      throw new Error(`cannot apply unknown input: ${mutation.type}`);
     }
     console.debug("apply sync mutation", mutation);
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
-  return { applyMutation };
+  function applyDataMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
+    // manual mutations (when we don't have a registered op from a standard GQL mutation)
+    if (mutation.type == ModuleMutationType.UpdateInterp) {
+      // set the interp data (resolvedFields and issues) on the target
+      if (mutation.statementId != null) {
+        client.cache.writeFragment({
+          fragment: InterpStatementDataType,
+          data: {
+            __typename: "Statement",
+            id: mutation.statementId,
+            resolvedFields: mutation.data?.resolvedFields,
+            issues: mutation.data?.issues,
+          },
+        });
+      }
+    } else {
+      throw new Error(`cannot apply unknown data: ${mutation.type}`);
+    }
+  }
+
+  return { applyInputMutation, applyDataMutation };
 }

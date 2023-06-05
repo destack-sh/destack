@@ -41,9 +41,9 @@ function focusError(error: IssueContentFragment) {
         class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-100"
         @click="focusError(error)"
       >
-        <div v-if="error.symbol != null" class="px-3">
-          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.statement.symbolType] }}</span>
-          <span class="pl-1 text-gray-900">{{ module.fileOf(error.symbol)?.path }}.{{ error.symbol.name }}</span>
+        <div v-if="error.statement != null" class="px-3">
+          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.statement.statementType] }}</span>
+          <span class="pl-1 text-gray-900">{{ module.fileOf(error.statement)?.path }}.{{ error.statement.name }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
           <XCircleIcon class="mt-0.5 h-4 w-4" />

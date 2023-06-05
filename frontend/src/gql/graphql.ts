@@ -426,7 +426,7 @@ export type Issue = Node & {
   message?: Maybe<Scalars["String"]>;
   scope: InterpScope;
   statement?: Maybe<Statement>;
-  type: IssueType;
+  type: Scalars["String"];
 };
 
 export enum IssueKind {
@@ -435,44 +435,16 @@ export enum IssueKind {
   Warning = "WARNING",
 }
 
-export enum IssueType {
-  AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
-  AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
-  BuildMissingModel = "BUILD_MISSING_MODEL",
-  BuildMissingTask = "BUILD_MISSING_TASK",
-  CircularAncestry = "CIRCULAR_ANCESTRY",
-  CircularUnion = "CIRCULAR_UNION",
-  ExpectedArguments = "EXPECTED_ARGUMENTS",
-  ExpectedBlank = "EXPECTED_BLANK",
-  ExpectedParameters = "EXPECTED_PARAMETERS",
-  ExpectedParent = "EXPECTED_PARENT",
-  ExpectedProperChildren = "EXPECTED_PROPER_CHILDREN",
-  ExternalLookupFailed = "EXTERNAL_LOOKUP_FAILED",
-  Internal = "INTERNAL",
-  InvalidStatement = "INVALID_STATEMENT",
-  InvalidTokenValue = "INVALID_TOKEN_VALUE",
-  MismatchedUnion = "MISMATCHED_UNION",
-  MissingExtra = "MISSING_EXTRA",
-  MissingReference = "MISSING_REFERENCE",
-  MissingToken = "MISSING_TOKEN",
-  ReferenceTypeMismatch = "REFERENCE_TYPE_MISMATCH",
-  UndefinedExternalReference = "UNDEFINED_EXTERNAL_REFERENCE",
-  UndefinedLocalReference = "UNDEFINED_LOCAL_REFERENCE",
-  UnexpectedChildren = "UNEXPECTED_CHILDREN",
-  UnexpectedExtra = "UNEXPECTED_EXTRA",
-  UnexpectedIndent = "UNEXPECTED_INDENT",
-  UnexpectedParameters = "UNEXPECTED_PARAMETERS",
-  UnexpectedParent = "UNEXPECTED_PARENT",
-  UnexpectedStatement = "UNEXPECTED_STATEMENT",
-  UnexpectedTokenType = "UNEXPECTED_TOKEN_TYPE",
-  UnexpectedTokenValue = "UNEXPECTED_TOKEN_VALUE",
-  UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
-  UnknownToken = "UNKNOWN_TOKEN",
-}
-
 export type LangserverWakeInput = {
   projectVersionId: Scalars["GlobalID"];
 };
+
+export type LangserverWakePayload = {
+  __typename?: "LangserverWakePayload";
+  success: Scalars["Boolean"];
+};
+
+export type LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo;
 
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
@@ -572,7 +544,7 @@ export type Mutation = {
   deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
-  langserverWake?: Maybe<OperationInfo>;
+  langserverWake: LangserverWakePayloadOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -3148,16 +3120,22 @@ export type StatementContentFragment = {
 export type IssueContentFragment = {
   __typename?: "Issue";
   id: any;
+  scope: InterpScope;
   kind: IssueKind;
-  type: IssueType;
+  type: string;
   message?: string | null;
+  file?: { __typename?: "File"; id: any } | null;
   statement?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "IssueContentFragment" };
 
 export type InterpDataContentFragment = {
   __typename?: "InterpData";
+  scope: InterpScope;
+  fileId?: any | null;
   statementId?: any | null;
-  issues?: Array<{ __typename?: "Issue"; id: any; kind: IssueKind; type: IssueType; message?: string | null }> | null;
+  issues?: Array<
+    { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
+  > | null;
   resolvedFields?: Array<
     { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
   > | null;
@@ -3195,6 +3173,38 @@ export type InterpStatementFragment = {
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
+
+export type InterpStatementDataFragment = {
+  __typename?: "Statement";
+  id: any;
+  resolvedFields?: Array<{
+    __typename?: "Field";
+    id: any;
+    createdAt: any;
+    updatedAt: any;
+    deletedAt?: any | null;
+    revision: number;
+    name?: string | null;
+    key: string;
+    tag: TypeTag;
+    hint?: TypeHint | null;
+    description?: string | null;
+    value?: any | null;
+    orderKey: string;
+    flags: number;
+    reference?: { __typename?: "Statement"; id: any } | null;
+  }> | null;
+  issues?: Array<{
+    __typename?: "Issue";
+    id: any;
+    kind: IssueKind;
+    scope: InterpScope;
+    type: string;
+    message?: string | null;
+    file?: { __typename?: "File"; id: any } | null;
+    statement?: { __typename?: "Statement"; id: any } | null;
+  }> | null;
+} & { " $fragmentName"?: "InterpStatementDataFragment" };
 
 export type ModuleQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -3580,11 +3590,11 @@ export type WakeLangserverMutationVariables = Exact<{
 
 export type WakeLangserverMutation = {
   __typename?: "Mutation";
-  langserverWake?:
+  langserverWake:
+    | { __typename?: "LangserverWakePayload" }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | null;
+      });
 };
 
 export type RunMutationVariables = Exact<{
@@ -4969,9 +4979,18 @@ export const IssueContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "scope" } },
           { kind: "Field", name: { kind: "Name", value: "kind" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "message" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "file" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "statement" },
@@ -5091,18 +5110,15 @@ export const InterpDataContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "scope" } },
+          { kind: "Field", name: { kind: "Name", value: "fileId" } },
           { kind: "Field", name: { kind: "Name", value: "statementId" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "issues" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "kind" } },
-                { kind: "Field", name: { kind: "Name", value: "type" } },
-                { kind: "Field", name: { kind: "Name", value: "message" } },
-              ],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
             },
           },
           {
@@ -5231,6 +5247,82 @@ export const InterpStatementFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpStatementFragment, unknown>;
+export const InterpStatementDataFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "InterpStatementData" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                { kind: "Field", name: { kind: "Name", value: "revision" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "hint" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "value" } },
+                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "Field", name: { kind: "Name", value: "flags" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
+                { kind: "Field", name: { kind: "Name", value: "scope" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
+                { kind: "Field", name: { kind: "Name", value: "message" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "file" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "statement" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<InterpStatementDataFragment, unknown>;
 export const _OrderKeyFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -13418,6 +13510,7 @@ export const ModuleChangedDocument = {
       },
     },
     ...InterpDataContentFragmentDoc.definitions,
+    ...IssueContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;

@@ -112,15 +112,25 @@ const overfetchedRecord = computed(() =>
 const mainRecord = computed(() => recordsInView.value?.[0]);
 
 function loadMore() {
-  if (!pageInfo.value?.hasNextPage) {
-    return;
-  }
+  if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
       after: fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.cursor,
       first: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
+}
+
+// typing
+function runtimeTypeOf(field: SimpleType): SimpleType {
+  if (field.tag != TypeTag.TypeReference) {
+    return field;
+  } else {
+    // impute reference type (not sure if this is a good place to do this)
+    const reference = module.statementOf(field.reference?.id);
+    if (reference == null) return field;
+    return { ...field, tag: reference.rootTypeTag };
+  }
 }
 
 const selfFields = computed(
@@ -131,6 +141,17 @@ const selfFields = computed(
 const extendedTypes = computed(
   () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
 );
+const extendedFields = computed(() => {
+  return (
+    context.resolvedFields.value
+      ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
+      .map((n) => runtimeTypeOf(n) as SimpleType) ?? []
+  );
+});
+const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
+
+// grid & grid sizing
+
 const columnsInOrder: Ref<string[]> = computed(() => {
   if (isTable.value) {
     return allFields.value?.map((n) => n.key ?? "") ?? [];
@@ -145,27 +166,6 @@ const rowIdsInOrder: Ref<string[]> = computed(() => {
     return allFields.value?.map((n) => n.id ?? "") ?? [];
   }
 });
-// map the field type to its actual runtime type
-// children cannot be imputed into Field but we still want to know the actual type
-function runtimeTypeOf(field: SimpleType) {
-  if (field.tag != TypeTag.TypeReference) {
-    return field;
-  } else {
-    return context.resolvedFields?.value.find((n) => n.key == field.key) ?? field;
-  }
-}
-
-const extendedFields = computed(() => {
-  return (
-    context.resolvedFields.value
-      ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
-      .map((n) => n as SimpleType) ?? []
-  );
-});
-const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
-
-// grid & grid sizing
-
 const grid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
   computed(() => {
@@ -737,7 +737,7 @@ defineExpose({
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
             :model-value="record.data?.[field.key as string]"
             @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
-            :type="runtimeTypeOf(field)"
+            :type="field"
             :readonly="context.readonly.value"
             :active="context.editing.value || context.focused.value"
             debounced
@@ -792,7 +792,7 @@ defineExpose({
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="mainRecord.data?.[field.key as string]"
           @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
-          :type="runtimeTypeOf(field)"
+          :type="field"
           :readonly="context.readonly.value"
           :active="context.editing.value || context.focused.value"
           debounced
