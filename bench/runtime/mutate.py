@@ -199,7 +199,8 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
         revision=mutation.revision,
         input=input,
     )
-    public_mutation.data = data
+    if data is not None:
+        public_mutation.data = data
     return [public_mutation]
 
 

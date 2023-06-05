@@ -1,13 +1,13 @@
 import { graphql } from "@/gql";
 import {
-SymbolType,
-type DatasetRecord,
-type File,
-type Project,
-type ProjectVersion,
-type Scalars,
-type SimpleType,
-type Statement
+  SymbolType,
+  type DatasetRecord,
+  type File,
+  type Project,
+  type ProjectVersion,
+  type Scalars,
+  type SimpleType,
+  type Statement,
 } from "@/gql/graphql";
 import { useAppearanceState, type EditorAppearance, type Theme } from "@/state/appearance";
 import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
@@ -613,13 +613,13 @@ export function provideEditorContext<T extends Editor>(
       ];
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
-          label: "Move to right",
+          label: "Move to Right",
           icon: ArrowRightIcon,
           action: () => editorState.moveEditor(editor.value, editorState.right),
         });
       } else {
         actions.push({
-          label: "Move to left",
+          label: "Move to Left",
           icon: ArrowLeftIcon,
           action: () => editorState.moveEditor(editor.value, editorState.left),
         });

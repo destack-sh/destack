@@ -486,7 +486,7 @@ defineExpose({
           <!-- Preview on hover -->
           <div
             v-if="hasLocalErrors"
-            class="invisible absolute flex w-52 flex-col gap-1 rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+            class="invisible absolute right-0 flex w-fit flex-col gap-1 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
           >
             <span v-for="error in localErrors" :key="error.id" class="text-red-700">
               {{ error.message }}

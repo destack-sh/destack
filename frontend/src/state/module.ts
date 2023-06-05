@@ -82,6 +82,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       woken.value = false; // reset woken state
     }
     if (
+      WS_CONNECTED.value &&
       !woken.value &&
       projectVersionId.value != null &&
       module.value != null &&

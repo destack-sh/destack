@@ -2,7 +2,7 @@
 import { useElementRefs } from "@/composables/useGrid";
 import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { useCurrentModule, TypeFlag } from "@/state/module";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
@@ -106,6 +106,8 @@ defineExpose({
       @blur="editingIndex || (activeIndex = null)"
       @mouseover="editingIndex || (activeIndex = i)"
     >
+      <!-- Struct icon -->
+      <RectangleGroupIcon class="h-4 w-4 text-gray-700" />
       <!-- Struct title -->
       <span v-if="struct[titleField?.key ?? ''] != undefined" class="min-w-[10px] text-gray-900">{{
         struct[titleField?.key ?? ""]

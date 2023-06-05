@@ -38,7 +38,7 @@ config:
   bench:maxClusterSize: "4"
   bench:minClusterSize: "2"
   bench:opensearchPassword:
-    secure: AAABADfkjNBoDRFr8e5nw8BxpjD5M8XcWByMMIZ5xetIRjzSz8yCAmHelAshmId1WcnBaZQGhW+iHavqe0wSuRHLSeJQgU20P05A1FlnaHST4SPWqm8NyyU/KkCN9B0=
+    secure: AAABAPl+GtM/VYhHJdq0JN8+PYbCvpolc3HQVSIDDNMmpZd8vedXQLmFYRJxV8ZfHx9sDwFqdG6L+U+yjT2m6cHPIJmI1du7EK6b0nqb7ZbIBw==
   bench:version: "current"
   bench:vpcNetworkCidr: 10.0.0.0/16
   bench:webappUrl: https://bench.symbolx.com
