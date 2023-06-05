@@ -399,6 +399,7 @@ const auth = useAuth();
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
           :ancestors="positioned.ancestors.map((ancestorId) => context?.statementsById[ancestorId])"
+          :standalone="false"
           class="w-full"
         />
       </div>

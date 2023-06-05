@@ -33,7 +33,7 @@ const now = useTimeFromNow();
 
 const running = ref(false);
 const module = useCurrentModule();
-const statement = computed(() => module.statementOf(props.editor.editor.value.symbolId));
+const statement = computed(() => module.statementOf(props.editor.editor.value.statementId));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)).map((t) => module.runtimeTypeOf(t)) ?? []
 );
@@ -48,11 +48,11 @@ const terminalActions = computed(() => {
 
 // sync symbol type into editor
 watchEffect(() => {
-  if (statement.value?.symbolType != null && statement.value.symbolType != editor.value.symbolType) {
+  if (statement.value?.symbolType != null && statement.value.symbolType != editor.value.statementType) {
     if (![SymbolType.Code, SymbolType.Task].includes(statement.value.symbolType)) {
       throw new Error(`unexpected symbol type ${statement.value.symbolType}`);
     }
-    editor.value.symbolType = statement.value.symbolType;
+    editor.value.statementType = statement.value.symbolType;
   }
 });
 
@@ -61,7 +61,12 @@ async function run() {
   editor.value.lastExecutionId = newExecutionId();
   const unkeyedArguments = unkey(inputFields.value, editor.value.arguments);
   running.value = true;
-  const ret = await ops.runtime.run(editor.value.symbolId, undefined, editor.value.lastExecutionId, unkeyedArguments);
+  const ret = await ops.runtime.run(
+    editor.value.statementId,
+    undefined,
+    editor.value.lastExecutionId,
+    unkeyedArguments
+  );
   running.value = false;
   if (ret?.data?.run?.__typename == "RunState") {
     if (!ret?.data?.run?.success) {
@@ -258,7 +263,7 @@ defineExpose({
           :project-id="bench.currentProjectId"
           :project-version-id="bench.currentProjectVersionId"
           include-ancestor-versions
-          :runnable-id="editor?.symbolId"
+          :runnable-id="editor?.statementId"
           :symbol-type="statement?.symbolType"
           live
         />
