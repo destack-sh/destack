@@ -1,4 +1,4 @@
-from bench.language.parse import parse_string
+from bench.language.interp import parse_string
 from bench.runtime.run import instantiate, run_sync
 
 

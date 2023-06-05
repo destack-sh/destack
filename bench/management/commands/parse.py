@@ -7,8 +7,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from bench.language import File
+from bench.language.interp import parse
 from bench.language.lex import SourceFile, Token, lex
-from bench.language.parse import parse
 from bench.language.reconstruct import render, render_file
 from bench.models.mapper import lookup_in_db_module
 

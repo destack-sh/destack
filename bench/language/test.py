@@ -8,8 +8,7 @@ from typing import Callable
 import pytest
 
 from bench.language import TypeTag, parse
-from bench.language.lex import SourceFile, lex
-from bench.language.parse import (
+from bench.language.interp import (
     ErrorCollector,
     IssueType,
     ParseError,
@@ -17,6 +16,7 @@ from bench.language.parse import (
     parse_code,
     parse_string,
 )
+from bench.language.lex import SourceFile, lex
 from bench.language.reconstruct import render
 from bench.language.type import Code, StatementPath, Task, Type, TypeFlag
 
