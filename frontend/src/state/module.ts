@@ -1,10 +1,10 @@
 import { graphql, useFragment, type FragmentType } from "@/gql";
 import {
+  SymbolType,
   TypeTag,
   type InterpFileFragment,
   type InterpStatementFragment,
   type StatementType,
-  type SymbolType,
 } from "@/gql/graphql";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType } from "@/state/fragments";
@@ -324,4 +324,26 @@ export function newExecutionId(): string {
   /* Generates a new statement global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
   return btoa(`Execution:${nodeId}`);
+}
+
+export function getSymbolSubtype(statement: {
+  symbolType?: SymbolType | null;
+  rootTypeTag?: TypeTag | null;
+  rootTypeFlags?: number | null;
+}) {
+  if (statement.symbolType == SymbolType.Type) {
+    if (statement.rootTypeTag == TypeTag.Enum) {
+      return "choice";
+    } else {
+      return "type";
+    }
+  } else if (statement.symbolType == SymbolType.Data) {
+    if ((statement.rootTypeFlags ?? 0) & TypeFlag.IsArray) {
+      return "table";
+    } else {
+      return "record";
+    }
+  }
+
+  return null;
 }

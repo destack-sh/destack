@@ -10,7 +10,14 @@ import {
 } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, HashtagIcon, MapIcon, MoonIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowsPointingOutIcon,
+  Bars3BottomLeftIcon,
+  HashtagIcon,
+  MapIcon,
+  MoonIcon,
+  WindowIcon,
+} from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const appearance = useAppearance();
@@ -106,7 +113,7 @@ const fontOptions = [
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
-            <MapIcon class="h-5 w-5 text-gray-700" />
+            <WindowIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Editor tabs</span>
           </span>
           <Switch v-model="bench.showEditorGroupHeader" />

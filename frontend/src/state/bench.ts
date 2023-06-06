@@ -52,6 +52,7 @@ const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
 export abstract class Editor {
   type: EditorType;
   id: string;
+  name: string;
   path: string;
   groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
   appearance?: EditorAppearance;
@@ -59,7 +60,8 @@ export abstract class Editor {
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
 
-  constructor(type: EditorType, id: string, path: string, groupId: string | null = null) {
+  constructor(type: EditorType, id: string, name: string, path: string, groupId: string | null = null) {
+    this.name = name;
     this.type = type;
     this.id = id;
     this.path = path;
@@ -382,7 +384,6 @@ export const useBenchState = defineStore("bench", {
     focusEditor(editor: Editor): void {
       this.focusedViewId = null;
       if (this.focusedEditor?.id == editor.id) return;
-
       console.debug(`focus editor ${editor.path} in group ${editor.groupId}`);
       if (!editor.groupId) {
         throw new Error("editor must be in a group: " + editor.path);
@@ -395,6 +396,12 @@ export const useBenchState = defineStore("bench", {
 
     focusFile(file: FileHeader, group?: EditorGroup): Editor {
       const editor = this.openFile(file, { group });
+      this.focusEditor(editor);
+      return editor;
+    },
+
+    focusStatement(statement: StatementHeader, group?: EditorGroup): Editor {
+      const editor = this.openStatement(statement, { group });
       this.focusEditor(editor);
       return editor;
     },
@@ -775,7 +782,7 @@ export class FileEditor extends NavigableEditor {
   fileId: string;
 
   constructor(file: { id: string; path: string }) {
-    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, null);
+    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, file.path, null);
     this.fileId = file.id;
   }
 }
@@ -785,7 +792,13 @@ export class StatementEditor extends NavigableEditor {
   statementId: string;
 
   constructor(statement: { id: string; name?: string | null }) {
-    super("statement", statement.id + "-" + Math.random().toString(16).substring(2, 8), statement.name ?? "", null);
+    super(
+      "statement",
+      statement.id + "-" + Math.random().toString(16).substring(2, 8),
+      statement.name ?? "",
+      statement.name ?? "",
+      null
+    );
     this.statementId = statement.id;
   }
 }
@@ -800,7 +813,12 @@ export class TerminalEditor extends Editor {
   lastExecutionId?: string;
 
   constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
-    super("terminal", symbol.id + "-" + Math.random().toString(16).substring(2, 8), symbol.name ?? "");
+    super(
+      "terminal",
+      symbol.id + "-" + Math.random().toString(16).substring(2, 8),
+      symbol.name ?? "",
+      symbol.name ?? ""
+    );
     this.statementId = symbol.id;
     if (symbol.__typename == "Task") {
       this.statementType = SymbolType.Task;

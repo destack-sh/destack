@@ -57,6 +57,7 @@ watch(
   () => {
     if (statement.value != null && module.fileOf(statement.value) != null) {
       editor.value.path = module.fileOf(statement.value)!.path + ":" + statement.value.name;
+      editor.value.name = statement.value.name ?? "";
     }
   }
 );
@@ -82,8 +83,8 @@ watch(
         :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX + 4}px`, // + for :StatementPadding
-          paddingRight: `${appearance.contentMarginX + 4}px`,
+          paddingLeft: `${appearance.contentMarginX + 6}px`, // + for :StatementPadding
+          paddingRight: `${appearance.contentMarginX + 6}px`,
         }"
         :readonly="true"
         :thing="statement"
@@ -93,7 +94,7 @@ watch(
       <!-- Statement -->
       <StatementInterface
         ref="statementComponentRef"
-        class="relative mx-auto w-full justify-between pt-4"
+        class="relative mx-auto w-full justify-between pb-10 pt-4"
         :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',

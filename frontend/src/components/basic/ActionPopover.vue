@@ -113,6 +113,7 @@ const appearance = useAppearance();
               :value="action"
               :disabled="action.disabled"
               v-slot="{ active }"
+              @click.prevent.stop="action.action(thing), close()"
             >
               <button
                 class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"

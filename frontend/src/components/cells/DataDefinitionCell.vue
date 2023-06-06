@@ -34,8 +34,8 @@ import { useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
-const PAGE_SIZE = 10;
 const context = useStatementContext();
+const PAGE_SIZE = context.standalone.value ? 25 : 10;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
 const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);

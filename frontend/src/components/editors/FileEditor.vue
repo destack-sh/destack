@@ -101,7 +101,7 @@ syncProperty({
 });
 
 // sync name/path into editor
-watch(name, () => (editor.value.path = name.value ?? ""));
+watch(name, () => ((editor.value.name = name.value ?? ""), (editor.value.path = name.value ?? "")));
 
 // auto-focus name once loaded and if contents are empty
 watch(
@@ -264,8 +264,8 @@ const statementAddAreaPositionX = computed(() => {
         :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX + 4}px`, // + for :StatementPadding
-          paddingRight: `${appearance.contentMarginX + 4}px`,
+          paddingLeft: `${appearance.contentMarginX + 6}px`, // + for :StatementPadding
+          paddingRight: `${appearance.contentMarginX + 6}px`,
         }"
         v-model="name"
         @enter="goToContent"

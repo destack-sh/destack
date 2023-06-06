@@ -5,16 +5,15 @@ import {
   SymbolType,
   TypeHint,
   TypeTag,
-  type InterpSymbol,
   type Field,
   type FieldCreateInput,
   type FieldUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { FileHeaderType, FieldType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { FieldType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
+import { getSymbolSubtype } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { TypeFlag } from "@/state/module";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { computed, inject, type Ref } from "vue";
@@ -34,6 +33,7 @@ export type StatementContext = {
   file: Ref<FragmentType<typeof FileHeaderType>>;
   reference: Ref<InterpSymbol | { id: string; name: string } | null>;
   destroyed: Ref<boolean>;
+  standalone: Ref<boolean>;
 };
 
 export function useStatementContext() {
@@ -82,23 +82,7 @@ export function useStatementContext() {
     return fieldsByName;
   });
 
-  const symbolSubtype: Ref<string | null> = computed(() => {
-    if (statement.value.symbolType == SymbolType.Type) {
-      if (statement.value.rootTypeTag == TypeTag.Enum) {
-        return "choice";
-      } else {
-        return "type";
-      }
-    } else if (statement.value.symbolType == SymbolType.Data) {
-      if ((statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray) {
-        return "table";
-      } else {
-        return "record";
-      }
-    }
-
-    return null;
-  });
+  const symbolSubtype: Ref<string | null> = computed(() => getSymbolSubtype(statement.value));
 
   // basic actions
 
@@ -364,6 +348,7 @@ export function useStatementContext() {
     editing: context.editing,
     xOffset: context.xOffset,
     typeRootTag: rootTypeTag,
+    standalone: context.standalone,
     symbolSubtype,
     fields,
     fieldsByName,

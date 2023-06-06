@@ -84,7 +84,7 @@ async function createFileInEditorGroup() {
             @click.middle.prevent="bench.closeEditor(e)"
             @click.prevent="focus(e)"
           >
-            {{ e.path.length > 0 ? e.path : "(Untitled)" }}
+            {{ e.name.length > 0 ? e.name : "(Untitled)" }}
             <!-- Close button -->
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"
