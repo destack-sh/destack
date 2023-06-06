@@ -367,13 +367,6 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
 const localErrors = module.localErrorsOf(statement);
 const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
 
-// connected clients / multiplayer
-// TODO @Performance: don't update & render clients per statement (ideally per file?)
-const clients = useCurrentClients();
-const filteredClients = computed(() =>
-  clients.activeClientsWithoutSelf.value.filter((c) => c.statement?.id == statement.value.id)
-);
-
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
     return rootCellRef.value?.focus(position);
@@ -450,20 +443,6 @@ defineExpose({
             >
               <PlusIcon class="h-4 w-4" />
             </button>
-            <!-- Other connected clients -->
-            <div class="mr-1 flex flex-row" v-if="filteredClients.length > 0">
-              <div
-                v-for="client in filteredClients"
-                :key="client.id"
-                class="rounded-sm px-1 py-0.5 text-gray-700"
-                :class="[bench.textSmall ? 'text-xs' : 'text-sm']"
-                :style="{
-                  backgroundColor: getClientColor(client.id),
-                }"
-              >
-                {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -523,7 +502,7 @@ defineExpose({
           <!-- Preview on hover -->
           <div
             v-if="hasLocalErrors"
-            class="invisible absolute right-0 flex w-fit flex-col gap-1 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+            class="invisible absolute right-0 z-10 flex w-fit max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
           >
             <span v-for="error in localErrors" :key="error.id" class="text-red-700">
               {{ error.message }}

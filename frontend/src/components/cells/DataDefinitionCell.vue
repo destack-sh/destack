@@ -31,11 +31,11 @@ import {
   TrashIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { onStartTyping, useMouseInElement } from "@vueuse/core";
+import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
-const PAGE_SIZE = context.standalone.value ? 25 : 10;
+const PAGE_SIZE = context.standalone.value ? 20 : 10;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
 const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
@@ -247,6 +247,19 @@ watch(
     }
   }
 );
+
+const gridBounding = useElementBounding(gridRef);
+const gridScroll = useScroll(gridRef);
+const gridScrollOffsetX = computed(() => gridScroll.x.value);
+const headerOffsetY = computed(() => {
+  // sticky the header to the top if the grid is partially visible (top of editor viewport)
+  const editorTop = editorView.pos.value.top + appearance.editorHeaderHeight;
+  if (gridBounding.top.value < editorTop && gridBounding.bottom.value > editorTop) {
+    return editorTop - gridBounding.top.value;
+  } else {
+    return 0;
+  }
+});
 
 // navigation
 useActiveScroll(gridRef);
@@ -646,10 +659,28 @@ defineExpose({
       'max-width': editorView.size.value.width + 'px',
     }"
   >
-    <div class="relative -mx-1 flex min-w-fit flex-col">
+    <div class="-mx-1 flex min-w-fit flex-col">
+      <!-- Header placeholder -->
+      <div
+        class="bg-white"
+        :style="{
+          width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
+          height: minRowHeight + 'px',
+        }"
+      ></div>
       <!-- Header (with types) -->
-      <!-- TODO @UX: make data table header sticky -->
-      <div class="flex flex-row self-start border-b border-orange-900 border-opacity-[12%]">
+      <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
+      <div
+        class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%] bg-white"
+        :style="{
+          position: headerOffsetY == 0 ? 'absolute' : 'fixed',
+          left:
+            headerOffsetY == 0
+              ? -gridScrollOffsetX + 'px'
+              : -gridScrollOffsetX + editorView.pos.value.left + gridOffsetX + 'px',
+          top: headerOffsetY == 0 ? undefined : editorView.pos.value.top + appearance.editorHeaderHeight + 'px',
+        }"
+      >
         <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <TypeTupleInterface

@@ -76,7 +76,8 @@ watch(
         :path="editor.path"
       />
       <!-- Title -->
-      <!-- TODO @UX: enrich statement editor title & prettify statements in this view -->
+      <!-- TODO @UX: parse and enrich statement editor title & prettify statements in this view -->
+      <!-- also see how we currently assume unnested statements and parse editor paths -->
       <TitleBanner
         class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
