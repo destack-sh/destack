@@ -2308,6 +2308,23 @@ export type FileContentByIdQuery = {
     | null;
 };
 
+export type StatementContentByIdQueryVariables = Exact<{
+  statementId: Scalars["GlobalID"];
+}>;
+
+export type StatementContentByIdQuery = {
+  __typename?: "Query";
+  statement?:
+    | ({
+        __typename?: "Statement";
+        id: any;
+        deletedAt?: any | null;
+        projectVersion: { __typename?: "ProjectVersion"; id: any };
+        file: { __typename?: "File" } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+      } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } })
+    | null;
+};
+
 export type ProfileAccessTokensQueryVariables = Exact<{
   slug: Scalars["String"];
   includeInactive: Scalars["Boolean"];
@@ -5891,6 +5908,67 @@ export const FileContentByIdDocument = {
     ...IssueContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
+export const StatementContentByIdDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "statementContentById" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "projectVersion" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "file" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
+                  },
+                },
+                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...FileHeaderFragmentDoc.definitions,
+    ...StatementContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
+    ...IssueContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<StatementContentByIdQuery, StatementContentByIdQueryVariables>;
 export const ProfileAccessTokensDocument = {
   kind: "Document",
   definitions: [

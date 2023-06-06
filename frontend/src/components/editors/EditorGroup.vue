@@ -114,7 +114,7 @@ async function createFileInEditorGroup() {
           :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
           class="overflow-y-scroll outline-none"
-          :class="[e.type == 'file' ? 'bg-white' : 'bg-gray-50']"
+          :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50']"
           :style="editorSize"
           v-for="e in group.editors"
           :key="e.id"

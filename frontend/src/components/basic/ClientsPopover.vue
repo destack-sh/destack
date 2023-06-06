@@ -3,11 +3,23 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { getClientColor, useCurrentClients } from "@/state/client";
 import { computed } from "vue";
 
-const props = defineProps<{ size: "large" | "medium" | "small"; fileId?: string; first?: number }>();
+const props = defineProps<{
+  size: "large" | "medium" | "small";
+  fileId?: string;
+  statementId?: string;
+  first?: number;
+}>();
 const first = computed(() => props.first ?? 4);
 
 const { activeClientsWithoutSelf: clients } = useCurrentClients();
-const filteredClients = computed(() => clients.value.filter((c) => props.fileId == null || c.file?.id == props.fileId));
+const filteredClients = computed(() =>
+  clients.value.filter(
+    (c) =>
+      props.fileId == null ||
+      (c.file?.id == props.fileId && props.statementId == null) ||
+      c.statement?.id == props.statementId
+  )
+);
 
 const now = useTimeFromNow();
 </script>

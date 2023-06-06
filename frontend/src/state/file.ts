@@ -700,13 +700,13 @@ export function useNavigationContext(required = true): Ref<NavigationContext> | 
 
 export function useMagicActions(statement: Ref<StatementHeader | null>) {
   // "magic" because I don't know what to call these yet, they're not like the other statement actions (which are actual 'actions')
-  const nav = useNavigationContext();
+  const nav = useNavigationContext(false);
   const ops = useOperations();
   const objects = useObjects();
   const bench = useBenchState();
 
   async function insertBelow(focus?: boolean) {
-    if (statement.value == null) return;
+    if (statement.value == null || nav == null) return;
     const below = nav.value.getLocationRightBelow(statement.value as StatementHeader);
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
@@ -716,7 +716,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   async function insertAbove(focus?: boolean) {
-    if (statement.value == null) return;
+    if (statement.value == null || nav == null) return;
     const above = nav.value.getLocationRightAbove(statement.value as StatementHeader);
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
@@ -726,6 +726,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   async function duplicate() {
+    if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
     nav.value.copy([statement.value as StatementHeader]);
     nav.value.paste(undefined, statement.value as StatementHeader);
@@ -737,6 +738,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   async function moveFocusUp() {
+    if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
     const above = nav.value.getAbove(statement.value);
     if (above == null) return;
@@ -744,6 +746,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   }
 
   async function moveFocusDown() {
+    if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
     const below = nav.value.getBelow(statement.value);
     if (below == null) return;
@@ -787,6 +790,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
   async function insertFilesAsDataset(location: "above" | "below" | StatementLocation, files: File[]) {
     /** Insert files as a new dataset above/below this statement */
+    if (nav == null) throw new Error("nav context not provided");
     // get location above/below
     if (location == "above" || location == "below") {
       if (statement.value == null) {

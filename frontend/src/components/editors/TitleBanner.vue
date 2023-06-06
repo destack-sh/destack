@@ -1,0 +1,68 @@
+<script lang="ts" setup>
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { useAppearance } from "@/state/appearance";
+import type { Action } from "@/state/bench";
+import { computed, ref } from "vue";
+
+const props = defineProps<{ modelValue: string; readonly: boolean; actions: Action<any>[]; thing: unknown }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: string): void;
+  (e: "enter"): void;
+  (e: "navigateDown"): void;
+}>();
+
+const appearance = useAppearance();
+const nameRef = ref<InstanceType<typeof EditableSpan> | null>(null);
+
+defineExpose({
+  focus: () => nameRef.value?.focus(),
+  selectAll: () => nameRef.value?.selectAll(),
+  blur: () => nameRef.value?.blur(),
+  editing: computed(() => nameRef.value?.focused ?? false),
+});
+</script>
+<template>
+  <div class="group/meta relative flex w-full flex-row items-center justify-between">
+    <!-- Name & actions -->
+    <span class="flex flex-row items-center">
+      <!-- Name -->
+      <span>
+        <!-- Note the :EditableSyncDance on the name update -->
+        <EditableSpan
+          ref="nameRef"
+          class="text-3xl font-extrabold text-gray-900"
+          :class="appearance.baseClassUnsized"
+          suppress-shortcuts
+          :readonly="readonly"
+          :model-value="modelValue"
+          @update:model-value="emit('update:modelValue', $event)"
+          @enter="emit('enter')"
+          @keyup.up.prevent="() => ({}) /* noop */"
+          @keydown.down.prevent.stop="() => emit('navigateDown')"
+        />
+        <span
+          class="cursor-text select-none text-3xl font-extrabold text-gray-400"
+          v-if="modelValue?.trim().length == 0"
+          @click="nameRef?.focus()"
+        >
+          Untitled
+        </span>
+      </span>
+      <!-- Actions -->
+      <span
+        class="ml-4 flex flex-row gap-1 opacity-0 transition group-focus-within/meta:opacity-100 group-hover/meta:opacity-100"
+      >
+        <button
+          v-for="action in actions"
+          :key="action.label"
+          class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
+          :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
+          @click="action.action(thing)"
+          :disabled="action.disabled"
+        >
+          <component :is="action.icon" class="h-5 w-5" />
+        </button>
+      </span>
+    </span>
+  </div>
+</template>

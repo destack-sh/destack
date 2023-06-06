@@ -1,31 +1,24 @@
 <script lang="ts" setup>
-import EditableSpan from "@/components/basic/EditableSpan.vue";
+import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
+import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import StatementAddArea from "@/components/editors/StatementAddArea.vue";
 import StatementInterface from "@/components/editors/StatementInterface.vue";
-import ClientsPopover from "@/components/basic/ClientsPopover.vue";
-import { provideFileState, type FileState } from "@/state/file";
+import TitleBanner from "@/components/editors/TitleBanner.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { useAuth } from "@/state/auth";
+import { useAppearance } from "@/state/appearance";
 import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/bench";
+import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import {
-  ArrowUturnRightIcon,
-  DocumentDuplicateIcon,
-  TrashIcon,
-  CodeBracketIcon,
-  ChevronRightIcon,
-} from "@heroicons/vue/24/outline";
+import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
-import { useAppearance } from "@/state/appearance";
-import ActionPopover from "@/components/basic/ActionPopover.vue";
 import { whenever } from "@vueuse/core";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { title } from "process";
+import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -83,7 +76,7 @@ const fileState: Ref<FileState | null> = computed(() => {
     file: fileHeader.value as any,
     statementsUnordered: statements.value,
     statementsComponents: statementsComponents.value,
-    navigateUp: () => (props.editor.editor.value.blurElement(), nameRef.value?.focus()),
+    navigateUp: () => (props.editor.editor.value.blurElement(), titleRef.value?.focus()),
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
@@ -98,11 +91,11 @@ function registerStatementRef(id: string, component: InstanceType<typeof Stateme
 }
 
 const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
-const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
 
 syncProperty({
   value: name,
-  editing: computed(() => nameRef.value?.focused),
+  editing: computed(() => titleRef.value?.editing),
   read: () => (name.value = fileHeader.value?.name ?? null),
   write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
 });
@@ -118,8 +111,8 @@ watch(
       return;
     }
     if (props.focused && statements.value.length == 0 && name.value == "") {
-      nameRef.value?.focus();
-      nextTick(() => nameRef.value?.focus()); // required to focus if just loaded
+      titleRef.value?.focus();
+      nextTick(() => titleRef.value?.focus()); // required to focus if just loaded
     }
   }
 );
@@ -178,7 +171,7 @@ whenever(
 );
 
 function goToContent() {
-  nameRef.value?.blur();
+  titleRef.value?.blur();
   if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
@@ -192,8 +185,8 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
     label: "Rename",
     icon: DocumentDuplicateIcon,
     action: () => {
-      nameRef.value?.focus();
-      nameRef.value?.selectAll();
+      titleRef.value?.focus();
+      titleRef.value?.selectAll();
     },
     hideInline: true,
   },
@@ -245,138 +238,42 @@ const statementAddAreaPositionX = computed(() => {
     };
   }
 });
-const auth = useAuth();
 </script>
 
 <template>
   <!-- File container -->
   <!-- Only files have a white background :FileBackground -->
   <div class="overflow-x-hidden bg-white">
-    <!-- Deleted file status and restore -->
-    <div v-if="isDeleted && fileHeader" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
-      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
-        <div class="text-sm font-bold text-white">
-          This file is in trash (was deleted {{ now.getTimeFromNowLongString(fileHeader.deletedAt) }}).
-        </div>
-        <button
-          class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
-          @click="restore"
-        >
-          Restore
-        </button>
-      </div>
-    </div>
-    <!-- Other version file -->
-    <div v-else-if="!isDeleted && isOtherVersion" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-2">
-      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
-        <div class="text-sm font-bold text-white">This file belongs to another version.</div>
-        <router-link
-          class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
-          :to="{ query: { version: fileHeader?.projectVersion?.id } }"
-        >
-          Go there
-        </router-link>
-      </div>
-    </div>
-    <!-- File failed to load -->
-    <div v-else-if="!fileLoading && fileHeader == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
-      <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
-        <div class="text-sm font-bold text-white">File failed to load.</div>
-      </div>
-    </div>
+    <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
     <!-- (bottom padding is in last StatementAddArea) -->
     <div class="relative flex flex-col bg-white" v-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
-      <!-- Fixed inline header :EditorInlineHeader -->
-      <!-- (for some reason w-full doesn't work here, so set width absolutely..) -->
-      <div
-        class="fixed z-10 flex flex-row items-center justify-between gap-1 border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
-        :class="appearance.baseClass"
-        :style="{ height: appearance.editorHeaderHeight + 'px', width: props.editor.size?.value?.width + 'px' }"
-      >
-        <!-- Main info -->
-        <div class="flex flex-row items-center">
-          <!-- editor actions -->
-          <ActionPopover anchor="left" :thing="file" :actions="props.editor.actions.value" class="">
-            <CodeBracketIcon class="mt-1 h-4 w-4 text-gray-700" />
-          </ActionPopover>
-          <!-- editor path -->
-          <ActionPopover anchor="left" :thing="file" :actions="fileActions" class="ml-1">
-            <span class="text-gray-900">{{ name }}</span>
-          </ActionPopover>
-          <!-- sub path inside editor -->
-          <FadeTransition mode="out-in">
-            <span
-              v-if="context?.statementsById[editor.activeStatementId ?? '']?.name != null"
-              :key="editor.activeStatementId"
-              class="flex flex-row text-gray-900"
-              ><span class="text-gray-700"><ChevronRightIcon class="mr-0.5 mt-0.5 h-4 w-4 text-gray-400" /></span>
-              {{ context?.statementsById[editor.activeStatementId as string].name }}</span
-            >
-          </FadeTransition>
-          <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
-            {{ editor.editing ? "(editing)" : "" }}
-            {{ bench.focusedEditorId == editor.id ? "(focused)" : "" }}
-          </span>
-        </div>
-        <div class="flex flex-row gap-1">
-          <!-- Other clients presence -->
-          <ClientsPopover v-if="auth.loggedIn.value" size="medium" :file-id="editor.fileId" />
-        </div>
-      </div>
-      <!-- File header & inline actions -->
-      <div
-        class="group/meta relative mx-auto flex w-full flex-row items-center justify-between pt-14 font-bold text-gray-900"
+      <!-- Editor inline header -->
+      <FixedInlineHeader
+        :thing="file"
+        :actions="fileActions"
+        :editing="editor.editing"
+        :path="name"
+        :subpath="context?.statementsById[editor.activeStatementId ?? '']?.name"
+      />
+      <!-- Title & inline actions -->
+      <TitleBanner
+        class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
         :style="{
           'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
           paddingLeft: `${appearance.contentMarginX + 4}px`, // + for :StatementPadding
           paddingRight: `${appearance.contentMarginX + 4}px`,
         }"
-      >
-        <!-- Name & actions -->
-        <span class="flex flex-row items-center">
-          <!-- Name -->
-          <span>
-            <!-- Note the :EditableSyncDance on the name update -->
-            <EditableSpan
-              ref="nameRef"
-              class="text-3xl font-extrabold"
-              :class="appearance.baseClassUnsized"
-              suppress-shortcuts
-              :readonly="bench.readonly || isDeleted || isOtherVersion"
-              v-model="name"
-              @enter="goToContent"
-              @keyup.up.prevent="() => ({}) /* noop */"
-              @keydown.down.prevent.stop="() => focusStatementStart()"
-            />
-            <span
-              class="cursor-text select-none text-3xl font-extrabold text-gray-300"
-              v-if="name?.trim().length == 0"
-              @click="nameRef?.focus()"
-            >
-              Untitled
-            </span>
-          </span>
-          <!-- Actions -->
-          <span
-            class="ml-4 flex flex-row gap-1 opacity-0 transition group-focus-within/meta:opacity-100 group-hover/meta:opacity-100"
-          >
-            <button
-              v-for="action in fileActions.filter((action) => !action.hideInline)"
-              :key="action.label"
-              class="p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
-              :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
-              @click="action.action(fileHeader)"
-              :disabled="action.disabled"
-            >
-              <component :is="action.icon" class="h-5 w-5" />
-            </button>
-          </span>
-        </span>
-      </div>
+        v-model="name"
+        @enter="goToContent"
+        @navigate-down="focusStatementStart"
+        :readonly="bench.readonly || isDeleted || isOtherVersion"
+        :actions="fileActions.filter((f) => !f.hideInline)"
+        :thing="fileHeader"
+      />
       <!-- Add statement to start -->
       <StatementAddArea
         class="mx-auto"

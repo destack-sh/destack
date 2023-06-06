@@ -66,6 +66,10 @@ export abstract class Editor {
     this.groupId = groupId;
   }
 
+  get hasWhiteBackground() {
+    return true;
+  }
+
   get contentWidth() {
     return this.appearance?.contentWidth ?? this.bench.appearance.contentWidth;
   }
@@ -803,6 +807,10 @@ export class TerminalEditor extends Editor {
     } else if (symbol.__typename == "Code") {
       this.statementType = SymbolType.Code;
     }
+  }
+
+  get hasWhiteBackground() {
+    return false;
   }
 
   clear() {

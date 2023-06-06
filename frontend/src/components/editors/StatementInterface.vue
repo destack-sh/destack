@@ -44,9 +44,11 @@ const ancestors = computed(() => props.ancestors.map((s) => useFragment(Statemen
 
 const bench = useBenchState();
 const appearance = useAppearance();
-const nav = useNavigationContext();
+const nav = useNavigationContext(!props.standalone);
 const editor = useEditorContext();
 const module = useCurrentModule();
+const actions = useActions();
+const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
 const isActive = computed(() => nav?.value.editor.activeStatementId == statement.value?.id);
 const isFocused = computed(() => isActive.value && nav?.value.editor.focused);
@@ -89,9 +91,6 @@ provide(STATEMENT_CONTEXT, {
   file,
   destroyed,
 } as StatementContext);
-const actions = useActions();
-const magic = useMagicActions(statement as Ref<StatementHeader | null>);
-
 // manage cells
 type Cell = {
   component: Component;
@@ -322,34 +321,39 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
 }
 
 // actions
-const defaultActions: StatementAction[] = [
-  {
-    label: "Open in Tab",
-    icon: ArrowsPointingOutIcon,
-    disabled: props.standalone,
-    action: () => {
-      nav?.value.editor.bench.openStatement(statement.value as StatementHeader);
-    },
-  },
-  {
+const canOpenInStandaloneEditor = computed(() => !props.standalone);
+const defaultActions: Ref<StatementAction[]> = computed(() => {
+  const actions = [];
+  if (canOpenInStandaloneEditor.value) {
+    actions.push({
+      label: "Open in Editor",
+      icon: ArrowsPointingOutIcon,
+      disabled: props.standalone,
+      action: () => {
+        nav?.value.editor.bench.openStatement(statement.value as StatementHeader, { focus: true });
+      },
+    });
+  }
+  actions.push({
     label: "Rename",
     icon: PencilIcon,
     action: () => {
       nav?.value.editor.editElement(statement.value as StatementHeader);
       nextTick(() => rootCellRef.value?.focus());
     },
-  },
-  {
+  });
+  actions.push({
     label: "Duplicate",
     icon: Square2StackIcon,
     action: () => magic.duplicate(),
-  },
-  {
+  });
+  actions.push({
     label: "Delete",
     icon: TrashIcon,
     action: () => magic.delete(),
-  },
-];
+  });
+  return actions;
+});
 
 // runtime
 const localErrors = module.localErrorsOf(statement);
@@ -425,7 +429,7 @@ defineExpose({
             </ActionPopover>
             <!-- Add statement below button -->
             <button
-              v-if="!bench.readonly && !props.readonly"
+              v-if="!standalone && !bench.readonly && !props.readonly"
               class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isActive ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
