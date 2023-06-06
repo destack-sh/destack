@@ -384,7 +384,11 @@ defineExpose({
 </script>
 <template>
   <!-- Statement wrapper -->
-  <div class="group/statement relative w-full" :style="appearance.contentMarginXAsPaddingX" @click="onClickContainer">
+  <div
+    class="group/statement relative w-full"
+    :style="editor.editor.value.contentMarginXAsPaddingX"
+    @click="onClickContainer"
+  >
     <!-- Statement main -->
     <div
       ref="containerRef"

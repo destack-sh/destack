@@ -5,9 +5,7 @@ import { onBeforeMount, watch } from "vue";
 export type Theme = "light" | "dark";
 
 export type EditorAppearance = {
-  contentWidth?: number;
-  contentMarginX?: number;
-  headerHeight?: number;
+  wide?: boolean;
 };
 
 export const CONTENT_WIDTH_NARROW = 800;
@@ -22,8 +20,7 @@ export const useAppearanceState = defineStore("appearance", {
     textSmall: true,
     font: "sans" as "sans" | "serif" | "mono",
     inlineMetrics: false,
-    contentWidth: 800,
-    contentMarginX: 70,
+    contentWide: false,
     benchHeaderHeight: 52,
     editorHeaderHeight: 28,
   }),
@@ -34,29 +31,36 @@ export const useAppearanceState = defineStore("appearance", {
     fontSerif(state) {
       return state.font === "serif";
     },
-    contentWidthWithMargin(state) {
-      return state.contentWidth + 2 * state.contentMarginX;
+    contentWidth(state) {
+      return state.contentWide ? CONTENT_WIDTH_WIDE : CONTENT_WIDTH_NARROW;
     },
-    contentWidthAsFixed(state) {
+    contentMarginX(state) {
+      return state.contentWide ? CONTENT_MARGIN_X_WIDE : CONTENT_MARGIN_X_NARROW;
+    },
+    // :ContentSizeProps
+    contentWidthWithMargin() {
+      return this.contentWidth + 2 * this.contentMarginX;
+    },
+    contentWidthAsFixed() {
       return {
-        width: `${state.contentWidth}px`,
+        width: `${this.contentWidth}px`,
       };
     },
-    contentWidthAsMaxWidth(state) {
+    contentWidthAsMaxWidth() {
       return {
-        maxWidth: `${state.contentWidth}px`,
+        maxWidth: `${this.contentWidth}px`,
       };
     },
-    contentMarginXAsPaddingX(state) {
+    contentMarginXAsPaddingX() {
       return {
-        paddingLeft: `${state.contentMarginX}px`,
-        paddingRight: `${state.contentMarginX}px`,
+        paddingLeft: `${this.contentMarginX}px`,
+        paddingRight: `${this.contentMarginX}px`,
       };
     },
-    contentMarginXAsMarginX(state) {
+    contentMarginXAsMarginX() {
       return {
-        marginLeft: `${state.contentMarginX}px`,
-        marginRight: `${state.contentMarginX}px`,
+        marginLeft: `${this.contentMarginX}px`,
+        marginRight: `${this.contentMarginX}px`,
       };
     },
     baseClass(state) {

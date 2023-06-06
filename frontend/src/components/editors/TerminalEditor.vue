@@ -132,8 +132,8 @@ const gridStepY = ref(18); // p-4.5
 
 function getTileWidth(targetWidth?: number) {
   return Math.min(
-    targetWidth ?? appearance.contentWidth,
-    props.editor.size.value.width - 2 * appearance.contentMarginX
+    targetWidth ?? editor.value.contentWidth,
+    props.editor.size.value.width - 2 * editor.value.contentMarginX
   );
 }
 

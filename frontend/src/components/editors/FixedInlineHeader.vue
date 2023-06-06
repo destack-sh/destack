@@ -12,7 +12,13 @@ import {
   type Action,
   type EditorType,
 } from "@/state/bench";
-import { ChevronRightIcon, CodeBracketIcon, CommandLineIcon } from "@heroicons/vue/24/outline";
+import {
+  ChevronRightIcon,
+  CodeBracketIcon,
+  CommandLineIcon,
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+} from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -25,6 +31,7 @@ const props = defineProps<{
 
 const bench = useBenchState();
 const editor = useEditorContext();
+const editorAppearance = computed(() => editor.editor.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
 
@@ -45,7 +52,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
     <div class="flex flex-row items-center">
       <!-- editor actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="editor.actions.value" class="">
-        <component :is="icon" class="mt-1 h-4 w-4 text-gray-700" />
+        <component :is="icon" class="-mb-0.5 h-4 w-4 text-gray-700" />
       </ActionPopover>
       <!-- editor path -->
       <ActionPopover anchor="left" :thing="thing" :actions="actions" class="ml-1">
@@ -71,6 +78,13 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
         :file-id="(editor.editor.value as FileEditor).fileId"
         :statement-id="(editor.editor.value as StatementEditor).statementId"
       />
+      <!-- Extra inline actions -->
+      <button
+        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        @click.stop="editorAppearance.wide = !editorAppearance.wide"
+      >
+        <component :is="editorAppearance.wide ? ArrowsPointingInIcon : ArrowsPointingOutIcon" class="h-4 w-4" />
+      </button>
     </div>
   </div>
 </template>

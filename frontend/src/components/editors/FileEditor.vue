@@ -223,18 +223,18 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
 // statement add areas (computed absolutely because I'm so tired of flex)
 const statementAddAreaPositionX = computed(() => {
   const editorSize = props.editor.size.value;
-  if (editorSize.width > appearance.contentWidthWithMargin) {
-    const marginX = (editorSize.width - appearance.contentWidth) / 2;
+  if (editorSize.width > editor.value.contentWidthWithMargin) {
+    const marginX = (editorSize.width - editor.value.contentWidth) / 2;
     return {
-      width: appearance.contentWidth - 4 + "px",
+      width: editor.value.contentWidth - 4 + "px",
       marginLeft: marginX - 4 + "px", // no, not sure where the 4 comes from
       marginRight: marginX + "px",
     };
   } else {
     return {
-      width: editorSize.width - appearance.contentMarginX * 2 + "px",
-      marginLeft: appearance.contentMarginX + "px",
-      marginRight: appearance.contentMarginX + "px",
+      width: editorSize.width - editor.value.contentMarginX * 2 + "px",
+      marginLeft: editor.value.contentMarginX + "px",
+      marginRight: editor.value.contentMarginX + "px",
     };
   }
 });
@@ -263,9 +263,9 @@ const statementAddAreaPositionX = computed(() => {
         class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
         :style="{
-          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX + 6}px`, // + for :StatementPadding
-          paddingRight: `${appearance.contentMarginX + 6}px`,
+          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
+          paddingLeft: `${editor.contentMarginX + 6}px`, // + for :StatementPadding
+          paddingRight: `${editor.contentMarginX + 6}px`,
         }"
         v-model="name"
         @enter="goToContent"
@@ -287,7 +287,7 @@ const statementAddAreaPositionX = computed(() => {
         v-for="positioned in context?.positionedStatements"
         :key="positioned.statement.id"
         class="mx-auto w-full"
-        :style="{ 'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px' }"
+        :style="{ 'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px' }"
       >
         <StatementInterface
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
