@@ -23,12 +23,6 @@ import { computed } from "vue";
 const appearance = useAppearance();
 const bench = useBenchState();
 
-const isContentWide = computed(() => appearance.contentWidth != CONTENT_WIDTH_NARROW);
-function setContentWide(wide: boolean) {
-  appearance.contentWidth = wide ? CONTENT_WIDTH_WIDE : CONTENT_WIDTH_NARROW;
-  appearance.contentMarginX = wide ? CONTENT_MARGIN_X_WIDE : CONTENT_MARGIN_X_NARROW;
-}
-
 const fontOptions = [
   {
     key: "sans",
@@ -92,7 +86,7 @@ const fontOptions = [
             <ArrowsPointingOutIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Wide content</span>
           </span>
-          <Switch :model-value="isContentWide" @update:model-value="setContentWide" />
+          <Switch v-model="appearance.contentWide" />
         </div>
         <!-- Line numbers -->
         <div class="flex flex-row items-center justify-between px-2">

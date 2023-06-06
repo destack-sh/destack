@@ -190,6 +190,7 @@ const extraInlineActions = computed(() => {
       label: "Extend",
       icon: CubeTransparentIcon,
       action: () => insertMember(true),
+      hideInline: true,
     });
   }
   inlineActions.push({

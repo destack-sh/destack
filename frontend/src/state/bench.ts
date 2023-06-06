@@ -1,7 +1,6 @@
 import { graphql } from "@/gql";
 import {
   SymbolType,
-  type DatasetRecord,
   type File,
   type Project,
   type ProjectVersion,
@@ -9,8 +8,22 @@ import {
   type SimpleType,
   type Statement,
 } from "@/gql/graphql";
-import { useAppearanceState, type EditorAppearance, type Theme } from "@/state/appearance";
-import { ArrowLeftIcon, ArrowRightIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import {
+  CONTENT_MARGIN_X_NARROW,
+  CONTENT_MARGIN_X_WIDE,
+  CONTENT_WIDTH_NARROW,
+  CONTENT_WIDTH_WIDE,
+  useAppearanceState,
+  type EditorAppearance,
+  type Theme,
+} from "@/state/appearance";
+import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  ArrowsPointingInIcon,
+  ArrowsPointingOutIcon,
+  XCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -55,7 +68,7 @@ export abstract class Editor {
   name: string;
   path: string;
   groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
-  appearance?: EditorAppearance;
+  appearance: EditorAppearance = {};
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
@@ -72,16 +85,55 @@ export abstract class Editor {
     return true;
   }
 
+  get effectiveWide() {
+    return this.appearance?.wide ?? this.bench.appearance.contentWide;
+  }
+
   get contentWidth() {
-    return this.appearance?.contentWidth ?? this.bench.appearance.contentWidth;
+    if (this.appearance?.wide === false) {
+      return CONTENT_WIDTH_NARROW;
+    } else if (this.appearance?.wide === true) {
+      return CONTENT_WIDTH_WIDE;
+    } else {
+      return this.bench.appearance.contentWidth;
+    }
   }
 
   get contentMarginX() {
-    return this.appearance?.contentMarginX ?? this.bench.appearance.contentMarginX;
+    if (this.appearance?.wide === false) {
+      return CONTENT_MARGIN_X_NARROW;
+    } else if (this.appearance?.wide === true) {
+      return CONTENT_MARGIN_X_WIDE;
+    } else {
+      return this.bench.appearance.contentMarginX;
+    }
   }
 
-  get headerHeight() {
-    return this.appearance?.headerHeight ?? this.bench.appearance.editorHeaderHeight;
+  // :ContentSizeProps
+  get contentWidthWithMargin() {
+    return this.contentWidth + 2 * this.contentMarginX;
+  }
+  get contentWidthAsFixed() {
+    return {
+      width: `${this.contentWidth}px`,
+    };
+  }
+  get contentWidthAsMaxWidth() {
+    return {
+      maxWidth: `${this.contentWidth}px`,
+    };
+  }
+  get contentMarginXAsPaddingX() {
+    return {
+      paddingLeft: `${this.contentMarginX}px`,
+      paddingRight: `${this.contentMarginX}px`,
+    };
+  }
+  get contentMarginXAsMarginX() {
+    return {
+      marginLeft: `${this.contentMarginX}px`,
+      marginRight: `${this.contentMarginX}px`,
+    };
   }
 
   get focused() {
@@ -341,6 +393,7 @@ export const useBenchState = defineStore("bench", {
       if (!editor || options?.create) {
         console.log(`create new statement editor for ${statement.name}`);
         editor = new StatementEditor(statement);
+        editor.appearance.wide = true; // default to wide
         editor.onDeserialized(this);
       }
       this.openEditor(editor, options?.group);
@@ -641,6 +694,19 @@ export function provideEditorContext<T extends Editor>(
           action: () => editorState.closeEditorGroup(editor.value.group as EditorGroup),
         },
       ];
+      if (editor.value.effectiveWide) {
+        actions.push({
+          label: "Narrow",
+          icon: ArrowsPointingInIcon,
+          action: () => (editor.value.appearance.wide = false),
+        });
+      } else {
+        actions.push({
+          label: "Expand",
+          icon: ArrowsPointingOutIcon,
+          action: () => (editor.value.appearance.wide = true),
+        });
+      }
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
           label: "Move to Right",
@@ -678,12 +744,13 @@ export type Action<T> = {
   active?: boolean;
   disabled?: boolean;
   keepOpen?: boolean;
+  hideInline?: boolean;
 };
 
 export type FileAction = Action<FileHeader>;
 export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<SimpleType>;
-export type RecordAction = Action<DatasetRecord>;
+export type RecordAction = Action<Record>;
 export type EditorAction = Action<Editor>;
 
 // specific editors

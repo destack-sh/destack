@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import { useNow, useTimeFromNow } from "@/composables/useNow";
+import { useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState } from "@/state/bench";
+import { useBenchState, useEditorContext } from "@/state/bench";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -16,6 +16,7 @@ const emit = defineEmits<{
 const now = useTimeFromNow();
 const appearance = useAppearance();
 const bench = useBenchState();
+const editorView = useEditorContext();
 
 const isLoading = computed(() => props.thing == null);
 const isDeleted = computed(() => props.thing?.deletedAt != null);
@@ -25,7 +26,10 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
 <template>
   <!-- Deleted thing status and restore -->
   <div v-if="isDeleted && thing != null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
-    <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
+    <div
+      class="mx-auto flex flex-row items-center justify-center gap-2"
+      :style="editorView.editor.value.contentWidthAsMaxWidth"
+    >
       <div class="text-sm font-bold text-white">
         This {{ name }} is in trash (was deleted {{ now.getTimeFromNowLongString(thing.deletedAt as string) }}).
       </div>
@@ -42,7 +46,10 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
     v-else-if="!isLoading && !isDeleted && isOtherVersion"
     class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-2"
   >
-    <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
+    <div
+      class="mx-auto flex flex-row items-center justify-center gap-2"
+      :style="editorView.editor.value.contentWidthAsMaxWidth"
+    >
       <div class="text-sm font-bold text-white">This {{ name }} is from another Bench version.</div>
       <router-link
         class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -54,7 +61,10 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
   </div>
   <!-- Thing failed to load -->
   <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
-    <div class="mx-auto flex flex-row items-center justify-center gap-2" :style="appearance.contentWidthAsMaxWidth">
+    <div
+      class="mx-auto flex flex-row items-center justify-center gap-2"
+      :style="editorView.editor.value.contentWidthAsMaxWidth"
+    >
       <div class="text-sm font-bold text-white">{{ nameCamelCase }} failed to load.</div>
     </div>
   </div>

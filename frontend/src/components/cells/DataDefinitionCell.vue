@@ -181,10 +181,10 @@ const growColumns = true;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
-  if (editorView.size.value.width > appearance.contentWidthWithMargin) {
-    return (editorView.size.value.width - appearance.contentWidth) / 2;
+  if (editorView.size.value.width > editorView.editor.value.contentWidthWithMargin) {
+    return (editorView.size.value.width - editorView.editor.value.contentWidth) / 2;
   } else {
-    return appearance.contentMarginX;
+    return editorView.editor.value.contentMarginX;
   }
 });
 // auto size columns and rows
@@ -195,8 +195,8 @@ const gridOffsetX: Ref<number> = computed(() => {
 //  Only triggering ref updates (on preview size and on widths/heights) on value changes & batching column updates seems to fix this.
 watch(
   () => [
-    appearance.contentWidth,
-    appearance.contentMarginX,
+    editorView.editor.value.contentWidth,
+    editorView.editor.value.contentMarginX,
     context.xOffset,
     editorView.size.value,
     allFields.value,
@@ -205,7 +205,10 @@ watch(
   () => {
     // update column widths
     const targetMinTotalWidth =
-      Math.min(editorView.size.value.width - appearance.contentMarginX * 2, appearance.contentWidth) -
+      Math.min(
+        editorView.size.value.width - editorView.editor.value.contentMarginX * 2,
+        editorView.editor.value.contentWidth
+      ) -
       context.xOffset.value -
       8; // not sure why -8, probably some mx-1? borders?
     const ifaces = allFields.value.map((f) => getInterface(f));
@@ -467,33 +470,34 @@ const position = useMouseInElement(gridRef);
 // actions
 
 const extraStatementActions = computed(() => {
-  const inlineActions: StatementAction[] = [];
+  const actions: StatementAction[] = [];
   if (isTable.value) {
     if ((fetchedRecords?.value?.statement?.records.totalCount ?? -1) == -1) {
-      inlineActions.push({
+      actions.push({
         label: "Reload view",
         icon: ArrowPathIcon,
         active: loading.value,
         action: () => refetch(),
       });
     }
-    inlineActions.push({
+    actions.push({
       label: "Add record",
       icon: PlusIcon,
       action: () => insertRecordAtEnd(),
     });
   }
-  inlineActions.push({
+  actions.push({
     label: "Extend type",
     icon: CubeTransparentIcon,
     action: () => insertField(true),
+    hideInline: true,
   });
-  inlineActions.push({
+  actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
     action: () => insertField(),
   });
-  return inlineActions;
+  return actions;
 });
 
 const recordActions: RecordAction[] = [

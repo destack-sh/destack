@@ -82,9 +82,9 @@ watch(
         class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
         :style="{
-          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX + 6}px`, // + for :StatementPadding
-          paddingRight: `${appearance.contentMarginX + 6}px`,
+          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
+          paddingLeft: `${editor.contentMarginX + 6}px`, // + for :StatementPadding
+          paddingRight: `${editor.contentMarginX + 6}px`,
         }"
         :readonly="true"
         :thing="statement"
@@ -97,9 +97,9 @@ watch(
         class="relative mx-auto w-full justify-between pb-10 pt-4"
         :class="appearance.baseClass"
         :style="{
-          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
-          paddingLeft: `${appearance.contentMarginX}px`,
-          paddingRight: `${appearance.contentMarginX}px`,
+          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
+          paddingLeft: `${editor.contentMarginX}px`,
+          paddingRight: `${editor.contentMarginX}px`,
         }"
         :file="file"
         :statement="statement"
