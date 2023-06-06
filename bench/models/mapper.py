@@ -538,7 +538,6 @@ def rmap_field(node: models.Field) -> wire.FieldData:
         order_key=node.order_key,
         description=node.description,
         flags=node.flags,
-        value=node.value,
         reference_id=node.reference_id,
     )
 
@@ -554,7 +553,6 @@ def wmap_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
         hint=node.hint,
         description=node.description,
         flags=node.flags,
-        value=node.value,
         reference_id=node.reference_id,
     )
 

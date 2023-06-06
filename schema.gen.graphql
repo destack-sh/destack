@@ -250,7 +250,6 @@ type Field implements Node & SimpleType {
   hint: TypeHint
   flags: Int!
   description: String
-  value: JSON
   reference: Statement
   statement: Statement!
   revision: Int!
@@ -269,7 +268,6 @@ input FieldCreateInput {
   hint: TypeHint = null
   description: String = null
   flags: Int! = 0
-  value: JSON = null
   referenceId: GlobalID = null
 }
 
@@ -309,7 +307,6 @@ input FieldUpdateInput {
   hint: TypeHint = null
   description: String = null
   flags: Int! = 0
-  value: JSON = null
   referenceId: GlobalID = null
 }
 
@@ -318,7 +315,6 @@ input FieldUpdateTypeInput {
   tag: TypeTag!
   hint: TypeHint = null
   flags: Int! = 0
-  value: JSON = null
   referenceId: GlobalID = null
 }
 
@@ -1454,7 +1450,6 @@ interface SimpleType {
   hint: TypeHint
   flags: Int!
   description: String
-  value: JSON
   reference: Statement
 }
 

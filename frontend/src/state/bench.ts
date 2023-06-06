@@ -18,6 +18,7 @@ import {
   type Theme,
 } from "@/state/appearance";
 import type { ModuleIndex } from "@/state/module";
+import { randomHexString } from "@/utils/functools";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -88,8 +89,18 @@ export abstract class Editor {
     this.groupId = groupId;
   }
 
+  copy(): Editor {
+    // serialize, deserialize and reset id
+    const serialized = JSON.stringify(stripEditor(this));
+    const copy = instantiate(JSON.parse(serialized), this.bench);
+    copy.resetId();
+    return copy;
+  }
+
+  abstract resetId(): void;
+
   static parsePath(path: string, module: ModuleIndex): Editor | null {
-    throw new Error("not implemented");
+    throw new Error("not implemented"); // implement per editor type
   }
 
   get hasWhiteBackground() {
@@ -370,8 +381,11 @@ export const useBenchState = defineStore("bench", {
       group.editors.forEach((e) => this.closeEditor(e));
     },
 
-    moveEditor(editor: Editor, group: EditorGroup): void {
+    moveEditor(editor: Editor, group: EditorGroup, options?: { copy?: boolean }): void {
       const wasFocused = editor == this.focusedEditor;
+      if (options?.copy) {
+        editor = editor.copy();
+      }
       this.openEditor(editor, group);
       if (wasFocused) {
         this.focusEditor(editor);
@@ -733,15 +747,25 @@ export function provideEditorContext<T extends Editor>(
       }
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
-          label: "Move to Right",
+          label: "Move Right",
           icon: ArrowRightIcon,
           action: () => editorState.moveEditor(editor.value, editorState.right),
         });
+        actions.push({
+          label: "Split Right",
+          icon: ArrowRightIcon,
+          action: () => editorState.moveEditor(editor.value, editorState.right, { copy: true }),
+        });
       } else {
         actions.push({
-          label: "Move to Left",
+          label: "Move Left",
           icon: ArrowLeftIcon,
           action: () => editorState.moveEditor(editor.value, editorState.left),
+        });
+        actions.push({
+          label: "Split Left",
+          icon: ArrowLeftIcon,
+          action: () => editorState.moveEditor(editor.value, editorState.left, { copy: true }),
         });
       }
       return actions;
@@ -873,8 +897,12 @@ export class FileEditor extends NavigableEditor {
   fileId: string;
 
   constructor(file: { id: string; path: string }) {
-    super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, file.path, null);
+    super("file", file.id + "-" + randomHexString(), file.path, file.path, null);
     this.fileId = file.id;
+  }
+
+  resetId(): void {
+    this.id = this.fileId + "-" + randomHexString();
   }
 
   updatePath(fileHeader: { id: string }, module: ModuleIndex) {
@@ -896,14 +924,12 @@ export class StatementEditor extends NavigableEditor {
   statementId: string;
 
   constructor(statement: { id: string; name?: string | null }) {
-    super(
-      "statement",
-      statement.id + "-" + Math.random().toString(16).substring(2, 8),
-      statement.name ?? "",
-      statement.name ?? "",
-      null
-    );
+    super("statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
     this.statementId = statement.id;
+  }
+
+  resetId(): void {
+    this.id = this.statementId + "-" + randomHexString();
   }
 
   updatePath(statementHeader: { id: string }, module: ModuleIndex) {
@@ -936,18 +962,17 @@ export class TerminalEditor extends Editor {
   lastExecutionId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
-    super(
-      "terminal",
-      statement.id + "-" + Math.random().toString(16).substring(2, 8),
-      statement.name ?? "",
-      statement.name ?? ""
-    );
+    super("terminal", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
     this.statementId = statement.id;
     if (statement.__typename == "Task") {
       this.statementType = SymbolType.Task;
     } else if (statement.__typename == "Code") {
       this.statementType = SymbolType.Code;
     }
+  }
+
+  resetId(): void {
+    this.id = this.statementId + "-" + randomHexString();
   }
 
   updatePath(statementHeader: { id: string }, module: ModuleIndex) {

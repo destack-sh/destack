@@ -66,6 +66,15 @@ class ExecutionFrame:
         return f"<ExecutionFrame {self}>"
 
 
+IGNORED_PACKAGE_PREFIXES = [
+    "bench.runtime",
+    "bench.language",
+    "asgiref",
+    "concurrent",
+]
+IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in IGNORED_PACKAGE_PREFIXES]
+
+
 @dataclass(slots=True)
 class PyFrameData:
     filename: str
@@ -104,7 +113,7 @@ class PyFrameData:
         found_start = False
         cleaned_stack = []
         for frame in stack:
-            if "bench/runtime/" in frame.filename or "bench/language/" in frame.filename:
+            if any(prefix in frame.filename for prefix in IGNORED_PACKAGE_PATHS):
                 continue  # skip support code
             if not found_start:
                 # impute bench source info into instantiated code callables

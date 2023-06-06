@@ -58,7 +58,7 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
-from bench.runtime.build import XGenerationError, XPrompt
+from bench.runtime.build import XConsiderError, XGenerationError, XPrompt
 from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
 from bench.runtime.model import get_inference_endpoints_cls
 from bench.runtime.proxy import proxy_value, unproxy_value
@@ -216,21 +216,20 @@ class Session:
         logger.debug("session.prepare", session=self)
 
     def get_implementations(
-        self, task: "TaskInstance", build: Build | str = "balanced", model: Model | str = None
+        self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
     ) -> list[XPrompt]:
         """Gets or builds an implementation for a task."""
         from bench.runtime.build import build_task_implementation
 
+        build = build or "balanced"
         if model is not None:
             if isinstance(model, str):
                 model = self.idx.symbol(model, symbol_t=Model)
             models = [model]
-        elif build is not None:
+        else:
             if isinstance(build, str):
                 build = self.builds[build]
             models = build.models
-        else:
-            raise RuntimeError(f"no implementation specified for {task} (no default in {self})")
 
         implementations = []
         for model in models:
@@ -498,7 +497,7 @@ class TaskInstance(SymbolInstance, Task):
     async def __call__(
         self,
         *args,
-        build: Build | str = "balanced",
+        build: Build | str = None,
         model: Model | str = None,
         retries: int = None,
         cache: bool = None,
@@ -514,29 +513,31 @@ class TaskInstance(SymbolInstance, Task):
         self.session.tracer.code_enter(self, args, kwargs)
         errors = []
         while remaining_retries >= 0:
+            remaining_retries -= 1
+            impl = implementations[impl_idx]
+            log = logger.bind(task=self, retries=remaining_retries, implementation=impl)
             try:
-                impl = implementations[impl_idx]
                 ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
                 self.last_good_impl_idx = impl_idx
                 self.session.tracer.code_exit(self, args, kwargs, ret)
                 return ret
-            except (XGenerationError, TimeoutError) as e:
-                logger.warning(
-                    "task.failed",
-                    task=self,
-                    exc_info=e,
-                    retries=remaining_retries,
-                    implementation=implementations[impl_idx],
-                )
+            except XGenerationError as e:
                 errors.append(e)
-                remaining_retries -= 1
+                log.warning("task.failed", exc_info=e)
+                # retry with error info
+                implementations[impl_idx] = impl.copy().emit(XConsiderError(e))
+            except TimeoutError as e:
                 # fail over to next implementation
+                logger.warning("task.failed", exc_info=e)
                 impl_idx = (impl_idx + 1) % len(implementations)
 
         # give up
         e = RuntimeError(f"{self} failed after {retries} retries")
         self.session.tracer.code_exception(self, args, kwargs, e)
-        raise e from errors[-1]
+        if errors:
+            raise e from errors[-1]
+        else:
+            raise e
 
     def to_sync(self) -> "SyncTaskInstance":
         return SyncTaskInstance(**dict_minus(self.__dict__, ["is_async"]))
@@ -947,7 +948,7 @@ def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = F
             return mapping.to_py_value(type, value)
     except (KeyError, ValueError, TypeError):
         logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
-        return None
+        return value  # type checking is done elsewhere
 
 
 def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
@@ -974,6 +975,7 @@ def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | Da
             map_v=instantiate_py_value_flat,
             map_k=lambda t: (t.key, t.ident),
             ignore_outer_map=True,  # we're mapping that to RecordInstance
+            ignore_array=True,
         )
         record = RecordInstance(
             id=raw_record.id,

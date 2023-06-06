@@ -121,7 +121,6 @@ export const FieldType = graphql(/* GraphQL */ `
     tag
     hint
     description
-    value
     orderKey
     reference {
       id
@@ -267,7 +266,6 @@ export const InterpStatementDataType = graphql(/* GraphQL */ `
       tag
       hint
       description
-      value
       orderKey
       reference {
         id

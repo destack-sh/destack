@@ -620,7 +620,6 @@ export function useSymbolContentOps() {
         $name: String!
         $description: String
         $flags: Int!
-        $value: JSON
         $referenceId: GlobalID
       ) {
         createField(
@@ -634,7 +633,6 @@ export function useSymbolContentOps() {
             name: $name
             description: $description
             flags: $flags
-            value: $value
             referenceId: $referenceId
           }
         ) {
@@ -654,7 +652,6 @@ export function useSymbolContentOps() {
             tag
             hint
             description
-            value
             reference {
               id
             }
@@ -675,7 +672,6 @@ export function useSymbolContentOps() {
         name: string;
         description: string | null;
         flags: number;
-        value: any;
         referenceId: string | null;
       }) =>
         ({
@@ -696,7 +692,6 @@ export function useSymbolContentOps() {
             name: vars.name,
             key: vars.key,
             description: vars.description ?? null,
-            value: vars.value,
             orderKey: vars.orderKey,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             flags: vars.flags,
@@ -806,7 +801,6 @@ export function useSymbolContentOps() {
       // set optional values to null if not provided
       hint: input.hint ?? null,
       description: input.description ?? null,
-      value: input.value ?? null,
       referenceId: input.referenceId ?? null,
       flags: input.flags ?? 0,
     } as FieldCreateInput;
@@ -861,7 +855,6 @@ export function useSymbolContentOps() {
         $name: String
         $description: String
         $flags: Int!
-        $value: JSON
         $referenceId: GlobalID
       ) {
         updateField(
@@ -872,7 +865,6 @@ export function useSymbolContentOps() {
             name: $name
             description: $description
             flags: $flags
-            value: $value
             referenceId: $referenceId
           }
         ) {
@@ -885,7 +877,6 @@ export function useSymbolContentOps() {
             name
             description
             flags
-            value
             reference {
               id
             }
@@ -902,7 +893,6 @@ export function useSymbolContentOps() {
         name: string | null;
         description: string;
         flags: number;
-        value: any;
         referenceId?: string;
       }) => {
         return {
@@ -916,7 +906,6 @@ export function useSymbolContentOps() {
             name: vars.name,
             description: vars.description,
             flags: vars.flags,
-            value: vars.value,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
           },
         } as UpdateFieldMutation;

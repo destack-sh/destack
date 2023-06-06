@@ -561,7 +561,6 @@ class TypeNode(abc.ABC):
     description: Optional[str]
     fields: list["TypeNode"]
     self_fields: list["TypeNode"]  # original fields excluding resolved fields
-    value: Optional[LiteralValue]
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
 
     @property
@@ -646,7 +645,6 @@ class Field(TypeNode):
     key: str = field(default_factory=new_field_key)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
-    value: Optional[LiteralValue] = None  # for literal types
     reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"] = None
     source_reference: Optional[StatementPath] = None
 
@@ -686,7 +684,6 @@ class Field(TypeNode):
             description=self.description,
             reference=reference,
             source_reference=self.source_reference,
-            value=self.value,
             flags=self.flags,
         )
 
@@ -702,7 +699,6 @@ class TypeContent(SymbolContent, TypeNode):
     # not directly configurable for types
     hint = None
     key = None
-    value = None
     reference = None
 
     def __str__(self):
@@ -885,7 +881,10 @@ class Record:
         self.data[key] = value
 
     def __getattr__(self, item):
-        return self[item]
+        try:
+            return self.data[item]
+        except KeyError:
+            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
 
     def __setattr__(self, key, value):
         if key in RECORD_FIELD_KEYS or key in RECORD_INSTANCE_FIELD_KEYS:  # see RecordInstance
