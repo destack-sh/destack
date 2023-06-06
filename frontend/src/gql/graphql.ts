@@ -269,7 +269,6 @@ export type Field = Node &
     statement: Statement;
     tag: TypeTag;
     updatedAt: Scalars["DateTime"];
-    value?: Maybe<Scalars["JSON"]>;
   };
 
 export type FieldCreateInput = {
@@ -283,7 +282,6 @@ export type FieldCreateInput = {
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type FieldDeleteInput = {
@@ -323,7 +321,6 @@ export type FieldUpdateInput = {
   name?: InputMaybe<Scalars["String"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type FieldUpdateTypeInput = {
@@ -332,7 +329,6 @@ export type FieldUpdateTypeInput = {
   id: Scalars["GlobalID"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
-  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type File = Node & {
@@ -1749,7 +1745,6 @@ export type SimpleType = {
   orderKey: Scalars["String"];
   reference?: Maybe<Statement>;
   tag: TypeTag;
-  value?: Maybe<Scalars["JSON"]>;
 };
 
 /** Anything typed using SimpleType nodes. */
@@ -3089,7 +3084,6 @@ export type FieldContentFragment = {
   tag: TypeTag;
   hint?: TypeHint | null;
   description?: string | null;
-  value?: any | null;
   orderKey: string;
   flags: number;
   reference?: { __typename?: "Statement"; id: any } | null;
@@ -3199,7 +3193,6 @@ export type InterpStatementDataFragment = {
     tag: TypeTag;
     hint?: TypeHint | null;
     description?: string | null;
-    value?: any | null;
     orderKey: string;
     flags: number;
     reference?: { __typename?: "Statement"; id: any } | null;
@@ -4202,7 +4195,6 @@ export type CreateFieldMutationVariables = Exact<{
   name: Scalars["String"];
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
-  value?: InputMaybe<Scalars["JSON"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
@@ -4222,7 +4214,6 @@ export type CreateFieldMutation = {
         tag: TypeTag;
         hint?: TypeHint | null;
         description?: string | null;
-        value?: any | null;
         flags: number;
         statement: { __typename?: "Statement"; id: any };
         reference?: { __typename?: "Statement"; id: any } | null;
@@ -4278,7 +4269,6 @@ export type UpdateFieldMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
-  value?: InputMaybe<Scalars["JSON"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
@@ -4295,7 +4285,6 @@ export type UpdateFieldMutation = {
         name?: string | null;
         description?: string | null;
         flags: number;
-        value?: any | null;
         reference?: { __typename?: "Statement"; id: any } | null;
       }
     | ({ __typename?: "OperationInfo" } & {
@@ -4962,7 +4951,6 @@ export const FieldContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "hint" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
-          { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
             kind: "Field",
@@ -5285,7 +5273,6 @@ export const InterpStatementDataFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
                 { kind: "Field", name: { kind: "Name", value: "hint" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "value" } },
                 { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                 {
                   kind: "Field",
@@ -12405,11 +12392,6 @@ export const CreateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -12474,11 +12456,6 @@ export const CreateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "value" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
@@ -12514,7 +12491,6 @@ export const CreateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "hint" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
-                      { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "reference" },
@@ -12757,11 +12733,6 @@ export const UpdateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -12811,11 +12782,6 @@ export const UpdateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "value" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
@@ -12840,7 +12806,6 @@ export const UpdateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
-                      { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "reference" },

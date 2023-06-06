@@ -1,4 +1,3 @@
-import copy
 import enum
 import typing
 from dataclasses import asdict, dataclass, fields
@@ -61,7 +60,6 @@ class FieldData:
             order_key=self.order_key,
             description=self.description,
             flags=self.flags,
-            value=copy.deepcopy(self.value),
             reference_id=self.reference_id,
         )
 
@@ -512,7 +510,6 @@ def rmap_field(statement_id: UUID, node: language.Field, impute_type_references:
         flags=node.flags,
         reference_id=node.reference.id if hasattr(node.reference, "id") else node.reference,
         order_key=node.order_key,
-        value=node.value,
     )
 
 
@@ -528,7 +525,6 @@ def wmap_field(node: FieldData) -> language.Field:
         flags=node.flags,
         reference=node.reference_id,
         order_key=node.order_key,
-        value=node.value,
     )
 
 

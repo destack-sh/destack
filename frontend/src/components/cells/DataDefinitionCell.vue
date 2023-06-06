@@ -676,7 +676,7 @@ defineExpose({
           position: headerOffsetY == 0 ? 'absolute' : 'fixed',
           left:
             headerOffsetY == 0
-              ? -gridScrollOffsetX + 'px'
+              ? -gridScrollOffsetX + 4 + 'px'
               : -gridScrollOffsetX + editorView.pos.value.left + gridOffsetX + 'px',
           top: headerOffsetY == 0 ? undefined : editorView.pos.value.top + appearance.editorHeaderHeight + 'px',
         }"

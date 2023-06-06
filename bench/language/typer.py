@@ -74,7 +74,7 @@ def check_type(
         _check(isinstance(value, bool), "expected boolean")
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
-        _check(any(member.value == value for member in expected.fields), "expected enum member")
+        _check(any(member.name == value for member in expected.fields), "expected enum member")
     elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs

@@ -4,6 +4,7 @@ import enum
 import json
 import re
 import typing
+from copy import deepcopy
 from dataclasses import asdict, dataclass, is_dataclass
 from json import JSONDecodeError
 from typing import Any, Optional
@@ -194,6 +195,14 @@ class XPrompt:
     def __repr__(self):
         return f"<XPrompt {self}>"
 
+    def copy(self) -> XPrompt:
+        x = XPrompt(self.task, self.model, self.modality, self.session)
+        x.blocks = [b.copy() for b in self.blocks]
+        x.input_handlers = {**self.input_handlers}
+        x.output_handler = self.output_handler
+        x.settings = deepcopy(self.settings)
+        return x
+
     def emit(self, *emits: XEmit):
         blocks = []
         for emit in emits:
@@ -221,6 +230,7 @@ class XPrompt:
                 self.settings = settings_cls(**x.value)
             else:
                 self.blocks.append(x)
+        return self
 
     async def __call__(self, *args, cache: bool = None, timeout: float = None, **kwargs) -> Any:
         inputs = {**kwargs}  # combine inputs from args/kwargs
@@ -433,6 +443,17 @@ class XOutputText(XEmit):
         )
         output = xoutput(None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
+
+
+@xemit
+class XConsiderError(XEmit):
+    """Emits a note about an error that occured previously"""
+
+    error: XGenerationError
+
+    def __call__(self) -> XBlock:
+        error_str = str(self.error)
+        return xstatic(f"Note: please avoid mistakes like this: {error_str}", XSource.System)
 
 
 @xemit

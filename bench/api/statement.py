@@ -82,7 +82,6 @@ class SimpleType:
     hint: Optional[TypeHint]
     flags: int
     description: Optional[str]
-    value: Optional[JSON]
     reference: Optional["Statement"]
 
 
@@ -100,7 +99,6 @@ class Field(gql.Node, SimpleType):
     hint: Optional[TypeHint]
     flags: int
     description: auto
-    value: auto
     reference: Optional["Statement"]
 
 
@@ -683,7 +681,6 @@ class FieldCreateInput:
     hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
-    value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
 
@@ -694,7 +691,6 @@ class FieldUpdateInput(gql.NodeInput):
     hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
-    value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
 
@@ -713,7 +709,6 @@ class FieldUpdateTypeInput(gql.NodeInput):
     tag: TypeTag
     hint: Optional[TypeHint] = None
     flags: int = 0
-    value: Optional[JSON] = None
     reference_id: Optional[GlobalID] = None
 
 
@@ -854,7 +849,6 @@ class SymbolMutation:
             tag=input.tag,
             hint=input.hint,
             flags=input.flags,
-            value=input.value,
             reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
         )
         return field
@@ -867,7 +861,6 @@ class SymbolMutation:
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
-        field.value = input.value
         field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return field
 
@@ -889,7 +882,6 @@ class SymbolMutation:
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
-        field.value = input.value
         field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
         return field
 

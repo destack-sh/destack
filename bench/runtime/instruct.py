@@ -351,7 +351,7 @@ def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = 
     elif type.tag == TypeTag.ENUM:
         if len(type.fields) == 0:
             return None
-        return type.fields[0].value
+        return type.fields[0].name
     elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
         return {
             subtype.name: fabricate_value(subtype)
@@ -363,7 +363,7 @@ def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = 
     elif type.tag == TypeTag.NULL:
         return None
     elif type.tag == TypeTag.LITERAL:
-        return type.value
+        return type.name  # assumes enum string literals
     elif type.tag == TypeTag.ANY:
         return 42  # not sure what to do here
     else:

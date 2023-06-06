@@ -53,7 +53,6 @@ class Field(UUIDModel, CrudModel):
     hint = TextChoicesField(choices_enum=TypeHint, null=True, blank=True)
     flags = models.IntegerField(default=0)
     description = models.TextField(null=True, blank=True)
-    value = models.JSONField(null=True, blank=True)
     reference = models.ForeignKey(
         "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
