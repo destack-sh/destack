@@ -73,11 +73,15 @@ const path = computed(() => {
   if (module.fileOf(statement.value) == null) return null;
   return module.fileOf(statement.value)?.path + ":" + statement.value?.name;
 });
-watch(path, () => {
-  if (path.value != null) {
-    editor.value.path = path.value + "@terminal";
+watch(
+  () => [path, statement.value?.name],
+  () => {
+    if (path.value != null) {
+      editor.value.path = path.value + "@terminal";
+    }
+    editor.value.name = statement.value?.name ?? "";
   }
-});
+);
 
 async function run() {
   if (statement.value == null) return;

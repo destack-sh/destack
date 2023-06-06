@@ -11,7 +11,7 @@ export type EditorAppearance = {
 };
 
 export const CONTENT_WIDTH_NARROW = 800;
-export const CONTENT_WIDTH_WIDE = 1200;
+export const CONTENT_WIDTH_WIDE = 3200;
 export const CONTENT_MARGIN_X_NARROW = 72;
 export const CONTENT_MARGIN_X_WIDE = 48;
 

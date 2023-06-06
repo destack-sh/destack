@@ -50,9 +50,9 @@ const module = useCurrentModule();
 const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const isActive = computed(() => nav?.value.editor.activeStatementId == statement.value?.id);
-const isFocused = computed(() => isActive.value && nav?.value.editor.focused);
-const isEditing = computed(() => isFocused.value && nav?.value.editor.editing);
+const isActive = computed(() => props.standalone || nav?.value.editor.activeStatementId == statement.value?.id);
+const isFocused = computed(() => isActive.value && (props.standalone || nav?.value.editor.focused));
+const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value.editor.editing));
 const isSelected = computed(() => nav?.value.editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Comment);
 const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
@@ -83,6 +83,7 @@ provide(STATEMENT_CONTEXT, {
   active: isActive,
   focused: isFocused,
   editing: isEditing,
+  standalone: toRef(props, "standalone"),
   depth: toRef(props, "depth"),
   xOffset: contentOffsetX,
   lineNumberBase: lineNumber,
@@ -230,8 +231,12 @@ whenever(inRootCellFocused, () => {
 });
 
 function focusInEditor() {
-  bench.focusFile(file.value as any);
-  nav?.value.editor.focusElement(statement.value as StatementHeader);
+  if (props.standalone) {
+    bench.focusStatement(statement.value as any);
+  } else {
+    bench.focusFile(file.value as any);
+    nav?.value.editor.focusElement(statement.value as StatementHeader);
+  }
 }
 
 function onClickContainer(e: MouseEvent) {
@@ -342,11 +347,14 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       nextTick(() => rootCellRef.value?.focus());
     },
   });
-  actions.push({
-    label: "Duplicate",
-    icon: Square2StackIcon,
-    action: () => magic.duplicate(),
-  });
+  if (!props.standalone) {
+    // doesn't work in standalone editor because it needs file context right now
+    actions.push({
+      label: "Duplicate",
+      icon: Square2StackIcon,
+      action: () => magic.duplicate(),
+    });
+  }
   actions.push({
     label: "Delete",
     icon: TrashIcon,
@@ -367,7 +375,9 @@ const filteredClients = computed(() =>
 );
 
 defineExpose({
-  focus: (position: "first" | "last" = "first") => rootCellRef.value?.focus(position),
+  focus: (position: "first" | "last" = "first") => {
+    return rootCellRef.value?.focus(position);
+  },
   blur: () => rootCellRef.value?.blur(),
   root: rootCellRef,
 });
@@ -401,12 +411,14 @@ defineExpose({
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
             <ActionPopover
+              v-if="lineNumber >= 0"
               anchor="right"
               :thing="statement"
               :actions="defaultActions"
               v-slot="{ open }"
               @mousedown="containerRef?.setAttribute('draggable', 'true')"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
+              @click.stop
             >
               <span
                 class="cursor-grab select-none text-right not-italic transition duration-150"
@@ -422,9 +434,7 @@ defineExpose({
                   ...appearance.baseClass,
                 }"
               >
-                <!-- Line number only exists in file context -->
-                <template v-if="lineNumber >= 0">{{ lineNumber }}</template>
-                <DragHandleIcon v-else class="h-4 w-4" />
+                {{ lineNumber }}
               </span>
             </ActionPopover>
             <!-- Add statement below button -->

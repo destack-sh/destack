@@ -205,7 +205,7 @@ watchEffect(() => {
     title.value = "Page not found";
   } else {
     if (bench.focusedEditor != null) {
-      title.value = (bench.focusedEditor.path || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
+      title.value = (bench.focusedEditor.name || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
     } else {
       title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
     }
