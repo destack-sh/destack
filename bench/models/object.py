@@ -180,6 +180,22 @@ def get_project_bucket_name(project_id: UUID) -> str:
     return f"bench-user-{project_id}"
 
 
+def get_project_search_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-search"
+
+
+def get_project_datasets_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-datasets"
+
+
+def get_project_executions_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-executions"
+
+
+def get_project_logs_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-logs"
+
+
 @cache
 def get_s3_client():
     import boto3

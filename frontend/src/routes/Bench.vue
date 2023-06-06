@@ -270,14 +270,13 @@ const actions = useActions();
 const operationsStore = useOperationsStore();
 const module = useCurrentModule();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
-const { getTimeFromNowString } = useTimeFromNow();
 
 // routing
 const consideredUrl = ref(false);
 
 function prettifyPath(path: string) {
   // replace non-URL friendly characters with dashes
-  return path.replace(/[^a-zA-Z0-9-_./]/g, "-");
+  return path.replace(/[^a-zA-Z0-9-_./@:]/g, "-");
 }
 
 // focus file from url if hash changes and none is open (once)

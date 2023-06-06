@@ -1,0 +1,112 @@
+<script lang="ts" setup>
+import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
+import StatementInterface from "@/components/editors/StatementInterface.vue";
+import TitleBanner from "@/components/editors/TitleBanner.vue";
+import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
+import { useTimeFromNow } from "@/composables/useNow";
+import { graphql, useFragment } from "@/gql";
+import { useActions } from "@/state/actions";
+import { useAppearance } from "@/state/appearance";
+import { useBenchState, type EditorContext, type StatementEditor } from "@/state/bench";
+import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useCurrentModule } from "@/state/module";
+import { useOperations } from "@/state/operations";
+import { useQuery } from "@vue/apollo-composable";
+import { computed, ref, watch } from "vue";
+
+const props = defineProps<{ editor: EditorContext<StatementEditor>; focused: boolean }>();
+const emit = defineEmits<{ (e: "close"): void }>();
+const bench = useBenchState();
+const module = useCurrentModule();
+const appearance = useAppearance();
+const actions = useActions();
+const editor = computed(() => props.editor.editor.value);
+const now = useTimeFromNow();
+const ops = useOperations();
+
+// statement state
+
+const { result: statementResult, loading: statementLoading } = useQuery(
+  graphql(/* GraphQL */ `
+    query statementContentById($statementId: GlobalID!) {
+      statement(id: $statementId) {
+        id
+        projectVersion {
+          id
+        }
+        file {
+          ...FileHeader
+        }
+        deletedAt
+        ...StatementContent
+      }
+    }
+  `),
+  () => ({
+    statementId: props.editor.editor.value.statementId,
+  })
+);
+
+const statement = computed(() => useFragment(StatementContentType, statementResult.value?.statement) ?? undefined);
+const file = computed(() => useFragment(FileHeaderType, statementResult.value?.statement?.file) ?? undefined);
+const statementComponentRef = ref<InstanceType<typeof StatementInterface> | null>(null);
+
+// sync name/path into editor
+watch(
+  () => [statement.value?.name, statement.value == null || module.fileOf(statement.value)],
+  () => {
+    if (statement.value != null && module.fileOf(statement.value) != null) {
+      editor.value.path = module.fileOf(statement.value)!.path + ":" + statement.value.name;
+    }
+  }
+);
+</script>
+<template>
+  <div class="overflow-x-hidden bg-white">
+    <EditedThingBanner :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
+    <div class="flex flex-col bg-white" v-if="statement">
+      <!-- Non-clickable invisible overlay if deleted -->
+      <div v-if="statement?.deletedAt != null" class="absolute inset-0 z-20 flex justify-center opacity-100" />
+      <!-- Editor inline header -->
+      <FixedInlineHeader
+        :thing="statement"
+        :actions="[]"
+        :editing="false /* not sure */"
+        :readonly="bench.readonly"
+        :path="editor.path"
+      />
+      <!-- Title -->
+      <!-- TODO @UX: enrich statement editor title & prettify statements in this view -->
+      <TitleBanner
+        class="relative mx-auto w-full justify-between pt-14"
+        :class="appearance.baseClass"
+        :style="{
+          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
+          paddingLeft: `${appearance.contentMarginX + 4}px`, // + for :StatementPadding
+          paddingRight: `${appearance.contentMarginX + 4}px`,
+        }"
+        :readonly="true"
+        :thing="statement"
+        :model-value="statement.name"
+        :actions="[]"
+      />
+      <!-- Statement -->
+      <StatementInterface
+        ref="statementComponentRef"
+        class="relative mx-auto w-full justify-between pt-4"
+        :class="appearance.baseClass"
+        :style="{
+          'max-width': appearance.contentWidth + appearance.contentMarginX * 2 + 'px',
+          paddingLeft: `${appearance.contentMarginX}px`,
+          paddingRight: `${appearance.contentMarginX}px`,
+        }"
+        :file="file"
+        :statement="statement"
+        :readonly="bench.readonly"
+        :depth="0"
+        :ancestors="[]"
+        standalone
+      />
+    </div>
+  </div>
+</template>

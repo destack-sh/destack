@@ -25,6 +25,8 @@ const documents = {
     types.EmptyEditorSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
+  "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  ":
+    types.StatementContentByIdDocument,
   "\n    query profileAccessTokens($slug: String!, $includeInactive: Boolean!) {\n      ownerBySlug(slug: $slug) {\n        ... on User {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n        ... on Organization {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProfileAccessTokensDocument,
   "\n    mutation createAccessToken(\n      $ownerId: GlobalID!\n      $scopes: [AccessTokenScope!]!\n      $expiresAt: DateTime\n      $name: String\n    ) {\n      createAccessToken(input: { ownerId: $ownerId, scopes: $scopes, expiresAt: $expiresAt, name: $name }) {\n        ... on AccessTokenCreatePayload {\n          token\n          accessToken {\n            id\n            name\n            tokenKey\n            createdAt\n            updatedAt\n            expiresAt\n            revokedAt\n            status\n            scopes\n          }\n        }\n        ...OperationInfoContent\n      }\n    }\n  ":
@@ -289,6 +291,12 @@ export function graphql(
 export function graphql(
   source: "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "
+): typeof documents["\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
