@@ -6,6 +6,7 @@ import {
   type InterpStatementFragment,
   type StatementType,
 } from "@/gql/graphql";
+import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
@@ -74,10 +75,11 @@ function _useModule(projectVersionId: Ref<string | null>) {
     () => ({ enabled: !!projectVersionId.value })
   );
 
-  // wake langserver
+  // wake langserver if allowed
   const woken = ref(false);
   const ops = useOperations();
-  watch([module, WS_CONNECTED], async () => {
+  const auth = useAuth();
+  watch([module, WS_CONNECTED, () => auth.loggedIn.value], async () => {
     if (!WS_CONNECTED.value) {
       woken.value = false; // reset woken state
     }
@@ -86,7 +88,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
       !woken.value &&
       projectVersionId.value != null &&
       module.value != null &&
-      !module.value?.projectVersion?.committed
+      !module.value?.projectVersion?.committed &&
+      auth.loggedIn.value
     ) {
       woken.value = true;
       await ops.runtime.wake(projectVersionId.value);
