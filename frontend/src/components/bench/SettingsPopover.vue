@@ -121,6 +121,7 @@ const fontOptions = [
           <Switch
             :model-value="appearance.theme != 'light'"
             @update:model-value="appearance.theme = $event ? 'dark' : 'light'"
+            disabled
           />
         </div>
         <!-- Zen mode -->

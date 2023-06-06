@@ -4,31 +4,36 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
+import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import DeployPopover from "@/components/bench/DeployPopover.vue";
-import EditorGroup from "@/components/editors/EditorGroup.vue";
 import FeedbackPopover from "@/components/bench/FeedbackPopover.vue";
 import HelpPopover from "@/components/bench/HelpPopover.vue";
-import NotificationArea from "@/components/basic/NotificationArea.vue";
 import NotificationPopover from "@/components/bench/NotificationPopover.vue";
-import ViewExplorer from "@/components/views/ViewExplorer.vue";
-import ViewHistory from "@/components/views/ViewHistory.vue";
-import ViewIssues from "@/components/views/ViewIssues.vue";
 import ProjectPopover from "@/components/bench/ProjectPopover.vue";
 import SettingsPopover from "@/components/bench/SettingsPopover.vue";
 import SharePopover from "@/components/bench/SharePopover.vue";
-import { useTimeFromNow } from "@/composables/useNow";
+import EditorGroup from "@/components/editors/EditorGroup.vue";
+import ViewExplorer from "@/components/views/ViewExplorer.vue";
+import ViewHistory from "@/components/views/ViewHistory.vue";
+import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
-import { useBenchMigrations, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
-import { FileHeaderType, ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import {
+  EDITOR_INSTANCE_TYPES,
+  prettifySlug,
+  useBenchMigrations,
+  useBenchPersistence,
+  useBenchState,
+  type ViewId,
+} from "@/state/bench";
+import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
+import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
-import { useCurrentModule } from "@/state/module";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
@@ -187,16 +192,12 @@ const versionToViewId = computed(() => {
 
 // set up bench state
 const bench = useBenchState();
-const appearance = useAppearance();
-const editorReady = computed(
-  () => bench.currentProjectVersionId != null && bench.currentProjectVersionId == versionToViewId.value
-);
+const ready = computed(() => bench.projectVersionId != null && bench.projectVersionId == versionToViewId.value);
 const notifications = useNotifications();
 const router = useRouter();
 const viewContainerRef = ref<HTMLElement | null>(null);
 const viewContainerSize = useElementSize(viewContainerRef);
 const mainContainerRef = ref<HTMLElement | null>(null);
-const mainContainerSize = useElementSize(mainContainerRef);
 
 // sync title bar with project info
 const title = useTitle();
@@ -213,6 +214,7 @@ watchEffect(() => {
 });
 
 // get project content
+// TODO @Performance: consolidate project version load into project load (if version to view == head)
 const { error: versionError, result: versionResult } = useQuery(
   graphql(/* GraphQL */ `
     query projectVersionContent($id: GlobalID!) {
@@ -225,15 +227,6 @@ const { error: versionError, result: versionResult } = useQuery(
         createdAt
         committed
         committedAt
-        files(filters: { isVisible: true }) {
-          totalCount
-          edges {
-            node {
-              id
-              ...FileHeader
-            }
-          }
-        }
       }
     }
   `),
@@ -242,6 +235,8 @@ const { error: versionError, result: versionResult } = useQuery(
 );
 const version = computed(() => versionResult.value?.projectVersion);
 const versionLoaded = computed(() => !!version.value);
+
+// react to version load error
 watch(versionError, () => {
   if (versionError.value != null) {
     const atHead = version.value?.id == projectHead.value?.id;
@@ -258,55 +253,47 @@ watch(versionError, () => {
   }
 });
 
-// filter deletedAt to increase responsiveness
-const files = computed(
-  () =>
-    version.value?.files.edges.map((f) => useFragment(FileHeaderType, f.node)).filter((f) => f.deletedAt == null) || []
-);
-
 // actions (ensure global actions are available)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const actions = useActions();
 const operationsStore = useOperationsStore();
 const module = useCurrentModule();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
+const auth = useAuth();
+// syncs need to instantiated for the Bench lifetime
+const moduleSync = useModuleSync(versionToViewId);
+const projectSync = useProjectSync(toRef(bench, "projectId"));
 
 // routing
 const consideredUrl = ref(false);
-
-function prettifyPath(path: string) {
-  // replace non-URL friendly characters with dashes
-  return path.replace(/[^a-zA-Z0-9-_./@:]/g, "-");
-}
-
-// focus file from url if hash changes and none is open (once)
-watchEffect(() => {
-  const hash = router.currentRoute.value.hash;
-  if (versionLoaded.value && !consideredUrl.value && editorReady.value) {
-    let file = null;
-    if (hash) {
-      const path = hash.substring(1);
-      file = files.value.find((file) => prettifyPath(file.path) === path);
-    } else if (files.value.length == 1) {
-      // special case: open "Getting Started" file if it exists and nothing is open :GettingStarted
-      file = files.value.find((file) => file.path === "Getting Started");
+// open/focus editor from url if hash changes and none is open (once)
+watch(
+  () => [module.idx.value, router.currentRoute.value],
+  () => {
+    if (module.idx.value != null && !consideredUrl.value && ready.value) {
+      const hash = router.currentRoute.value.hash.slice(1);
+      const matchingEditor = Object.values(EDITOR_INSTANCE_TYPES)
+        .map((editorType) => editorType.parsePath(hash, module.idx.value as ModuleIndex))
+        .find((e) => e != null);
+      if (matchingEditor != null) {
+        matchingEditor.onDeserialized(bench);
+        console.log(`open ${matchingEditor.path} (${matchingEditor.type}) from url`);
+      } else {
+        console.log(`no matching editor for ${hash}`);
+      }
+      consideredUrl.value = true;
     }
-    if (file) {
-      bench.focusFile(file as any);
-    }
-    consideredUrl.value = true;
   }
-});
+);
 
 // change url if focused editor changes
 watchEffect(() => {
   if (bench.focusedEditor != null) {
     // set hash to open path
     if (consideredUrl.value) {
-      const prettyPath = prettifyPath(bench.focusedEditor.path);
+      const prettyPath = prettifySlug(bench.focusedEditor.path);
       router.replace({ hash: `#${prettyPath}`, query: router.currentRoute.value.query });
     }
-  } else if (editorReady.value && consideredUrl.value) {
+  } else if (ready.value && consideredUrl.value) {
     // clear hash
     router.replace({ hash: ``, query: router.currentRoute.value.query });
   }
@@ -327,10 +314,6 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   );
   return false;
 });
-
-const moduleSync = useModuleSync(versionToViewId);
-const projectSync = useProjectSync(toRef(bench, "currentProjectId"));
-const auth = useAuth();
 
 // show notification if disconnected/reconnected
 const connectionLost = ref(false);
@@ -394,55 +377,59 @@ watchEffect(() => {
     version.value?.committed == true;
 });
 
-// prepare bench state for project whenever project (head) changes
-watchEffect(async () => {
-  if (
-    !migrating.value &&
-    project.value != null &&
-    versionToViewId.value != null &&
-    (bench.currentProjectId != project.value.id || bench.currentProjectVersionId != versionToViewId.value)
-  ) {
-    // try to load bench state
-    console.log(`load bench ${project.value.id} at ${versionToViewId.value}`);
-    load(project.value.id);
-    if (bench.currentProjectId == project.value?.id) {
-      // migrate if there is a new version of the same project
-      // (loads overwrites bench state for the entire project,
-      //  so editor.currentProjectVersionId will point to its last known version)
-      if (bench.currentProjectVersionId != versionToViewId.value && bench.currentProjectVersionId != null) {
-        const success = migrate(
-          bench.currentProjectId as string,
-          bench.currentProjectVersionId as string,
-          versionToViewId.value
-        );
-        bench.currentProjectVersionId = versionToViewId.value;
-        if (!success) {
-          notifications.dismissIf({ type: "bench.migrate.failed" });
-          notifications.show({
-            kind: "warning",
-            type: "bench.migrate.failed",
-            message: "Bench migration failed",
-            description: "Bench could not be migrated.",
-          });
-        } else {
-          notifications.dismissIf({ type: "bench.migrate.success" });
-          notifications.show({
-            kind: "success",
-            type: "bench.migrate.success",
-            message: "Bench migrated",
-            description: "Bench migrated successfully.",
-          });
+// prepare bench state whenever version to view changes
+watch(
+  () => [migrating.value, project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
+  async () => {
+    if (
+      !migrating.value &&
+      project.value != null &&
+      versionToViewId.value != null &&
+      (bench.projectId != project.value.id || bench.projectVersionId != versionToViewId.value)
+    ) {
+      // try to load bench state
+      console.log(`load bench ${project.value.id} at ${versionToViewId.value}`);
+      const loaded = load(project.value.id);
+      if (loaded && bench.projectId == project.value?.id) {
+        // migrate if there is a new version of the same project
+        // (loads overwrites bench state for the entire project,
+        //  so editor.projectVersionId will point to its last known version)
+        if (bench.projectVersionId != versionToViewId.value && bench.projectVersionId != null) {
+          const migrated = await migrate(
+            bench.projectId as string,
+            bench.projectVersionId as string,
+            versionToViewId.value
+          );
+          if (!migrated) {
+            notifications.dismissIf({ type: "bench.migrate.failed" });
+            notifications.show({
+              kind: "warning",
+              type: "bench.migrate.failed",
+              message: "Bench migration failed",
+              description: "Bench could not be migrated.",
+            });
+          } else {
+            notifications.dismissIf({ type: "bench.migrate.success" });
+            notifications.show({
+              kind: "success",
+              type: "bench.migrate.success",
+              message: "Bench migrated",
+              description: "Bench migrated successfully.",
+            });
+          }
         }
+      } else {
+        console.log(`reset bench ${project.value.id}`); // already happened
       }
-    } else {
-      console.log(`reset bench ${project.value.id}`); // already happened
+      bench.projectId = project.value.id;
+      bench.projectVersionId = versionToViewId.value;
     }
   }
-});
+);
 
 // clear bench state when exiting view
 onBeforeUnmount(() => {
-  if (bench.currentProjectId == project.value?.id) {
+  if (bench.projectId == project.value?.id) {
     bench.$reset();
   }
 });
@@ -660,7 +647,6 @@ onBeforeUnmount(() => {
             v-show="activeView.id == 'explorer'"
             @show="bench.focusView('explorer')"
             @blur="bench.blurView('explorer')"
-            :files="files"
             :focused="bench.focusedViewId == 'explorer'"
             :container-size="viewContainerSize"
             class="scroll-hidden overflow-y-auto"

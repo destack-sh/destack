@@ -98,7 +98,7 @@ export function useRuntimeOps() {
       stateless: true,
       do: async () => {
         return await runMut({
-          projectVersionId: bench.currentProjectVersionId,
+          projectVersionId: bench.projectVersionId,
           runnableId,
           buildId,
           executionId,
@@ -141,7 +141,7 @@ export function useRuntimeOps() {
       stateless: true,
       do: async () => {
         return await cancelMut({
-          projectVersionId: bench.currentProjectVersionId,
+          projectVersionId: bench.projectVersionId,
           executionId,
         });
       },

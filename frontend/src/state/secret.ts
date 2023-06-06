@@ -59,7 +59,7 @@ export function useSecrets() {
     updated: { name: string | null; value: any }
   ): Promise<SecretRecord> {
     if (existing == null) {
-      const ret = await ops.create(bench.currentProjectId as string, updated.name, updated.value);
+      const ret = await ops.create(bench.projectId as string, updated.name, updated.value);
       if (ret?.data?.createSecret.__typename != "Secret") {
         throw new Error("secret.create returned non-secret");
       }

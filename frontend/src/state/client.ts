@@ -92,8 +92,8 @@ function getOrCreateClientId(): string {
 
 function _useClient(presenceIntervalMs = 15000) {
   const bench = useBenchState();
-  const projectId = toValueRef(toRef(bench, "currentProjectId"));
-  const projectVersionId = toValueRef(toRef(bench, "currentProjectVersionId"));
+  const projectId = toValueRef(toRef(bench, "projectId"));
+  const projectVersionId = toValueRef(toRef(bench, "projectVersionId"));
   const auth = useAuth();
   const ops = useOperations();
 
@@ -322,10 +322,10 @@ function _useCurrentClients() {
   const bench = useBenchState();
   const clients = useConnectedClients(
     {
-      projectId: toRef(bench, "currentProjectId"),
-      projectVersionId: toRef(bench, "currentProjectVersionId"),
+      projectId: toRef(bench, "projectId"),
+      projectVersionId: toRef(bench, "projectVersionId"),
       userId: ref(null),
-      inSameOrganizations: computed(() => bench.currentProjectId == null),
+      inSameOrganizations: computed(() => bench.projectId == null),
       active: ref(null),
       present: ref(true),
     },

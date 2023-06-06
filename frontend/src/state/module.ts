@@ -93,7 +93,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   });
 
-  const moduleIndex: Ref<ModuleIndex | null> = computed(() => {
+  const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
     const statementsById: Record<string, InterpStatement> = {};
     const statementsByFileId: Record<string, InterpStatement[]> = {};
@@ -116,13 +116,14 @@ function _useModule(projectVersionId: Ref<string | null>) {
       name: module.value.projectVersion.project.name,
       path: module.value.projectVersion.project.path,
       statementsById: statementsById,
+      statementsByFileId: statementsByFileId,
       filesById: filesById,
     } as ModuleIndex;
   });
 
   const issues = computed(() => {
     const issues = [];
-    for (const statement of Object.values(moduleIndex.value?.statementsById ?? {})) {
+    for (const statement of Object.values(idx.value?.statementsById ?? {})) {
       if (statement.issues == null) continue;
       issues.push(...statement.issues);
     }
@@ -147,18 +148,18 @@ function _useModule(projectVersionId: Ref<string | null>) {
   }
 
   function fileOf(statement: { id: string }) {
-    return moduleIndex.value?.filesById[moduleIndex.value?.statementsById[statement.id]?.file?.id];
+    return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
   }
 
   function contextOf(symbol: { id: string }) {
-    for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
-      if (idx && symbol.id in idx.filesById) {
-        const statement = idx.statementsById[symbol.id];
+    for (const i of [idx.value, ...dependenciesIndex.value]) {
+      if (i && symbol.id in i.filesById) {
+        const statement = i.statementsById[symbol.id];
         return {
-          id: idx.id,
-          name: idx.name,
-          path: idx.path,
-          file: idx.filesById[statement.file?.id],
+          id: i.id,
+          name: i.name,
+          path: i.path,
+          file: i.filesById[statement.file?.id],
           statement,
         };
       }
@@ -171,9 +172,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
       return undefined;
     }
     // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
-    for (const idx of [moduleIndex.value, ...dependenciesIndex.value]) {
-      if (idx && id in idx.statementsById) {
-        return idx.statementsById[id];
+    for (const i of [idx.value, ...dependenciesIndex.value]) {
+      if (i && id in i.statementsById) {
+        return i.statementsById[id];
       }
     }
     return undefined;
@@ -198,10 +199,10 @@ function _useModule(projectVersionId: Ref<string | null>) {
   function statementsLike(filter: Ref<StatementFilter> | StatementFilter) {
     const filterRef = isRef(filter) ? filter : ref(filter);
     const statements = computed(() => {
-      if (!moduleIndex.value) {
+      if (!idx.value) {
         return [];
       }
-      const allStatements = Object.values(moduleIndex.value.statementsById);
+      const allStatements = Object.values(idx.value.statementsById);
       if (filterRef.value.includeDependencies) {
         for (const dependencyIndex of dependenciesIndex.value) {
           allStatements.push(...Object.values(dependencyIndex.statementsById));
@@ -233,7 +234,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     name: computed(() => module.value?.projectVersion?.project.name),
     path: computed(() => module.value?.projectVersion?.project.path),
     issues,
-    moduleIndex,
+    idx,
     dependencies,
     dependenciesIndex,
     // utils
@@ -252,7 +253,7 @@ export const useModule = createSharedComposable(_useModule);
 export function useCurrentModule(projectVersionId?: Ref<string | null>) {
   const bench = useBenchState();
   const activeVersionId = computed(() =>
-    projectVersionId?.value != null ? projectVersionId.value : bench.currentProjectVersionId
+    projectVersionId?.value != null ? projectVersionId.value : bench.projectVersionId
   );
   return useModule(activeVersionId);
 }
@@ -311,7 +312,7 @@ export function useNavigation() {
     const context = module.contextOf(symbol);
     if (!context?.file) return;
     // can't focus external modules yet
-    if (context.id != bench.currentProjectVersionId) return;
+    if (context.id != bench.projectVersionId) return;
 
     const editor = bench.focusFile(context.file as any) as FileEditor;
     editor.editElement(symbol as any);

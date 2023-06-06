@@ -3,12 +3,11 @@ import FileExplorer from "@/components/views/FileExplorer.vue";
 import SymbolExplorer from "@/components/views/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import type { FileHeader } from "@/state/bench";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
 
-const props = defineProps<{ files?: FileHeader[]; focused: boolean }>();
+const props = defineProps<{ focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const actions = useActions();
@@ -118,7 +117,6 @@ watch(
           <FileExplorer
             :ref="(ref) => (fileExplorer = ref as any)"
             v-if="panel.title == 'Files'"
-            :files="props.files"
             :focused="props.focused"
             @navigate-down="symbolExplorer?.focus('first')"
             @navigate-up="symbolExplorer?.focus('last')"

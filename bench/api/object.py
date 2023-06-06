@@ -11,12 +11,8 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.util import safe_mutation
-from bench.models.object import (
-    REMOTE_OBJECT_MAX_SIZE,
-    get_project_bucket_name,
-    get_s3_client,
-    is_allowed_content_type,
-)
+from bench.models.object import REMOTE_OBJECT_MAX_SIZE, get_s3_client, is_allowed_content_type
+from bench.models.project import get_project_bucket_name
 
 logger = structlog.get_logger(__name__)
 

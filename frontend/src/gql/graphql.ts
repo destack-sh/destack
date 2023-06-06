@@ -2587,14 +2587,6 @@ export type ProjectVersionContentQuery = {
     createdAt: any;
     committed: boolean;
     committedAt?: any | null;
-    files: {
-      __typename?: "FileConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "FileEdge";
-        node: { __typename?: "File"; id: any } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
-      }>;
-    };
   } | null;
 };
 
@@ -3164,6 +3156,7 @@ export type InterpFileFragment = {
   revision: number;
   name: string;
   path: string;
+  directory: boolean;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -5165,6 +5158,7 @@ export const InterpFileFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "path" } },
+          { kind: "Field", name: { kind: "Name", value: "directory" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -6894,59 +6888,12 @@ export const ProjectVersionContentDocument = {
                 { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                 { kind: "Field", name: { kind: "Name", value: "committed" } },
                 { kind: "Field", name: { kind: "Name", value: "committedAt" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "files" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "isVisible" },
-                            value: { kind: "BooleanValue", value: true },
-                          },
-                        ],
-                      },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "edges" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
               ],
             },
           },
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
 export const ExistingProjectBySlugDocument = {

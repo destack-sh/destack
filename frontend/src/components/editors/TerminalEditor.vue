@@ -73,15 +73,10 @@ const path = computed(() => {
   if (module.fileOf(statement.value) == null) return null;
   return module.fileOf(statement.value)?.path + ":" + statement.value?.name;
 });
-watch(
-  () => [path, statement.value?.name],
-  () => {
-    if (path.value != null) {
-      editor.value.path = path.value + "@terminal";
-    }
-    editor.value.name = statement.value?.name ?? "";
-  }
-);
+watch(path, () => {
+  if (statement.value == null || module.idx.value == null) return;
+  editor.value.updatePath(statement.value, module.idx.value);
+});
 
 async function run() {
   if (statement.value == null) return;
@@ -264,8 +259,8 @@ defineExpose({
       <!-- Executions -->
       <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
         <ExecutionsTile
-          :project-id="bench.currentProjectId"
-          :project-version-id="bench.currentProjectVersionId"
+          :project-id="bench.projectId"
+          :project-version-id="bench.projectVersionId"
           include-ancestor-versions
           :runnable-id="editor?.statementId"
           :symbol-type="statement?.symbolType"
