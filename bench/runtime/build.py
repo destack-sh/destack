@@ -453,6 +453,8 @@ class XConsiderError(XEmit):
 
     def __call__(self) -> XBlock:
         error_str = str(self.error)
+        # remove (source=...) from error message
+        error_str = re.sub(r"\(source=.+\)", "", error_str)
         return xstatic(f"Note: please avoid mistakes like this: {error_str}", XSource.System)
 
 
