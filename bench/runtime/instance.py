@@ -141,7 +141,7 @@ class Session:
         builds: dict[str, Build] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
-        inference_retries: int = 4,
+        inference_retries: int = 5,
         mode: SessionMode = SessionMode.READ_ONLY,
         write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
         executor: Executor = None,
@@ -511,7 +511,7 @@ class TaskInstance(SymbolInstance, Task):
         remaining_retries = retries
 
         self.session.tracer.code_enter(self, args, kwargs)
-        errors = []
+        semantic_errors = []
         while remaining_retries >= 0:
             remaining_retries -= 1
             impl = implementations[impl_idx]
@@ -522,20 +522,26 @@ class TaskInstance(SymbolInstance, Task):
                 self.session.tracer.code_exit(self, args, kwargs, ret)
                 return ret
             except XGenerationError as e:
-                errors.append(e)
+                semantic_errors.append(e)
                 log.warning("task.failed", exc_info=e)
-                # retry with error info
-                implementations[impl_idx] = impl.copy().emit(XConsiderError(e))
+                if len(semantic_errors) <= self.session.inference_retries / len(implementations):
+                    # retry with error info a few times
+                    implementations[impl_idx] = impl.copy().emit(XConsiderError(e))
+                else:
+                    # fail over
+                    impl_idx = (impl_idx + 1) % len(implementations)
+                    semantic_errors = []
             except TimeoutError as e:
-                # fail over to next implementation
+                # fail over
                 logger.warning("task.failed", exc_info=e)
                 impl_idx = (impl_idx + 1) % len(implementations)
 
         # give up
-        e = RuntimeError(f"{self} failed after {retries} retries")
+        errors_repr = "\n".join(str(e) for e in semantic_errors) if semantic_errors else "<timeout>"
+        e = RuntimeError(f"{self} failed after {retries} retries: {errors_repr}")
         self.session.tracer.code_exception(self, args, kwargs, e)
-        if errors:
-            raise e from errors[-1]
+        if semantic_errors:
+            raise e from semantic_errors[-1]
         else:
             raise e
 
