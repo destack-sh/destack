@@ -12,6 +12,7 @@ import { useAppearance } from "@/state/appearance";
 import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -23,6 +24,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
+const module = useCurrentModule();
 const appearance = useAppearance();
 const actions = useActions();
 const editor = computed(() => props.editor.editor.value);
@@ -54,9 +56,9 @@ const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) 
 const isDeleted = computed(() => fileHeader.value?.deletedAt != null);
 const isOtherVersion = computed(
   () =>
-    bench.currentProjectVersionId != null &&
+    bench.projectVersionId != null &&
     fileHeader.value != null &&
-    fileHeader.value?.projectVersion?.id != bench.currentProjectVersionId
+    fileHeader.value?.projectVersion?.id != bench.projectVersionId
 );
 const statements = computed(() => {
   return (
@@ -101,7 +103,10 @@ syncProperty({
 });
 
 // sync name/path into editor
-watch(name, () => ((editor.value.name = name.value ?? ""), (editor.value.path = name.value ?? "")));
+watch(name, () => {
+  if (fileHeader.value == null || module.idx.value == null) return;
+  editor.value.updatePath(fileHeader.value, module.idx.value);
+});
 
 // auto-focus name once loaded and if contents are empty
 watch(
@@ -243,7 +248,7 @@ const statementAddAreaPositionX = computed(() => {
 <template>
   <!-- File container -->
   <!-- Only files have a white background :FileBackground -->
-  <div class="overflow-x-hidden bg-white">
+  <div class="relative overflow-x-hidden bg-white">
     <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
     <!-- (bottom padding is in last StatementAddArea) -->

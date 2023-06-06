@@ -77,10 +77,10 @@ const versions = computed(() => {
   return ordered;
 });
 const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
-const isAtHead = computed(() => bench.currentProjectVersionId == head.value?.id);
+const isAtHead = computed(() => bench.projectVersionId == head.value?.id);
 
 function isCurrent(version: { id: string }): boolean {
-  return bench.currentProjectVersionId == version.id;
+  return bench.projectVersionId == version.id;
 }
 
 function isHead(version: { id: string }): boolean {
@@ -109,7 +109,7 @@ const commit = provideGlobalAction({
   enabled: computed(
     () =>
       props.project.canWrite &&
-      bench.currentProjectVersionId != null &&
+      bench.projectVersionId != null &&
       !ops.state.hasInflightLike({ types: ["version.commit"] }) &&
       !committing.value
   ),
@@ -148,11 +148,11 @@ provideGlobalAction({
   enabled: computed(
     () =>
       props.project.canWrite &&
-      bench.currentProjectVersionId != null &&
+      bench.projectVersionId != null &&
       !ops.state.hasInflightLike({ types: ["version.commit"] })
   ),
   apply: async () => {
-    await doCommit({ projectVersionId: bench.currentProjectVersionId as string });
+    await doCommit({ projectVersionId: bench.projectVersionId as string });
   },
 });
 
@@ -163,7 +163,7 @@ const restore = provideGlobalAction({
   enabled: computed(() => props.project.canWrite && !isAtHead.value),
   apply: async () => {
     ops.state.reset();
-    const ret = await ops.version.restore(bench.currentProjectVersionId as string);
+    const ret = await ops.version.restore(bench.projectVersionId as string);
     if (ret?.data?.restore.__typename == "CommitPayload") {
       notifications.show({
         type: "restore.success",

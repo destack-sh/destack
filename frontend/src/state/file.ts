@@ -774,11 +774,11 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       const newRecordId = newRecordIds[i];
       const file = files[i];
       const orderKey = orderKeys[i];
-      const remoteObject = await ops.object.prepareUpload(bench.currentProjectId as string, file);
+      const remoteObject = await ops.object.prepareUpload(bench.projectId as string, file);
       const data = { [key]: remoteObject };
       ops.symbol.createRecord(tx, newRecordId, as ?? statement.value?.id, orderKey, data);
       uploads.push(
-        objects.upload(bench.currentProjectId as string, file, (updatedObject) => {
+        objects.upload(bench.projectId as string, file, (updatedObject) => {
           const newData = { ...data, [key]: updatedObject };
           ops.symbol.updateRecord(tx, newRecordId, data, newData);
         })

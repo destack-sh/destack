@@ -17,6 +17,7 @@ import {
   type EditorAppearance,
   type Theme,
 } from "@/state/appearance";
+import type { ModuleIndex } from "@/state/module";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -36,7 +37,7 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "directory" | "generated"
+  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "directory"
 >;
 export type StatementHeader = Pick<
   Statement,
@@ -50,7 +51,6 @@ export type StatementHeader = Pick<
   | "updatedAt"
   | "deletedAt"
   | "orderKey"
-  | "generated"
   | "commented"
   | "parent"
   | "reference"
@@ -59,6 +59,13 @@ export type StatementHeader = Pick<
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
 export type EditorType = "file" | "statement" | "terminal";
+
+const BENCH_STATE_VERSION = 2;
+
+export function prettifySlug(path: string) {
+  // replace non-URL friendly characters with dashes
+  return path.replace(/[^a-zA-Z0-9-_./@:]/g, "-");
+}
 
 // note that editor state should be JSON serializable (except below)
 const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
@@ -79,6 +86,10 @@ export abstract class Editor {
     this.id = id;
     this.path = path;
     this.groupId = groupId;
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Editor | null {
+    throw new Error("not implemented");
   }
 
   get hasWhiteBackground() {
@@ -201,9 +212,10 @@ function makeEditorGroup(id: string, name: string): EditorGroup {
 export const useBenchState = defineStore("bench", {
   state: () => {
     return {
-      // bench state
-      currentProjectId: null as string | null,
-      currentProjectVersionId: null as string | null,
+      version: BENCH_STATE_VERSION,
+      // bench
+      projectId: null as string | null,
+      projectVersionId: null as string | null,
       readonly: false,
       // views
       activeViewId: "explorer" as ViewId,
@@ -280,8 +292,8 @@ export const useBenchState = defineStore("bench", {
   actions: {
     setProject(projectId: string, versionId: string): void {
       this.$reset();
-      this.currentProjectId = projectId;
-      this.currentProjectVersionId = versionId;
+      this.projectId = projectId;
+      this.projectVersionId = versionId;
     },
 
     // views
@@ -503,7 +515,7 @@ export const useBenchState = defineStore("bench", {
           this.closeEditor(editor);
         }
       }
-      this.currentProjectVersionId = versionId;
+      this.projectVersionId = versionId;
     },
   },
 });
@@ -535,7 +547,16 @@ function benchStateToJson(bench: ReturnType<typeof useBenchState>): string {
 }
 
 function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: string) {
+  bench.$reset();
+  bench.version = -1;
   bench.$patch(JSON.parse(state));
+  // version check
+  // TODO @Robustness: improve Bench state versioning
+  if (bench.version != BENCH_STATE_VERSION) {
+    const version = bench.version;
+    bench.$reset(); // reset to initial state
+    throw new Error(`Bench state version mismatch (${version} != ${BENCH_STATE_VERSION})`);
+  }
   // instantiate editors
   for (const group of bench.groups) {
     group.editors = group.editors.map((e) => instantiate(e, bench));
@@ -546,34 +567,37 @@ export function useBenchPersistence(intervalMs = 1000) {
   const bench = useBenchState();
 
   function save(projectId?: string) {
-    if (projectId != null && bench.currentProjectId != projectId) {
-      throw new Error(
-        `cannot save editor state for project ${projectId} (current project is ${bench.currentProjectId})`
-      );
+    if (bench.projectId == null) return;
+    if (projectId != null && bench.projectId != projectId) {
+      throw new Error(`cannot save editor state for project ${projectId} (current project is ${bench.projectId})`);
     }
-    if (bench.currentProjectId == null) return;
-    localStorage.setItem(`bench-state-${bench.currentProjectId}`, benchStateToJson(bench));
+    localStorage.setItem(`bench-state-${bench.projectId}`, benchStateToJson(bench));
   }
 
-  function load(projectId: string) {
-    if (bench.currentProjectId != projectId) {
-      bench.currentProjectId = projectId;
-      bench.currentProjectVersionId = null;
+  function load(projectId: string): boolean {
+    if (bench.projectId != projectId) {
+      bench.projectId = projectId;
+      bench.projectVersionId = null;
     }
-    const state = localStorage.getItem(`bench-state-${bench.currentProjectId}`);
+    const state = localStorage.getItem(`bench-state-${projectId}`);
     if (state) {
       try {
         benchInitFromJson(bench, state);
-        console.log(`restored bench state for project ${bench.currentProjectId}`);
+        console.log(`restored bench state for project ${projectId}`);
+        return true;
       } catch (e) {
-        console.error(`failed to restore bench state for project ${bench.currentProjectId}`);
+        console.error(`unable to restore bench state for project ${projectId}`, e);
       }
     }
+    return false;
   }
 
   // save every interval
   const interval = setInterval(save, intervalMs);
-  onBeforeUnmount(() => clearInterval(interval));
+  onBeforeUnmount(() => {
+    save();
+    clearInterval(interval);
+  });
 
   return { save, load };
 }
@@ -852,6 +876,19 @@ export class FileEditor extends NavigableEditor {
     super("file", file.id + "-" + Math.random().toString(16).substring(2, 8), file.path, file.path, null);
     this.fileId = file.id;
   }
+
+  updatePath(fileHeader: { id: string }, module: ModuleIndex) {
+    const file = module.filesById[fileHeader.id];
+    if (file == null) return;
+    this.name = file.name;
+    this.path = file.path;
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Editor | null {
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == path);
+    if (matchingFile == null) return null;
+    return new FileEditor(matchingFile);
+  }
 }
 
 export class StatementEditor extends NavigableEditor {
@@ -868,6 +905,25 @@ export class StatementEditor extends NavigableEditor {
     );
     this.statementId = statement.id;
   }
+
+  updatePath(statementHeader: { id: string }, module: ModuleIndex) {
+    const statement = module.statementsById[statementHeader.id];
+    const file = module.filesById[statement?.file.id ?? ""];
+    if (statement == null || file == null) return;
+    this.name = statement.name ?? "";
+    this.path = `${file.path}:${statement.name ?? ""}`;
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Editor | null {
+    const [filePath, statementName] = path.split(":");
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == filePath);
+    if (matchingFile == null) return null;
+    const matchingStatement = module.statementsByFileId[matchingFile.id].find(
+      (s) => prettifySlug(s.name ?? "") == statementName
+    );
+    if (matchingStatement == null) return null;
+    return new StatementEditor(matchingStatement);
+  }
 }
 
 export class TerminalEditor extends Editor {
@@ -879,19 +935,38 @@ export class TerminalEditor extends Editor {
   lastExecutionTerminatedAt?: string;
   lastExecutionId?: string;
 
-  constructor(symbol: { id: string; name?: string | null; __typename?: string }) {
+  constructor(statement: { id: string; name?: string | null; __typename?: string }) {
     super(
       "terminal",
-      symbol.id + "-" + Math.random().toString(16).substring(2, 8),
-      symbol.name ?? "",
-      symbol.name ?? ""
+      statement.id + "-" + Math.random().toString(16).substring(2, 8),
+      statement.name ?? "",
+      statement.name ?? ""
     );
-    this.statementId = symbol.id;
-    if (symbol.__typename == "Task") {
+    this.statementId = statement.id;
+    if (statement.__typename == "Task") {
       this.statementType = SymbolType.Task;
-    } else if (symbol.__typename == "Code") {
+    } else if (statement.__typename == "Code") {
       this.statementType = SymbolType.Code;
     }
+  }
+
+  updatePath(statementHeader: { id: string }, module: ModuleIndex) {
+    const statement = module.statementsById[statementHeader.id];
+    const file = module.filesById[statement?.file?.id ?? ""];
+    if (statement == null || file == null) return;
+    this.name = statement.name ?? "";
+    this.path = `${file.path}:${statement.name ?? ""}@${this.type}`;
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Editor | null {
+    const [filePath, statementName] = path.split(":");
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == filePath);
+    if (matchingFile == null) return null;
+    const matchingStatement = module.statementsByFileId[matchingFile.id].find(
+      (s) => prettifySlug(s.name ?? "") == statementName
+    );
+    if (matchingStatement == null) return null;
+    return new TerminalEditor(matchingStatement);
   }
 
   get hasWhiteBackground() {
@@ -903,7 +978,7 @@ export class TerminalEditor extends Editor {
   }
 }
 
-const EDITOR_INSTANCES: Record<EditorType, any> = {
+export const EDITOR_INSTANCE_TYPES: Record<EditorType, typeof Editor> = {
   file: FileEditor,
   statement: StatementEditor,
   terminal: TerminalEditor,
@@ -911,7 +986,7 @@ const EDITOR_INSTANCES: Record<EditorType, any> = {
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {
   const type = editorData.type;
-  const EditorClass = EDITOR_INSTANCES[type as EditorType];
+  const EditorClass = EDITOR_INSTANCE_TYPES[type as EditorType];
   if (EditorClass == null) {
     throw new Error(`unknown editor type ${type}`);
   }

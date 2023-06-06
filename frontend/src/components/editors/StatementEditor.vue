@@ -56,8 +56,7 @@ watch(
   () => [statement.value?.name, statement.value == null || module.fileOf(statement.value)],
   () => {
     if (statement.value != null && module.fileOf(statement.value) != null) {
-      editor.value.path = module.fileOf(statement.value)!.path + ":" + statement.value.name;
-      editor.value.name = statement.value.name ?? "";
+      editor.value.updatePath(statement.value, module.idx.value);
     }
   }
 );

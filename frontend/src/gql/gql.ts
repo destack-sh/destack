@@ -47,7 +47,7 @@ const documents = {
     types.CheckOwnerBySlugDocument,
   "\n    query projectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        ...ProjectHeader\n      }\n    }\n  ":
     types.ProjectBySlugDocument,
-  "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              ...FileHeader\n            }\n          }\n        }\n      }\n    }\n  ":
+  "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n      }\n    }\n  ":
     types.ProjectVersionContentDocument,
   "\n    query existingProjectBySlug($owner: String!, $project: String!) {\n      projectBySlug(owner: $owner, project: $project) {\n        id\n        slug\n      }\n    }\n  ":
     types.ExistingProjectBySlugDocument,
@@ -97,7 +97,7 @@ const documents = {
     types.IssueContentFragmentDoc,
   "\n  fragment InterpDataContent on InterpData {\n    scope\n    fileId\n    statementId\n    issues {\n      ...IssueContent\n    }\n    resolvedFields {\n      ...FieldContent\n    }\n  }\n":
     types.InterpDataContentFragmentDoc,
-  "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n":
+  "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n":
     types.InterpFileFragmentDoc,
   "\n  fragment InterpStatement on Statement {\n    id\n    type\n    symbolType\n    name\n    modifier\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    file {\n      id\n    }\n    parent {\n      id\n    }\n    orderKey\n    reference {\n      id\n    }\n    referenceProjectVersion {\n      id\n    }\n    rootTypeTag\n    rootTypeFlags\n    fields(filters: { isVisible: true }) {\n      ...FieldContent\n    }\n  }\n":
     types.InterpStatementFragmentDoc,
@@ -361,8 +361,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              ...FileHeader\n            }\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n        files(filters: { isVisible: true }) {\n          totalCount\n          edges {\n            node {\n              id\n              ...FileHeader\n            }\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n      }\n    }\n  "
+): typeof documents["\n    query projectVersionContent($id: GlobalID!) {\n      projectVersion(id: $id) {\n        id\n        id\n        name\n        tag\n        description\n        createdAt\n        committed\n        committedAt\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -511,8 +511,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"
-): typeof documents["\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"];
+  source: "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"
+): typeof documents["\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

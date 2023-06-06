@@ -209,6 +209,7 @@ export const InterpFileType = graphql(/* GraphQL */ `
     revision
     name
     path
+    directory
     parent {
       id
     }

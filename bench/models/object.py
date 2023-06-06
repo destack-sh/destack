@@ -3,7 +3,6 @@ import urllib
 import urllib.parse
 from functools import cache
 from typing import Optional
-from uuid import UUID
 
 import structlog
 from django.db import models
@@ -110,6 +109,8 @@ class RemoteObject(UUIDModel):
 
     def delete(self, *args, **kwargs):
         if self.status == RemoteObjectStatus.AVAILABLE:
+            from bench.models.project import get_project_bucket_name
+
             try:
                 s3_client = get_s3_client()
                 s3_client.delete_object(
@@ -135,6 +136,8 @@ class RemoteObject(UUIDModel):
             return None
 
     def generate_presigned_post(self) -> str:
+        from bench.models.project import get_project_bucket_name
+
         if self.presigned_post is not None:
             return self.presigned_post
         s3_client = get_s3_client()
@@ -154,6 +157,8 @@ class RemoteObject(UUIDModel):
 
     def generate_presigned_get(self) -> str:
         """Generate a presigned get url for this object."""
+        from bench.models.project import get_project_bucket_name
+
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"cannot generate presigned get for {self} with status {self.status}")
         s3_client = get_s3_client()
@@ -174,26 +179,6 @@ class RemoteObject(UUIDModel):
                 fields=["project", "sha512"], name="bench_remoteobject_sha512_ak"
             )
         ]
-
-
-def get_project_bucket_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}"
-
-
-def get_project_search_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-search"
-
-
-def get_project_datasets_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-datasets"
-
-
-def get_project_executions_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-executions"
-
-
-def get_project_logs_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-logs"
 
 
 @cache

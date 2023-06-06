@@ -352,7 +352,12 @@ class ProjectVersionMutation:
 
         # update previous head's target ref mappings to point to snapshot's refs
         new_refmaps_by_target_id = {refmap.target_id: refmap for refmap in new_refmaps}
+        deleted_refmaps_ids = []
         for refmap in old_refmaps:
+            if refmap.target_id not in new_refmaps_by_target_id:
+                # we don't copy (soft) deleted objects, so the refmap cannot be updated
+                deleted_refmaps_ids.append(refmap.id)
+                continue
             new_refmap = new_refmaps_by_target_id[refmap.target_id]
             refmap.target_version_id = snapshot.id
             refmap.target_id = new_refmap.source_id
@@ -360,6 +365,7 @@ class ProjectVersionMutation:
         models.RefMapping.objects.bulk_update(
             old_refmaps, ["target_version_id", "target_id", "target_revision"]
         )
+        models.RefMapping.objects.filter(id__in=deleted_refmaps_ids).delete()
 
         # publish
         origin = get_client_origin_from_info(info)

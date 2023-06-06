@@ -31,11 +31,11 @@ const { result: suggestedFiles } = useQuery(
     }
   `),
   computed(() => ({
-    projectVersionId: bench.currentProjectVersionId,
+    projectVersionId: bench.projectVersionId,
     last: 8,
   })) as any,
   {
-    enabled: computed(() => !!bench.currentProjectVersionId),
+    enabled: computed(() => !!bench.projectVersionId),
   }
 );
 const files = computed(() =>

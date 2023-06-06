@@ -1,21 +1,23 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useBenchState, type FileHeader, type ViewId } from "@/state/bench";
+import { useCurrentModule } from "@/state/module";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
-const props = defineProps<{
-  files?: FileHeader[];
-}>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
 }>();
 
 const bench = useBenchState();
+const module = useCurrentModule();
 
 const filesSorted = computed(() => {
-  const files = props.files?.filter((f) => f.deletedAt == null && !f.directory && !f.generated) ?? [];
+  if (module.idx.value == null) {
+    return [];
+  }
+  const files = Object.values(module.idx.value.filesById)?.filter((f) => f.deletedAt == null && !f.directory);
   return files.sort((a, b) => {
     return a.path.localeCompare(b.path);
   });
@@ -48,7 +50,7 @@ function focus(target?: "first" | "last") {
   // focus currently focused file if nothing was directly selected (and thus focused)
   if (!target && focusedFileId.value && !listRefFocused.value) {
     nextTick(() => filesGrid.focus(focusedFileId.value, "name"));
-  } else if (!listRefFocused.value && (props.files?.length ?? 0) > 0) {
+  } else if (!listRefFocused.value && (filesSorted.value.length ?? 0) > 0) {
     nextTick(() => filesGrid.focus(target == "first" ? 0 : -1, "name"));
   }
 }
@@ -77,7 +79,6 @@ defineExpose({
       :class="{
         'bg-orange-100 text-orange-600': file.id == bench?.focusedFileId,
         'text-gray-700 hover:text-orange-600': file.id != bench?.focusedFileId,
-        'border-l-2 border-l-gray-300 pl-2.5': file.generated && file.id != bench?.focusedFileId,
       }"
       @click="focusFile(file)"
       @keydown.enter.exact.prevent="focusFileAndGoThere(file)"

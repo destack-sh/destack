@@ -13,7 +13,7 @@ from django.db.models import Q
 from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
-from bench.models.object import get_project_bucket_name, get_s3_client
+from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched
 from bench.settings import LOCAL
@@ -201,6 +201,26 @@ class Project(UUIDModel):
                 check=models.Q(organization__isnull=False) | models.Q(user__isnull=False),
             ),
         ]
+
+
+def get_project_bucket_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}"
+
+
+def get_project_search_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-module"
+
+
+def get_project_datasets_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-datasets"
+
+
+def get_project_executions_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-sessions"
+
+
+def get_project_logs_index_name(project_id: UUID) -> str:
+    return f"bench-user-{project_id}-logs"
 
 
 def create_project_s3_bucket(project: Project):

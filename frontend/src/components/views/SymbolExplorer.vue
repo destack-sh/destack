@@ -26,7 +26,7 @@ const orderedStatements = computed(() => {
   if (bench.focusedFileId == null) {
     return undefined;
   }
-  const statements = Object.values(runtime.moduleIndex.value?.statementsById ?? {}).filter(
+  const statements = Object.values(runtime.idx.value?.statementsById ?? {}).filter(
     (s) =>
       s.file.id == bench.focusedFileId && (s.type == StatementType.Definition || s.type == StatementType.Redefinition)
   );

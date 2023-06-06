@@ -42,8 +42,8 @@ const now = useTimeFromNow();
 const bench = useBenchState();
 const executions = useExecutions(
   {
-    projectId: toRef(bench, "currentProjectId"),
-    projectVersionId: toRef(bench, "currentProjectVersionId"),
+    projectId: toRef(bench, "projectId"),
+    projectVersionId: toRef(bench, "projectVersionId"),
     runnableIds: ref([context.statement.value.id]),
     includeAncestorVersions: ref(false),
   },

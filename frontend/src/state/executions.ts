@@ -171,8 +171,8 @@ export function useExecutions(
 
 function _useModuleExecutions() {
   const bench = useBenchState();
-  const projectId = computed(() => bench.currentProjectId);
-  const projectVersionId = computed(() => bench.currentProjectVersionId);
+  const projectId = computed(() => bench.projectId);
+  const projectVersionId = computed(() => bench.projectVersionId);
   return useExecutions(
     {
       projectId,

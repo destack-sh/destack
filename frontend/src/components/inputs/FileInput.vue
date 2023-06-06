@@ -52,7 +52,7 @@ function onDrop(files: File[] | { type: string; id: string } | null) {
 }
 
 async function doUpload(file: File | null) {
-  if (file == null || bench.currentProjectId == null) return;
+  if (file == null || bench.projectId == null) return;
   ongoingUploads.value++;
   function onUpdate(val: ObjectRecord | null) {
     if (val == null) return;
@@ -71,7 +71,7 @@ async function doUpload(file: File | null) {
       }
     }
   }
-  await objects.upload(bench.currentProjectId, file, onUpdate);
+  await objects.upload(bench.projectId, file, onUpdate);
   ongoingUploads.value--;
 }
 
