@@ -381,7 +381,10 @@ class ModuleMutator:
         return MutationBundle(self.mutations)
 
     def apply(self) -> ModuleData:
-        """Apply (simple!)  mutations to a copy of the module and return the mutated data."""
+        """
+        Apply (simple!)  mutations to a copy of the module and return the mutated data.
+        TODO @Broken: mutations should consider ordering :OrderedMutations
+        """
         if self.module is None:
             raise ValueError("cannot apply mutations without a module")
         mut = MutationBundle(self.mutations)

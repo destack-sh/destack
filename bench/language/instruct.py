@@ -12,7 +12,7 @@ from bench.language import ModuleIndex
 from bench.language.type import (
     Build,
     Code,
-    Data,
+    Dataset,
     Expectation,
     Field,
     InterpSymbol,
@@ -31,7 +31,7 @@ from bench.utils.fractional import generate_n_keys_between
 
 logger = structlog.get_logger(__name__)
 
-Expect = Union[Task, Code, Data, Expectation]
+Expect = Union[Task, Code, Dataset, Expectation]
 
 
 # TODO @Architecture: merge instruction ops & nodes into lang/parse? :InstructionOps
@@ -50,7 +50,6 @@ class InstructionOp(enum.StrEnum):
     TaskStep = "task_step"
     ExpectationDefinition = "expectation_definition"
     DataDefinition = "data_definition"
-    RecordDefinition = "record_definition"
     CodeDefinition = "code_definition"
     ModelDefinition = "model_definition"
     SampleData = "sample_data"
@@ -171,7 +170,7 @@ def map_instruction(
             op = InstructionOp.TaskDefinition
         elif node.symbol_type == SymbolType.EXPECTATION:
             op = InstructionOp.ExpectationDefinition
-        elif node.symbol_type == SymbolType.DATA:
+        elif node.symbol_type == SymbolType.DATASET:
             if node.modifier in (StatementModifier.LIKE, StatementModifier.UNLIKE):
                 op = InstructionOp.SampleData
             else:
@@ -201,14 +200,6 @@ def map_instruction(
             _map_child(task, tree)
         for model in node.models:
             _map_child(model, tree)
-
-    if isinstance(node, Data):
-        for record in node.records:
-            # this will have to change later, see :NaiveTreeTracking
-            tree.nodes[record.id] = Instruction(
-                op=InstructionOp.RecordDefinition, node=record, id=record.id
-            )
-            instruction.children.append(tree.nodes[record.id])
 
     # track types and their sub-symbols
     if isinstance(node, TypeContent):
@@ -266,10 +257,10 @@ def source(func):
     return dataclass(repr=False, slots=True)(func)
 
 
-def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
+def anonymous_dataset(type: Type, n_records: int = 0) -> Dataset:
     order_keys = generate_n_keys_between(None, None, n_records)
     records = [Record(order_key=order_key, data={}) for order_key in order_keys]
-    return Data(
+    return Dataset(
         name="",
         tag=type.tag,
         fields=type.fields,
@@ -281,7 +272,7 @@ def anonymous_dataset(type: Type, n_records: int = 0) -> Data:
 
 @source
 class SampleSource:
-    def __call__(self) -> Data:
+    def __call__(self) -> Dataset:
         raise NotImplementedError
 
 
@@ -289,11 +280,11 @@ class SampleSource:
 class SampleDatasetRandom(SampleSource):
     """Samples the given dataset"""
 
-    source_dataset: Data
+    source_dataset: Dataset
     count: int
     seed: int
 
-    def __call__(self) -> Data:
+    def __call__(self) -> Dataset:
         rng = random.Random(self.seed)
         target_dataset = anonymous_dataset(self.source_dataset.type, self.count)
         n_records = len(self.source_dataset.records)
@@ -315,7 +306,7 @@ class SampleFabricateRandom(SampleSource):
     type: Type
     count: int
 
-    def __call__(self) -> Data:
+    def __call__(self) -> Dataset:
         target_dataset = anonymous_dataset(self.type, self.count)
         for i in range(self.count):
             target_dataset.records[i].data = fabricate_value(self.type)

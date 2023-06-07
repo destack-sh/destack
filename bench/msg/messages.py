@@ -249,6 +249,7 @@ class ExecutionSavedPayload(BatchablePayload):
 @payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
     module_id: UUID
+    dataset_records_limit: int
 
 
 @payload(NMessageType.REPLY_READ_MODULE)

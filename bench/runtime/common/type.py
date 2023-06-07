@@ -16,6 +16,8 @@ from bench.utils.utils import to_pyidentifier_multi
 if TYPE_CHECKING:
     from bench.runtime.worker.instance import CodeInstance, Session
 
+DATASET_RECORDS_IN_MEMORY_LIMIT = 512
+
 
 @dataclass(slots=True)
 class ExecutionFrame:

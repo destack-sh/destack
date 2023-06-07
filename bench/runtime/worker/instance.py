@@ -25,7 +25,7 @@ from bench import language
 from bench.language import (
     Build,
     Code,
-    Data,
+    Dataset,
     Model,
     ModuleIndex,
     Record,
@@ -47,6 +47,7 @@ from bench.language.type import (
     TypeHint,
     TypeNode,
     TypeTag,
+    Value,
 )
 from bench.language.typer import map_rekey_enum, map_unkey_enum, map_value
 from bench.language.wire import ExecutionTriggerType
@@ -223,7 +224,7 @@ class Session:
         self, task: "TaskInstance", build: Build | str = None, model: Model | str = None
     ) -> list[XPrompt]:
         """Gets or builds an implementation for a task."""
-        from bench.runtime.build import build_task_implementation
+        from bench.runtime.worker.build import build_task_implementation
 
         build = build or "balanced"
         if model is not None:
@@ -345,7 +346,7 @@ class RecordInstanceMeta:
 
     type: TypeInstance
     session: Session
-    owner: typing.Union["ValueInstance", "TableInstance"]
+    owner: typing.Union["ValueInstance", "DatasetInstance"]
 
 
 @dataclass(repr=False)
@@ -386,7 +387,7 @@ class RecordInstance(Record):
 
 
 @dataclass(repr=False)
-class TableInstance(SymbolInstance, Data):
+class DatasetInstance(SymbolInstance, Dataset):
     meta: RecordInstanceMeta = field(init=False)
 
     def __post_init__(self):
@@ -440,7 +441,7 @@ class TableInstance(SymbolInstance, Data):
 
 
 @dataclass(repr=False)
-class ValueInstance(SymbolInstance, Data):
+class ValueInstance(SymbolInstance, Value):
     # imitate/proxy record instance
 
     meta: RecordInstanceMeta = field(init=False)
@@ -633,8 +634,8 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TaskInstance: SymbolType.TASK,
     SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
-    TableInstance: SymbolType.DATA,
-    ValueInstance: SymbolType.DATA,
+    DatasetInstance: SymbolType.DATASET,
+    ValueInstance: SymbolType.DATASET,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
     SyncCodeInstance: SymbolType.CODE,
@@ -968,14 +969,12 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
     return mapping.from_py_value(type, value)
 
 
-def _instantiate_data(dataset: Data, session: Session) -> TableInstance | ValueInstance:
+def _instantiate_dataset(dataset: Dataset, session: Session) -> DatasetInstance | ValueInstance:
     """Instrument and instantiate a data symbol."""
     dataset_kwargs = dict_minus(dataset.__dict__, ("records", "fields"))
     fields = _instantiate_fields(dataset, session)
-    if dataset.flags & TypeFlag.IsArray:
-        instance = TableInstance(**dataset_kwargs, fields=fields, records=[], session=session)
-    else:
-        instance = ValueInstance(**dataset_kwargs, fields=fields, records=[], session=session)
+    instance = DatasetInstance(**dataset_kwargs, fields=fields, records=[], session=session)
+    # nocheckin broken consider large datasets
     for raw_record in dataset.records:
         py_record_data = map_value(
             raw_record.data,
@@ -1112,8 +1111,8 @@ def instantiate(symbol: InterpSymbol, session: Session) -> SymbolInstance:
         return _instantiate_code(symbol, session)
     elif isinstance(symbol, Model):
         return _instantiate_model(symbol, session)
-    elif isinstance(symbol, Data):
-        return _instantiate_data(symbol, session)
+    elif isinstance(symbol, Dataset):
+        return _instantiate_dataset(symbol, session)
     elif isinstance(symbol, Type):
         return _instantiate_type(symbol, session)
     else:

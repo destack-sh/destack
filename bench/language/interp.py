@@ -18,14 +18,12 @@ from bench.language.parse import ABSOLUTE_IMPORT_SOURCE_REGEX, preparse
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
     SYMBOL_FIELDS_NAMES_BY_TYPE,
-    Build,
     Code,
     CodeContent,
-    Data,
+    Dataset,
     Expectation,
     File,
     InterpSymbol,
-    Model,
     Module,
     RequirementContent,
     SourceFile,
@@ -549,7 +547,7 @@ def index_module(
     if has_circular_ancestry:
         return idx  # bail
 
-    # create scopes for files and statements (but don't populate nested statements them yet)
+    # create scopes for files and statements (but don't populate nested statements yet)
     statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
     for file in module.files:
         idx.files[file.id] = file
@@ -727,12 +725,6 @@ def interp(
             # replace code references with symbols
             for key, reference in symbol.references.items():
                 symbol.context[key] = idx.symbols[reference.id]
-        if isinstance(symbol, Build):
-            for child in scope.proper_symbols:
-                if isinstance(child, Model):
-                    symbol.models.append(child)
-                elif isinstance(child, Task):
-                    symbol.tasks.append(child)
 
     inlined_node_ids: set[UUID] = set()
 
@@ -742,7 +734,7 @@ def interp(
             path = "->".join(str(n) for n in path + [node])
             _error(ET.CIRCULAR_UNION, node.source, path=path)
             return []
-        if not isinstance(node, (Type, Task, Code, Data)) or node.id in inlined_node_ids:
+        if not isinstance(node, (Type, Task, Code, Dataset)) or node.id in inlined_node_ids:
             return node.fields  # not a type or already inlined
         inlined_node_ids.add(node.id)
         if not any(n.flags & TypeFlag.IsUnionWith for n in node.fields):

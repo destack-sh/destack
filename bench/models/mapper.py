@@ -20,15 +20,8 @@ from bench import language, models
 from bench.language import wire
 from bench.language.interp import LookupBy, index_module
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
-from bench.language.type import StatementPath, StatementType, SymbolType, TypeFlag
-from bench.language.wire import (
-    FieldData,
-    FileData,
-    InterpData,
-    InterpScope,
-    RecordData,
-    StatementData,
-)
+from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.wire import FieldData, FileData, InterpData, InterpScope, StatementData
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
@@ -112,6 +105,7 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
 
 def read_module(
     project_v: ProjectVersion,
+    dataset_records_limit: int,
     exclude_non_semantic: bool = False,
     add_implicit_requirements: bool = True,
 ) -> wire.ModuleData:
@@ -230,7 +224,10 @@ def wmap_issue(issue: wire.IssueData, module_id: UUID):
 
 @transaction.atomic
 def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
-    """Writes mutations to the DB and Opensearch."""
+    """
+    Writes mutations to the DB and Opensearch.
+    TODO @Broken: mutations should consider ordering :OrderedMutations
+    """
 
     mut = MutationBundle(mutations)
 
@@ -318,11 +315,10 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
 
     # then process updates
 
-    # :WriteModuleUpdates
     if mut[MMT.UPDATE_STATEMENT]:
-        raise NotImplementedError(f"statement updates not implemented: {mut[MMT.UPDATE_STATEMENT]}")
+        raise NotImplementedError(mut[MMT.UPDATE_STATEMENT])
     if mut[MMT.UPDATE_FIELD]:
-        raise NotImplementedError(f"type node updates not implemented: {mut[MMT.UPDATE_FIELD]}")
+        raise NotImplementedError(mut[MMT.UPDATE_FIELD])
     if mut[MMT.UPDATE_INTERP]:
         # delete and re-create interp data
         file_ids = [m.file_id for m in mut[MMT.UPDATE_INTERP] if m.data.scope == InterpScope.FILE]
@@ -464,16 +460,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
     data.root_type_flags = statement.root_type_flags
     if not flat:
         data.fields = [rmap_field(node) for node in statement.fields.filter(deleted_at=None).all()]
-    if statement.symbol_type == SymbolType.DATA and not flat:
-        if (statement.root_type_flags or 0) & TypeFlag.IsArray:
-            data.records = [
-                rmap_record(record) for record in statement.records.filter(deleted_at=None)
-            ]
-        else:  # single value
-            data.records = []
-            record = statement.records.filter(deleted_at=None).order_by("order_key").first()
-            if record is not None:
-                data.records.append(rmap_record(record))
     if statement.symbol_type == SymbolType.REQUIREMENT:
         data.reference_module = wire.ModuleReference(
             name=statement.reference_project_version.project.path,
@@ -508,31 +494,8 @@ def wmap_symbol(
         if data.fields:
             fields = [wmap_field(statement.id, node) for node in data.fields]
             relations.extend(fields)
-        if data.records:
-            model_records = [wmap_record(statement.id, record) for record in data.records]
-            relations.extend(model_records)
 
     return relations
-
-
-def rmap_record(record: models.Record) -> RecordData:
-    return RecordData(
-        id=record.id,
-        statement_id=record.statement_id,
-        revision=record.revision,
-        order_key=record.order_key,
-        data=record.data,
-    )
-
-
-def wmap_record(statement_id: UUID, record: RecordData) -> models.Record:
-    return models.Record(
-        id=record.id,
-        statement_id=statement_id,
-        order_key=record.order_key,
-        revision=record.revision,
-        data=record.data,
-    )
 
 
 def rmap_field(node: models.Field) -> wire.FieldData:

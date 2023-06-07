@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import csv
-import io
 import json
 from collections import defaultdict
 from typing import Iterable, Optional, cast
@@ -15,9 +13,8 @@ from bench.language.lex import IDENTIFIER_REGEX, INLINE_LITERAL_REGEX, KEYWORDS,
 from bench.language.type import (
     PRIMITIVE_TYPES,
     BuildContent,
-    CapabilityContent,
     CodeContent,
-    DataContent,
+    DatasetContent,
     ExpectationContent,
     Field,
     RequirementContent,
@@ -89,11 +86,9 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
     elif statement.type == StmT.COMMENT:
         return render_comment(statement.text)
     elif statement.type == StmT.IMPORT:
-        alias_name = escape_identifier(statement.name)
-        alias_str = f" as {alias_name}" if statement.is_alias else ""
         reference_str = escape_identifier(get_reference_name(statement.reference))
         import_source = render_import_source(statement.reference, via=statement)
-        return f"import {statement.symbol_type} {reference_str}{alias_str} from {import_source}"
+        return f"import {statement.symbol_type} {reference_str} from {import_source}"
     elif statement.type == StmT.DEFINITION:
         modifier_str = f"{statement.modifier} " if statement.modifier else ""
         identifier_str = escape_identifier(statement.name)
@@ -118,8 +113,8 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
         elif statement.symbol_type == SymT.CODE:
             type_str = render_type_func(cast(CodeContent, statement.content), statement)
             postfix = f" :: {type_str}:"
-        elif statement.symbol_type == SymT.DATA:
-            content = cast(DataContent, statement.content)
+        elif statement.symbol_type == SymT.DATASET:
+            content = cast(DatasetContent, statement.content)
             nodes = content.self_fields or content.fields or []
             type_str = render_type_struct(nodes, statement)
             postfix = f" :: {type_str}:"
@@ -145,9 +140,7 @@ def render_statement(statement: Statement, include_content: bool = True) -> str:
 
 
 def render_symbol_content(content: SymbolContent, statement: Statement) -> Optional[str]:
-    if isinstance(content, CapabilityContent):
-        return render_description(content.description)
-    elif isinstance(content, TaskContent):
+    if isinstance(content, TaskContent):
         return render_description(content.description)
     elif isinstance(content, ExpectationContent):
         return render_description(content.description)
@@ -157,26 +150,10 @@ def render_symbol_content(content: SymbolContent, statement: Statement) -> Optio
             return f"{render_description(content.description)}\n{rendered_code}"
         else:
             return rendered_code
-    elif isinstance(content, DataContent):
+    elif isinstance(content, DatasetContent):
         records_data = [record.data for record in content.records]
-        if content.language == "jsonl":
-            records_as_jsonl = "\n".join(json.dumps(data) for data in records_data)
-            rendered_data = render_literal(records_as_jsonl, lang="jsonl")
-        elif content.language == "json":
-            rendered_data = render_literal(json.dumps(records_data), lang="json")
-        elif content.language == "csv":
-            field_names = [field.name for field in content.fields]
-            csv_output = io.StringIO()
-            csv_writer = csv.DictWriter(
-                csv_output,
-                quoting=csv.QUOTE_NONNUMERIC,
-                fieldnames=field_names,
-                lineterminator="\n",
-            )
-            csv_writer.writerows(records_data)
-            rendered_data = render_literal(csv_output.getvalue().strip(), lang="csv")
-        else:
-            raise ValueError(f"unexpected data language: {content.language}")
+        records_as_jsonl = "\n".join(json.dumps(data) for data in records_data)
+        rendered_data = render_literal(records_as_jsonl, lang="jsonl")
         if content.description is not None:
             return f"{render_description(content.description)}\n{rendered_data}"
         else:

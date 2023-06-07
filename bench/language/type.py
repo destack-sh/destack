@@ -163,7 +163,8 @@ class SymbolType(models.TextChoices):
     EXPECTATION = "expect"
     CODE = "code"
     MODEL = "model"
-    DATA = "data"
+    VALUE = "value"
+    DATASET = "dataset"
     REQUIREMENT = "require"
     BUILD = "build"
     BLOCK = "block"
@@ -417,7 +418,7 @@ class Statement(Generic[SymbolContentT]):
 
     @property
     def is_expectable_symbol(self) -> bool:
-        return self.symbol_type in (SymbolType.TASK, SymbolType.CODE, SymbolType.DATA)
+        return self.symbol_type in (SymbolType.TASK, SymbolType.CODE, SymbolType.DATASET)
 
     @property
     def is_expect(self) -> bool:
@@ -726,7 +727,7 @@ class TypeContent(SymbolContent, TypeNode):
 
 @dataclass(repr=False)
 class Type(InterpSymbol, TypeContent):
-    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
@@ -759,21 +760,6 @@ class Type(InterpSymbol, TypeContent):
 
 
 @dataclass(repr=False)
-class CapabilityContent(SymbolContent):
-    description: str
-
-    def __str__(self):
-        return f"({self.description})"
-
-
-@dataclass(repr=False)
-class Capability(InterpSymbol, CapabilityContent):
-    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
-    tasks: list[Task] = field(default_factory=list)
-    capabilities: list[Capability] = field(default_factory=list)
-
-
-@dataclass(repr=False)
 class ReactiveSettings:
     reactive: bool = False
 
@@ -786,7 +772,7 @@ class TaskContent(TypeContent, ReactiveSettings):
 
 @dataclass(repr=False)
 class Task(InterpSymbol, TaskContent):
-    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
 
     @property
@@ -812,7 +798,7 @@ class ExpectationContent(SymbolContent):
 
 @dataclass(repr=False)
 class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Data | Code] = field(default_factory=list)
+    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
 
 
 # :RemoteObjectType
@@ -894,28 +880,50 @@ RECORD_INSTANCE_FIELD_KEYS = {"_"}  # :RecordInstanceFieldKeys
 
 
 @dataclass(repr=False)
-class DataView:
-    pass
+class Query:
+    op: str
 
 
 @dataclass(repr=False)
-class DataContent(TypeContent):
-    language: Literal["csv"] | Literal["json"] | Literal["jsonl"] = "jsonl"
-    records: list[Record] = field(default_factory=list)
+class Sort:
+    key: str
+    order: str
+
+
+@dataclass(repr=False)
+class DatasetView:
+    name: str
+    query: Optional[Query]
+    sort: Optional[list[Sort]]
+    order_key: str
+
+
+@dataclass(repr=False)
+class DatasetContent(TypeContent, SymbolContent):
+    records: Optional[list[Record]] = None
+    length: Optional[int] = None
     description: Optional[str] = None
-
-    def __str__(self):
-        return f"({len(self.records)})"
-
-    def __len__(self) -> int:
-        return len(self.records)
+    views: Optional[list[DatasetView]] = None
 
 
 @dataclass(repr=False)
-class Data(InterpSymbol, DataContent):
+class Dataset(InterpSymbol, DatasetContent):
     @property
     def type(self) -> TypeContent:
         return self
+
+
+@dataclass(repr=False)
+class ValueContent(SymbolContent):
+    value: Any
+
+    def __str__(self):
+        return f"{self.value}"
+
+
+@dataclass(repr=False)
+class Value(InterpSymbol, ValueContent):
+    pass
 
 
 @dataclass(repr=False)
@@ -1043,10 +1051,7 @@ class Requirement(InterpSymbol, RequirementContent):
 
 @dataclass(repr=False)
 class BuildContent(SymbolContent):
-    comment: Optional[str] = None  # like description but non-semantic
-
-    def __str__(self):
-        return ""
+    pass
 
 
 @dataclass(repr=False)
@@ -1067,10 +1072,10 @@ class Block(InterpSymbol, BlockContent):
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.TYPE: Type,
-    SymbolType.CAPABILITY: Capability,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
-    SymbolType.DATA: Data,
+    SymbolType.DATASET: Dataset,
+    SymbolType.VALUE: Value,
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,
@@ -1090,14 +1095,14 @@ EMPTY_STRUCT_TYPE = TypeContent(name=None, tag=TypeTag.STRUCT)
 
 
 def make_func_type(
-    input_types: list[TypeNode], output_types: list[TypeNode], name: str = None
+    inputs: list[TypeNode], outputs: list[TypeNode], name: str = None
 ) -> TypeContent:
     """Create a function type from input and output types."""
 
     return TypeContent(
         name=name,
         tag=TypeTag.FUNCTION,
-        children=[*input_types, *output_types],
+        children=[*inputs, *outputs],
     )
 
 

@@ -229,12 +229,12 @@ type GithubRepository:
 type GithubThing:
 - github_id: string
 
-data connections :: (name: string?) & GithubConnection:
+dataset connections :: (name: string?) & GithubConnection:
 ```jsonl
 {}
 ```
 
-data repositories :: GithubRepository:
+dataset repositories :: GithubRepository:
 ```jsonl
 {}
 ```

@@ -57,7 +57,7 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.common.type import ExecutionFrameData
+from bench.runtime.common.type import DATASET_RECORDS_IN_MEMORY_LIMIT, ExecutionFrameData
 from bench.runtime.server.mutate import map_mutation_to_public
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -77,19 +77,24 @@ WORKER_HEARTBEAT_TIMEOUT = 30
 class ModuleDB:
     def __init__(self, cache_committed: bool = True):
         self.cache_committed = cache_committed
-        self._cached_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
+        self._cached_modules: dict[(UUID, int), tuple[wire.ModuleData, UUID]] = {}
 
-    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
-        if module_id in self._cached_modules:
-            return self._cached_modules[module_id]
+    async def get_module(
+        self, module_id: UUID, dataset_records_limit: int
+    ) -> tuple[wire.ModuleData, UUID]:
+        cache_key = (module_id, dataset_records_limit)
+        if cache_key in self._cached_modules:
+            return self._cached_modules[cache_key]
         project_version = await ProjectVersion.objects.aget(id=module_id)
-        module = await sync_to_async(read_module)(project_version, exclude_non_semantic=False)
+        module = await sync_to_async(read_module)(
+            project_version, dataset_records_limit=dataset_records_limit, exclude_non_semantic=False
+        )
         if self.cache_committed and project_version.committed:
-            self._cached_modules[module_id] = module, project_version.id
+            self._cached_modules[cache_key] = module, project_version.id
         return module, project_version.project_id
 
-    async def fetch(self, module_id: UUID) -> wire.ModuleData:
-        return (await self.get_module(module_id))[0]
+    async def fetch(self, module_id: UUID, dataset_records_limit: int) -> wire.ModuleData:
+        return (await self.get_module(module_id, dataset_records_limit))[0]
 
 
 class LanguageServer:
@@ -507,7 +512,7 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source = await self.fetcher(self.module_id)
+        source = await self.fetcher(self.module_id, DATASET_RECORDS_IN_MEMORY_LIMIT)
         await self.do_interp(source)
         self.ready.set()
 
