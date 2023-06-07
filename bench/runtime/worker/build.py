@@ -12,6 +12,13 @@ from uuid import UUID
 
 import structlog
 
+from bench.language.instruct import (
+    InstructionOp,
+    SampleDatasetRandom,
+    SampleSource,
+    fabricate_value,
+    instruction_tree_from_symbol,
+)
 from bench.language.reconstruct import render_statement
 from bench.language.type import (
     Build,
@@ -28,22 +35,15 @@ from bench.language.type import (
     XSource,
 )
 from bench.language.typer import check_type, map_value
-from bench.runtime.inference import SETTINGS_CLS_BY_MODALITY, Modality
-from bench.runtime.instruct import (
-    InstructionOp,
-    SampleDatasetRandom,
-    SampleSource,
-    fabricate_value,
-    instruction_tree_from_symbol,
-)
-from bench.runtime.models import TextGenerationSettings
+from bench.runtime.common.inference import SETTINGS_CLS_BY_MODALITY, Modality
+from bench.runtime.common.models import TextGenerationSettings
 from bench.utils.utils import DotDict
 
 logger = structlog.get_logger(__name__)
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.instance import ModelInstance, Session, TaskInstance, TypeInstance
-    from bench.runtime.interp import InterpModule
+    from bench.runtime.common.interp import InterpModule
+    from bench.runtime.worker.instance import ModelInstance, Session, TaskInstance, TypeInstance
 
 
 class XGenerationErrorType(enum.StrEnum):
@@ -388,7 +388,7 @@ class XOutputText(XEmit):
     path: str = ""
 
     def parse_output(self, output: str):
-        from bench.runtime.instance import instantiate_py_value_flat
+        from bench.runtime.worker.instance import instantiate_py_value_flat
 
         # escape/try to parse the output if needed (handles trivial model confusions)
         value = output.strip()

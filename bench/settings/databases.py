@@ -62,7 +62,7 @@ else:
 
 # Opensearch settings
 
-OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "https://localhost")
+OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "localhost")
 OPENSEARCH_PORT = get_from_env("OPENSEARCH_PORT", 9200, type_cast=int)
 OPENSEARCH_USERNAME = os.getenv("OPENSEARCH_USERNAME", "admin")
 OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD", "admin")

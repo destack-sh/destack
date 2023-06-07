@@ -30,7 +30,7 @@ from bench.language.wire import (
     StatementData,
 )
 from bench.models.project import Project, ProjectVersion
-from bench.runtime.type import ExecutionFrameData, RunErrorData
+from bench.runtime.common.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
 
 
@@ -110,7 +110,6 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
     wire_module.files.append(implicit_file)
 
 
-@transaction.atomic(savepoint=False)  # read-only
 def read_module(
     project_v: ProjectVersion,
     exclude_non_semantic: bool = False,

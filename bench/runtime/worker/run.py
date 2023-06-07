@@ -30,7 +30,9 @@ from bench.msg.messages import (
     RunErrorType,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.instance import (
+from bench.runtime.common.interp import InterpModule, LanguageInterpreter
+from bench.runtime.common.type import ExecutionFrame, ExecutionFrameData, WorkerTenancy
+from bench.runtime.worker.instance import (
     CodeInstance,
     Session,
     SessionContext,
@@ -39,9 +41,7 @@ from bench.runtime.instance import (
     TaskInstance,
     instantiate,
 )
-from bench.runtime.interp import InterpModule, LanguageInterpreter
-from bench.runtime.type import ExecutionFrame, ExecutionFrameData, WorkerTenancy
-from bench.runtime.unsecure import RunError, run
+from bench.runtime.worker.unsecure import RunError, run
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -153,7 +153,7 @@ class ModuleWorker:
         root_id = execution_id or UUIDT()
         # instantiate
         try:
-            from bench.runtime.build import get_default_builds
+            from bench.runtime.worker.build import get_default_builds
 
             builds = {b.name: b for b in get_default_builds(self.interp)}
             session_ctx = SessionContext(

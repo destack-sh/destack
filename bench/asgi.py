@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-import bench.runtime.unsecure
+import bench.runtime.worker.unsecure
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
 from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_LANGSERVER, RUN_WORKER, TEST
 from bench.utils.func import wrap_task
@@ -70,7 +70,7 @@ reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
 if RUN_LANGSERVER:
-    from bench.runtime.langserver import LanguageServer
+    from bench.runtime.server.langserver import LanguageServer
 
     server = LanguageServer()
     coro = server.run()
@@ -81,10 +81,10 @@ if RUN_LANGSERVER:
 if RUN_WORKER:
     if not DEBUG or TEST:
         raise RuntimeError("worker should be run via isolated runworker in prod")
-    from bench.runtime.worker import SandboxedWorker
+    from bench.runtime.worker.run import SandboxedWorker
 
     local_id = random.randint(0, 2**32)  # just some random number
-    bench.runtime.unsecure.ALLOW_UNTRUSTED_CODE = True
+    bench.runtime.worker.unsecure.ALLOW_UNTRUSTED_CODE = True
     worker = SandboxedWorker(worker_id=uuid4(), project_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))

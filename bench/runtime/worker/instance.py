@@ -58,11 +58,15 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
-from bench.runtime.build import XConsiderError, XGenerationError, XPrompt
-from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
-from bench.runtime.models import get_inference_endpoints_cls
-from bench.runtime.tracing import SessionTracer
-from bench.runtime.unsecure import do_execute_arbitrary_code
+from bench.runtime.common.inference import (
+    CachedInferenceEndpoint,
+    ModelInference,
+    RemoteInferenceEndpoint,
+)
+from bench.runtime.common.models import get_inference_endpoints_cls
+from bench.runtime.worker.build import XConsiderError, XGenerationError, XPrompt
+from bench.runtime.worker.tracing import SessionTracer
+from bench.runtime.worker.unsecure import do_execute_arbitrary_code
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.proxy import proxy_value, unproxy_value

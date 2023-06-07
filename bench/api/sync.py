@@ -21,7 +21,11 @@ from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
-from bench.runtime.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_public
+from bench.runtime.server.mutate import (
+    MutableThing,
+    input_to_gql_jsonable,
+    map_mutation_from_public,
+)
 from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)

@@ -43,32 +43,36 @@ class RecordCreateInput(gql.NodeInput):
 
 @gql.input
 class RecordUpdateInput(gql.NodeInput):
+    statement_id: GlobalID
     data: JSON
 
 
 @gql.input
 class RecordUpdatePathInput(gql.NodeInput):
+    statement_id: GlobalID
     path: str
     data: Optional[JSON] = None
 
 
 @gql.input
 class RecordMoveInput(gql.NodeInput):
+    statement_id: GlobalID
     order_key: str
 
 
 @gql.input
 class RecordDeleteInput(gql.NodeInput):
-    pass
+    statement_id: GlobalID
 
 
 @gql.input
 class RecordRestoreInput(gql.NodeInput):
-    pass
+    statement_id: GlobalID
 
 
 @gql.input
 class RecordBatchSoftDeleteInput(BatchMutationInput):
+    statement_id: GlobalID
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -77,6 +81,7 @@ class RecordBatchSoftDeleteInput(BatchMutationInput):
 
 @gql.input
 class RecordBatchRestoreInput(BatchMutationInput):
+    statement_id: GlobalID
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -85,7 +90,7 @@ class RecordBatchRestoreInput(BatchMutationInput):
 
 @gql.input
 class RecordTruncateInput(gql.NodeInput):
-    pass
+    statement_id: GlobalID
 
 
 @gql.type

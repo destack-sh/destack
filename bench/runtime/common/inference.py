@@ -20,7 +20,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.tracing import Tracer
+    from bench.runtime.worker.tracing import Tracer
 
 logger = structlog.get_logger(__name__)
 

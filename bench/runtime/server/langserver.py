@@ -43,22 +43,22 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.inference import (
+from bench.runtime.common.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
     get_inference_cache_key,
     run_inference,
 )
-from bench.runtime.interp import (
+from bench.runtime.common.interp import (
     InterpModule,
     LanguageInterpreter,
     ModuleFetcher,
     get_requirements,
     interp_module,
 )
-from bench.runtime.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.mutate import map_mutation_to_public
-from bench.runtime.type import ExecutionFrameData
+from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
+from bench.runtime.common.type import ExecutionFrameData
+from bench.runtime.server.mutate import map_mutation_to_public
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled

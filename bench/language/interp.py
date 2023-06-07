@@ -45,7 +45,7 @@ from bench.language.type import (
     deepcopy_types,
     parse_statement_path,
 )
-from bench.runtime.lsp import parse_code
+from bench.runtime.server.lsp import parse_code
 from bench.utils.func import dict_intersect
 
 logger = structlog.get_logger(__name__)

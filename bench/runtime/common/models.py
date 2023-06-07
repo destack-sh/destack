@@ -7,7 +7,7 @@ import PIL.Image
 import structlog
 
 from bench.language.type import Model, XBlock, XSource
-from bench.runtime.inference import (
+from bench.runtime.common.inference import (
     ImageGenerationSettings,
     InferenceEndpoint,
     Modality,

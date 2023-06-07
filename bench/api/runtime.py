@@ -25,7 +25,7 @@ from bench.msg.messages import (
     ReqLangserverPayload,
     ReqRunPayload,
 )
-from bench.runtime.instance import SessionTracingLevel
+from bench.runtime.worker.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 
