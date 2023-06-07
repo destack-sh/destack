@@ -2026,7 +2026,6 @@ export enum TypeHint {
   Phone = "PHONE",
   Rating = "RATING",
   RichText = "RICH_TEXT",
-  Shape = "SHAPE",
   Slider = "SLIDER",
   Thumbs = "THUMBS",
   Time = "TIME",

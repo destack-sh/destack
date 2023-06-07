@@ -208,7 +208,7 @@ def normalize_to_project(obj) -> models.Project:
         return normalize_to_project(obj.edges[0].node)
     elif isinstance(obj, Iterable):
         return normalize_to_project(obj[0])
-    elif isinstance(obj, (models.Field, models.Record)):
+    elif isinstance(obj, models.Field):
         obj = obj.statement.project_version.project
     elif isinstance(obj, (models.File, models.Statement, models.Execution)):
         obj = obj.project_version.project

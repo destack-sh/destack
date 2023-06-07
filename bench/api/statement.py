@@ -7,7 +7,6 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from strawberry import UNSET, lazy
-from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
@@ -29,16 +28,6 @@ StatementModifier = gql.enum(language.StatementModifier)
 SymbolType = gql.enum(models.SymbolType)
 
 
-@gql.django.filter(models.Record)
-class RecordFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is not None:
-            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
-        return queryset
-
-
 @gql.django.filter(models.Field)
 class FieldFilter:
     is_visible: Optional[bool] = True
@@ -47,17 +36,6 @@ class FieldFilter:
         if self.is_visible is not UNSET and self.is_visible is not None:
             queryset = queryset.filter(deleted_at__isnull=self.is_visible)
         return queryset
-
-
-@gql.django.type(models.Record)
-class Record(gql.Node):
-    statement: "Statement"
-    revision: auto
-    created_at: auto
-    updated_at: auto
-    deleted_at: auto
-    order_key: str
-    data: JSON
 
 
 TypeTag = gql.enum(language.type.TypeTag)
@@ -129,7 +107,6 @@ class Statement(gql.Node, SimplyTyped):
     code: auto
     description: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
-    records: gql.relay.Connection[Record] = gql.django.connection(filters=RecordFilter)
     # interp
     issues: Optional[list[Issue]]
     resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)
@@ -608,69 +585,6 @@ class StatementUpdateLanguageInput(gql.NodeInput):
 
 
 @gql.input
-class RecordCreateInput(gql.NodeInput):
-    statement_id: GlobalID
-    data: JSON
-    order_key: str
-
-
-@gql.input
-class RecordUpdateInput(gql.NodeInput):
-    data: JSON
-
-
-@gql.input
-class RecordUpdatePathInput(gql.NodeInput):
-    path: str
-    data: Optional[JSON] = None
-
-
-@gql.input
-class RecordMoveInput(gql.NodeInput):
-    order_key: str
-
-
-@gql.input
-class RecordDeleteInput(gql.NodeInput):
-    pass
-
-
-@gql.input
-class RecordRestoreInput(gql.NodeInput):
-    pass
-
-
-@gql.input
-class RecordBatchSoftDeleteInput(BatchMutationInput):
-    ids: list[GlobalID]
-
-    def unbatch(self) -> list:
-        return [RecordDeleteInput(id=i) for i in self.ids]
-
-
-@gql.input
-class RecordBatchRestoreInput(BatchMutationInput):
-    ids: list[GlobalID]
-
-    def unbatch(self) -> list:
-        return [RecordRestoreInput(id=i) for i in self.ids]
-
-
-@gql.input
-class RecordTruncateInput(gql.NodeInput):
-    pass
-
-
-@gql.type
-class RecordBatch(ThingBatch):
-    records: list[Record]
-
-    @property
-    def things(self):
-        return self.records
-
-
-@gql.input
 class FieldCreateInput:
     id: GlobalID
     key: str
@@ -757,84 +671,6 @@ class SymbolMutation:
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.language = input.language
-        return statement
-
-    @tracked_mutation(MMT.CREATE_RECORD)
-    def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = models.Record(
-            statement=statement,
-            id=UUID(input.id.node_id),
-            data=input.data,
-            order_key=input.order_key,
-        )
-        return record
-
-    @tracked_mutation(MMT.UPDATE_RECORD)
-    def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.data = input.data
-        return record
-
-    @tracked_mutation(MMT.UPDATE_RECORD_PATH)
-    def update_record_path(self, input: RecordUpdatePathInput) -> Record | OperationInfo:
-        # update record data at the given path
-        record = models.Record.objects.get(id=input.id.node_id)
-        if input.value is None:
-            del record.data[input.path]
-        else:
-            record.data[input.path] = input.value
-        return record
-
-    @tracked_mutation(MMT.MOVE_RECORD)
-    def move_record(self, input: RecordMoveInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.order_key = input.order_key
-        return record
-
-    @tracked_mutation(MMT.SOFT_DELETE_RECORD)
-    def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.soft_delete()
-        return record
-
-    @tracked_mutation(MMT.DELETE_RECORD)
-    def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.delete()
-        return record
-
-    @tracked_mutation(MMT.RESTORE_RECORD)
-    def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
-        # use _base_manager since soft deleted records are not visible
-        record = models.Record._base_manager.get(id=input.id.node_id)
-        record.restore()
-        return record
-
-    @tracked_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
-    def batch_soft_delete_record(
-        self, input: RecordBatchSoftDeleteInput
-    ) -> RecordBatch | OperationInfo:
-        # imitate soft_delete_record but for a batch
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        models.Record.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
-        # use base manager since the records are now deleted
-        records = models.Record._base_manager.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
-
-    @tracked_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
-    def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
-        # imitate restore_record but for a batch
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)
-        records = models.Record.objects.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
-
-    @tracked_mutation(MMT.TRUNCATE_RECORDS)
-    def truncate_records(self, input: RecordTruncateInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        models.Record.objects.filter(statement=statement).delete()
         return statement
 
     @tracked_mutation(MMT.CREATE_FIELD)

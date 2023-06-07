@@ -56,7 +56,7 @@ from bench.runtime.interp import (
     get_requirements,
     interp_module,
 )
-from bench.runtime.model import get_inference_endpoint, get_model_key_from_env
+from bench.runtime.models import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.mutate import map_mutation_to_public
 from bench.runtime.type import ExecutionFrameData
 from bench.utils.cache import redis

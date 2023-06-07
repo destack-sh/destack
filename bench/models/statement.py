@@ -22,7 +22,6 @@ from bench.language.type import (
     TypeTag,
     new_field_key,
 )
-from bench.models.data import Record
 from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, walk_children_bfs_batched
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
@@ -159,7 +158,6 @@ class StatementManager(models.Manager["Statement"]):
         target_order_keys = target_order_keys or {}
         new_statements: dict[UUID, Statement] = {}
         new_fields: dict[UUID, Field] = {}
-        new_records: dict[UUID, Record] = {}
 
         # copy statements
         for statement in statements:
@@ -189,7 +187,6 @@ class StatementManager(models.Manager["Statement"]):
                         record.id = uuid4()
                         record._state.adding = True
                         record.statement_id = target_statement_ids[statement.id]
-                        new_records[old_id] = record
                         _refmap(RefType.RECORD, old_id, old_revision, record)
 
             # copy statement
@@ -233,7 +230,6 @@ class StatementManager(models.Manager["Statement"]):
 
         # create referencing statement's relations (FKs to statements)
         Field.objects.bulk_create(new_fields.values())
-        Record.objects.bulk_create(new_records.values())
 
         return ref_mappings
 
@@ -293,17 +289,18 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    records: models.QuerySet["Record"]  # noqa via Record.statement
     root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
-    fields: models.QuerySet[Field]  # noqa via Field.statement
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
+    dataset = models.OneToOneField("Dataset", on_delete=models.SET_NULL, null=True, blank=True)
+    fields: models.QuerySet[Field]  # noqa via Field.statement
     # interp state
     issues: models.QuerySet["Issue"]  # noqa via Issue.statement
     resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")

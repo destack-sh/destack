@@ -36,7 +36,7 @@ from bench.runtime.instruct import (
     fabricate_value,
     instruction_tree_from_symbol,
 )
-from bench.runtime.model import TextGenerationSettings
+from bench.runtime.models import TextGenerationSettings
 from bench.utils.utils import DotDict
 
 logger = structlog.get_logger(__name__)

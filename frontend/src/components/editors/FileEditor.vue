@@ -265,6 +265,7 @@ const statementAddAreaPositionX = computed(() => {
       />
       <!-- Title & inline actions -->
       <TitleBanner
+        ref="titleRef"
         class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
         :style="{

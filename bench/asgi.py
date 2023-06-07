@@ -21,8 +21,8 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
+import bench.runtime.unsecure
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
-from bench.runtime import run
 from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_LANGSERVER, RUN_WORKER, TEST
 from bench.utils.func import wrap_task
 
@@ -84,7 +84,7 @@ if RUN_WORKER:
     from bench.runtime.worker import SandboxedWorker
 
     local_id = random.randint(0, 2**32)  # just some random number
-    run.ALLOW_UNTRUSTED_CODE = True
+    bench.runtime.unsecure.ALLOW_UNTRUSTED_CODE = True
     worker = SandboxedWorker(worker_id=uuid4(), project_id=None)
     coro = worker.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))

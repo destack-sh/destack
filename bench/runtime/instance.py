@@ -60,12 +60,12 @@ from bench.msg.messages import (
 )
 from bench.runtime.build import XConsiderError, XGenerationError, XPrompt
 from bench.runtime.inference import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
-from bench.runtime.model import get_inference_endpoints_cls
-from bench.runtime.proxy import proxy_value, unproxy_value
+from bench.runtime.models import get_inference_endpoints_cls
 from bench.runtime.tracing import SessionTracer
 from bench.runtime.unsecure import do_execute_arbitrary_code
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
+from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -341,7 +341,7 @@ class RecordInstanceMeta:
 
     type: TypeInstance
     session: Session
-    owner: typing.Union["DataRecordInstance", "DataTableInstance"]
+    owner: typing.Union["ValueInstance", "TableInstance"]
 
 
 @dataclass(repr=False)
@@ -382,7 +382,7 @@ class RecordInstance(Record):
 
 
 @dataclass(repr=False)
-class DataTableInstance(SymbolInstance, Data):
+class TableInstance(SymbolInstance, Data):
     meta: RecordInstanceMeta = field(init=False)
 
     def __post_init__(self):
@@ -436,7 +436,7 @@ class DataTableInstance(SymbolInstance, Data):
 
 
 @dataclass(repr=False)
-class DataRecordInstance(SymbolInstance, Data):
+class ValueInstance(SymbolInstance, Data):
     # imitate/proxy record instance
 
     meta: RecordInstanceMeta = field(init=False)
@@ -472,7 +472,7 @@ class DataRecordInstance(SymbolInstance, Data):
             setattr(self.records[0], key, value)
 
 
-DATA_RECORD_INSTANCE_FIELDS = {field.name for field in fields(DataRecordInstance)}
+DATA_RECORD_INSTANCE_FIELDS = {field.name for field in fields(ValueInstance)}
 
 
 @dataclass(repr=False)
@@ -629,8 +629,8 @@ SYMBOL_TYPE_BY_INSTANCE_CLASS = {
     TaskInstance: SymbolType.TASK,
     SyncTaskInstance: SymbolType.TASK,
     TypeInstance: SymbolType.TYPE,
-    DataTableInstance: SymbolType.DATA,
-    DataRecordInstance: SymbolType.DATA,
+    TableInstance: SymbolType.DATA,
+    ValueInstance: SymbolType.DATA,
     ModelInstance: SymbolType.MODEL,
     CodeInstance: SymbolType.CODE,
     SyncCodeInstance: SymbolType.CODE,
@@ -713,7 +713,7 @@ TypeSignature = typing.NamedTuple(
 )
 
 
-class TypeMapping:
+class TypeMapper:
     """
     Maps specific types (and values) into and from Python.
     Don't bother with lists and optional types here.
@@ -729,11 +729,11 @@ class TypeMapping:
         return value
 
 
-type_mappings: dict[TypeSignature, TypeMapping] = {}
+type_mappers: dict[TypeSignature, TypeMapper] = {}
 
 
-def register_mapping(
-    mapping: TypeMapping,
+def register_mapper(
+    mapping: TypeMapper,
     *,
     tags: list[TypeTag] = None,
     hints: list[TypeHint] = None,
@@ -745,13 +745,13 @@ def register_mapping(
     hints = hints or []
     flags = flags or TypeFlag.Zero
     for tag in tags:
-        type_mappings[TypeSignature(tag, None, flags)] = mapping
+        type_mappers[TypeSignature(tag, None, flags)] = mapping
     for hint in hints:
         tag = TYPE_TAG_BY_TYPE_HINT[hint]
-        type_mappings[TypeSignature(tag, hint, flags)] = mapping
+        type_mappers[TypeSignature(tag, hint, flags)] = mapping
 
 
-def get_flat_mapping(type: TypeNode) -> TypeMapping:
+def get_flat_mapper(type: TypeNode) -> TypeMapper:
     """
     Gets the most appropriate mapping for the given type.
     (flat because we ignore list and optional types).
@@ -759,19 +759,19 @@ def get_flat_mapping(type: TypeNode) -> TypeMapping:
     # strip to only relevant flags for mapping
     stripped_flags = type.flags & TypeFlag.IsSecret
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
-    mapping = type_mappings.get(exact_signature)
+    mapping = type_mappers.get(exact_signature)
     if mapping is not None:
         return mapping
     # no exact match, try generic without hint
     stripped_signature = TypeSignature(type.tag, None, stripped_flags)
-    mapping = type_mappings.get(stripped_signature)
+    mapping = type_mappers.get(stripped_signature)
     if mapping is not None:
         return mapping
     raise LookupError(f"no mapping for {type}")
 
 
 @dataclass(repr=False, slots=True)
-class StaticTypeMapping(TypeMapping):
+class StaticTypeMapper(TypeMapper):
     py_type: type
 
     def to_py_type(self, type: TypeNode) -> type:
@@ -781,7 +781,7 @@ class StaticTypeMapping(TypeMapping):
         return self.py_type(value)
 
 
-class StringifyTypeMapping(StaticTypeMapping):
+class StringifyTypeMapping(StaticTypeMapper):
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
         return self.py_type(value)
 
@@ -789,7 +789,7 @@ class StringifyTypeMapping(StaticTypeMapping):
         return str(value)
 
 
-class IsoDtTypeMapping(StaticTypeMapping):
+class IsoDtTypeMapping(StaticTypeMapper):
     def to_py_value(self, type: TypeNode, value: Any) -> Any:
         return self.py_type.fromisoformat(value)
 
@@ -797,7 +797,7 @@ class IsoDtTypeMapping(StaticTypeMapping):
         return value.isoformat()
 
 
-class EnumMapping(TypeMapping):
+class EnumMapper(TypeMapper):
     def to_py_type(self, type: TypeNode) -> Any:
         members = {to_pyidentifier(child.name): child.name for child in type.fields}
         enum_name = type.name or "_anon_" + uuid4().hex
@@ -810,7 +810,7 @@ class EnumMapping(TypeMapping):
         return map_rekey_enum(value, type)
 
 
-class FileMapping(TypeMapping):
+class FileMapper(TypeMapper):
     def to_py_type(self, type: TypeNode) -> type:
         return RemoteObjectInstance
 
@@ -836,7 +836,7 @@ class FileMapping(TypeMapping):
         }
 
 
-class SecretTypeMapping(TypeMapping):
+class SecretTypeMapper(TypeMapper):
     def to_py_type(self, type: TypeNode) -> Any:
         return SecretInstance
 
@@ -854,7 +854,7 @@ class SecretTypeMapping(TypeMapping):
         }
 
 
-class StructTypeMapping(TypeMapping):
+class StructTypeMapper(TypeMapper):
     def to_py_type(self, type: TypeNode) -> typing.TypedDict:
         return typing.TypedDict(
             type.name,
@@ -875,31 +875,29 @@ class StructTypeMapping(TypeMapping):
 
 
 # type tags
-register_mapping(StaticTypeMapping(str), tags=[TypeTag.STRING])
-register_mapping(StaticTypeMapping(float), tags=[TypeTag.NUMBER])
-register_mapping(StaticTypeMapping(type(None)), tags=[TypeTag.NULL])
-register_mapping(StaticTypeMapping(bool), tags=[TypeTag.BOOLEAN])
-register_mapping(FileMapping(), tags=[TypeTag.FILE])
-register_mapping(EnumMapping(), tags=[TypeTag.ENUM])
-register_mapping(StructTypeMapping(), tags=[TypeTag.STRUCT])
+register_mapper(StaticTypeMapper(str), tags=[TypeTag.STRING])
+register_mapper(StaticTypeMapper(float), tags=[TypeTag.NUMBER])
+register_mapper(StaticTypeMapper(type(None)), tags=[TypeTag.NULL])
+register_mapper(StaticTypeMapper(bool), tags=[TypeTag.BOOLEAN])
+register_mapper(FileMapper(), tags=[TypeTag.FILE])
+register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
+register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 # type hints
-register_mapping(StringifyTypeMapping(UUID), hints=[TypeHint.UUID])
-register_mapping(IsoDtTypeMapping(date), hints=[TypeHint.DATE])
-register_mapping(IsoDtTypeMapping(datetime), hints=[TypeHint.DATETIME])
-register_mapping(IsoDtTypeMapping(time), hints=[TypeHint.TIME])
-register_mapping(StaticTypeMapping(int), hints=[TypeHint.INTEGER])
+register_mapper(StringifyTypeMapping(UUID), hints=[TypeHint.UUID])
+register_mapper(IsoDtTypeMapping(date), hints=[TypeHint.DATE])
+register_mapper(IsoDtTypeMapping(datetime), hints=[TypeHint.DATETIME])
+register_mapper(IsoDtTypeMapping(time), hints=[TypeHint.TIME])
+register_mapper(StaticTypeMapper(int), hints=[TypeHint.INTEGER])
 # other
-register_mapping(
-    SecretTypeMapping(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret
-)
+register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)
 
 
 def instantiate_py_type(node: TypeNode) -> type | LiteralValue | None:
     """Create the Python-native type for the given type node."""
     if node.tag == TypeTag.FUNCTION:
         return None  # functions don't have a pytype
-    mapping = get_flat_mapping(node)
-    py_type = mapping.to_py_type(node)
+    map = get_flat_mapper(node)
+    py_type = map.to_py_type(node)
     if node.flags & TypeFlag.IsArray:
         return list[py_type]
     else:
@@ -942,7 +940,7 @@ def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = F
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
-    mapping = get_flat_mapping(type)
+    mapping = get_flat_mapper(type)
     try:
         if type.flags & TypeFlag.IsArray and not ignore_array:
             if not isinstance(value, list):
@@ -962,18 +960,18 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
     # we don't auto-coerce here since that's only needed for external data
     if value is None:
         return None
-    mapping = get_flat_mapping(type)
+    mapping = get_flat_mapper(type)
     return mapping.from_py_value(type, value)
 
 
-def _instantiate_data(dataset: Data, session: Session) -> DataTableInstance | DataRecordInstance:
+def _instantiate_data(dataset: Data, session: Session) -> TableInstance | ValueInstance:
     """Instrument and instantiate a data symbol."""
     dataset_kwargs = dict_minus(dataset.__dict__, ("records", "fields"))
     fields = _instantiate_fields(dataset, session)
     if dataset.flags & TypeFlag.IsArray:
-        instance = DataTableInstance(**dataset_kwargs, fields=fields, records=[], session=session)
+        instance = TableInstance(**dataset_kwargs, fields=fields, records=[], session=session)
     else:
-        instance = DataRecordInstance(**dataset_kwargs, fields=fields, records=[], session=session)
+        instance = ValueInstance(**dataset_kwargs, fields=fields, records=[], session=session)
     for raw_record in dataset.records:
         py_record_data = map_value(
             raw_record.data,

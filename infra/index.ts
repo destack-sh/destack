@@ -232,6 +232,10 @@ const OPENSEARCH_ENV_VARS = [
     value: opensearchDomain.endpoint,
   },
   {
+    name: "OPENSEARCH_PORT",
+    value: 443,
+  },
+  {
     name: "OPENSEARCH_USERNAME",
     value: "password",
   },

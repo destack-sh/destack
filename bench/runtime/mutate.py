@@ -9,7 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language import StatementType
+from bench.language import StatementType, wire
 from bench.language.mutate import MMS, MMT, ModuleMutation, ModuleMutator
 from bench.models import mapper
 
@@ -17,7 +17,7 @@ MutableThing = Union[
     models.File,
     models.Statement,
     models.Field,
-    models.Record,
+    wire.RecordData,
 ]
 
 # refer to ModuleMutationType and _MODULE_MUTATION_MAP
@@ -89,7 +89,7 @@ def map_mutation_from_public(
         project_version_id = thing.project_version_id
         file_id = thing.file_id
         statement_id = thing.id
-    elif isinstance(thing, (models.Field, models.Record)):
+    elif isinstance(thing, models.Field):
         project_version_id = thing.statement.project_version_id
         file_id = thing.statement.file_id
         statement_id = thing.statement_id

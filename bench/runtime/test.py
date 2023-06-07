@@ -1,5 +1,6 @@
 from bench.language.interp import parse_string
-from bench.runtime.run import instantiate, run_sync
+from bench.runtime.instance import instantiate
+from bench.runtime.unsecure import run_sync
 
 
 def test_execute_single_code():
