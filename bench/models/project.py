@@ -16,6 +16,8 @@ from strawberry_django_plus import gql
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched
+from bench.opensearch.index import create_index
+from bench.opensearch.type import IndexType
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -207,22 +209,6 @@ def get_project_bucket_name(project_id: UUID) -> str:
     return f"bench-user-{project_id}"
 
 
-def get_project_search_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-module"
-
-
-def get_project_datasets_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-datasets"
-
-
-def get_project_executions_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-sessions"
-
-
-def get_project_logs_index_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}-logs"
-
-
 def create_project_s3_bucket(project: Project):
     """Creates a public S3 bucket for the project."""
     s3_client = get_s3_client()
@@ -265,6 +251,16 @@ def create_project_s3_bucket(project: Project):
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
+
+
+def create_project_indices(project: Project):
+    """Creates OpenSearch indices for the project."""
+    indices = [
+        IndexType.DATASETS,
+        # other indices are not used yet
+    ]
+    for index_t in indices:
+        create_index(index_t, project.id)
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):

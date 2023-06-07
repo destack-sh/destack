@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bench.language import mutate, wire
 from bench.language.wire import ExecutionTriggerType, RemoteObjectData, SecretData, XBlockData
-from bench.runtime.type import ExecutionFrameData
+from bench.runtime.common.type import ExecutionFrameData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 

@@ -6,11 +6,11 @@ import typing
 from typing import Any, Optional
 
 from bench.language.type import InterpSymbol, LiteralValue
-from bench.runtime.type import PyFrameData
+from bench.runtime.common.type import PyFrameData
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.instance import AsyncCodeInstance, CodeInstance, SyncCodeInstance
+    from bench.runtime.worker.instance import AsyncCodeInstance, CodeInstance, SyncCodeInstance
 
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 

@@ -47,7 +47,8 @@ RUN pip install --no-cache-dir -r requirements-worker.txt
 
 # Copy the specific directories and files for the worker
 COPY bench/utils/ bench/utils/
-COPY bench/runtime/ bench/runtime/
+COPY bench/runtime/common bench/runtime/common
+COPY bench/runtime/worker bench/runtime/worker
 COPY bench/language/ bench/language/
 COPY bench/msg/ bench/msg/
 COPY bench/runworker.py bench/runworker.py

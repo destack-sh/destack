@@ -55,10 +55,10 @@ NOISY_LOG_SOURCES = {
     "bench.api.execution",
     "bench.api.user",
     "bench.api.multiplayer",
-    "bench.runtime.worker",
-    "bench.runtime.run",
-    "bench.runtime.tracing",
-    "bench.runtime.interp",
+    "bench.rtworker.worker",
+    "bench.rtworker.run",
+    "bench.rtworker.tracing",
+    "bench.rtworker.interp",
 }
 NOISY_LOGGERS = {
     source: {

@@ -18,7 +18,7 @@ from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import NMessageType
 from bench.msg.core import request
 from bench.msg.messages import RepRunPayload, ReqRunPayload
-from bench.runtime.instance import SessionTracingLevel
+from bench.runtime.worker.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 

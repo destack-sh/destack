@@ -5,6 +5,7 @@ import bench.language as lang
 import bench.opensearch.type as os
 from bench.language import TypeHint, TypeTag
 from bench.language.type import TYPE_TAG_BY_TYPE_HINT, TypeFlag
+from bench.opensearch import mirror
 
 
 class FieldMapper:
@@ -55,18 +56,21 @@ class StaticFieldMapper(FieldMapper):
 # string
 register_mapper(
     os.Field(
-        os.FieldType.TEXT, fields={os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT)}
+        os.FieldType.TEXT,
+        fields={os.FieldType.TOKEN_COUNT.value: os.Field(os.FieldType.TOKEN_COUNT)},
     ),
     tags=[TypeTag.STRING],
 )
 register_mapper(
-    os.Field(os.FieldType.TEXT),
+    os.Field(
+        os.FieldType.TEXT,
+        fields={
+            os.FieldType.KEYWORD.value: os.Field(os.FieldType.KEYWORD),
+            os.FieldType.SEARCH_AS_YOU_TYPE.value: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
+            os.FieldType.TOKEN_COUNT.value: os.Field(os.FieldType.TOKEN_COUNT),
+        },
+    ),
     hints=[TypeHint.NAME],
-    fields={
-        os.FieldType.KEYWORD: os.Field(os.FieldType.KEYWORD),
-        os.FieldType.SEARCH_AS_YOU_TYPE: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
-        os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT),
-    },
 )
 register_mapper(os.Field(os.FieldType.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
 # number
@@ -77,4 +81,12 @@ register_mapper(os.Field(os.FieldType.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(os.Field(os.FieldType.KNN_VECTOR), tags=[TypeTag.VECTOR])
 # file
-register_mapper(os.Field(os.FieldType.OBJECT, fields={}), tags=[TypeTag.FILE])
+register_mapper(
+    os.Field(os.FieldType.OBJECT, fields=mirror.RemoteObject.fields()), tags=[TypeTag.FILE]
+)
+# secret
+register_mapper(
+    os.Field(os.FieldType.OBJECT, fields=mirror.Secret.fields()),
+    tags=[TypeTag.STRING, TypeTag.NUMBER],
+    flags=TypeFlag.IsSecret,
+)

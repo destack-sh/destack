@@ -14,7 +14,7 @@ from bench.language.wire import ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.runtime.instance import CodeInstance, Session
+    from bench.runtime.worker.instance import CodeInstance, Session
 
 
 @dataclass(slots=True)

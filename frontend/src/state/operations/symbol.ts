@@ -464,53 +464,6 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: truncateRecordsMut } = registry.useMutation(
-    ModuleMutationType.TruncateRecords,
-    graphql(/* GraphQL */ `
-      mutation truncateRecords($id: GlobalID!) {
-        truncateRecords(input: { id: $id }) {
-          ... on Statement {
-            id
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string }) =>
-        ({
-          truncateRecords: {
-            __typename: "Statement",
-            id: vars.id,
-          },
-        } as TruncateRecordsMutation),
-      update(cache, { data }) {
-        // wipe all records from the cache
-        // :StatementRecordsView
-        cache.modify({
-          id: cache.identify(data?.truncateRecords),
-          fields: {
-            records({ args }) {
-              return {
-                value: {
-                  totalCount: 0,
-                  pageInfo: {
-                    hasNextPage: false,
-                    hasPreviousPage: false,
-                    startCursor: null,
-                    endCursor: null,
-                  },
-                  edges: [],
-                },
-                args,
-              };
-            },
-          },
-        });
-      },
-    }
-  );
-
   async function createRecord(
     tx: Transaction | null,
     id: string,
@@ -594,15 +547,6 @@ export function useSymbolContentOps() {
       },
       undo: async () => {
         return await batchSoftDeleteRecordMut({ ids });
-      },
-    });
-  }
-
-  async function truncateRecords(statementId: string) {
-    await ops.perform({
-      type: "statement.truncateRecords",
-      do: async () => {
-        return await truncateRecordsMut({ id: statementId });
       },
     });
   }
@@ -975,7 +919,6 @@ export function useSymbolContentOps() {
     softDeleteRecord,
     batchSoftDeleteRecord,
     batchRestoreRecord,
-    truncateRecords,
     createField,
     updateField,
     moveField,

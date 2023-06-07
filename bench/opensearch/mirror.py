@@ -1,24 +1,41 @@
-from opensearchpy import Date, Document, Float, Keyword, Long, Object, Text
+from opensearchpy import Date, Float, Keyword, Long, Object, Text
 
 import bench.opensearch.type as os
 
 NAME_FIELD = Text(
-    fields={os.FieldType.SEARCH_AS_YOU_TYPE: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE)}
+    fields={
+        os.FieldType.SEARCH_AS_YOU_TYPE.value: {
+            "type": os.FieldType.SEARCH_AS_YOU_TYPE.value,
+        }
+    }
 )
 
 
 # basic
 
 
-class RemoteObject(Document):
+class RemoteObject(os.Document):
     sha512 = Keyword()
     content_length = Long()
     content_type = Keyword()
     name = NAME_FIELD
 
 
-class Secret(Document):
+class Secret(os.Document):
     sha512 = Keyword()
+    name = NAME_FIELD
+
+
+# global
+
+
+class Owner(os.Document):
+    name = NAME_FIELD
+    slug = NAME_FIELD
+    email = Keyword()
+
+
+class Project(os.Document):
     name = NAME_FIELD
 
 
@@ -35,7 +52,7 @@ class CrudThing:
     revision = Long(index=False)
 
 
-class File(CrudThing, Document):
+class File(CrudThing, os.Document):
     project_version_id = Keyword()
     name = NAME_FIELD
     type = Keyword()
@@ -43,7 +60,7 @@ class File(CrudThing, Document):
     code = Text()
 
 
-class Statement(CrudThing, Document):
+class Statement(CrudThing, os.Document):
     project_version_id = Keyword()
     file_id = Keyword()
     name = NAME_FIELD
@@ -54,7 +71,7 @@ class Statement(CrudThing, Document):
     code = Text()
 
 
-class Field(CrudThing, Document):
+class Field(CrudThing, os.Document):
     project_version_id = Keyword()
     statement_id = Keyword()
     name = NAME_FIELD
@@ -62,10 +79,39 @@ class Field(CrudThing, Document):
     hint = Keyword()
 
 
-# sessions
+class Screen(CrudThing, os.Document):
+    project_version_id = Keyword()
+    name = NAME_FIELD
+    description = Text()
 
 
-class Execution(Document):
+class Tile(CrudThing, os.Document):
+    project_version_id = Keyword()
+    name = NAME_FIELD
+    description = Text()
+    screen_id = Keyword()
+
+
+class Comment(CrudThing, os.Document):
+    pass
+
+
+# sessions/logs
+
+
+class Session(os.Document):
+    project_version_id = Keyword()
+    created_at = Date()
+    updated_at = Date()
+    started_at = Date()
+    terminated_at = Date()
+    cached_generated_at = Date()
+    cached_duration = Float()
+    duration = Float()
+    status = Keyword()
+
+
+class Execution(os.Document):
     project_version_id = Keyword()
     session_id = Keyword()
     runnable_id = Keyword()
@@ -79,10 +125,7 @@ class Execution(Document):
     status = Keyword()
 
 
-# logs
-
-
-class LogEntry(Document):
+class LogEntry(os.Document):
     project_version_id = Keyword()
     session_id = Keyword()
     created_at = Date()
