@@ -1,4 +1,4 @@
-from .data import Record
+from .dataset import Dataset, OpensearchMapping
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
@@ -32,7 +32,7 @@ __all__ = [
     "AccessTokenStatus",
     "Client",
     "ClientType",
-    "Record",
+    "Dataset",
     "Execution",
     "ExecutionStatus",
     "ExecutionTriggerType",
@@ -46,6 +46,7 @@ __all__ = [
     "OrganizationInvite",
     "OrganizationMembership",
     "OrganizationMembershipLevel",
+    "OpensearchMapping",
     "OwnerSlug",
     "Project",
     "ProjectType",

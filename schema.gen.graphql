@@ -107,7 +107,6 @@ type Client implements Node {
   file: File
   statement: Statement
   field: Field
-  record: Record
   path: String
   active: Boolean!
   present: Boolean!
@@ -473,6 +472,7 @@ enum ModuleMutationType {
   UPDATE_STATEMENT_DESCRIPTION
   UPDATE_STATEMENT_CODE
   UPDATE_STATEMENT_LANGUAGE
+  UPDATE_STATEMENT_VALUE
   UPDATE_STATEMENT
   DELETE_STATEMENT
   CREATE_FIELD
@@ -541,16 +541,6 @@ type Mutation {
   updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
   updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
   updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
-  createRecord(input: RecordCreateInput!): RecordOperationInfo!
-  updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
-  updateRecordPath(input: RecordUpdatePathInput!): RecordOperationInfo!
-  moveRecord(input: RecordMoveInput!): RecordOperationInfo!
-  softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
-  deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
-  restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
-  batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
-  batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
-  truncateRecords(input: RecordTruncateInput!): StatementOperationInfo!
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
@@ -560,6 +550,15 @@ type Mutation {
   softDeleteField(input: FieldDeleteInput!): FieldOperationInfo!
   deleteField(input: FieldDeleteInput!): FieldOperationInfo!
   restoreStatementField(input: FieldRestoreInput!): FieldOperationInfo!
+  createRecord(input: RecordCreateInput!): RecordOperationInfo!
+  updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
+  updateRecordPath(input: RecordUpdatePathInput!): RecordOperationInfo!
+  moveRecord(input: RecordMoveInput!): RecordOperationInfo!
+  softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
+  deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
+  restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
+  batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
+  batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
   updateFile(input: FileCreateInput!): FileOperationInfo!
   deleteFile(input: NodeInput!): FileOperationInfo!
@@ -1214,11 +1213,12 @@ type Query {
 }
 
 type Record implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
-  statement: Statement!
+  statementId: GlobalID!
   revision: Int!
   createdAt: DateTime!
-  updatedAt: DateTime!
+  updatedAt: DateTime
   deletedAt: DateTime
   orderKey: String!
   data: JSON!
@@ -1238,18 +1238,6 @@ input RecordBatchSoftDeleteInput {
   ids: [GlobalID!]!
 }
 
-"""A connection to a list of items."""
-type RecordConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [RecordEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
 input RecordCreateInput {
   id: GlobalID!
   statementId: GlobalID!
@@ -1261,19 +1249,6 @@ input RecordDeleteInput {
   id: GlobalID!
 }
 
-"""An edge in a connection."""
-type RecordEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Record!
-}
-
-input RecordFilter {
-  isVisible: Boolean = true
-}
-
 input RecordMoveInput {
   id: GlobalID!
   orderKey: String!
@@ -1282,10 +1257,6 @@ input RecordMoveInput {
 union RecordOperationInfo = Record | OperationInfo
 
 input RecordRestoreInput {
-  id: GlobalID!
-}
-
-input RecordTruncateInput {
   id: GlobalID!
 }
 
@@ -1485,20 +1456,6 @@ type Statement implements Node & SimplyTyped {
   code: String
   description: String
   referenceProjectVersion: ProjectVersion
-  records(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    filters: RecordFilter
-  ): RecordConnection!
   issues: [Issue!]
   resolvedFields(filters: FieldFilter): [Field!]
 }
@@ -1706,10 +1663,10 @@ enum TypeHint {
   TOGGLE
   CHECKBOX
   THUMBS
+  EMBEDDING
   IMAGE
   VIDEO
   AUDIO
-  SHAPE
 }
 
 """The actual value type of a type node."""
@@ -1717,8 +1674,9 @@ enum TypeTag {
   STRING
   NUMBER
   BOOLEAN
-  EMBEDDING
+  VECTOR
   FILE
+  SHAPE
   STRUCT
   JSON
   FUNCTION

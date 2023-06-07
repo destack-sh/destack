@@ -183,8 +183,8 @@ def rmap_statement_nested(statement: models.Statement) -> list[StatementData]:
 
 # (all module contents are used for tracking changes)
 def rmap_flat(
-    obj: models.File | models.Statement | models.Field | models.Record,
-) -> wire.FileData | wire.StatementData | wire.FieldData | wire.RecordData:
+    obj: models.File | models.Statement | models.Field,
+) -> wire.FileData | wire.StatementData | wire.FieldData:
     """Read a DB object into a wire object without any children."""
     if isinstance(obj, models.File):
         return rmap_file_flat(obj, module_id=obj.project_version_id)
@@ -192,8 +192,6 @@ def rmap_flat(
         return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
     elif isinstance(obj, models.Field):
         return rmap_field(obj)
-    elif isinstance(obj, models.Record):
-        return rmap_record(obj)
     else:
         raise ValueError(f"unexpected obj: {obj}")
 
@@ -233,15 +231,13 @@ def wmap_issue(issue: wire.IssueData, module_id: UUID):
 
 @transaction.atomic
 def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
+    """Writes mutations to the DB and Opensearch."""
+
     mut = MutationBundle(mutations)
 
+    # DB mutations
+
     # first process deletes
-    if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
-        dataset_ids = [m.data.id for m in mut[MMT.DELETE_RECORD]]
-        models.Record.objects.filter(id__in=dataset_ids).delete()
-    if mut[MMT.TRUNCATE_RECORDS]:
-        statement_ids = [m.statement_id for m in mut[MMT.TRUNCATE_RECORDS]]
-        models.Record.objects.filter(statement_id__in=statement_ids).delete()
     if mut[MMT.DELETE_FIELD]:  # batch delete since no dependent models
         field_ids = [m.data.id for m in mut[MMT.DELETE_FIELD]]
         models.Field.objects.filter(id__in=field_ids).delete()
@@ -315,10 +311,6 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 model_statement.reference_id = stmt_data.reference_id
                 dirty_statements.append(model_statement)
         models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
-    for m in mut[MMT.CREATE_RECORD]:
-        model_contents_relations.append(
-            wmap_record(m.statement_id, typing.cast(RecordData, m.data))
-        )
     for m in mut[MMT.CREATE_FIELD]:
         model_contents_relations.append(wmap_field(m.statement_id, typing.cast(FieldData, m.data)))
     # create content relations
@@ -326,9 +318,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         relation_cls.objects.bulk_create(relations)
 
     # then process updates
-    if mut[MMT.UPDATE_RECORD]:
-        records = [wmap_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
-        models.Record.objects.bulk_update(records, ["order_key", "revision", "data"])
+
     # :WriteModuleUpdates
     if mut[MMT.UPDATE_STATEMENT]:
         raise NotImplementedError(f"statement updates not implemented: {mut[MMT.UPDATE_STATEMENT]}")
@@ -357,6 +347,26 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 )
         models.Issue.objects.bulk_create(issues)
         models.ResolvedField.objects.bulk_create(resolved_fields)
+
+    # Opensearch mutations
+
+    if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
+        # dataset_ids = [m.data.id for m in mut[MMT.DELETE_RECORD]]
+        # models.Record.objects.filter(id__in=dataset_ids).delete()
+        raise NotImplementedError
+    if mut[MMT.TRUNCATE_RECORDS]:
+        # statement_ids = [m.statement_id for m in mut[MMT.TRUNCATE_RECORDS]]
+        # models.Record.objects.filter(statement_id__in=statement_ids).delete()
+        raise NotImplementedError
+    for m in mut[MMT.CREATE_RECORD]:
+        # model_contents_relations.append(
+        #     wmap_record(m.statement_id, typing.cast(RecordData, m.data))
+        # )
+        raise NotImplementedError
+    if mut[MMT.UPDATE_RECORD]:
+        # records = [wmap_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
+        # models.Record.objects.bulk_update(records, ["order_key", "revision", "data"])
+        raise NotImplementedError
 
 
 def write_files(

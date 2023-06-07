@@ -163,10 +163,10 @@ class Client(UUIDModel):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
-    file = models.ForeignKey("File", on_delete=models.SET_NULL, null=True, blank=True)
-    statement = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
-    field = models.ForeignKey("Field", on_delete=models.SET_NULL, null=True, blank=True)
-    record = models.ForeignKey("Record", on_delete=models.SET_NULL, null=True, blank=True)
+    file_id = models.UUIDField(null=True, blank=True)
+    statement_id = models.UUIDField(null=True, blank=True)
+    field_id = models.UUIDField(null=True, blank=True)
+    record_id = models.UUIDField(null=True, blank=True)
     path = models.CharField(max_length=256, null=True, blank=True)
 
     @property

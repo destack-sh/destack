@@ -85,7 +85,7 @@ def tracked_mutation(
                 project_version = models.ProjectVersion.objects.only("committed_at").get(
                     id=thing.project_version_id
                 )
-            elif isinstance(thing, (models.Field, models.Record)):
+            elif isinstance(thing, models.Field):
                 # TODO @Performance: fetching project_version for statement mutation is inefficient
                 project_version = models.ProjectVersion.objects.only("committed_at").get(
                     id=thing.statement.project_version_id

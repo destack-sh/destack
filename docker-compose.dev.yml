@@ -12,7 +12,7 @@ services:
       - '5432:5432'
 
   search:
-    image: opensearchproject/opensearch:2.7.0
+    image: opensearchproject/opensearch:2.5.0 # should be same as in infra
     restart: on-failure
     environment:
       discovery.type: single-node

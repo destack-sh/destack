@@ -35,7 +35,7 @@ from bench.settings import DEBUG, TEST
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
     from bench.api.project import File, Project, ProjectVersion
-    from bench.api.statement import Field, Record, Statement
+    from bench.api.statement import Field, Statement
     from bench.api.token import AccessToken
 
 logger = structlog.get_logger(__name__)
@@ -117,7 +117,6 @@ class Client(gql.relay.Node):
     file: Optional[Annotated["File", lazy(".project")]]
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     field: Optional[Annotated["Field", lazy(".statement")]]
-    record: Optional[Annotated["Record", lazy(".statement")]]
     path: auto
     active: bool
     present: bool

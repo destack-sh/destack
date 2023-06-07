@@ -228,6 +228,7 @@ defineExpose({
       @keydown.delete.exact="editing || emit('deleteSelf')"
       @keydown.enter.exact.prevent="open"
       @click.stop="open"
+      @contextmenu.prevent.stop="open"
       @dragstart.stop="onDragStart"
       @mousedown="buttonRef?.setAttribute('draggable', 'true')"
       @mouseup="buttonRef?.setAttribute('draggable', 'false')"
@@ -294,6 +295,7 @@ defineExpose({
             @keydown.left.stop.prevent="nameRef?.focus()"
             @keydown.down.stop.prevent="actionRefs.focus(actions[0].label)"
             @click="editingType = true"
+            @contextmenu.prevent.stop="editingType = true"
             @keydown.enter.stop.prevent="editingType = true"
           >
             <!-- No idea why but this needs to be set absolutely or the icons are too high -->

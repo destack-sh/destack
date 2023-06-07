@@ -40,8 +40,8 @@ from bench.runtime.instance import (
     instantiate,
 )
 from bench.runtime.interp import InterpModule, LanguageInterpreter
-from bench.runtime.run import RunError, run
 from bench.runtime.type import ExecutionFrame, ExecutionFrameData, WorkerTenancy
+from bench.runtime.unsecure import RunError, run
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT

@@ -36,7 +36,7 @@ KEYWORDS = {
     "string": TypeTag.STRING,
     "number": TypeTag.NUMBER,
     "boolean": TypeTag.BOOLEAN,
-    "embedding": TypeTag.EMBEDDING,
+    "vector": TypeTag.VECTOR,
     "file": TypeTag.FILE,
     "null": TypeTag.NULL,
     "enum": TypeTag.ENUM,

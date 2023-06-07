@@ -157,9 +157,6 @@ class StatementModifier(models.TextChoices):
 class SymbolType(models.TextChoices):
     """The type of symbol content."""
 
-    # TODO @Language: merge value into data
-    #  Simply typed version could be root is_array flag in addition to root_type_tag
-
     TYPE = "type"
     CAPABILITY = "capability"
     TASK = "task"
@@ -178,8 +175,9 @@ class TypeTag(models.TextChoices):
     STRING = "string"
     NUMBER = "number"
     BOOLEAN = "boolean"
-    EMBEDDING = "embedding"
+    VECTOR = "vector"
     FILE = "file"
+    SHAPE = "shape"
     STRUCT = "struct"
     JSON = "json"
     FUNCTION = "function"
@@ -218,12 +216,12 @@ class TypeHint(models.TextChoices):
     TOGGLE = "toggle"
     CHECKBOX = "checkbox"
     THUMBS = "thumbs"
+    # vector
+    EMBEDDING = "embedding"
     # file
     IMAGE = "image"
     VIDEO = "video"
     AUDIO = "audio"
-    # json
-    SHAPE = "shape"  # ?
 
 
 TYPE_TAG_BY_TYPE_HINT = {
@@ -255,8 +253,6 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.IMAGE: TypeTag.FILE,
     TypeHint.VIDEO: TypeTag.FILE,
     TypeHint.AUDIO: TypeTag.FILE,
-    # json
-    TypeHint.SHAPE: TypeTag.JSON,
 }
 
 
@@ -537,7 +533,7 @@ PRIMITIVE_TYPES = [
     TypeTag.NUMBER,
     TypeTag.STRING,
     TypeTag.FILE,
-    TypeTag.EMBEDDING,
+    TypeTag.VECTOR,
 ]
 
 
@@ -895,6 +891,11 @@ class Record:
 
 RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 RECORD_INSTANCE_FIELD_KEYS = {"_"}  # :RecordInstanceFieldKeys
+
+
+@dataclass(repr=False)
+class DataView:
+    pass
 
 
 @dataclass(repr=False)
