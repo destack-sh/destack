@@ -1231,10 +1231,12 @@ type RecordBatch {
 union RecordBatchOperationInfo = RecordBatch | OperationInfo
 
 input RecordBatchRestoreInput {
+  statementId: GlobalID!
   ids: [GlobalID!]!
 }
 
 input RecordBatchSoftDeleteInput {
+  statementId: GlobalID!
   ids: [GlobalID!]!
 }
 
@@ -1247,10 +1249,12 @@ input RecordCreateInput {
 
 input RecordDeleteInput {
   id: GlobalID!
+  statementId: GlobalID!
 }
 
 input RecordMoveInput {
   id: GlobalID!
+  statementId: GlobalID!
   orderKey: String!
 }
 
@@ -1258,15 +1262,18 @@ union RecordOperationInfo = Record | OperationInfo
 
 input RecordRestoreInput {
   id: GlobalID!
+  statementId: GlobalID!
 }
 
 input RecordUpdateInput {
   id: GlobalID!
+  statementId: GlobalID!
   data: JSON!
 }
 
 input RecordUpdatePathInput {
   id: GlobalID!
+  statementId: GlobalID!
   path: String!
   data: JSON = null
 }
@@ -1438,7 +1445,7 @@ type Statement implements Node & SimplyTyped {
   file: File!
   revision: Int!
   type: StatementType!
-  modifier: StatementModifier
+  modifier: String
   name: String
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1629,7 +1636,8 @@ enum SymbolType {
   EXPECTATION
   CODE
   MODEL
-  DATA
+  VALUE
+  DATASET
   REQUIREMENT
   BUILD
   BLOCK

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import csv
 import enum
 import json
 import re
@@ -14,9 +13,8 @@ from bench.language.error import IssueType, ParseError
 from bench.language.lex import lex_string
 from bench.language.type import (
     BuildContent,
-    CapabilityContent,
     CodeContent,
-    DataContent,
+    DatasetContent,
     ExpectationContent,
     Field,
     File,
@@ -490,12 +488,7 @@ def _parse_definition_content(
     tokens: TokenParser, symbol_type: Token, name: Token
 ) -> SymbolContent:
     """Parses the content of a symbol definition including everything after [modifier] [type] [name]"""
-    if symbol_type.value == SymbolType.CAPABILITY:
-        tokens.eat_separator(":")
-        tokens.eat_newline()
-        description = tokens.eat_description()
-        return CapabilityContent(description=description.value)
-    elif symbol_type.value == SymbolType.TASK:
+    if symbol_type.value == SymbolType.TASK:
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
@@ -539,7 +532,7 @@ def _parse_definition_content(
             fields=type.fields,
             xblocks=[],  # not parsed yet
         )
-    elif symbol_type.value == SymbolType.DATA:
+    elif symbol_type.value == SymbolType.DATASET:
         tokens.eat_space()
         tokens.eat_separator("::")
         tokens.eat_space()
@@ -548,11 +541,9 @@ def _parse_definition_content(
         tokens.eat_newline()
         description = _parse_description_line_optional(tokens)
         literal = tokens.eat_literal()
-        lang = literal.value_extras.get("lang")
-        records = _parse_dataset_records(tokens, type, lang, literal)
-        return DataContent(
+        records = _parse_dataset_records(tokens, type, literal)
+        return DatasetContent(
             description=description,
-            language=lang,
             records=records,
             tag=TypeTag.STRUCT,
             fields=type.fields,
@@ -564,31 +555,15 @@ def _parse_definition_content(
     raise ParseError(ET.UNEXPECTED_TOKEN_VALUE, symbol_type, type=TT.KEYWORD, value=SymbolType)
 
 
-def _parse_dataset_records(
-    tokens: TokenParser, type: TypeNode, lang: str | None, literal: Token
-) -> list[Record]:
+def _parse_dataset_records(tokens: TokenParser, type: TypeNode, literal: Token) -> list[Record]:
     """Parses the language and records from a dataset literal."""
     value_str = _strip_literal_indent(literal.value, tokens.indent_level)
     try:
-        if lang is None:
-            raise ParseError(ET.MISSING_EXTRA, literal, extra="lang")
-        elif lang == "jsonl":
-            records_data = [json.loads(line) for line in value_str.splitlines()]
-        elif lang == "json":
-            records_data = json.loads(value_str)
-        elif lang == "csv":
-            field_names = [element.name for element in type.fields]
-            csv_reader = csv.DictReader(
-                value_str.splitlines(), quoting=csv.QUOTE_NONNUMERIC, fieldnames=field_names
-            )
-            records_data = list(csv_reader)
-        else:
-            raise ParseError(ET.UNEXPECTED_EXTRA, literal, extra="lang", value=lang)
+        records_data = [json.loads(line) for line in value_str.splitlines()]
     except ParseError:
         raise  # re-raise since we don't want to catch our own errors
     except ValueError as e:
         raise ParseError(ET.INVALID_TOKEN_VALUE, literal, value=value_str, error=e)
-
     order_keys = generate_n_keys_between(None, None, len(records_data))
     records = [
         Record(data=data, order_key=order_key) for data, order_key in zip(records_data, order_keys)
@@ -704,7 +679,6 @@ def parse_field_inline(tokens: TokenParser, name: str | None) -> Field:
 
     # parse actual type as either primitive or type reference
     reference = None
-    value = None
     if tokens.peek_keyword_like(TypeTag):
         # not all value types are keywords, but only the valid ones are in KEYWORDS
         type = tokens.eat_keyword_like(TypeTag).value
@@ -712,9 +686,9 @@ def parse_field_inline(tokens: TokenParser, name: str | None) -> Field:
         type = TypeTag.LITERAL
         value_token = tokens.eat_literal()
         try:
-            value = json.loads(value_token.value)
+            json.loads(value_token.value)
         except ValueError as e:
-            raise ParseError(ET.INVALID_TOKEN_VALUE, value_token, error=e, value=value)
+            raise ParseError(ET.INVALID_TOKEN_VALUE, value_token, error=e)
     else:
         type = TypeTag.TYPE_REFERENCE
         reference = _parse_reference_slot(tokens)
@@ -735,7 +709,6 @@ def parse_field_inline(tokens: TokenParser, name: str | None) -> Field:
     return Field(
         name=name,
         tag=type,
-        value=value,
         reference=reference,
         description=description,
         flags=flags,

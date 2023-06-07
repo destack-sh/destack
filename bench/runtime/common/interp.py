@@ -55,7 +55,7 @@ def create_wrapped_task(coro, task_id: str = None):
     asyncio.create_task(wrap_task(coro, task_id))
 
 
-ModuleFetcher = Callable[[UUID], Awaitable[wire.ModuleData]]
+ModuleFetcher = Callable[[UUID, int], Awaitable[wire.ModuleData]]
 
 
 class LanguageInterpreter:

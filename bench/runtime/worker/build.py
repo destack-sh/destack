@@ -22,7 +22,7 @@ from bench.language.instruct import (
 from bench.language.reconstruct import render_statement
 from bench.language.type import (
     Build,
-    Data,
+    Dataset,
     Expectation,
     InterpSymbol,
     StatementModifier,
@@ -135,7 +135,7 @@ def build_task_implementation(
     expectations: list[Expectation] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
     ]
-    data_samples: list[Data] = [
+    data_samples: list[Dataset] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
     ]
     x = XPrompt(task=task, model=model, modality=Modality.GenerateText, session=session)

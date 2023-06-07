@@ -29,7 +29,7 @@ def parse_code(code: str | None) -> "CodeParse":
     -> 'apple' is an external reference to ("<module>.local", "apple").
     """
     from bench.language.type import CodeParse, StatementPath
-    from bench.runtime.instance import DYNAMIC_BUILTINS, STATIC_BUILTINS
+    from bench.runtime.worker.instance import DYNAMIC_BUILTINS, STATIC_BUILTINS
 
     if code is None:
         return CodeParse()

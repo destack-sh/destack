@@ -428,7 +428,11 @@ def rmap_symbol(
     elif isinstance(content, language.DataContent):
         data.lang = content.language
         data.description = content.description
-        data.records = [rmap_record(data.id, r) for r in content.records]
+        data.records = (
+            [rmap_record(data.id, r) for r in content.records]
+            if content.records is not None
+            else []
+        )
     elif isinstance(content, language.BuildContent):
         data.description = content.comment
     elif isinstance(content, language.RequirementContent):
@@ -472,16 +476,14 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         return language.ModelContent(
             external_name=data.external_name,
         )
-    elif data.symbol_type == SymbolType.CAPABILITY:
-        return language.CapabilityContent(description=data.description)
-    elif data.symbol_type == SymbolType.DATA:
+    elif data.symbol_type == SymbolType.DATASET:
         return language.DataContent(
             description=data.description,
             language=data.lang,
             tag=data.root_type_tag,
             fields=fields,
             flags=data.root_type_flags,
-            records=[wmap_record(r) for r in (data.records or [])],
+            records=[wmap_record(r) for r in data.records] if data.records is not None else None,
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.BuildContent(comment=data.description)

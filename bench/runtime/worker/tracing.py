@@ -20,9 +20,9 @@ if typing.TYPE_CHECKING:
     from bench.runtime.common.inference import Inference
     from bench.runtime.worker.instance import (
         CodeInstance,
+        DatasetInstance,
         RecordInstance,
         Session,
-        TableInstance,
         TaskInstance,
         ValueInstance,
     )
@@ -65,22 +65,22 @@ class Tracer:
     ):
         pass
 
-    def table_clear(self, table: TableInstance):
+    def table_clear(self, table: DatasetInstance):
         pass
 
-    def table_append(self, table: TableInstance, record: Record):
+    def table_append(self, table: DatasetInstance, record: Record):
         pass
 
-    def table_extend(self, table: TableInstance, records: list[Record]):
+    def table_extend(self, table: DatasetInstance, records: list[Record]):
         pass
 
-    def table_remove(self, table: TableInstance, record: Record):
+    def table_remove(self, table: DatasetInstance, record: Record):
         pass
 
     def record_update(
         self,
         record: RecordInstance,
-        owner: TableInstance | ValueInstance,
+        owner: DatasetInstance | ValueInstance,
         key: typing.Optional[str] = None,
     ):
         pass
@@ -153,26 +153,26 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_cached(model, blocks, settings, inference)
 
-    def table_clear(self, table: TableInstance):
+    def table_clear(self, table: DatasetInstance):
         for tracer in self.tracers:
             tracer.table_clear(table)
 
-    def table_append(self, table: TableInstance, record: Record):
+    def table_append(self, table: DatasetInstance, record: Record):
         for tracer in self.tracers:
             tracer.table_append(table, record)
 
-    def table_extend(self, table: TableInstance, records: list[Record]):
+    def table_extend(self, table: DatasetInstance, records: list[Record]):
         for tracer in self.tracers:
             tracer.table_extend(table, records)
 
-    def table_remove(self, table: TableInstance, record: Record):
+    def table_remove(self, table: DatasetInstance, record: Record):
         for tracer in self.tracers:
             tracer.table_remove(table, record)
 
     def record_update(
         self,
         record: RecordInstance,
-        owner: TableInstance | ValueInstance,
+        owner: DatasetInstance | ValueInstance,
         key: typing.Optional[str] = None,
     ):
         for tracer in self.tracers:
@@ -341,22 +341,22 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def table_clear(self, table: TableInstance):
+    def table_clear(self, table: DatasetInstance):
         self.mutator.truncate_records(table.id)
 
-    def table_append(self, table: TableInstance, record: RecordInstance):
+    def table_append(self, table: DatasetInstance, record: RecordInstance):
         self.mutator.create(record._to_wire(include_data=True))
 
-    def table_extend(self, table: TableInstance, records: list[Record]):
+    def table_extend(self, table: DatasetInstance, records: list[Record]):
         self.mutator.create_many(*[record._to_wire(include_data=True) for record in records])
 
-    def table_remove(self, table: TableInstance, record: Record):
+    def table_remove(self, table: DatasetInstance, record: Record):
         self.mutator.delete(record.id)
 
     def record_update(
         self,
         record: RecordInstance,
-        owner: TableInstance | ValueInstance,
+        owner: DatasetInstance | ValueInstance,
         key: typing.Optional[str] = None,
     ):
         self.mutator.update(record.id, record._to_wire(include_data=True))
@@ -374,13 +374,13 @@ class ValidationTracer(Tracer):
     def code_exit(self, code: RunnableInstance, args, kwargs, result):
         check_type(result, code, is_output=True)
 
-    def table_append(self, table: TableInstance, record: Record):
+    def table_append(self, table: DatasetInstance, record: Record):
         check_type(record.data, table, ignore_array=True)
 
     def record_update(
         self,
         record: RecordInstance,
-        owner: TableInstance | ValueInstance,
+        owner: DatasetInstance | ValueInstance,
         key: typing.Optional[str] = None,
     ):
         if key is not None and key != "":
@@ -398,19 +398,19 @@ class PermissionTracer(Tracer):
     def __init__(self, session: Session):
         self.session = session
 
-    def table_clear(self, table: TableInstance):
+    def table_clear(self, table: DatasetInstance):
         self.session.check_can_write(table)
 
-    def table_append(self, table: TableInstance, record: Record):
+    def table_append(self, table: DatasetInstance, record: Record):
         self.session.check_can_write(table)
 
-    def table_delete(self, table: TableInstance, record: RecordInstance):
+    def table_delete(self, table: DatasetInstance, record: RecordInstance):
         self.session.check_can_write(table)
 
     def record_update(
         self,
         record: RecordInstance,
-        owner: TableInstance | ValueInstance,
+        owner: DatasetInstance | ValueInstance,
         key: typing.Optional[str] = None,
     ):
         self.session.check_can_write(owner)

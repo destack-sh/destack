@@ -375,7 +375,7 @@ class StatementMutation:
         statement = models.Statement.objects.get(id=input.id.node_id)
         if (
             input.type == StatementType.DEFINITION
-            and input.symbol_type in (SymbolType.DATA, SymbolType.CODE, SymbolType.TASK)
+            and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
             and input.root_type_tag is None
         ):
             raise ValidationError(f"root_type_tag is required for {input.type} {input.symbol_type}")

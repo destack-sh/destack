@@ -40,6 +40,7 @@ class FieldManager(models.Manager["Field"]):
 class Field(UUIDModel, CrudModel):
     """
     A (usually) named type of something.
+    Do not write to this model directly as any change affects the opensearch indices.
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="fields")
@@ -180,7 +181,7 @@ class StatementManager(models.Manager["Statement"]):
                         _refmap(RefType.FIELD, old_id, old_revision, field)
 
                 # copy records (obviously very inefficient)
-                if statement.symbol_type == SymbolType.DATA:
+                if statement.symbol_type == SymbolType.DATASET:
                     for record in statement.records.all():
                         old_id = record.id
                         old_revision = record.revision
@@ -264,8 +265,10 @@ class Statement(UUIDModel, CrudModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="statements"
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
-    type = TextChoicesField(choices_enum=StatementType)
-    modifier = TextChoicesField(choices_enum=StatementModifier, null=True, blank=True)
+    type = models.CharField(max_length=32, choices=StatementType.choices)
+    modifier = models.CharField(
+        max_length=32, choices=StatementModifier.choices, null=True, blank=True
+    )
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
@@ -278,7 +281,7 @@ class Statement(UUIDModel, CrudModel):
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     order_key = models.CharField(max_length=64)  # in file/parent
 
-    symbol_type = TextChoicesField(choices_enum=SymbolType, null=True, blank=True)
+    symbol_type = models.CharField(max_length=32, choices=SymbolType.choices, null=True, blank=True)
     reference = models.ForeignKey(
         "Statement",
         on_delete=models.SET_NULL,
@@ -289,7 +292,7 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    root_type_tag = TextChoicesField(choices_enum=TypeTag, null=True, blank=True)
+    root_type_tag = models.CharField(max_length=32, choices=TypeTag.choices, null=True, blank=True)
     root_type_flags = models.IntegerField(null=True, blank=True)
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
