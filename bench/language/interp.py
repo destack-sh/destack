@@ -14,11 +14,8 @@ from more_itertools import first
 
 from bench.language.issue import Error, IssueType
 from bench.language.type import (
-    SYMBOL_CLASS_BY_TYPE,
-    SYMBOL_FIELDS_NAMES_BY_TYPE,
     Code,
     Dataset,
-    Expectation,
     File,
     Module,
     Statement,
@@ -30,13 +27,12 @@ from bench.language.type import (
     Type,
     TypeFlag,
     TypeNode,
-    TypeTag,
     deepcopy_types,
     parse_statement_path,
     Requirement,
+    HasType,
 )
 from bench.runtime.server.lsp import parse_code
-from bench.utils.func import dict_intersect
 
 logger = structlog.get_logger(__name__)
 
@@ -89,7 +85,7 @@ LookupFunc = Callable[
 ]
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, slots=True)
 class Scope:
     """A scope in which statements are defined. May be at file- or statement-level."""
 
@@ -310,39 +306,35 @@ def resolve(
 
     idx = index_module(module, on_error=on_error)
 
-    # During resolution external scopes and their statements will be imported,
-    # so we copy the statements to avoid concurrent modification.
-    # (we only need to resolve our own statements, not the imported ones)
+    # copy to avoid concurrent modification when statements are imported
     statements = list(idx.statements.values())
     # resolve references to other statements
     for statement in statements:
-        if isinstance(statement.reference, Statement) or not statement.has_reference:
-            continue  # need not be resolved
-        statement.reference = resolve_statement_reference(
-            reference=statement.reference,
-            idx=idx,
-            lookup_in_module=lookup_in_module,
-            for_statement=statement,
-            symbol_type=statement.symbol_type,
-            on_error=on_error,
-        )
+        symbol = statement.symbol
 
-    # resolve type references
-    for statement in statements:
-        if isinstance(statement.symbol, Type):
-            resolve_type_references_rec(
-                statement, statement.symbol, lookup_in_module, idx, on_error
-            )
+        if isinstance(symbol, HasType):
+            for node in symbol.walk():
+                if node.reference is None or isinstance(node.reference, Statement):
+                    continue  # nothing to resolve
+                # normalize path to statement
+                resolved_stmt = resolve_statement_reference(
+                    reference=node.reference,
+                    idx=idx,
+                    lookup_in_module=lookup_in_module,
+                    for_statement=statement,
+                    symbol_type=SymbolType.TYPE,
+                    on_error=on_error,
+                )
+                if resolved_stmt is None:
+                    continue  # error already reported
+                if not isinstance(resolved_stmt.symbol, TypeNode):
+                    raise RuntimeError(f"resolved statement is not a type: {resolved_stmt})")
+                node.reference = resolved_stmt.symbol
 
-    # parse and resolve code references
-    # (parse here because it's unclear where else to put code parsing in the pipeline,
-    #  as other references are already 'pre-parsed' in preparse or when loaded from data)
-    for statement in statements:
-        code = statement.symbol
-        if isinstance(code, Code):
-            input_keys = (input.ident for input in code.type.inputs)
-            code.parse = parse_code(code.code)
-            for key, reference in code.parse.references.items():
+        if isinstance(symbol, Code):
+            input_keys = (input.ident for input in symbol.type.inputs)
+            symbol.parse = parse_code(symbol.code)
+            for key, reference in symbol.parse.references.items():
                 if key in input_keys:
                     continue  # input arguments are obviously not resolved
                 reference = resolve_statement_reference(
@@ -354,37 +346,9 @@ def resolve(
                     by=LookupBy.PyIdent,
                 )
                 if reference is not None:
-                    code.references[key] = reference
+                    symbol.references[key] = reference.symbol
 
     return idx
-
-
-def resolve_type_references_rec(
-    for_statement: Statement,
-    type: TypeNode,
-    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
-    idx: ModuleIndex,
-    on_error: Callable[[Error], None],
-) -> None:
-    """Resolves and imputes type references in a type node recursively."""
-    for node in type.walk():
-        if node.reference is None or isinstance(node.reference, Statement):
-            continue  # nothing to resolve
-        # normalize path to statement
-        resolved_stmt = resolve_statement_reference(
-            reference=node.reference,
-            idx=idx,
-            lookup_in_module=lookup_in_module,
-            for_statement=for_statement,
-            symbol_type=SymbolType.TYPE,
-            on_error=on_error,
-        )
-        if resolved_stmt is None:
-            continue  # error already reported
-        if not isinstance(resolved_stmt.content, TypeNode):
-            raise RuntimeError(f"resolved statement is not a type: {resolved_stmt})")
-        node.reference = resolved_stmt
-        node.source_reference = get_reference_as_path(node.reference, via=for_statement)
 
 
 # identifier names can be escaped as '<name with space>'
@@ -513,10 +477,10 @@ def index_module(
             idx.add_scope(file_scope)
 
         for statement in file.statements:
-            if statement.name is None:
-                continue  # ignore blanks and comments
-            # create scope for every regular statement
+            if statement.type != StatementType.SYMBOL:
+                continue  # ignore non-symbols
             idx.statements[statement.id] = statement
+            idx.symbols[statement.id] = statement.symbol
             statements_by_parent_id[statement.parent_id or statement.file.id].append(statement)
             path = file_scope.name + ":" + statement.infile_path
             statement_scope = Scope(
@@ -575,98 +539,6 @@ def interp(
     def _error(_t: IT, subject: Statement | File, cause: Exception | None = None, **error_args):
         on_error(Error(_t, subject, cause, **error_args))
 
-    # create symbol shells for proper statements (without symbol-specific fields)
-    # include imported scopes (we want their symbols too, and they may be abstract)
-    for scope in idx.scopes.values():
-        if scope.statement is None:
-            continue
-        statement = scope.statement
-
-        if statement.underlying_definition is None:
-            # definition is not available, probably due to some reference or load error
-            # we ignore here since this is already an error upstream
-            continue
-
-        base_symbol = Symbol(
-            id=statement.id,
-            name=statement.name,
-            modifier=statement.modifier,
-            source=statement,
-        )
-        source_content = statement.underlying_definition.content
-        symbol_cls = SYMBOL_CLASS_BY_TYPE[statement.symbol_type]
-        symbol_keys = SYMBOL_FIELDS_NAMES_BY_TYPE[statement.symbol_type]
-        # intersect because source_content may be a full InterpSymbol (see below)
-        symbol_kwargs = dict_intersect(source_content.__dict__, symbol_keys)
-        symbol_kwargs.update(base_symbol.__dict__)
-        symbol = symbol_cls(**symbol_kwargs)  # type: ignore
-
-        # replace source content with symbol (if it's a definition)
-        if statement.content is not None:
-            statement.content = symbol
-
-        scope.parent.add_symbol(symbol)
-        idx.symbols[statement.id] = symbol
-
-    # set symbol reference and definition sites
-    for symbol in idx.symbols.values():
-        # reference symbol is just the symbol that was directly referenced as a statement
-        if symbol.source.has_reference:
-            symbol.reference = idx.symbols[symbol.source.reference.id]
-
-        # :SymbolDefinitionReference
-        # definition site is the first non-abstract reference or definition
-        # excluding plain references without parameters
-        definition_stmt = symbol.source.underlying_definition
-        symbol.definition = idx.symbols[definition_stmt.id]
-
-    # interp type nodes
-    interped_type_nodes: set[UUID] = set()
-
-    def _interp_type_rec(node: TypeNode):
-        if node.id in interped_type_nodes:
-            return
-        interped_type_nodes.add(node.id)
-        # impute type reference
-        if isinstance(node.reference, Statement):
-            node.reference = idx.symbols[node.reference.id]
-            if node.reference.tag == TypeTag.TYPE_REFERENCE:
-                _interp_type_rec(node.reference)
-            if not isinstance(node.reference, Type) or node.reference.tag == TypeTag.TYPE_REFERENCE:
-                raise ValueError(f"type reference is not resolved: {node}")
-            node.tag = node.reference.tag
-            if node.source_reference is None:
-                node.source_reference = node.reference.name
-        for child in node.fields:
-            _interp_type_rec(child)
-
-    # first impute all the references
-    for symbol in idx.symbols.values():
-        if isinstance(symbol, Type):
-            _interp_type_rec(symbol)
-
-    # interp symbol contents using related symbols
-    # this should probably set/work with :InstructionOps?
-    for id, symbol in idx.symbols.items():
-        statement = idx.statements[id]
-        if statement.type == StatementType.DEFINITION:
-            scope = idx.scopes[id]
-        else:  # borrow scope from reference (imported references import their scope)
-            scope = idx.scopes[statement.reference_id]
-
-        if isinstance(symbol, (Type, Task, Expectation)):
-            for child in scope.proper_symbols:
-                if child.source.is_expect:
-                    symbol.expectations.append(child)
-        if isinstance(symbol, Task):
-            for child in scope.proper_symbols:
-                if isinstance(child, (Task, Code)):
-                    symbol.steps.append(child)
-        if isinstance(symbol, Code):
-            # replace code references with symbols
-            for key, reference in symbol.references.items():
-                symbol.context[key] = idx.symbols[reference.id]
-
     inlined_node_ids: set[UUID] = set()
 
     # inline union types (and extend expectations if they exist)
@@ -682,35 +554,36 @@ def interp(
             node.fields = node.fields
             return node.fields  # skip, not a union
         path = path + [node]
-        inlined_nodes = []
-        node.self_fields = deepcopy_types(node.fields)  # retain originals
+        resolved_fields = []
+        node.fields = deepcopy_types(node.fields)  # retain originals
         for child in node.fields:
             if not child.flags & TypeFlag.IsUnionWith:
-                inlined_nodes.append(child)
+                resolved_fields.append(child)
                 continue
             if not isinstance(child.reference, Type):
                 continue  # ignore unresolved
             # inline child's type nodes
             for to_inline in _inline_type_union_rec(child.reference, path):
-                existing = first((n for n in inlined_nodes if n.name == to_inline.name), None)
+                existing = first((n for n in resolved_fields if n.name == to_inline.name), None)
                 # check if type is compatible if overlapping
                 if existing is not None and (
                     existing.tag != to_inline.tag
-                    or existing.source_reference != to_inline.source_reference
+                    or existing.flags != to_inline.flags
+                    or existing.hint != to_inline.hint
                 ):
                     # TODO @Robustness: check union type compatibility properly
                     path = "->".join(str(n) for n in path)
                     _error(IT.MISMATCHED_UNION, node, node=existing, other=to_inline, path=path)
                     continue
-                inlined_nodes.append(to_inline)
+                resolved_fields.append(to_inline)
             if isinstance(node, Type):  # extend expectations
                 node.expectations.extend(child.reference.expectations)
-        node.fields = inlined_nodes
+        node.resolved_fields = resolved_fields
         return node.fields
 
-    for node_id in interped_type_nodes:
-        if node_id in idx.symbols:
-            type = typing.cast(TypeNode, idx.symbols[node_id])
+    for symbol in idx.symbols.values():
+        if isinstance(symbol, HasType):
+            type = typing.cast(TypeNode, symbol)
             _inline_type_union_rec(type, [])
 
     idx.interpreted = True

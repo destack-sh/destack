@@ -103,7 +103,7 @@ const rootCell: Ref<Cell> = computed(() => {
     return {
       component: CommentCell,
     };
-  } else if (statement.value.type == StatementType.Definition) {
+  } else if (statement.value.type == StatementType.Symbol) {
     if (statement.value.symbolType == SymbolType.Type) {
       return {
         component: TypeDefinitionCell,
@@ -122,17 +122,12 @@ const rootCell: Ref<Cell> = computed(() => {
       return {
         component: CodeDefinitionCell,
       };
-    } else if (statement.value.symbolType == SymbolType.Data) {
+    } else if (statement.value.symbolType == SymbolType.Dataset || statement.value.symbolType == SymbolType.Value) {
       return {
         component: DataDefinitionCell,
       };
     }
-
     // default to just declaration cell
-    return {
-      component: DeclarationCell,
-    };
-  } else if (statement.value.type == StatementType.Reference) {
     return {
       component: DeclarationCell,
     };

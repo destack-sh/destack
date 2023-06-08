@@ -6,11 +6,10 @@ from typing import Awaitable, Callable, Optional, cast
 from uuid import UUID
 
 import structlog
-from more_itertools import first
 
 from bench import language
 from bench.language import wire
-from bench.language.interp import ErrorCollector, LookupBy, interp, resolve, sort
+from bench.language.interp import ErrorCollector, LookupBy, interp, resolve, sort, REFERENCE_REGEX
 from bench.language.type import StatementPath, SymbolType
 from bench.language.wire import ModuleReference
 from bench.utils.func import wrap_task
@@ -111,7 +110,7 @@ def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
     dependencies_by_name = {m.module.name: m for m in dependencies}
 
     def lookup(
-        requirement: language.RequirementContent, path: StatementPath | UUID, by: LookupBy
+        requirement: language.Requirement, path: StatementPath | UUID, by: LookupBy
     ) -> language.Scope | None:
         if isinstance(path, UUID):  # lookup in any dependency
             for idx in dependencies:
@@ -135,7 +134,7 @@ def interp_module(
     logger.debug("module.interp", module=source)
     module = wire.wmap_module(source)
     collector = ErrorCollector()
-    sort(module)  # for nicer debugging and automatically sorted module index
+    sort(module)  # for nicer debugging
     idx = resolve(module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector)
     interp(idx, on_error=collector)
     errors = [e.to_error() for e in collector.errors]
@@ -144,19 +143,3 @@ def interp_module(
     return InterpModule(
         module_idx=idx, errors=errors, dependencies=dependencies, committed=source.committed
     )
-
-
-def get_or_create_file(
-    idx: language.ModuleIndex, path: str, generated: bool = True
-) -> tuple[language.File, bool]:
-    file = first((f for f in idx.module.files if f.path == path), None)
-    if file is None:
-        file = language.File(path=path, statements=[], module=idx.module, generated=generated)
-        idx.module.files.append(file)
-        return file, True
-    else:
-        return file, False
-
-
-def get_file(idx: language.ModuleIndex, path: str) -> Optional[language.File]:
-    return first((f for f in idx.module.files if f.path == path), None)

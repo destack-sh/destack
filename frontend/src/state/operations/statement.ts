@@ -68,7 +68,6 @@ export function useStatementOps() {
         $lang: String
         $code: String
         $description: String
-        $referenceId: GlobalID
         $rootTypeTag: TypeTag
         $rootTypeFlags: Int
         $commented: Boolean
@@ -89,9 +88,7 @@ export function useStatementOps() {
             description: $description
             rootTypeTag: $rootTypeTag
             rootTypeFlags: $rootTypeFlags
-            referenceId: $referenceId
             commented: $commented
-            generated: $generated
           }
         ) {
           ... on Statement {
@@ -105,16 +102,12 @@ export function useStatementOps() {
             deletedAt
             name
             commented
-            generated
             modifier
             orderKey
             file {
               id
             }
             parent {
-              id
-            }
-            reference {
               id
             }
             # symbol contents
@@ -154,11 +147,9 @@ export function useStatementOps() {
         lang: string | null;
         code: string | null;
         description: string | null;
-        referenceId: string | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
         commented: boolean;
-        generated: boolean;
       }) =>
         ({
           __typename: "Mutation",
@@ -187,8 +178,6 @@ export function useStatementOps() {
             rootTypeFlags: vars.rootTypeFlags,
             fields: [],
             lang: vars.lang,
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
-            generated: vars.generated,
             commented: vars.commented,
             // interp
             resolvedFields: [],
@@ -241,11 +230,9 @@ export function useStatementOps() {
           lang: null,
           code: null,
           description: null,
-          referenceId: null,
           rootTypeTag: null,
           rootTypeFlags: null,
           commented: false,
-          generated: false,
         });
       },
       undo: async () => {
@@ -287,11 +274,9 @@ export function useStatementOps() {
           lang: null,
           code: null,
           description: input.description ?? null,
-          referenceId: null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
           commented: false,
-          generated: false,
         });
       },
       undo: async () => {
@@ -943,69 +928,12 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: setReferenceMut } = registry.useMutation(
-    ModuleMutationType.UpdateStatementReference,
-    graphql(/* GraphQL */ `
-      mutation setReference($id: GlobalID!, $referenceId: GlobalID, $referenceName: String) {
-        updateStatementReference(input: { id: $id, referenceId: $referenceId, referenceName: $referenceName }) {
-          ... on Statement {
-            id
-            revision
-            reference {
-              id
-              name
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string; referenceId: string | null; referenceName: string | null }) =>
-        ({
-          updateStatementReference: {
-            __typename: "Statement",
-            id: vars.id,
-            revision: PENDING_REVISION,
-            reference: vars.referenceId
-              ? {
-                  __typename: "Statement",
-                  id: vars.referenceId,
-                  name: vars.referenceName,
-                }
-              : null,
-          },
-        } as SetReferenceMutation),
-    }
-  );
-
-  async function setReference(
-    tx: Transaction | null,
-    id: string,
-    oldReferenceId: string | null,
-    oldReferenceName: string | null,
-    newReferenceId: string | null,
-    newReferenceName: string | null
-  ) {
-    await ops.perform({
-      tx,
-      type: "statement.setReference",
-      do: async () => {
-        return await setReferenceMut({ id: id, referenceId: newReferenceId, referenceName: newReferenceName });
-      },
-      undo: async () => {
-        return await setReferenceMut({ id: id, referenceId: oldReferenceId, referenceName: oldReferenceName });
-      },
-    });
-  }
-
   return {
     registry,
     create: createBlank,
     createDefinition,
     morph,
     modify,
-    setReference,
     move,
     batchMove,
     batchPaste,

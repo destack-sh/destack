@@ -15,7 +15,7 @@ from uuid import UUID
 import structlog
 
 from bench.language import wire
-from bench.language.inference import Modality, SETTINGS_CLS_BY_MODALITY
+from bench.language.inference import Modality, SETTINGS_CLS_BY_MODALITY, TextGenerationSettings
 from bench.language.session import Session, instantiate_py_value_flat
 from bench.language.type import (
     Build,
@@ -205,10 +205,10 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
     # TODO @Broken: consider context length in X prompt planning/building
     if not task.outputs:
         raise RuntimeError(f"cannot build task {task} without output")
-    expectations: list[Expectation] = [e for e in task.walk_expectations()]
-    data_samples: list[Dataset] = [
-        i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
+    expectations: list[Expectation] = [
+        e for e in task.walk_expectations() if isinstance(e, Expectation)
     ]
+    data_samples: list[Dataset] = [d for d in task.walk_expectations() if isinstance(d, Dataset)]
     x = XPrompt(task=task, model=model, modality=Modality.GenerateText, session=session)
     x.emit(
         XSystem(),
@@ -224,7 +224,7 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
         if len(dataset) > 0:
             x.emit(
                 XSamples(
-                    source=SampleDatasetRandom(dataset, count=3, seed=0),
+                    dataset=dataset,
                     task_label=task.name,
                     positive=dataset.modifier == StatementModifier.LIKE,
                 )
@@ -372,19 +372,18 @@ class XExpectations(XEmit):
 class XSamples(XEmit):
     """Emits fewshot examples in a specific format"""
 
-    source: typing.Callable[[], Dataset]
+    dataset: Dataset
     task_label: str
     positive: bool
 
     def __call__(self) -> XBlock:
-        dataset = self.source()
-        if len(dataset) == 0:
+        if len(self.dataset) == 0:
             raise RuntimeError(f"expected at least one sample for {self.task.name}")
         if self.positive:
             preamble = f"Good examples of {self.task_label}"
         else:
             preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record._data, sort_keys=True) for record in dataset.records)
+        data_str = "\n".join(json.dumps(record._data, sort_keys=True) for record in self.dataset)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
 

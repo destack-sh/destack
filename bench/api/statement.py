@@ -92,12 +92,10 @@ class Statement(gql.Node, SimplyTyped):
     updated_at: auto
     deleted_at: auto
     commented: auto
-    generated: auto
     parent: Optional["Statement"]
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
-    reference: Optional["Statement"]
     symbol_type: Optional[SymbolType]
     # symbol contents
     root_type_tag: Optional[TypeTag]
@@ -142,7 +140,6 @@ class StatementCreateInput:
     file_id: GlobalID
     order_key: str
     type: StatementType
-    generated: Optional[bool] = None
     parent_id: Optional[GlobalID] = None
     commented: Optional[bool] = None
     modifier: Optional[StatementModifier] = None
@@ -330,7 +327,6 @@ class StatementMutation:
             name=input.name,
             parent_id=input.parent_id.node_id if input.parent_id else None,
             order_key=input.order_key,
-            generated=input.generated,
             commented=input.commented,
             modifier=input.modifier,
             root_type_tag=input.root_type_tag,
@@ -352,7 +348,6 @@ class StatementMutation:
         statement.parent_id = input.parent_id.node_id if input.parent_id else None
         statement.order_key = input.order_key
         statement.revision = input.revision
-        statement.generated = input.generated
         statement.commented = input.commented
         statement.modifier = input.modifier
         statement.root_type_tag = input.root_type_tag
@@ -374,7 +369,7 @@ class StatementMutation:
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         if (
-            input.type == StatementType.DEFINITION
+            input.type == StatementType.SYMBOL
             and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
             and input.root_type_tag is None
         ):

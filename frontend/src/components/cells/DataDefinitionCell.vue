@@ -62,29 +62,26 @@ const {
   refetch,
   fetchMore,
 } = useQuery(
-  graphql(/* GraphQL */ `
-    query records($statementId: GlobalID!, $after: String, $first: Int) {
-      statement(id: $statementId) {
-        id
-        records(filters: { isVisible: true }, after: $after, first: $first) {
-          totalCount
-          pageInfo {
-            hasNextPage
-            hasPreviousPage
-            startCursor
-            endCursor
-          }
-          edges {
-            cursor
-            node {
-              id
-              revision
-              createdAt
-              updatedAt
-              deletedAt
-              orderKey
-              data
-            }
+  graphql(/* GraphQL */ ` 
+    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {
+      searchRecords(statementId: $statementId, after: $after, first: $first) {
+        totalCount
+        pageInfo {
+          hasNextPage
+          hasPreviousPage
+          startCursor
+          endCursor
+        }
+        edges {
+          cursor
+          node {
+            id
+            revision
+            createdAt
+            updatedAt
+            deletedAt
+            orderKey
+            data
           }
         }
       }
@@ -96,10 +93,10 @@ const {
     first: !isTable.value ? 1 : PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
 );
-const pageInfo = computed(() => fetchedRecords.value?.statement?.records.pageInfo);
+const pageInfo = computed(() => fetchedRecords.value?.searchRecords.pageInfo);
 const recordsInView = computed(
   () =>
-    fetchedRecords.value?.statement?.records.edges
+    fetchedRecords.value?.searchRecords.edges
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node)
       .filter((n) => n.deletedAt == null)
@@ -107,7 +104,7 @@ const recordsInView = computed(
 );
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
-  pageInfo.value?.hasNextPage ? fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.node : null
+  pageInfo.value?.hasNextPage ? fetchedRecords.value?.searchRecords.edges.slice(-1)[0]?.node : null
 );
 const mainRecord = computed(() => recordsInView.value?.[0]);
 
@@ -115,7 +112,7 @@ function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
-      after: fetchedRecords.value?.statement?.records.edges.slice(-1)[0]?.cursor,
+      after: fetchedRecords.value?.searchRecords.edges.slice(-1)[0]?.cursor,
       first: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
@@ -485,7 +482,7 @@ const position = useMouseInElement(gridRef);
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
   if (isTable.value) {
-    if ((fetchedRecords?.value?.statement?.records.totalCount ?? -1) == -1) {
+    if ((fetchedRecords?.value?.searchRecords.totalCount ?? -1) == -1) {
       actions.push({
         label: "Reload view",
         icon: ArrowPathIcon,
@@ -620,8 +617,8 @@ defineExpose({
       :class="context.focused.value ? '' : 'opacity-0'"
     >
       <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
-      <span v-if="(fetchedRecords?.statement?.records.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
-        {{ humanizeNumber(fetchedRecords?.statement?.records.totalCount ?? 0) }}
+      <span v-if="(fetchedRecords?.searchRecords.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
+        {{ humanizeNumber(fetchedRecords?.searchRecords.totalCount ?? 0) }}
       </span>
       <InlineActions :extraActions="extraStatementActions" />
     </div>

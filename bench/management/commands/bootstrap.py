@@ -1,17 +1,12 @@
 import datetime
 from dataclasses import dataclass, field
-from pathlib import Path
 
 import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.language import lex, parse, wire
-from bench.language.lex import SourceFile
-from bench.language.mutate import ModuleMutator
 from bench.language.type import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
-from bench.models.mapper import lookup_in_db_module, write_mutations
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.utils.fractional import generate_n_keys_between
 
@@ -72,32 +67,8 @@ class Command(BaseCommand):
 
 @transaction.atomic
 def create_symbolx_std(path: str, overwrite: bool) -> None:
-    std = get_or_create_std("SymbolX", "symbolx")
-
-    # get last modified date from file at path
-    last_modified = datetime.datetime.fromtimestamp(Path(path).stat().st_mtime)
-    # format version name as YYYY.MM.DD-ts
-    version_id = last_modified.strftime("%Y.%m.%d") + "-" + str(int(last_modified.timestamp()))
-    std_v: ProjectVersion = std.head_
-    exists = std_v.name == version_id
-    if exists and not overwrite:
-        # skip if version already exists
-        logger.info(f"Skip updating library {std_v} to {version_id} (already exists)")
-        return
-    if exists:
-        logger.warn(f"Overwriting library {std_v} at {version_id}")
-    std_v = std.create_new_blank_head(name=version_id, parent=std_v)
-    source_file = SourceFile(path=path, content=Path(path).read_text())
-    module, idx = parse(lex(source_file), lookup_in_module=lookup_in_db_module, on_error="raise")
-    wire_module = wire.rmap_module(module)
-    write_mutations(std_v, ModuleMutator(idx).create_many(*wire_module.files).mutations)
-
-    # advance head
-    std_v.commit(name=version_id)
-    std.head = std_v
-    std.save()
-
-    logger.info(f"Created library {std_v} from {path}")
+    get_or_create_std("SymbolX", "symbolx")
+    # no std yet
 
 
 @transaction.atomic
@@ -129,7 +100,7 @@ def create_model_providers():
                     file=models_file,
                     parent=None,
                     order_key=order_key,
-                    type=StatementType.DEFINITION,
+                    type=StatementType.SYMBOL,
                     symbol_type=SymbolType.MODEL,
                     name=model_id,
                     external_name=external_name,

@@ -448,7 +448,7 @@ class LanguageWorker:
         interp_by_scope: dict[UUID, InterpData] = {}
         for symbol in self.interp.module_idx.symbols.values():
             # only include resolved fields if they are actually different
-            if isinstance(symbol, language.TypeContent) and symbol.self_fields is not None:
+            if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
                 resolved_fields = [
                     wire.rmap_field(symbol.id, field, impute_type_references=True)
                     for field in symbol.fields

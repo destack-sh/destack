@@ -55,7 +55,6 @@ export function useFileOps() {
             updatedAt
             deletedAt
             directory
-            generated
             projectVersion {
               id
             }
