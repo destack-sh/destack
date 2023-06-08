@@ -1,5 +1,5 @@
-from bench.language.error import Error, IssueType
 from bench.language.interp import ModuleIndex, Scope, parse
+from bench.language.issue import Issue, IssueType
 from bench.language.lex import Token, TokenType, lex
 from bench.language.type import (
     Build,
@@ -42,7 +42,7 @@ __all__ = [
     "CodeContent",
     "Dataset",
     "DatasetContent",
-    "Error",
+    "Issue",
     "IssueType",
     "Expectation",
     "ExpectationContent",

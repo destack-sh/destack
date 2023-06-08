@@ -65,16 +65,16 @@ class Tracer:
     ):
         pass
 
-    def table_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: DatasetInstance):
         pass
 
-    def table_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: DatasetInstance, record: Record):
         pass
 
-    def table_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
         pass
 
-    def table_remove(self, table: DatasetInstance, record: Record):
+    def dataset_remove(self, table: DatasetInstance, record: Record):
         pass
 
     def record_update(
@@ -153,21 +153,21 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_cached(model, blocks, settings, inference)
 
-    def table_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: DatasetInstance):
         for tracer in self.tracers:
-            tracer.table_clear(table)
+            tracer.dataset_clear(table)
 
-    def table_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: DatasetInstance, record: Record):
         for tracer in self.tracers:
-            tracer.table_append(table, record)
+            tracer.dataset_append(table, record)
 
-    def table_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
         for tracer in self.tracers:
-            tracer.table_extend(table, records)
+            tracer.dataset_extend(table, records)
 
-    def table_remove(self, table: DatasetInstance, record: Record):
+    def dataset_remove(self, table: DatasetInstance, record: Record):
         for tracer in self.tracers:
-            tracer.table_remove(table, record)
+            tracer.dataset_remove(table, record)
 
     def record_update(
         self,
@@ -341,17 +341,17 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def table_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: DatasetInstance):
         self.mutator.truncate_records(table.id)
 
-    def table_append(self, table: DatasetInstance, record: RecordInstance):
+    def dataset_append(self, table: DatasetInstance, record: RecordInstance):
         self.mutator.create(record._to_wire(include_data=True))
 
-    def table_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
         self.mutator.create_many(*[record._to_wire(include_data=True) for record in records])
 
-    def table_remove(self, table: DatasetInstance, record: Record):
-        self.mutator.delete(record.id)
+    def dataset_remove(self, table: DatasetInstance, record: Record):
+        self.mutator.delete(record._id)
 
     def record_update(
         self,
@@ -374,8 +374,8 @@ class ValidationTracer(Tracer):
     def code_exit(self, code: RunnableInstance, args, kwargs, result):
         check_type(result, code, is_output=True)
 
-    def table_append(self, table: DatasetInstance, record: Record):
-        check_type(record.data, table, ignore_array=True)
+    def dataset_append(self, table: DatasetInstance, record: Record):
+        check_type(record._data, table, ignore_array=True)
 
     def record_update(
         self,
@@ -387,9 +387,9 @@ class ValidationTracer(Tracer):
             # validate only this key
             if key not in owner.type:
                 raise ValueError(f"{key} does not exist on {owner.type}")
-            check_type(record.data.get(key), owner.type[key])
+            check_type(record._data.get(key), owner.type[key])
         else:
-            check_type(record.data, owner.type, ignore_array=True)
+            check_type(record._data, owner.type, ignore_array=True)
 
 
 class PermissionTracer(Tracer):
@@ -398,13 +398,13 @@ class PermissionTracer(Tracer):
     def __init__(self, session: Session):
         self.session = session
 
-    def table_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: DatasetInstance):
         self.session.check_can_write(table)
 
-    def table_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: DatasetInstance, record: Record):
         self.session.check_can_write(table)
 
-    def table_delete(self, table: DatasetInstance, record: RecordInstance):
+    def dataset_delete(self, table: DatasetInstance, record: RecordInstance):
         self.session.check_can_write(table)
 
     def record_update(

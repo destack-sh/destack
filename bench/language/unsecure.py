@@ -5,7 +5,7 @@ import traceback
 import typing
 from typing import Any, Optional
 
-from bench.language.type import InterpSymbol, LiteralValue
+from bench.language.type import LiteralValue, Symbol
 from bench.runtime.common.type import PyFrameData
 from bench.utils.utils import get_from_env, to_pyidentifier
 
@@ -48,7 +48,7 @@ class RunError(Exception):
     def __init__(
         self,
         _t: RunErrorType,
-        symbol: typing.Optional[InterpSymbol],
+        symbol: typing.Optional[Symbol],
         cause: typing.Optional[Exception] = None,
     ):
         self.type = _t

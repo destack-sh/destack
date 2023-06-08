@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from django.db import models
-from django_choices_field import TextChoicesField
 
 from bench.models.utils import UUIDModel
 
@@ -25,8 +24,8 @@ class Worker(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True)
     terminated_at = models.DateTimeField(null=True)
-    tenancy = TextChoicesField(choices_enum=WorkerTenancy)
-    status = TextChoicesField(choices_enum=WorkerStatus)
+    tenancy = models.CharField(max_length=20, choices=WorkerTenancy.choices)
+    status = models.CharField(max_length=20, choices=WorkerStatus.choices)
     project = models.ForeignKey(
         "Project", on_delete=models.CASCADE, related_name="workers", null=True
     )

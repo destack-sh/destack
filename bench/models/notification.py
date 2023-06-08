@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from django.db import models
-from django_choices_field import TextChoicesField
 
 from bench.models.user import User
 from bench.models.utils import UUIDModel
@@ -19,7 +18,7 @@ class NotificationStatus(models.TextChoices):
 
 
 class Notification(UUIDModel):
-    type = TextChoicesField(choices_enum=NotificationType)
+    type = models.CharField(max_length=20, choices=NotificationType.choices)
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="notifications")
 
     created_at = models.DateTimeField(auto_now_add=True)

@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Optional
 
 from django.db import models
-from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models.utils import UUIDTModel
@@ -47,7 +46,9 @@ class Execution(UUIDTModel):
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
     tracing_level = models.IntegerField(default=0)
-    trigger_type = TextChoicesField(choices_enum=ExecutionTriggerType)
+    trigger_type = models.CharField(
+        max_length=32, choices=ExecutionTriggerType.choices, default=ExecutionTriggerType.API
+    )
     user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
     access_token = models.ForeignKey(
         "AccessToken", null=True, blank=True, on_delete=models.SET_NULL

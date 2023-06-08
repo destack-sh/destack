@@ -5,38 +5,28 @@ import typing
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
 from itertools import chain
-from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 from uuid import UUID
 
 import structlog
 from more_itertools import first
 
-from bench.language.error import IssueType, ParseError, SemanticError
-from bench.language.lex import lex, lex_string
-from bench.language.parse import ABSOLUTE_IMPORT_SOURCE_REGEX, preparse
+from bench.language.issue import Error, IssueType
 from bench.language.type import (
     SYMBOL_CLASS_BY_TYPE,
     SYMBOL_FIELDS_NAMES_BY_TYPE,
     Code,
-    CodeContent,
     Dataset,
     Expectation,
     File,
-    InterpSymbol,
     Module,
-    RequirementContent,
-    SourceFile,
     Statement,
     StatementPath,
     StatementType,
-    SymbolContent,
+    Symbol,
     SymbolType,
     Task,
-    Token,
-    TokenType,
     Type,
-    TypeContent,
     TypeFlag,
     TypeNode,
     TypeTag,
@@ -48,12 +38,11 @@ from bench.utils.func import dict_intersect
 
 logger = structlog.get_logger(__name__)
 
-
 StmT = StatementType
 SymT = SymbolType
 
 SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
-SymbolT = typing.TypeVar("SymbolT", bound=InterpSymbol)
+SymbolT = typing.TypeVar("SymbolT", bound=Symbol)
 
 
 def raise_error(error: ValueError):
@@ -100,50 +89,6 @@ LookupFunc = Callable[
 ]
 
 
-def parse(
-    tokens: list[Token],
-    module: Optional[Module] = None,
-    lookup_in_module: LookupFunc = lookup_in_error,
-    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> tuple[Module, ModuleIndex]:
-    """Parse a stream of tokens into Bench AST (grouped into files in a module)."""
-    if on_error == "raise":
-        on_error = raise_error
-    if module is None:
-        module = Module(name="<local>", files=[])
-
-    # first pass: extract files and statements
-    files = preparse(tokens, module, on_error=on_error)
-    module.files.extend(files)
-    # second pass: resolve references
-    idx = resolve(module, lookup_in_module=lookup_in_module, on_error=on_error)
-    # third pass: create symbols
-    interp(idx, on_error=on_error)
-
-    return module, idx
-
-
-def parse_string(
-    string: str,
-    module: Optional[Module] = None,
-    lookup_in_module: LookupFunc = ignore_module_lookup,
-    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> tuple[Module, ModuleIndex]:
-    tokens = lex_string(string)
-    return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
-
-
-def parse_file(
-    file_path: str,
-    module: Optional[Module] = None,
-    lookup_in_module: LookupFunc = ignore_module_lookup,
-    on_error: typing.Literal["raise"] | Callable[[ParseError | SemanticError], None] = "raise",
-) -> tuple[Module, ModuleIndex]:
-    source_file = SourceFile(path=file_path, content=Path(file_path).read_text())
-    tokens = lex(source_file)
-    return parse(tokens, module=module, lookup_in_module=lookup_in_module, on_error=on_error)
-
-
 @dataclass(repr=False)
 class Scope:
     """A scope in which statements are defined. May be at file- or statement-level."""
@@ -154,7 +99,7 @@ class Scope:
     file: File
     statement: Statement | None
     statements: OrderedDict[str, Statement] = field(default_factory=OrderedDict)
-    symbols: OrderedDict[str, InterpSymbol] = field(default_factory=OrderedDict)
+    symbols: OrderedDict[str, Symbol] = field(default_factory=OrderedDict)
     names_by_identifier: dict[str, str] = field(default_factory=dict)
 
     def __str__(self):
@@ -196,19 +141,11 @@ class Scope:
         return None
 
     @property
-    def parameters(self) -> list[Statement]:
-        return [s for s in self.statements.values() if s.is_parameter]
-
-    @property
-    def arguments(self) -> list[Statement]:
-        return [s for s in self.statements.values() if s.is_argument]
-
-    @property
     def proper_statements(self) -> list[Statement]:
         return [s for s in self.statements.values() if not s.is_argument and not s.is_parameter]
 
     @property
-    def proper_symbols(self) -> list[InterpSymbol]:
+    def proper_symbols(self) -> list[Symbol]:
         return [self.symbols[s.name] for s in self.proper_statements if s.name in self.symbols]
 
 
@@ -224,7 +161,7 @@ class ModuleIndex:
     scopes: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
     scopes_by_name: OrderedDict[str, Scope] = field(default_factory=OrderedDict)
     scopes_by_ident: OrderedDict[UUID, Scope] = field(default_factory=OrderedDict)
-    symbols: dict[UUID, InterpSymbol] = field(default_factory=OrderedDict)
+    symbols: dict[UUID, Symbol] = field(default_factory=OrderedDict)
 
     def __str__(self):
         statements_str = f"statements={len(self.statements)}"
@@ -367,7 +304,7 @@ def sort(module: Module):
 def resolve(
     module: Module,
     lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
-    on_error: Callable[[SemanticError], None],
+    on_error: Callable[[Error], None],
 ) -> ModuleIndex:
     """Resolve unresolved statement references in the given module."""
 
@@ -427,7 +364,7 @@ def resolve_type_references_rec(
     type: TypeNode,
     lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
     idx: ModuleIndex,
-    on_error: Callable[[SemanticError], None],
+    on_error: Callable[[Error], None],
 ) -> None:
     """Resolves and imputes type references in a type node recursively."""
     for node in type.walk():
@@ -455,12 +392,12 @@ def resolve_statement_reference(
     idx: ModuleIndex,
     lookup_in_module: LookupFunc,
     for_statement: Statement,
-    on_error: Callable[[SemanticError], None],
+    on_error: Callable[[Error], None],
     symbol_type: SymbolType | None = None,
     by: LookupBy = LookupBy.Name,
 ) -> Statement | None:
     def _error(_t: ET, cause: Exception | None = None, **error_args) -> None:
-        on_error(SemanticError(_t, for_statement, cause, **error_args))
+        on_error(Error(_t, for_statement, cause, **error_args))
 
     if reference is None:
         return _error(ET.MISSING_REFERENCE)
@@ -470,18 +407,18 @@ def resolve_statement_reference(
         if resolved_scope is None:
             resolved_scope = lookup_in_module(None, reference, by)
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path="<id>")
+            return _error(ET.UNDEFINED_REFERENCE, path="<id>")
         idx.import_scope(resolved_scope)
     elif reference.path == ".":  # normalize relative :StatementReferencePath
         statement_scope = idx.scopes[for_statement.id]
         resolved = statement_scope.lookup_statement(reference.name, exclude=for_statement, by=by)
         if resolved is None:
-            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
+            return _error(ET.UNDEFINED_REFERENCE, path=reference)
         resolved_scope = idx.scopes[resolved.id]
     elif reference.path.startswith("."):  # normalize local :StatementReferencePath
         resolved_scope = idx.get_scope(reference, by=by)
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_LOCAL_REFERENCE, path=reference)
+            return _error(ET.UNDEFINED_REFERENCE, path=reference)
     else:  # resolve by absolute path in external module
         # get source requirement for external module
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference.path)
@@ -516,14 +453,14 @@ def resolve_statement_reference(
 
 def index_module(
     module: Module,
-    on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise",
+    on_error: Callable[[Error], None] | typing.Literal["raise"] = "raise",
 ) -> ModuleIndex:
     """Index the module's scopes and requirements."""
     if on_error == "raise":
         on_error = raise_error
 
     def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, subject, cause, **error_args))
+        on_error(Error(_t, subject, cause, **error_args))
 
     idx = ModuleIndex(module=module)
 
@@ -586,7 +523,6 @@ def index_module(
         if statement.parent_id is not None:
             statement_scope = idx.scopes[statement.id]
             if statement.parent_id not in idx.scopes:
-                _error(ET.UNEXPECTED_CHILDREN, statement)
                 continue
             parent_scope = idx.scopes[statement.parent_id]
             statement_scope.parent = parent_scope
@@ -614,7 +550,7 @@ def index_module(
 
 
 def interp(
-    idx: ModuleIndex, on_error: Callable[[SemanticError], None] | typing.Literal["raise"] = "raise"
+    idx: ModuleIndex, on_error: Callable[[Error], None] | typing.Literal["raise"] = "raise"
 ) -> ModuleIndex:
     """Interpret the module's statements as symbols (populating the module's symbol tables)."""
     if idx.interpreted:
@@ -624,7 +560,7 @@ def interp(
         on_error = raise_error
 
     def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
-        on_error(SemanticError(_t, subject, cause, **error_args))
+        on_error(Error(_t, subject, cause, **error_args))
 
     # create symbol shells for proper statements (without symbol-specific fields)
     # include imported scopes (we want their symbols too, and they may be abstract)
@@ -633,20 +569,14 @@ def interp(
             continue
         statement = scope.statement
 
-        # TODO @Feature: implement abstraction/variable templating :Variables
-        abstract = False
-        if scope.parameters or scope.arguments:
-            _error(ET.UNEXPECTED_PARAMETERS, statement)
-            continue
         if statement.underlying_definition is None:
             # definition is not available, probably due to some reference or load error
             # we ignore here since this is already an error upstream
             continue
 
-        base_symbol = InterpSymbol(
+        base_symbol = Symbol(
             id=statement.id,
             name=statement.name,
-            abstract=abstract,
             modifier=statement.modifier,
             source=statement,
         )
@@ -676,8 +606,6 @@ def interp(
         # excluding plain references without parameters
         definition_stmt = symbol.source.underlying_definition
         symbol.definition = idx.symbols[definition_stmt.id]
-        if symbol.definition.abstract:
-            raise NotImplementedError("TODO @Incomplete: implement abstraction :Variables")
 
     # interp type nodes
     interped_type_nodes: set[UUID] = set()
@@ -776,10 +704,8 @@ def interp(
     return idx
 
 
-def get_reference_as_path(
-    reference: Statement | InterpSymbol, via: Statement | None
-) -> StatementPath:
-    if isinstance(reference, InterpSymbol):
+def get_reference_as_path(reference: Statement | Symbol, via: Statement | None) -> StatementPath:
+    if isinstance(reference, Symbol):
         reference = reference.source
     if via is None or reference.file.id == via.file.id:
         return StatementPath(".", reference.name)

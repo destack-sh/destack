@@ -246,18 +246,6 @@ class StatementData:
 _STATEMENT_DATA_FIELDS = fields(StatementData)
 
 
-class InterpScope(enum.StrEnum):
-    MODULE = "module"
-    FILE = "file"
-    STATEMENT = "statement"
-
-
-class IssueKind(enum.StrEnum):
-    ERROR = "error"
-    WARNING = "warning"
-    SUGGESTION = "suggestion"
-
-
 @dataclass(repr=False, slots=True)
 class IssueData:
     id: UUID
@@ -533,17 +521,17 @@ def wmap_field(node: FieldData) -> language.Field:
 def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
     """Maps a record to a record data object."""
     return RecordData(
-        id=record.id,
+        id=record._id,
         revision=1,
-        data=record.data,
+        data=record._data,
         statement_id=statement_id,
-        order_key=record.order_key,
+        order_key=record._order_key,
     )
 
 
 def wmap_record(data: RecordData) -> language.Record:
     """Maps a record data object to a record."""
-    return language.Record(id=data.id, data=data.data, order_key=data.order_key)
+    return language.Record(_id=data.id, _data=data.data, _order_key=data.order_key)
 
 
 def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
@@ -566,7 +554,7 @@ def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
     )
 
 
-def rmap_issue(issue: language.Error) -> IssueData:
+def rmap_issue(issue: language.Issue) -> IssueData:
     if issue.statement is not None:
         id = uuid5(issue.statement.id, issue.type.name)
         scope = InterpScope.STATEMENT

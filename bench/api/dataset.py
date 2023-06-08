@@ -109,7 +109,7 @@ class DatasetMutation:
     @tracked_mutation(MMT.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=input.id.node_id)
-        record.data = input.data
+        record._data = input.data
         return record
 
     @tracked_mutation(MMT.UPDATE_RECORD_PATH)
@@ -117,15 +117,15 @@ class DatasetMutation:
         # update record data at the given path
         record = models.Record.objects.get(id=input.id.node_id)
         if input.value is None:
-            del record.data[input.path]
+            del record._data[input.path]
         else:
-            record.data[input.path] = input.value
+            record._data[input.path] = input.value
         return record
 
     @tracked_mutation(MMT.MOVE_RECORD)
     def move_record(self, input: RecordMoveInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=input.id.node_id)
-        record.order_key = input.order_key
+        record._order_key = input.order_key
         return record
 
     @tracked_mutation(MMT.SOFT_DELETE_RECORD)
