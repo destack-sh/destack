@@ -4,11 +4,11 @@ import { reverseRecord } from "@/utils/functools";
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
   [SymbolType.Type]: "type",
   [SymbolType.Code]: "code",
-  [SymbolType.Data]: "data",
+  [SymbolType.Dataset]: "table",
+  [SymbolType.Value]: "value",
   [SymbolType.Model]: "model",
   [SymbolType.Expectation]: "expect",
   [SymbolType.Task]: "task",
-  [SymbolType.Capability]: "capability",
   [SymbolType.Requirement]: "require",
   [SymbolType.Build]: "build",
   [SymbolType.Block]: "block",
@@ -16,7 +16,8 @@ export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
 export const SUPPORTED_SYMBOL_TYPES = [
   SymbolType.Type,
   SymbolType.Code,
-  SymbolType.Data,
+  SymbolType.Dataset,
+  SymbolType.Value,
   SymbolType.Model,
   SymbolType.Expectation,
   SymbolType.Task,
@@ -26,11 +27,6 @@ export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
   [StatementModifier.Like]: "like",
   [StatementModifier.Unlike]: "unlike",
   [StatementModifier.Check]: "check",
-  [StatementModifier.With]: "with",
-  [StatementModifier.Var]: "vary",
-  [StatementModifier.Local]: "local",
-  [StatementModifier.Include]: "include",
-  [StatementModifier.Magic]: "magic",
 };
 export const SUPPORTED_MODIFIERS = [StatementModifier.Like, StatementModifier.Unlike, StatementModifier.Check];
 export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
@@ -39,7 +35,7 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
   [TypeTag.File]: "file",
-  [TypeTag.Embedding]: "embedding",
+  [TypeTag.Vector]: "vector",
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
   [TypeTag.Struct]: "type",

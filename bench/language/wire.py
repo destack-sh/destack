@@ -7,11 +7,10 @@ from uuid import UUID, uuid5
 
 from bench import language
 from bench.language import IssueType
-from bench.language.interp import get_reference_as_path
+from bench.language.dataset import Query, Sort
 from bench.language.issue import IssueKind
 from bench.language.type import (
     StatementModifier,
-    StatementPath,
     StatementType,
     SymbolType,
     TypeFlag,
@@ -24,6 +23,7 @@ from bench.utils.func import describe_type
 
 #
 # Stable, concise and flat language data structures for transit and storage.
+# TODO @Performance: use an optimized and evolvable wire format
 #
 
 
@@ -40,7 +40,8 @@ class FieldData:
     description: Optional[str]
     flags: TypeFlag
     value: Optional[typing.Any] = None
-    reference_id: Union[None, UUID] = None
+    reference_id: Optional[UUID] = None
+    metadata: Optional[typing.Any] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -63,24 +64,6 @@ class FieldData:
             flags=self.flags,
             reference_id=self.reference_id,
         )
-
-
-@dataclass(repr=False, slots=True)
-class RecordData:
-    id: UUID
-    statement_id: UUID
-    order_key: str
-    revision: int
-    data: Optional[typing.Any] = None
-
-    def __str__(self):
-        return f"{self.statement_id}:{self.order_key} {describe_type(self.data)}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {str(self)}>"
-
-    def deepcopy(self):
-        return RecordData(**self.__dict__)
 
 
 @dataclass(repr=False, slots=True)
@@ -160,7 +143,6 @@ class FileData:
     path: str
     statements: list["StatementData"]
     revision: int
-    generated: bool
 
     def __str__(self):
         return f"{self.module_id}/{self.path}"
@@ -179,7 +161,6 @@ class FileData:
             module_id=self.module_id,
             path=self.path,
             revision=self.revision,
-            generated=self.generated,
             statements=[s.deepcopy() for s in self.statements],
         )
 
@@ -201,34 +182,17 @@ class StatementData:
     name: Optional[str]
     fqn: Optional[str]
     parent_id: Optional[UUID]
-    reference: Union[None, StatementPath, UUID]
     text: Optional[str]
-    symbol_type: Optional[SymbolType]
-    generated: bool
     # symbol contents
-    root_type_tag: Optional[TypeTag] = None
-    root_type_flags: Optional[TypeFlag] = None
-    fields: Union[list[FieldData], None] = None
+    symbol_type: Optional[SymbolType]
     description: Optional[str] = None
-    lang: Optional[str] = None
-    code: Optional[str] = None
-    provider: Optional[str] = None
-    external_name: Optional[str] = None
-    records: Optional[list[RecordData]] = None
-    reference_module: Optional[ModuleReference] = None
-
-    @property
-    def reference_id(self) -> Optional[UUID]:
-        return self.reference if isinstance(self.reference, UUID) else None
+    symbol: Optional[typing.Any] = None
 
     def __str__(self):
         parent_str = f"{self.parent_id}:" if self.parent_id else ""
         loc = str(self.file_id) + ":" + parent_str + str(self.order_key)
         symbol_type_str = self.symbol_type.name if self.symbol_type else ""
-        ref_str = f"ref={self.reference}" if self.reference else ""
-        ref_module_str = f"ref_module={self.reference_module}" if self.reference_module else ""
-        content_str = ", ".join((s for s in (ref_str, ref_module_str) if s))
-        return f"{loc}: {self.type.name} {symbol_type_str} {self.name} ({content_str})"
+        return f"{loc}: {self.type.name} {symbol_type_str} {self.name}"
 
     def __repr__(self):
         return f"<Statement {str(self)}>"
@@ -245,6 +209,104 @@ class StatementData:
 
 
 _STATEMENT_DATA_FIELDS = fields(StatementData)
+
+
+# symbols
+
+
+@dataclass(repr=False, slots=True)
+class HasTypeData:
+    tag: Optional[TypeTag] = None
+    flags: Optional[TypeFlag] = TypeFlag.Zero
+    fields: Union[list[FieldData], None] = None
+
+
+@dataclass(repr=False, slots=True)
+class TypeData(HasTypeData):
+    pass
+
+
+@dataclass(repr=False, slots=True)
+class TaskData(HasTypeData):
+    pass
+
+
+@dataclass(repr=False, slots=True)
+class ExpectationData(HasTypeData):
+    pass
+
+
+@dataclass(repr=False, slots=True)
+class CodeData(HasTypeData):
+    lang: Optional[str] = None
+    code: Optional[str] = None
+
+
+@dataclass(repr=False, slots=True)
+class ModelData:
+    external_name: Optional[str] = None
+
+
+@dataclass(repr=False, slots=True)
+class RequirementData:
+    reference_module: Optional[ModuleReference] = None
+
+
+@dataclass(repr=False, slots=True)
+class ValueData(HasTypeData):
+    value: Optional[typing.Any] = None
+
+
+@dataclass(repr=False, slots=True)
+class DatasetViewData:
+    id: UUID
+    name: str
+    query: Optional[Query] = None
+    sort: Optional[list[Sort]] = None
+    length: Optional[int] = None
+    reference_id: Optional[UUID] = None
+
+
+@dataclass(repr=False, slots=True)
+class RecordData:
+    id: UUID
+    statement_id: UUID
+    order_key: str
+    revision: int
+    data: Optional[typing.Any] = None
+
+    def __str__(self):
+        return f"{self.statement_id}:{self.order_key} {describe_type(self.data)}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {str(self)}>"
+
+    def deepcopy(self):
+        return RecordData(**self.__dict__)
+
+
+@dataclass(repr=False, slots=True)
+class DatasetData:
+    records: Optional[list[RecordData]] = None
+    length: Optional[int] = None
+
+    @property
+    def loaded(self):
+        return self.records is not None
+
+
+SYMBOL_DATA_CLASS_BY_TYPE = {
+    SymbolType.TYPE: TypeData,
+    SymbolType.TASK: TaskData,
+    SymbolType.EXPECTATION: ExpectationData,
+    SymbolType.CODE: CodeData,
+    SymbolType.MODEL: ModelData,
+    SymbolType.REQUIREMENT: RequirementData,
+    SymbolType.DATASET: DatasetData,
+}
+
+
+# interp
 
 
 @dataclass(repr=False, slots=True)
@@ -290,10 +352,7 @@ def wmap_module(data: ModuleData) -> language.Module:
     """Maps module data back into a module. Restores explicit statement references without checking!"""
     module = language.Module(id=data.id, name=data.name)
     module.files = [wmap_file(file, module) for file in data.files]
-
-    # TODO @Architecture @Cleanup: remove reference resolution as part of wire mapping
-    #  It shouldn't be needed anymore, even now, but getting some errors, so fix later.
-    # restore statement references
+    # replace parent references
     statements = {statement.id: statement for file in module.files for statement in file.statements}
     for file_data, file in zip(data.files, module.files):
         for statement_data, statement in zip(file_data.statements, file.statements):
@@ -301,16 +360,6 @@ def wmap_module(data: ModuleData) -> language.Module:
                 # parent should exist but may not if it was not included in the module data
                 # but exists in the source (e.g. an invalid comment parent)
                 statement.parent = statements.get(statement_data.parent_id)
-
-            # resolve references in statement and in symbol content
-            # ignore references we couldn't find since are either
-            #  1) refs to "deleted" statements or
-            #  2) refs to statements in other modules (which should be by path anyway, but we can't check here)
-
-            if isinstance(statement_data.reference, UUID):
-                reference = statements.get(statement_data.reference, None)
-                if reference is not None:
-                    statement.reference = get_reference_as_path(reference, statement)
     return module
 
 
@@ -319,7 +368,6 @@ def rmap_file(file: language.File, impute_type_references: bool = False) -> File
         id=file.id,
         module_id=file.module.id,
         path=file.path,
-        generated=file.generated,
         statements=[
             rmap_statement(statement, impute_type_references=impute_type_references)
             for statement in file.statements
@@ -333,7 +381,6 @@ def wmap_file(data: FileData, module: language.Module) -> language.File:
         id=data.id,
         module=module,
         path=data.path,
-        generated=data.generated,
     )
     file.statements = [wmap_statement(statement, file) for statement in data.statements]
     return file
@@ -344,9 +391,6 @@ def rmap_statement(
 ) -> StatementData:
     """Maps a language statement to a wire statement (incl. refs)."""
     # use statement id if possible, else use statement path
-    reference = (
-        statement.reference_id if statement.reference_id is not None else statement.reference
-    )
     data = StatementData(
         module_id=statement.file.module.id,
         file_id=statement.file.id,
@@ -356,12 +400,10 @@ def rmap_statement(
         parent_id=statement.parent_id,
         type=statement.type,
         modifier=statement.modifier,
-        reference=reference,
         name=statement.name,
         fqn=statement.fqn,
         text=statement.text,
         symbol_type=statement.symbol_type,
-        generated=statement.generated,
     )
     if statement.symbol is not None:
         rmap_symbol(statement.symbol, data, impute_type_references=impute_type_references)
@@ -369,22 +411,19 @@ def rmap_statement(
 
 
 def wmap_statement(data: StatementData, file: language.File) -> language.Statement:
-    """Maps a wire statement's _contents_ (excl. refs) to a language statement."""
-    reference = data.reference if isinstance(data.reference, (StatementPath, UUID)) else None
+    """Maps a wire statement into the language representation"""
     statement = language.Statement(
         id=data.id,
         file=file,
         parent=None,  # must be restored later
-        reference=reference,  # also restored later if it was an id
         order_key=data.order_key,
         type=data.type,
         modifier=data.modifier,
         name=data.name,
         text=data.text,
         symbol_type=data.symbol_type,
-        generated=data.generated,
     )
-    if statement.type in (StatementType.DEFINITION, StatementType.REDEFINITION):
+    if statement.type == language.StatementType.SYMBOL:
         statement.symbol = wmap_symbol(data)
         statement.symbol.source = statement
     return statement
@@ -393,14 +432,18 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
 def rmap_symbol(
     symbol: language.Symbol, data: StatementData, impute_type_references: bool = False
 ) -> None:
-    """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
+    """Maps a language symbol's to a wire statement."""
     # type content is also a component
-    if isinstance(symbol, language.Type):
+    if isinstance(symbol, language.TypeNode):
         data.description = symbol.description
         data.root_type_tag = symbol.tag
         data.root_type_flags = symbol.flags
-        source_nodes = symbol.fields if impute_type_references else (symbol.fields or symbol.fields)
-        data.fields = [rmap_field(data.id, node, impute_type_references) for node in source_nodes]
+        fields = (
+            symbol.resolved_fields
+            if impute_type_references
+            else (symbol.fields or symbol.resolved_fields)
+        )
+        data.fields = [rmap_field(data.id, node, impute_type_references) for node in fields]
     if isinstance(symbol, language.Task):
         data.description = symbol.description
     elif isinstance(symbol, language.Expectation):
@@ -421,17 +464,12 @@ def rmap_symbol(
 
 
 def wmap_symbol(data: StatementData) -> language.Symbol:
-    """Maps a wire statement's symbol contents to a language symbol."""
-    if data.root_type_tag:
-        fields = [wmap_field(t) for t in (data.fields or [])]
-    else:
-        fields = []
-
+    """Maps a wire statement's symbol to a language symbol."""
     if data.symbol_type == SymbolType.TYPE:
         return language.Type(
             name=data.name,
             description=data.description,
-            tag=data.root_type_tag,
+            tag=data.tag,
             fields=fields,
         )
     elif data.symbol_type == SymbolType.TASK:

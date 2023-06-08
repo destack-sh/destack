@@ -218,7 +218,6 @@ class File(gql.Node):
     updated_at: auto
     deleted_at: auto
     directory: auto
-    generated: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
     # TODO @Cleanup: File.statements should be a connection (but strawberry errors)

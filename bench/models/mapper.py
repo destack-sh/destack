@@ -27,6 +27,7 @@ from bench.language.wire import (
     InterpData,
     InterpScope,
     StatementData,
+    SYMBOL_DATA_CLASS_BY_TYPE,
 )
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData
@@ -34,7 +35,7 @@ from bench.utils.fractional import generate_n_keys_between
 
 
 def lookup_in_db_module(
-    requirement: language.RequirementContent, path: StatementPath, by: LookupBy
+    requirement: language.Requirement, path: StatementPath, by: LookupBy
 ) -> language.Scope:
     """
     Lookup a module in the DB.
@@ -76,7 +77,6 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
         id=IMPLICIT_FILE_ID,
         module_id=wire_module.id,
         path="__implicit__",
-        generated=True,
         statements=[],
         revision=1,
     )
@@ -92,7 +92,7 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
             id=uuid5(IMPLICIT_FILE_ID, module),
             name=module,
             fqn=None,
-            type=StatementType.DEFINITION,
+            type=StatementType.SYMBOL,
             symbol_type=SymbolType.REQUIREMENT,
             reference_module=reference_module,
             parent_id=None,
@@ -100,7 +100,6 @@ def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
             module_id=wire_module.id,
             order_key=ok,
             revision=1,
-            generated=True,
             modifier=None,
             text=None,
             reference=None,
@@ -201,7 +200,6 @@ def rmap_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
         module_id=module_id,
         path=file.path,
         statements=[],
-        generated=file.generated,
         revision=file.revision,
     )
 
@@ -290,11 +288,9 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 #  :StatementCodeTextReuse
                 code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
                 symbol_type=stmt_data.symbol_type,
-                reference_id=stmt_data.reference_id,
-                generated=stmt_data.generated,
             )
             model_statements[stmt_data.id] = model_statement
-            if stmt_data.type == StatementType.DEFINITION:
+            if stmt_data.type == StatementType.SYMBOL:
                 new_relations = wmap_symbol(model_statement, stmt_data, flat=True)
                 model_contents_relations.extend(new_relations)
         # create statements
@@ -303,16 +299,12 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         dirty_statements = []
         for stmt_data in statements:
             model_statement = model_statements[stmt_data.id]
-            dirty = (
-                model_statement.parent_id != stmt_data.parent_id
-                or model_statement.reference_id != stmt_data.reference_id
-            )
+            dirty = model_statement.parent_id != stmt_data.parent_id
             if dirty:
                 model_statement.order_key = stmt_data.order_key
                 model_statement.parent_id = stmt_data.parent_id
-                model_statement.reference_id = stmt_data.reference_id
                 dirty_statements.append(model_statement)
-        models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent", "reference"])
+        models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent"])
     for m in mut[MMT.CREATE_FIELD]:
         model_contents_relations.append(wmap_field(m.statement_id, typing.cast(FieldData, m.data)))
     # create content relations
@@ -425,13 +417,6 @@ def rmap_statement(
 ) -> wire.StatementData:
     """Reads a database statement into a wire statement."""
     # map reference into wire-able reference (convert module-external ref to statement path)
-    reference = rmap_reference(statement, statement.reference)
-    if statement.type == StatementType.REFERENCE and reference is not None:
-        # references are stored without name
-        # reference may be none if it was deleted
-        name = statement.reference.name
-    else:
-        name = statement.name
     data = wire.StatementData(
         id=statement.id,
         module_id=module_id,
@@ -443,15 +428,13 @@ def rmap_statement(
         modifier=statement.modifier,
         root_type_tag=statement.root_type_tag,
         root_type_flags=statement.root_type_flags,
-        name=name,
+        name=statement.name,
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
-        reference=reference,
         reference_module=None,
-        generated=statement.generated,
     )
-    if statement.type == StatementType.DEFINITION:
+    if statement.type == StatementType.SYMBOL:
         rmap_symbol(statement, data, flat=flat)
     return data
 
@@ -459,48 +442,84 @@ def rmap_statement(
 def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: bool) -> None:
     """Reads a database statement's symbol into a wire statement."""
     data.description = statement.description
-    data.lang = statement.lang
-    data.code = statement.code
-    data.external_name = statement.external_name
-    data.root_type_tag = statement.root_type_tag
-    data.root_type_flags = statement.root_type_flags
-    if not flat:
-        data.fields = [rmap_field(node) for node in statement.fields.filter(deleted_at=None).all()]
-    if statement.symbol_type == SymbolType.REQUIREMENT:
-        data.reference_module = wire.ModuleReference(
-            name=statement.reference_project_version.project.path,
-            version=statement.reference_project_version.name,
-            id=statement.reference_project_version_id,
+
+    data_cls = SYMBOL_DATA_CLASS_BY_TYPE[statement.symbol_type]
+    if issubclass(data_cls, wire.HasTypeData):
+        if not flat:
+            fields = [wmap_field(statement.id, node) for node in data.symbol.fields]
+        else:
+            fields = None
+
+    if statement.symbol_type == SymbolType.TYPE:
+        data.symbol = wire.TypeData(
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            fields=fields,
+        )
+    elif statement.symbol_type == SymbolType.TASK:
+        data.symbol = wire.TaskData(
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            fields=fields,
+        )
+    elif statement.symbol_type == SymbolType.EXPECTATION:
+        data.symbol = wire.ExpectationData()
+    elif statement.symbol_type == SymbolType.CODE:
+        data.symbol = wire.CodeData(
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            fields=fields,
+            lang=statement.lang,
+            code=statement.code,
+        )
+    elif statement.symbol_type == SymbolType.REQUIREMENT:
+        data.symbol = wire.RequirementData(
+            reference_module=wire.ModuleReference(id=statement.reference_project_version_id),
+        )
+    elif statement.symbol_type == SymbolType.MODEL:
+        data.symbol = wire.ModelData(
+            external_name=statement.external_name,
+        )
+    elif statement.symbol_type == SymbolType.VALUE:
+        data.symbol = wire.ValueData(
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            fields=fields,
+            value=statement.value,
+        )
+    elif statement.symbol_type == SymbolType.DATASET:
+        data.symbol = wire.DatasetData(
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            fields=fields,
+            records=None,
+            length=None,
         )
 
 
 def wmap_symbol(
     statement: models.Statement, data: wire.StatementData, flat: bool
 ) -> list[typing.Any]:
-    """Writes a wire statement's symbol into a database statement."""
+    """Writes a wire statement's symbol into DB models."""
     relations = []
-
-    statement.description = data.description
-    statement.lang = data.lang
-    statement.code = data.code
-    statement.external_name = data.external_name
-    if data.type == StatementType.COMMENT:  # :StatementCodeTextReuse
-        statement.code = data.text
-    statement.root_type_tag = data.root_type_tag
-    # copy basic normalized data
-    if data.reference_module:
-        if isinstance(data.reference_module, UUID):
-            statement.reference_project_version_id = data.reference_module
-        else:  # lookup by (name, version)
-            statement.reference_project_version = lookup_module(
-                data.reference_module.name, data.reference_module.version
-            )
-    if not flat:
-        # copy nested relations
-        if data.fields:
-            fields = [wmap_field(statement.id, node) for node in data.fields]
+    statement.description = data.description  # every symbol has a description
+    if isinstance(data.symbol, wire.HasTypeData):
+        statement.root_type_tag = data.symbol.tag
+        statement.root_type_flags = data.symbol.flags
+        if not flat:
+            fields = [wmap_field(statement.id, node) for node in data.symbol.fields]
             relations.extend(fields)
-
+    if isinstance(data.symbol, wire.CodeData):
+        statement.lang = data.symbol.lang
+        statement.code = data.symbol.code
+    if isinstance(data.symbol, wire.ModelData):
+        statement.external_name = data.symbol.external_name
+    if isinstance(data.symbol, wire.RequirementData):
+        statement.reference_project_version_id = data.symbol.reference_module.id
+    if isinstance(data.symbol, wire.ValueData):
+        statement.value = data.symbol.value
+    if isinstance(data.symbol, wire.DatasetData):
+        raise NotImplementedError  # what do?
     return relations
 
 

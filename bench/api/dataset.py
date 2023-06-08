@@ -170,6 +170,7 @@ class DatasetMutation:
 
 @gql.type
 class DatasetQuery:
+    @gql.relay.connection
     def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
         return statement.records.all()

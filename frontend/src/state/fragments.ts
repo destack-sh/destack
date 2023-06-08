@@ -78,7 +78,6 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     updatedAt
     deletedAt
     directory
-    generated
     projectVersion {
       id
     }
@@ -96,13 +95,9 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     deletedAt
     modifier
     name
-    generated
     commented
     orderKey
     parent {
-      id
-    }
-    reference {
       id
     }
   }
@@ -140,13 +135,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
     deletedAt
     name
     commented
-    generated
     modifier
     orderKey
     parent {
-      id
-    }
-    reference {
       id
     }
     # symbol contents
@@ -236,9 +227,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       id
     }
     orderKey
-    reference {
-      id
-    }
     referenceProjectVersion {
       id
     }

@@ -180,10 +180,6 @@ export function useStatementContext() {
         rootTypeFlags: config.rootTypeFlags,
       }
     );
-    // create default record for value (must exist)
-    if (config.symbolType == SymbolType.Data) {
-      await ops.symbol.createRecord(tx, newDatasetRecordId(), statement.value.id, INTEGER_ZERO, {});
-    }
     closeTransaction(tx);
   }
 

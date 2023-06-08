@@ -9,7 +9,6 @@ import structlog
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
-from strawberry_django_plus import gql
 
 from bench.language.type import (
     FIELD_KEY_LENGTH,
@@ -168,7 +167,7 @@ class StatementManager(models.Manager["Statement"]):
 
         # copy statements
         for statement in statements:
-            if statement.type == StatementType.DEFINITION:
+            if statement.type == StatementType.SYMBOL:
                 # the relations are saved below after statement creation
                 # copy type nodes
                 if statement.root_type_tag is not None:
@@ -185,16 +184,6 @@ class StatementManager(models.Manager["Statement"]):
                             )
                         new_fields[old_id] = field
                         _refmap(RefType.FIELD, old_id, old_revision, field)
-
-                # copy records (obviously very inefficient)
-                if statement.symbol_type == SymbolType.DATASET:
-                    for record in statement.records.all():
-                        old_id = record._id
-                        old_revision = record.revision
-                        record._id = uuid4()
-                        record._state.adding = True
-                        record.statement_id = target_statement_ids[statement.id]
-                        _refmap(RefType.RECORD, old_id, old_revision, record)
 
             # copy statement
             # automatically copies all non-relational columns
@@ -220,9 +209,10 @@ class StatementManager(models.Manager["Statement"]):
             new_statements[old_id] = statement
             _refmap(RefType.STATEMENT, old_id, old_revision, statement)
 
-        # create statements BFS, starting at roots that are _within_ selection (may not be actual roots)
+        # create statements and relations
         for new_statements_batch in walk_children_bfs_batched(new_statements.values(), "parent_id"):
             Statement.objects.bulk_create(new_statements_batch)
+        Field.objects.bulk_create(new_fields.values())
 
         # re-assign references (can't be part of bfs walk)
         for old in statements.only("id", "reference_id"):
@@ -231,12 +221,9 @@ class StatementManager(models.Manager["Statement"]):
                 # TODO @Robustness: fix/prevent ghost orphan statements on insert
                 continue
             new = new_statements[old.id]
-            # replace ref (default to same ref if not in refs since library refs are not copied)
+            # replace ref (default to same ref if not in refs since outside refs are not copied)
             new.reference_id = target_statement_ids.get(old.reference_id, old.reference_id)
         Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
-
-        # create referencing statement's relations (FKs to statements)
-        Field.objects.bulk_create(new_fields.values())
 
         return ref_mappings
 
@@ -287,19 +274,11 @@ class Statement(UUIDModel, CrudModel):
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     order_key = models.CharField(max_length=64)  # in file/parent
 
+    # symbol
     symbol_type = models.CharField(
         max_length=32, choices=get_choices(SymbolType), null=True, blank=True
     )
-    reference = models.ForeignKey(
-        "Statement",
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="referenced_by",
-    )
-    reference_id: Optional[UUID]  # noqa via Statement.reference
-    referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
-    # symbol contents
+    description = models.TextField(null=True, blank=True)
     root_type_tag = models.CharField(
         max_length=32, choices=get_choices(TypeTag), null=True, blank=True
     )
@@ -307,7 +286,6 @@ class Statement(UUIDModel, CrudModel):
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
     reference_project_version = models.ForeignKey(  # for requirement
         "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
     )
@@ -319,10 +297,8 @@ class Statement(UUIDModel, CrudModel):
     resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")
 
     def __str__(self):
-        if self.type == StatementType.DEFINITION:
+        if self.type == StatementType.SYMBOL:
             content_str = "()"  # should have some nice __str__ here
-        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
-            content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
             content_str = ""
         elif self.type == StatementType.BLANK:
@@ -339,16 +315,6 @@ class Statement(UUIDModel, CrudModel):
     @property
     def path(self) -> str:
         return self.file.path + ":" + str(self.order_key)
-
-    @gql.model_property(only=["type", "reference"], select_related=["reference"])
-    def source_definition(self) -> Statement:
-        """Traverses references to get the source definition."""
-        if self.type == StatementType.DEFINITION:
-            return self
-        elif self.reference is None:
-            raise ValueError(f"{self} has no reference")
-        else:
-            return self.reference.source_definition
 
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)

@@ -39,14 +39,9 @@ class InterpScope(enum.StrEnum):
 class StatementType(enum.StrEnum):
     """The type of Bench statement."""
 
-    # symbol statements
-    IMPORT = "import"  # import
-    DEFINITION = "def"  # :
-    REFERENCE = "ref"  #
-    REDEFINITION = "redef"  # =
-    # non-symbol statements
-    COMMENT = "comment"  # #
-    BLANK = "blank"  # ...
+    SYMBOL = "symbol"
+    COMMENT = "comment"
+    BLANK = "blank"
 
 
 class StatementModifier(enum.StrEnum):
@@ -55,14 +50,12 @@ class StatementModifier(enum.StrEnum):
     LIKE = "like"
     UNLIKE = "unlike"
     CHECK = "check"
-    MAGIC = "magic"
 
 
 class SymbolType(enum.StrEnum):
     """The type of symbol content."""
 
     TYPE = "type"
-    CAPABILITY = "capability"
     TASK = "task"
     EXPECTATION = "expect"
     CODE = "code"
@@ -245,10 +238,8 @@ class Statement:
 
     def __str__(self):
         loc = self.file.path + ":" + str(self.infile_path)
-        if self.type == StatementType.DEFINITION:
+        if self.type == StatementType.SYMBOL:
             content_str = "()"  # should have some nice __str__ here
-        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
-            content_str = f"{self.reference}"
         elif self.type == StatementType.COMMENT:
             content_str = ""
         elif self.type == StatementType.BLANK:
@@ -293,31 +284,13 @@ class Statement:
     def reference_id(self) -> Optional[UUID]:
         return self.reference.id if isinstance(self.reference, Statement) else None
 
-    @property
-    def underlying_definition(self) -> Optional[Statement]:
-        if self.type == StatementType.DEFINITION:
-            return self
-        elif isinstance(self.reference, Statement):
-            return self.reference.underlying_definition
-        else:
-            return None
-
-    @property
-    def ungrouped(self) -> bool:
-        """Whether this statement shouldn't be grouped with its siblings."""
-        return self.defines_symbol and self.symbol_type not in (SymbolType.REQUIREMENT,)
-
-    @property
-    def has_reference(self) -> bool:
-        return self.type in (
-            StatementType.REDEFINITION,
-            StatementType.IMPORT,
-            StatementType.REFERENCE,
-        )
-
-    @property
     def is_expectable(self) -> bool:
-        return self.symbol_type in (SymbolType.TASK, SymbolType.CODE, SymbolType.DATASET)
+        return self.symbol_type in (
+            SymbolType.EXPECTATION,
+            SymbolType.TASK,
+            SymbolType.CODE,
+            SymbolType.DATASET,
+        )
 
     @property
     def is_expect(self) -> bool:
@@ -329,10 +302,6 @@ class Statement:
         return self.symbol_type == SymbolType.EXPECTATION or (
             self.is_expectable and has_expect_intent
         )
-
-    @property
-    def defines_symbol(self) -> bool:
-        return self.type in (StatementType.DEFINITION, StatementType.REDEFINITION)
 
     @property
     def is_alias(self):
@@ -374,8 +343,9 @@ class Symbol(LanguageObject):
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     name: str = field(default="")
+    description: Optional[str] = None
     modifier: Optional[StatementModifier] = None
-    reference: Optional[Symbol | StatementPath] = None
+    reference: Optional[Symbol | StatementReference] = None
     definition: Optional[Symbol] = None
     source: Optional[Statement] = None
     id: UUID = field(default_factory=uuid.uuid4)
@@ -449,8 +419,9 @@ class TypeNode(abc.ABC):
     flags: TypeFlag
     description: Optional[str]
     fields: list["TypeNode"]
-    self_fields: list["TypeNode"]  # original fields excluding resolved fields
-    reference: Union[None, StatementReference, "Type"]
+    resolved_fields: list["TypeNode"]  # resolved fields with unions and such
+    reference: Union[None, StatementReference, "HasType"]
+    source: Optional[Statement]
 
     @property
     def ident(self):
@@ -535,7 +506,6 @@ class Field(TypeNode):
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
-    source_reference: Optional[StatementPath] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -545,22 +515,16 @@ class Field(TypeNode):
         return f"<Field {self}>"
 
     @property
-    def fields(self) -> list[TypeNode]:
+    def resolved_fields(self) -> list[TypeNode]:
         if isinstance(self.reference, Type):
             return self.reference.fields
         return []
 
-    self_fields = fields  # the same by default
+    fields = resolved_fields  # the same by default
 
-    def deepcopy(
-        self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
-    ) -> "Field":
-        if not keep_reference or self.reference is None:
-            reference = self.source_reference
-        elif deepcopy_reference and isinstance(self.reference, Type):
-            reference = self.reference.deepcopy(
-                keep_id=True, keep_reference=keep_reference, deepcopy_reference=False
-            )
+    def deepcopy(self, keep_id: bool = True, deepcopy_reference: bool = True) -> "Field":
+        if deepcopy_reference and isinstance(self.reference, Type):
+            reference = self.reference.deepcopy(keep_id=True, deepcopy_reference=False)
         else:
             reference = self.reference
         return Field(
@@ -572,7 +536,6 @@ class Field(TypeNode):
             order_key=self.order_key,
             description=self.description,
             reference=reference,
-            source_reference=self.source_reference,
             flags=self.flags,
         )
 
@@ -582,6 +545,8 @@ Expectable = Union["Expectation", "Task", "Dataset", "Code"]
 
 @dataclass(repr=False)
 class HasExpectations:
+    """Symbols we can attach expectations to"""
+
     expectations: list[Expectable] = field(default_factory=list)
 
     def expect(self, expectation: Expectable) -> "Self":
@@ -593,9 +558,11 @@ class HasExpectations:
         raise NotImplementedError
 
     def like(self, expectation: Expectable) -> "Self":
+        # same
         raise NotImplementedError
 
     def unlike(self, expectation: Expectable) -> "Self":
+        # same
         raise NotImplementedError
 
     def walk_expectations(self, path: list[Symbol] = None):
@@ -613,29 +580,60 @@ class HasExpectations:
 
 
 @dataclass(repr=False)
-class Type(Symbol, TypeNode, HasExpectations):
-    name: Optional[str] = None
+class HasType(TypeNode):
+    """A symbol that has (but is not) a type"""
+
     tag: TypeTag = required_field()
-    description: Optional[str] = None
+    hint = None
+    flags = TypeFlag.Zero
+    fields: list[TypeNode] = field(default_factory=list)
+    resolved_fields: list[TypeNode] = None
+    key = None
+    reference = None
+
+    @property
+    def type(self) -> TypeNode:
+        """For clarity when explicitly referring to the type of a symbol"""
+        return self
+
+
+@dataclass(repr=False)
+class Type(Symbol, TypeNode, HasExpectations):
+    tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
     fields: list[TypeNode] = field(default_factory=list)
-    self_fields: list[TypeNode] = None
-    expectations: list[Expectable] = field(default_factory=list)
+    resolved_fields: list[TypeNode] = None
     # not directly configurable for types
     hint = None
     key = None
     reference = None
 
     @cached_property
-    def py_type(self) -> type:
+    def py_type(self) -> type | enum.Enum:
         return self.session.instance.get_py_type(self)
 
-    # mimic python type behavior
+    def extend(self, base: Type) -> "Type":
+        """Adds the fields of another type to this one"""
+        self.fields.append(
+            Field(
+                tag=TypeTag.TYPE_REFERENCE,
+                reference=base,
+                flags=TypeFlag.IsUnionWith,
+            )
+        )
+        return self
+
+    def append(self, field: Field) -> "Type":
+        """Adds a field to this type"""
+        self.fields.append(field)
+        return self
+
     def __instancecheck__(self, instance):
-        return isinstance(instance, self.py_type)
+        # this used to mimic python type but probably want to check the value (duck typing)?
+        raise NotImplementedError
 
     def __subclasscheck__(self, subclass):
-        return issubclass(subclass, self.py_type)
+        raise NotImplementedError
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
@@ -677,13 +675,10 @@ class Type(Symbol, TypeNode, HasExpectations):
 
 
 @dataclass(repr=False)
-class Task(Symbol, HasExpectations):
-    description: str = ""
-    root_type_tag = TypeTag.FUNCTION
-    expectations: list[Expectable] = field(default_factory=list)
-    steps: list[Task | Code] = field(default_factory=list)
+class Task(Symbol, HasExpectations, HasType):
+    tag = TypeTag.FUNCTION
     is_async = True
-    # should probably store last good implementation .. in redis?
+    # should probably store last good implementation ... in redis?
     last_good_impl_idx: int = 0
     py_type = None  # doesn't have a python type
 
@@ -758,6 +753,14 @@ class Task(Symbol, HasExpectations):
 
 
 @dataclass(repr=False)
+class Expectation(Symbol):
+    pass
+
+    def __init__(self, name: str = None, description: str = None, expectations: list = None):
+        super().__init__(name=name, description=description, expectations=expectations)
+
+
+@dataclass(repr=False)
 class CodeTransformation:
     original_code: str
     transformed_code: str
@@ -777,13 +780,13 @@ SyncCodeCallable = typing.Callable[..., Any]
 
 
 @dataclass(repr=False)
-class Code(Symbol):
-    description: Optional[str] = None
+class Code(Symbol, HasType):
+    tag = TypeTag.FUNCTION
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
     parse: Optional[CodeParse] = None
     transform: Optional[CodeTransformation] = None
-    references: dict[str, Statement] = field(default_factory=dict)
+    references: dict[str, Symbol] = field(default_factory=dict)
     context: dict[str, Symbol] = field(default_factory=dict)
 
     @cached_property
@@ -809,15 +812,6 @@ class Code(Symbol):
         sync_code.is_async = False
         sync_code.__call__ = async_to_sync(self.__call__)
         return sync_code
-
-
-@dataclass(repr=False)
-class Expectation(Symbol):
-    description: str = required_field()
-    expectations: list[Expectable] = field(default_factory=list)
-
-    def __init__(self, name: str = None, description: str = None, expectations: list = None):
-        super().__init__(name=name, description=description, expectations=expectations)
 
 
 @dataclass(repr=False, slots=True)
@@ -872,21 +866,29 @@ class DatasetView:
     name: str
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
+    reference: Optional[Dataset | StatementReference] = None
     order_key: str = field(default_factory=uuid.uuid4)
     id: UUID = field(default_factory=uuid.uuid4)
 
 
+DEFAULT_VIEW = DatasetView(name="default")
+
+
 @dataclass(repr=False)
-class Dataset(Symbol):
-    records: Optional[list[Record]] = None
-    inmemory: bool = True
+class Dataset(Symbol, HasType):
+    tag = TypeTag.STRUCT
+    flags = TypeFlag.IsArray
     length: Optional[int] = None
-    description: Optional[str] = None
+    inmemory: bool = True
+    records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
-    type: Optional[Type] = field(default_factory=Type)
 
     def __post_init__(self):
         self.meta = RecordMeta(type=self.type, session=self.session, owner=self)
+
+    @property
+    def default_view(self) -> DatasetView:
+        return self.views[0] if self.views else DEFAULT_VIEW
 
     def clear(self):
         self.session.tracer.dataset_clear(self)
@@ -898,6 +900,7 @@ class Dataset(Symbol):
             if data:
                 raise ValueError("cannot pass both record and data")
             data = record._data
+        # nocheckin: broken if not in memory
         data = unproxy_value(data)  # remove source proxy if any
         # insert at end
         last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
@@ -941,7 +944,8 @@ class Dataset(Symbol):
 
 
 @dataclass(repr=False)
-class Value(Symbol):
+class Value(Symbol, HasType):
+    tag = TypeTag.STRUCT
     value: Any = None
 
     def __post_init__(self):
@@ -1019,6 +1023,16 @@ class Build(Symbol):
 @dataclass(repr=False)
 class Block(Symbol):
     contents: list[Symbol] = field(default_factory=list)
+
+    def __iter__(self):
+        return iter(self.contents)
+
+    def __getattr__(self, item: str):
+        content = first(self.contents, lambda c: c.name == item, None)
+        if content is not None:
+            return content
+        else:
+            raise AttributeError(item)
 
 
 SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[Symbol]] = {

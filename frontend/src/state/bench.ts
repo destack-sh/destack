@@ -54,7 +54,6 @@ export type StatementHeader = Pick<
   | "orderKey"
   | "commented"
   | "parent"
-  | "reference"
 >;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";

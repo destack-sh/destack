@@ -176,9 +176,7 @@ export function useSymbolContentOps() {
             revision
             orderKey
             data
-            statement {
-              id
-            }
+            statementId
           }
           ...OperationInfoContent
         }
@@ -191,10 +189,7 @@ export function useSymbolContentOps() {
           createRecord: {
             __typename: "Record",
             id: vars.id,
-            statement: {
-              __typename: "Statement",
-              id: vars.statementId,
-            },
+            statementId: vars.statementId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,
@@ -302,8 +297,8 @@ export function useSymbolContentOps() {
   const { mutate: updateRecordMut } = registry.useMutation(
     ModuleMutationType.UpdateRecord,
     graphql(/* GraphQL */ `
-      mutation updateRecord($id: GlobalID!, $data: JSON!) {
-        updateRecord(input: { id: $id, data: $data }) {
+      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $data: JSON!) {
+        updateRecord(input: { id: $id, statementId: $statementId, data: $data }) {
           ... on Record {
             id
             updatedAt
@@ -331,8 +326,8 @@ export function useSymbolContentOps() {
   const { mutate: deleteRecordMut } = registry.useMutation(
     ModuleMutationType.DeleteRecord,
     graphql(/* GraphQL */ `
-      mutation deleteRecord($id: GlobalID!) {
-        deleteRecord(input: { id: $id }) {
+      mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {
+        deleteRecord(input: { id: $id, statementId: $statementId }) {
           ... on Record {
             id
             deletedAt
@@ -357,8 +352,8 @@ export function useSymbolContentOps() {
   const { mutate: softDeleteRecordMut } = registry.useMutation(
     ModuleMutationType.SoftDeleteRecord,
     graphql(/* GraphQL */ `
-      mutation softDeleteRecord($id: GlobalID!) {
-        softDeleteRecord(input: { id: $id }) {
+      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {
+        softDeleteRecord(input: { id: $id, statementId: $statementId }) {
           ... on Record {
             id
             deletedAt
@@ -383,8 +378,8 @@ export function useSymbolContentOps() {
   const { mutate: restoreRecordMut } = registry.useMutation(
     ModuleMutationType.RestoreRecord,
     graphql(/* GraphQL */ `
-      mutation restoreRecord($id: GlobalID!) {
-        restoreRecord(input: { id: $id }) {
+      mutation restoreRecord($id: GlobalID!, $statementId: GlobalID!) {
+        restoreRecord(input: { id: $id, statementId: $statementId }) {
           ... on Record {
             id
             deletedAt
@@ -408,8 +403,8 @@ export function useSymbolContentOps() {
 
   const { mutate: batchSoftDeleteRecordMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation batchSoftDeleteRecord($ids: [GlobalID!]!) {
-        batchSoftDeleteRecord(input: { ids: $ids }) {
+      mutation batchSoftDeleteRecord($ids: [GlobalID!]!, $statementId: GlobalID!) {
+        batchSoftDeleteRecord(input: { ids: $ids, statementId: $statementId }) {
           ... on RecordBatch {
             records {
               id
@@ -437,8 +432,8 @@ export function useSymbolContentOps() {
 
   const { mutate: batchRestoreRecordMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation batchRestoreRecord($ids: [GlobalID!]!) {
-        batchRestoreRecord(input: { ids: $ids }) {
+      mutation batchRestoreRecord($ids: [GlobalID!]!, $statementId: GlobalID!) {
+        batchRestoreRecord(input: { ids: $ids, statementId: $statementId }) {
           ... on RecordBatch {
             records {
               id
