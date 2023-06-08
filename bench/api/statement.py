@@ -724,7 +724,7 @@ class SymbolMutation:
     @tracked_mutation(MMT.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
-        field.order_key = input.order_key
+        field._order_key = input.order_key
         return field
 
     @tracked_mutation(MMT.SOFT_DELETE_FIELD)

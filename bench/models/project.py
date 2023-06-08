@@ -111,11 +111,15 @@ class Project(UUIDModel):
     Library projects define reusable symbols (like in software).
     """
 
-    type = TextChoicesField(choices_enum=ProjectType, default=ProjectType.EXECUTABLE)
+    type = models.CharField(
+        max_length=32, choices=ProjectType.choices, default=ProjectType.EXECUTABLE
+    )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
-    visibility = TextChoicesField(choices_enum=ProjectVisibility, default=ProjectVisibility.PRIVATE)
+    visibility = models.CharField(
+        max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
+    )
     created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
     updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 

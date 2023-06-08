@@ -1,49 +1,105 @@
 from __future__ import annotations
 
+import copy
 import enum
 import json
 import re
 import typing
+import uuid
 from copy import deepcopy
-from dataclasses import asdict, dataclass, is_dataclass
+from dataclasses import asdict, dataclass, field, is_dataclass
 from json import JSONDecodeError
 from typing import Any, Optional
 from uuid import UUID
 
 import structlog
 
-from bench.language.instruct import (
-    InstructionOp,
-    SampleDatasetRandom,
-    SampleSource,
-    fabricate_value,
-    instruction_tree_from_symbol,
-)
-from bench.language.reconstruct import render_statement
+from bench.language.session import Session, instantiate_py_value_flat
 from bench.language.type import (
     Build,
     Dataset,
     Expectation,
-    InterpSymbol,
+    Model,
     StatementModifier,
+    Symbol,
     Task,
     Type,
+    TypeFlag,
+    TypeHint,
+    TypeNode,
     TypeTag,
-    XBlock,
-    XBlockContent,
-    XKind,
-    XSource,
 )
 from bench.language.typer import check_type, map_value
 from bench.runtime.common.inference import SETTINGS_CLS_BY_MODALITY, Modality
 from bench.runtime.common.models import TextGenerationSettings
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.utils import DotDict
 
 logger = structlog.get_logger(__name__)
 
 if typing.TYPE_CHECKING:
     from bench.runtime.common.interp import InterpModule
-    from bench.runtime.worker.instance import ModelInstance, Session, TaskInstance, TypeInstance
+
+
+class XKind(enum.StrEnum):
+    Settings = "settings"
+    Static = "static"
+    Input = "input"
+    Output = "output"
+
+
+class XSource(enum.StrEnum):
+    System = "system"
+    User = "user"
+    Developer = "developer"
+    Model = "model"
+
+
+ValueT = typing.TypeVar("ValueT", bound=typing.Any)
+
+
+# TODO @Architecture: XBlock should just be a wrapper around a regular value
+@dataclass(repr=False)
+class XBlock(typing.Generic[ValueT]):
+    kind: XKind
+    source: XSource
+    value: Optional[ValueT]
+    path: Optional[str] = None  # jsonpath of value if partial block
+
+    def __len__(self):
+        if self.value is None:
+            return 0
+        elif isinstance(self.value, str):
+            return len(self.value)
+        else:
+            raise TypeError(f"cannot get length of {self}")
+
+    def copy(self):
+        return XBlock(
+            kind=self.kind,
+            source=self.source,
+            value=copy.deepcopy(self.value),
+            path=self.path,
+        )
+
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
+
+    def __repr__(self):
+        return f"<XBlock {str(self)}>"
+
+
+@dataclass(repr=False)
+class XBlockContent(XBlock, typing.Generic[ValueT]):
+    description: Optional[str] = None
+    order_key: str = field(default=INTEGER_ZERO)
+    id: UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+
+    def __repr__(self):
+        return f"<XBlockContent {str(self)}>"
 
 
 class XGenerationErrorType(enum.StrEnum):
@@ -124,17 +180,12 @@ def get_default_builds(interp: InterpModule) -> list[Build]:
     ]
 
 
-def build_task_implementation(
-    task: TaskInstance, model: ModelInstance, session: Session
-) -> XPrompt:
+def build_task_implementation(task: Task, model: Model, session: Session) -> XPrompt:
     """Build the implementation for a task using some model."""
     # TODO @Broken: consider context length in X prompt planning/building
     if not task.outputs:
         raise RuntimeError(f"cannot build task {task} without output")
-    instruction, tree = instruction_tree_from_symbol(task)
-    expectations: list[Expectation] = [
-        i.node for i in instruction.walk() if i.op == InstructionOp.ExpectationDefinition
-    ]
+    expectations: list[Expectation] = [e for e in task.walk_expectations()]
     data_samples: list[Dataset] = [
         i.node for i in instruction.walk() if i.op == InstructionOp.SampleData
     ]
@@ -176,9 +227,7 @@ def build_task_implementation(
 class XPrompt:
     """Build a structured X prompt."""
 
-    def __init__(
-        self, task: TaskInstance, model: ModelInstance, modality: Modality, session: Session
-    ):
+    def __init__(self, task: Task, model: Model, modality: Modality, session: Session):
         self.task = task
         self.model = model
         self.modality = modality
@@ -303,7 +352,7 @@ class XExpectations(XEmit):
 class XSamples(XEmit):
     """Emits fewshot examples in a specific format"""
 
-    source: SampleSource
+    source: typing.Callable[[], Dataset]
     task_label: str
     positive: bool
 
@@ -315,7 +364,7 @@ class XSamples(XEmit):
             preamble = f"Good examples of {self.task_label}"
         else:
             preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record.data, sort_keys=True) for record in dataset.records)
+        data_str = "\n".join(json.dumps(record._data, sort_keys=True) for record in dataset.records)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
 
@@ -383,13 +432,11 @@ class XInput(XEmit):
 class XOutputText(XEmit):
     """Emits the code to request and read generated output of the given type"""
 
-    type: TypeInstance
+    type: Type
     type_label: str = "Output"
     path: str = ""
 
     def parse_output(self, output: str):
-        from bench.runtime.worker.instance import instantiate_py_value_flat
-
         # escape/try to parse the output if needed (handles trivial model confusions)
         value = output.strip()
         if not value.startswith("{"):
@@ -466,5 +513,53 @@ class XEmitSettings(XEmit):
         return xsettings(self.settings)
 
     @property
-    def sources(self) -> list[InterpSymbol]:
+    def sources(self) -> list[Symbol]:
         return []
+
+
+SAMPLE_BY_TYPE_HINT = {
+    TypeHint.UUID: str(uuid.uuid4()),
+    TypeHint.NAME: "Max Mustermann",
+    TypeHint.EMAIL: "florian@symbolx.com",
+    TypeHint.PHONE: "+49 123 456 789",
+    TypeHint.URL: "https://symbolx.com",
+    TypeHint.KEY: "sk_test_1234567890",
+    TypeHint.DATE: "2023-01-01",
+    TypeHint.DATETIME: "2023-01-01T10:30:45",
+    TypeHint.TIME: "02:08:00",
+    TypeHint.RATING: 3,
+}
+
+
+def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = None) -> Any:
+    """Synthesizes a value of the given type with fake fields."""
+    if type.flags & TypeFlag.IsArray and not skip_array:
+        return [fabricate_value(type, skip_array=True)]
+    if SAMPLE_BY_TYPE_HINT.get(type.hint) is not None:
+        return SAMPLE_BY_TYPE_HINT[type.hint]
+    elif type.tag == TypeTag.STRING:
+        return "lorem ipsum"
+    elif type.tag == TypeTag.NUMBER:
+        return 42
+    elif type.tag == TypeTag.BOOLEAN:
+        return False
+    elif type.tag == TypeTag.ENUM:
+        if len(type.fields) == 0:
+            return None
+        return type.fields[0].name
+    elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
+        return {
+            subtype.name: fabricate_value(subtype)
+            for subtype in type.fields
+            if is_output is None or bool(subtype.flags & TypeFlag.IsOutput) == is_output
+        }
+    elif type.tag == TypeTag.UNION:
+        return fabricate_value(type.fields[0])
+    elif type.tag == TypeTag.NULL:
+        return None
+    elif type.tag == TypeTag.LITERAL:
+        return type.name  # assumes enum string literals
+    elif type.tag == TypeTag.ANY:
+        return 42  # not sure what to do here
+    else:
+        raise RuntimeError(f"unexpected type {type.tag}")

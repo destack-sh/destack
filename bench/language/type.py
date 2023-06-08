@@ -1,135 +1,41 @@
 from __future__ import annotations
 
 import abc
-import copy
+import asyncio
 import enum
+import itertools
 import random
-import re
 import string
 import typing
 import uuid
 from dataclasses import dataclass, field, fields
 from functools import cached_property
-from typing import Any, Generic, Literal, NamedTuple, Optional, TypeVar, Union
+from typing import Any, Literal, NamedTuple, Optional, Self, Union
 from uuid import UUID
 
-from django.db import models
-from more_itertools import first
+import numpy
+import pandas
+from asgiref.sync import async_to_sync
+from more_itertools import first, last
 
-from bench.utils.fractional import INTEGER_ZERO
+from bench.language.build import XConsiderError, XGenerationError
+from bench.language.dataset import Query, Sort
+from bench.language.session import Session
+from bench.runtime.common.inference import ModelInference
+from bench.settings import logging
+from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
+from bench.utils.proxy import unproxy_value
 from bench.utils.utils import required_field, to_pyidentifier
 
 
-@dataclass(repr=False)
-class SourceFile:
-    path: str
-    content: str
-
-    def __str__(self):
-        return f"{self.path} ({len(self.linebreaks)} lines, {len(self.content)} characters)"
-
-    def __repr__(self):
-        # truncate content on both sides
-        max_length = 250
-        if len(self.content) > max_length:
-            prefix_content = self.content[: max_length // 2]
-            postfix_content = self.content[-max_length // 2 :]
-            lines_omitted = (
-                len(self.linebreaks)
-                - len(prefix_content.splitlines())
-                - len(postfix_content.splitlines())
-            )
-            content = (
-                f"{prefix_content}\n... ({lines_omitted} lines omitted) ...\n{postfix_content}"
-            )
-        else:
-            content = self.content
-        return f"<{self.__class__.__name__}: {str(self)}\n{content}\n>"
-
-    @cached_property
-    def linebreaks(self) -> list[int]:
-        # index start of each line
-        linebreaks = [0]
-        for match in re.finditer(r"\r?\n", self.content):
-            linebreaks.append(match.end())
-        return linebreaks
-
-    def line(self, line_number: int) -> str:
-        index = line_number - 1
-        if index >= len(self.linebreaks):
-            raise IndexError(f"line {index} does not exist")
-        elif index == len(self.linebreaks) - 1:
-            return self.content[self.linebreaks[index] :]
-        else:
-            return self.content[self.linebreaks[index] : self.linebreaks[index + 1]]
+class InterpScope(enum.StrEnum):
+    MODULE = "module"
+    FILE = "file"
+    STATEMENT = "statement"
 
 
-class TokenType(enum.Enum):
-    NEWFILE = "newfile"
-    INDENT = "indent"
-    NEWLINE = "newline"
-    COMMENT = "comment"
-    KEYWORD = "keyword"
-    SEPARATOR = "separator"
-    IDENTIFIER = "identifier"
-    LITERAL = "literal"
-    DESCRIPTION = "description"
-    MARK_OPTIONAL = "mark_optional"
-    BRACKET = "bracket"
-
-
-@dataclass
-class Token:
-    source_file: SourceFile
-    line_number: int
-    line_span: int
-    start_column: int
-    end_column: int
-    type: TokenType
-    value: Union[None, str, enum.Enum]
-    value_extras: Optional[dict[str, str]]
-
-    def __str__(self):
-        if self.value_extras:
-            extras_str = ", ".join(f"{key}={value}" for key, value in self.value_extras.items())
-            extras_str = f" ({extras_str})"
-        else:
-            extras_str = ""
-        return f"{self.type.value} {self.value_truncated}{extras_str} ({self.source_file.path} {self.location_in_file})"
-
-    @cached_property
-    def value_truncated(self) -> str:
-        # truncate value if too long
-        max_length = 100
-        if self.value is None:
-            value = "<none>"
-        elif isinstance(self.value, str):
-            if len(self.value) > max_length:
-                value = f"{self.value[: max_length // 2]}...{self.value[-max_length // 2:]}"
-            else:
-                value = self.value
-        elif isinstance(self.value, enum.Enum):
-            value = self.value.value
-        else:
-            raise TypeError(f"unexpected value type {type(self.value)}")
-        # replace newlines with literal \n
-        value = value.replace("\n", "\\n")
-        return value
-
-    @cached_property
-    def location_in_file(self):
-        if self.line_span > 1:
-            loc = f"{self.line_number}:{self.start_column}-{self.line_number + self.line_span}:{self.end_column}"
-        else:
-            loc = f"{self.line_number}:{self.start_column}-{self.end_column}"
-        return loc
-
-
-# TODO @Cleanup: don't use Django's TextChoices inside language
-#  (it carries all the Django baggage into all language-dependent code like workers)
-#  Can probably use a custom enum.Enum subclass instead (or monkey-patch somehow)
-class StatementType(models.TextChoices):
+class StatementType(enum.StrEnum):
     """The type of Bench statement."""
 
     # symbol statements
@@ -142,19 +48,16 @@ class StatementType(models.TextChoices):
     BLANK = "blank"  # ...
 
 
-class StatementModifier(models.TextChoices):
+class StatementModifier(enum.StrEnum):
     """A modifier to a Bench statement."""
 
-    VAR = "var"
-    WITH = "with"
-    INCLUDE = "include"
     LIKE = "like"
     UNLIKE = "unlike"
     CHECK = "check"
     MAGIC = "magic"
 
 
-class SymbolType(models.TextChoices):
+class SymbolType(enum.StrEnum):
     """The type of symbol content."""
 
     TYPE = "type"
@@ -170,7 +73,7 @@ class SymbolType(models.TextChoices):
     BLOCK = "block"
 
 
-class TypeTag(models.TextChoices):
+class TypeTag(enum.StrEnum):
     """The actual value type of a type node."""
 
     STRING = "string"
@@ -190,7 +93,7 @@ class TypeTag(models.TextChoices):
     TYPE_REFERENCE = "ref"
 
 
-class TypeHint(models.TextChoices):
+class TypeHint(enum.StrEnum):
     """The representation of a type node"""
 
     # string
@@ -306,6 +209,7 @@ class File:
 
 
 StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
+StatementReference = Union["Statement", StatementPath, UUID]
 
 
 def statement_path_as_str(statement_path: StatementPath) -> str:
@@ -319,11 +223,8 @@ def parse_statement_path(statement_path: str) -> StatementPath:
     return StatementPath(path, name)
 
 
-SymbolContentT = TypeVar("SymbolContentT", bound="SymbolContent")
-
-
 @dataclass(repr=False)
-class Statement(Generic[SymbolContentT]):
+class Statement:
     """A parsed but not interpreted statement in Bench source."""
 
     file: File
@@ -334,7 +235,6 @@ class Statement(Generic[SymbolContentT]):
     name: Optional[str] = None
     text: Optional[str] = None
     symbol_type: Optional[SymbolType] = None
-    content: Optional[SymbolContentT] = None
     reference: Optional[Statement | StatementPath | UUID] = None
     id: UUID = field(default_factory=uuid.uuid4)
     generated: bool = False
@@ -342,14 +242,19 @@ class Statement(Generic[SymbolContentT]):
     _source: Optional[Any] = None
 
     def __str__(self):
-        from bench.language.reconstruct import render_statement
-
         loc = self.file.path + ":" + str(self.infile_path)
-        try:
-            content = render_statement(self, include_content=False)
-        except ValueError:
-            content = "<invalid>"
-        return f"{loc} {content}"
+        if self.type == StatementType.DEFINITION:
+            content_str = "()"  # should have some nice __str__ here
+        elif self.type in (StatementType.IMPORT, StatementType.REFERENCE):
+            content_str = f"{self.reference}"
+        elif self.type == StatementType.COMMENT:
+            content_str = ""
+        elif self.type == StatementType.BLANK:
+            content_str = ""
+        else:
+            raise ValueError(f"unknown statement type {self.type}")
+        modifier_str = f" {self.modifier}" if self.modifier else ""
+        return f"{loc}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
 
     def __repr__(self):
         return f"<Statement {self}>"
@@ -401,23 +306,15 @@ class Statement(Generic[SymbolContentT]):
         return self.defines_symbol and self.symbol_type not in (SymbolType.REQUIREMENT,)
 
     @property
-    def referable(self) -> bool:
-        return self.is_parameter or self.type in (
-            StatementType.DEFINITION,
-            StatementType.REDEFINITION,
-            StatementType.IMPORT,
-        )
-
-    @property
     def has_reference(self) -> bool:
-        return not self.is_parameter and self.type in (
+        return self.type in (
             StatementType.REDEFINITION,
             StatementType.IMPORT,
             StatementType.REFERENCE,
         )
 
     @property
-    def is_expectable_symbol(self) -> bool:
+    def is_expectable(self) -> bool:
         return self.symbol_type in (SymbolType.TASK, SymbolType.CODE, SymbolType.DATASET)
 
     @property
@@ -427,30 +324,13 @@ class Statement(Generic[SymbolContentT]):
             StatementModifier.UNLIKE,
             StatementModifier.CHECK,
         )
-        return self.is_real and (
-            self.symbol_type == SymbolType.EXPECTATION
-            or (self.is_expectable_symbol and has_expect_intent)
+        return self.symbol_type == SymbolType.EXPECTATION or (
+            self.is_expectable and has_expect_intent
         )
 
     @property
     def defines_symbol(self) -> bool:
         return self.type in (StatementType.DEFINITION, StatementType.REDEFINITION)
-
-    @property
-    def is_parameter(self) -> bool:
-        return self.modifier == StatementModifier.VAR
-
-    @property
-    def is_argument(self) -> bool:
-        return self.modifier == StatementModifier.WITH
-
-    @property
-    def is_real(self):
-        return not self.is_argument and not self.is_parameter
-
-    @property
-    def is_extend(self):
-        return self.modifier == StatementModifier.INCLUDE
 
     @property
     def is_alias(self):
@@ -462,29 +342,45 @@ class Statement(Generic[SymbolContentT]):
             return False
 
 
+class LanguageObject(abc.ABC):
+    session: "Session"
+    id: UUID
+
+    def __post_init__(self):
+        from bench.language.session import active_session
+
+        if self.session is None:
+            self.session = active_session.get()
+            if self.session is None:
+                raise RuntimeError(f"no active session for {self}")
+            # we pass in session on instantiate, so this must be new
+            self.session.add(self, new=True)
+        else:
+            self.session.add(self, new=False)
+
+    def __del__(self):
+        if self.session is not None:
+            self.session.remove(self)
+
+    @property
+    def logger(self) -> logging.Logger:
+        return self.session.logger
+
+
 @dataclass(repr=False)
-class InterpSymbol:
+class Symbol(LanguageObject):
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
-    id: UUID = field(default_factory=uuid.uuid4)
     name: str = field(default="")
-    abstract: bool = field(default=False)
     modifier: Optional[StatementModifier] = None
-    reference: Optional[InterpSymbol] = None
-    definition: Optional[InterpSymbol] = None
+    reference: Optional[Symbol | StatementPath] = None
+    definition: Optional[Symbol] = None
     source: Optional[Statement] = None
+    id: UUID = field(default_factory=uuid.uuid4)
 
-    def to_ref(self) -> InterpSymbol:
-        return self.__class__(
-            **dict_minus(self.__dict__, ("definition", "source", "id", "reference")),
-            reference=self,
-            definition=self.definition,
-        )
-
-    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "InterpSymbol":
-        id = self.id if keep_id else uuid.uuid4()
+    def deepcopy(self, keep_id: bool = True, keep_reference: bool = True) -> "Symbol":
         kwargs = {**self.__dict__}
-        kwargs["id"] = id
+        kwargs["id"] = self.id if keep_id else uuid.uuid4()
         return self.__class__(**kwargs)
 
     @property
@@ -517,12 +413,6 @@ class InterpSymbol:
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
-
-
-class SymbolContent:
-    def deepcopy(self) -> "SymbolContent":
-        # default dataclass copy
-        return self.__class__(**self.__dict__)  # type: ignore
 
 
 # Danger: the order of these types is important because it influences deserialization order.
@@ -558,7 +448,7 @@ class TypeNode(abc.ABC):
     description: Optional[str]
     fields: list["TypeNode"]
     self_fields: list["TypeNode"]  # original fields excluding resolved fields
-    reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"]
+    reference: Union[None, StatementReference, "Type"]
 
     @property
     def ident(self):
@@ -642,7 +532,7 @@ class Field(TypeNode):
     key: str = field(default_factory=new_field_key)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
-    reference: Union[None, StatementPath, Statement, UUID, "TypeContent", "Type"] = None
+    reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
     source_reference: Optional[StatementPath] = None
 
     def __str__(self):
@@ -654,7 +544,7 @@ class Field(TypeNode):
 
     @property
     def fields(self) -> list[TypeNode]:
-        if isinstance(self.reference, TypeContent):
+        if isinstance(self.reference, Type):
             return self.reference.fields
         return []
 
@@ -665,7 +555,7 @@ class Field(TypeNode):
     ) -> "Field":
         if not keep_reference or self.reference is None:
             reference = self.source_reference
-        elif deepcopy_reference and isinstance(self.reference, TypeContent):
+        elif deepcopy_reference and isinstance(self.reference, Type):
             reference = self.reference.deepcopy(
                 keep_id=True, keep_reference=keep_reference, deepcopy_reference=False
             )
@@ -685,29 +575,86 @@ class Field(TypeNode):
         )
 
 
+Expectable = Union["Expectation", "Task", "Dataset", "Code"]
+
+
 @dataclass(repr=False)
-class TypeContent(SymbolContent, TypeNode):
+class HasExpectations:
+    expectations: list[Expectable] = field(default_factory=list)
+
+    def expect(self, expectation: Expectable) -> "Self":
+        self.expectations.append(expectation)
+        return self
+
+    def check(self, code: Code) -> "Self":
+        # turn into ref and add modifier
+        raise NotImplementedError
+
+    def like(self, expectation: Expectable) -> "Self":
+        raise NotImplementedError
+
+    def unlike(self, expectation: Expectable) -> "Self":
+        raise NotImplementedError
+
+    def walk_expectations(self, path: list[Symbol] = None):
+        if path is None:
+            path = [self]
+        else:
+            path = path + [self]
+        yield self
+        if self.expectations:
+            for child in self.expectations:
+                if child in path:
+                    continue
+                if isinstance(child, HasExpectations):
+                    yield from child.walk_expectations(path)
+
+
+@dataclass(repr=False)
+class Type(Symbol, TypeNode, HasExpectations):
     name: Optional[str] = None
     tag: TypeTag = required_field()
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     fields: list[TypeNode] = field(default_factory=list)
     self_fields: list[TypeNode] = None
+    expectations: list[Expectable] = field(default_factory=list)
     # not directly configurable for types
     hint = None
     key = None
     reference = None
+
+    @cached_property
+    def py_type(self) -> type:
+        return self.session.instance.get_py_type(self)
+
+    # mimic python type behavior
+    def __instancecheck__(self, instance):
+        return isinstance(instance, self.py_type)
+
+    def __subclasscheck__(self, subclass):
+        return issubclass(subclass, self.py_type)
+
+    def __call__(self, *args, **kwargs):
+        return self.py_type(*args, **kwargs)
+
+    def __getattr__(self, item):
+        if self.tag == TypeTag.ENUM:
+            return self.py_type[item]
+        if item in self:
+            return self[item]
+        raise AttributeError(f"{self} has no attribute {item}")
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag}"
 
     def __repr__(self):
-        return f"<TypeContent {self}>"
+        return f"<Type {self}>"
 
     def deepcopy(
         self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
-    ) -> "TypeContent":
+    ) -> "Self":
         fields = [
             field.deepcopy(
                 keep_id=keep_id,
@@ -716,68 +663,27 @@ class TypeContent(SymbolContent, TypeNode):
             )
             for field in self.fields
         ]
-        return TypeContent(
+        return self.__class__(
             name=self.name,
             tag=self.tag,
             flags=self.flags,
-            description=self.description,
-            fields=fields,
-        )
-
-
-@dataclass(repr=False)
-class Type(InterpSymbol, TypeContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
-
-    def deepcopy(
-        self, keep_id: bool = True, keep_reference: bool = True, deepcopy_reference: bool = True
-    ) -> "Type":
-        fields = [
-            field.deepcopy(
-                keep_id=keep_id,
-                keep_reference=keep_reference,
-                deepcopy_reference=deepcopy_reference,
-            )
-            for field in self.fields
-        ]
-        return Type(
-            id=self.id if keep_id else uuid.uuid4(),
-            name=self.name,
-            tag=self.tag,
             description=self.description,
             fields=fields,
             expectations=self.expectations,
-            flags=self.flags,
             source=self.source,
         )
 
-    # override __str__/__repr__ to preserve InterpSymbol's __str__/__repr__
-    def __str__(self):
-        return InterpSymbol.__str__(self)
-
-    def __repr__(self):
-        return InterpSymbol.__repr__(self)
-
 
 @dataclass(repr=False)
-class ReactiveSettings:
-    reactive: bool = False
-
-
-@dataclass(repr=False)
-class TaskContent(TypeContent, ReactiveSettings):
+class Task(Symbol, HasExpectations):
     description: str = ""
     root_type_tag = TypeTag.FUNCTION
-
-
-@dataclass(repr=False)
-class Task(InterpSymbol, TaskContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
+    expectations: list[Expectable] = field(default_factory=list)
     steps: list[Task | Code] = field(default_factory=list)
-
-    @property
-    def type(self) -> TypeContent:
-        return self
+    is_async = True
+    # should probably store last good implementation .. in redis?
+    last_good_impl_idx: int = 0
+    py_type = None  # doesn't have a python type
 
     @property
     def generated_expectations(self) -> list[Expectation]:
@@ -787,217 +693,72 @@ class Task(InterpSymbol, TaskContent):
     def is_minimally_specified(self) -> bool:
         return bool(self.name and self.inputs and self.outputs)
 
+    async def __call__(
+        self,
+        *args,
+        build: Build | str = None,
+        model: Model | str = None,
+        retries: int = None,
+        cache: bool = None,
+        timeout: float = None,
+        **kwargs,
+    ):
+        implementations = self.session.instance.get_implementations(self, build=build, model=model)
+        # TODO @Broken: sort/filter implementations with some smartness
+        impl_idx = self.last_good_impl_idx
+        retries = retries if retries is not None else self.session.inference_retries
+        remaining_retries = retries
 
-@dataclass(repr=False)
-class ExpectationContent(SymbolContent):
-    description: str
+        self.session.tracer.code_enter(self, args, kwargs)
+        semantic_errors = []
+        while remaining_retries >= 0:
+            remaining_retries -= 1
+            impl = implementations[impl_idx]
+            log = self.session.logger.bind(
+                task=self, retries=remaining_retries, implementation=impl
+            )
+            try:
+                ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
+                self.last_good_impl_idx = impl_idx
+                self.session.tracer.code_exit(self, args, kwargs, ret)
+                return ret
+            except XGenerationError as e:
+                semantic_errors.append(e)
+                log.warning("task.failed", exc_info=e)
+                if len(semantic_errors) <= self.session.inference_retries / len(implementations):
+                    # retry with error info a few times
+                    implementations[impl_idx] = impl.copy().emit(XConsiderError(e))
+                else:
+                    # fail over
+                    impl_idx = (impl_idx + 1) % len(implementations)
+                    semantic_errors = []
+            except TimeoutError as e:
+                # fail over
+                self.session.logger.warning("task.failed", exc_info=e)
+                impl_idx = (impl_idx + 1) % len(implementations)
 
-    def __str__(self):
-        return f"({self.description})"
-
-
-@dataclass(repr=False)
-class Expectation(InterpSymbol, ExpectationContent):
-    expectations: list[Expectation | Task | Dataset | Code] = field(default_factory=list)
-
-
-# :RemoteObjectType
-class RemoteObjectStatus(enum.StrEnum):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"
-
-
-@dataclass(repr=False, slots=True)
-class RemoteObject:
-    id: UUID
-    sha512: str
-    content_length: int
-    content_type: str
-    name: str
-    status: RemoteObjectStatus
-
-    def __str__(self):
-        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
-
-    def __repr__(self):
-        return f"<RemoteObject {self}>"
-
-
-@dataclass(repr=False, slots=True)
-class Secret:
-    id: UUID
-    sha512: str
-    value: Optional[Any] = None
-
-    def __str__(self):
-        return f"{self.id} ({self.sha512})"
-
-    def __repr__(self):
-        return f"<Secret {self}>"
-
-
-@dataclass(repr=False)
-class Record:
-    order_key: str
-    data: typing.Any
-    id: UUID = field(default_factory=uuid.uuid4)
-
-    def __str__(self):
-        return f"{self.order_key} {describe_type(self.data)}"
-
-    def __repr__(self):
-        return f"<Record {self}>"
-
-    @property
-    def keys(self):
-        return self.data.keys
-
-    def __getitem__(self, item: str):
-        try:
-            return self.data[item]
-        except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
-
-    def __setitem__(self, key, value):
-        self.data[key] = value
-
-    def __getattr__(self, item):
-        try:
-            return self.data[item]
-        except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
-
-    def __setattr__(self, key, value):
-        if key in RECORD_FIELD_KEYS or key in RECORD_INSTANCE_FIELD_KEYS:  # see RecordInstance
-            super().__setattr__(key, value)
+        # give up
+        errors_repr = "\n".join(str(e) for e in semantic_errors) if semantic_errors else "<timeout>"
+        e = RuntimeError(f"{self} failed after {retries} retries: {errors_repr}")
+        self.session.tracer.code_exception(self, args, kwargs, e)
+        if semantic_errors:
+            raise e from semantic_errors[-1]
         else:
-            self[key] = value
+            raise e
 
-
-RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
-RECORD_INSTANCE_FIELD_KEYS = {"_"}  # :RecordInstanceFieldKeys
-
-
-@dataclass(repr=False)
-class Query:
-    op: str
+    def to_sync(self) -> "Self":
+        sync_task = self.__class__(**dict_minus(self.__dict__, ["is_async"]))
+        sync_task.is_async = False
+        sync_task.__call__ = async_to_sync(self.__call__)
+        return sync_task
 
 
 @dataclass(repr=False)
-class Sort:
-    key: str
-    order: str
-
-
-@dataclass(repr=False)
-class DatasetView:
-    name: str
-    query: Optional[Query]
-    sort: Optional[list[Sort]]
-    order_key: str
-
-
-@dataclass(repr=False)
-class DatasetContent(TypeContent, SymbolContent):
-    records: Optional[list[Record]] = None
-    length: Optional[int] = None
-    description: Optional[str] = None
-    views: Optional[list[DatasetView]] = None
-
-
-@dataclass(repr=False)
-class Dataset(InterpSymbol, DatasetContent):
-    @property
-    def type(self) -> TypeContent:
-        return self
-
-
-@dataclass(repr=False)
-class ValueContent(SymbolContent):
-    value: Any
-
-    def __str__(self):
-        return f"{self.value}"
-
-
-@dataclass(repr=False)
-class Value(InterpSymbol, ValueContent):
-    pass
-
-
-@dataclass(repr=False)
-class ModelContent(SymbolContent):
-    external_name: str
-
-    def __str__(self):
-        return f"{self.external_name}"
-
-
-@dataclass(repr=False)
-class Model(InterpSymbol, ModelContent):
-    pass
-
-
-class XKind(enum.StrEnum):
-    Settings = "settings"
-    Static = "static"
-    Input = "input"
-    Output = "output"
-
-
-class XSource(enum.StrEnum):
-    System = "system"
-    User = "user"
-    Developer = "developer"
-    Model = "model"
-
-
-ValueT = typing.TypeVar("ValueT", bound=typing.Any)
-
-
-# TODO @Architecture: XBlock should just be a wrapper around a regular value
-@dataclass(repr=False)
-class XBlock(typing.Generic[ValueT]):
-    kind: XKind
-    source: XSource
-    value: Optional[ValueT]
-    path: Optional[str] = None  # jsonpath of value if partial block
-
-    def __len__(self):
-        if self.value is None:
-            return 0
-        elif isinstance(self.value, str):
-            return len(self.value)
-        else:
-            raise TypeError(f"cannot get length of {self}")
-
-    def copy(self):
-        return XBlock(
-            kind=self.kind,
-            source=self.source,
-            value=copy.deepcopy(self.value),
-            path=self.path,
-        )
-
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
-
-    def __repr__(self):
-        return f"<XBlock {str(self)}>"
-
-
-@dataclass(repr=False)
-class XBlockContent(XBlock, typing.Generic[ValueT]):
-    description: Optional[str] = None
-    order_key: str = field(default=INTEGER_ZERO)
-    id: UUID = field(default_factory=uuid.uuid4)
-
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
-
-    def __repr__(self):
-        return f"<XBlockContent {str(self)}>"
+class CodeTransformation:
+    original_code: str
+    transformed_code: str
+    method_name: str
+    start_offset: int
 
 
 @dataclass(slots=True)
@@ -1007,70 +768,256 @@ class CodeParse:
     fake_line_numbers: list[int] = field(default_factory=list)
 
 
+AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
+SyncCodeCallable = typing.Callable[..., Any]
+
+
 @dataclass(repr=False)
-class CodeContent(TypeContent, ReactiveSettings):
+class Code(Symbol):
     description: Optional[str] = None
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
-    xblocks: Optional[list[XBlockContent]] = field(default_factory=list)
-    # parsed/resolved data
     parse: Optional[CodeParse] = None
+    transform: Optional[CodeTransformation] = None
     references: dict[str, Statement] = field(default_factory=dict)
+    context: dict[str, Symbol] = field(default_factory=dict)
+
+    @cached_property
+    def code_callable(self) -> AsyncCodeCallable | SyncCodeCallable:
+        return self.session.instance.get_code_callable(self)
+
+    async def __call__(self, *args, **kwargs):
+        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
+        try:
+            self.session.tracer.code_enter(self, args, kwargs)
+            log.debug("code.enter")
+            result = await self.code_callable(*args, **kwargs)
+            self.session.tracer.code_exit(self, args, kwargs, result)
+            log.debug("code.exit", result=describe_type(result))
+            return result
+        except Exception as exception:
+            self.session.tracer.code_exception(self, args, kwargs, exception)
+            log.debug("code.exception", excinfo=True)
+            raise
+
+    def to_sync(self) -> "Code":
+        sync_code = self.__class__(**dict_minus(self.__dict__, ["is_async"]))
+        sync_code.is_async = False
+        sync_code.__call__ = async_to_sync(self.__call__)
+        return sync_code
+
+
+@dataclass(repr=False)
+class Expectation(Symbol):
+    description: str = required_field()
+    expectations: list[Expectable] = field(default_factory=list)
+
+    def __init__(self, name: str = None, description: str = None, expectations: list = None):
+        super().__init__(name=name, description=description, expectations=expectations)
+
+
+@dataclass(repr=False, slots=True)
+class RecordMeta:
+    dataset: Dataset
+
+
+@dataclass(repr=False)
+class Record:
+    _order_key: str
+    _data: typing.Any = field(default_factory=dict)
+    _id: UUID = field(default_factory=uuid.uuid4)
+    _: RecordMeta = field(default_factory=RecordMeta)
 
     def __str__(self):
-        return f"code={len(self.code)}"
+        return f"{self._order_key} {describe_type(self._data)}"
+
+    def __repr__(self):
+        return f"<Record {self}>"
+
+    @property
+    def keys(self):
+        return self._data.keys
+
+    def __getitem__(self, item: str):
+        try:
+            return self._data[item]
+        except KeyError:
+            raise KeyError(f"missing key '{item}' (available: {list(self._data.keys())})")
+
+    def __setitem__(self, key, value):
+        self._data[key] = value
+
+    def __getattr__(self, item):
+        try:
+            return self._data[item]
+        except KeyError:
+            raise KeyError(f"missing key '{item}' (available: {list(self._data.keys())})")
+
+    def __setattr__(self, key, value):
+        if key in RECORD_FIELD_KEYS:
+            super().__setattr__(key, value)
+        else:
+            self[key] = value
+
+
+RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 
 
 @dataclass(repr=False)
-class Code(InterpSymbol, CodeContent):
-    context: dict[str, InterpSymbol] = field(default_factory=dict)
-
-    @property
-    def type(self) -> TypeContent:
-        return self
-
-    @property
-    def is_inlinable(self) -> bool:
-        return len(self.inputs) == 0
+class DatasetView:
+    name: str
+    query: Optional[Query] = None
+    sort: Optional[list[Sort]] = None
+    order_key: str = field(default_factory=uuid.uuid4)
+    id: UUID = field(default_factory=uuid.uuid4)
 
 
 @dataclass(repr=False)
-class RequirementContent(SymbolContent):
-    module_name: Optional[str]
-    module_id: Optional[UUID]
-    version: Optional[str]
+class Dataset(Symbol):
+    records: Optional[list[Record]] = None
+    inmemory: bool = True
+    length: Optional[int] = None
+    description: Optional[str] = None
+    views: Optional[list[DatasetView]] = None
+    type: Optional[Type] = field(default_factory=Type)
+
+    def __post_init__(self):
+        self.meta = RecordMeta(type=self.type, session=self.session, owner=self)
+
+    def clear(self):
+        self.session.tracer.dataset_clear(self)
+        if self.inmemory:
+            self.records = []
+
+    def append(self, record: Record = None, **data):
+        if record is not None:
+            if data:
+                raise ValueError("cannot pass both record and data")
+            data = record._data
+        data = unproxy_value(data)  # remove source proxy if any
+        # insert at end
+        last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
+        record = Record(
+            _id=uuid.uuid4(),
+            _=self.meta,
+            _order_key=generate_key_between(last_ok, None),
+            _data=data,
+        )
+        self.session.tracer.dataset_append(self, record)
+        if self.inmemory:
+            self.records.append(record)
+
+    def extend(self, records: typing.Iterable[Record | dict]):
+        datas = [  # remove source proxy if any
+            unproxy_value(record._data) if isinstance(record, Record) else unproxy_value(record)
+            for record in records
+        ]
+        last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
+        oks = generate_n_keys_between(last_ok, None, len(datas))
+        records = [
+            Record(
+                _id=uuid.uuid4(),
+                _=self.meta,
+                _order_key=ok,
+                _data=data,
+            )
+            for ok, data in zip(oks, datas)
+        ]
+        self.session.tracer.dataset_extend(self, records)
+        self.records.extend(records)
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, item: int | slice) -> Record | list[Record]:
+        return self.records[item]
+
+    def __iter__(self):
+        return iter(self.records)
+
+
+@dataclass(repr=False)
+class Value(Symbol):
+    value: Any = None
+
+    def __post_init__(self):
+        self.meta = RecordMeta(type=self.type, session=self.session, owner=self)
+
+    @property
+    def keys(self):
+        return self.value.keys()
+
+    def __getitem__(self, item):
+        return self.value[item]
+
+    def __setitem__(self, key, value):
+        self.value[key] = value
+        self.session.tracer.value_setitem(self, key, value)
+
+    # proxy to record data if not in this class
+
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+        elif item in self.records[0]._data:
+            return self.records[0][item]
+        else:
+            raise AttributeError(item)
+
+    def __setattr__(self, key, value):
+        if key in VALUE_INSTANCE_FIELDS:
+            super().__setattr__(key, value)
+        else:
+            setattr(self.records[0], key, value)
 
     def __str__(self):
-        return f"{self.module_name}@{self.version}"
+        return f"{self.value}"
+
+
+VALUE_INSTANCE_FIELDS = {field.name for field in fields(Value)}
 
 
 @dataclass(repr=False)
-class Requirement(InterpSymbol, RequirementContent):
-    pass
+class Model(Symbol):
+    external_name: str = required_field()
+
+    @cached_property
+    def inference(self) -> ModelInference:
+        return self.session.instance.get_inference(self)
+
+    def __str__(self):
+        return f"{self.external_name}"
+
+    # forward inference methods
+    def __getattr__(self, item: str):
+        if item in self.inference.__dict__:
+            return getattr(self.inference, item)
+        else:
+            raise AttributeError(item)
 
 
 @dataclass(repr=False)
-class BuildContent(SymbolContent):
-    pass
+class Requirement(Symbol):
+    module_name: Optional[str] = None
+    module_id: Optional[UUID] = None
+    version: Optional[str] = None
+
+    def __str__(self):
+        return f"{self.module_name or '<unspecified>'}@{self.version or '<any>'}"
 
 
 @dataclass(repr=False)
-class Build(InterpSymbol, BuildContent):
+class Build(Symbol):
     tasks: list[Task] = field(default_factory=list)
     models: list[Model] = field(default_factory=list)
 
 
 @dataclass(repr=False)
-class BlockContent(SymbolContent):
-    pass
+class Block(Symbol):
+    contents: list[Symbol] = field(default_factory=list)
 
 
-@dataclass(repr=False)
-class Block(InterpSymbol, BlockContent):
-    contents: list[InterpSymbol] = field(default_factory=list)
-
-
-SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
+SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[Symbol]] = {
     SymbolType.TYPE: Type,
     SymbolType.TASK: Task,
     SymbolType.EXPECTATION: Expectation,
@@ -1082,7 +1029,7 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[InterpSymbol]] = {
     SymbolType.BUILD: Build,
     SymbolType.BLOCK: Block,
 }
-SYMBOL_TYPE_BY_CLASS: dict[typing.Type[InterpSymbol], SymbolType] = {
+SYMBOL_TYPE_BY_CLASS: dict[typing.Type[Symbol], SymbolType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
 }
 SYMBOL_FIELDS_BY_TYPE = {t: fields(c) for t, c in SYMBOL_CLASS_BY_TYPE.items()}
@@ -1090,16 +1037,14 @@ SYMBOL_FIELDS_NAMES_BY_TYPE = {
     t: {f.name for f in fields(c)} for t, c in SYMBOL_CLASS_BY_TYPE.items()
 }
 
-EMPTY_FUNC_TYPE = TypeContent(name=None, tag=TypeTag.FUNCTION)
-EMPTY_STRUCT_TYPE = TypeContent(name=None, tag=TypeTag.STRUCT)
+EMPTY_FUNC_TYPE = Type(name=None, tag=TypeTag.FUNCTION)
+EMPTY_STRUCT_TYPE = Type(name=None, tag=TypeTag.STRUCT)
 
 
-def make_func_type(
-    inputs: list[TypeNode], outputs: list[TypeNode], name: str = None
-) -> TypeContent:
+def make_func_type(inputs: list[TypeNode], outputs: list[TypeNode], name: str = None) -> Type:
     """Create a function type from input and output types."""
 
-    return TypeContent(
+    return Type(
         name=name,
         tag=TypeTag.FUNCTION,
         children=[*inputs, *outputs],
@@ -1112,9 +1057,9 @@ def make_struct_type(
     description: str = None,
     is_array: bool = False,
     is_nullable: bool = False,
-) -> TypeContent:
+) -> Type:
     """Create a struct type from children types."""
-    return TypeContent(
+    return Type(
         name=name,
         description=description,
         tag=TypeTag.STRUCT,
@@ -1129,11 +1074,118 @@ def deepcopy_types(nodes: list[Field] | None, keep_id: bool = True) -> list[Fiel
     return [node.deepcopy(keep_id=keep_id) for node in nodes]
 
 
-def flatten_func_type(func_type: TypeContent) -> TypeContent:
+def flatten_func_type(func_type: Type) -> Type:
     """Inline the input and output types into one struct."""
     # check that no input children are called output (hacky deluxe)
-    return TypeContent(
+    return Type(
         name=func_type.name,
         tag=TypeTag.STRUCT,
         fields=[*deepcopy_types(func_type.fields, keep_id=False)],
     )
+
+
+# :RemoteObjectType
+class RemoteObjectStatus(enum.StrEnum):
+    PREPARED = "prepared"
+    UPLOADING = "uploading"
+    AVAILABLE = "available"
+
+
+@dataclass(repr=False, slots=True)
+class RemoteObject(LanguageObject):
+    """A proxy to a remotely stored object behaving like a Python file on demand."""
+
+    id: UUID
+    sha512: str
+    content_length: int
+    content_type: str
+    name: str
+    status: RemoteObjectStatus
+
+    def __str__(self):
+        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
+
+    def __repr__(self):
+        return f"<RemoteObject {self}>"
+
+    def __getitem__(self, item):
+        return self.__dict__[item]
+
+    async def aread(self, timeout: float = 1) -> bytes:
+        """Read the object from the remote storage."""
+        if self.status != RemoteObjectStatus.AVAILABLE:
+            raise ValueError(f"unable to read {self}")
+        return await self.session.instance.remote_object_aread(self, timeout=timeout)
+
+    async def areadtext(self) -> str:
+        return (await self.aread()).decode()
+
+    async def areadlines(self) -> list[str]:
+        return (await self.aread()).decode().splitlines()
+
+    def read(self, timeout: float = 1) -> bytes:
+        """Read the object from the remote storage."""
+        return async_to_sync(self.aread)(timeout=timeout)
+
+    def readtext(self) -> str:
+        return self.read().decode()
+
+    def readlines(self) -> list[str]:
+        return self.read().decode().splitlines()
+
+
+SecretValueT = typing.TypeVar("SecretValueT")
+
+
+@dataclass(repr=False, slots=True)
+class Secret(LanguageObject, typing.Generic[SecretValueT]):
+    """A proxy to a remotely stored secret."""
+
+    id: UUID
+    sha512: str
+    value: Optional[SecretValueT] = None
+
+    def __str__(self):
+        return f"{self.id} ({self.sha512})"
+
+    def __repr__(self):
+        return f"<Secret {self}>"
+
+    async def areveal(self) -> SecretValueT:
+        if self.value is not None:
+            return self.value
+        self.value = await self.session.instance.secret_areveal(self)
+        return self.value
+
+    def reveal(self) -> SecretValueT:
+        return async_to_sync(self.areveal)()
+
+
+STATIC_BUILTINS = {
+    # primitive type builtins
+    "string": str,
+    "text": str,
+    "number": float,
+    "file": RemoteObject,
+    "boolean": bool,
+    "image": RemoteObject,
+    "audio": RemoteObject,
+    # library builtins
+    "numpy": numpy,
+    "np": numpy,
+    "pandas": pandas,
+    "pd": pandas,
+    "asyncio": asyncio,
+    # functional builtins
+    "itertools": itertools,
+    "more_itertools": itertools,
+    "first": first,
+    "last": last,
+    "chain": itertools.chain,
+}
+
+DYNAMIC_BUILTINS = {
+    "session",
+    "context",
+    "random",
+}

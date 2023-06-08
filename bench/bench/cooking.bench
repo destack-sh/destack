@@ -1,9 +1,0 @@
---- recipes ---
-
-# Assistant for gathering and organizing recipes
-
-type Recipe:
-"A cooking recipe"
-
-task 'extract recipes' :: (input: file) -> (recipes: [Recipe]):
-"Extract recipes from an HTML page"

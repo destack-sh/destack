@@ -49,7 +49,7 @@ class Field(UUIDModel, CrudModel):
     )
     key = models.CharField(max_length=FIELD_KEY_LENGTH, default=new_field_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
-    tag = TextChoicesField(choices_enum=TypeTag)
+    tag = models.CharField(max_length=20, choices=TypeTag.choices)
     hint = TextChoicesField(choices_enum=TypeHint, null=True, blank=True)
     flags = models.IntegerField(default=0)
     description = models.TextField(null=True, blank=True)
@@ -183,9 +183,9 @@ class StatementManager(models.Manager["Statement"]):
                 # copy records (obviously very inefficient)
                 if statement.symbol_type == SymbolType.DATASET:
                     for record in statement.records.all():
-                        old_id = record.id
+                        old_id = record._id
                         old_revision = record.revision
-                        record.id = uuid4()
+                        record._id = uuid4()
                         record._state.adding = True
                         record.statement_id = target_statement_ids[statement.id]
                         _refmap(RefType.RECORD, old_id, old_revision, record)

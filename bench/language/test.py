@@ -1,32 +1,14 @@
 from __future__ import annotations
 
 import functools
-import glob
-from pathlib import Path
 from typing import Callable
 
-import pytest
-
-from bench.language import TypeTag, parse
-from bench.language.interp import (
-    ErrorCollector,
-    IssueType,
-    ParseError,
-    SemanticError,
-    parse_code,
-    parse_string,
-)
-from bench.language.lex import SourceFile, lex
-from bench.language.reconstruct import render
-from bench.language.type import Code, StatementPath, Task, Type, TypeFlag
-
-# all  files in bench/bench
-demo_paths = glob.glob("../bench/*.bench")
-if len(demo_paths) == 0:
-    raise RuntimeError(f"no demo files found (cwd={Path.cwd()})")
+from bench.language import TypeTag
+from bench.language.interp import Error, ErrorCollector, IssueType, parse_code
+from bench.language.type import Code, StatementPath, Type, TypeFlag
 
 
-def _raise_if_error(error: ParseError | SemanticError, test: Callable):
+def _raise_if_error(error: Error, test: Callable):
     if test(error):
         raise error
 
@@ -37,15 +19,6 @@ def _raise_if(test: Callable):
 
 def _raise_if_not_external():
     return _raise_if(lambda e: e.type != IssueType.EXTERNAL_LOOKUP_FAILED)
-
-
-@pytest.mark.parametrize("path", demo_paths)
-@pytest.mark.skip(reason="TODO @Test: fix/update demo files")
-def test_round_trip_demo_files(path: str):
-    source_file = SourceFile(path=path, content=Path(path).read_text())
-    module, _ = parse(lex(source_file), on_error=_raise_if_not_external())
-    reconstructed = render(module.files)
-    assert reconstructed == source_file.content
 
 
 def test_absolute_references():
@@ -100,6 +73,22 @@ type Entity:
 
 
 def test_resolve_circular_type():
+    with Session():
+        entity = Type(
+            "Entity",
+            {
+                "name": TypeTag.STRING,
+                "first_event": (TypeFlag.IsNullable, TypeTag.REFERENCE),
+            },
+        )
+        Type(
+            "Event",
+            {
+                "summary": TypeTag.STRING,
+                "entities": (TypeFlag.IsArray, entity),
+            },
+        )
+
     module, idx = parse_string(
         """
 --- test ---
@@ -118,27 +107,6 @@ type Event:
 
     type_entity = idx.symbol(".test:Entity", Type)
     assert type_entity["first_event"].reference.id == type_event.id
-
-
-def test_output_struct():
-    module, idx = parse_string(
-        """
---- test ---
-task test :: (a: string, b: string "input 1") -> (x: string "output 1", y: string):
-"Just a test"
-        """
-    )
-    task_type = idx.symbol(".test:test", Task).type
-    # check that the inputs and outputs are there
-    for tag, name, descr, is_output in [
-        (TypeTag.STRING, "a", None, False),
-        (TypeTag.STRING, "b", "input 1", False),
-        (TypeTag.STRING, "x", "output 1", True),
-        (TypeTag.STRING, "y", None, True),
-    ]:
-        assert task_type[name].tag == tag
-        assert task_type[name].description == descr
-        assert bool(task_type[name].flags & TypeFlag.IsOutput) == is_output
 
 
 def test_extract_code_references():
