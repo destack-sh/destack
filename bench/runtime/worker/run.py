@@ -9,7 +9,9 @@ import structlog
 from bench import language
 from bench.language import wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType
+from bench.language.session import SessionTracingLevel, SessionContext, Session, SessionMode
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType, Code, Task
+from bench.language.unsecure import RunError, run
 from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
@@ -32,16 +34,6 @@ from bench.msg.messages import (
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
 from bench.runtime.common.type import ExecutionFrame, ExecutionFrameData, WorkerTenancy
-from bench.runtime.worker.instance import (
-    CodeInstance,
-    Session,
-    SessionContext,
-    SessionMode,
-    SessionTracingLevel,
-    TaskInstance,
-    instantiate,
-)
-from bench.runtime.worker.unsecure import RunError, run
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -60,7 +52,7 @@ def create_wrapped_task(coro, task_id: str = None):
 class RunJob:
     priority: int = 1
     cancelled: bool = False
-    runnable: TaskInstance | CodeInstance = None
+    runnable: Task | Code = None
     session: Session = None
     arguments: dict[str, LiteralValue] = None
     execution: Optional[ExecutionFrame] = None
@@ -153,7 +145,7 @@ class ModuleWorker:
         root_id = execution_id or UUIDT()
         # instantiate
         try:
-            from bench.runtime.worker.build import get_default_builds
+            from bench.language.build import get_default_builds
 
             builds = {b.name: b for b in get_default_builds(self.interp)}
             session_ctx = SessionContext(
@@ -173,9 +165,6 @@ class ModuleWorker:
                 builds=builds,
                 executor=self.executor,
             )
-            runnable_instance = instantiate(runnable, session=session)
-            if not isinstance(runnable_instance, (TaskInstance, CodeInstance)):
-                raise TypeError(f"invalid runnable type: {type(runnable_instance)}")
         except Exception as e:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG
@@ -183,11 +172,11 @@ class ModuleWorker:
         job = RunJob(
             id=root_id,
             session=session,
-            runnable=runnable_instance,
+            runnable=runnable,
             arguments=arguments,
         )
         self.queue.put_nowait((job.priority, job))
-        session.tracer.queue_enter(runnable_instance, arguments, queue_position=self.queue.qsize())
+        session.tracer.queue_enter(runnable, arguments, queue_position=self.queue.qsize())
         return job
 
     async def do_run(self, job: RunJob, timeout: float) -> Optional[RunErrorType]:

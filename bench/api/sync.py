@@ -15,7 +15,7 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
-from bench.api.util import get_client_origin_from_info, wrap_exceptions
+from bench.api.utils import get_client_origin_from_info, wrap_exceptions
 from bench.language.mutate import ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType

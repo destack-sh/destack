@@ -13,7 +13,8 @@ from strawberry_django_plus.types import OperationInfo
 from bench import language, models
 from bench.api.auth import check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
-from bench.api.util import asafe_mutation, to_uuid
+from bench.api.utils import asafe_mutation, to_uuid
+from bench.language.session import SessionTracingLevel
 from bench.models import mapper
 from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request
@@ -25,7 +26,6 @@ from bench.msg.messages import (
     ReqLangserverPayload,
     ReqRunPayload,
 )
-from bench.runtime.worker.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 

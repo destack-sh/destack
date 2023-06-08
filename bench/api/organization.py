@@ -14,7 +14,7 @@ from bench.api.auth import (
     check_can_write_organization,
 )
 from bench.api.owner import AccessTokenFilter, Owner
-from bench.api.util import safe_mutation
+from bench.api.utils import safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import Project

@@ -20,7 +20,7 @@ from bench import models
 from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
-from bench.api.util import asafe_subscription, safe_mutation, to_uuid
+from bench.api.utils import asafe_subscription, safe_mutation, to_uuid
 from bench.models.user import (
     CLIENT_ACTIVE_TIMEOUT_SECONDS,
     CLIENT_PRESENT_TIMEOUT_SECONDS,

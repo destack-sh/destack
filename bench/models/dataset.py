@@ -35,4 +35,6 @@ class OpensearchMapping(models.Model):
     deleted_at = models.DateTimeField(null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="os_mappings")
     mapping = models.JSONField()
-    field = models.ForeignKey("Field", on_delete=models.SET_NULL, related_name="+", null=True)
+    field = models.ForeignKey(
+        "Field", on_delete=models.SET_NULL, related_name="os_mappings", null=True
+    )

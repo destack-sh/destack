@@ -13,7 +13,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
-from bench.api.util import asafe_subscription, to_uuid, to_uuids
+from bench.api.utils import asafe_subscription, to_uuid, to_uuids
 from bench.models import mapper
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, subscribe

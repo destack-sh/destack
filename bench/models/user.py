@@ -7,7 +7,6 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
-from django_choices_field import TextChoicesField
 
 from bench.models.organization import (
     Organization,
@@ -155,7 +154,7 @@ class Client(UUIDModel):
     last_seen_at = models.DateTimeField(null=True)
     closed_at = models.DateTimeField(null=True)
     user = models.ForeignKey("User", on_delete=models.CASCADE, related_name="clients")
-    type = TextChoicesField(choices_enum=ClientType)
+    type = models.CharField(max_length=32, choices=ClientType.choices)
     device_name = models.CharField(max_length=256, null=True, blank=True)
     browser_name = models.CharField(max_length=256, null=True, blank=True)
     # current location in the app

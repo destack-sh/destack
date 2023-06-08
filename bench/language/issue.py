@@ -2,7 +2,7 @@ import enum
 from dataclasses import dataclass
 from typing import Optional
 
-from bench.language.type import File, Statement, StatementPath, statement_path_as_str
+from bench.language.type import File, Statement, StatementPath, statement_path_as_str, InterpScope
 
 
 class IssueKind(enum.StrEnum):
@@ -25,18 +25,22 @@ class IssueType(enum.StrEnum):
     CIRCULAR_UNION = "CIRCULAR_UNION"
     MISMATCHED_UNION = "MISMATCHED_UNION"
 
-    def __new__(cls, value, description):
-        obj = object.__new__(cls)
+    def __new__(cls, value):
+        obj = str.__new__(cls)
         obj._value_ = value
-        obj.description = description
         return obj
+
+    @property
+    def description(self):
+        return _ISSUE_MESSAGES[self]
 
     @property
     def id(self) -> int:
         return self.value[0]
 
 
-ISSUE_MESSAGES = {
+# separate from enum so that it's a simple StrEnum
+_ISSUE_MESSAGES = {
     IssueType.INTERNAL: "Internal error",
     IssueType.UNKNOWN_IMPORT_SOURCE: "unknown import source {source}",
     IssueType.MISSING_REFERENCE: "missing reference",

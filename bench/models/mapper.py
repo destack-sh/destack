@@ -21,7 +21,13 @@ from bench.language import wire
 from bench.language.interp import LookupBy, index_module
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.type import StatementPath, StatementType, SymbolType
-from bench.language.wire import FieldData, FileData, InterpData, InterpScope, StatementData
+from bench.language.wire import (
+    FieldData,
+    FileData,
+    InterpData,
+    InterpScope,
+    StatementData,
+)
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
