@@ -12,7 +12,7 @@ from typing import Any, Optional
 import pytz
 import structlog
 
-from bench.language import Model, XBlock, wire
+from bench.language import Model
 from bench.msg.core import NMessage, request
 from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
 from bench.utils.cache import redis
@@ -20,7 +20,8 @@ from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.worker.tracing import Tracer
+    from bench.language.tracing import Tracer
+    from bench.language.build import XBlock
 
 logger = structlog.get_logger(__name__)
 
@@ -100,24 +101,28 @@ class ModelInference:
         return IncapableError(f"{self} is incapable of modality {modality}")
 
     async def __call__(
-        self, modality: Modality, input: list[XBlock], settings: Any, **kwargs
+        self, modality: Modality, input: list["XBlock"], settings: Any, **kwargs
     ) -> Any:
         method = getattr(self, modality.value)
         return await method(input, settings, **kwargs)
 
-    async def generate_text(self, input: list[XBlock], settings: TextGenerationSettings) -> str:
+    async def generate_text(self, input: list["XBlock"], settings: TextGenerationSettings) -> str:
         raise self.incapable_error(self.generate_text)
 
-    async def generate_image(self, input: list[XBlock], settings: ImageGenerationSettings) -> bytes:
+    async def generate_image(
+        self, input: list["XBlock"], settings: ImageGenerationSettings
+    ) -> bytes:
         raise self.incapable_error(self.generate_image)
 
-    async def generate_audio(self, input: list[XBlock], settings: AudioGenerationSettings) -> bytes:
+    async def generate_audio(
+        self, input: list["XBlock"], settings: AudioGenerationSettings
+    ) -> bytes:
         raise self.incapable_error(self.generate_audio)
 
-    async def embed(self, input: list[XBlock], settings: EmbeddingSettings) -> list[float]:
+    async def embed(self, input: list["XBlock"], settings: EmbeddingSettings) -> list[float]:
         raise self.incapable_error(self.embed)
 
-    async def struct(self, input: list[XBlock], settings: StructSettings) -> Any:
+    async def struct(self, input: list["XBlock"], settings: StructSettings) -> Any:
         raise self.incapable_error(self.struct)
 
 
@@ -185,7 +190,7 @@ class CachedInferenceEndpoint:
     # insecure hash is fine here, it's just for caching
     # noinspection InsecureHash
     async def __call__(
-        self, blocks: list[XBlock], settings: Any, cache: bool = None, timeout: int = None
+        self, blocks: list["XBlock"], settings: Any, cache: bool = None, timeout: int = None
     ) -> Any:
         cache_key = get_inference_cache_key(self.model.fqn, self.modality, blocks, settings)
         log = logger.bind(
@@ -228,7 +233,7 @@ class CachedInferenceEndpoint:
 
 async def run_inference(
     endpoint: InferenceEndpoint,
-    blocks: list[XBlock],
+    blocks: list["XBlock"],
     settings: Any,
     cache_key: str,
     log: Logger = logger,
@@ -252,7 +257,7 @@ async def run_inference(
 
 
 def get_inference_cache_key(
-    model_fqn: str, modality: Modality, blocks: list[XBlock], settings: Any
+    model_fqn: str, modality: Modality, blocks: list["XBlock"], settings: Any
 ):
     block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
     blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
@@ -276,7 +281,9 @@ class RemoteInferenceEndpoint:
         self.modality = modality
         self.timeout = timeout
 
-    async def __call__(self, blocks: list[XBlock], settings: Any, timeout: int = None) -> Any:
+    async def __call__(self, blocks: list["XBlock"], settings: Any, timeout: int = None) -> Any:
+        from bench.language import build
+
         timeout = timeout if timeout is not None else self.timeout
         rep: NMessage[RepRunInferencePayload] = await request(
             NMessageType.REQUEST_RUN_INFERENCE,
@@ -284,7 +291,7 @@ class RemoteInferenceEndpoint:
                 model_fqn=self.model.fqn,
                 model_external_name=self.model.external_name,
                 modality=self.modality,
-                blocks=[wire.rmap_xblock(b) for b in blocks],
+                blocks=[build.rmap_xblock(b) for b in blocks],
                 settings=asdict(settings),
                 timeout=timeout,
             ),

@@ -10,7 +10,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_write_user
-from bench.api.util import safe_mutation
+from bench.api.utils import safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.organization import OrganizationInvite

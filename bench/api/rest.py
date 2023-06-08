@@ -13,12 +13,12 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
+from bench.language.session import SessionTracingLevel
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import NMessageType
 from bench.msg.core import request
 from bench.msg.messages import RepRunPayload, ReqRunPayload
-from bench.runtime.worker.instance import SessionTracingLevel
 
 logger = structlog.get_logger(__name__)
 

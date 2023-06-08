@@ -14,7 +14,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_mutation
-from bench.api.util import get_client_origin_from_info, safe_mutation
+from bench.api.utils import get_client_origin_from_info, safe_mutation
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ProjectChangedPayload

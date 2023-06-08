@@ -14,7 +14,7 @@ from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
 from bench.api.interp import InterpData, rmap_interp_data
 from bench.api.type import ProjectMutationType
-from bench.api.util import asafe_subscription, to_global_id, to_uuid
+from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import mutate
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload

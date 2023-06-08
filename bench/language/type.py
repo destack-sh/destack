@@ -3,30 +3,31 @@ from __future__ import annotations
 import abc
 import asyncio
 import enum
+from functools import cached_property
 import itertools
 import random
 import string
 import typing
 import uuid
 from dataclasses import dataclass, field, fields
-from functools import cached_property
-from typing import Any, Literal, NamedTuple, Optional, Self, Union
+from typing import Any, Literal, NamedTuple, Optional, Union, Self
 from uuid import UUID
 
-import numpy
-import pandas
 from asgiref.sync import async_to_sync
 from more_itertools import first, last
+import numpy
+import pandas
 
-from bench.language.build import XConsiderError, XGenerationError
 from bench.language.dataset import Query, Sort
-from bench.language.session import Session
-from bench.runtime.common.inference import ModelInference
 from bench.settings import logging
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
 from bench.utils.proxy import unproxy_value
 from bench.utils.utils import required_field, to_pyidentifier
+
+if typing.TYPE_CHECKING:
+    from bench.language.session import Session
+    from bench.language.inference import ModelInference
 
 
 class InterpScope(enum.StrEnum):
@@ -234,6 +235,7 @@ class Statement:
     modifier: Optional[StatementModifier] = None
     name: Optional[str] = None
     text: Optional[str] = None
+    symbol: Optional[Symbol] = None
     symbol_type: Optional[SymbolType] = None
     reference: Optional[Statement | StatementPath | UUID] = None
     id: UUID = field(default_factory=uuid.uuid4)
@@ -347,9 +349,9 @@ class LanguageObject(abc.ABC):
     id: UUID
 
     def __post_init__(self):
-        from bench.language.session import active_session
-
         if self.session is None:
+            from bench.language.session import active_session
+
             self.session = active_session.get()
             if self.session is None:
                 raise RuntimeError(f"no active session for {self}")
@@ -703,6 +705,8 @@ class Task(Symbol, HasExpectations):
         timeout: float = None,
         **kwargs,
     ):
+        from bench.language.build import XGenerationError, XConsiderError
+
         implementations = self.session.instance.get_implementations(self, build=build, model=model)
         # TODO @Broken: sort/filter implementations with some smartness
         impl_idx = self.last_good_impl_idx
@@ -982,7 +986,7 @@ class Model(Symbol):
     external_name: str = required_field()
 
     @cached_property
-    def inference(self) -> ModelInference:
+    def inference(self) -> "ModelInference":
         return self.session.instance.get_inference(self)
 
     def __str__(self):
@@ -1036,9 +1040,6 @@ SYMBOL_FIELDS_BY_TYPE = {t: fields(c) for t, c in SYMBOL_CLASS_BY_TYPE.items()}
 SYMBOL_FIELDS_NAMES_BY_TYPE = {
     t: {f.name for f in fields(c)} for t, c in SYMBOL_CLASS_BY_TYPE.items()
 }
-
-EMPTY_FUNC_TYPE = Type(name=None, tag=TypeTag.FUNCTION)
-EMPTY_STRUCT_TYPE = Type(name=None, tag=TypeTag.STRUCT)
 
 
 def make_func_type(inputs: list[TypeNode], outputs: list[TypeNode], name: str = None) -> Type:

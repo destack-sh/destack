@@ -8,7 +8,6 @@ import pytz
 import structlog
 
 from bench.language.mutate import ModuleMutator
-from bench.language.type import Model, Record, XBlock
 from bench.language.typer import check_type
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
@@ -17,17 +16,12 @@ from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.common.inference import Inference
-    from bench.runtime.worker.instance import (
-        CodeInstance,
-        DatasetInstance,
-        RecordInstance,
-        Session,
-        TaskInstance,
-        ValueInstance,
-    )
+    from bench.language.session import Session
+    from bench.language.build import XBlock
+    from bench.language.inference import Inference
+    from bench.language import Code, Task, Model, Dataset, Value, Record
 
-    RunnableInstance = CodeInstance | TaskInstance
+    Runnable = Code | Task
 
 logger = structlog.get_logger(__name__)
 
@@ -37,16 +31,16 @@ class Tracer:
     Trace and track a session with executions, mutations, etc.
     """
 
-    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
         pass
 
-    def code_enter(self, code: RunnableInstance, args, kwargs):
+    def code_enter(self, code: Runnable, args, kwargs):
         pass
 
-    def code_exit(self, code: RunnableInstance, args, kwargs, result):
+    def code_exit(self, code: Runnable, args, kwargs, result):
         pass
 
-    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
         pass
 
     def inference_enter(self, model: Model, blocks: list[XBlock], settings: Any):
@@ -65,23 +59,20 @@ class Tracer:
     ):
         pass
 
-    def dataset_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: Dataset):
         pass
 
-    def dataset_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: Dataset, record: Record):
         pass
 
-    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: Dataset, records: list[Record]):
         pass
 
-    def dataset_remove(self, table: DatasetInstance, record: Record):
+    def dataset_remove(self, table: Dataset, record: Record):
         pass
 
-    def record_update(
-        self,
-        record: RecordInstance,
-        owner: DatasetInstance | ValueInstance,
-        key: typing.Optional[str] = None,
+    def dataset_update(
+        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
     ):
         pass
 
@@ -96,7 +87,7 @@ class SessionTracer(Tracer):
         publish: bool = True,
         validate: bool = True,
     ):
-        from bench.runtime.instance import SessionTracingLevel
+        from bench.language.session import SessionTracingLevel
 
         self.session = session
         self.execution = ExecutionTracer(
@@ -109,19 +100,19 @@ class SessionTracer(Tracer):
         if validate:  # validation tracer must be last
             self.tracers.append(ValidationTracer())
 
-    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
         for tracer in self.tracers:
             tracer.queue_enter(code, inputs, queue_position)
 
-    def code_enter(self, code: RunnableInstance, args, kwargs):
+    def code_enter(self, code: Runnable, args, kwargs):
         for tracer in self.tracers:
             tracer.code_enter(code, args, kwargs)
 
-    def code_exit(self, code: RunnableInstance, args, kwargs, result):
+    def code_exit(self, code: Runnable, args, kwargs, result):
         for tracer in reversed(self.tracers):
             tracer.code_exit(code, args, kwargs, result)
 
-    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
         for tracer in reversed(self.tracers):
             try:
                 tracer.code_exception(code, args, kwargs, exception)
@@ -153,30 +144,27 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.inference_cached(model, blocks, settings, inference)
 
-    def dataset_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: Dataset):
         for tracer in self.tracers:
             tracer.dataset_clear(table)
 
-    def dataset_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: Dataset, record: Record):
         for tracer in self.tracers:
             tracer.dataset_append(table, record)
 
-    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: Dataset, records: list[Record]):
         for tracer in self.tracers:
             tracer.dataset_extend(table, records)
 
-    def dataset_remove(self, table: DatasetInstance, record: Record):
+    def dataset_remove(self, table: Dataset, record: Record):
         for tracer in self.tracers:
             tracer.dataset_remove(table, record)
 
-    def record_update(
-        self,
-        record: RecordInstance,
-        owner: DatasetInstance | ValueInstance,
-        key: typing.Optional[str] = None,
+    def dataset_update(
+        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
     ):
         for tracer in self.tracers:
-            tracer.record_update(record, owner, key)
+            tracer.dataset_update(dataset, record, key)
 
 
 class ExecutionTracer(Tracer):
@@ -230,7 +218,7 @@ class ExecutionTracer(Tracer):
 
     def _create_frame(
         self,
-        runnable: typing.Optional[CodeInstance | TaskInstance | Model] = None,
+        runnable: typing.Optional[Code | Task | Model] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -260,7 +248,7 @@ class ExecutionTracer(Tracer):
             parent.children.append(frame)
         return frame
 
-    def queue_enter(self, code: RunnableInstance, inputs: dict[str, Any], queue_position: int):
+    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
             runnable=code,
@@ -271,7 +259,7 @@ class ExecutionTracer(Tracer):
         self.track(frame)
         logger.debug("trace.queue", frame=frame)
 
-    def code_enter(self, code: RunnableInstance, args, kwargs):
+    def code_enter(self, code: Runnable, args, kwargs):
         # map args into kwargs
         combined_kwargs = {**kwargs}
         for input_t, input in zip(code.inputs, args):
@@ -283,14 +271,14 @@ class ExecutionTracer(Tracer):
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exit(self, code: RunnableInstance, args, kwargs, result):
+    def code_exit(self, code: Runnable, args, kwargs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = code.type.rekey(result, is_output=True)
         self.track(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exception(self, code: RunnableInstance, args, kwargs, exception: Exception):
+    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
@@ -341,23 +329,20 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def dataset_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: Dataset):
         self.mutator.truncate_records(table.id)
 
-    def dataset_append(self, table: DatasetInstance, record: RecordInstance):
+    def dataset_append(self, table: Dataset, record: Record):
         self.mutator.create(record._to_wire(include_data=True))
 
-    def dataset_extend(self, table: DatasetInstance, records: list[Record]):
+    def dataset_extend(self, table: Dataset, records: list[Record]):
         self.mutator.create_many(*[record._to_wire(include_data=True) for record in records])
 
-    def dataset_remove(self, table: DatasetInstance, record: Record):
+    def dataset_remove(self, table: Dataset, record: Record):
         self.mutator.delete(record._id)
 
-    def record_update(
-        self,
-        record: RecordInstance,
-        owner: DatasetInstance | ValueInstance,
-        key: typing.Optional[str] = None,
+    def dataset_update(
+        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
     ):
         self.mutator.update(record.id, record._to_wire(include_data=True))
 
@@ -365,31 +350,26 @@ class MutationTracer(Tracer):
 class ValidationTracer(Tracer):
     """Validates types (except in inference, which is always checked in the task implementation)."""
 
-    def code_enter(self, code: RunnableInstance, args, kwargs):
+    def code_enter(self, code: Runnable, args, kwargs):
         combined_kwargs = {**kwargs}
         for input_t, input in zip(code.inputs, args):
             combined_kwargs[input_t.name] = input
         check_type(combined_kwargs, code, is_output=False)
 
-    def code_exit(self, code: RunnableInstance, args, kwargs, result):
+    def code_exit(self, code: Runnable, args, kwargs, result):
         check_type(result, code, is_output=True)
 
-    def dataset_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: Dataset, record: Record):
         check_type(record._data, table, ignore_array=True)
 
-    def record_update(
-        self,
-        record: RecordInstance,
-        owner: DatasetInstance | ValueInstance,
-        key: typing.Optional[str] = None,
-    ):
+    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
-            if key not in owner.type:
-                raise ValueError(f"{key} does not exist on {owner.type}")
-            check_type(record._data.get(key), owner.type[key])
+            if key not in dataset.type:
+                raise ValueError(f"{key} does not exist on {dataset.type}")
+            check_type(record._data.get(key), dataset.type[key])
         else:
-            check_type(record._data, owner.type, ignore_array=True)
+            check_type(record._data, dataset.type, ignore_array=True)
 
 
 class PermissionTracer(Tracer):
@@ -398,19 +378,14 @@ class PermissionTracer(Tracer):
     def __init__(self, session: Session):
         self.session = session
 
-    def dataset_clear(self, table: DatasetInstance):
+    def dataset_clear(self, table: Dataset):
         self.session.check_can_write(table)
 
-    def dataset_append(self, table: DatasetInstance, record: Record):
+    def dataset_append(self, table: Dataset, record: Record):
         self.session.check_can_write(table)
 
-    def dataset_delete(self, table: DatasetInstance, record: RecordInstance):
+    def dataset_delete(self, table: Dataset, record: Record):
         self.session.check_can_write(table)
 
-    def record_update(
-        self,
-        record: RecordInstance,
-        owner: DatasetInstance | ValueInstance,
-        key: typing.Optional[str] = None,
-    ):
-        self.session.check_can_write(owner)
+    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+        self.session.check_can_write(dataset)

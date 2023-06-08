@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django_choices_field import TextChoicesField
 
 from bench.models.utils import UUIDModel
 from bench.settings import ACCESS_TOKEN_DIGEST_LENGTH, ACCESS_TOKEN_KEY_LENGTH, ACCESS_TOKEN_PREFIX
@@ -64,7 +63,7 @@ class AccessTokenStatus(models.TextChoices):
 class AccessToken(UUIDModel):
     digest = models.CharField(max_length=ACCESS_TOKEN_DIGEST_LENGTH, unique=True)
     token_key = models.CharField(max_length=ACCESS_TOKEN_KEY_LENGTH)
-    scopes = ArrayField(TextChoicesField(choices_enum=AccessTokenScope))
+    scopes = ArrayField(models.CharField(max_length=32, choices=AccessTokenScope.choices))
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
     secret = models.ForeignKey("Secret", on_delete=models.CASCADE, null=True)
 

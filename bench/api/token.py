@@ -10,7 +10,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import is_owner_or_member
-from bench.api.util import safe_mutation
+from bench.api.utils import safe_mutation
 from bench.models import Organization, User
 
 AccessTokenScope = gql.enum(models.AccessTokenScope)

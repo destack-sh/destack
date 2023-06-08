@@ -8,6 +8,7 @@ from uuid import UUID, uuid5
 from bench import language
 from bench.language import IssueType
 from bench.language.interp import get_reference_as_path
+from bench.language.issue import IssueKind
 from bench.language.type import (
     StatementModifier,
     StatementPath,
@@ -16,10 +17,10 @@ from bench.language.type import (
     TypeFlag,
     TypeHint,
     TypeTag,
-    XKind,
-    XSource,
+    InterpScope,
 )
 from bench.utils.func import describe_type
+
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -84,13 +85,13 @@ class RecordData:
 
 @dataclass(repr=False, slots=True)
 class XBlockData:
-    kind: XKind
-    source: XSource
+    kind: str
+    source: str
     value: Optional[typing.Any] = None
     path: Optional[str] = None
 
     def __str__(self):
-        return f"{self.kind.value} {self.source.value}"
+        return f"{self.kind} {self.source}"
 
     def __repr__(self):
         return f"<XBlock {str(self)}>"
@@ -362,8 +363,8 @@ def rmap_statement(
         symbol_type=statement.symbol_type,
         generated=statement.generated,
     )
-    if statement.content is not None:
-        rmap_symbol(statement.content, data, impute_type_references=impute_type_references)
+    if statement.symbol is not None:
+        rmap_symbol(statement.symbol, data, impute_type_references=impute_type_references)
     return data
 
 
@@ -383,54 +384,43 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         symbol_type=data.symbol_type,
         generated=data.generated,
     )
-    if statement.type == StatementType.DEFINITION:
-        statement.content = wmap_symbol(data)
+    if statement.type in (StatementType.DEFINITION, StatementType.REDEFINITION):
+        statement.symbol = wmap_symbol(data)
+        statement.symbol.source = statement
     return statement
 
 
 def rmap_symbol(
-    content: language.SymbolContent, data: StatementData, impute_type_references: bool = False
+    symbol: language.Symbol, data: StatementData, impute_type_references: bool = False
 ) -> None:
     """Maps a language symbol's _contents_ (excl. refs) to a wire statement."""
     # type content is also a component
-    if isinstance(content, language.TypeContent):
-        data.description = content.description
-        data.root_type_tag = content.tag
-        data.root_type_flags = content.flags
-        source_nodes = (
-            content.fields if impute_type_references else (content.fields or content.fields)
-        )
+    if isinstance(symbol, language.Type):
+        data.description = symbol.description
+        data.root_type_tag = symbol.tag
+        data.root_type_flags = symbol.flags
+        source_nodes = symbol.fields if impute_type_references else (symbol.fields or symbol.fields)
         data.fields = [rmap_field(data.id, node, impute_type_references) for node in source_nodes]
-    if isinstance(content, language.TaskContent):
-        data.description = content.description
-    elif isinstance(content, language.ExpectationContent):
-        data.description = content.description
-    elif isinstance(content, language.CodeContent):
-        data.description = content.description
-        data.lang = content.language
-        data.code = content.code
-    elif isinstance(content, language.ModelContent):
-        data.external_name = content.external_name
-    elif isinstance(content, language.CapabilityContent):
-        data.description = content.description
-    elif isinstance(content, language.DataContent):
-        data.lang = content.language
-        data.description = content.description
-        data.records = (
-            [rmap_record(data.id, r) for r in content.records]
-            if content.records is not None
-            else []
-        )
-    elif isinstance(content, language.BuildContent):
-        data.description = content.comment
-    elif isinstance(content, language.RequirementContent):
-        if content.module_name and content.version:
+    if isinstance(symbol, language.Task):
+        data.description = symbol.description
+    elif isinstance(symbol, language.Expectation):
+        data.description = symbol.description
+    elif isinstance(symbol, language.Code):
+        data.description = symbol.description
+        data.lang = symbol.language
+        data.code = symbol.code
+    elif isinstance(symbol, language.Model):
+        data.external_name = symbol.external_name
+    elif isinstance(symbol, language.Dataset):
+        data.description = symbol.description
+    elif isinstance(symbol, language.Requirement):
+        if symbol.module_name and symbol.version:
             data.reference_module = ModuleReference(
-                content.module_name, content.version, id=content.module_id
+                symbol.module_name, symbol.version, id=symbol.module_id
             )
 
 
-def wmap_symbol(data: StatementData) -> language.SymbolContent:
+def wmap_symbol(data: StatementData) -> language.Symbol:
     """Maps a wire statement's symbol contents to a language symbol."""
     if data.root_type_tag:
         fields = [wmap_field(t) for t in (data.fields or [])]
@@ -438,22 +428,22 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
         fields = []
 
     if data.symbol_type == SymbolType.TYPE:
-        return language.TypeContent(
+        return language.Type(
             name=data.name,
             description=data.description,
             tag=data.root_type_tag,
             fields=fields,
         )
     elif data.symbol_type == SymbolType.TASK:
-        return language.TaskContent(
+        return language.Task(
             tag=data.root_type_tag,
             fields=fields,
             description=data.description,
         )
     elif data.symbol_type == SymbolType.EXPECTATION:
-        return language.ExpectationContent(description=data.description)
+        return language.Expectation(description=data.description)
     elif data.symbol_type == SymbolType.CODE:
-        return language.CodeContent(
+        return language.Code(
             description=data.description,
             language=data.lang,
             code=data.code,
@@ -461,11 +451,11 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             fields=fields,
         )
     elif data.symbol_type == SymbolType.MODEL:
-        return language.ModelContent(
+        return language.Model(
             external_name=data.external_name,
         )
     elif data.symbol_type == SymbolType.DATASET:
-        return language.DataContent(
+        return language.Dataset(
             description=data.description,
             language=data.lang,
             tag=data.root_type_tag,
@@ -474,9 +464,9 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
             records=[wmap_record(r) for r in data.records] if data.records is not None else None,
         )
     elif data.symbol_type == SymbolType.BUILD:
-        return language.BuildContent(comment=data.description)
+        return language.Build(comment=data.description)
     elif data.symbol_type == SymbolType.REQUIREMENT:
-        return language.RequirementContent(
+        return language.Requirement(
             module_name=data.reference_module.name if data.reference_module else None,
             version=data.reference_module.version if data.reference_module else None,
             module_id=data.reference_module.id if data.reference_module else None,
@@ -487,7 +477,7 @@ def wmap_symbol(data: StatementData) -> language.SymbolContent:
 
 def rmap_field(statement_id: UUID, node: language.Field, impute_type_references: bool) -> FieldData:
     """Maps a field to a field data object."""
-    has_reference = isinstance(node.reference, language.TypeContent)
+    has_reference = isinstance(node.reference, language.Type)
     return FieldData(
         id=node.id,
         revision=1,
@@ -532,26 +522,6 @@ def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
 def wmap_record(data: RecordData) -> language.Record:
     """Maps a record data object to a record."""
     return language.Record(_id=data.id, _data=data.data, _order_key=data.order_key)
-
-
-def wmap_xblock(xblock: XBlockData) -> language.XBlockContent:
-    """Maps an xblock data object to an xblock."""
-    return language.XBlockContent(
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-    )
-
-
-def rmap_xblock(xblock: language.XBlockContent) -> XBlockData:
-    """Maps an xblock to an xblock data object."""
-    return XBlockData(
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-    )
 
 
 def rmap_issue(issue: language.Issue) -> IssueData:

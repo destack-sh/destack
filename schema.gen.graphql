@@ -1544,9 +1544,6 @@ input StatementFilter {
 
 """A modifier to a Bench statement."""
 enum StatementModifier {
-  VAR
-  WITH
-  INCLUDE
   LIKE
   UNLIKE
   CHECK

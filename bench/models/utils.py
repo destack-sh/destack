@@ -1,3 +1,5 @@
+from enum import Enum
+from functools import cache
 import json
 import uuid
 from collections import defaultdict, deque
@@ -132,3 +134,11 @@ def walk_children_bfs(objects: list[T], parent_attr: str) -> Iterator[T]:
     for batch in walk_children_bfs_batched(objects, parent_attr):
         for obj in batch:
             yield obj
+
+
+@cache
+def get_choices(enum_cls: Type[Enum]) -> list[tuple[str, str]]:
+    """
+    Get choices from enum class.
+    """
+    return [(member.value, member.name) for member in enum_cls]

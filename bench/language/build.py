@@ -14,6 +14,8 @@ from uuid import UUID
 
 import structlog
 
+from bench.language import wire
+from bench.language.inference import Modality, SETTINGS_CLS_BY_MODALITY
 from bench.language.session import Session, instantiate_py_value_flat
 from bench.language.type import (
     Build,
@@ -30,8 +32,6 @@ from bench.language.type import (
     TypeTag,
 )
 from bench.language.typer import check_type, map_value
-from bench.runtime.common.inference import SETTINGS_CLS_BY_MODALITY, Modality
-from bench.runtime.common.models import TextGenerationSettings
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.utils import DotDict
 
@@ -100,6 +100,26 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
 
     def __repr__(self):
         return f"<XBlockContent {str(self)}>"
+
+
+def wmap_xblock(xblock: wire.XBlockData) -> XBlockContent:
+    """Maps an xblock data object to an xblock."""
+    return XBlockContent(
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        path=xblock.path,
+    )
+
+
+def rmap_xblock(xblock: XBlockContent) -> wire.XBlockData:
+    """Maps an xblock to an xblock data object."""
+    return wire.XBlockData(
+        kind=xblock.kind,
+        source=xblock.source,
+        value=xblock.value,
+        path=xblock.path,
+    )
 
 
 class XGenerationErrorType(enum.StrEnum):

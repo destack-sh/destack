@@ -13,8 +13,9 @@ import django.utils.timezone
 import django_choices_field.fields
 import pgcrypto.fields
 
-import bench.language.type
-import bench.models
+
+class PlaceholderEnum(models.TextChoices):
+    value = "0" * 32
 
 
 class Migration(migrations.Migration):
@@ -112,9 +113,6 @@ class Migration(migrations.Migration):
             options={
                 "default_manager_name": "objects",
             },
-            managers=[
-                ("objects", bench.models.user.UserManager()),
-            ],
         ),
         migrations.CreateModel(
             name="AccessToken",
@@ -132,7 +130,7 @@ class Migration(migrations.Migration):
                     django.contrib.postgres.fields.ArrayField(
                         base_field=django_choices_field.fields.TextChoicesField(
                             choices=[("run", "Run")],
-                            choices_enum=bench.models.token.AccessTokenScope,
+                            choices_enum=PlaceholderEnum,
                             max_length=3,
                         ),
                         size=None,
@@ -261,7 +259,7 @@ class Migration(migrations.Migration):
                     "type",
                     django_choices_field.fields.TextChoicesField(
                         choices=[("executable", "Executable"), ("library", "Library")],
-                        choices_enum=bench.models.project.ProjectType,
+                        choices_enum=PlaceholderEnum,
                         default="executable",
                         max_length=10,
                     ),
@@ -289,7 +287,7 @@ class Migration(migrations.Migration):
                             ("source_private", "Source Private"),
                             ("private", "Private"),
                         ],
-                        choices_enum=bench.models.project.ProjectVisibility,
+                        choices_enum=PlaceholderEnum,
                         default="private",
                         max_length=14,
                     ),
@@ -366,7 +364,7 @@ class Migration(migrations.Migration):
                             ("running", "Running"),
                             ("terminated", "Terminated"),
                         ],
-                        choices_enum=bench.models.worker.WorkerStatus,
+                        choices_enum=PlaceholderEnum,
                         default="pending",
                         max_length=12,
                     ),
@@ -410,7 +408,7 @@ class Migration(migrations.Migration):
                             ("comment", "Comment"),
                             ("blank", "Blank"),
                         ],
-                        choices_enum=bench.language.type.StatementType,
+                        choices_enum=PlaceholderEnum,
                         max_length=7,
                     ),
                 ),
@@ -427,7 +425,7 @@ class Migration(migrations.Migration):
                             ("check", "Check"),
                             ("magic", "Magic"),
                         ],
-                        choices_enum=bench.language.type.StatementModifier,
+                        choices_enum=PlaceholderEnum,
                         max_length=7,
                         null=True,
                     ),
@@ -465,7 +463,7 @@ class Migration(migrations.Migration):
                             ("build", "Build"),
                             ("block", "Block"),
                         ],
-                        choices_enum=bench.language.type.SymbolType,
+                        choices_enum=PlaceholderEnum,
                         max_length=10,
                         null=True,
                     ),
@@ -493,7 +491,7 @@ class Migration(migrations.Migration):
                             ("any", "Any"),
                             ("ref", "Type Reference"),
                         ],
-                        choices_enum=bench.language.type.TypeTag,
+                        choices_enum=PlaceholderEnum,
                         max_length=9,
                         null=True,
                     ),
@@ -604,7 +602,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "key",
-                    models.CharField(default=bench.language.type.new_field_key, max_length=8),
+                    models.CharField(default=None, max_length=8),
                 ),
                 ("order_key", models.CharField(max_length=256)),
                 (
@@ -629,7 +627,7 @@ class Migration(migrations.Migration):
                             ("any", "Any"),
                             ("ref", "Type Reference"),
                         ],
-                        choices_enum=bench.language.type.TypeTag,
+                        choices_enum=PlaceholderEnum,
                         max_length=9,
                     ),
                 ),
@@ -660,7 +658,7 @@ class Migration(migrations.Migration):
                             ("checkbox", "Checkbox"),
                             ("thumbs", "Thumbs"),
                         ],
-                        choices_enum=bench.language.type.TypeHint,
+                        choices_enum=PlaceholderEnum,
                         max_length=9,
                         null=True,
                     ),
@@ -763,7 +761,7 @@ class Migration(migrations.Migration):
                             ("uploading", "Uploading"),
                             ("available", "Available"),
                         ],
-                        choices_enum=bench.models.object.RemoteObjectStatus,
+                        choices_enum=PlaceholderEnum,
                         default="prepared",
                         max_length=9,
                     ),
@@ -791,7 +789,7 @@ class Migration(migrations.Migration):
                     "kind",
                     django_choices_field.fields.TextChoicesField(
                         choices=[("commit", "Commit"), ("paste", "Paste")],
-                        choices_enum=bench.models.project.RefMappingKind,
+                        choices_enum=PlaceholderEnum,
                         max_length=6,
                     ),
                 ),
@@ -804,7 +802,7 @@ class Migration(migrations.Migration):
                             ("record", "Record"),
                             ("type_node", "TypeNode"),
                         ],
-                        choices_enum=bench.models.project.RefType,
+                        choices_enum=PlaceholderEnum,
                         max_length=9,
                     ),
                 ),
@@ -993,7 +991,7 @@ class Migration(migrations.Migration):
                     "type",
                     django_choices_field.fields.TextChoicesField(
                         choices=[("organization_invite", "Organization Invite")],
-                        choices_enum=bench.models.notification.NotificationType,
+                        choices_enum=PlaceholderEnum,
                         max_length=19,
                     ),
                 ),
@@ -1038,7 +1036,7 @@ class Migration(migrations.Migration):
                 (
                     "id",
                     models.UUIDField(
-                        default=bench.utils.uuidt.UUIDT,
+                        default=None,
                         editable=False,
                         primary_key=True,
                         serialize=False,
@@ -1085,7 +1083,7 @@ class Migration(migrations.Migration):
                     "trigger_type",
                     django_choices_field.fields.TextChoicesField(
                         choices=[("rest-api", "Rest Api"), ("ui-interactive", "Ui Interactive")],
-                        choices_enum=bench.models.execution.ExecutionTriggerType,
+                        choices_enum=PlaceholderEnum,
                         max_length=14,
                     ),
                 ),
@@ -1345,7 +1343,7 @@ class Migration(migrations.Migration):
                             ("desktop_browser", "Desktopbrowser"),
                             ("mobile_browser", "Mobilebrowser"),
                         ],
-                        choices_enum=bench.models.user.ClientType,
+                        choices_enum=PlaceholderEnum,
                         max_length=15,
                     ),
                 ),

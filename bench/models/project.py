@@ -10,7 +10,6 @@ import structlog
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
-from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.models.object import get_s3_client
@@ -626,14 +625,14 @@ class RefMapping(UUIDModel):
     rather than statement-generated arbitrary mappings (different uses, constraints, etc.).
     """
 
-    kind = TextChoicesField(choices_enum=RefMappingKind)
+    kind = models.CharField(max_length=32, choices=RefMappingKind.choices)
     source_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="child_refs"
     )
     target_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="parent_refs"
     )
-    type = TextChoicesField(choices_enum=RefType)
+    type = models.CharField(max_length=32, choices=RefType.choices)
     source_id = models.UUIDField()
     source_revision = models.IntegerField()
     target_id = models.UUIDField()

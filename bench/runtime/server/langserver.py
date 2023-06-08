@@ -11,7 +11,13 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import language, models
-from bench.language import ModuleIndex, wire
+from bench.language import ModuleIndex, wire, build
+from bench.language.inference import (
+    Modality,
+    SETTINGS_CLS_BY_MODALITY,
+    get_inference_cache_key,
+    run_inference,
+)
 from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
 from bench.language.wire import InterpData, InterpScope
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
@@ -42,12 +48,6 @@ from bench.msg.messages import (
     ReqRunInferencePayload,
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
-)
-from bench.runtime.common.inference import (
-    SETTINGS_CLS_BY_MODALITY,
-    Modality,
-    get_inference_cache_key,
-    run_inference,
 )
 from bench.runtime.common.interp import (
     InterpModule,
@@ -238,7 +238,7 @@ class LanguageServer:
         endpoint = getattr(inference, modality.value)
         try:
             settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
-            xblocks = [wire.wmap_xblock(xblock) for xblock in msg.p.blocks]
+            xblocks = [build.wmap_xblock(xblock) for xblock in msg.p.blocks]
             cache_key = get_inference_cache_key(msg.p.model_fqn, modality, xblocks, settings)
             output = await asyncio.wait_for(
                 asyncio.shield(run_inference(endpoint, xblocks, settings, cache_key, log)),

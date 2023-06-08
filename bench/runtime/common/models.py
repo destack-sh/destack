@@ -6,13 +6,14 @@ import openai
 import PIL.Image
 import structlog
 
-from bench.language.type import Model, XBlock, XSource
-from bench.runtime.common.inference import (
-    ImageGenerationSettings,
-    InferenceEndpoint,
+from bench.language import Model
+from bench.language.build import XSource, XBlock
+from bench.language.inference import (
     Modality,
+    InferenceEndpoint,
     ModelInference,
     TextGenerationSettings,
+    ImageGenerationSettings,
 )
 
 logger = structlog.get_logger(__name__)

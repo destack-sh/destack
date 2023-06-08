@@ -6,7 +6,6 @@ from typing import Optional
 
 import structlog
 from django.db import models
-from django_choices_field import TextChoicesField
 
 from bench.models.utils import UUIDModel
 
@@ -96,7 +95,11 @@ class RemoteObject(UUIDModel):
     content_length = models.IntegerField()
     content_type = models.CharField(max_length=255)
     name = models.CharField(max_length=255, null=True, blank=True)
-    status = TextChoicesField(RemoteObjectStatus, default=RemoteObjectStatus.PREPARED)
+    status = models.CharField(
+        max_length=32,
+        choices=RemoteObjectStatus.choices,
+        default=RemoteObjectStatus.PREPARED,
+    )
 
     _presigned_post: Optional[str] = None  # set manually
     _presigned_get: Optional[str] = None  # set manually

@@ -13,10 +13,10 @@ import aiohttp
 import structlog
 
 from bench import language
-from bench.language import Build, Model, ModuleIndex, Task, wire
-from bench.language.build import XPrompt
+from bench.language import wire
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.tracing import SessionTracer
+from bench.language.interp import ModuleIndex  #
 from bench.language.type import (
     STATIC_BUILTINS,
     TYPE_TAG_BY_TYPE_HINT,
@@ -33,6 +33,9 @@ from bench.language.type import (
     TypeHint,
     TypeNode,
     TypeTag,
+    Build,
+    Model,
+    Task,
 )
 from bench.language.typer import map_rekey_enum, map_unkey_enum
 from bench.language.unsecure import do_execute_arbitrary_code
@@ -45,13 +48,11 @@ from bench.msg.messages import (
     ReqReadObjectPayload,
     ReqReadSecretPayload,
 )
-from bench.runtime.common.inference import (
-    CachedInferenceEndpoint,
-    ModelInference,
-    RemoteInferenceEndpoint,
-)
-from bench.runtime.common.models import get_inference_endpoints_cls
 from bench.utils.utils import to_pyidentifier
+
+if typing.TYPE_CHECKING:
+    from bench.language.inference import ModelInference
+    from bench.language.build import XPrompt
 
 logger = structlog.get_logger(__name__)
 
@@ -88,11 +89,11 @@ class SessionContext:
 class SessionAccess:
     def __init__(self, session: "Session"):
         self.session = session
-        self._cached_implementations: dict[tuple[UUID, UUID], XPrompt] = {}
+        self._cached_implementations: dict[tuple[UUID, UUID], "XPrompt"] = {}
 
     def get_implementations(
         self, task: "Task", build: Build | str = None, model: Model | str = None
-    ) -> list[XPrompt]:
+    ) -> list["XPrompt"]:
         """Gets or builds an implementation for a task."""
         from bench.language.build import build_task_implementation
 
@@ -111,7 +112,7 @@ class SessionAccess:
             cache_key = (task.id, model.id)
             if cache_key not in self._cached_implementations:
                 self._cached_implementations[cache_key] = build_task_implementation(
-                    task, model, self
+                    task, model, self.session
                 )
             implementations.append(self._cached_implementations[cache_key])
         return implementations
@@ -552,11 +553,17 @@ def _instantiate_code(code: Code, session: Session) -> Callable[..., Any]:
     return callable
 
 
-def _instantiate_model(model: Model, session: Session) -> ModelInference:
+def _instantiate_model(model: Model, session: Session) -> "ModelInference":
     """
     Instantiates the model inference endpoints for the session.
     If we don't have the key, we proxy to the langserver.
     """
+    from bench.runtime.common.models import get_inference_endpoints_cls
+    from bench.language.inference import (
+        ModelInference,
+        RemoteInferenceEndpoint,
+        CachedInferenceEndpoint,
+    )
 
     key = None  # TODO @Broken: get model key from module? same file? some constant?
     inference = ModelInference(external_name=model.external_name, key=key)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+import re
 import typing
 from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
@@ -32,6 +33,7 @@ from bench.language.type import (
     TypeTag,
     deepcopy_types,
     parse_statement_path,
+    Requirement,
 )
 from bench.runtime.server.lsp import parse_code
 from bench.utils.func import dict_intersect
@@ -41,7 +43,6 @@ logger = structlog.get_logger(__name__)
 StmT = StatementType
 SymT = SymbolType
 
-SymbolContentT = typing.TypeVar("SymbolContentT", bound=SymbolContent)
 SymbolT = typing.TypeVar("SymbolT", bound=Symbol)
 
 
@@ -67,8 +68,7 @@ class ErrorCollector(typing.Generic[ErrorT]):
             self.on_error(error)
 
 
-ET = IssueType
-TT = TokenType
+IT = IssueType
 
 
 def ignore_module_lookup(*args, **kwargs):
@@ -85,7 +85,7 @@ class LookupBy(enum.StrEnum):
 
 
 LookupFunc = Callable[
-    [RequirementContent | None, StatementPath | UUID, LookupBy], typing.Union["Scope", None]
+    [Requirement | None, StatementPath | UUID, LookupBy], typing.Union["Scope", None]
 ]
 
 
@@ -154,7 +154,7 @@ class ModuleIndex:
     """The index into a module's resolved and interpreted symbols and statements."""
 
     module: Module
-    requirements_by_name: dict[str, RequirementContent] = field(default_factory=dict)
+    requirements_by_name: dict[str, Requirement] = field(default_factory=dict)
     files: dict[UUID, File] = field(default_factory=OrderedDict)
     statements: dict[UUID, Statement] = field(default_factory=OrderedDict)
     interpreted: bool = False
@@ -303,7 +303,7 @@ def sort(module: Module):
 
 def resolve(
     module: Module,
-    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
+    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
     on_error: Callable[[Error], None],
 ) -> ModuleIndex:
     """Resolve unresolved statement references in the given module."""
@@ -329,18 +329,18 @@ def resolve(
 
     # resolve type references
     for statement in statements:
-        if isinstance(statement.content, TypeContent):
+        if isinstance(statement.symbol, Type):
             resolve_type_references_rec(
-                statement, statement.content, lookup_in_module, idx, on_error
+                statement, statement.symbol, lookup_in_module, idx, on_error
             )
 
     # parse and resolve code references
     # (parse here because it's unclear where else to put code parsing in the pipeline,
     #  as other references are already 'pre-parsed' in preparse or when loaded from data)
     for statement in statements:
-        code = statement.content
-        if isinstance(code, CodeContent):
-            input_keys = (input.ident for input in code.inputs)
+        code = statement.symbol
+        if isinstance(code, Code):
+            input_keys = (input.ident for input in code.type.inputs)
             code.parse = parse_code(code.code)
             for key, reference in code.parse.references.items():
                 if key in input_keys:
@@ -362,7 +362,7 @@ def resolve(
 def resolve_type_references_rec(
     for_statement: Statement,
     type: TypeNode,
-    lookup_in_module: Callable[[RequirementContent, StatementPath], Statement | None],
+    lookup_in_module: Callable[[Requirement, StatementPath], Statement | None],
     idx: ModuleIndex,
     on_error: Callable[[Error], None],
 ) -> None:
@@ -387,6 +387,21 @@ def resolve_type_references_rec(
         node.source_reference = get_reference_as_path(node.reference, via=for_statement)
 
 
+# identifier names can be escaped as '<name with space>'
+# references can look like
+# 1. <name>
+# 2. .<path>.<name>
+# 3. <module_owner>.<module_name>.<path>.<name>
+REFERENCE_REGEX = re.compile(
+    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?(\.(?P<path>[\w.\- ]+)\.)?(?P<name>[\w\- ]+)$"
+)
+# import source must either be in current module (.*) or absolute (<owner>.<name>.*)
+RELATIVE_REFERENCE_REGEX = re.compile(r"^\.(?P<path>[\w.\- ]+)$")
+ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
+    r"^(?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+)\.(?P<path>[\w.\- ]+)$"
+)
+
+
 def resolve_statement_reference(
     reference: StatementPath | UUID | None,
     idx: ModuleIndex,
@@ -396,29 +411,29 @@ def resolve_statement_reference(
     symbol_type: SymbolType | None = None,
     by: LookupBy = LookupBy.Name,
 ) -> Statement | None:
-    def _error(_t: ET, cause: Exception | None = None, **error_args) -> None:
+    def _error(_t: IT, cause: Exception | None = None, **error_args) -> None:
         on_error(Error(_t, for_statement, cause, **error_args))
 
     if reference is None:
-        return _error(ET.MISSING_REFERENCE)
+        return _error(IT.MISSING_REFERENCE)
     elif isinstance(reference, UUID):
         # resolve by id
         resolved_scope = idx.scopes.get(reference)
         if resolved_scope is None:
             resolved_scope = lookup_in_module(None, reference, by)
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_REFERENCE, path="<id>")
+            return _error(IT.UNDEFINED_REFERENCE, path="<id>")
         idx.import_scope(resolved_scope)
     elif reference.path == ".":  # normalize relative :StatementReferencePath
         statement_scope = idx.scopes[for_statement.id]
         resolved = statement_scope.lookup_statement(reference.name, exclude=for_statement, by=by)
         if resolved is None:
-            return _error(ET.UNDEFINED_REFERENCE, path=reference)
+            return _error(IT.UNDEFINED_REFERENCE, path=reference)
         resolved_scope = idx.scopes[resolved.id]
     elif reference.path.startswith("."):  # normalize local :StatementReferencePath
         resolved_scope = idx.get_scope(reference, by=by)
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_REFERENCE, path=reference)
+            return _error(IT.UNDEFINED_REFERENCE, path=reference)
     else:  # resolve by absolute path in external module
         # get source requirement for external module
         source = ABSOLUTE_IMPORT_SOURCE_REGEX.match(reference.path)
@@ -427,24 +442,24 @@ def resolve_statement_reference(
         requirement_name = f"{source.group('module_owner')}.{source.group('module_name')}"
         requirement = idx.requirements_by_name.get(requirement_name)
         if requirement is None:
-            return _error(ET.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
+            return _error(IT.UNKNOWN_IMPORT_SOURCE, source=requirement_name)
         # localize path to required module
         localized_path = StatementPath("." + source.group("path"), reference.name)
         try:  # use module lookup to resolve
             resolved_scope = lookup_in_module(requirement, localized_path, by=by)
         except Exception as e:
             return _error(
-                ET.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement
+                IT.EXTERNAL_LOOKUP_FAILED, error=e, path=localized_path, module=requirement
             )
         if resolved_scope is None:
-            return _error(ET.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
+            return _error(IT.UNDEFINED_EXTERNAL_REFERENCE, path=localized_path, module=requirement)
         # import resolved scope (and contents) into index
         idx.import_scope(resolved_scope)
 
     # check if the reference has the correct type
     if symbol_type is not None and resolved_scope.statement.symbol_type != symbol_type:
         return _error(
-            ET.REFERENCE_TYPE_MISMATCH,
+            IT.REFERENCE_TYPE_MISMATCH,
             type=symbol_type,
             resolved=resolved_scope.statement,
         )
@@ -459,7 +474,7 @@ def index_module(
     if on_error == "raise":
         on_error = raise_error
 
-    def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
+    def _error(_t: IT, subject: Statement | File, cause: Exception | None = None, **error_args):
         on_error(Error(_t, subject, cause, **error_args))
 
     idx = ModuleIndex(module=module)
@@ -476,7 +491,7 @@ def index_module(
         while parent is not None:
             path.append(f"{parent.id}:{parent.name or '<empty>'}")
             if parent.id in seen_ancestors:
-                _error(ET.CIRCULAR_ANCESTRY, statement, path=".".join(reversed(path)))
+                _error(IT.CIRCULAR_ANCESTRY, statement, path=".".join(reversed(path)))
                 has_circular_ancestry = True
                 break
             seen_ancestors.add(parent.id)
@@ -492,7 +507,7 @@ def index_module(
             id=file.id, name=file.path_without_extension, file=file, parent=None, statement=None
         )
         if file_scope.name and file_scope.name in idx.scopes_by_name:
-            _error(ET.AMBIGUOUS_DEFINITION, file, path=file_scope.name)
+            _error(IT.AMBIGUOUS_DEFINITION, file, path=file_scope.name)
             idx.add_scope(file_scope, anonymous=True)
         else:
             idx.add_scope(file_scope)
@@ -513,7 +528,7 @@ def index_module(
             )
             if not statement.name or statement_scope.name in idx.scopes_by_name:
                 if statement.name:
-                    _error(ET.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
+                    _error(IT.AMBIGUOUS_DEFINITION, statement, path=statement_scope.name)
                 idx.add_scope(statement_scope, anonymous=True)
             else:
                 idx.add_scope(statement_scope)
@@ -540,11 +555,9 @@ def index_module(
         if statement.symbol_type == SymT.REQUIREMENT:
             requirement_name = statement.name
             if requirement_name in idx.requirements_by_name:
-                _error(ET.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
+                _error(IT.AMBIGUOUS_REQUIREMENT, statement, name=requirement_name)
                 continue
-            idx.requirements_by_name[requirement_name] = typing.cast(
-                RequirementContent, statement.content
-            )
+            idx.requirements_by_name[requirement_name] = typing.cast(Requirement, statement.symbol)
 
     return idx
 
@@ -559,13 +572,13 @@ def interp(
     if on_error == "raise":
         on_error = raise_error
 
-    def _error(_t: ET, subject: Statement | File, cause: Exception | None = None, **error_args):
+    def _error(_t: IT, subject: Statement | File, cause: Exception | None = None, **error_args):
         on_error(Error(_t, subject, cause, **error_args))
 
     # create symbol shells for proper statements (without symbol-specific fields)
     # include imported scopes (we want their symbols too, and they may be abstract)
     for scope in idx.scopes.values():
-        if scope.statement is None or not scope.statement.is_real:
+        if scope.statement is None:
             continue
         statement = scope.statement
 
@@ -629,7 +642,7 @@ def interp(
 
     # first impute all the references
     for symbol in idx.symbols.values():
-        if isinstance(symbol, TypeContent):
+        if isinstance(symbol, Type):
             _interp_type_rec(symbol)
 
     # interp symbol contents using related symbols
@@ -660,7 +673,7 @@ def interp(
     def _inline_type_union_rec(node: TypeNode, path: list[TypeNode]) -> list[TypeNode]:
         if any(n.id == node.id for n in path):
             path = "->".join(str(n) for n in path + [node])
-            _error(ET.CIRCULAR_UNION, node.source, path=path)
+            _error(IT.CIRCULAR_UNION, node.source, path=path)
             return []
         if not isinstance(node, (Type, Task, Code, Dataset)) or node.id in inlined_node_ids:
             return node.fields  # not a type or already inlined
@@ -687,7 +700,7 @@ def interp(
                 ):
                     # TODO @Robustness: check union type compatibility properly
                     path = "->".join(str(n) for n in path)
-                    _error(ET.MISMATCHED_UNION, node, node=existing, other=to_inline, path=path)
+                    _error(IT.MISMATCHED_UNION, node, node=existing, other=to_inline, path=path)
                     continue
                 inlined_nodes.append(to_inline)
             if isinstance(node, Type):  # extend expectations

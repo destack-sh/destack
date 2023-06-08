@@ -9,7 +9,6 @@ import structlog
 from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
-from django_choices_field import TextChoicesField
 from strawberry_django_plus import gql
 
 from bench.language.type import (
@@ -22,7 +21,13 @@ from bench.language.type import (
     TypeTag,
     new_field_key,
 )
-from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, walk_children_bfs_batched
+from bench.models.utils import (
+    NAME_VALIDATOR,
+    CrudModel,
+    UUIDModel,
+    walk_children_bfs_batched,
+    get_choices,
+)
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -49,9 +54,10 @@ class Field(UUIDModel, CrudModel):
     )
     key = models.CharField(max_length=FIELD_KEY_LENGTH, default=new_field_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
-    tag = models.CharField(max_length=20, choices=TypeTag.choices)
-    hint = TextChoicesField(choices_enum=TypeHint, null=True, blank=True)
+    tag = models.CharField(max_length=20, choices=get_choices(TypeTag))
+    hint = models.CharField(max_length=20, choices=get_choices(TypeHint), null=True, blank=True)
     flags = models.IntegerField(default=0)
+    metadata = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     reference = models.ForeignKey(
         "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
@@ -265,9 +271,9 @@ class Statement(UUIDModel, CrudModel):
         "ProjectVersion", on_delete=models.CASCADE, related_name="statements"
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
-    type = models.CharField(max_length=32, choices=StatementType.choices)
+    type = models.CharField(max_length=32, choices=get_choices(StatementType))
     modifier = models.CharField(
-        max_length=32, choices=StatementModifier.choices, null=True, blank=True
+        max_length=32, choices=get_choices(StatementModifier), null=True, blank=True
     )
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
@@ -281,7 +287,9 @@ class Statement(UUIDModel, CrudModel):
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     order_key = models.CharField(max_length=64)  # in file/parent
 
-    symbol_type = models.CharField(max_length=32, choices=SymbolType.choices, null=True, blank=True)
+    symbol_type = models.CharField(
+        max_length=32, choices=get_choices(SymbolType), null=True, blank=True
+    )
     reference = models.ForeignKey(
         "Statement",
         on_delete=models.SET_NULL,
@@ -292,7 +300,9 @@ class Statement(UUIDModel, CrudModel):
     reference_id: Optional[UUID]  # noqa via Statement.reference
     referenced_by: models.QuerySet[Statement]  # noqa via Statement.reference
     # symbol contents
-    root_type_tag = models.CharField(max_length=32, choices=TypeTag.choices, null=True, blank=True)
+    root_type_tag = models.CharField(
+        max_length=32, choices=get_choices(TypeTag), null=True, blank=True
+    )
     root_type_flags = models.IntegerField(null=True, blank=True)
     lang = models.CharField(max_length=32, null=True, blank=True)
     code = models.TextField(null=True, blank=True)
