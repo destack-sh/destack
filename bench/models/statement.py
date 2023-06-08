@@ -10,22 +10,15 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.language.type import (
-    FIELD_KEY_LENGTH,
-    StatementModifier,
-    StatementType,
-    SymbolType,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-    new_field_key,
-)
+from bench.language import StatementModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.language.const import FIELD_KEY_LENGTH, TypeFlag
+from bench.language.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,
     UUIDModel,
-    walk_children_bfs_batched,
     get_choices,
+    walk_children_bfs_batched,
 )
 from bench.utils.uuidt import MAX_NAME_LENGTH
 

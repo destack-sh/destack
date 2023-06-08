@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Callable, Collection, Mapping, Union
 
-from bench.language.type import PRIMITIVE_TYPES, RemoteObject, TypeFlag, TypeNode, TypeTag
+from bench.language import TypeTag
+from bench.language.const import PRIMITIVE_TYPES, TypeFlag
+from bench.language.type import RemoteObject, TypeNode
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]

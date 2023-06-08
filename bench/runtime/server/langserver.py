@@ -11,15 +11,16 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import language, models
-from bench.language import ModuleIndex, wire, build
+from bench.language import build, wire
+from bench.language.const import InterpScope
 from bench.language.inference import (
-    Modality,
     SETTINGS_CLS_BY_MODALITY,
+    Modality,
     get_inference_cache_key,
     run_inference,
 )
 from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
-from bench.language.wire import InterpData, InterpScope
+from bench.language.wire import InterpData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.mapper import read_module, write_mutations
@@ -395,22 +396,12 @@ class LanguageWorker:
     def project_id(self) -> UUID:
         return self.project_version.project_id
 
-    @property
-    def idx(self) -> ModuleIndex:
-        if self.interp is None:
-            raise RuntimeError("not interpreted yet")
-        return self.interp.module_idx
-
     def mutate(self) -> ModuleMutator:
-        return ModuleMutator(self.idx)
-
-    @property
-    def instruct_model(self) -> language.Model:
-        return self.interp.symbol("openai.std.text.gpt-3-5-turbo")
+        return ModuleMutator(self.interp.module)
 
     @property
     def interpreted(self) -> bool:
-        return self.interp.module_idx is not None
+        return self.interp.module is not None
 
     async def on_module_changed(self, mutator: list[ModuleMutation] | ModuleMutator):
         if not isinstance(mutator, ModuleMutator):
@@ -442,11 +433,11 @@ class LanguageWorker:
 
     def _do_interp_sync(self, new_source: wire.ModuleData, dependencies) -> dict[UUID, InterpData]:
         self.source = new_source
-        self.interp = interp_module(new_source, [m.module_idx for m in dependencies])
+        self.interp = interp_module(new_source, [m.module for m in dependencies])
 
         # get new interp data
         interp_by_scope: dict[UUID, InterpData] = {}
-        for symbol in self.interp.module_idx.symbols.values():
+        for symbol in self.interp.module.symbols.values():
             # only include resolved fields if they are actually different
             if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
                 resolved_fields = [

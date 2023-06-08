@@ -4,7 +4,8 @@ from typing import NamedTuple, Optional
 import bench.language as lang
 import bench.opensearch.type as os
 from bench.language import TypeHint, TypeTag
-from bench.language.type import TYPE_TAG_BY_TYPE_HINT, TypeFlag
+from bench.language.const import TypeFlag
+from bench.language.type import TYPE_TAG_BY_TYPE_HINT
 from bench.opensearch import mirror
 
 

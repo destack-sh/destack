@@ -28,8 +28,8 @@ def parse_code(code: str | None) -> "CodeParse":
     -> 'c' is an external reference to ("x.flotothemoon.test.a", "b")
     -> 'apple' is an external reference to ("<module>.local", "apple").
     """
+    from bench.language.const import DYNAMIC_BUILTINS, STATIC_BUILTINS
     from bench.language.type import CodeParse, StatementPath
-    from bench.runtime.worker.instance import DYNAMIC_BUILTINS, STATIC_BUILTINS
 
     if code is None:
         return CodeParse()

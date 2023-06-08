@@ -6,11 +6,11 @@ from uuid import UUID
 
 import structlog
 
-from bench import language
-from bench.language import wire
+from bench.language import SymbolType, wire
+from bench.language.const import LiteralValue
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import SessionTracingLevel, SessionContext, Session, SessionMode
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, LiteralValue, SymbolType, Code, Task
+from bench.language.session import Session, SessionContext, SessionMode, SessionTracingLevel
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, Code, Task
 from bench.language.unsecure import RunError, run
 from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
@@ -88,22 +88,18 @@ class ModuleWorker:
     def interpreted(self) -> bool:
         return self.interp is not None
 
-    @property
-    def idx(self) -> language.ModuleIndex:
-        return self.interp.module_idx
-
     async def do_interp(self, source: wire.ModuleData):
         self.log.debug("module.init")
         self.interp = await self.interpreter.interp(source)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.changed")
-        new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
+        new_source = ModuleMutator(self.interp.module, mutations).apply()
         self.interp = await self.interpreter.interp(new_source)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
-        new_source = ModuleMutator(self.interp.module_idx, mutations).apply()
+        new_source = ModuleMutator(self.interp.module, mutations).apply()
         # interp and write in parallel
         self.interp, rep = await asyncio.gather(
             self.interpreter.interp(new_source),
@@ -137,7 +133,7 @@ class ModuleWorker:
                 runnable_type = SYMBOL_CLASS_BY_TYPE[SymbolType(runnable_type)]
             else:
                 runnable_type = None
-            runnable = self.idx.symbol(runnable, symbol_t=runnable_type)
+            runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)
         except (TypeError, KeyError) as e:
             self.log.exception("module.run.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG

@@ -8,6 +8,7 @@ from strawberry import lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
+import bench.language.const
 from bench import language, models
 from bench.api.utils import to_global_id
 from bench.language import wire
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-InterpScope = gql.enum(wire.InterpScope)
+InterpScope = gql.enum(bench.language.const.InterpScope)
 IssueKind = gql.enum(models.IssueKind)
 IssueType = gql.enum(language.IssueType)
 

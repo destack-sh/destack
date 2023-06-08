@@ -10,8 +10,7 @@ from itertools import chain
 from typing import Any, Optional
 from uuid import UUID
 
-from bench.language import ModuleIndex, wire
-from bench.language.type import StatementType
+from bench.language import Module, StatementType, wire
 from bench.language.wire import (
     FieldData,
     FileData,
@@ -249,15 +248,14 @@ class ModuleMutator:
 
     def __init__(
         self,
-        idx: Optional[ModuleIndex] = None,
+        module: Optional[Module] = None,
         mutations: list[ModuleMutation] = None,
         module_id: Optional[UUID] = None,
         source: Optional[wire.ModuleData] = None,
     ):
-        self.idx = idx
-        self.module = idx.module if idx else None
+        self.module = module
         self.module_source = source
-        self.module_id = module_id or (idx.module.id if idx else None)
+        self.module_id = module_id or (module.id if module else None)
         if self.module_id is None:
             raise ValueError("module_id is required")
         self.mutations = mutations or []
@@ -290,7 +288,7 @@ class ModuleMutator:
                 statement_id = statement.id
                 file_id = statement.file_id
             else:
-                statement = self.idx.statements.get(obj.statement_id)
+                statement = self.module.statements_by_id.get(obj.statement_id)
                 statement_id = statement.id
                 file_id = statement.file.id
         else:
@@ -311,7 +309,7 @@ class ModuleMutator:
 
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
         """Truncates all records of the given statement."""
-        statement = self.idx.statements[statement_id]
+        statement = self.module.statements_by_id[statement_id]
         self.do(MMT.TRUNCATE_RECORDS, wire.rmap_statement(statement))
         return self
 
@@ -329,9 +327,9 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             self.do(MMT.CREATE_STATEMENT, obj)
             if not flat:
-                for field in obj.fields or []:
+                for field in obj.symbol.fields or []:
                     self.create(field)
-                for record in obj.records or []:
+                for record in obj.symbol.records or []:
                     self.create(record)
         elif isinstance(obj, FieldData):
             self.do(MMT.CREATE_FIELD, obj)
@@ -450,8 +448,8 @@ class ModuleMutator:
             statements[m.statement_id] = m.data
             # keep statement's relations
             if old_statement is not None:  # otherwise panic?
-                statements[m.statement_id].fields = old_statement.fields
-                statements[m.statement_id].records = old_statement.records
+                statements[m.statement_id].symbol.fields = old_statement.symbol.fields
+                statements[m.statement_id].symbol.records = old_statement.symbol.records
         for m in mut[MMT.UPDATE_FIELD]:
             statement = statements[m.statement_id]
             _replace_by_id(statement.fields, m.data)
