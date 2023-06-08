@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 import pytest
 
 from bench.language import TypeHint, TypeTag
 from bench.language.const import TypeFlag
 from bench.language.issue import IssueType, LanguageError
 from bench.language.parse import parse_code
+from bench.language.session import Session, SessionContext, SessionTracingLevel
 from bench.language.type import Field, StatementPath, Type
 
 
@@ -69,40 +72,51 @@ print(bananas)
     assert not analysis.is_async
 
 
+MOCK_SESSION_CONTEXT = SessionContext(
+    project_id=UUID("00000000-0000-0000-0000-000000000000"),
+    module_id=UUID("00000000-0000-0000-0000-000000000000"),
+    worker_id=UUID("00000000-0000-0000-0000-000000000000"),
+    trigger_id=UUID("00000000-0000-0000-0000-000000000000"),
+    root_id=UUID("00000000-0000-0000-0000-000000000000"),
+    trigger_type=None,
+    tracing_level=SessionTracingLevel.ALL,
+)
+
+
 def test_type_union_with():
-    resource = Type(name="Resource", tag=TypeTag.STRUCT).append(
-        Field(name="name", tag=TypeTag.STRING)
-    )
-    connection = (
-        Type(name="Connection", tag=TypeTag.STRUCT)
-        .extend(resource)
-        .append(Field(name="access_token", tag=TypeTag.STRING))
-    )
-    oauth_connection = (
-        Type(name="OAuthConnection", tag=TypeTag.STRUCT)
-        .extend(connection)
-        .append(
-            Field(
-                name="refresh_token",
-                flags=TypeFlag.IsNullable,
-                tag=TypeTag.STRING,
+    with Session(ctx=MOCK_SESSION_CONTEXT).sync():
+        resource = Type(name="Resource", tag=TypeTag.STRUCT).append(
+            Field(name="name", tag=TypeTag.STRING)
+        )
+        connection = (
+            Type(name="Connection", tag=TypeTag.STRUCT)
+            .extend(resource)
+            .append(Field(name="access_token", tag=TypeTag.STRING))
+        )
+        oauth_connection = (
+            Type(name="OAuthConnection", tag=TypeTag.STRUCT)
+            .extend(connection)
+            .append(
+                Field(
+                    name="refresh_token",
+                    flags=TypeFlag.IsNullable,
+                    tag=TypeTag.STRING,
+                )
             )
         )
-    )
-    github_thing = Type(
-        name="GithubThing",
-        tag=TypeTag.STRUCT,
-        fields=[Field(name="github_id", tag=TypeTag.STRING, hint=TypeHint.UUID)],
-    )
-    github_connection = (
-        Type(name="GithubConnection", tag=TypeTag.STRUCT)
-        .extend(oauth_connection)
-        .extend(github_thing)
-        .append(
-            Field(name="username", tag=TypeTag.STRING),
-            Field(name="email", tag=TypeTag.STRING),
+        github_thing = Type(
+            name="GithubThing",
+            tag=TypeTag.STRUCT,
+            fields=[Field(name="github_id", tag=TypeTag.STRING, hint=TypeHint.UUID)],
         )
-    )
+        github_connection = (
+            Type(name="GithubConnection", tag=TypeTag.STRUCT)
+            .extend(oauth_connection, github_thing)
+            .append(
+                Field(name="username", tag=TypeTag.STRING),
+                Field(name="email", tag=TypeTag.STRING),
+            )
+        )
 
     # members should include inherited members
     github_connection_names = (i.name for i in github_connection.resolved_fields)
@@ -117,9 +131,8 @@ def test_type_union_with():
 
 
 def test_recursive_union_fail():
-    with pytest.raises(LanguageError) as e:
-        type_a = Type(name="A", tag=TypeTag.STRUCT)
-        type_b = Type(name="B", tag=TypeTag.STRUCT)
-        type_a.extend(type_b)
-        type_b.extend(type_a)
-    assert e.type == IssueType.CIRCULAR_UNION
+    with Session(ctx=MOCK_SESSION_CONTEXT).sync():
+        with pytest.raises(LanguageError) as e:
+            type_a = Type(name="A", tag=TypeTag.STRUCT)
+            type_a.extend(type_a)
+    assert e.value.issue.type == IssueType.CIRCULAR_UNION

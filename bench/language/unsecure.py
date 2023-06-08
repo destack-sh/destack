@@ -91,7 +91,7 @@ async def run(
     # transform keys to valid python identifiers
     arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
-        await code.session.prepare()
+        await code.session.aprepare()
         code.session.open()
         if not code.is_async:
             code = code.to_async()

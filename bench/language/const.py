@@ -12,32 +12,6 @@ import numpy
 import pandas
 from more_itertools import first, last
 
-if typing.TYPE_CHECKING:
-    from bench.language.type import Statement
-
-
-def raise_error(error: ValueError):
-    raise error
-
-
-def ignore_error(*args, **kwargs):
-    pass
-
-
-ErrorT = typing.TypeVar("ErrorT", bound=ValueError)
-ErrorHandler = typing.Callable[[ErrorT], None]
-
-
-class ErrorCollector(typing.Generic[ErrorT]):
-    def __init__(self, on_error: typing.Callable[[ErrorT], None] | None = None):
-        self.on_error = on_error
-        self.errors: list[ErrorT] = []
-
-    def __call__(self, error: ErrorT):
-        self.errors.append(error)
-        if self.on_error:
-            self.on_error(error)
-
 
 class InterpScope(enum.StrEnum):
     MODULE = "module"
@@ -158,7 +132,6 @@ class RemoteObjectStatus(enum.StrEnum):
 # 2. .<path>.<name>
 # 3. <module_owner>.<module_name>.<path>.<name>
 StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
-StatementReference = typing.Union[Statement, StatementPath, UUID]
 
 
 def statement_path_as_str(statement_path: StatementPath) -> str:

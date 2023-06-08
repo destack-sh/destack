@@ -11,6 +11,7 @@ from uuid import UUID, uuid4
 
 import aiohttp
 import structlog
+from asgiref.sync import async_to_sync
 
 from bench.language import TypeHint, TypeTag, wire
 from bench.language.const import (
@@ -25,11 +26,13 @@ from bench.language.type import (
     Build,
     Code,
     CodeTransformation,
+    File,
     LanguageObject,
     Model,
     Module,
     RemoteObject,
     Secret,
+    Statement,
     Symbol,
     Task,
     Type,
@@ -177,10 +180,12 @@ class Session:
             raise ValueError("write must be provided for non-readonly sessions")
         self.id = uuid4()
         self.ctx = ctx
-        self.module = module  # nocheckin: create default module
-        self.instances: dict[UUID, LanguageObject] = {obj.id: obj for obj in (instances or [])}
+        self.module = module or Module(name="<anonymous>", id=self.id)
         self.builds: dict[str, Build] = builds or {}
         self.mutator = ModuleMutator(self.module)
+        self.instances: dict[UUID, "LanguageObject"] = (
+            {i.id: i for i in instances} if instances else {}
+        )
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -208,12 +213,12 @@ class Session:
         return self.opened_at is not None and self.closed_at is None
 
     def add(self, obj: "LanguageObject", new: bool) -> None:
+        if new and isinstance(obj, Symbol) and obj.id not in self.module.symbols_by_id:
+            self.module.add_symbol(obj)
         self.instances[obj.id] = obj
-        if new:
-            raise NotImplementedError("can't handle in-session create yet")
 
     def remove(self, obj: "LanguageObject") -> None:
-        if obj.id in self.instances:
+        if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
             del self.instances[obj.id]
             # TODO @Feature @Robustness: track delete / remove relevant mutations (if open)
 
@@ -228,10 +233,6 @@ class Session:
             return True
         else:
             raise RuntimeError(f"unknown session mode {self.mode}")
-
-    async def prepare(self):
-        """Prepares instances in the session for execution."""
-        logger.debug("session.prepare", session=self)
 
     def open(self):
         """Opens the session to access and modification."""
@@ -250,20 +251,49 @@ class Session:
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
         logger.debug("session.flush", session=self, mutator=self.mutator)
-        success = await self.write(self.mutator.bundle().compact())
+        mutations = self.mutator.bundle().compact()
+        success = await self.write(mutations)
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
         self.mutator.reset()
         logger.debug("session.flush.done", session=self)
 
-    async def aclose(self):
+    def flush(self):
+        async_to_sync(self.aflush)()
+
+    async def aclose(self, flush: bool = True):
         """Closes the session, flushing any mutations and preventing further access."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
-        await self.aflush()
+        if flush:
+            await self.aflush()
         active_session.set(None)
         logger.debug("session.close", session=self)
+
+    def close(self, flush: bool = True):
+        async_to_sync(self.aclose)(flush=flush)
+
+    async def __aenter__(self):
+        self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.aclose()
+
+    def sync(self):
+        """A sync context manager for this session."""
+        session = self
+
+        class SyncSession:
+            def __enter__(self):
+                session.open()
+                return session
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                session.close()
+
+        return SyncSession()
 
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
