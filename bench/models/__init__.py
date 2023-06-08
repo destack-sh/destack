@@ -21,7 +21,7 @@ from .project import (
     RefType,
 )
 from .secret import Secret
-from .statement import Field, Statement, StatementType, SymbolType
+from .statement import Field, Statement
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User
 from .worker import Worker, WorkerStatus, WorkerTenancy
@@ -60,8 +60,6 @@ __all__ = [
     "ResolvedField",
     "Field",
     "Statement",
-    "StatementType",
-    "SymbolType",
     "Secret",
     "User",
     "Worker",

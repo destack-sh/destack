@@ -1,4 +1,4 @@
-from bench.language.interp import ModuleIndex, Scope
+from bench.language.const import StatementModifier, StatementType, SymbolType, TypeHint, TypeTag
 from bench.language.issue import Issue, IssueType
 from bench.language.type import (
     Build,
@@ -7,24 +7,20 @@ from bench.language.type import (
     Expectation,
     Field,
     File,
+    HasExpectations,
+    HasType,
     Model,
     Module,
     Record,
     RemoteObject,
+    Requirement,
+    Scope,
     Secret,
     Statement,
-    StatementModifier,
-    StatementType,
-    SymbolType,
+    Symbol,
     Task,
     Type,
-    TypeHint,
     TypeNode,
-    TypeTag,
-    Symbol,
-    Requirement,
-    HasExpectations,
-    HasType,
 )
 
 __all__ = [
@@ -40,7 +36,6 @@ __all__ = [
     "IssueType",
     "Model",
     "Module",
-    "ModuleIndex",
     "Record",
     "RemoteObject",
     "Requirement",
@@ -49,11 +44,11 @@ __all__ = [
     "Statement",
     "StatementModifier",
     "StatementType",
-    "Symbol",
     "SymbolType",
+    "TypeTag",
+    "TypeHint",
+    "Symbol",
     "Task",
     "Type",
-    "TypeHint",
     "TypeNode",
-    "TypeTag",
 ]

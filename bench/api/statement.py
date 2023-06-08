@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-StatementType = gql.enum(models.StatementType)
+StatementType = gql.enum(language.StatementType)
 StatementModifier = gql.enum(language.StatementModifier)
-SymbolType = gql.enum(models.SymbolType)
+SymbolType = gql.enum(language.SymbolType)
 
 
 @gql.django.filter(models.Field)
@@ -38,8 +38,8 @@ class FieldFilter:
         return queryset
 
 
-TypeTag = gql.enum(language.type.TypeTag)
-TypeHint = gql.enum(language.type.TypeHint)
+TypeTag = gql.enum(language.TypeTag)
+TypeHint = gql.enum(language.TypeHint)
 
 
 @gql.interface

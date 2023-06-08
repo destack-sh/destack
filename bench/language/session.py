@@ -12,30 +12,28 @@ from uuid import UUID, uuid4
 import aiohttp
 import structlog
 
-from bench import language
-from bench.language import wire
-from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.tracing import SessionTracer
-from bench.language.interp import ModuleIndex  #
-from bench.language.type import (
+from bench.language import TypeHint, TypeTag, wire
+from bench.language.const import (
     STATIC_BUILTINS,
     TYPE_TAG_BY_TYPE_HINT,
+    RemoteObjectStatus,
+    TypeFlag,
+)
+from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.tracing import SessionTracer
+from bench.language.type import (
+    Build,
     Code,
     CodeTransformation,
     LanguageObject,
-    LiteralValue,
+    Model,
+    Module,
     RemoteObject,
-    RemoteObjectStatus,
     Secret,
     Symbol,
-    Type,
-    TypeFlag,
-    TypeHint,
-    TypeNode,
-    TypeTag,
-    Build,
-    Model,
     Task,
+    Type,
+    TypeNode,
 )
 from bench.language.typer import map_rekey_enum, map_unkey_enum
 from bench.language.unsecure import do_execute_arbitrary_code
@@ -51,8 +49,8 @@ from bench.msg.messages import (
 from bench.utils.utils import to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language.inference import ModelInference
     from bench.language.build import XPrompt
+    from bench.language.inference import ModelInference
 
 logger = structlog.get_logger(__name__)
 
@@ -164,8 +162,8 @@ class Session:
 
     def __init__(
         self,
-        idx: ModuleIndex,
-        ctx: SessionContext,
+        module: Module | None = None,
+        ctx: SessionContext | None = None,
         instances: list["LanguageObject"] = None,
         builds: dict[str, Build] = None,
         cache_inferences: bool = True,
@@ -179,10 +177,10 @@ class Session:
             raise ValueError("write must be provided for non-readonly sessions")
         self.id = uuid4()
         self.ctx = ctx
-        self.idx = idx
+        self.module = module  # nocheckin: create default module
         self.instances: dict[UUID, LanguageObject] = {obj.id: obj for obj in (instances or [])}
         self.builds: dict[str, Build] = builds or {}
-        self.mutator = ModuleMutator(idx)
+        self.mutator = ModuleMutator(self.module)
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -204,10 +202,6 @@ class Session:
 
     def __repr__(self):
         return f"<Session {self}>"
-
-    @property
-    def module(self) -> language.Module:
-        return self.idx.module
 
     @property
     def is_open(self) -> bool:
@@ -459,7 +453,7 @@ register_mapper(StaticTypeMapper(int), hints=[TypeHint.INTEGER])
 register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)
 
 
-def instantiate_py_type(node: TypeNode) -> type | LiteralValue | None:
+def instantiate_py_type(node: TypeNode) -> type | Any | None:
     """Create the Python-native type for the given type node."""
     if node.tag == TypeTag.FUNCTION:
         return None  # functions don't have a pytype
@@ -558,12 +552,12 @@ def _instantiate_model(model: Model, session: Session) -> "ModelInference":
     Instantiates the model inference endpoints for the session.
     If we don't have the key, we proxy to the langserver.
     """
-    from bench.runtime.common.models import get_inference_endpoints_cls
     from bench.language.inference import (
+        CachedInferenceEndpoint,
         ModelInference,
         RemoteInferenceEndpoint,
-        CachedInferenceEndpoint,
     )
+    from bench.runtime.common.models import get_inference_endpoints_cls
 
     key = None  # TODO @Broken: get model key from module? same file? some constant?
     inference = ModelInference(external_name=model.external_name, key=key)

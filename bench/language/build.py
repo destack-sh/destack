@@ -14,22 +14,19 @@ from uuid import UUID
 
 import structlog
 
-from bench.language import wire
-from bench.language.inference import Modality, SETTINGS_CLS_BY_MODALITY, TextGenerationSettings
+from bench.language import StatementModifier, TypeHint, TypeTag, wire
+from bench.language.const import TypeFlag
+from bench.language.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
 from bench.language.session import Session, instantiate_py_value_flat
 from bench.language.type import (
     Build,
     Dataset,
     Expectation,
     Model,
-    StatementModifier,
     Symbol,
     Task,
     Type,
-    TypeFlag,
-    TypeHint,
     TypeNode,
-    TypeTag,
 )
 from bench.language.typer import check_type, map_value
 from bench.utils.fractional import INTEGER_ZERO

@@ -17,17 +17,17 @@ from django.db import transaction
 from django.db.models import Q
 
 from bench import language, models
-from bench.language import wire
-from bench.language.interp import LookupBy, index_module
+from bench.language import StatementType, SymbolType, wire
+from bench.language.const import InterpScope, LookupBy
+from bench.language.interp import index_module
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
-from bench.language.type import StatementPath, StatementType, SymbolType
+from bench.language.type import StatementPath
 from bench.language.wire import (
+    SYMBOL_DATA_CLASS_BY_TYPE,
     FieldData,
     FileData,
     InterpData,
-    InterpScope,
     StatementData,
-    SYMBOL_DATA_CLASS_BY_TYPE,
 )
 from bench.models.project import Project, ProjectVersion
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData

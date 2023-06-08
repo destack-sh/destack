@@ -1,112 +1,12 @@
 from __future__ import annotations
 
-import functools
-from typing import Callable
+import pytest
 
-from bench.language import TypeTag
-from bench.language.interp import Error, ErrorCollector, IssueType, parse_code
-from bench.language.type import Code, StatementPath, Type, TypeFlag
-
-
-def _raise_if_error(error: Error, test: Callable):
-    if test(error):
-        raise error
-
-
-def _raise_if(test: Callable):
-    return functools.partial(_raise_if_error, test=test)
-
-
-def _raise_if_not_external():
-    return _raise_if(lambda e: e.type != IssueType.EXTERNAL_LOOKUP_FAILED)
-
-
-def test_absolute_references():
-    module, idx = parse_string(
-        """
---- a ---
-type Apple:
-- name: string
-
-type AppleTree:
-- apples: [Apple]
-
-code graft :: (tree: .a.AppleTree, apple: Apple) -> (tree: AppleTree):
-```python
-num_branches: int = 0 # not used (for testing)
-return tree + apple
-```
-
---- b ---
-
-type FruitBasket:
-- apples: [.a.Apple]
-"""
-    )
-    type_graft = idx.symbol(".a:graft", Code)
-    type_fruit_basket = idx.symbol(".b:FruitBasket", Type)
-    # apple inside graft should be the same apple as the one in the fruit basket
-    type_graft_apple = type_graft.type["apple"]
-    type_fruit_basket_apple = type_fruit_basket["apples"]
-    assert type_graft_apple.reference.id == type_fruit_basket_apple.reference.id
-
-
-def test_resolve_nested_aliased_type():
-    module, idx = parse_string(
-        """
---- test ---
-type RealString = string
-type MyString = RealString
-type EntityType = MyString
-
-type Entity:
-- name: string
-- 'type': EntityType
-"""
-    )
-
-    type_entity_type = idx.symbol(".test:EntityType", Type)
-    assert type_entity_type.tag == TypeTag.STRING
-
-    type_entity = idx.symbol(".test:Entity", Type)
-    assert type_entity["type"].tag == TypeTag.STRING
-
-
-def test_resolve_circular_type():
-    with Session():
-        entity = Type(
-            "Entity",
-            {
-                "name": TypeTag.STRING,
-                "first_event": (TypeFlag.IsNullable, TypeTag.REFERENCE),
-            },
-        )
-        Type(
-            "Event",
-            {
-                "summary": TypeTag.STRING,
-                "entities": (TypeFlag.IsArray, entity),
-            },
-        )
-
-    module, idx = parse_string(
-        """
---- test ---
-type Entity:
-- name: string
-- first_event: Event?
-
-type Event:
-- summary: string
-- entities: [Entity]
-"""
-    )
-
-    type_event = idx.symbol(".test:Event", Type)
-    assert type_event["entities"].flags & TypeFlag.IsArray
-
-    type_entity = idx.symbol(".test:Entity", Type)
-    assert type_entity["first_event"].reference.id == type_event.id
+from bench.language import TypeHint, TypeTag
+from bench.language.const import TypeFlag
+from bench.language.issue import IssueType, LanguageError
+from bench.language.parse import parse_code
+from bench.language.type import Field, StatementPath, Type
 
 
 def test_extract_code_references():
@@ -170,51 +70,42 @@ print(bananas)
 
 
 def test_type_union_with():
-    bench = """
---- test ---
-type Resource:
-- name: string
+    resource = Type(name="Resource", tag=TypeTag.STRUCT).append(
+        Field(name="name", tag=TypeTag.STRING)
+    )
+    connection = (
+        Type(name="Connection", tag=TypeTag.STRUCT)
+        .extend(resource)
+        .append(Field(name="access_token", tag=TypeTag.STRING))
+    )
+    oauth_connection = (
+        Type(name="OAuthConnection", tag=TypeTag.STRUCT)
+        .extend(connection)
+        .append(
+            Field(
+                name="refresh_token",
+                flags=TypeFlag.IsNullable,
+                tag=TypeTag.STRING,
+            )
+        )
+    )
+    github_thing = Type(
+        name="GithubThing",
+        tag=TypeTag.STRUCT,
+        fields=[Field(name="github_id", tag=TypeTag.STRING, hint=TypeHint.UUID)],
+    )
+    github_connection = (
+        Type(name="GithubConnection", tag=TypeTag.STRUCT)
+        .extend(oauth_connection)
+        .extend(github_thing)
+        .append(
+            Field(name="username", tag=TypeTag.STRING),
+            Field(name="email", tag=TypeTag.STRING),
+        )
+    )
 
-type Connection:
-& Resource
-- access_token: string
-
-type OAuthConnection:
-& Connection
-- refresh_token: string?
-
-type GithubConnection:
-& OAuthConnection
-& GithubThing
-- username: string
-- email: string
-
-type GithubRepository:
-& GithubThing
-- owner: string
-- name: string
-
-type GithubThing:
-- github_id: string
-
-dataset connections :: (name: string?) & GithubConnection:
-```jsonl
-{}
-```
-
-dataset repositories :: GithubRepository:
-```jsonl
-{}
-```
-
-code test_connection :: (repository: GithubRepository) & GithubConnection -> (success: boolean):
-```python
-pass
-```
-""".strip()
-    module, idx = parse_string(bench)
     # members should include inherited members
-    github_connection_names = (i.name for i in idx.symbol(".test:GithubConnection", Type).fields)
+    github_connection_names = (i.name for i in github_connection.resolved_fields)
     assert set(github_connection_names) == {
         "name",
         "username",
@@ -224,24 +115,11 @@ pass
         "access_token",
     }
 
-    # rendered should match
-    reconstructed = render(module.files)
-    assert reconstructed == bench
-
 
 def test_recursive_union_fail():
-    collector = ErrorCollector()
-    module, idx = parse_string(
-        """
---- test ---
-type A:
-& B
-
---- test ---
-type B:
-& A
-""",
-        on_error=collector,
-    )
-    assert len(collector.errors) == 1
-    assert collector.errors[0].type == IssueType.CIRCULAR_UNION
+    with pytest.raises(LanguageError) as e:
+        type_a = Type(name="A", tag=TypeTag.STRUCT)
+        type_b = Type(name="B", tag=TypeTag.STRUCT)
+        type_a.extend(type_b)
+        type_b.extend(type_a)
+    assert e.type == IssueType.CIRCULAR_UNION

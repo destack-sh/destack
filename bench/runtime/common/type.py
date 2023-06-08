@@ -9,7 +9,9 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
-from bench.language.type import Code, LiteralValue, Model, SymbolType, Task
+from bench.language import SymbolType
+from bench.language.const import LiteralValue
+from bench.language.type import Code, Model, Task
 from bench.language.wire import ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 

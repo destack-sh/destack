@@ -2,7 +2,8 @@ import enum
 from dataclasses import dataclass
 from typing import Optional
 
-from bench.language.type import File, Statement, StatementPath, statement_path_as_str, InterpScope
+from bench.language.const import InterpScope
+from bench.language.type import File, Statement, StatementPath, statement_path_as_str
 
 
 class IssueKind(enum.StrEnum):
@@ -56,7 +57,7 @@ _ISSUE_MESSAGES = {
 }
 
 
-class Error(ValueError):
+class LanguageError(ValueError):
     def __init__(
         self,
         _t: IssueType,

@@ -5,21 +5,21 @@ from hashlib import md5
 from typing import Optional, Union
 from uuid import UUID, uuid5
 
+import bench.language.const
 from bench import language
-from bench.language import IssueType
-from bench.language.dataset import Query, Sort
-from bench.language.issue import IssueKind
-from bench.language.type import (
+from bench.language import (
+    IssueType,
     StatementModifier,
     StatementType,
     SymbolType,
-    TypeFlag,
     TypeHint,
     TypeTag,
-    InterpScope,
 )
+from bench.language.const import InterpScope, TypeFlag
+from bench.language.dataset import Query, Sort
+from bench.language.issue import IssueKind
+from bench.language.type import ModuleReference
 from bench.utils.func import describe_type
-
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -165,11 +165,6 @@ class FileData:
         )
 
 
-ModuleReference = typing.NamedTuple(
-    "ModuleReference", [("name", str), ("version", str), ("id", Optional[UUID])]
-)
-
-
 @dataclass(repr=False, slots=True)
 class StatementData:
     id: UUID
@@ -286,7 +281,7 @@ class RecordData:
 
 
 @dataclass(repr=False, slots=True)
-class DatasetData:
+class DatasetData(HasTypeData):
     records: Optional[list[RecordData]] = None
     length: Optional[int] = None
 
@@ -423,7 +418,7 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         text=data.text,
         symbol_type=data.symbol_type,
     )
-    if statement.type == language.StatementType.SYMBOL:
+    if statement.type == bench.language.const.StatementType.SYMBOL:
         statement.symbol = wmap_symbol(data)
         statement.symbol.source = statement
     return statement
@@ -465,50 +460,50 @@ def rmap_symbol(
 
 def wmap_symbol(data: StatementData) -> language.Symbol:
     """Maps a wire statement's symbol to a language symbol."""
-    if data.symbol_type == SymbolType.TYPE:
+    if isinstance(data.symbol, TypeData):
         return language.Type(
-            name=data.name,
             description=data.description,
-            tag=data.tag,
-            fields=fields,
+            tag=data.symbol.tag,
+            fields=[wmap_field(node) for node in data.symbol.fields],
         )
-    elif data.symbol_type == SymbolType.TASK:
+    elif isinstance(data.symbol, TaskData):
         return language.Task(
-            tag=data.root_type_tag,
-            fields=fields,
             description=data.description,
+            tag=data.symbol.tag,
+            fields=[wmap_field(node) for node in data.symbol.fields],
         )
-    elif data.symbol_type == SymbolType.EXPECTATION:
+    elif isinstance(data.symbol, ExpectationData):
         return language.Expectation(description=data.description)
-    elif data.symbol_type == SymbolType.CODE:
+    elif isinstance(data.symbol, CodeData):
         return language.Code(
             description=data.description,
-            language=data.lang,
-            code=data.code,
-            tag=data.root_type_tag,
-            fields=fields,
+            language=data.symbol.lang,
+            code=data.symbol.code,
+            fields=[wmap_field(node) for node in data.symbol.fields],
         )
-    elif data.symbol_type == SymbolType.MODEL:
+    elif isinstance(data.symbol, ModelData):
         return language.Model(
-            external_name=data.external_name,
+            external_name=data.symbol.external_name,
         )
-    elif data.symbol_type == SymbolType.DATASET:
+    elif isinstance(data.symbol, DatasetData):
         return language.Dataset(
             description=data.description,
-            language=data.lang,
-            tag=data.root_type_tag,
-            fields=fields,
-            flags=data.root_type_flags,
-            records=[wmap_record(r) for r in data.records] if data.records is not None else None,
+            fields=[wmap_field(node) for node in data.symbol.fields],
+            records=[wmap_record(r) for r in data.symbol.records]
+            if data.symbol.records is not None
+            else None,
         )
     elif data.symbol_type == SymbolType.BUILD:
         return language.Build(comment=data.description)
-    elif data.symbol_type == SymbolType.REQUIREMENT:
-        return language.Requirement(
-            module_name=data.reference_module.name if data.reference_module else None,
-            version=data.reference_module.version if data.reference_module else None,
-            module_id=data.reference_module.id if data.reference_module else None,
-        )
+    elif isinstance(data.symbol, RequirementData):
+        if data.symbol.reference_module is not None:
+            return language.Requirement(
+                module_name=data.symbol.reference_module.name,
+                version=data.symbol.reference_module.version,
+                module_id=data.symbol.reference_module.id,
+            )
+        else:
+            return language.Requirement()
     else:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 

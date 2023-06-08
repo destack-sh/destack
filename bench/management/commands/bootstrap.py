@@ -5,7 +5,7 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.language.type import StatementType, SymbolType
+from bench.language import StatementType, SymbolType
 from bench.models import Organization, Project, Statement
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.utils.fractional import generate_n_keys_between

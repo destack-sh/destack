@@ -8,9 +8,8 @@ from uuid import UUID
 import structlog
 
 from bench import language
-from bench.language import wire
-from bench.language.interp import ErrorCollector, LookupBy, interp, resolve, sort, REFERENCE_REGEX
-from bench.language.type import StatementPath, SymbolType
+from bench.language import SymbolType, wire
+from bench.language.const import ErrorCollector
 from bench.language.wire import ModuleReference
 from bench.utils.func import wrap_task
 
@@ -19,34 +18,16 @@ logger = structlog.get_logger(__name__)
 
 @dataclass(repr=False, slots=True)
 class InterpModule:
-    module_idx: Optional[language.ModuleIndex]
+    module: Optional[language.Module]
     errors: list[language.Issue]
-    dependencies: list[language.ModuleIndex]
+    dependencies: list[language.Module]
     committed: bool
 
     def __str__(self):
-        return str(self.module_idx)
+        return str(self.module)
 
     def __repr__(self):
         return f"<InterpModule {self}>"
-
-    @property
-    def has_user_errors(self):
-        """Whether any non-generated errors are present."""
-        return any(
-            error.statement is None or not error.statement.generated for error in self.errors
-        )
-
-    def symbol(self, path: str):
-        if path.startswith("."):
-            return self.module_idx.symbol(path)
-        else:
-            match = REFERENCE_REGEX.match(path)
-            module_name = match.group("module_owner") + "." + match.group("module_name")
-            dependency = next((d for d in self.dependencies if d.module.name == module_name), None)
-            if dependency is None:
-                raise LookupError(f"could not find dependency {module_name}")
-            return dependency.symbol("." + match.group("path") + ":" + match.group("name"))
 
 
 def create_wrapped_task(coro, task_id: str = None):
@@ -71,7 +52,7 @@ class LanguageInterpreter:
             *[self.interp_requirement_rec(req.id) for req in requirements]
         )
         interp = await asyncio.get_event_loop().run_in_executor(
-            None, partial(interp_module, source, [m.module_idx for m in dependencies])
+            None, partial(interp_module, source, [m.module for m in dependencies])
         )
         if interp.errors:
             # not good, but we can still try to use the module?
@@ -91,7 +72,7 @@ class LanguageInterpreter:
 
     async def interp(self, source: wire.ModuleData) -> InterpModule:
         dependencies = await self.interp_requirements(get_requirements(source))
-        return interp_module(source, [m.module_idx for m in dependencies])
+        return interp_module(source, [m.module for m in dependencies])
 
 
 def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
@@ -105,41 +86,16 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     return requirements_ids
 
 
-def lookup_in_dependencies(dependencies: list[language.ModuleIndex]):
-    # assumes no conflicting names (checked in resolve)
-    dependencies_by_name = {m.module.name: m for m in dependencies}
-
-    def lookup(
-        requirement: language.Requirement, path: StatementPath | UUID, by: LookupBy
-    ) -> language.Scope | None:
-        if isinstance(path, UUID):  # lookup in any dependency
-            for idx in dependencies:
-                scope = idx.scopes.get(path)
-                if scope is not None:
-                    return scope
-            return None
-        else:  # lookup in specific requirement
-            idx: language.ModuleIndex = dependencies_by_name.get(requirement.module_name)
-            if not idx:
-                return None
-            return idx.get_scope(path, by=by)
-
-    return lookup
-
-
-def interp_module(
-    source: wire.ModuleData, dependencies: list[language.ModuleIndex]
-) -> InterpModule:
+def interp_module(source: wire.ModuleData, dependencies: list[language.Module]) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     module = wire.wmap_module(source)
     collector = ErrorCollector()
-    sort(module)  # for nicer debugging
-    idx = resolve(module, lookup_in_module=lookup_in_dependencies(dependencies), on_error=collector)
-    interp(idx, on_error=collector)
+    module.index(on_error=collector)  # nocheckin: check for duplicates in indexing
+    module.interp(on_error=collector)
     errors = [e.to_error() for e in collector.errors]
-    logger.debug("module.interp.done", module=idx)
+    logger.debug("module.interp.done", module=module)
 
     return InterpModule(
-        module_idx=idx, errors=errors, dependencies=dependencies, committed=source.committed
+        module=module, errors=errors, dependencies=dependencies, committed=source.committed
     )
