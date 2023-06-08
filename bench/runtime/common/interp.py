@@ -9,7 +9,7 @@ import structlog
 
 from bench import language
 from bench.language import SymbolType, wire
-from bench.language.const import ErrorCollector
+from bench.language.const import IssueCollector
 from bench.language.wire import ModuleReference
 from bench.utils.func import wrap_task
 
@@ -90,10 +90,10 @@ def interp_module(source: wire.ModuleData, dependencies: list[language.Module]) 
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     module = wire.wmap_module(source)
-    collector = ErrorCollector()
-    module.index(on_error=collector)  # nocheckin: check for duplicates in indexing
-    module.interp(on_error=collector)
-    errors = [e.to_error() for e in collector.errors]
+    collector = IssueCollector()
+    module.index(on_issue=collector)  # nocheckin: check for duplicates in indexing
+    module.interp(on_issue=collector)
+    errors = [e.to_error() for e in collector.issues]
     logger.debug("module.interp.done", module=module)
 
     return InterpModule(

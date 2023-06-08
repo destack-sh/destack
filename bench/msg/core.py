@@ -325,7 +325,7 @@ async def _process_soon_queue_unbatched(q: Queue[NMessage]):
         except asyncio.CancelledError:
             break
         except Exception as e:
-            log.exception("publish_soon_error", exc_info=True, e=e)
+            log.exception("publish_soon_issue", exc_info=True, e=e)
 
 
 async def _process_soon_queue_batched(q: list[tuple[str, NMessage]], flush_interval: float):
@@ -342,7 +342,7 @@ async def _process_soon_queue_batched(q: list[tuple[str, NMessage]], flush_inter
                 log.debug("publish_soon_flush", message=message)
                 await do_publish(message, message.topic)
             except Exception as e:
-                log.exception("publish_soon_error", exc_info=True, e=e)
+                log.exception("publish_soon_issue", exc_info=True, e=e)
 
 
 async def process_soon_queue():
