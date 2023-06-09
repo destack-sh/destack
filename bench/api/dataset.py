@@ -8,7 +8,9 @@ from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
+from strawberry_django_plus.utils.resolvers import async_safe
 
+from bench import models
 from bench.api.statement import ThingBatch
 from bench.api.sync import BatchMutationInput, tracked_mutation
 from bench.api.type import MMT
@@ -171,6 +173,7 @@ class DatasetMutation:
 @gql.type
 class DatasetQuery:
     @gql.relay.connection
+    @async_safe
     def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
         return statement.records.all()

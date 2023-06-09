@@ -13,7 +13,6 @@ import {
   type MoveStatementMutation,
   type RenameStatementMutation,
   type RestoreStatementMutation,
-  type SetReferenceMutation,
   type SoftDeleteStatementMutation,
   type StatementModifier,
   type SymbolType,
@@ -71,7 +70,6 @@ export function useStatementOps() {
         $rootTypeTag: TypeTag
         $rootTypeFlags: Int
         $commented: Boolean
-        $generated: Boolean
       ) {
         createStatement(
           input: {
@@ -267,7 +265,7 @@ export function useStatementOps() {
           fileId: input.fileId,
           parentId: input.parentId ?? null,
           orderKey: input.orderKey,
-          type: StatementType.Definition,
+          type: StatementType.Symbol,
           modifier: null,
           name: input.name ?? null,
           symbolType: input.symbolType,

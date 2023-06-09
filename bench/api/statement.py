@@ -147,7 +147,6 @@ class StatementCreateInput:
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
     symbol_type: Optional[SymbolType] = None
-    reference_id: Optional[GlobalID] = None
     description: Optional[str] = None
     lang: Optional[str] = None
     code: Optional[str] = None
@@ -171,12 +170,6 @@ class StatementMorphInput(gql.NodeInput):
 @gql.input
 class StatementSetModifierInput(gql.NodeInput):
     modifier: Optional[StatementModifier]
-
-
-@gql.input
-class StatementSetReferenceInput(gql.NodeInput):
-    reference_id: Optional[GlobalID] = None
-    reference_name: Optional[str] = None  # unused, only for optimistic updates
 
 
 @gql.django.partial(models.Statement)
@@ -332,7 +325,6 @@ class StatementMutation:
             root_type_tag=input.root_type_tag,
             root_type_flags=input.root_type_flags,
             symbol_type=input.symbol_type,
-            reference_id=input.reference_id.node_id if input.reference_id else None,
             description=input.description,
             lang=input.lang,
             code=input.code,
@@ -353,7 +345,6 @@ class StatementMutation:
         statement.root_type_tag = input.root_type_tag
         statement.root_type_flags = input.root_type_flags
         statement.symbol_type = input.symbol_type
-        statement.reference_id = input.reference_id.node_id if input.reference_id else None
         statement.description = input.description
         statement.lang = input.lang
         statement.code = input.code
@@ -408,14 +399,6 @@ class StatementMutation:
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.modifier = input.modifier
-        return statement
-
-    @tracked_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
-    def update_statement_reference(
-        self, input: StatementSetReferenceInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.reference_id = input.reference_id.node_id if input.reference_id else None
         return statement
 
     @tracked_mutation(MMT.COMMENT_STATEMENT, atomic=True)

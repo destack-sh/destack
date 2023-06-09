@@ -310,7 +310,7 @@ class ModuleMutator:
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
         """Truncates all records of the given statement."""
         statement = self.module.statements_by_id[statement_id]
-        self.do(MMT.TRUNCATE_RECORDS, wire.rmap_statement(statement))
+        self.do(MMT.TRUNCATE_RECORDS, wire.pack_statement(statement))
         return self
 
     def create_many(self, *objs: MutableData) -> "ModuleMutator":
@@ -392,7 +392,7 @@ class ModuleMutator:
         if self.module_source:
             module = self.module_source.deepcopy()
         else:
-            module = wire.rmap_module(self.module)
+            module = wire.pack_module(self.module)
         files: dict[UUID, FileData] = {f.id: f for f in module.files}
         statements: dict[UUID, StatementData] = {
             s.id: s for s in chain.from_iterable(f.statements for f in module.files)

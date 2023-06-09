@@ -140,7 +140,7 @@ export function useStatementContext() {
     await Promise.all([morphType, updateCode]);
   }
 
-  async function morphToDefinition(config: {
+  async function morpthToSymbol(config: {
     symbolType: SymbolType | null;
     name?: string;
     rootTypeFlags?: number;
@@ -172,7 +172,7 @@ export function useStatementContext() {
         rootTypeFlags: statement.value.rootTypeFlags ?? undefined,
       },
       {
-        type: StatementType.Definition,
+        type: StatementType.Symbol,
         symbolType: config?.symbolType,
         name: config.name,
         lang: config.rootTypeTag ?? defaults.language,
@@ -181,18 +181,6 @@ export function useStatementContext() {
       }
     );
     closeTransaction(tx);
-  }
-
-  async function morphToReference(symbolType: SymbolType, name: string) {
-    if (statement.value.type != StatementType.Blank) {
-      throw new Error("cannot morph from non-blank to reference: " + statement.value.id);
-    }
-    await ops.statement.morph(
-      null,
-      statement.value.id,
-      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
-      { type: StatementType.Reference, symbolType, name }
-    );
   }
 
   async function setModifier(modifier: StatementModifier | null) {
@@ -225,17 +213,6 @@ export function useStatementContext() {
         name: statement.value.name ?? undefined,
         rootTypeTag: TypeTag.Enum,
       }
-    );
-  }
-
-  async function setReference(reference: { id: string; name: string } | null) {
-    await ops.statement.setReference(
-      null,
-      statement.value.id,
-      statement.value.reference?.id,
-      context?.reference.value?.name ?? null,
-      reference?.id ?? null,
-      reference?.name ?? null
     );
   }
 
@@ -357,12 +334,10 @@ export function useStatementContext() {
     escape,
     morphToBlank,
     morphToComment,
-    morphToDefinition,
-    morphToReference,
+    morpthToSymbol,
     setModifier,
     setSymbolType,
     setSymbolTypeEnum,
-    setReference,
     syncText,
     syncName,
     syncCode,

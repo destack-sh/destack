@@ -104,9 +104,9 @@ type Client implements Node {
   user: User!
   project: Project
   projectVersion: ProjectVersion
-  file: File
-  statement: Statement
-  field: Field
+  fileId: GlobalID
+  statementId: GlobalID
+  fieldId: GlobalID
   path: String
   active: Boolean!
   present: Boolean!
@@ -528,7 +528,6 @@ type Mutation {
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
   updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo!
-  updateStatementReference(input: StatementSetReferenceInput!): StatementOperationInfo!
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
@@ -1559,7 +1558,6 @@ input StatementCreateInput {
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
   symbolType: SymbolType = null
-  referenceId: GlobalID = null
   description: String = null
   lang: String = null
   code: String = null
@@ -1613,12 +1611,6 @@ input StatementSetModifierInput {
   modifier: StatementModifier
 }
 
-input StatementSetReferenceInput {
-  id: GlobalID!
-  referenceId: GlobalID = null
-  referenceName: String = null
-}
-
 input StatementSoftDeleteInput {
   id: GlobalID!
 }
@@ -1662,7 +1654,6 @@ enum SymbolType {
   VALUE
   DATASET
   REQUIREMENT
-  BUILD
   BLOCK
 }
 

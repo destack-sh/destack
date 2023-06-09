@@ -24,8 +24,8 @@ from bench.api.utils import asafe_subscription, safe_mutation, to_uuid
 from bench.models.user import (
     CLIENT_ACTIVE_TIMEOUT_SECONDS,
     CLIENT_PRESENT_TIMEOUT_SECONDS,
-    rmap_client,
-    wmap_client,
+    pack_client,
+    unpack_client,
 )
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, publish_soon, subscribe
@@ -114,9 +114,9 @@ class Client(gql.relay.Node):
     user: Annotated["User", lazy(".user")]
     project: Optional[Annotated["Project", lazy(".project")]]
     project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
-    file: Optional[Annotated["File", lazy(".project")]]
-    statement: Optional[Annotated["Statement", lazy(".statement")]]
-    field: Optional[Annotated["Field", lazy(".statement")]]
+    file_id: Optional[GlobalID]
+    statement_id: Optional[GlobalID]
+    field_id: Optional[GlobalID]
     path: auto
     active: bool
     present: bool
@@ -293,7 +293,7 @@ def _publish_client_changed(client: models.Client, info: Info):
     #  (and status changes should contain the entire data, so no reads are required after initial)
     client_nonce = info.context.request.headers.get("x-client-nonce")
     origin = ClientOrigin("user", client.id, client_nonce)
-    client_data = rmap_client(client)
+    client_data = pack_client(client)
     publish_soon(
         NMessageType.CLIENT_CHANGED, ClientChangedPayload(origin=origin, client=client_data)
     )
@@ -383,7 +383,7 @@ class ClientSubscription:
             ):
                 continue  # skip self
 
-            client = wmap_client(change.payload.client)
+            client = unpack_client(change.payload.client)
             if project_id and client.project_id != project_id:
                 continue
             if project_version_id and client.project_version_id != project_version_id:

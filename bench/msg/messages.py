@@ -10,6 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language import mutate, wire
+from bench.language.dataset import Query, Sort
 from bench.language.wire import ExecutionTriggerType, RemoteObjectData, SecretData, XBlockData
 from bench.runtime.common.type import ExecutionFrameData
 
@@ -46,6 +47,8 @@ class NMessageType(StrEnum):
     REPLY_READ_MODULE = "module.read.rep"
     REQUEST_WRITE_MODULE = "module.write"
     REPLY_WRITE_MODULE = "module.write.rep"
+    REQUEST_SEARCH_DATASET = "module.dataset.search"
+    REPLY_SEARCH_DATASET = "module.dataset.search.rep"
     REQUEST_READ_OBJECT = "object.read"
     REPLY_READ_OBJECT = "object.read.rep"
     REQUEST_WRITE_OBJECT = "object.write"
@@ -73,6 +76,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
+    NMessageType.REQUEST_SEARCH_DATASET: NMessageType.REPLY_SEARCH_DATASET,
     NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
     NMessageType.REQUEST_RUN_INFERENCE: NMessageType.REPLY_RUN_INFERENCE,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
@@ -85,7 +89,7 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 # All messages are just Python dataclasses.
 # They are serialized and deserialized in serialize.py with some custom logic
 #  to support all the nested Python typing we need (e.g. NamedTuples).
-# In the future we may want to use a more formal serialization format,
+# In the future we should want to use a more formal serialization format,
 # but for the time being this is both fast and flexible.
 #
 
@@ -268,6 +272,23 @@ class ReqWriteModulePayload:
 @payload(NMessageType.REPLY_WRITE_MODULE)
 class RepWriteModulePayload:
     success: bool
+
+
+@payload(NMessageType.REQUEST_SEARCH_DATASET)
+class ReqSearchDatasetPayload:
+    module_id: UUID
+    dataset_id: UUID
+    query: Query
+    sort: list[Sort] | None = None
+    limit: int | None = None
+
+
+@payload(NMessageType.REPLY_SEARCH_DATASET)
+class RepSearchDatasetPayload:
+    dataset_id: UUID
+    records: list[wire.RecordData]
+    total: int
+    limit: int
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)

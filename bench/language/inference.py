@@ -20,8 +20,8 @@ from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language.tracing import Tracer
     from bench.language.build import XBlock
+    from bench.language.tracing import Tracer
 
 logger = structlog.get_logger(__name__)
 
@@ -291,7 +291,7 @@ class RemoteInferenceEndpoint:
                 model_fqn=self.model.fqn,
                 model_external_name=self.model.external_name,
                 modality=self.modality,
-                blocks=[build.rmap_xblock(b) for b in blocks],
+                blocks=[build.pack_xblock(b) for b in blocks],
                 settings=asdict(settings),
                 timeout=timeout,
             ),

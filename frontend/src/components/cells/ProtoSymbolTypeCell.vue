@@ -69,15 +69,15 @@ function handleKeyword(newContentTrim: string): boolean {
   ) {
     context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
   } else if (SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
-    context.morphToDefinition({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
+    context.morpthToSymbol({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
   } else if (newContentTrim == "enum" || newContentTrim == "choice") {
-    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
+    context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
   } else if (newContentTrim == "struct") {
-    context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
+    context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
   } else if (newContentTrim == "record") {
-    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
+    context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
   } else if (newContentTrim == "table") {
-    context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });
+    context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });
   } else {
     return false;
   }
@@ -103,43 +103,43 @@ const commands = computed(() => {
     {
       label: "task",
       description: "Instruct AI to do something.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Task }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Task }), emit("morphed")),
     },
     {
       label: "expect",
       description: "Specify desired behaviour.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Expectation }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Expectation }), emit("morphed")),
     },
     {
       label: "struct",
       description: "Define a data structure.",
       action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
+        context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
       ),
     },
     {
       label: "choice",
       description: "Define a choice type.",
       action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")
+        context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")
       ),
     },
     {
       label: "record",
       description: "Configure context and secrets.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
       label: "table",
       description: "Define state or examples.",
       action: () => (
-        context.morphToDefinition({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
+        context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),
     },
     {
       label: "code",
       description: "Implement logic in Python.",
-      action: () => (context.morphToDefinition({ symbolType: SymbolType.Code }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Code }), emit("morphed")),
     },
   ];
 

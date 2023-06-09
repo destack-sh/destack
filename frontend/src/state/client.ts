@@ -183,14 +183,8 @@ export const ClientContentType = graphql(/* GraphQL */ `
       id
       name
     }
-    file {
-      id
-      name
-    }
-    statement {
-      id
-      name
-    }
+    fileId
+    statementId
     lastSeenAt
     closedAt
     active

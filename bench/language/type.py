@@ -78,22 +78,30 @@ SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
 class Scope:
     parent_scope: Optional[Scope] = None
     scopes_by_name: dict[str, Scope] = field(default_factory=dict)
-    symbols_by_name: dict[str, Symbol] = field(default_factory=dict)
     symbols_by_id: dict[UUID, Symbol] = field(default_factory=dict)
     names_by_identifier: dict[str, str] = field(default_factory=dict)
 
-    def find_symbol(self, name: str, by: LookupBy) -> Statement | None:
+    @cached_property
+    def root_scope(self) -> Scope:
+        if self.parent_scope is None:
+            return self
+        return self.parent_scope.root_scope
+
+    def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
         """Find the statement recursively in this scope and its parents."""
+        scope = None
         if by == LookupBy.Name:
-            if name in self.symbols_by_name:
-                return self.symbols_by_name[name]
+            scope = self.scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
             if name in self.names_by_identifier:
                 name = self.names_by_identifier[name]
-                if name in self.scopes_by_name:
-                    return self.scopes_by_name[name]
+                scope = self.scopes_by_name.get(name)
         else:
             raise ValueError(f"unexpected lookup type: {by}")
+        if scope is not None:
+            if not isinstance(scope, Statement):
+                raise TypeError(f"expected symbol, got {type(scope)}")
+            return scope.symbol
         if self.parent_scope is not None:
             return self.parent_scope.find_symbol(name, by=by)
         return None
@@ -107,7 +115,7 @@ class Scope:
         it can be a name (lookup upwards) or a full relative/absolute path).
         """
         if isinstance(path, UUID):
-            return self.symbols_by_id[path]
+            return self.root_scope.symbols_by_id[path]
         elif isinstance(path, str):
             if ":" not in path and "." not in path:
                 return self.find_symbol(path, by=LookupBy.Name)
@@ -115,34 +123,18 @@ class Scope:
         # strip leading . in path
         path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
-        statement = self.find_symbol(first_part, by=LookupBy.Name)
-        if statement is None:
+        scope = self.find_symbol(first_part, by=LookupBy.Name)
+        if scope is None:
             return None
-        return statement.lookup_symbol(path, symbol_t=symbol_t)
-
-    def add_statement(self, statement: Statement):
-        """Adds a statement and its symbol to this scope. Does not check for duplicates."""
-        self.scopes_by_name[statement.name] = statement
-        self.names_by_identifier[statement.ident] = statement.name
-        self.symbols_by_name[statement.name] = statement.symbol
-        self.symbols_by_id[statement.symbol.id] = statement.symbol
-
-    def add_symbol(self, symbol: Symbol):
-        """Adds a symbol to this scope. Does not check for duplicates."""
-        self.symbols_by_name[symbol.name] = symbol
-        self.symbols_by_id[symbol.id] = symbol
+        return scope.lookup_symbol(path, symbol_t=symbol_t)
 
     def clear(self):
         """Resets this scope and all child scopes."""
         self.scopes_by_name.clear()
-        self.symbols_by_name.clear()
         self.symbols_by_id.clear()
         self.names_by_identifier.clear()
         for scope in self.scopes_by_name.values():
             scope.clear()
-
-
-EMPTY_SCOPE = Scope()
 
 
 @dataclass(repr=False)
@@ -182,6 +174,11 @@ class Module(Scope):
     def index(self, on_issue: IssueHandler = raise_if_error):
         for file in self.files:
             file.index(on_issue=on_issue)
+            if file.path in self.scopes_by_name:
+                on_issue(IssueType.AMBIGUOUS_DEFINITION, subject=file)
+            else:
+                self.scopes_by_name[file.path] = file
+            self.symbols_by_id.update(file.symbols_by_id)
 
     def interp(self, on_issue: IssueHandler = raise_if_error):
         for file in self.files:
@@ -196,15 +193,16 @@ class File(LanguageObject, Scope):
     id: UUID = field(default_factory=uuid.uuid4)
     generated: bool = False
 
+    def __post_init__(self):
+        super().__post_init__()
+        if self.parent_scope is None:
+            self.parent_scope = self.module
+
     def __str__(self):
         return f"{self.module.name}/{self.path}"
 
     def __repr__(self):
         return f"<File {str(self)}>"
-
-    @property
-    def parent_scope(self) -> Scope:
-        return self.module
 
     @property
     def root_statements(self) -> list[Statement]:
@@ -235,6 +233,16 @@ class File(LanguageObject, Scope):
         for statement in self.statements:
             statement.index(on_issue=on_issue)
 
+            if statement.name is not None:
+                self.scopes_by_name[statement.name] = statement
+                self.names_by_identifier[statement.ident] = statement.name
+                if statement.name in self.scopes_by_name:
+                    on_issue(IssueType.AMBIGUOUS_DEFINITION, subject=statement)
+
+            self.symbols_by_id.update(statement.symbols_by_id)
+            if statement.symbol is not None:
+                self.symbols_by_id[statement.symbol.id] = statement.symbol
+
     def interp(self, on_issue: IssueHandler = raise_if_error):
         for statement in self.statements:
             statement.interp(on_issue=on_issue)
@@ -248,16 +256,23 @@ class Statement(LanguageObject, Scope):
     parent: Optional[Statement] = None
     order_key: str = required_field()
     type: StatementType = StatementType.SYMBOL
-    modifier: Optional[StatementModifier] = None
     name: Optional[str] = None
     text: Optional[str] = None
     symbol: Optional[Symbol] = None
-    symbol_type: Optional[SymbolType] = None
-    reference: Optional[Statement | StatementPath | UUID] = None
     id: UUID = field(default_factory=uuid.uuid4)
-    generated: bool = False
 
-    _source: Optional[Any] = None
+    def __post_init__(self):
+        super().__post_init__()
+        if self.parent_scope is None:
+            # default scope to parent or file if not set
+            self.parent_scope = self.parent or self.file
+        if self.symbol is not None:
+            # set base symbol properties
+            self.symbol.id = self.id
+            self.symbol.source = self
+            if self.symbol.name and self.symbol.name != self.name:
+                raise ValueError(f"symbol name {self.symbol.name} != statement name {self.name}")
+            self.symbol.name = self.name
 
     def __str__(self):
         loc = self.file.path + ":" + str(self.infile_path)
@@ -269,11 +284,14 @@ class Statement(LanguageObject, Scope):
             content_str = ""
         else:
             raise ValueError(f"unknown statement type {self.type}")
-        modifier_str = f" {self.modifier}" if self.modifier else ""
-        return f"{loc}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
+        return f"{loc} {self.type} {self.symbol_type} {self.name} {content_str}"
 
     def __repr__(self):
         return f"<Statement {self}>"
+
+    @property
+    def symbol_type(self) -> Optional[SymbolType]:
+        return SYMBOL_TYPE_BY_CLASS.get(type(self.symbol))
 
     @property
     def infile_path(self) -> str:
@@ -303,24 +321,8 @@ class Statement(LanguageObject, Scope):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent else None
 
-    def is_expectable(self) -> bool:
-        return self.symbol_type in (
-            SymbolType.EXPECTATION,
-            SymbolType.TASK,
-            SymbolType.CODE,
-            SymbolType.DATASET,
-        )
-
-    @property
-    def is_expect(self) -> bool:
-        has_expect_intent = self.modifier in (
-            StatementModifier.LIKE,
-            StatementModifier.UNLIKE,
-            StatementModifier.CHECK,
-        )
-        return self.symbol_type == SymbolType.EXPECTATION or (
-            self.is_expectable and has_expect_intent
-        )
+    def index(self, on_issue: IssueHandler = raise_if_error):
+        pass
 
     def interp(self, on_issue: IssueHandler = raise_if_error) -> None:
         self.symbol.interp(self, on_issue)
@@ -332,7 +334,12 @@ StatementReference = typing.Union[Statement, StatementPath, UUID]
 class SymbolBase(abc.ABC):
     """For type checking some symbol access."""
 
+    session: Session
+
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        raise NotImplementedError
+
+    def clear_interp(self) -> None:
         raise NotImplementedError
 
     def reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
@@ -340,47 +347,39 @@ class SymbolBase(abc.ABC):
 
 
 @dataclass(repr=False)
-class Symbol(LanguageObject):
+class Symbol(LanguageObject, SymbolBase):
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     name: str = field(default="")
     description: Optional[str] = None
     modifier: Optional[StatementModifier] = None
-    reference: Optional[Symbol | StatementReference] = None
-    definition: Optional[Symbol] = None
     source: Optional[Statement] = None
+    scope: Optional[Scope] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         """Updates, resolves and checks any derived/interpreted values on this symbol."""
         raise NotImplementedError
 
-    def reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
-        self.interp(self.source or EMPTY_SCOPE, on_issue=on_issue)
+    def clear_interp(self) -> None:
+        """Clears any derived/interpreted values on this symbol."""
+        raise NotImplementedError
 
-    @property
+    def reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
+        self.clear_interp()
+        self.interp(scope or self.scope, on_issue=on_issue)
+
+    @cached_property
     def ident(self) -> str:
         return to_pyidentifier(self.name)
 
     @property
-    def is_definition(self) -> bool:
-        return self.definition is not None and self.definition.id == self.id
-
-    @property
     def fqn(self) -> str | None:
-        return self.definition.source.fqn if self.definition.source else None
-
-    @property
-    def is_root(self):
-        return self.source is None or self.source.parent is None
+        return self.source.fqn if self.source else None
 
     @property
     def symbol_type(self) -> SymbolType:
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
-
-    @property
-    def is_generated(self):
-        return self.source is None or self.source.generated
 
     def __str__(self):
         modifier_str = f"{self.modifier} " if self.modifier else ""
@@ -406,6 +405,10 @@ class TypeNode(abc.ABC):
     @property
     def ident(self):
         return to_pyidentifier(self.name)
+
+    @property
+    def bases(self):
+        return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
 
     @property
     def inputs(self) -> list["TypeNode"]:
@@ -505,6 +508,7 @@ class HasExpectations(SymbolBase):
     """Symbols we can attach expectations to"""
 
     expectations: list[Expectable] = field(default_factory=list)
+    resolved_expectations: list[Expectable] | None = None
 
     def expect(self, expectation: Expectable) -> "Self":
         self.expectations.append(expectation)
@@ -523,7 +527,18 @@ class HasExpectations(SymbolBase):
         raise NotImplementedError
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        pass
+        if self.resolved_expectations is not None:
+            return
+        resolved_expectations = [*self.expectations]
+        if isinstance(self, HasType):
+            # inline union expectations
+            for base in self.bases:
+                if isinstance(base.reference, HasExpectations):
+                    resolved_expectations.extend(base.reference.expectations)
+        self.resolved_expectations = resolved_expectations
+
+    def clear_interp(self) -> None:
+        self.resolved_expectations = None
 
 
 @dataclass(repr=False)
@@ -531,33 +546,51 @@ class HasType(TypeNode, SymbolBase):
     """A symbol that has (but is not) a type"""
 
     tag: TypeTag = required_field()
-    hint = None
-    flags = TypeFlag.Zero
+    hint: Optional[TypeHint] = None
+    flags: TypeFlag = TypeFlag.Zero
     fields: list[TypeNode] = field(default_factory=list)
     resolved_fields: list[TypeNode] | None = None
-    key = None
+    key: str = None
     reference = None
+
+    def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        # resolve references
+        for node in self.walk():
+            if node.reference is None or isinstance(node.reference, Symbol):
+                continue  # nothing to resolve
+            # normalize path to statement
+            symbol = scope.lookup_symbol(reference=node.reference, symbol_type=SymbolType.TYPE)
+            if symbol is None:
+                continue  # error already reported
+            if not isinstance(symbol, TypeNode):
+                on_issue(type=IssueType.MISSING_REFERENCE, symbol=node, reference=node.reference)
+            node.reference = symbol
+
+        # expand unions (recursively)
+        Type._resolve_unions(self, [], on_issue)
+
+    def clear_interp(self) -> None:
+        self.resolved_fields = None
 
     def extend(self, *bases: Type) -> "Self":
         """Adds the fields of another type to this one"""
         for base in bases:
-            self.fields.append(
-                Field(
-                    name=None,
-                    tag=TypeTag.TYPE_REFERENCE,
-                    reference=base,
-                    flags=TypeFlag.IsUnionWith,
-                )
+            field = Field(
+                name=None,
+                tag=TypeTag.TYPE_REFERENCE,
+                reference=base,
+                flags=TypeFlag.IsUnionWith,
             )
-        self.resolved_fields = None
+            self.session.tracer.field_add(self, field)
+            self.fields.append(field)
         self.reinterp()
         return self
 
     def append(self, *fields: Field) -> "Self":
         """Adds a field to this type"""
-        for field in fields:  # noqa
+        for field in fields:  # noqa shadows dataclass.field
+            self.session.tracer.field_add(self, field)
             self.fields.append(field)
-        self.resolved_fields = None
         self.reinterp()
         return self
 
@@ -602,38 +635,14 @@ class HasType(TypeNode, SymbolBase):
                     on_issue(type=IssueType.MISMATCHED_UNION, symbol=node, path=path)
                     continue
                 resolved_fields.append(to_inline)
-
-            # extend expectations
-            if isinstance(node, HasExpectations):
-                node.expectations.extend(child.reference.expectations)
         node.resolved_fields = resolved_fields
         return node.fields
-
-    def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        # resolve references
-        for node in self.walk():
-            if node.reference is None or isinstance(node.reference, Symbol):
-                continue  # nothing to resolve
-            # normalize path to statement
-            resolved_stmt = scope.lookup_symbol(
-                reference=node.reference, symbol_type=SymbolType.TYPE
-            )
-            if resolved_stmt is None:
-                continue  # error already reported
-            if not isinstance(resolved_stmt.symbol, TypeNode):
-                on_issue(type=IssueType.MISSING_REFERENCE, symbol=node, reference=node.reference)
-            node.reference = resolved_stmt.symbol
-
-        # expand unions
-        Type._resolve_unions(self, [], on_issue)
 
 
 @dataclass(repr=False)
 class Type(Symbol, HasType, HasExpectations):
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
-    fields: list[TypeNode] = field(default_factory=list)
-    resolved_fields: list[TypeNode] = None
     # not directly configurable for types
     hint = None
     key = None
@@ -646,6 +655,10 @@ class Type(Symbol, HasType, HasExpectations):
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         HasType.interp(self, scope, on_issue)
         HasExpectations.interp(self, scope, on_issue)
+
+    def clear_interp(self) -> None:
+        HasType.clear_interp(self)
+        HasExpectations.clear_interp(self)
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
@@ -668,20 +681,23 @@ TYPE_FIELD_KEYS = {field.name for field in fields(Type)}
 
 @dataclass(repr=False)
 class Task(Symbol, HasType, HasExpectations):
-    tag = TypeTag.FUNCTION
-    is_async = True
+    tag: TypeTag = TypeTag.FUNCTION
+    is_async: bool = True
     # should probably store last good implementation ... in redis?
     last_good_impl_idx: int = 0
-    py_type = None  # doesn't have a python type
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasExpectations.interp(self, scope, on_issue)
         HasType.interp(self, scope, on_issue)
+        HasExpectations.interp(self, scope, on_issue)
+
+    def clear_interp(self) -> None:
+        HasType.clear_interp(self)
+        HasExpectations.clear_interp(self)
 
     async def __call__(
         self,
         *args,
-        build: Build | str = None,
+        build: str = None,
         model: Model | str = None,
         retries: int = None,
         cache: bool = None,
@@ -742,12 +758,13 @@ class Task(Symbol, HasType, HasExpectations):
 
 @dataclass(repr=False)
 class Expectation(Symbol, HasExpectations):
-    pass
-
     def __init__(self, name: str = None, description: str = None, expectations: list = None):
         super().__init__(name=name, description=description, expectations=expectations)
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        pass
+
+    def clear_interp(self) -> None:
         pass
 
 
@@ -772,17 +789,13 @@ SyncCodeCallable = typing.Callable[..., Any]
 
 @dataclass(repr=False)
 class Code(Symbol, HasType):
-    tag = TypeTag.FUNCTION
+    tag: TypeTag = TypeTag.FUNCTION
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
     parse: Optional[CodeParse] = None
+    references: dict[str, Symbol] | None = field(default_factory=dict)
     transform: Optional[CodeTransformation] = None
-    references: dict[str, Symbol] = field(default_factory=dict)
-    context: dict[str, Symbol] = field(default_factory=dict)
-
-    @cached_property
-    def code_callable(self) -> AsyncCodeCallable | SyncCodeCallable:
-        return self.session.instance.get_code_callable(self)
+    _code_callable: AsyncCodeCallable | SyncCodeCallable | None = None
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         HasType.interp(self, scope, on_issue)
@@ -799,12 +812,21 @@ class Code(Symbol, HasType):
             else:
                 on_issue(type=IssueType.MISSING_REFERENCE, reference=reference, subject=self)
 
+    def clear_interp(self) -> None:
+        self.parse = None
+        self.references = None
+        self.transform = None
+        self._code_callable = None
+        HasType.clear_interp(self)
+
     async def __call__(self, *args, **kwargs):
+        if self._code_callable is None:
+            self._code_callable = self.session.instance.get_code_callable(self)
         log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.session.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
-            result = await self.code_callable(*args, **kwargs)
+            result = await self._code_callable(*args, **kwargs)
             self.session.tracer.code_exit(self, args, kwargs, result)
             log.debug("code.exit", result=describe_type(result))
             return result
@@ -820,17 +842,12 @@ class Code(Symbol, HasType):
         return sync_code
 
 
-@dataclass(repr=False, slots=True)
-class RecordMeta:
-    dataset: Dataset
-
-
 @dataclass(repr=False)
 class Record:
+    _dataset: Dataset
     _order_key: str
     _data: typing.Any = field(default_factory=dict)
     _id: UUID = field(default_factory=uuid.uuid4)
-    _: RecordMeta = field(default_factory=RecordMeta)
 
     def __str__(self):
         return f"{self._order_key} {describe_type(self._data)}"
@@ -872,7 +889,7 @@ class DatasetView:
     name: str
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
-    reference: Optional[Dataset | StatementReference] = None
+    reference: Optional[Dataset | UUID] = None
     order_key: str = field(default_factory=uuid.uuid4)
     id: UUID = field(default_factory=uuid.uuid4)
 
@@ -882,22 +899,29 @@ DEFAULT_VIEW = DatasetView(name="default")
 
 @dataclass(repr=False)
 class Dataset(Symbol, HasType):
-    tag = TypeTag.STRUCT
-    flags = TypeFlag.IsArray
+    tag: TypeTag = TypeTag.STRUCT
+    flags: TypeFlag = TypeFlag.IsArray
     length: Optional[int] = None
     inmemory: bool = True
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
 
-    def __post_init__(self):
-        self.meta = RecordMeta(type=self.type, session=self.session, owner=self)
+    def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        # resolve references
+        for view in self.views or []:
+            if view.reference is not None:
+                view.reference = scope.lookup_symbol(reference=view.reference, by=LookupBy.PyIdent)
+                if view.reference is None:
+                    on_issue(type=IssueType.MISSING_REFERENCE, subject=self)
+
+        HasType.interp(self, scope, on_issue)
+
+    def clear_interp(self) -> None:
+        HasType.clear_interp(self)
 
     @property
     def default_view(self) -> DatasetView:
         return self.views[0] if self.views else DEFAULT_VIEW
-
-    def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasType.interp(self, scope, on_issue)
 
     def clear(self):
         self.session.tracer.dataset_clear(self)
@@ -905,30 +929,35 @@ class Dataset(Symbol, HasType):
             self.records = []
 
     def append(self, record: Record = None, **data):
+        """Appends a record to the dataset."""
         if record is not None:
             if data:
                 raise ValueError("cannot pass both record and data")
             data = record._data
-        # nocheckin: broken if not in memory
+        # nocheckin: remote datasets
         data = unproxy_value(data)  # remove source proxy if any
         # insert at end
         last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
         record = Record(
             _id=uuid.uuid4(),
-            _=self.meta,
+            _dataset=self,
             _order_key=generate_key_between(last_ok, None),
             _data=data,
         )
         self.session.tracer.dataset_append(self, record)
         if self.inmemory:
+            if self.records is None:
+                self.records = []
             self.records.append(record)
 
     def extend(self, records: typing.Iterable[Record | dict]):
+        """Extends the dataset with the given records."""
         datas = [  # remove source proxy if any
             unproxy_value(record._data) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
         last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
+        # nocheckin: remote datasets
         oks = generate_n_keys_between(last_ok, None, len(datas))
         records = [
             Record(
@@ -940,25 +969,45 @@ class Dataset(Symbol, HasType):
             for ok, data in zip(oks, datas)
         ]
         self.session.tracer.dataset_extend(self, records)
-        self.records.extend(records)
+        if self.inmemory:
+            if self.records is None:
+                self.records = []
+            self.records.extend(records)
+
+    async def asearch(self, query: Query, sort: list[Sort] = None) -> Dataset:
+        """Searches this dataset remotely."""
+        # nocheckin: remote datasets
+        self.session.tracer.dataset_search(self, query, sort)
+        return await self.session.instance.search(self, query, sort)
+
+    def search(self, query: Query, sort: list[Sort] = None) -> Dataset:
+        """Searches this dataset remotely."""
+        return async_to_sync(self.asearch)(query, sort)
+
+    def __getitem__(self, item: int | slice) -> Record | list[Record]:
+        # nocheckin: proxy dataset access
+        return self.records[item]
 
     def __len__(self):
         return self.length
 
-    def __getitem__(self, item: int | slice) -> Record | list[Record]:
-        return self.records[item]
-
     def __iter__(self):
-        return iter(self.records)
+        # nocheckin: remote datasets
+        if self.inmemory:
+            return iter(self.records)
+        raise NotImplementedError("nocheckin: remote datasets")
+
+    def __aiter__(self):
+        # nocheckin: remote datasets
+        if self.inmemory:
+            yield from self.records
+        raise NotImplementedError("nocheckin: remote datasets")
 
 
 @dataclass(repr=False)
 class Value(Symbol, HasType):
-    tag = TypeTag.STRUCT
+    tag: TypeTag = TypeTag.STRUCT
     value: Any = None
-
-    def __post_init__(self):
-        self.meta = RecordMeta(type=self.type, session=self.session, owner=self)
 
     @property
     def keys(self):
@@ -966,6 +1015,9 @@ class Value(Symbol, HasType):
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         HasType.interp(self, scope, on_issue)
+
+    def clear_interp(self) -> None:
+        HasType.clear_interp(self)
 
     def __getitem__(self, item):
         return self.value[item]
@@ -1008,6 +1060,9 @@ class Model(Symbol):
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         pass
 
+    def clear_interp(self) -> None:
+        pass
+
     def __str__(self):
         return f"{self.external_name}"
 
@@ -1030,12 +1085,6 @@ class Requirement(Symbol):
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         pass
-
-
-@dataclass(repr=False)
-class Build(Symbol):
-    tasks: list[Task] = field(default_factory=list)
-    models: list[Model] = field(default_factory=list)
 
 
 @dataclass(repr=False)
@@ -1065,7 +1114,6 @@ SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[Symbol]] = {
     SymbolType.MODEL: Model,
     SymbolType.CODE: Code,
     SymbolType.REQUIREMENT: Requirement,
-    SymbolType.BUILD: Build,
     SymbolType.BLOCK: Block,
 }
 SYMBOL_TYPE_BY_CLASS: dict[typing.Type[Symbol], SymbolType] = {

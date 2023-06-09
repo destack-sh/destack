@@ -11,14 +11,12 @@ from uuid import UUID
 
 from bench.language import SymbolType
 from bench.language.const import LiteralValue
-from bench.language.type import Code, Model, Task
+from bench.language.type import Code, Model, Statement, Task
 from bench.language.wire import ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.runtime.worker.instance import CodeInstance, Session
-
-DATASET_RECORDS_IN_MEMORY_LIMIT = 512
+    from bench.language.session import Session
 
 
 @dataclass(slots=True)
@@ -102,13 +100,9 @@ class PyFrameData:
         return [PyFrameData.from_traceback(frame) for frame in stack]
 
     @staticmethod
-    def clean(
-        stack: list[PyFrameData], from_code: "CodeInstance", session: "Session"
-    ) -> list[PyFrameData]:
-        from bench.runtime.instance import CodeInstance
-
-        code_instances_by_method_name: dict[str, CodeInstance] = {
-            instance.transform.method_name: cast(CodeInstance, instance)
+    def clean(stack: list[PyFrameData], from_code: "Code", session: "Session") -> list[PyFrameData]:
+        code_by_method: dict[str, Code] = {
+            instance.transform.method_name: cast(Code, instance)
             for instance in session.instances.values()
             if instance.symbol_type == SymbolType.CODE and instance.transform is not None
         }
@@ -121,13 +115,13 @@ class PyFrameData:
                 continue  # skip support code
             if not found_start:
                 # impute bench source info into instantiated code callables
-                code = code_instances_by_method_name.get(frame.name)
+                code = code_by_method.get(frame.name)
                 if code is not None:
                     if code == from_code:
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    if from_code.source is not None:
+                    if isinstance(from_code.source, Statement):
                         frame.filename = to_pyidentifier_multi(
                             from_code.source.file.path, from_code.source.name
                         )
@@ -135,7 +129,7 @@ class PyFrameData:
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset
                     frame.locals = frame.locals or {}
-                    for ident, var in code.context.items():
+                    for ident, var in code.references.items():
                         if ident not in frame.locals and var.id in session.instances:
                             frame.locals[ident] = repr(session.instances[var.id])
             if found_start:
@@ -193,7 +187,7 @@ class ExecutionFrameData:
     trigger_id: Optional[UUID]
 
     @staticmethod
-    def from_frame(frame: ExecutionFrame, *, session: Session) -> ExecutionFrameData:
+    def from_frame(frame: ExecutionFrame, *, session: "Session") -> ExecutionFrameData:
         if frame.error:
             if frame.runnable is None:
                 raise ValueError(f"error outside code: {frame}")
