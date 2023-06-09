@@ -309,8 +309,8 @@ class ModuleMutator:
 
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
         """Truncates all records of the given statement."""
-        statement = self.module.statements_by_id[statement_id]
-        self.do(MMT.TRUNCATE_RECORDS, wire.pack_statement(statement))
+        symbol = self.module.symbols_by_id[statement_id]
+        self.do(MMT.TRUNCATE_RECORDS, wire.pack_statement(symbol.source))
         return self
 
     def create_many(self, *objs: MutableData) -> "ModuleMutator":
