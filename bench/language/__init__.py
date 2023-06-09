@@ -3,6 +3,7 @@ from bench.language.issue import Issue, IssueType
 from bench.language.type import (
     Code,
     Dataset,
+    DatasetView,
     Expectation,
     Field,
     File,
@@ -26,6 +27,7 @@ from bench.language.type import (
 __all__ = [
     "Code",
     "Dataset",
+    "DatasetView",
     "Expectation",
     "Field",
     "File",
@@ -43,12 +45,12 @@ __all__ = [
     "Statement",
     "StatementModifier",
     "StatementType",
-    "SymbolType",
-    "TypeTag",
-    "TypeHint",
     "Symbol",
-    "Value",
+    "SymbolType",
     "Task",
     "Type",
+    "TypeHint",
     "TypeNode",
+    "TypeTag",
+    "Value",
 ]

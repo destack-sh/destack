@@ -10,7 +10,7 @@ from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
 from bench.language import StatementType, wire
-from bench.language.mutate import MMS, MMT, ModuleMutation, ModuleMutator
+from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 
 MutableThing = Union[
@@ -20,57 +20,11 @@ MutableThing = Union[
     wire.RecordData,
 ]
 
-# refer to ModuleMutationType and _MODULE_MUTATION_MAP
-_TRIVIAL_PUBLIC_TO_INTERNAL = {
-    # Files
-    MMT.CREATE_FILE: MMT.CREATE_FILE,
-    MMT.RENAME_FILE: MMT.UPDATE_FILE,
-    MMT.MOVE_FILE: MMT.UPDATE_FILE,
-    MMT.UPDATE_FILE: MMT.UPDATE_FILE,
-    MMT.DELETE_FILE: MMT.DELETE_FILE,
-    MMT.SOFT_DELETE_FILE: MMT.DELETE_FILE,
-    # (non-trivial: restore)
-    # Statements
-    MMT.CREATE_STATEMENT: MMT.CREATE_STATEMENT,
-    MMT.CREATE_STATEMENT_BLANK: MMT.CREATE_STATEMENT,
-    MMT.MOVE_STATEMENT: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_MODIFIER: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_REFERENCE: MMT.UPDATE_STATEMENT,
-    MMT.MORPH_STATEMENT: MMT.UPDATE_STATEMENT,
-    MMT.RENAME_STATEMENT: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_TEXT: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_DESCRIPTION: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_CODE: MMT.UPDATE_STATEMENT,
-    MMT.UPDATE_STATEMENT_LANGUAGE: MMT.UPDATE_STATEMENT,
-    MMT.DELETE_STATEMENT: MMT.DELETE_STATEMENT,
-    MMT.SOFT_DELETE_STATEMENT: MMT.DELETE_STATEMENT,
-    # (non-trivial: restore, comment)
-    # Types
-    MMT.CREATE_FIELD: MMT.CREATE_FIELD,
-    MMT.UPDATE_FIELD: MMT.UPDATE_FIELD,
-    MMT.RENAME_FIELD: MMT.UPDATE_FIELD,
-    MMT.UPDATE_FIELD_DESCRIPTION: MMT.UPDATE_FIELD,
-    MMT.UPDATE_FIELD_TYPE: MMT.UPDATE_FIELD,
-    MMT.MOVE_FIELD: MMT.UPDATE_FIELD,
-    MMT.DELETE_FIELD: MMT.DELETE_FIELD,
-    MMT.SOFT_DELETE_FIELD: MMT.DELETE_FIELD,
-    MMT.RESTORE_FIELD: MMT.CREATE_FIELD,
-    # Records
-    MMT.CREATE_RECORD: MMT.CREATE_RECORD,
-    MMT.UPDATE_RECORD: MMT.UPDATE_RECORD,
-    MMT.UPDATE_RECORD_PATH: MMT.UPDATE_RECORD,
-    MMT.MOVE_RECORD: MMT.UPDATE_RECORD,
-    MMT.DELETE_RECORD: MMT.DELETE_RECORD,
-    MMT.SOFT_DELETE_RECORD: MMT.DELETE_RECORD,
-    MMT.RESTORE_RECORD: MMT.UPDATE_RECORD,
-}
-
 _SCOPE_TO_TYPE_NAME = {
-    MMS.FILE: "File",
-    MMS.STATEMENT: "Statement",
-    MMS.FIELD: "TypeNode",
-    MMS.RECORD: "Record",
+    MOT.FILE: "File",
+    MOT.STATEMENT: "Statement",
+    MOT.FIELD: "TypeNode",
+    MOT.RECORD: "Record",
 }
 
 
@@ -144,8 +98,6 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
             descendants_datas = packer.pack_statement_nested(thing)
             mut = ModuleMutator(module_id=mutation.project_version_id)
             return mut.create_many(*descendants_datas).mutations
-    elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
-        internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
     elif mutation.type == MMT.RESTORE_FILE:
         file_data = packer.pack_file_nested(thing, exclude_non_semantic=False)
         mut = ModuleMutator(module_id=mutation.project_version_id)
@@ -158,7 +110,8 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*descendants_datas).mutations
     else:
-        raise ValueError(f"mutation cannot be mapped to internal: {mutation}")
+        # map everything else to a simple internal mutation (CRUD_X)
+        internal_type = MMT(mutation.type.kind + "_" + mutation.type.scope)
 
     internal_mutation = ModuleMutation(
         type=internal_type,
@@ -185,7 +138,7 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
     if not mutation.type.simple:
         raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
-    if mutation.type.scope == MMS.INTERP:
+    if mutation.type.scope == MOT.INTERP:
         input = None
         data = mutation.data
     else:
@@ -206,10 +159,10 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
 
 # extra fields in public mutations that are not in internal module data
 _EXTRA_FIELDS_BY_SCOPE = {
-    MMS.STATEMENT: {
+    MOT.STATEMENT: {
         "commented": False,
     },
-    MMS.FILE: {
+    MOT.FILE: {
         "parent_id": None,
         "directory": False,
     },
@@ -278,7 +231,7 @@ def input_to_gql_jsonable(value: Any) -> Any:
         raise TypeError(f"unexpected value: {value}")
 
 
-def _map_id_field(key: str, value: UUID, scope: MMS):
+def _map_id_field(key: str, value: UUID, scope: MOT):
     from strawberry_django_plus.relay import GlobalID
 
     # map id to global id with appropriate type name
@@ -286,9 +239,9 @@ def _map_id_field(key: str, value: UUID, scope: MMS):
         type_name = "File"
     elif key == "statement_id":
         type_name = "Statement"
-    elif key == "parent_id" and scope == MMS.STATEMENT:
+    elif key == "parent_id" and scope == MOT.STATEMENT:
         type_name = "Statement"
-    elif key == "parent_id" and scope == MMS.FILE:
+    elif key == "parent_id" and scope == MOT.FILE:
         type_name = "File"
     else:
         type_name = _SCOPE_TO_TYPE_NAME[scope]

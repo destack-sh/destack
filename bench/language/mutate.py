@@ -16,6 +16,7 @@ from bench.language.wire import (
     FileData,
     InterpData,
     ModuleData,
+    ModuleObjectType,
     RecordData,
     StatementData,
 )
@@ -72,7 +73,6 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
     # Interp
-    TRUNCATE_INTERP = "TRUNCATE_INTERP"
     UPDATE_INTERP = "UPDATE_INTERP"
 
     @property
@@ -80,7 +80,7 @@ class ModuleMutationType(enum.StrEnum):
         return _MODULE_MUTATION_MAP[self][0]
 
     @property
-    def scope(self) -> "ModuleMutationScope":
+    def scope(self) -> "ModuleObjectType":
         return _MODULE_MUTATION_MAP[self][1]
 
     @property
@@ -92,16 +92,6 @@ class ModuleMutationKind(enum.StrEnum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
-
-
-class ModuleMutationScope(enum.StrEnum):
-    """Scope of a mutation."""
-
-    FILE = "FILE"
-    STATEMENT = "STATEMENT"
-    FIELD = "FIELD"
-    RECORD = "RECORD"
-    INTERP = "INTERP"
 
 
 # Basic CRUD mutations with full (flat) data for the model
@@ -124,65 +114,64 @@ SIMPLE_MUTATIONS = {
 
 MMT = ModuleMutationType
 MMK = ModuleMutationKind
-MMS = ModuleMutationScope
+MOT = ModuleObjectType
 
-_MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MMS]] = {
+_MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     # Files
-    MMT.CREATE_FILE: (MMK.CREATE, MMS.FILE),
-    MMT.SOFT_DELETE_FILE: (MMK.DELETE, MMS.FILE),
-    MMT.RESTORE_FILE: (MMK.CREATE, MMS.FILE),
-    MMT.RENAME_FILE: (MMK.UPDATE, MMS.FILE),
-    MMT.MOVE_FILE: (MMK.UPDATE, MMS.FILE),
-    MMT.UPDATE_FILE: (MMK.UPDATE, MMS.FILE),
-    MMT.DELETE_FILE: (MMK.DELETE, MMS.FILE),
+    MMT.CREATE_FILE: (MMK.CREATE, MOT.FILE),
+    MMT.SOFT_DELETE_FILE: (MMK.DELETE, MOT.FILE),
+    MMT.RESTORE_FILE: (MMK.CREATE, MOT.FILE),
+    MMT.RENAME_FILE: (MMK.UPDATE, MOT.FILE),
+    MMT.MOVE_FILE: (MMK.UPDATE, MOT.FILE),
+    MMT.UPDATE_FILE: (MMK.UPDATE, MOT.FILE),
+    MMT.DELETE_FILE: (MMK.DELETE, MOT.FILE),
     # Statements
-    MMT.CREATE_STATEMENT: (MMK.CREATE, MMS.STATEMENT),
-    MMT.CREATE_STATEMENT_BLANK: (MMK.CREATE, MMS.STATEMENT),
-    MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MMS.STATEMENT),
-    MMT.RESTORE_STATEMENT: (MMK.CREATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_MODIFIER: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.MORPH_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.COMMENT_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.MOVE_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.RENAME_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_DESCRIPTION: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_CODE: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT_LANGUAGE: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.UPDATE_STATEMENT: (MMK.UPDATE, MMS.STATEMENT),
-    MMT.DELETE_STATEMENT: (MMK.DELETE, MMS.STATEMENT),
+    MMT.CREATE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
+    MMT.CREATE_STATEMENT_BLANK: (MMK.CREATE, MOT.STATEMENT),
+    MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
+    MMT.RESTORE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_MODIFIER: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.MORPH_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.COMMENT_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.MOVE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.RENAME_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_DESCRIPTION: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_CODE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_LANGUAGE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
     # Types
-    MMT.CREATE_FIELD: (MMK.CREATE, MMS.FIELD),
-    MMT.UPDATE_FIELD: (MMK.UPDATE, MMS.FIELD),
-    MMT.RENAME_FIELD: (MMK.UPDATE, MMS.FIELD),
-    MMT.UPDATE_FIELD_DESCRIPTION: (MMK.UPDATE, MMS.FIELD),
-    MMT.UPDATE_FIELD_TYPE: (MMK.UPDATE, MMS.FIELD),
-    MMT.MOVE_FIELD: (MMK.UPDATE, MMS.FIELD),
-    MMT.DELETE_FIELD: (MMK.DELETE, MMS.FIELD),
-    MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MMS.FIELD),
-    MMT.RESTORE_FIELD: (MMK.CREATE, MMS.FIELD),
+    MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
+    MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
+    MMT.RENAME_FIELD: (MMK.UPDATE, MOT.FIELD),
+    MMT.UPDATE_FIELD_DESCRIPTION: (MMK.UPDATE, MOT.FIELD),
+    MMT.UPDATE_FIELD_TYPE: (MMK.UPDATE, MOT.FIELD),
+    MMT.MOVE_FIELD: (MMK.UPDATE, MOT.FIELD),
+    MMT.DELETE_FIELD: (MMK.DELETE, MOT.FIELD),
+    MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MOT.FIELD),
+    MMT.RESTORE_FIELD: (MMK.CREATE, MOT.FIELD),
     # Records
-    MMT.TRUNCATE_RECORDS: (MMK.DELETE, MMS.STATEMENT),
-    MMT.CREATE_RECORD: (MMK.CREATE, MMS.RECORD),
-    MMT.UPDATE_RECORD: (MMK.UPDATE, MMS.RECORD),
-    MMT.UPDATE_RECORD_PATH: (MMK.UPDATE, MMS.RECORD),
-    MMT.MOVE_RECORD: (MMK.UPDATE, MMS.RECORD),
-    MMT.DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
-    MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MMS.RECORD),
-    MMT.RESTORE_RECORD: (MMK.CREATE, MMS.RECORD),
+    MMT.TRUNCATE_RECORDS: (MMK.DELETE, MOT.STATEMENT),
+    MMT.CREATE_RECORD: (MMK.CREATE, MOT.RECORD),
+    MMT.UPDATE_RECORD: (MMK.UPDATE, MOT.RECORD),
+    MMT.UPDATE_RECORD_PATH: (MMK.UPDATE, MOT.RECORD),
+    MMT.MOVE_RECORD: (MMK.UPDATE, MOT.RECORD),
+    MMT.DELETE_RECORD: (MMK.DELETE, MOT.RECORD),
+    MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MOT.RECORD),
+    MMT.RESTORE_RECORD: (MMK.CREATE, MOT.RECORD),
     # Interp
-    MMT.TRUNCATE_INTERP: (MMK.DELETE, MMS.INTERP),
-    MMT.UPDATE_INTERP: (MMK.UPDATE, MMS.INTERP),
+    MMT.UPDATE_INTERP: (MMK.UPDATE, MOT.INTERP),
 }
 
 MutableData = FileData | StatementData | FieldData | RecordData | InterpData
 SCOPE_BY_CLASS = {
-    FileData: MMS.FILE,
-    StatementData: MMS.STATEMENT,
-    FieldData: MMS.FIELD,
-    RecordData: MMS.RECORD,
-    InterpData: MMS.INTERP,
+    FileData: MOT.FILE,
+    StatementData: MOT.STATEMENT,
+    FieldData: MOT.FIELD,
+    RecordData: MOT.RECORD,
+    InterpData: MOT.INTERP,
 }
 
 
@@ -206,15 +195,15 @@ class ModuleMutation:
 
     @property
     def data(self) -> MutableData:
-        if self.type.scope == MMS.FILE:
+        if self.type.scope == MOT.FILE:
             return self._data_file
-        elif self.type.scope == MMS.STATEMENT:
+        elif self.type.scope == MOT.STATEMENT:
             return self._data_statement
-        elif self.type.scope == MMS.FIELD:
+        elif self.type.scope == MOT.FIELD:
             return self._data_field
-        elif self.type.scope == MMS.RECORD:
+        elif self.type.scope == MOT.RECORD:
             return self._data_record
-        elif self.type.scope == MMS.INTERP:
+        elif self.type.scope == MOT.INTERP:
             return self._data_interp
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
@@ -223,15 +212,15 @@ class ModuleMutation:
     def data(self, value: MutableData):
         if value is not None and self.type.scope != SCOPE_BY_CLASS[type(value)]:
             raise ValueError(f"type mismatch: {self.type} {self.type.scope}: {value}")
-        if self.type.scope == MMS.FILE:
+        if self.type.scope == MOT.FILE:
             self._data_file = value
-        elif self.type.scope == MMS.STATEMENT:
+        elif self.type.scope == MOT.STATEMENT:
             self._data_statement = value
-        elif self.type.scope == MMS.FIELD:
+        elif self.type.scope == MOT.FIELD:
             self._data_field = value
-        elif self.type.scope == MMS.RECORD:
+        elif self.type.scope == MOT.RECORD:
             self._data_record = value
-        elif self.type.scope == MMS.INTERP:
+        elif self.type.scope == MOT.INTERP:
             self._data_interp = value
         else:
             raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
@@ -303,7 +292,7 @@ class ModuleMutator:
         )
         mutation.data = obj
         self.mutations.append(mutation)
-        if type.kind == MMK.CREATE and type.scope == MMS.STATEMENT:
+        if type.kind == MMK.CREATE and type.scope == MOT.STATEMENT:
             self._created_statements[statement_id] = obj
         return self
 
@@ -474,21 +463,21 @@ class MutationBundle:
     def simple(self) -> bool:
         # interp changes are 'simple' because we don't apply them here
         return not any(
-            m.type not in SIMPLE_MUTATIONS and m.type.scope != MMS.INTERP for m in self.mutations
+            m.type not in SIMPLE_MUTATIONS and m.type.scope != MOT.INTERP for m in self.mutations
         )
 
     @property
     def complex_mutations(self):
         return [m for m in self.mutations if m.type not in SIMPLE_MUTATIONS]
 
-    def __getitem__(self, type: MMT | MMK | MMS) -> list[ModuleMutation]:
+    def __getitem__(self, type: MMT | MMK | MOT) -> list[ModuleMutation]:
         if type in self._cache:
             return self._cache[type]
         if isinstance(type, MMT):
             mutations = [m for m in self.mutations if m.type == type]
         elif isinstance(type, MMK):
             mutations = [m for m in self.mutations if m.type.kind == type]
-        elif isinstance(type, MMS):
+        elif isinstance(type, MOT):
             mutations = [m for m in self.mutations if m.type.scope == type]
         else:
             raise TypeError(f"Invalid mutation type: {type}")
