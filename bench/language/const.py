@@ -5,6 +5,7 @@ import enum
 import itertools
 import re
 import typing
+from dataclasses import dataclass
 from typing import Any, NamedTuple, Union
 from uuid import UUID
 
@@ -224,3 +225,43 @@ PRIMITIVE_TYPES = [
     TypeTag.VECTOR,
 ]
 FIELD_KEY_LENGTH = 8
+
+
+class ModuleOp(enum.StrEnum):
+    READ = "read"
+    SEARCH = "search"
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+
+
+class SessionMode(enum.StrEnum):
+    READ_ONLY = "ro"
+    WRITE_GLOBAL = "w"
+    WRITE_ONLY = "wo"
+
+
+class SessionTracingLevel(enum.IntFlag):
+    NONE = 0
+    EXECUTION = 1
+    MUTATION = 2
+    VALIDATION = 4
+    ALL = EXECUTION | MUTATION | VALIDATION
+
+
+class ExecutionTriggerType(enum.StrEnum):
+    API = "rest"
+    UI = "ui"
+    REACTIVE = "reactive"
+    SCHEDULED = "scheduled"
+
+
+@dataclass(slots=True)
+class SessionContext:
+    module_id: UUID
+    project_id: UUID
+    worker_id: UUID
+    tracing_level: SessionTracingLevel
+    trigger_type: ExecutionTriggerType
+    trigger_id: typing.Optional[UUID]
+    root_id: typing.Optional[UUID] = None

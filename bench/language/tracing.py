@@ -7,6 +7,7 @@ from typing import Any
 import pytz
 import structlog
 
+from bench.language.const import ModuleOp
 from bench.language.dataset import Query, Sort
 from bench.language.mutate import ModuleMutator
 from bench.language.typer import check_type
@@ -21,9 +22,12 @@ if typing.TYPE_CHECKING:
         Code,
         Dataset,
         Field,
+        File,
         HasType,
         Model,
         Record,
+        Statement,
+        Symbol,
         Task,
         Value,
     )
@@ -38,12 +42,21 @@ logger = structlog.get_logger(__name__)
 
 class Tracer:
     """
-    Trace and track a session with executions, mutations, etc.
+    Trace and track everything in a module/session (executions, mutations, etc.).
     """
 
-    # symbols
+    # module
 
-    def field_add(self, symbol: HasType, field: Field):
+    def file_create(self, file: File):
+        pass
+
+    def statement_create(self, statement: Statement):
+        pass
+
+    def symbol_create(self, symbol: Symbol):
+        pass
+
+    def field_append(self, symbol: HasType, field: Field):
         pass
 
     def dataset_clear(self, table: Dataset):
@@ -105,7 +118,7 @@ class SessionTracer(Tracer):
         publish: bool = True,
         validate: bool = True,
     ):
-        from bench.language.session import SessionTracingLevel
+        from bench.language.const import SessionTracingLevel
 
         self.session = session
         self.execution = ExecutionTracer(
@@ -394,14 +407,26 @@ class PermissionCheckingTracer(Tracer):
     def __init__(self, session: Session):
         self.session = session
 
+    def file_create(self, file: File):
+        self.session.check_can(ModuleOp.CREATE, file)
+
+    def statement_create(self, statement: Statement):
+        self.session.check_can(ModuleOp.CREATE, statement)
+
+    def symbol_create(self, symbol: Symbol):
+        self.session.check_can(ModuleOp.CREATE, symbol)
+
     def dataset_clear(self, table: Dataset):
-        self.session.check_can_write(table)
+        self.session.check_can(ModuleOp.UPDATE, table)
 
     def dataset_append(self, table: Dataset, record: Record):
-        self.session.check_can_write(table)
-
-    def dataset_delete(self, table: Dataset, record: Record):
-        self.session.check_can_write(table)
+        self.session.check_can(ModuleOp.UPDATE, table)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
-        self.session.check_can_write(dataset)
+        self.session.check_can(ModuleOp.UPDATE, dataset)
+
+    def dataset_delete(self, table: Dataset, record: Record):
+        self.session.check_can(ModuleOp.UPDATE, table)
+
+    def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
+        self.session.check_can(ModuleOp.SEARCH, dataset)

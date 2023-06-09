@@ -7,12 +7,17 @@ from uuid import UUID
 import structlog
 
 from bench.language import SymbolType, wire
-from bench.language.const import LiteralValue
+from bench.language.const import (
+    ExecutionTriggerType,
+    LiteralValue,
+    SessionContext,
+    SessionMode,
+    SessionTracingLevel,
+)
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import Session, SessionContext, SessionMode, SessionTracingLevel
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, Code, Task
+from bench.language.session import Session
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, Code, Module, Task
 from bench.language.unsecure import RunError, run
-from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
@@ -88,12 +93,15 @@ class ModuleWorker:
     def interpreted(self) -> bool:
         return self.interp is not None
 
-    async def init(self, source: wire.ModuleData):
+    @property
+    def module(self) -> Module:
+        return self.interp.module
+
+    async def start(self, source: wire.ModuleData):
         self.log.debug("module.init")
         self.interp = await self.interpreter.interp(source)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
-        self.log.debug("module.changed")
         new_source = ModuleMutator(self.interp.module, mutations).apply()
         self.interp = await self.interpreter.interp(new_source)
 
@@ -154,7 +162,7 @@ class ModuleWorker:
                 root_id=root_id,
             )
             session = Session(
-                module=self.interp.module,
+                module=self.module,
                 ctx=session_ctx,
                 mode=SessionMode.WRITE_GLOBAL,
                 write=self.do_write,
@@ -220,7 +228,7 @@ class ModuleWorker:
         self.log.info("module.start")
         source, self.project_id = await self.master.get_module(self.module_id)
         try:
-            await self.init(source)
+            await self.start(source)
         except Exception as e:
             self.log.error("worker_init_failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")

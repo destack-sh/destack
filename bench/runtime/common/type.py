@@ -10,9 +10,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language import SymbolType
-from bench.language.const import LiteralValue
+from bench.language.const import ExecutionTriggerType, LiteralValue
 from bench.language.type import Code, Model, Statement, Task
-from bench.language.wire import ExecutionTriggerType
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:

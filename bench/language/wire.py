@@ -22,9 +22,13 @@ from bench.language.type import ModuleReference
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
+if typing.TYPE_CHECKING:
+    pass
+
+
 #
 # Stable, concise and flat language data structures for transit and storage.
-# TODO @Performance: use an optimized and evolvable wire format
+# TODO @Performance: use an optimized and evolvable wire format :WireFormat
 #
 
 
@@ -180,22 +184,21 @@ class StatementData:
     parent_id: Optional[UUID]
     text: Optional[str]
     # symbol contents
-    symbol_type: Optional[SymbolType]
+    symbol_type: Optional[SymbolType] = None
     description: Optional[str] = None
-    _symbol: Optional[typing.Any] = None  # hack until we get proper wire formats
+    symbol: Optional[typing.Any] = None  # hack until we get a proper :WireFormat
 
     def __post_init__(self):
         data_cls = SYMBOL_DATA_CLASS_BY_TYPE.get(self.symbol_type)
-        if data_cls and self._symbol:
-            self._symbol = from_dict(data_cls, self._symbol)
+        if data_cls and self.symbol:  # see hack note above
+            self.symbol = from_dict(data_cls, self.symbol)
+        elif self.symbol:
+            raise ValueError(f"unexpected symbol type {self.symbol_type}")
 
-    @property
-    def symbol(self):
-        return self._symbol
-
-    @symbol.setter
-    def symbol(self, value):
-        self._symbol = to_dict(value)
+    def encode_some_attrs(self) -> dict:  # hack, called in to_dict :WireFormat
+        if self.symbol:
+            return {"symbol": self.symbol}
+        return {}
 
     def __str__(self):
         parent_str = f"{self.parent_id}:" if self.parent_id else ""
@@ -357,17 +360,8 @@ def pack_module(module: language.Module) -> ModuleData:
 
 
 def unpack_module(data: ModuleData) -> language.Module:
-    """Maps module data back into a module. Restores explicit statement references without checking!"""
     module = language.Module(id=data.id, name=data.name)
     module.files = [unpack_file(file, module) for file in data.files]
-    # replace parent references
-    statements = {statement.id: statement for file in module.files for statement in file.statements}
-    for file_data, file in zip(data.files, module.files):
-        for statement_data, statement in zip(file_data.statements, file.statements):
-            if statement_data.parent_id is not None:
-                # parent should exist but may not if it was not included in the module data
-                # but exists in the source (e.g. an invalid comment parent)
-                statement.parent = statements.get(statement_data.parent_id)
     return module
 
 
@@ -388,12 +382,16 @@ def unpack_file(data: FileData, module: language.Module) -> language.File:
         path=data.path,
     )
     file.statements = [unpack_statement(statement, file) for statement in data.statements]
+    # restore parent refs
+    for statement in file.statements:
+        if statement.parent_id is not None:
+            statement.parent = module.symbols_by_id[statement.parent_id]
+    # sort statements
+    file._sort()
     return file
 
 
 def pack_statement(statement: language.Statement) -> StatementData:
-    """Maps a language statement to a wire statement (incl. refs)."""
-    # use statement id if possible, else use statement path
     data = StatementData(
         module_id=statement.file.module.id,
         file_id=statement.file.id,
@@ -413,7 +411,6 @@ def pack_statement(statement: language.Statement) -> StatementData:
 
 
 def unpack_statement(data: StatementData, file: language.File) -> language.Statement:
-    """Maps a wire statement into the language representation"""
     statement = language.Statement(
         id=data.id,
         file=file,
@@ -437,7 +434,6 @@ def unpack_statement(data: StatementData, file: language.File) -> language.State
 
 
 def _pack_symbol(symbol: language.Symbol, data: StatementData) -> None:
-    """Maps a language symbol's to a wire statement."""
     # type content is also a component
     data.modifier = symbol.modifier
     if isinstance(symbol, language.TypeNode):
@@ -465,7 +461,6 @@ def _pack_symbol(symbol: language.Symbol, data: StatementData) -> None:
 
 
 def _unpack_symbol(data: StatementData, base_args: dict) -> language.Symbol:
-    """Maps a wire statement's symbol to a language symbol."""
     if isinstance(data.symbol, TypeData):
         return language.Type(
             **base_args,
@@ -500,9 +495,13 @@ def _unpack_symbol(data: StatementData, base_args: dict) -> language.Symbol:
             **base_args,
             description=data.description,
             fields=[unpack_field(node) for node in data.symbol.fields],
-            records=[unpack_record(r) for r in data.symbol.records]
-            if data.symbol.records is not None
-            else None,
+            inmemory=False,
+        )
+    elif isinstance(data.symbol, ValueData):
+        return language.Value(
+            **base_args,
+            value=data.symbol.value,
+            fields=[unpack_field(node) for node in data.symbol.fields],
         )
     elif isinstance(data.symbol, RequirementData):
         if data.symbol.reference_module is not None:
@@ -515,11 +514,12 @@ def _unpack_symbol(data: StatementData, base_args: dict) -> language.Symbol:
         else:
             return language.Requirement(**base_args)
     else:
-        raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
+        raise ValueError(
+            f"unexpected symbol type {data.symbol_type} for statement {describe_type(data.symbol)}"
+        )
 
 
 def pack_field(statement_id: UUID, node: language.Field) -> FieldData:
-    """Maps a field to a field data object."""
     return FieldData(
         id=node.id,
         revision=1,
@@ -536,7 +536,6 @@ def pack_field(statement_id: UUID, node: language.Field) -> FieldData:
 
 
 def unpack_field(node: FieldData) -> language.Field:
-    """Maps a field data object to a field."""
     return language.Field(
         id=node.id,
         name=node.name,
@@ -551,7 +550,6 @@ def unpack_field(node: FieldData) -> language.Field:
 
 
 def pack_record(statement_id: UUID, record: language.Record) -> RecordData:
-    """Maps a record to a record data object."""
     return RecordData(
         id=record._id,
         revision=1,
@@ -562,7 +560,6 @@ def pack_record(statement_id: UUID, record: language.Record) -> RecordData:
 
 
 def unpack_record(data: RecordData) -> language.Record:
-    """Maps a record data object to a record."""
     return language.Record(_id=data.id, _data=data.data, _order_key=data.order_key)
 
 
@@ -616,15 +613,3 @@ def unpack_secret(secret: SecretData) -> language.Secret:
         sha512=secret.sha512,
         value=secret.value,
     )
-
-
-#
-# Executions
-#
-
-
-class ExecutionTriggerType(enum.StrEnum):
-    API = "rest"
-    UI = "ui"
-    REACTIVE = "reactive"
-    SCHEDULED = "scheduled"

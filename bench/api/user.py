@@ -34,8 +34,7 @@ from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
-    from bench.api.project import File, Project, ProjectVersion
-    from bench.api.statement import Field, Statement
+    from bench.api.project import Project, ProjectVersion
     from bench.api.token import AccessToken
 
 logger = structlog.get_logger(__name__)

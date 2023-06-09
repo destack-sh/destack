@@ -5,10 +5,10 @@ from uuid import UUID
 import pytest
 
 from bench.language import TypeHint, TypeTag
-from bench.language.const import TypeFlag
+from bench.language.const import SessionContext, SessionTracingLevel, TypeFlag
 from bench.language.issue import IssueType, LanguageError
 from bench.language.parse import parse_code
-from bench.language.session import Session, SessionContext, SessionTracingLevel
+from bench.language.session import Session
 from bench.language.type import (
     Code,
     Dataset,
@@ -95,7 +95,8 @@ MOCK_SESSION_CONTEXT = SessionContext(
 
 
 def test_type_union_with():
-    with Session(ctx=MOCK_SESSION_CONTEXT).sync():
+    module = Module(name="test")
+    with Session(module, ctx=MOCK_SESSION_CONTEXT).sync():
         resource = Type(name="Resource", tag=TypeTag.STRUCT).append(
             Field(name="name", tag=TypeTag.STRING)
         )
@@ -142,7 +143,8 @@ def test_type_union_with():
 
 
 def test_recursive_union_fail():
-    with Session(ctx=MOCK_SESSION_CONTEXT).sync():
+    module = Module(name="test")
+    with Session(module, ctx=MOCK_SESSION_CONTEXT).sync():
         with pytest.raises(LanguageError) as e:
             type_a = Type(name="A", tag=TypeTag.STRUCT)
             type_a.extend(type_a)
