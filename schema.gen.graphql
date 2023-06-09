@@ -402,10 +402,10 @@ enum InterpScope {
 type Issue implements Node {
   id: GlobalID!
   scope: InterpScope!
+  kind: IssueKind!
+  type: IssueType!
   file: File
   statement: Statement
-  kind: IssueKind!
-  type: String!
   message: String
 }
 
@@ -413,6 +413,17 @@ enum IssueKind {
   ERROR
   WARNING
   SUGGESTION
+}
+
+enum IssueType {
+  INTERNAL
+  UNKNOWN_IMPORT_SOURCE
+  MISSING_REFERENCE
+  AMBIGUOUS_REQUIREMENT
+  CIRCULAR_ANCESTRY
+  CIRCULAR_UNION
+  MISMATCHED_UNION
+  AMBIGUOUS_DEFINITION
 }
 
 """

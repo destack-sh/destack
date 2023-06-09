@@ -53,7 +53,7 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
-const extendedTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
+const baseTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const {
@@ -62,7 +62,7 @@ const {
   refetch,
   fetchMore,
 } = useQuery(
-  graphql(/* GraphQL */ ` 
+  graphql(/* GraphQL */ `
     query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {
       searchRecords(statementId: $statementId, after: $after, first: $first) {
         totalCount
@@ -125,17 +125,17 @@ const selfFields = computed(
       ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
       .map((n) => module.runtimeTypeOf(n as SimpleType)) ?? []
 );
-const extendedTypes = computed(
+const baseTypes = computed(
   () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
 );
-const extendedFields = computed(() => {
+const inheritedFields = computed(() => {
   return (
     context.resolvedFields.value
       ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
       .map((n) => module.runtimeTypeOf(n as SimpleType) as SimpleType) ?? []
   );
 });
-const allFields = computed(() => [...selfFields.value, ...extendedFields.value]);
+const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
 
 // grid & grid sizing
 
@@ -349,7 +349,7 @@ function insertField(isUnionWith?: boolean) {
         flags: TypeFlag.IsUnionWith,
       })
     );
-    nextTick(() => extendedTypesRefs.focus(extendedTypes.value.slice(-1)[0].id));
+    nextTick(() => baseTypesRefs.focus(baseTypes.value.slice(-1)[0].id));
   }
 }
 
@@ -549,29 +549,27 @@ defineExpose({
       <DeclarationCell
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
-        @navigate-right="
-          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : extendButtonRef?.focus()
-        "
+        @navigate-right="baseTypes.length > 0 ? baseTypesRefs.focus(baseTypes[0].id) : extendButtonRef?.focus()"
       />
-      <!-- Extended types -->
-      <div class="ml-1 whitespace-nowrap" v-if="(extendedTypes?.length ?? 0) > 0">
+      <!-- Base types -->
+      <div class="ml-1 whitespace-nowrap" v-if="(baseTypes?.length ?? 0) > 0">
         <span class="mr-1 text-orange-600">has</span>
         <div class="inline-flex flex-row gap-x-1">
           <TypeInterface
-            v-for="field of extendedTypes"
-            :ref="(el: any) => extendedTypesRefs.registerRef(field.id, el)"
+            v-for="field of baseTypes"
+            :ref="(el: any) => baseTypesRefs.registerRef(field.id, el)"
             :model-value="field"
             @update:model-value="(val) => context.updateField(field, val)"
             @delete-self="context.deleteField(field)"
             @navigate-left="
-              field.id == extendedTypes[0].id
+              field.id == baseTypes[0].id
                 ? declarationRef?.focus()
-                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) - 1].id)
+                : baseTypesRefs.focus(baseTypes[baseTypes.findIndex((n) => n.id == field.id) - 1].id)
             "
             @navigate-right="
-              field.id == extendedTypes[extendedTypes.length - 1].id
+              field.id == baseTypes[baseTypes.length - 1].id
                 ? extendButtonRef?.focus()
-                : extendedTypesRefs.focus(extendedTypes[extendedTypes.findIndex((n) => n.id == field.id) + 1].id)
+                : baseTypesRefs.focus(baseTypes[baseTypes.findIndex((n) => n.id == field.id) + 1].id)
             "
             @navigate-down="focusDescriptionFromTop"
             @navigate-up="context.navigateUp"
@@ -587,12 +585,12 @@ defineExpose({
       </div>
       <!-- Inline buttons -->
       <button
-        v-if="!context.readonly.value && (extendedTypes?.length ?? 0) <= 1"
+        v-if="!context.readonly.value && (baseTypes?.length ?? 0) <= 1"
         ref="extendButtonRef"
         @keydown.down.exact.prevent="focusDescriptionFromTop"
         @keydown.up.exact.prevent="context.navigateUp"
         @keydown.left.exact.prevent="
-          extendedTypes.length > 0 ? extendedTypesRefs.focus(extendedTypes[0].id) : declarationRef?.focus()
+          baseTypes.length > 0 ? baseTypesRefs.focus(baseTypes[0].id) : declarationRef?.focus()
         "
         tabindex="-1"
         @click="() => insertField(true)"
@@ -684,8 +682,8 @@ defineExpose({
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
-              :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
-              :inlined="extendedFields.find((n) => n.key == field.key) != null"
+              :readonly="context.readonly.value || inheritedFields.find((n) => n.key == field.key) != null"
+              :inlined="inheritedFields.find((n) => n.key == field.key) != null"
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
@@ -789,8 +787,8 @@ defineExpose({
         <TypeTupleInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
-          :readonly="context.readonly.value || extendedFields.find((n) => n.key == field.key) != null"
-          :inlined="extendedFields.find((n) => n.key == field.key) != null"
+          :readonly="context.readonly.value || inheritedFields.find((n) => n.key == field.key) != null"
+          :inlined="inheritedFields.find((n) => n.key == field.key) != null"
           orientation="vertical"
           class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"

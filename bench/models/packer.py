@@ -18,7 +18,7 @@ from django.db.models import Q
 
 from bench import models
 from bench.language import StatementType, SymbolType, wire
-from bench.language.const import InterpScope, StatementModifier
+from bench.language.const import InterpScope, StatementModifier, TypeFlag, TypeHint, TypeTag
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.wire import (
     SYMBOL_DATA_CLASS_BY_TYPE,
@@ -127,9 +127,9 @@ def unpack_issue(issue: wire.IssueData, module_id: UUID):
     return models.Issue(
         id=issue.id,
         project_version_id=module_id,
-        scope=issue.scope,
-        kind=issue.kind,
-        type=issue.type.name,
+        scope=issue.scope.value,
+        kind=issue.kind.value,
+        type=issue.type.value,
         message=issue.message,
         file_id=issue.file_id,
         statement_id=issue.statement_id,
@@ -191,7 +191,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 file_id=stmt_data.file_id,
                 parent_id=stmt_data.parent_id if external_parent else None,
                 order_key=stmt_data.order_key if external_parent else ok,
-                type=stmt_data.type,
+                type=stmt_data.type.value,
                 name=stmt_data.name,
                 #  :StatementCodeTextReuse
                 code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
@@ -254,6 +254,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         models.ResolvedField.objects.bulk_create(resolved_fields)
 
     # Opensearch mutations
+    # nocheckin: implement these
 
     if mut[MMT.DELETE_RECORD]:  # batch delete since no dependent models
         # dataset_ids = [m.data.id for m in mut[MMT.DELETE_RECORD]]
@@ -301,7 +302,6 @@ def write_files(
             file.delete()
             file.id = file_data.id
         model_files[file_data.id] = file
-        file.generated = file_data.generated
         file.save()
     return model_files
 
@@ -341,25 +341,16 @@ def pack_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
 
     if statement.symbol_type == SymbolType.TYPE:
         data.symbol = wire.TypeData(
-            tag=statement.root_type_tag,
-            flags=statement.root_type_flags,
+            tag=TypeTag(statement.root_type_tag),
+            flags=TypeFlag(statement.root_type_flags or 0),
             fields=fields,
         )
     elif statement.symbol_type == SymbolType.TASK:
-        data.symbol = wire.TaskData(
-            tag=statement.root_type_tag,
-            flags=statement.root_type_flags,
-            fields=fields,
-        )
+        data.symbol = wire.TaskData(fields=fields)
     elif statement.symbol_type == SymbolType.EXPECTATION:
         data.symbol = wire.ExpectationData()
     elif statement.symbol_type == SymbolType.CODE:
-        data.symbol = wire.CodeData(
-            flags=statement.root_type_flags,
-            fields=fields,
-            lang=statement.lang,
-            code=statement.code,
-        )
+        data.symbol = wire.CodeData(fields=fields, lang=statement.lang, code=statement.code)
     elif statement.symbol_type == SymbolType.REQUIREMENT:
         data.symbol = wire.RequirementData(
             reference_module=wire.ModuleReference(id=statement.reference_project_version_id),
@@ -370,19 +361,13 @@ def pack_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
         )
     elif statement.symbol_type == SymbolType.VALUE:
         data.symbol = wire.ValueData(
-            tag=statement.root_type_tag,
-            flags=statement.root_type_flags,
+            tag=TypeTag(statement.root_type_tag),
+            flags=TypeFlag(statement.root_type_flags),
             fields=fields,
             value=statement.value,
         )
     elif statement.symbol_type == SymbolType.DATASET:
-        data.symbol = wire.DatasetData(
-            tag=statement.root_type_tag,
-            flags=statement.root_type_flags,
-            fields=fields,
-            records=None,
-            length=None,
-        )
+        data.symbol = wire.DatasetData(fields=fields, records=None, length=None)
 
 
 def unpack_symbol(
@@ -390,10 +375,10 @@ def unpack_symbol(
 ) -> list[typing.Any]:
     """Writes a wire statement's symbol into DB models."""
     relations = []
-    statement.modifier = data.modifier
+    statement.modifier = data.modifier.value if data.modifier else None
     statement.description = data.description  # every symbol has a description
     if isinstance(data.symbol, wire.HasTypeData):
-        statement.root_type_tag = data.symbol.tag
+        statement.root_type_tag = data.symbol.tag.value if data.symbol.tag else None
         statement.root_type_flags = data.symbol.flags
         if not flat:
             fields = [unpack_field(statement.id, node) for node in data.symbol.fields]
@@ -417,8 +402,8 @@ def pack_field(node: models.Field) -> wire.FieldData:
         id=node.id,
         revision=node.revision,
         name=node.name,
-        tag=node.tag,
-        hint=node.hint,
+        tag=TypeTag(node.tag),
+        hint=TypeHint(node.hint) if node.hint else None,
         statement_id=node.statement_id,
         key=node.key,
         order_key=node.order_key,
@@ -435,8 +420,8 @@ def unpack_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
         key=node.key,
         order_key=node.order_key,
         name=node.name,
-        tag=node.tag,
-        hint=node.hint,
+        tag=node.tag.value,
+        hint=node.hint.value if node.hint else None,
         description=node.description,
         flags=node.flags,
         reference_id=node.reference_id,

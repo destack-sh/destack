@@ -400,6 +400,10 @@ class LanguageWorker:
     def project_id(self) -> UUID:
         return self.project_version.project_id
 
+    @property
+    def module(self):
+        return self.interp.module
+
     def mutate(self) -> ModuleMutator:
         return ModuleMutator(self.interp.module)
 
@@ -409,7 +413,7 @@ class LanguageWorker:
 
     async def on_module_changed(self, mutator: list[ModuleMutation] | ModuleMutator):
         if not isinstance(mutator, ModuleMutator):
-            mutator = ModuleMutator(self.idx, mutator, source=self.source)
+            mutator = ModuleMutator(self.module, mutator, source=self.source)
         new_source = mutator.apply()
         await self.do_interp(new_source)
 
@@ -439,13 +443,15 @@ class LanguageWorker:
         self, new_source: wire.ModuleData, dependencies: list[InterpModule]
     ) -> dict[UUID, InterpData]:
         self.source = new_source
-        self.interp = interp_module(new_source, [m.module for m in dependencies])
+        self.interp = interp_module(new_source)
 
         # interpret
         interp_by_scope: dict[UUID, InterpData] = {}
         for symbol in self.interp.module.symbols_by_id.values():
             if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
-                resolved_fields = [wire.pack_field(symbol.id, field) for field in symbol.fields]
+                resolved_fields = [
+                    wire.pack_field(symbol.id, field) for field in symbol.resolved_fields
+                ]
             else:
                 resolved_fields = None
             interp_by_scope[symbol.id] = InterpData(
@@ -497,9 +503,7 @@ class LanguageWorker:
             await publish(
                 NMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(
-                    module_id=self.module_id,
-                    origins=(self.client,),
-                    mutations=mutations,
+                    module_id=self.module_id, origins=(self.client,), mutations=mutations
                 ),
             )
 

@@ -41,3 +41,9 @@ class Issue(UUIDModel):
     )
     type = models.CharField(max_length=64)
     message = models.CharField(max_length=512, null=True)
+
+    def __str__(self):
+        return f"{self.statement or self.file or self.project_version} {self.type} {self.message}"
+
+    def __repr__(self):
+        return f"<Issue {self}>"

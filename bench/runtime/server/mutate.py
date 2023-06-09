@@ -141,20 +141,20 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
-            descendants_datas = packer.unpack_statement_nested(thing)
+            descendants_datas = packer.pack_statement_nested(thing)
             mut = ModuleMutator(module_id=mutation.project_version_id)
             return mut.create_many(*descendants_datas).mutations
     elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
         internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
     elif mutation.type == MMT.RESTORE_FILE:
-        file_data = packer.unpack_file_nested(thing, exclude_non_semantic=False)
+        file_data = packer.pack_file_nested(thing, exclude_non_semantic=False)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create(file_data).mutations
     elif mutation.type == MMT.RESTORE_STATEMENT:
         # TODO @Robustness @Cleanup: restore statement includes the nested objects
         #  both as separate create mutations and in the StatementData
         #  this is not an error but not pretty and kind of inefficient
-        descendants_datas = packer.unpack_statement_nested(thing)
+        descendants_datas = packer.pack_statement_nested(thing)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*descendants_datas).mutations
     else:
@@ -167,7 +167,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         statement_id=mutation.statement_id,
         revision=thing.revision,
     )
-    internal_mutation.data = packer.unpack_flat(thing)
+    internal_mutation.data = packer.pack_flat(thing)
     return [internal_mutation]
 
 

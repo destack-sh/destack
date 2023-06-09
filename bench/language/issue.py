@@ -2,7 +2,7 @@ import enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import InterpScope
+from bench.language.const import InterpScope, StatementPath, statement_path_as_str
 
 if TYPE_CHECKING:
     from bench.language.type import File, Statement, Symbol
@@ -26,44 +26,35 @@ class IssueType(enum.StrEnum):
     # warnings
     AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
 
-    def __new__(cls, value):
-        obj = str.__new__(cls)
-        obj._value_ = value
-        return obj
-
     @property
     def description(self):
-        return _ISSUE_MESSAGES[self]
-
-    @property
-    def id(self) -> int:
-        return self.value[0]
+        return _ISSUE_MESSAGES[self.value]
 
 
 # separate from enum so that it's a simple StrEnum
 _ISSUE_MESSAGES = {
     # errors
-    IssueType.INTERNAL: "Internal error",
-    IssueType.MISSING_REFERENCE: "missing reference",
-    IssueType.AMBIGUOUS_REQUIREMENT: "multiple requirements for {path}",
-    IssueType.CIRCULAR_ANCESTRY: "circular ancestry via {path}",
-    IssueType.CIRCULAR_UNION: "circular union via {path}",
-    IssueType.MISMATCHED_UNION: "mismatched union at {node} vs {other}",
+    IssueType.INTERNAL.value: "Internal error",
+    IssueType.MISSING_REFERENCE.value: "missing reference {reference}",
+    IssueType.AMBIGUOUS_REQUIREMENT.value: "multiple requirements for {path}",
+    IssueType.CIRCULAR_ANCESTRY.value: "circular ancestry via {path}",
+    IssueType.CIRCULAR_UNION.value: "circular union via {path}",
+    IssueType.MISMATCHED_UNION.value: "mismatched union at {node} vs {other}",
     # warnings
-    IssueType.AMBIGUOUS_DEFINITION: "multiple definitions for {path}",
+    IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
 }
 
 _ISSUE_KIND_BY_TYPE = {
     # errors
-    IssueType.INTERNAL: IssueKind.ERROR,
-    IssueType.UNKNOWN_IMPORT_SOURCE: IssueKind.ERROR,
-    IssueType.MISSING_REFERENCE: IssueKind.ERROR,
-    IssueType.AMBIGUOUS_REQUIREMENT: IssueKind.ERROR,
-    IssueType.CIRCULAR_ANCESTRY: IssueKind.ERROR,
-    IssueType.CIRCULAR_UNION: IssueKind.ERROR,
-    IssueType.MISMATCHED_UNION: IssueKind.ERROR,
+    IssueType.INTERNAL.value: IssueKind.ERROR,
+    IssueType.UNKNOWN_IMPORT_SOURCE.value: IssueKind.ERROR,
+    IssueType.MISSING_REFERENCE.value: IssueKind.ERROR,
+    IssueType.AMBIGUOUS_REQUIREMENT.value: IssueKind.ERROR,
+    IssueType.CIRCULAR_ANCESTRY.value: IssueKind.ERROR,
+    IssueType.CIRCULAR_UNION.value: IssueKind.ERROR,
+    IssueType.MISMATCHED_UNION.value: IssueKind.ERROR,
     # warnings
-    IssueType.AMBIGUOUS_DEFINITION: IssueKind.ERROR,
+    IssueType.AMBIGUOUS_DEFINITION: IssueKind.WARNING,
 }
 
 
@@ -85,6 +76,13 @@ class Issue:
         self, type: IssueType, subject: Union["Symbol", "Statement", "File", None], **kwargs
     ):
         from bench.language.type import File, Statement, Symbol
+
+        # auto convert kwargs
+        for key, value in kwargs.items():
+            if isinstance(value, (Symbol, Statement, File)):
+                kwargs[key] = value.path
+            if isinstance(value, StatementPath):
+                kwargs[key] = statement_path_as_str(value)
 
         self.type = type
         self.subject = subject
@@ -147,6 +145,7 @@ class IssueCollector(IssueHandler):
         issue = issue or Issue(type, subject, **kwargs)
         if self.on_issue:
             self.on_issue(issue)
+        self.issues.append(issue)
 
 
 raise_if_error = IssueRaiser(kinds=[IssueKind.ERROR])

@@ -134,23 +134,26 @@ class Session:
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
 
-    def add(self, obj: "LanguageObject", new: bool) -> None:
+    def add(self, *objs: "LanguageObject", new: bool = False) -> None:
         if new:
-            # permissions are checked in tracer
-            if isinstance(obj, File):
-                self.tracer.file_create(obj)
-            elif isinstance(obj, Statement):
-                self.tracer.statement_create(obj)
-            elif isinstance(obj, Symbol):
-                self.tracer.symbol_create(obj)
-                # it feels like this should be done in some tracer?
-                self.module.symbols_by_id[obj.id] = obj
-        self.instances[obj.id] = obj
+            for obj in objs:
+                # permissions are checked in tracer
+                if isinstance(obj, File):
+                    self.tracer.file_create(obj)
+                elif isinstance(obj, Statement):
+                    self.tracer.statement_create(obj)
+                elif isinstance(obj, Symbol):
+                    self.tracer.symbol_create(obj)
+                    # it feels like this should be done in some tracer?
+                    self.module.symbols_by_id[obj.id] = obj
+        for obj in objs:
+            self.instances[obj.id] = obj
 
-    def remove(self, obj: "LanguageObject") -> None:
-        if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
-            del self.instances[obj.id]
-            # not doing anything yet?
+    def remove(self, *objs: "LanguageObject") -> None:
+        for obj in objs:
+            if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
+                del self.instances[obj.id]
+                # not doing anything yet?
 
     def check_can(self, op: ModuleOp, thing: File | Statement | Symbol):
         if not self.can(op, thing):

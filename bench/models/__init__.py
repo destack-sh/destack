@@ -1,6 +1,6 @@
 from .dataset import Dataset, OpensearchMapping
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
-from .interp import Issue, IssueKind, ResolvedField
+from .interp import InterpScope, Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
 from .organization import (
@@ -38,6 +38,7 @@ __all__ = [
     "ExecutionTriggerType",
     "Issue",
     "IssueKind",
+    "InterpScope",
     "File",
     "Notification",
     "NotificationStatus",
