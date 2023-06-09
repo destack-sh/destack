@@ -23,7 +23,6 @@ from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
 from bench.language.wire import InterpData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
-from bench.models.packer import read_packed_module, write_mutations
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -59,8 +58,9 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
+from bench.runtime.common.mutate import map_mutation_to_public
 from bench.runtime.common.type import ExecutionFrameData
-from bench.runtime.server.mutate import map_mutation_to_public
+from bench.runtime.server.mutate import read_packed_module, write_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
