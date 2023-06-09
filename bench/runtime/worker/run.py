@@ -88,7 +88,7 @@ class ModuleWorker:
     def interpreted(self) -> bool:
         return self.interp is not None
 
-    async def do_interp(self, source: wire.ModuleData):
+    async def init(self, source: wire.ModuleData):
         self.log.debug("module.init")
         self.interp = await self.interpreter.interp(source)
 
@@ -154,7 +154,7 @@ class ModuleWorker:
                 root_id=root_id,
             )
             session = Session(
-                idx=self.idx,
+                module=self.interp.module,
                 ctx=session_ctx,
                 mode=SessionMode.WRITE_GLOBAL,
                 write=self.do_write,
@@ -220,7 +220,7 @@ class ModuleWorker:
         self.log.info("module.start")
         source, self.project_id = await self.master.get_module(self.module_id)
         try:
-            await self.do_interp(source)
+            await self.init(source)
         except Exception as e:
             self.log.error("worker_init_failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")

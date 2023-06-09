@@ -20,6 +20,7 @@ from bench.language.dataset import Query, Sort
 from bench.language.issue import IssueKind
 from bench.language.type import ModuleReference
 from bench.utils.func import describe_type
+from bench.utils.serialize import from_dict, to_dict
 
 #
 # Stable, concise and flat language data structures for transit and storage.
@@ -181,7 +182,20 @@ class StatementData:
     # symbol contents
     symbol_type: Optional[SymbolType]
     description: Optional[str] = None
-    symbol: Optional[typing.Any] = None
+    _symbol: Optional[typing.Any] = None  # hack until we get proper wire formats
+
+    def __post_init__(self):
+        data_cls = SYMBOL_DATA_CLASS_BY_TYPE.get(self.symbol_type)
+        if data_cls and self._symbol:
+            self._symbol = from_dict(data_cls, self._symbol)
+
+    @property
+    def symbol(self):
+        return self._symbol
+
+    @symbol.setter
+    def symbol(self, value):
+        self._symbol = to_dict(value)
 
     def __str__(self):
         parent_str = f"{self.parent_id}:" if self.parent_id else ""
@@ -298,6 +312,7 @@ SYMBOL_DATA_CLASS_BY_TYPE = {
     SymbolType.MODEL: ModelData,
     SymbolType.REQUIREMENT: RequirementData,
     SymbolType.DATASET: DatasetData,
+    SymbolType.VALUE: ValueData,
 }
 
 
@@ -333,20 +348,18 @@ class InterpData:
         return md5(content).hexdigest()
 
 
-def rmap_module(module: language.Module, impute_type_references: bool = False) -> ModuleData:
+def pack_module(module: language.Module) -> ModuleData:
     return ModuleData(
         id=module.id,
         name=module.name,
-        files=[
-            rmap_file(file, impute_type_references=impute_type_references) for file in module.files
-        ],
+        files=[pack_file(file) for file in module.files],
     )
 
 
-def wmap_module(data: ModuleData) -> language.Module:
+def unpack_module(data: ModuleData) -> language.Module:
     """Maps module data back into a module. Restores explicit statement references without checking!"""
     module = language.Module(id=data.id, name=data.name)
-    module.files = [wmap_file(file, module) for file in data.files]
+    module.files = [unpack_file(file, module) for file in data.files]
     # replace parent references
     statements = {statement.id: statement for file in module.files for statement in file.statements}
     for file_data, file in zip(data.files, module.files):
@@ -358,32 +371,27 @@ def wmap_module(data: ModuleData) -> language.Module:
     return module
 
 
-def rmap_file(file: language.File, impute_type_references: bool = False) -> FileData:
+def pack_file(file: language.File) -> FileData:
     return FileData(
         id=file.id,
         module_id=file.module.id,
         path=file.path,
-        statements=[
-            rmap_statement(statement, impute_type_references=impute_type_references)
-            for statement in file.statements
-        ],
+        statements=[pack_statement(statement) for statement in file.statements],
         revision=1,
     )
 
 
-def wmap_file(data: FileData, module: language.Module) -> language.File:
+def unpack_file(data: FileData, module: language.Module) -> language.File:
     file = language.File(
         id=data.id,
         module=module,
         path=data.path,
     )
-    file.statements = [wmap_statement(statement, file) for statement in data.statements]
+    file.statements = [unpack_statement(statement, file) for statement in data.statements]
     return file
 
 
-def rmap_statement(
-    statement: language.Statement, impute_type_references: bool = False
-) -> StatementData:
+def pack_statement(statement: language.Statement) -> StatementData:
     """Maps a language statement to a wire statement (incl. refs)."""
     # use statement id if possible, else use statement path
     data = StatementData(
@@ -394,18 +402,17 @@ def rmap_statement(
         order_key=statement.order_key,
         parent_id=statement.parent_id,
         type=statement.type,
-        modifier=statement.modifier,
         name=statement.name,
         fqn=statement.fqn,
         text=statement.text,
         symbol_type=statement.symbol_type,
     )
     if statement.symbol is not None:
-        rmap_symbol(statement.symbol, data, impute_type_references=impute_type_references)
+        _pack_symbol(statement.symbol, data)
     return data
 
 
-def wmap_statement(data: StatementData, file: language.File) -> language.Statement:
+def unpack_statement(data: StatementData, file: language.File) -> language.Statement:
     """Maps a wire statement into the language representation"""
     statement = language.Statement(
         id=data.id,
@@ -413,32 +420,31 @@ def wmap_statement(data: StatementData, file: language.File) -> language.Stateme
         parent=None,  # must be restored later
         order_key=data.order_key,
         type=data.type,
-        modifier=data.modifier,
         name=data.name,
         text=data.text,
-        symbol_type=data.symbol_type,
     )
     if statement.type == bench.language.const.StatementType.SYMBOL:
-        statement.symbol = wmap_symbol(data)
+        base_args = dict(
+            id=data.id,
+            name=data.name,
+            modifier=data.modifier,
+            source=statement,
+            scope=statement,
+        )
+        statement.symbol = _unpack_symbol(data, base_args)
         statement.symbol.source = statement
     return statement
 
 
-def rmap_symbol(
-    symbol: language.Symbol, data: StatementData, impute_type_references: bool = False
-) -> None:
+def _pack_symbol(symbol: language.Symbol, data: StatementData) -> None:
     """Maps a language symbol's to a wire statement."""
     # type content is also a component
+    data.modifier = symbol.modifier
     if isinstance(symbol, language.TypeNode):
         data.description = symbol.description
         data.root_type_tag = symbol.tag
         data.root_type_flags = symbol.flags
-        fields = (
-            symbol.resolved_fields
-            if impute_type_references
-            else (symbol.fields or symbol.resolved_fields)
-        )
-        data.fields = [rmap_field(data.id, node, impute_type_references) for node in fields]
+        data.fields = [pack_field(data.id, node) for node in symbol.fields]
     if isinstance(symbol, language.Task):
         data.description = symbol.description
     elif isinstance(symbol, language.Expectation):
@@ -458,67 +464,70 @@ def rmap_symbol(
             )
 
 
-def wmap_symbol(data: StatementData) -> language.Symbol:
+def _unpack_symbol(data: StatementData, base_args: dict) -> language.Symbol:
     """Maps a wire statement's symbol to a language symbol."""
     if isinstance(data.symbol, TypeData):
         return language.Type(
+            **base_args,
             description=data.description,
             tag=data.symbol.tag,
-            fields=[wmap_field(node) for node in data.symbol.fields],
+            fields=[unpack_field(node) for node in data.symbol.fields],
         )
     elif isinstance(data.symbol, TaskData):
         return language.Task(
+            **base_args,
             description=data.description,
             tag=data.symbol.tag,
-            fields=[wmap_field(node) for node in data.symbol.fields],
+            fields=[unpack_field(node) for node in data.symbol.fields],
         )
     elif isinstance(data.symbol, ExpectationData):
-        return language.Expectation(description=data.description)
+        return language.Expectation(**base_args, description=data.description)
     elif isinstance(data.symbol, CodeData):
         return language.Code(
+            **base_args,
             description=data.description,
             language=data.symbol.lang,
             code=data.symbol.code,
-            fields=[wmap_field(node) for node in data.symbol.fields],
+            fields=[unpack_field(node) for node in data.symbol.fields],
         )
     elif isinstance(data.symbol, ModelData):
         return language.Model(
+            **base_args,
             external_name=data.symbol.external_name,
         )
     elif isinstance(data.symbol, DatasetData):
         return language.Dataset(
+            **base_args,
             description=data.description,
-            fields=[wmap_field(node) for node in data.symbol.fields],
-            records=[wmap_record(r) for r in data.symbol.records]
+            fields=[unpack_field(node) for node in data.symbol.fields],
+            records=[unpack_record(r) for r in data.symbol.records]
             if data.symbol.records is not None
             else None,
         )
-    elif data.symbol_type == SymbolType.BUILD:
-        return language.Build(comment=data.description)
     elif isinstance(data.symbol, RequirementData):
         if data.symbol.reference_module is not None:
             return language.Requirement(
+                **base_args,
                 module_name=data.symbol.reference_module.name,
                 version=data.symbol.reference_module.version,
                 module_id=data.symbol.reference_module.id,
             )
         else:
-            return language.Requirement()
+            return language.Requirement(**base_args)
     else:
         raise ValueError(f"unexpected symbol type {data.symbol_type} for statement {data}")
 
 
-def rmap_field(statement_id: UUID, node: language.Field, impute_type_references: bool) -> FieldData:
+def pack_field(statement_id: UUID, node: language.Field) -> FieldData:
     """Maps a field to a field data object."""
-    has_reference = isinstance(node.reference, language.Type)
     return FieldData(
         id=node.id,
         revision=1,
         name=node.name,
         key=node.key,
         statement_id=statement_id,
-        tag=node.reference.tag if has_reference and impute_type_references else node.tag,
-        hint=node.reference.hint if has_reference and impute_type_references else node.hint,
+        tag=node.tag,
+        hint=node.hint,
         description=node.description,
         flags=node.flags,
         reference_id=node.reference.id if hasattr(node.reference, "id") else node.reference,
@@ -526,7 +535,7 @@ def rmap_field(statement_id: UUID, node: language.Field, impute_type_references:
     )
 
 
-def wmap_field(node: FieldData) -> language.Field:
+def unpack_field(node: FieldData) -> language.Field:
     """Maps a field data object to a field."""
     return language.Field(
         id=node.id,
@@ -541,7 +550,7 @@ def wmap_field(node: FieldData) -> language.Field:
     )
 
 
-def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
+def pack_record(statement_id: UUID, record: language.Record) -> RecordData:
     """Maps a record to a record data object."""
     return RecordData(
         id=record._id,
@@ -552,32 +561,28 @@ def rmap_record(statement_id: UUID, record: language.Record) -> RecordData:
     )
 
 
-def wmap_record(data: RecordData) -> language.Record:
+def unpack_record(data: RecordData) -> language.Record:
     """Maps a record data object to a record."""
     return language.Record(_id=data.id, _data=data.data, _order_key=data.order_key)
 
 
-def rmap_issue(issue: language.Issue) -> IssueData:
-    if issue.statement is not None:
-        id = uuid5(issue.statement.id, issue.type.name)
-        scope = InterpScope.STATEMENT
-    elif issue.file is not None:
-        id = uuid5(issue.file.id, issue.type.name)
-        scope = InterpScope.FILE
+def pack_issue(issue: language.Issue) -> IssueData:
+    if issue.subject is not None:
+        id = uuid5(issue.subject.id, issue.type.name)
     else:
-        raise ValueError(f"cannot handle unscoped issue yet: {issue}")
+        raise NotImplementedError(f"cannot handle unscoped issue: {issue}")
     return IssueData(
         id=id,
         kind=IssueKind.ERROR,
-        scope=scope,
+        scope=issue.scope,
         type=issue.type,
-        file_id=issue.file.id if issue.file else None,
-        statement_id=issue.statement.id if issue.statement else None,
+        file_id=issue.subject.id if isinstance(issue.subject, language.File) else None,
+        statement_id=issue.subject.id if isinstance(issue.subject, language.Statement) else None,
         message=issue.message,
     )
 
 
-def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:
+def pack_remote_object(object: language.RemoteObject) -> RemoteObjectData:
     return RemoteObjectData(
         id=object.id,
         name=object.name,
@@ -587,7 +592,7 @@ def rmap_remote_object(object: language.RemoteObject) -> RemoteObjectData:
     )
 
 
-def wmap_remote_object(object: RemoteObjectData) -> language.RemoteObject:
+def unpack_remote_object(object: RemoteObjectData) -> language.RemoteObject:
     return language.RemoteObject(
         id=object.id,
         name=object.name,
@@ -597,7 +602,7 @@ def wmap_remote_object(object: RemoteObjectData) -> language.RemoteObject:
     )
 
 
-def rmap_secret(secret: language.Secret) -> SecretData:
+def pack_secret(secret: language.Secret) -> SecretData:
     return SecretData(
         id=secret.id,
         sha512=secret.sha512,
@@ -605,7 +610,7 @@ def rmap_secret(secret: language.Secret) -> SecretData:
     )
 
 
-def wmap_secret(secret: SecretData) -> language.Secret:
+def unpack_secret(secret: SecretData) -> language.Secret:
     return language.Secret(
         id=secret.id,
         sha512=secret.sha512,

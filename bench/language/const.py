@@ -46,7 +46,6 @@ class SymbolType(enum.StrEnum):
     VALUE = "value"
     DATASET = "dataset"
     REQUIREMENT = "require"
-    BUILD = "build"
     BLOCK = "block"
 
 
@@ -213,6 +212,7 @@ DYNAMIC_BUILTINS = {
     "context",
     "random",
 }
+
 LiteralValue = Union[dict[str, Any], list[Any], bool, int, float, str, None]
 PRIMITIVE_TYPES = [
     TypeTag.ANY,

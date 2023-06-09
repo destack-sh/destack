@@ -11,7 +11,7 @@ from strawberry.utils.str_converters import to_camel_case
 from bench import models
 from bench.language import StatementType, wire
 from bench.language.mutate import MMS, MMT, ModuleMutation, ModuleMutator
-from bench.models import mapper
+from bench.models import packer
 
 MutableThing = Union[
     models.File,
@@ -106,7 +106,7 @@ def map_mutation_from_public(
     )
     if type == MMT.PASTE_FILE:
         public_mutation.type = MMT.CREATE_FILE
-        statement_data = mapper.rmap_file_nested(thing, project_version_id)
+        statement_data = packer.unpack_file_nested(thing, project_version_id)
         internal = ModuleMutator(module_id=project_version_id).create(statement_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
@@ -114,7 +114,7 @@ def map_mutation_from_public(
         return internal.mutations, public_mutations
     elif type in MMT.PASTE_STATEMENT:  # remap to create children
         public_mutation.type = MMT.CREATE_STATEMENT
-        statement_data = mapper.rmap_statement(thing, file_id, project_version_id, flat=False)
+        statement_data = packer.unpack_statement(thing, file_id, project_version_id, flat=False)
         internal = ModuleMutator(module_id=project_version_id).create(statement_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
@@ -141,20 +141,20 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
-            descendants_datas = mapper.rmap_statement_nested(thing)
+            descendants_datas = packer.unpack_statement_nested(thing)
             mut = ModuleMutator(module_id=mutation.project_version_id)
             return mut.create_many(*descendants_datas).mutations
     elif mutation.type in _TRIVIAL_PUBLIC_TO_INTERNAL:
         internal_type = _TRIVIAL_PUBLIC_TO_INTERNAL.get(mutation.type)
     elif mutation.type == MMT.RESTORE_FILE:
-        file_data = mapper.rmap_file_nested(thing, exclude_non_semantic=False)
+        file_data = packer.unpack_file_nested(thing, exclude_non_semantic=False)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create(file_data).mutations
     elif mutation.type == MMT.RESTORE_STATEMENT:
         # TODO @Robustness @Cleanup: restore statement includes the nested objects
         #  both as separate create mutations and in the StatementData
         #  this is not an error but not pretty and kind of inefficient
-        descendants_datas = mapper.rmap_statement_nested(thing)
+        descendants_datas = packer.unpack_statement_nested(thing)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*descendants_datas).mutations
     else:
@@ -167,7 +167,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         statement_id=mutation.statement_id,
         revision=thing.revision,
     )
-    internal_mutation.data = mapper.rmap_flat(thing)
+    internal_mutation.data = packer.unpack_flat(thing)
     return [internal_mutation]
 
 

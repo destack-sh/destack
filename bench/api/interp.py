@@ -12,7 +12,7 @@ import bench.language.const
 from bench import language, models
 from bench.api.utils import to_global_id
 from bench.language import wire
-from bench.models import mapper
+from bench.models import packer
 
 if TYPE_CHECKING:
     from bench.api.project import File
@@ -47,13 +47,13 @@ class InterpData:
 
 def rmap_interp_data(interp_data: wire.InterpData, module_id: UUID) -> InterpData:
     issues = (
-        [mapper.wmap_issue(issue, module_id) for issue in interp_data.issues]
+        [packer.unpack_issue(issue, module_id) for issue in interp_data.issues]
         if interp_data.issues is not None
         else None
     )
     resolved_fields = (
         [
-            mapper.wmap_field(interp_data.statement_id, field)
+            packer.unpack_field(interp_data.statement_id, field)
             for field in interp_data.resolved_fields
         ]
         if interp_data.resolved_fields is not None

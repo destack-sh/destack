@@ -15,7 +15,7 @@ from bench.api.auth import check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.utils import asafe_mutation, to_uuid
 from bench.language.session import SessionTracingLevel
-from bench.models import mapper
+from bench.models import packer
 from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
@@ -133,7 +133,7 @@ class RuntimeMutation:
             "run",
             {"project_version_id": str(project_version_id), "success": success, "error": error},
         )
-        execution = mapper.rmap_execution_frame(rep.p.execution) if rep.p.execution else None
+        execution = packer.unpack_execution_frame(rep.p.execution) if rep.p.execution else None
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,

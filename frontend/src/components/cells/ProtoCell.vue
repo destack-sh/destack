@@ -19,10 +19,10 @@ const gapRef: Ref<InstanceType<typeof ProtoSymbolTypeCell> | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
 
 // symbols available for reference
-const module = useCurrentModule()
+const module = useCurrentModule();
 const availableSymbols = module.statementsLike(
   computed(() => ({
-    types: [StatementType.Definition],
+    types: [StatementType.Symbol],
     symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
     includeDependencies: true,
   }))
@@ -68,8 +68,8 @@ function deleteSymbolTypeOrModifier() {
   gapRef.value?.focus();
 }
 
-function morphToDefinition(name: string) {
-  context.morphToDefinition(context.statement.value.symbolType ?? null, name);
+function morpthToSymbol(name: string) {
+  context.morpthToSymbol(context.statement.value.symbolType ?? null, name);
 }
 
 function morphToReference(symbol: InterpStatement) {
@@ -146,7 +146,7 @@ defineExpose({
         context.statement.value.symbolType != null && context.statement.value.symbolType != SymbolType.Model
       "
       can-define-anonymous
-      @define-in-place="morphToDefinition"
+      @define-in-place="morpthToSymbol"
       @set-reference="(ref) => ref == null || morphToReference(ref)"
       @escape="context.escape"
     />

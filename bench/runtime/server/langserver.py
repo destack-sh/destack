@@ -21,9 +21,9 @@ from bench.language.inference import (
 )
 from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
 from bench.language.wire import InterpData
-from bench.models import Execution, ExecutionStatus, ProjectVersion, mapper
+from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
-from bench.models.mapper import read_module, write_mutations
+from bench.models.packer import read_packed_module, write_mutations
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -47,6 +47,7 @@ from bench.msg.messages import (
     ReqReadSecretPayload,
     ReqRegisterWorkerPayload,
     ReqRunInferencePayload,
+    ReqSearchDatasetPayload,
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
@@ -58,7 +59,7 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.common.type import DATASET_RECORDS_IN_MEMORY_LIMIT, ExecutionFrameData
+from bench.runtime.common.type import ExecutionFrameData
 from bench.runtime.server.mutate import map_mutation_to_public
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -78,24 +79,21 @@ WORKER_HEARTBEAT_TIMEOUT = 30
 class ModuleDB:
     def __init__(self, cache_committed: bool = True):
         self.cache_committed = cache_committed
-        self._cached_modules: dict[(UUID, int), tuple[wire.ModuleData, UUID]] = {}
+        self._cached_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
 
-    async def get_module(
-        self, module_id: UUID, dataset_records_limit: int
-    ) -> tuple[wire.ModuleData, UUID]:
-        cache_key = (module_id, dataset_records_limit)
-        if cache_key in self._cached_modules:
-            return self._cached_modules[cache_key]
+    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
+        if module_id in self._cached_modules:
+            return self._cached_modules[module_id]
         project_version = await ProjectVersion.objects.aget(id=module_id)
-        module = await sync_to_async(read_module)(
-            project_version, dataset_records_limit=dataset_records_limit, exclude_non_semantic=False
+        module = await sync_to_async(read_packed_module)(
+            project_version, exclude_non_semantic=False
         )
         if self.cache_committed and project_version.committed:
-            self._cached_modules[cache_key] = module, project_version.id
+            self._cached_modules[module_id] = module, project_version.id
         return module, project_version.project_id
 
-    async def fetch(self, module_id: UUID, dataset_records_limit: int) -> wire.ModuleData:
-        return (await self.get_module(module_id, dataset_records_limit))[0]
+    async def fetch(self, module_id: UUID) -> wire.ModuleData:
+        return (await self.get_module(module_id))[0]
 
 
 class LanguageServer:
@@ -120,6 +118,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
+            await handle_reply(NMessageType.REQUEST_SEARCH_DATASET, self.search_dataset),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
@@ -194,6 +193,11 @@ class LanguageServer:
         await msg.reply(RepWriteModulePayload(success=success))
 
     @message_handler
+    async def search_dataset(self, msg: NMessage[ReqSearchDatasetPayload]) -> None:
+        logger.debug("dataset.search", msg=msg)
+        raise NotImplementedError  # nocheckin: datasets
+
+    @message_handler
     async def read_object(self, msg: NMessage[ReqReadObjectPayload]) -> None:
         logger.debug("object.read", msg=msg)
         # TODO @Security: check if msg origin has read access to object
@@ -219,7 +223,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has read access to secret
         secrets = []
         async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = wire.rmap_secret(secret)
+            secret_data = wire.pack_secret(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepReadSecretPayload(secrets=secrets))
@@ -239,7 +243,7 @@ class LanguageServer:
         endpoint = getattr(inference, modality.value)
         try:
             settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
-            xblocks = [build.wmap_xblock(xblock) for xblock in msg.p.blocks]
+            xblocks = [build.unpack_xblock(xblock) for xblock in msg.p.blocks]
             cache_key = get_inference_cache_key(msg.p.model_fqn, modality, xblocks, settings)
             output = await asyncio.wait_for(
                 asyncio.shield(run_inference(endpoint, xblocks, settings, cache_key, log)),
@@ -284,7 +288,7 @@ class LanguageServer:
         await publish(
             NMessageType.EXECUTION_SAVED,
             ExecutionSavedPayload(
-                module_id=msg.p.module_id, frames=[mapper.wmap_execution_frame(execution)]
+                module_id=msg.p.module_id, frames=[packer.pack_execution_frame(execution)]
             ),
         )
 
@@ -431,17 +435,18 @@ class LanguageWorker:
             ),
         )
 
-    def _do_interp_sync(self, new_source: wire.ModuleData, dependencies) -> dict[UUID, InterpData]:
+    def _do_interp_sync(
+        self, new_source: wire.ModuleData, dependencies: list[InterpModule]
+    ) -> dict[UUID, InterpData]:
         self.source = new_source
         self.interp = interp_module(new_source, [m.module for m in dependencies])
 
-        # get new interp data
+        # interpret
         interp_by_scope: dict[UUID, InterpData] = {}
-        for symbol in self.interp.module.symbols.values():
-            # only include resolved fields if they are actually different
+        for symbol in self.interp.module.symbols_by_id.values():
             if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
                 resolved_fields = [
-                    wire.rmap_field(symbol.id, field, impute_type_references=True)
+                    wire.pack_field(symbol.id, field, impute_type_references=True)
                     for field in symbol.fields
                 ]
             else:
@@ -453,16 +458,15 @@ class LanguageWorker:
                 issues=None,
                 resolved_fields=resolved_fields,
             )
-        for error in self.interp.errors:
-            if error.statement is not None:
-                interp = interp_by_scope[error.statement.id]
-            elif error.file is not None:
-                interp = interp_by_scope[error.file.id]
+        # add issues to interp scope
+        for issue in self.interp.issues:
+            if issue.subject is not None and issue.subject.id in interp_by_scope:
+                interp = interp_by_scope[issue.subject.id]
             else:
                 continue  # not sure what to do here
             if interp.issues is None:
                 interp.issues = []
-            interp.issues.append(wire.rmap_issue(error))
+            interp.issues.append(wire.pack_issue(issue))
         return interp_by_scope
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
@@ -503,7 +507,7 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source = await self.fetcher(self.module_id, DATASET_RECORDS_IN_MEMORY_LIMIT)
+        source = await self.fetcher(self.module_id)
         await self.do_interp(source)
         self.ready.set()
 
@@ -515,7 +519,7 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
         if frame.id in seen_ids:
             continue
         seen_ids.add(frame.id)
-        execution = mapper.rmap_execution_frame(frame)
+        execution = packer.unpack_execution_frame(frame)
         model_executions.append(execution)
 
     try:

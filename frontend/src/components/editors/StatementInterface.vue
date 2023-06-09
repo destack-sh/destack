@@ -476,7 +476,7 @@ defineExpose({
       </div>
       <!-- Gutter indicators on the right margin -->
       <div
-        v-if="statement.type == StatementType.Definition || statement.type == StatementType.Reference"
+        v-if="statement.type == StatementType.Symbol || statement.type == StatementType.Reference"
         class="absolute left-full top-[6px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,

@@ -7,6 +7,7 @@ from typing import Any
 import pytz
 import structlog
 
+from bench.language.dataset import Query, Sort
 from bench.language.mutate import ModuleMutator
 from bench.language.typer import check_type
 from bench.msg.core import publish_soon
@@ -16,10 +17,19 @@ from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
 if typing.TYPE_CHECKING:
-    from bench.language.session import Session
+    from bench.language import (
+        Code,
+        Dataset,
+        Field,
+        HasType,
+        Model,
+        Record,
+        Task,
+        Value,
+    )
     from bench.language.build import XBlock
     from bench.language.inference import Inference
-    from bench.language import Code, Task, Model, Dataset, Value, Record
+    from bench.language.session import Session
 
     Runnable = Code | Task
 
@@ -30,6 +40,31 @@ class Tracer:
     """
     Trace and track a session with executions, mutations, etc.
     """
+
+    # symbols
+
+    def field_add(self, symbol: HasType, field: Field):
+        pass
+
+    def dataset_clear(self, table: Dataset):
+        pass
+
+    def dataset_append(self, table: Dataset, record: Record):
+        pass
+
+    def dataset_extend(self, table: Dataset, records: list[Record]):
+        pass
+
+    def dataset_remove(self, table: Dataset, record: Record):
+        pass
+
+    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+        pass
+
+    def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
+        pass
+
+    # execution
 
     def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
         pass
@@ -59,23 +94,6 @@ class Tracer:
     ):
         pass
 
-    def dataset_clear(self, table: Dataset):
-        pass
-
-    def dataset_append(self, table: Dataset, record: Record):
-        pass
-
-    def dataset_extend(self, table: Dataset, records: list[Record]):
-        pass
-
-    def dataset_remove(self, table: Dataset, record: Record):
-        pass
-
-    def dataset_update(
-        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
-    ):
-        pass
-
 
 class SessionTracer(Tracer):
     """ """
@@ -94,11 +112,31 @@ class SessionTracer(Tracer):
             session=session,
             publish=publish and session.ctx.tracing_level & SessionTracingLevel.EXECUTION,
         )
-        self.tracers: list[Tracer] = [self.execution, PermissionTracer(session)]
+        self.tracers: list[Tracer] = [self.execution, PermissionCheckingTracer(session)]
         if mutator:
             self.tracers.append(MutationTracer(mutator))
         if validate:  # validation tracer must be last
-            self.tracers.append(ValidationTracer())
+            self.tracers.append(TypeCheckingTracer())
+
+    def dataset_clear(self, table: Dataset):
+        for tracer in self.tracers:
+            tracer.dataset_clear(table)
+
+    def dataset_append(self, table: Dataset, record: Record):
+        for tracer in self.tracers:
+            tracer.dataset_append(table, record)
+
+    def dataset_extend(self, table: Dataset, records: list[Record]):
+        for tracer in self.tracers:
+            tracer.dataset_extend(table, records)
+
+    def dataset_remove(self, table: Dataset, record: Record):
+        for tracer in self.tracers:
+            tracer.dataset_remove(table, record)
+
+    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+        for tracer in self.tracers:
+            tracer.dataset_update(dataset, record, key)
 
     def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
         for tracer in self.tracers:
@@ -143,28 +181,6 @@ class SessionTracer(Tracer):
     ):
         for tracer in self.tracers:
             tracer.inference_cached(model, blocks, settings, inference)
-
-    def dataset_clear(self, table: Dataset):
-        for tracer in self.tracers:
-            tracer.dataset_clear(table)
-
-    def dataset_append(self, table: Dataset, record: Record):
-        for tracer in self.tracers:
-            tracer.dataset_append(table, record)
-
-    def dataset_extend(self, table: Dataset, records: list[Record]):
-        for tracer in self.tracers:
-            tracer.dataset_extend(table, records)
-
-    def dataset_remove(self, table: Dataset, record: Record):
-        for tracer in self.tracers:
-            tracer.dataset_remove(table, record)
-
-    def dataset_update(
-        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
-    ):
-        for tracer in self.tracers:
-            tracer.dataset_update(dataset, record, key)
 
 
 class ExecutionTracer(Tracer):
@@ -347,7 +363,7 @@ class MutationTracer(Tracer):
         self.mutator.update(record.id, record._to_wire(include_data=True))
 
 
-class ValidationTracer(Tracer):
+class TypeCheckingTracer(Tracer):
     """Validates types (except in inference, which is always checked in the task implementation)."""
 
     def code_enter(self, code: Runnable, args, kwargs):
@@ -372,7 +388,7 @@ class ValidationTracer(Tracer):
             check_type(record._data, dataset.type, ignore_array=True)
 
 
-class PermissionTracer(Tracer):
+class PermissionCheckingTracer(Tracer):
     """Validates permissions to access or modify resources in the session."""
 
     def __init__(self, session: Session):

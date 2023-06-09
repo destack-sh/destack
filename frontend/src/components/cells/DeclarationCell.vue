@@ -28,7 +28,7 @@ const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
 const module = useCurrentModule();
 const availableSymbols = module.statementsLike({
-  types: [StatementType.Definition],
+  types: [StatementType.Symbol],
   symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
   includeDependencies: true,
 });
@@ -85,7 +85,7 @@ defineExpose({
     <SymbolTypeCell />
     <!-- Name or ref -->
     <EditableSpan
-      v-if="context.statement.value.type == StatementType.Definition"
+      v-if="context.statement.value.type == StatementType.Symbol"
       ref="nameRef"
       class="mx-0.5"
       v-model="name"
@@ -115,7 +115,7 @@ defineExpose({
     />
     <button
       tabindex="-1"
-      v-if="!hasName && context.statement.value.type == StatementType.Definition"
+      v-if="!hasName && context.statement.value.type == StatementType.Symbol"
       @click="nameRef?.focus()"
       class="-ml-1 w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >

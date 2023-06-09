@@ -16,12 +16,10 @@ import pytz
 from django.db import transaction
 from django.db.models import Q
 
-from bench import language, models
+from bench import models
 from bench.language import StatementType, SymbolType, wire
-from bench.language.const import InterpScope, LookupBy
-from bench.language.interp import index_module
+from bench.language.const import InterpScope
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
-from bench.language.type import StatementPath
 from bench.language.wire import (
     SYMBOL_DATA_CLASS_BY_TYPE,
     FieldData,
@@ -29,131 +27,43 @@ from bench.language.wire import (
     InterpData,
     StatementData,
 )
-from bench.models.project import Project, ProjectVersion
+from bench.models.project import ProjectVersion
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData
 from bench.utils.fractional import generate_n_keys_between
 
 
-def lookup_in_db_module(
-    requirement: language.Requirement, path: StatementPath, by: LookupBy
-) -> language.Scope:
-    """
-    Lookup a module in the DB.
-    This actually loads and is slow, but we don't care because it's only for testing.
-    """
-    version = lookup_module(requirement.module_name, requirement.version)
-    if version is None:
-        raise ValueError(f"could not find module {requirement}")
-
-    wire_module: wire.ModuleData = read_module(version)
-    module = wire.wmap_module(wire_module)
-    idx = index_module(module)
-    return idx.get_scope(path, by=by)
-
-
-def lookup_module(name: str, version: str) -> typing.Optional[ProjectVersion]:
-    # requirement names are organization.library
-    owner_slug, library_slug = name.split(".")
-    try:
-        library = Project.objects.get_by_slug(owner_slug, library_slug)
-    except Project.DoesNotExist:
-        return None
-    if version == "latest":
-        return library.head_
-    else:
-        return ProjectVersion.objects.filter(project=library, name=version).first()
-
-
-IMPLICIT_FILE_ID = uuid5(UUID("53400ed5-ccd5-4bcf-899d-c93c3e8a0d15"), "implicit_file")
-
-
-# ensure stable ids for implicit requirements
-def _add_implicit_requirements(wire_module: wire.ModuleData) -> None:
-    """Stupid way of implicitly requiring some core libraries :ManageRequirements"""
-    default_libs = ("symbolx.std", "openai.std", "anthropic.std")
-    if wire_module.name in default_libs:
-        return  # only add to user modules
-    implicit_file = wire.FileData(
-        id=IMPLICIT_FILE_ID,
-        module_id=wire_module.id,
-        path="__implicit__",
-        statements=[],
-        revision=1,
-    )
-    order_keys = generate_n_keys_between(None, None, len(default_libs))
-    for module, ok in zip(default_libs, order_keys):
-        version = "latest"
-        reference_module = wire.ModuleReference(
-            name=module,
-            version=version,
-            id=lookup_module(module, version).id,
-        )
-        implicit_statement = wire.StatementData(
-            id=uuid5(IMPLICIT_FILE_ID, module),
-            name=module,
-            fqn=None,
-            type=StatementType.SYMBOL,
-            symbol_type=SymbolType.REQUIREMENT,
-            reference_module=reference_module,
-            parent_id=None,
-            file_id=implicit_file.id,
-            module_id=wire_module.id,
-            order_key=ok,
-            revision=1,
-            modifier=None,
-            text=None,
-            reference=None,
-        )
-        implicit_file.statements.append(implicit_statement)
-    wire_module.files.append(implicit_file)
-
-
-def read_module(
-    project_v: ProjectVersion,
-    dataset_records_limit: int,
-    exclude_non_semantic: bool = False,
-    add_implicit_requirements: bool = True,
+def read_packed_module(
+    project_v: ProjectVersion, exclude_non_semantic: bool = False
 ) -> wire.ModuleData:
     """Reads the DB module."""
     wire_module = wire.ModuleData(
         id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
     )
     wire_files: dict[UUID, wire.FileData] = {}
-    wire_statements: dict[UUID, wire.StatementData] = {}
 
     # map files
     for file in project_v.files.filter(deleted_at=None).all():
-        wire_file = rmap_file_flat(file, module_id=wire_module.id)
+        wire_file = pack_file_flat(file, module_id=wire_module.id)
         wire_files[file.id] = wire_file
         wire_module.files.append(wire_file)
 
     # map statements
-    statements = (
-        project_v.statements.filter(deleted_at=None, commented=False)
-        .select_related("reference")
-        .prefetch_related("fields")
+    statements = project_v.statements.filter(deleted_at=None, commented=False).prefetch_related(
+        "fields"
     )
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
 
     for statement in statements:
-        wire_statement = rmap_statement(
+        wire_statement = pack_statement(
             statement, file_id=statement.file_id, module_id=wire_module.id
         )
-        wire_statements[statement.id] = wire_statement
         wire_files[statement.file_id].statements.append(wire_statement)
-
-    if add_implicit_requirements:
-        # Implicitly require all current libraries at their latest version because
-        # we can't edit, pin and upgrade requirements in the UX yet and only have our own libraries.
-        # TODO @Cleanup: let users configure their own set of Bench library requirements :ManageRequirements
-        #  (std should be a global default, but we want that version pinned too (?))
-        _add_implicit_requirements(wire_module)
 
     return wire_module
 
 
-def rmap_file_nested(file: models.File, exclude_non_semantic: bool = False) -> FileData:
+def pack_file_nested(file: models.File, exclude_non_semantic: bool = False) -> FileData:
     """Reads a file and its statements (and their contents)."""
     statements = (
         file.statements.filter(deleted_at=None, commented=False)
@@ -163,38 +73,38 @@ def rmap_file_nested(file: models.File, exclude_non_semantic: bool = False) -> F
     if exclude_non_semantic:
         statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
 
-    wire_file = rmap_file_flat(file, module_id=file.project_version_id)
+    wire_file = pack_file_flat(file, module_id=file.project_version_id)
     wire_file.statements = [
-        rmap_statement(s, file_id=file.id, module_id=file.project_version_id) for s in statements
+        pack_statement(s, file_id=file.id, module_id=file.project_version_id) for s in statements
     ]
     return wire_file
 
 
-def rmap_statement_nested(statement: models.Statement) -> list[StatementData]:
+def pack_statement_nested(statement: models.Statement) -> list[StatementData]:
     """Reads a statement and all its children."""
     wire_statements = [
-        rmap_statement(s, file_id=statement.file_id, module_id=statement.project_version_id)
+        pack_statement(s, file_id=statement.file_id, module_id=statement.project_version_id)
         for s in statement.descendants
     ]
     return wire_statements
 
 
 # (all module contents are used for tracking changes)
-def rmap_flat(
+def pack_flat(
     obj: models.File | models.Statement | models.Field,
 ) -> wire.FileData | wire.StatementData | wire.FieldData:
     """Read a DB object into a wire object without any children."""
     if isinstance(obj, models.File):
-        return rmap_file_flat(obj, module_id=obj.project_version_id)
+        return pack_file_flat(obj, module_id=obj.project_version_id)
     elif isinstance(obj, models.Statement):
-        return rmap_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
+        return pack_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
     elif isinstance(obj, models.Field):
-        return rmap_field(obj)
+        return pack_field(obj)
     else:
         raise ValueError(f"unexpected obj: {obj}")
 
 
-def rmap_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
+def pack_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
     return wire.FileData(
         id=file.id,
         module_id=module_id,
@@ -204,7 +114,7 @@ def rmap_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
     )
 
 
-def wmap_resolved_field(statement_id: UUID, field: FieldData, module_id: UUID):
+def unpack_resolved_field(statement_id: UUID, field: FieldData, module_id: UUID):
     return models.ResolvedField(
         id=uuid5(statement_id, str(field.id)),
         project_version_id=module_id,
@@ -213,7 +123,7 @@ def wmap_resolved_field(statement_id: UUID, field: FieldData, module_id: UUID):
     )
 
 
-def wmap_issue(issue: wire.IssueData, module_id: UUID):
+def unpack_issue(issue: wire.IssueData, module_id: UUID):
     return models.Issue(
         id=issue.id,
         project_version_id=module_id,
@@ -263,7 +173,6 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 # delete old file
                 file.delete()
                 file.id = file_data.id
-            file.generated = file_data.generated
             file.save()
     model_contents_relations: list[typing.Any] = []
     if mut[MMT.CREATE_STATEMENT]:
@@ -283,7 +192,6 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 parent_id=stmt_data.parent_id if external_parent else None,
                 order_key=stmt_data.order_key if external_parent else ok,
                 type=stmt_data.type,
-                modifier=stmt_data.modifier,
                 name=stmt_data.name,
                 #  :StatementCodeTextReuse
                 code=stmt_data.text if stmt_data.type == StatementType.COMMENT else None,
@@ -291,7 +199,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
             )
             model_statements[stmt_data.id] = model_statement
             if stmt_data.type == StatementType.SYMBOL:
-                new_relations = wmap_symbol(model_statement, stmt_data, flat=True)
+                new_relations = unpack_symbol(model_statement, stmt_data, flat=True)
                 model_contents_relations.extend(new_relations)
         # create statements
         models.Statement.objects.bulk_create(model_statements.values())
@@ -306,7 +214,9 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 dirty_statements.append(model_statement)
         models.Statement.objects.bulk_update(dirty_statements, ["order_key", "parent"])
     for m in mut[MMT.CREATE_FIELD]:
-        model_contents_relations.append(wmap_field(m.statement_id, typing.cast(FieldData, m.data)))
+        model_contents_relations.append(
+            unpack_field(m.statement_id, typing.cast(FieldData, m.data))
+        )
     # create content relations
     for relation_cls, relations in groupby(model_contents_relations, key=type):
         relation_cls.objects.bulk_create(relations)
@@ -333,10 +243,12 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         for m in mut[MMT.UPDATE_INTERP]:
             interp_data = typing.cast(InterpData, m.data)
             for issue_data in interp_data.issues or []:
-                issues.append(wmap_issue(issue_data, project_v.id))
+                issues.append(unpack_issue(issue_data, project_v.id))
             for resolved_field_data in interp_data.resolved_fields or []:
                 resolved_fields.append(
-                    wmap_resolved_field(interp_data.statement_id, resolved_field_data, project_v.id)
+                    unpack_resolved_field(
+                        interp_data.statement_id, resolved_field_data, project_v.id
+                    )
                 )
         models.Issue.objects.bulk_create(issues)
         models.ResolvedField.objects.bulk_create(resolved_fields)
@@ -353,11 +265,11 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         raise NotImplementedError
     for m in mut[MMT.CREATE_RECORD]:
         # model_contents_relations.append(
-        #     wmap_record(m.statement_id, typing.cast(RecordData, m.data))
+        #     unpack_record(m.statement_id, typing.cast(RecordData, m.data))
         # )
         raise NotImplementedError
     if mut[MMT.UPDATE_RECORD]:
-        # records = [wmap_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
+        # records = [unpack_record(m.statement_id, m.data) for m in mut[MMT.UPDATE_RECORD]]
         # models.Record.objects.bulk_update(records, ["order_key", "revision", "data"])
         raise NotImplementedError
 
@@ -394,25 +306,7 @@ def write_files(
     return model_files
 
 
-def rmap_reference(
-    statement: models.Statement, reference: models.Statement | None
-) -> UUID | StatementPath | None:
-    if reference is None:
-        return None
-    if reference.project_version_id == statement.project_version_id:
-        # if we're staying within the same module, keep the reference id
-        # this is more efficient as we avoid lookups here and join in-memory in wire.wmap_module
-        # ultimately we revert to a StatementPath in to check for bad refs
-        return reference.id
-    else:
-        # :StatementReferencePath
-        # create statement path as import path
-        module_name = reference.project_version.project.path
-        import_source = f"{module_name}.{reference.file.path}"
-        return StatementPath(import_source, reference.name)
-
-
-def rmap_statement(
+def pack_statement(
     statement: models.Statement, file_id: UUID, module_id: UUID, flat: bool = False
 ) -> wire.StatementData:
     """Reads a database statement into a wire statement."""
@@ -425,30 +319,25 @@ def rmap_statement(
         parent_id=statement.parent_id,
         order_key=statement.order_key,
         type=statement.type,
-        modifier=statement.modifier,
-        root_type_tag=statement.root_type_tag,
-        root_type_flags=statement.root_type_flags,
         name=statement.name,
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=statement.symbol_type,
-        reference_module=None,
+        modifier=statement.modifier,
     )
     if statement.type == StatementType.SYMBOL:
-        rmap_symbol(statement, data, flat=flat)
+        pack_symbol(statement, data, flat=flat)
     return data
 
 
-def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: bool) -> None:
+def pack_symbol(statement: models.Statement, data: wire.StatementData, flat: bool) -> None:
     """Reads a database statement's symbol into a wire statement."""
     data.description = statement.description
 
     data_cls = SYMBOL_DATA_CLASS_BY_TYPE[statement.symbol_type]
-    if issubclass(data_cls, wire.HasTypeData):
-        if not flat:
-            fields = [wmap_field(statement.id, node) for node in data.symbol.fields]
-        else:
-            fields = None
+    fields = None
+    if issubclass(data_cls, wire.HasTypeData) and not flat:
+        fields = [pack_field(node) for node in statement.fields.filter(deleted_at=None)]
 
     if statement.symbol_type == SymbolType.TYPE:
         data.symbol = wire.TypeData(
@@ -466,7 +355,6 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
         data.symbol = wire.ExpectationData()
     elif statement.symbol_type == SymbolType.CODE:
         data.symbol = wire.CodeData(
-            tag=statement.root_type_tag,
             flags=statement.root_type_flags,
             fields=fields,
             lang=statement.lang,
@@ -497,17 +385,18 @@ def rmap_symbol(statement: models.Statement, data: wire.StatementData, flat: boo
         )
 
 
-def wmap_symbol(
+def unpack_symbol(
     statement: models.Statement, data: wire.StatementData, flat: bool
 ) -> list[typing.Any]:
     """Writes a wire statement's symbol into DB models."""
     relations = []
+    statement.modifier = data.modifier
     statement.description = data.description  # every symbol has a description
     if isinstance(data.symbol, wire.HasTypeData):
         statement.root_type_tag = data.symbol.tag
         statement.root_type_flags = data.symbol.flags
         if not flat:
-            fields = [wmap_field(statement.id, node) for node in data.symbol.fields]
+            fields = [unpack_field(statement.id, node) for node in data.symbol.fields]
             relations.extend(fields)
     if isinstance(data.symbol, wire.CodeData):
         statement.lang = data.symbol.lang
@@ -523,7 +412,7 @@ def wmap_symbol(
     return relations
 
 
-def rmap_field(node: models.Field) -> wire.FieldData:
+def pack_field(node: models.Field) -> wire.FieldData:
     return wire.FieldData(
         id=node.id,
         revision=node.revision,
@@ -539,7 +428,7 @@ def rmap_field(node: models.Field) -> wire.FieldData:
     )
 
 
-def wmap_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
+def unpack_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
     return models.Field(
         id=node.id,
         statement_id=statement_id,
@@ -554,7 +443,7 @@ def wmap_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
     )
 
 
-def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
+def pack_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     if frame.error:
         status = models.ExecutionStatus.Failed
     elif frame.exited_at:
@@ -594,7 +483,7 @@ def rmap_execution_frame(frame: ExecutionFrameData) -> models.Execution:
     )
 
 
-def wmap_execution_frame(frame: models.Execution) -> ExecutionFrameData:
+def unpack_execution_frame(frame: models.Execution) -> ExecutionFrameData:
     return ExecutionFrameData(
         id=frame.id,
         project_id=frame.project_id,

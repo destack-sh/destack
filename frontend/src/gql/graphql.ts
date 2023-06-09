@@ -112,15 +112,15 @@ export type Client = Node & {
   closedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
-  field?: Maybe<Field>;
-  file?: Maybe<File>;
+  fieldId?: Maybe<Scalars["GlobalID"]>;
+  fileId?: Maybe<Scalars["GlobalID"]>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
   path?: Maybe<Scalars["String"]>;
   present: Scalars["Boolean"];
   project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
-  statement?: Maybe<Statement>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
   type: ClientType;
   updatedAt: Scalars["DateTime"];
   user: User;
@@ -583,7 +583,6 @@ export type Mutation = {
   updateStatementDescription: StatementOperationInfo;
   updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
-  updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
@@ -871,10 +870,6 @@ export type MutationUpdateStatementLanguageArgs = {
 
 export type MutationUpdateStatementModifierArgs = {
   input: StatementSetModifierInput;
-};
-
-export type MutationUpdateStatementReferenceArgs = {
-  input: StatementSetReferenceInput;
 };
 
 export type MutationUpdateStatementTextArgs = {
@@ -1854,7 +1849,6 @@ export type StatementCreateInput = {
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
@@ -1907,12 +1901,6 @@ export type StatementRestoreInput = {
 export type StatementSetModifierInput = {
   id: Scalars["GlobalID"];
   modifier?: InputMaybe<StatementModifier>;
-};
-
-export type StatementSetReferenceInput = {
-  id: Scalars["GlobalID"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
-  referenceName?: InputMaybe<Scalars["String"]>;
 };
 
 export type StatementSoftDeleteInput = {
@@ -1974,7 +1962,6 @@ export type SubscriptionProjectChangedArgs = {
 /** The type of symbol content. */
 export enum SymbolType {
   Block = "BLOCK",
-  Build = "BUILD",
   Code = "CODE",
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
@@ -2835,14 +2822,14 @@ export type ClientContentTypeFragment = {
   type: ClientType;
   deviceName?: string | null;
   browserName?: string | null;
+  fileId?: any | null;
+  statementId?: any | null;
   lastSeenAt?: any | null;
   closedAt?: any | null;
   active: boolean;
   present: boolean;
   user: { __typename?: "User"; id: any; name: string; username: string; email: string };
   project?: { __typename?: "Project"; id: any; name: string } | null;
-  file?: { __typename?: "File"; id: any; name: string } | null;
-  statement?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "ClientContentTypeFragment" };
 
 export type ConnectedClientsQueryVariables = Exact<{
@@ -3710,7 +3697,6 @@ export type CreateStatementMutationVariables = Exact<{
   rootTypeTag?: InputMaybe<TypeTag>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   commented?: InputMaybe<Scalars["Boolean"]>;
-  generated?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type CreateStatementMutation = {
@@ -4478,28 +4464,8 @@ export const ClientContentTypeFragmentDoc = {
               ],
             },
           },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "file" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "fileId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
           { kind: "Field", name: { kind: "Name", value: "lastSeenAt" } },
           { kind: "Field", name: { kind: "Name", value: "closedAt" } },
           { kind: "Field", name: { kind: "Name", value: "active" } },
@@ -10070,11 +10036,6 @@ export const CreateStatementDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "commented" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "generated" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
       ],

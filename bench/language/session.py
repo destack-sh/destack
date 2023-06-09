@@ -20,17 +20,19 @@ from bench.language.const import (
     RemoteObjectStatus,
     TypeFlag,
 )
+from bench.language.dataset import Query, Sort
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.tracing import SessionTracer
 from bench.language.type import (
-    Build,
     Code,
     CodeTransformation,
+    Dataset,
     File,
     LanguageObject,
     Model,
     Module,
     RemoteObject,
+    Scope,
     Secret,
     Statement,
     Symbol,
@@ -52,7 +54,7 @@ from bench.msg.messages import (
 from bench.utils.utils import to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language.build import XPrompt
+    from bench.language.build import Build, XPrompt
     from bench.language.inference import ModelInference
 
 logger = structlog.get_logger(__name__)
@@ -93,7 +95,7 @@ class SessionAccess:
         self._cached_implementations: dict[tuple[UUID, UUID], "XPrompt"] = {}
 
     def get_implementations(
-        self, task: "Task", build: Build | str = None, model: Model | str = None
+        self, task: "Task", build: str = None, model: Model | str = None
     ) -> list["XPrompt"]:
         """Gets or builds an implementation for a task."""
         from bench.language.build import build_task_implementation
@@ -104,8 +106,7 @@ class SessionAccess:
                 model = self.session.idx.symbol(model, symbol_t=Model)
             models = [model]
         else:
-            if isinstance(build, str):
-                build = self.session.builds[build]
+            build = self.session.builds[build]
             models = build.models
 
         implementations = []
@@ -130,12 +131,15 @@ class SessionAccess:
         """Instantiates the python type of a Type symbol"""
         return instantiate_py_type(type, self.session)
 
+    async def dataset_asearch(self, dataset: Dataset, query: Query, sort: list[Sort]):
+        raise NotImplementedError
+
     async def remote_object_aread(self, obj: RemoteObject, timeout: int):
         """Reads a remote object in full."""
         # get GET url to access file
         rep: NMessage[RepReadObjectPayload] = await request(
             NMessageType.REQUEST_READ_OBJECT,
-            ReqReadObjectPayload(objects=[wire.rmap_remote_object(obj)]),
+            ReqReadObjectPayload(objects=[wire.pack_remote_object(obj)]),
             reply_t=RepReadObjectPayload,
             timeout=timeout,
         )
@@ -153,7 +157,7 @@ class SessionAccess:
         """Reads a remote secret."""
         rep: NMessage[RepReadSecretPayload] = await request(
             NMessageType.REQUEST_READ_SECRET,
-            ReqReadSecretPayload(secrets=[wire.rmap_secret(secret)]),
+            ReqReadSecretPayload(secrets=[wire.pack_secret(secret)]),
             reply_t=RepReadSecretPayload,
             timeout=timeout,
         )
@@ -168,7 +172,7 @@ class Session:
         module: Module | None = None,
         ctx: SessionContext | None = None,
         instances: list["LanguageObject"] = None,
-        builds: dict[str, Build] = None,
+        builds: dict[str, "Build"] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
         inference_retries: int = 5,
@@ -181,21 +185,22 @@ class Session:
         self.id = uuid4()
         self.ctx = ctx
         self.module = module or Module(name="<anonymous>", id=self.id)
-        self.builds: dict[str, Build] = builds or {}
-        self.mutator = ModuleMutator(self.module)
         self.instances: dict[UUID, "LanguageObject"] = (
             {i.id: i for i in instances} if instances else {}
         )
-        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
+        self.builds: dict[str, Build] = builds or {}
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.mode = mode
         self.write = write
+
+        self.anonymous_scope = Scope(parent_scope=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
+        self.mutator = ModuleMutator(self.module)
+        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.instance = SessionAccess(self)
-
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
 
@@ -214,13 +219,14 @@ class Session:
 
     def add(self, obj: "LanguageObject", new: bool) -> None:
         if new and isinstance(obj, Symbol) and obj.id not in self.module.symbols_by_id:
-            self.module.add_symbol(obj)
+            # auto index
+            self.module.symbols_by_id[obj.id] = obj
         self.instances[obj.id] = obj
 
     def remove(self, obj: "LanguageObject") -> None:
         if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
             del self.instances[obj.id]
-            # TODO @Feature @Robustness: track delete / remove relevant mutations (if open)
+            # not doing anything yet
 
     def check_can_write(self, symbol: Symbol):
         if not self.can_write(symbol):
@@ -526,17 +532,17 @@ def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
 
 def _instantiate_code(code: Code, session: Session) -> Callable[..., Any]:
     """Instantiates code into a Python callable in the context of the session."""
-    context = {**code.context}
+    context = {**code.references}
     if not code.parse.is_async:
         # replace any async functions with sync versions
-        for key, symbol in code.context.items():
+        for key, symbol in context.items():
             if isinstance(symbol, (Code, Task)) and symbol.is_async:
                 context[key] = symbol.to_sync()
 
     dynamic_context = {
         "session": session,
         "context": {symbol.name: symbol for symbol in context.values()},  # by name
-        **code.context,  # inlined
+        **context,  # inlined
         "random": Random(code.id.hex.encode()),
     }
 

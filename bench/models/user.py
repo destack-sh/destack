@@ -196,7 +196,7 @@ class Client(UUIDModel):
     objects = ClientManager()
 
 
-def rmap_client(client: Client) -> ClientData:
+def pack_client(client: Client) -> ClientData:
     return ClientData(
         id=client.id,
         created_at=client.created_at,
@@ -216,7 +216,7 @@ def rmap_client(client: Client) -> ClientData:
     )
 
 
-def wmap_client(client_data: ClientData) -> Client:
+def unpack_client(client_data: ClientData) -> Client:
     return Client(
         id=client_data.id,
         created_at=client_data.created_at,

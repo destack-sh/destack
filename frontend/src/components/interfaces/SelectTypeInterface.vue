@@ -52,7 +52,7 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
 });
 
 const availableSymbols = module.statementsLike({
-  types: [StatementType.Definition],
+  types: [StatementType.Symbol],
   symbolTypes: [SymbolType.Type],
 });
 const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {

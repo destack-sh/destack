@@ -9,7 +9,18 @@ from bench.language.const import TypeFlag
 from bench.language.issue import IssueType, LanguageError
 from bench.language.parse import parse_code
 from bench.language.session import Session, SessionContext, SessionTracingLevel
-from bench.language.type import Field, StatementPath, Type
+from bench.language.type import (
+    Code,
+    Dataset,
+    Field,
+    File,
+    Module,
+    Scope,
+    Statement,
+    StatementPath,
+    Type,
+)
+from bench.utils.fractional import INTEGER_ZERO
 
 
 def test_extract_code_references():
@@ -136,3 +147,15 @@ def test_recursive_union_fail():
             type_a = Type(name="A", tag=TypeTag.STRUCT)
             type_a.extend(type_a)
     assert e.value.issue.type == IssueType.CIRCULAR_UNION
+
+
+def test_nested_resolve():
+    with Session(ctx=MOCK_SESSION_CONTEXT).sync() as session:
+        module = Module(name="test")
+        file = File(path="test-file", module=module)
+        task = Statement(name="task", order_key=INTEGER_ZERO, file=file, symbol=Code())
+        dataset = Statement(name="a", order_key=INTEGER_ZERO, file=file, symbol=Dataset())
+        code = Statement(name="b", order_key=INTEGER_ZERO, file=file, symbol=Code())
+        # nocheckin: test this
+
+    session.instances

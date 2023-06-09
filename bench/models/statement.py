@@ -63,7 +63,7 @@ class Field(UUIDModel, CrudModel):
         flags_str = ", ".join([f for f in [output_str, array_str, nullable_str, unioned_str] if f])
         flags_str = f" ({flags_str})" if flags_str else ""
         name_str = f"{self.name} " if self.name else ""
-        return f"{self.statement} {name_str}{self.tag.value}{flags_str}"
+        return f"{self.statement} {name_str}{self.tag}{flags_str}"
 
     def __repr__(self):
         return f"<Field {str(self)}>"

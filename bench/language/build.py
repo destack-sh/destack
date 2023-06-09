@@ -18,16 +18,7 @@ from bench.language import StatementModifier, TypeHint, TypeTag, wire
 from bench.language.const import TypeFlag
 from bench.language.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
 from bench.language.session import Session, instantiate_py_value_flat
-from bench.language.type import (
-    Build,
-    Dataset,
-    Expectation,
-    Model,
-    Symbol,
-    Task,
-    Type,
-    TypeNode,
-)
+from bench.language.type import Dataset, Expectation, Model, Symbol, Task, Type, TypeNode
 from bench.language.typer import check_type, map_value
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.utils import DotDict
@@ -99,7 +90,7 @@ class XBlockContent(XBlock, typing.Generic[ValueT]):
         return f"<XBlockContent {str(self)}>"
 
 
-def wmap_xblock(xblock: wire.XBlockData) -> XBlockContent:
+def unpack_xblock(xblock: wire.XBlockData) -> XBlockContent:
     """Maps an xblock data object to an xblock."""
     return XBlockContent(
         kind=xblock.kind,
@@ -109,7 +100,7 @@ def wmap_xblock(xblock: wire.XBlockData) -> XBlockContent:
     )
 
 
-def rmap_xblock(xblock: XBlockContent) -> wire.XBlockData:
+def pack_xblock(xblock: XBlockContent) -> wire.XBlockData:
     """Maps an xblock to an xblock data object."""
     return wire.XBlockData(
         kind=xblock.kind,
@@ -183,6 +174,11 @@ XOutputHandler = typing.Callable[[Any], typing.Any]
 class DynamicXBlock:
     xblock: XBlockContent
     handler: XInputHandler | XOutputHandler
+
+
+@dataclass(repr=False)
+class Build(Symbol):
+    models: list[Model] = field(default_factory=list)
 
 
 def get_default_builds(interp: InterpModule) -> list[Build]:
