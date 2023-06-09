@@ -445,10 +445,7 @@ class LanguageWorker:
         interp_by_scope: dict[UUID, InterpData] = {}
         for symbol in self.interp.module.symbols_by_id.values():
             if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
-                resolved_fields = [
-                    wire.pack_field(symbol.id, field, impute_type_references=True)
-                    for field in symbol.fields
-                ]
+                resolved_fields = [wire.pack_field(symbol.id, field) for field in symbol.fields]
             else:
                 resolved_fields = None
             interp_by_scope[symbol.id] = InterpData(

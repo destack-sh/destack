@@ -6,7 +6,7 @@ import pytz
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
+from strawberry_django_plus.relay import GlobalID, PageInfo
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
@@ -90,11 +90,6 @@ class RecordBatchRestoreInput(BatchMutationInput):
         return [RecordRestoreInput(id=i) for i in self.ids]
 
 
-@gql.input
-class RecordTruncateInput(gql.NodeInput):
-    statement_id: GlobalID
-
-
 @gql.type
 class DatasetMutation:
     @tracked_mutation(MMT.CREATE_RECORD)
@@ -176,4 +171,11 @@ class DatasetQuery:
     @async_safe
     def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
-        return statement.records.all()
+        # nocheckin: return empty connection for now
+        return gql.Connection(
+            edges=[],
+            page_info=PageInfo(
+                start_cursor=None, end_cursor=None, has_next_page=False, has_previous_page=False
+            ),
+            total_count=0,
+        )

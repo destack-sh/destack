@@ -48,23 +48,29 @@ if typing.TYPE_CHECKING:
 @dataclass(repr=False)
 class LanguageObject(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
-    session: "Session" = None
+    _session: "Session" = None
+
+    @property
+    def session(self) -> "Session":
+        """Access the session, error-ing if there is none."""
+        if self._session is None:
+            raise RuntimeError(f"no active session for {self}")
+        return self._session
 
     def __post_init__(self):
-        if self.session is None:
+        if self._session is None:
             from bench.language.session import active_session
 
-            self.session = active_session.get()
-            if self.session is None:
-                raise RuntimeError(f"no active session for {self}")
-            # we pass in session on instantiate, so this must be new
-            self.session.add(self, new=True)
+            self._session = active_session.get()
+            if self._session is not None:
+                # we pass in session on instantiate, so this must be new
+                self._session.add(self, new=True)
         else:
-            self.session.add(self, new=False)
+            self._session.add(self, new=False)
 
     def __del__(self):
-        if self.session is not None:
-            self.session.remove(self)
+        if self._session is not None:
+            self._session.remove(self)
 
     @property
     def logger(self) -> logging.Logger:
@@ -138,12 +144,11 @@ class Scope:
 
 
 @dataclass(repr=False)
-class Module(Scope):
+class Module(LanguageObject, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
-    id: UUID = field(default_factory=uuid.uuid4)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
-    parent_scope = None
+    parent_scope: Scope = None
 
     def lookup_symbol(
         self,
@@ -159,11 +164,6 @@ class Module(Scope):
             if dependency is None:
                 raise LookupError(f"could not find dependency {module_name}")
             return dependency.lookup_symbol("." + match.group("path") + ":" + match.group("name"))
-
-    def sort(self):
-        """Sorts the modules statements in-place according to parent & order keys."""
-        for file in self.files:
-            file.sort()
 
     def __str__(self):
         return f"{self.name} ({len(self.files)} files)"
@@ -190,8 +190,6 @@ class File(LanguageObject, Scope):
     module: Module = required_field()
     path: str = required_field()
     statements: list[Statement] = field(default_factory=list)
-    id: UUID = field(default_factory=uuid.uuid4)
-    generated: bool = False
 
     def __post_init__(self):
         super().__post_init__()
@@ -208,7 +206,14 @@ class File(LanguageObject, Scope):
     def root_statements(self) -> list[Statement]:
         return [statement for statement in self.statements if statement.parent is None]
 
-    def sort(self):
+    def append(self, *statements: Statement):
+        """Appends the statements to this file."""
+        for statement in statements:
+            statement.file = self
+            statement.parent_scope = self
+            self.statements.append(statement)
+
+    def _sort(self):
         """Sorts the files statements in-place according to parent & order keys."""
         # per parent (incl. root = None) sort by order key
         sorted_statements = []
@@ -230,6 +235,8 @@ class File(LanguageObject, Scope):
         self.statements = sorted_statements
 
     def index(self, on_issue: IssueHandler = raise_if_error):
+        """Indexes all statements in this file into the scope."""
+        self.clear()
         for statement in self.statements:
             statement.index(on_issue=on_issue)
 
@@ -254,7 +261,7 @@ class Statement(LanguageObject, Scope):
 
     file: File = required_field()
     parent: Optional[Statement] = None
-    order_key: str = required_field()
+    order_key: str | None = None
     type: StatementType = StatementType.SYMBOL
     name: Optional[str] = None
     text: Optional[str] = None
@@ -322,7 +329,7 @@ class Statement(LanguageObject, Scope):
         return self.parent.id if self.parent else None
 
     def index(self, on_issue: IssueHandler = raise_if_error):
-        pass
+        raise NotImplementedError  # nocheckin
 
     def interp(self, on_issue: IssueHandler = raise_if_error) -> None:
         self.symbol.interp(self, on_issue)
@@ -581,7 +588,7 @@ class HasType(TypeNode, SymbolBase):
                 reference=base,
                 flags=TypeFlag.IsUnionWith,
             )
-            self.session.tracer.field_add(self, field)
+            self.session.tracer.field_append(self, field)
             self.fields.append(field)
         self.reinterp()
         return self
@@ -589,7 +596,7 @@ class HasType(TypeNode, SymbolBase):
     def append(self, *fields: Field) -> "Self":
         """Adds a field to this type"""
         for field in fields:  # noqa shadows dataclass.field
-            self.session.tracer.field_add(self, field)
+            self.session.tracer.field_append(self, field)
             self.fields.append(field)
         self.reinterp()
         return self
@@ -758,14 +765,11 @@ class Task(Symbol, HasType, HasExpectations):
 
 @dataclass(repr=False)
 class Expectation(Symbol, HasExpectations):
-    def __init__(self, name: str = None, description: str = None, expectations: list = None):
-        super().__init__(name=name, description=description, expectations=expectations)
-
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        pass
+        HasExpectations.interp(self, scope, on_issue)
 
     def clear_interp(self) -> None:
-        pass
+        HasExpectations.clear_interp(self)
 
 
 @dataclass(repr=False)
@@ -962,7 +966,7 @@ class Dataset(Symbol, HasType):
         records = [
             Record(
                 _id=uuid.uuid4(),
-                _=self.meta,
+                _dataset=self,
                 _order_key=ok,
                 _data=data,
             )
@@ -1007,6 +1011,7 @@ class Dataset(Symbol, HasType):
 @dataclass(repr=False)
 class Value(Symbol, HasType):
     tag: TypeTag = TypeTag.STRUCT
+    flags: TypeFlag = TypeFlag.Zero
     value: Any = None
 
     @property

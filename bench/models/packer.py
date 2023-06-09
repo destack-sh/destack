@@ -18,7 +18,7 @@ from django.db.models import Q
 
 from bench import models
 from bench.language import StatementType, SymbolType, wire
-from bench.language.const import InterpScope
+from bench.language.const import InterpScope, StatementModifier
 from bench.language.mutate import MMT, NON_SEMANTIC_STATEMENT_TYPES, ModuleMutation, MutationBundle
 from bench.language.wire import (
     SYMBOL_DATA_CLASS_BY_TYPE,
@@ -318,12 +318,12 @@ def pack_statement(
         revision=statement.revision,
         parent_id=statement.parent_id,
         order_key=statement.order_key,
-        type=statement.type,
+        type=StatementType(statement.type),
         name=statement.name,
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
-        symbol_type=statement.symbol_type,
-        modifier=statement.modifier,
+        symbol_type=SymbolType(statement.symbol_type) if statement.symbol_type else None,
+        modifier=StatementModifier(statement.modifier) if statement.modifier else None,
     )
     if statement.type == StatementType.SYMBOL:
         pack_symbol(statement, data, flat=flat)

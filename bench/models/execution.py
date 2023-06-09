@@ -28,7 +28,6 @@ TERMINAL_EXECUTION_STATUSES = {
 PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
 
 
-# sync with wire.ExecutionTriggerType
 class ExecutionTriggerType(models.TextChoices):
     API = "rest"
     UI = "ui"

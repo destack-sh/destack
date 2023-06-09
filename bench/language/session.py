@@ -1,3 +1,4 @@
+import abc
 import contextvars
 import enum
 import textwrap
@@ -17,7 +18,10 @@ from bench.language import TypeHint, TypeTag, wire
 from bench.language.const import (
     STATIC_BUILTINS,
     TYPE_TAG_BY_TYPE_HINT,
+    ModuleOp,
     RemoteObjectStatus,
+    SessionContext,
+    SessionMode,
     TypeFlag,
 )
 from bench.language.dataset import Query, Sort
@@ -42,7 +46,6 @@ from bench.language.type import (
 )
 from bench.language.typer import map_rekey_enum, map_unkey_enum
 from bench.language.unsecure import do_execute_arbitrary_code
-from bench.language.wire import ExecutionTriggerType
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
@@ -64,32 +67,171 @@ active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 )
 
 
-class SessionMode(enum.StrEnum):
-    READ_ONLY = "ro"
-    WRITE_GLOBAL = "w"
-    WRITE_ONLY = "wo"
+class SessionBase(abc.ABC):
+    module: Module
+
+    @property
+    def is_open(self) -> bool:
+        raise NotImplementedError
+
+    def add(self, obj: LanguageObject):
+        raise NotImplementedError
+
+    def remove(self, obj: LanguageObject):
+        raise NotImplementedError
 
 
-class SessionTracingLevel(enum.IntFlag):
-    NONE = 0
-    EXECUTION = 1
-    MUTATION = 2
-    VALIDATION = 4
-    ALL = EXECUTION | MUTATION | VALIDATION
+class Session:
+    """A managed context for running code in a module (may mutate)."""
 
+    def __init__(
+        self,
+        module: Module,
+        ctx: SessionContext | None = None,
+        instances: list["LanguageObject"] = None,
+        builds: dict[str, "Build"] = None,
+        cache_inferences: bool = True,
+        inference_timeout: int = 30,
+        inference_retries: int = 5,
+        mode: SessionMode = SessionMode.READ_ONLY,
+        write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
+        executor: Executor = None,
+    ):
+        if mode != SessionMode.READ_ONLY and write is None:
+            raise ValueError("write must be provided for non-readonly sessions")
+        self.id = uuid4()
+        self.ctx = ctx
+        self.module = module
+        self.instances: dict[UUID, "LanguageObject"] = (
+            {i.id: i for i in instances} if instances else {}
+        )
+        self.builds: dict[str, Build] = builds or {}
+        self.cache_inferences = cache_inferences
+        self.inference_timeout = inference_timeout
+        self.inference_retries = inference_retries
+        self.mode = mode
+        self.write = write
 
-@dataclass(slots=True)
-class SessionContext:
-    module_id: UUID
-    project_id: UUID
-    worker_id: UUID
-    tracing_level: SessionTracingLevel
-    trigger_type: ExecutionTriggerType
-    trigger_id: typing.Optional[UUID]
-    root_id: typing.Optional[UUID] = None
+        self.anonymous_scope = Scope(parent_scope=self.module)
+        self.executor = executor or ThreadPoolExecutor(max_workers=1)
+        self.logger = logger.bind(session=self)
+        self.mutator = ModuleMutator(self.module)
+        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
+        self.instance = SessionAccess(self)
+        self.opened_at: Optional[datetime] = None
+        self.closed_at: Optional[datetime] = None
+
+    def __str__(self):
+        status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
+        return (
+            f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.mutator.mutations)})"
+        )
+
+    def __repr__(self):
+        return f"<Session {self}>"
+
+    @property
+    def is_open(self) -> bool:
+        return self.opened_at is not None and self.closed_at is None
+
+    def add(self, obj: "LanguageObject", new: bool) -> None:
+        if new:
+            # permissions are checked in tracer
+            if isinstance(obj, File):
+                self.tracer.file_create(obj)
+            elif isinstance(obj, Statement):
+                self.tracer.statement_create(obj)
+            elif isinstance(obj, Symbol):
+                self.tracer.symbol_create(obj)
+                # it feels like this should be done in some tracer?
+                self.module.symbols_by_id[obj.id] = obj
+        self.instances[obj.id] = obj
+
+    def remove(self, obj: "LanguageObject") -> None:
+        if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
+            del self.instances[obj.id]
+            # not doing anything yet?
+
+    def check_can(self, op: ModuleOp, thing: File | Statement | Symbol):
+        if not self.can(op, thing):
+            raise RuntimeError(f"cannot {op} {thing} in {self}")
+
+    def can(self, op: ModuleOp, thing: File | Statement | Symbol) -> bool:
+        if self.mode == SessionMode.READ_ONLY:
+            return op in (
+                ModuleOp.READ,
+                ModuleOp.SEARCH,
+            )
+        elif self.mode == SessionMode.WRITE_GLOBAL:
+            return True
+        else:
+            raise RuntimeError(f"unknown session mode {self.mode}")
+
+    def open(self):
+        """Opens the session for execution and modification."""
+        if self.opened_at is not None:
+            raise RuntimeError(f"session already opened {self}")
+        self.opened_at = datetime.now()
+        if active_session.get() is not None:
+            raise RuntimeError(f"another session is active: {active_session.get()}")
+        active_session.set(self)
+        logger.debug("session.open", session=self)
+
+    async def aflush(self):
+        """Flushes all module mutations."""
+        if not self.mutator.mutations:
+            return
+        if self.mode == SessionMode.READ_ONLY:
+            raise RuntimeError(f"cannot mutate read-only session {self}")
+        logger.debug("session.flush", session=self, mutator=self.mutator)
+        mutations = self.mutator.bundle().compact()
+        success = await self.write(mutations)
+        if not success:
+            raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
+        self.mutator.reset()
+        logger.debug("session.flush.done", session=self)
+
+    def flush(self):
+        async_to_sync(self.aflush)()
+
+    async def aclose(self, flush: bool = True):
+        """Closes the session, flushing any mutations and preventing further execution/mutation."""
+        if self.closed_at is not None:
+            raise RuntimeError(f"session already closed {self}")
+        self.closed_at = datetime.now()
+        if flush:
+            await self.aflush()
+        active_session.set(None)
+        logger.debug("session.close", session=self)
+
+    def close(self, flush: bool = True):
+        async_to_sync(self.aclose)(flush=flush)
+
+    async def __aenter__(self):
+        self.open()
+        return self
+
+    async def __aexit__(self, exc_type, exc_value, traceback):
+        await self.aclose()
+
+    def sync(self):
+        """A sync context manager for this session."""
+        session = self
+
+        class SyncSession:
+            def __enter__(self):
+                session.open()
+                return session
+
+            def __exit__(self, exc_type, exc_value, traceback):
+                session.close()
+
+        return SyncSession()
 
 
 class SessionAccess:
+    """Not sure what this is about yet. Wrapping some previously instance-level/build stuff."""
+
     def __init__(self, session: "Session"):
         self.session = session
         self._cached_implementations: dict[tuple[UUID, UUID], "XPrompt"] = {}
@@ -162,144 +304,6 @@ class SessionAccess:
             timeout=timeout,
         )
         return rep.p.secrets[0].value
-
-
-class Session:
-    """A managed context for running code in a module (may mutate)."""
-
-    def __init__(
-        self,
-        module: Module | None = None,
-        ctx: SessionContext | None = None,
-        instances: list["LanguageObject"] = None,
-        builds: dict[str, "Build"] = None,
-        cache_inferences: bool = True,
-        inference_timeout: int = 30,
-        inference_retries: int = 5,
-        mode: SessionMode = SessionMode.READ_ONLY,
-        write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
-        executor: Executor = None,
-    ):
-        if mode != SessionMode.READ_ONLY and write is None:
-            raise ValueError("write must be provided for non-readonly sessions")
-        self.id = uuid4()
-        self.ctx = ctx
-        self.module = module or Module(name="<anonymous>", id=self.id)
-        self.instances: dict[UUID, "LanguageObject"] = (
-            {i.id: i for i in instances} if instances else {}
-        )
-        self.builds: dict[str, Build] = builds or {}
-        self.cache_inferences = cache_inferences
-        self.inference_timeout = inference_timeout
-        self.inference_retries = inference_retries
-        self.mode = mode
-        self.write = write
-
-        self.anonymous_scope = Scope(parent_scope=self.module)
-        self.executor = executor or ThreadPoolExecutor(max_workers=1)
-        self.logger = logger.bind(session=self)
-        self.mutator = ModuleMutator(self.module)
-        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
-        self.instance = SessionAccess(self)
-        self.opened_at: Optional[datetime] = None
-        self.closed_at: Optional[datetime] = None
-
-    def __str__(self):
-        status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
-        return (
-            f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.mutator.mutations)})"
-        )
-
-    def __repr__(self):
-        return f"<Session {self}>"
-
-    @property
-    def is_open(self) -> bool:
-        return self.opened_at is not None and self.closed_at is None
-
-    def add(self, obj: "LanguageObject", new: bool) -> None:
-        if new and isinstance(obj, Symbol) and obj.id not in self.module.symbols_by_id:
-            # auto index
-            self.module.symbols_by_id[obj.id] = obj
-        self.instances[obj.id] = obj
-
-    def remove(self, obj: "LanguageObject") -> None:
-        if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
-            del self.instances[obj.id]
-            # not doing anything yet
-
-    def check_can_write(self, symbol: Symbol):
-        if not self.can_write(symbol):
-            raise RuntimeError(f"cannot write {symbol} in {self}")
-
-    def can_write(self, symbol: Symbol):
-        if self.mode == SessionMode.READ_ONLY:
-            return False
-        elif self.mode == SessionMode.WRITE_GLOBAL:
-            return True
-        else:
-            raise RuntimeError(f"unknown session mode {self.mode}")
-
-    def open(self):
-        """Opens the session to access and modification."""
-        if self.opened_at is not None:
-            raise RuntimeError(f"session already opened {self}")
-        self.opened_at = datetime.now()
-        if active_session.get() is not None:
-            raise RuntimeError(f"another session is active: {active_session.get()}")
-        active_session.set(self)
-        logger.debug("session.open", session=self)
-
-    async def aflush(self):
-        """Flushes all module mutations to the underlying store."""
-        if not self.mutator.mutations:
-            return
-        if self.mode == SessionMode.READ_ONLY:
-            raise RuntimeError(f"cannot mutate read-only session {self}")
-        logger.debug("session.flush", session=self, mutator=self.mutator)
-        mutations = self.mutator.bundle().compact()
-        success = await self.write(mutations)
-        if not success:
-            raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
-        self.mutator.reset()
-        logger.debug("session.flush.done", session=self)
-
-    def flush(self):
-        async_to_sync(self.aflush)()
-
-    async def aclose(self, flush: bool = True):
-        """Closes the session, flushing any mutations and preventing further access."""
-        if self.closed_at is not None:
-            raise RuntimeError(f"session already closed {self}")
-        self.closed_at = datetime.now()
-        if flush:
-            await self.aflush()
-        active_session.set(None)
-        logger.debug("session.close", session=self)
-
-    def close(self, flush: bool = True):
-        async_to_sync(self.aclose)(flush=flush)
-
-    async def __aenter__(self):
-        self.open()
-        return self
-
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.aclose()
-
-    def sync(self):
-        """A sync context manager for this session."""
-        session = self
-
-        class SyncSession:
-            def __enter__(self):
-                session.open()
-                return session
-
-            def __exit__(self, exc_type, exc_value, traceback):
-                session.close()
-
-        return SyncSession()
 
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel

@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.language.session import SessionTracingLevel
+from bench.language.const import SessionTracingLevel
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg import NMessageType

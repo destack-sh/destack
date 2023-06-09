@@ -10,8 +10,9 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language import mutate, wire
+from bench.language.const import ExecutionTriggerType
 from bench.language.dataset import Query, Sort
-from bench.language.wire import ExecutionTriggerType, RemoteObjectData, SecretData, XBlockData
+from bench.language.wire import RemoteObjectData, SecretData, XBlockData
 from bench.runtime.common.type import ExecutionFrameData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -90,7 +91,8 @@ REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 # They are serialized and deserialized in serialize.py with some custom logic
 #  to support all the nested Python typing we need (e.g. NamedTuples).
 # In the future we should want to use a more formal serialization format,
-# but for the time being this is both fast and flexible.
+# but for the time being this is both fast enough and flexible.
+#  :WireFormat
 #
 
 

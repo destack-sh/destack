@@ -36,11 +36,17 @@ def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
     """Convert any "reasonable" object to dict-able representation."""
     if dataclasses.is_dataclass(obj):
         fields = _prepare_dataclass_fields(obj.__class__)
-        return {
-            f.name: to_dict(getattr(obj, f.name), omit_empty)
-            for f in fields.values()
-            if not omit_empty or getattr(obj, f.name) is not None
-        }
+        if hasattr(obj, "encode_some_attrs"):
+            encoded = obj.encode_some_attrs()  # hack until :WireFormat
+        else:
+            encoded = {}
+        for f in fields.values():
+            if f in encoded:
+                continue
+            if omit_empty and getattr(obj, f.name) is None:
+                continue
+            encoded[f.name] = to_dict(getattr(obj, f.name), omit_empty)
+        return encoded
     elif isinstance(obj, (list, tuple)):
         return [to_dict(item, omit_empty) for item in obj]
     elif isinstance(obj, dict):
