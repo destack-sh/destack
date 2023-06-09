@@ -1,4 +1,4 @@
-import enum
+import copy
 import typing
 from dataclasses import asdict, dataclass, fields
 from hashlib import md5
@@ -20,7 +20,6 @@ from bench.language.dataset import Query, Sort
 from bench.language.issue import IssueKind
 from bench.language.type import ModuleReference
 from bench.utils.func import describe_type
-from bench.utils.serialize import from_dict, to_dict
 
 if typing.TYPE_CHECKING:
     pass
@@ -178,7 +177,7 @@ class StatementData:
     order_key: str
     revision: int
     type: StatementType
-    modifier: Optional[StatementModifier]
+    modifier: Optional[StatementModifier]  # should really be in symbol data...
     name: Optional[str]
     fqn: Optional[str]
     parent_id: Optional[UUID]
@@ -186,19 +185,27 @@ class StatementData:
     # symbol contents
     symbol_type: Optional[SymbolType] = None
     description: Optional[str] = None
-    symbol: Optional[typing.Any] = None  # hack until we get a proper :WireFormat
+    # specific symbol types until we get :WireFormat
+    _symbol_type: Optional["TypeData"] = None
+    _symbol_task: Optional["TaskData"] = None
+    _symbol_expectation: Optional["ExpectationData"] = None
+    _symbol_code: Optional["CodeData"] = None
+    _symbol_model: Optional["ModelData"] = None
+    _symbol_requirement: Optional["RequirementData"] = None
+    _symbol_value: Optional["ValueData"] = None
+    _symbol_dataset: Optional["DatasetData"] = None
 
-    def __post_init__(self):
-        data_cls = SYMBOL_DATA_CLASS_BY_TYPE.get(self.symbol_type)
-        if data_cls and self.symbol:  # see hack note above
-            self.symbol = from_dict(data_cls, self.symbol)
-        elif self.symbol:
-            raise ValueError(f"unexpected symbol type {self.symbol_type}")
+    @property
+    def symbol(self):
+        if self.symbol_type is None:
+            return None
+        return getattr(self, f"_symbol_{self.symbol_type.name.lower()}")
 
-    def encode_some_attrs(self) -> dict:  # hack, called in to_dict :WireFormat
-        if self.symbol:
-            return {"symbol": self.symbol}
-        return {}
+    @symbol.setter
+    def symbol(self, value):
+        if self.symbol_type is None and value is not None:
+            raise ValueError(f"cannot set symbol {value} without symbol type")
+        setattr(self, f"_symbol_{self.symbol_type.name.lower()}", value)
 
     def __str__(self):
         parent_str = f"{self.parent_id}:" if self.parent_id else ""
@@ -216,7 +223,7 @@ class StatementData:
             if value is not None and hasattr(value, "deepcopy"):
                 copied[field.name] = value.deepcopy()
             else:
-                copied[field.name] = value
+                copied[field.name] = copy.deepcopy(value)
         return StatementData(**copied)
 
 
@@ -568,13 +575,16 @@ def pack_issue(issue: language.Issue) -> IssueData:
         id = uuid5(issue.subject.id, issue.type.name)
     else:
         raise NotImplementedError(f"cannot handle unscoped issue: {issue}")
+
     return IssueData(
         id=id,
-        kind=IssueKind.ERROR,
-        scope=issue.scope,
-        type=issue.type,
+        kind=IssueKind(issue.kind),
+        scope=InterpScope(issue.scope),
+        type=IssueType(issue.type),
         file_id=issue.subject.id if isinstance(issue.subject, language.File) else None,
-        statement_id=issue.subject.id if isinstance(issue.subject, language.Statement) else None,
+        statement_id=issue.subject.id
+        if isinstance(issue.subject, (language.Statement, language.Symbol))
+        else None,
         message=issue.message,
     )
 

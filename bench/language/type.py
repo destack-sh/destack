@@ -115,24 +115,41 @@ class Scope:
     def lookup_symbol(
         self,
         path: StatementPath | UUID | str,
-        symbol_t: typing.Type[SymbolT] | None = None,
+        symbol_t: SymbolType | typing.Type[SymbolT] | None = None,
+        by: LookupBy = LookupBy.Name,
     ) -> SymbolT | None:
         """Lookup the symbol either by path or id. If path is a string, it can be
         it can be a name (lookup upwards) or a full relative/absolute path).
         """
         if isinstance(path, UUID):
-            return self.root_scope.symbols_by_id[path]
+            return self.root_scope.symbols_by_id.get(path)
         elif isinstance(path, str):
             if ":" not in path and "." not in path:
-                return self.find_symbol(path, by=LookupBy.Name)
+                return self.find_symbol(path, by=by)
             path = parse_statement_path(path)
+        if path.path == ".":
+            return self.find_symbol(path.name, by=by)
         # strip leading . in path
         path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
-        scope = self.find_symbol(first_part, by=LookupBy.Name)
+        scope = self.find_symbol(first_part, by=by)
         if scope is None:
             return None
         return scope.lookup_symbol(path, symbol_t=symbol_t)
+
+    def add_statement(self, statement: Statement, by_name: bool, on_issue: IssueHandler) -> None:
+        if statement.name is not None and by_name:
+            if statement.name in self.scopes_by_name:
+                on_issue(
+                    type=IssueType.AMBIGUOUS_DEFINITION, subject=statement, path=statement.path
+                )
+            else:
+                self.scopes_by_name[statement.name] = statement
+                self.names_by_identifier[statement.ident] = statement.name
+
+        self.symbols_by_id.update(statement.symbols_by_id)
+        if statement.symbol is not None:
+            self.symbols_by_id[statement.symbol.id] = statement.symbol
 
     def clear(self):
         """Resets this scope and all child scopes."""
@@ -154,16 +171,18 @@ class Module(LanguageObject, Scope):
         self,
         path: StatementPath | UUID | str,
         symbol_t: typing.Type[SymbolT] | None = None,
+        by: LookupBy = LookupBy.Name,
     ) -> SymbolT:
         if path.startswith("."):
-            return super().lookup_symbol(path, symbol_t=symbol_t)
+            return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
         else:
             match = REFERENCE_REGEX.match(path)
             module_name = match.group("module_owner") + "." + match.group("module_name")
             dependency = self.dependencies.get(module_name)
             if dependency is None:
                 raise LookupError(f"could not find dependency {module_name}")
-            return dependency.lookup_symbol("." + match.group("path") + ":" + match.group("name"))
+            localized_path = "." + match.group("path") + ":" + match.group("name")
+            return dependency.lookup_symbol(localized_path, symbol_t=symbol_t, by=by)
 
     def __str__(self):
         return f"{self.name} ({len(self.files)} files)"
@@ -175,7 +194,7 @@ class Module(LanguageObject, Scope):
         for file in self.files:
             file.index(on_issue=on_issue)
             if file.path in self.scopes_by_name:
-                on_issue(IssueType.AMBIGUOUS_DEFINITION, subject=file)
+                on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.path)
             else:
                 self.scopes_by_name[file.path] = file
             self.symbols_by_id.update(file.symbols_by_id)
@@ -190,11 +209,13 @@ class File(LanguageObject, Scope):
     module: Module = required_field()
     path: str = required_field()
     statements: list[Statement] = field(default_factory=list)
+    statements_by_parent_id: dict[UUID, list[Statement]] | None = None
 
     def __post_init__(self):
         super().__post_init__()
         if self.parent_scope is None:
             self.parent_scope = self.module
+        self._sort()
 
     def __str__(self):
         return f"{self.module.name}/{self.path}"
@@ -217,18 +238,18 @@ class File(LanguageObject, Scope):
         """Sorts the files statements in-place according to parent & order keys."""
         # per parent (incl. root = None) sort by order key
         sorted_statements = []
-        statements_by_parent_id: dict[UUID | None, list[Statement]] = defaultdict(list)
+        self.statements_by_parent_id: dict[UUID | None, list[Statement]] = defaultdict(list)
         for statement in self.statements:
-            statements_by_parent_id[statement.parent_id].append(statement)
+            self.statements_by_parent_id[statement.parent_id].append(statement)
 
         def walk_dfs(statement: Statement):
             sorted_statements.append(statement)
-            children = statements_by_parent_id.get(statement.id)
+            children = self.statements_by_parent_id.get(statement.id)
             if children is not None:
                 for child in sorted(children, key=lambda s: s.order_key):
                     walk_dfs(child)
 
-        roots = statements_by_parent_id.get(None, [])
+        roots = self.statements_by_parent_id.get(None, [])
         for statement in sorted(roots, key=lambda s: s.order_key):
             walk_dfs(statement)
 
@@ -237,18 +258,11 @@ class File(LanguageObject, Scope):
     def index(self, on_issue: IssueHandler = raise_if_error):
         """Indexes all statements in this file into the scope."""
         self.clear()
+        self._sort()
         for statement in self.statements:
             statement.index(on_issue=on_issue)
-
-            if statement.name is not None:
-                self.scopes_by_name[statement.name] = statement
-                self.names_by_identifier[statement.ident] = statement.name
-                if statement.name in self.scopes_by_name:
-                    on_issue(IssueType.AMBIGUOUS_DEFINITION, subject=statement)
-
-            self.symbols_by_id.update(statement.symbols_by_id)
-            if statement.symbol is not None:
-                self.symbols_by_id[statement.symbol.id] = statement.symbol
+            is_root = statement.parent_id is None
+            self.add_statement(statement, by_name=is_root, on_issue=on_issue)
 
     def interp(self, on_issue: IssueHandler = raise_if_error):
         for statement in self.statements:
@@ -282,7 +296,6 @@ class Statement(LanguageObject, Scope):
             self.symbol.name = self.name
 
     def __str__(self):
-        loc = self.file.path + ":" + str(self.infile_path)
         if self.type == StatementType.SYMBOL:
             content_str = "()"  # should have some nice __str__ here
         elif self.type == StatementType.COMMENT:
@@ -291,7 +304,7 @@ class Statement(LanguageObject, Scope):
             content_str = ""
         else:
             raise ValueError(f"unknown statement type {self.type}")
-        return f"{loc} {self.type} {self.symbol_type} {self.name} {content_str}"
+        return f"{self.path} {self.type} {self.symbol_type} {self.name} {content_str}"
 
     def __repr__(self):
         return f"<Statement {self}>"
@@ -299,6 +312,10 @@ class Statement(LanguageObject, Scope):
     @property
     def symbol_type(self) -> Optional[SymbolType]:
         return SYMBOL_TYPE_BY_CLASS.get(type(self.symbol))
+
+    @property
+    def path(self) -> str:
+        return self.file.path + ":" + str(self.infile_path)
 
     @property
     def infile_path(self) -> str:
@@ -329,10 +346,16 @@ class Statement(LanguageObject, Scope):
         return self.parent.id if self.parent else None
 
     def index(self, on_issue: IssueHandler = raise_if_error):
-        raise NotImplementedError  # nocheckin
+        self.clear()
+        children = self.file.statements_by_parent_id.get(self.id, [])
+        for child in children:
+            # only index self, not children
+            # (unlike in file/module, statement nesting is only semantic, not structural)
+            self.add_statement(child, by_name=True, on_issue=on_issue)
 
     def interp(self, on_issue: IssueHandler = raise_if_error) -> None:
-        self.symbol.interp(self, on_issue)
+        if self.symbol is not None:
+            self.symbol.interp(self, on_issue)
 
 
 StatementReference = typing.Union[Statement, StatementPath, UUID]
@@ -566,7 +589,7 @@ class HasType(TypeNode, SymbolBase):
             if node.reference is None or isinstance(node.reference, Symbol):
                 continue  # nothing to resolve
             # normalize path to statement
-            symbol = scope.lookup_symbol(reference=node.reference, symbol_type=SymbolType.TYPE)
+            symbol = scope.lookup_symbol(node.reference, SymbolType.TYPE)
             if symbol is None:
                 continue  # error already reported
             if not isinstance(symbol, TypeNode):
@@ -810,9 +833,9 @@ class Code(Symbol, HasType):
         for key, reference in self.parse.references.items():
             if key in input_keys:
                 continue  # input arguments are not context
-            reference = scope.lookup_symbol(reference=reference, by=LookupBy.PyIdent)
-            if reference is not None:
-                self.references[key] = reference.symbol
+            resolved = scope.lookup_symbol(reference, by=LookupBy.PyIdent)
+            if resolved is not None:
+                self.references[key] = resolved
             else:
                 on_issue(type=IssueType.MISSING_REFERENCE, reference=reference, subject=self)
 
@@ -914,7 +937,7 @@ class Dataset(Symbol, HasType):
         # resolve references
         for view in self.views or []:
             if view.reference is not None:
-                view.reference = scope.lookup_symbol(reference=view.reference, by=LookupBy.PyIdent)
+                view.reference = scope.lookup_symbol(view.reference, by=LookupBy.PyIdent)
                 if view.reference is None:
                     on_issue(type=IssueType.MISSING_REFERENCE, subject=self)
 

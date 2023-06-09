@@ -420,13 +420,24 @@ export type Issue = Node & {
   message?: Maybe<Scalars["String"]>;
   scope: InterpScope;
   statement?: Maybe<Statement>;
-  type: Scalars["String"];
+  type: IssueType;
 };
 
 export enum IssueKind {
   Error = "ERROR",
   Suggestion = "SUGGESTION",
   Warning = "WARNING",
+}
+
+export enum IssueType {
+  AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
+  AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
+  CircularAncestry = "CIRCULAR_ANCESTRY",
+  CircularUnion = "CIRCULAR_UNION",
+  Internal = "INTERNAL",
+  MismatchedUnion = "MISMATCHED_UNION",
+  MissingReference = "MISSING_REFERENCE",
+  UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 
 export type LangserverWakeInput = {
@@ -3088,7 +3099,7 @@ export type IssueContentFragment = {
   id: any;
   scope: InterpScope;
   kind: IssueKind;
-  type: string;
+  type: IssueType;
   message?: string | null;
   file?: { __typename?: "File"; id: any } | null;
   statement?: { __typename?: "Statement"; id: any } | null;
@@ -3164,7 +3175,7 @@ export type InterpStatementDataFragment = {
     id: any;
     kind: IssueKind;
     scope: InterpScope;
-    type: string;
+    type: IssueType;
     message?: string | null;
     file?: { __typename?: "File"; id: any } | null;
     statement?: { __typename?: "Statement"; id: any } | null;

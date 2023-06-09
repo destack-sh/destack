@@ -38,7 +38,7 @@ const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.Boolean,
   TypeTag.Number,
   TypeTag.File,
-  TypeTag.Embedding,
+  TypeTag.Vector,
   ...(Object.keys(SUPPORTED_TYPEHINTS) as TypeHint[]),
 ];
 const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {

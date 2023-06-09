@@ -327,10 +327,10 @@ class ModuleMutator:
         elif isinstance(obj, StatementData):
             self.do(MMT.CREATE_STATEMENT, obj)
             if not flat:
-                for field in obj.symbol.fields or []:
-                    self.create(field)
-                for record in obj.symbol.records or []:
-                    self.create(record)
+                if isinstance(obj.symbol, wire.HasTypeData):
+                    for field in obj.symbol.fields or []:
+                        self.create(field)
+                # nocheckin: handle records here
         elif isinstance(obj, FieldData):
             self.do(MMT.CREATE_FIELD, obj)
         elif isinstance(obj, RecordData):
@@ -400,16 +400,12 @@ class ModuleMutator:
 
         # apply deletes
         deleted_fields = {m.data.id for m in mut[MMT.DELETE_FIELD]}
-        deleted_records = {m.data.id for m in mut[MMT.DELETE_RECORD]}
         for m in chain(mut[MMT.DELETE_FIELD], mut[MMT.DELETE_RECORD]):
             statement = statements[m.statement_id]
-            if statement.fields:
-                statement.fields = [t for t in statement.fields if t.id not in deleted_fields]
-            if statement.records:
-                statement.records = [r for r in statement.records if r.id not in deleted_records]
-        for m in mut[MMT.TRUNCATE_RECORDS]:
-            statement = statements[m.statement_id]
-            statement.records = []
+            if isinstance(statement.symbol, wire.HasTypeData):
+                statement.symbol.fields = [
+                    t for t in statement.symbol.fields if t.id not in deleted_fields
+                ]
         for m in mut[MMT.DELETE_STATEMENT]:
             if m.statement_id in statements:  # statement may be non-semantic
                 del statements[m.statement_id]
@@ -431,14 +427,10 @@ class ModuleMutator:
             statements[m.data.id] = m.data
         for m in mut[MMT.CREATE_FIELD]:
             statement = statements[m.statement_id]
-            if statement.fields is None:
-                statement.fields = []
-            _replace_by_id(statement.fields, m.data, append=True)
-        for m in mut[MMT.CREATE_RECORD]:
-            statement = statements[m.statement_id]
-            if statement.records is None:
-                statement.records = []
-            _replace_by_id(statement.records, m.data, append=True)
+            if isinstance(statement.symbol, wire.HasTypeData):
+                if statement.symbol.fields is None:
+                    statement.symbol.fields = []
+                _replace_by_id(statement.symbol.fields, m.data, append=True)
 
         # apply updates
         for m in mut[MMT.UPDATE_FILE]:
@@ -446,16 +438,15 @@ class ModuleMutator:
         for m in mut[MMT.UPDATE_STATEMENT]:
             old_statement = statements.get(m.statement_id)
             statements[m.statement_id] = m.data
-            # keep statement's relations
-            if old_statement is not None:  # otherwise panic?
-                statements[m.statement_id].symbol.fields = old_statement.symbol.fields
-                statements[m.statement_id].symbol.records = old_statement.symbol.records
+            # keep unrelated statement's relations
+            if old_statement is not None and isinstance(m.data.symbol, wire.HasTypeData):
+                m.data.symbol.fields = old_statement.symbol.fields
         for m in mut[MMT.UPDATE_FIELD]:
             statement = statements[m.statement_id]
-            _replace_by_id(statement.fields, m.data)
-        for m in mut[MMT.UPDATE_RECORD]:
-            statement = statements[m.statement_id]
-            _replace_by_id(statement.records, m.data)
+            if isinstance(statement.symbol, wire.HasTypeData):
+                _replace_by_id(statement.symbol.fields, m.data)
+
+        # nocheckin: handle record/dataset mutations
 
         # re-assemble module data
         new_module = replace(module, files=list(files.values()))

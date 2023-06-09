@@ -20,7 +20,6 @@ logger = structlog.get_logger(__name__)
 class InterpModule:
     module: Optional[language.Module]
     issues: list[language.Issue]
-    committed: bool
 
     def __str__(self):
         return str(self.module)
@@ -71,7 +70,7 @@ class LanguageInterpreter:
 
     async def interp(self, source: wire.ModuleData) -> InterpModule:
         dependencies = await self.interp_requirements(get_requirements(source))
-        return interp_module(source, [m.module for m in dependencies])
+        return interp_module(source)
 
 
 def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
@@ -85,14 +84,12 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     return requirements_ids
 
 
-def interp_module(source: wire.ModuleData, dependencies: list[language.Module]) -> InterpModule:
+def interp_module(source: wire.ModuleData) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     collector = IssueCollector()
     module = wire.unpack_module(source)
     module.index(on_issue=collector)
     module.interp(on_issue=collector)
-    errors = [e.to_error() for e in collector.issues]
     logger.debug("module.interp.done", module=module)
-
-    return InterpModule(module=module, issues=errors, dependencies=dependencies)
+    return InterpModule(module=module, issues=collector.issues)

@@ -8,7 +8,6 @@ from strawberry import lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
-import bench.language.const
 from bench import language, models
 from bench.api.utils import to_global_id
 from bench.language import wire
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-InterpScope = gql.enum(bench.language.const.InterpScope)
+InterpScope = gql.enum(models.InterpScope)
 IssueKind = gql.enum(models.IssueKind)
 IssueType = gql.enum(language.IssueType)
 
@@ -28,10 +27,10 @@ IssueType = gql.enum(language.IssueType)
 @gql.django.type(models.Issue)
 class Issue(gql.Node):
     scope: InterpScope
+    kind: IssueKind
+    type: IssueType
     file: Optional[Annotated["File", lazy(".project")]]
     statement: Optional[Annotated["Statement", lazy(".statement")]]
-    kind: IssueKind
-    type: str
     message: Optional[str]
 
 
@@ -45,7 +44,7 @@ class InterpData:
     resolved_fields: Optional[list[Annotated["Field", lazy(".statement")]]]
 
 
-def rmap_interp_data(interp_data: wire.InterpData, module_id: UUID) -> InterpData:
+def unpack_interp_data(interp_data: wire.InterpData, module_id: UUID) -> InterpData:
     issues = (
         [packer.unpack_issue(issue, module_id) for issue in interp_data.issues]
         if interp_data.issues is not None
