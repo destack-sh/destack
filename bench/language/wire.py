@@ -1,11 +1,11 @@
-import copy
+import abc
+import enum
 import typing
 from dataclasses import asdict, dataclass, fields
 from hashlib import md5
-from typing import Optional, Union
-from uuid import UUID, uuid5
+from typing import ClassVar, Optional
+from uuid import UUID
 
-import bench.language.const
 from bench import language
 from bench.language import (
     IssueType,
@@ -18,29 +18,410 @@ from bench.language import (
 from bench.language.const import InterpScope, TypeFlag
 from bench.language.dataset import Query, Sort
 from bench.language.issue import IssueKind
-from bench.language.type import ModuleReference
+from bench.language.type import SYMBOL_CLASS_BY_TYPE, LanguageObject, ModuleReference
 from bench.utils.func import describe_type
 
 if typing.TYPE_CHECKING:
     pass
-
 
 #
 # Stable, concise and flat language data structures for transit and storage.
 # TODO @Performance: use an optimized and evolvable wire format :WireFormat
 #
 
+Parents = set["ModuleObjectType"]
 
-@dataclass(repr=False, slots=True)
-class FieldData:
+
+class ModuleObjectType(enum.StrEnum):
+    MODULE = "MODULE"
+    FILE = "FILE"
+    STATEMENT = "STATEMENT"
+    SYMBOL = "SYMBOL"
+    FIELD = "FIELD"
+    RECORD = "RECORD"
+    DATASET_VIEW = "DATASET_VIEW"
+    INTERP = "INTERP"
+
+
+MOT = ModuleObjectType
+ModuleNodeT = typing.TypeVar("ModuleNodeT", bound="ModuleNode")
+LanguageNodeT = typing.TypeVar("LanguageNodeT", bound="LanguageObject")
+
+
+class TreeP(abc.ABC):
+    def visit(self, node: LanguageObject):
+        raise NotImplementedError
+
+    def get_one(
+        self, parent_id: UUID, t: typing.Type[LanguageObject]
+    ) -> Optional["LanguageObject"]:
+        raise NotImplementedError
+
+    def get_many(self, parent_id: UUID, t: typing.Type[LanguageObject]) -> list["LanguageObject"]:
+        raise NotImplementedError
+
+
+@dataclass(slots=True)
+class ModuleNode:
     id: UUID
+    parent_id: Optional[UUID]
+
+
+@dataclass(slots=True)
+class Ordered:
+    order_key: str
+
+
+@dataclass(slots=True)
+class ModuleData:
+    id: UUID
+    name: str
+    nodes: list[ModuleNode]
+    committed: bool
+
+    def __str__(self):
+        return f"{self.name}@{self.id} ({len(self.files)} files)"
+
+    def __repr__(self):
+        return f"<Module {str(self)}>"
+
+
+@dataclass(slots=True)
+class FileData(ModuleNode):
+    PARENTS: ClassVar[Parents] = {MOT.MODULE}
+
+    path: str
+    revision: int
+
+    def __str__(self):
+        return f"{self.path}"
+
+    @property
+    def name(self):
+        # name property to emulate File model
+        return self.path.split(".")[-1]
+
+    def __repr__(self):
+        return f"<File {str(self)}>"
+
+    @staticmethod
+    def pack(file: language.File, tree: TreeP) -> "FileData":
+        for statement in file.statements:
+            tree.visit(statement)
+        return FileData(
+            id=file.id,
+            parent_id=file.module.id,
+            path=file.path,
+            revision=file.revision,
+        )
+
+    def unpack(self, parent: language.Module) -> language.File:
+        return language.File(
+            id=self.id,
+            module=parent,
+            path=self.path,
+            revision=self.revision,
+        )
+
+
+@dataclass(slots=True)
+class StatementData(ModuleNode, Ordered):
+    PARENTS: ClassVar[Parents] = {MOT.STATEMENT, MOT.FILE}
+
+    revision: int
+    type: StatementType
+    name: Optional[str]
+    fqn: Optional[str]
+    text: Optional[str]
+    symbol_type: Optional[SymbolType]
+
+    def __str__(self):
+        parent_str = f"{self.parent_id}:" if self.parent_id else ""
+        loc = str(self.parent_id) + ":" + parent_str + str(self.order_key)
+        symbol_type_str = self.symbol_type.name if self.symbol_type else ""
+        return f"{loc}: {self.type.name} {symbol_type_str} {self.name}"
+
+    def __repr__(self):
+        return f"<Statement {str(self)}>"
+
+    @staticmethod
+    def pack(statement: language.Statement, tree: TreeP) -> "StatementData":
+        if statement.symbol is not None:
+            tree.visit(statement.symbol)
+        return StatementData(
+            id=statement.id,
+            parent_id=statement.parent.id if statement.parent else None,
+            order_key=statement.order_key,
+            revision=statement.revision,
+            type=statement.type,
+            name=statement.name,
+            fqn=statement.fqn,
+            text=statement.text,
+            symbol_type=statement.symbol_type,
+        )
+
+    def unpack(self, parent: language.File | language.Statement, tree: TreeP) -> language.Statement:
+        symbol = tree.get_one(self.id, language.Symbol)
+        return language.Statement(
+            id=self.id,
+            parent=parent if isinstance(parent, language.Statement) else None,
+            file=parent if isinstance(parent, language.File) else parent.file,
+            order_key=self.order_key,
+            revision=self.revision,
+            type=self.type,
+            name=self.name,
+            fqn=self.fqn,
+            text=self.text,
+            symbol_type=self.symbol_type,
+            symbol=symbol,
+        )
+
+
+_STATEMENT_DATA_FIELDS = fields(StatementData)
+
+
+# symbols
+
+
+@dataclass(slots=True)
+class SymbolData(ModuleNode):
+    PARENTS: ClassVar[Parents] = {MOT.STATEMENT}
+
+    type: SymbolType
+    modifier: Optional[StatementModifier]  # should really be in symbol data...
+    description: Optional[str]
+
+    @staticmethod
+    def pack(symbol: language.Symbol, tree: TreeP) -> "SymbolData":
+        cls = SYMBOL_DATA_CLASS_BY_TYPE[symbol.symbol_type]
+        return cls(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Symbol:
+        cls = SYMBOL_CLASS_BY_TYPE[self.type]
+        return cls(
+            id=self.id,
+            parent=parent,
+            modifier=self.modifier,
+            description=self.description,
+        )
+
+
+@dataclass(slots=True)
+class TypeData(SymbolData):
+    tag: Optional[TypeTag]
+    flags: Optional[TypeFlag]
+
+    @staticmethod
+    def pack(symbol: language.Type, tree: TreeP) -> "TypeData":
+        return TypeData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            tag=symbol.tag,
+            flags=symbol.flags,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Type:
+        return language.Type(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            tag=self.tag,
+            flags=self.flags,
+        )
+
+
+@dataclass(slots=True)
+class TaskData(SymbolData):
+    @staticmethod
+    def pack(symbol: language.Task, tree: TreeP) -> "TaskData":
+        for field in symbol.fields:
+            tree.visit(field)
+        return TaskData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Task:
+        fields = tree.get_many(self.id, language.Field)
+        return language.Task(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            fields=fields,
+        )
+
+
+@dataclass(slots=True)
+class ExpectationData(SymbolData):
+    pass
+
+
+@dataclass(slots=True)
+class CodeData(SymbolData):
+    lang: Optional[str]
+    code: Optional[str]
+
+    @staticmethod
+    def pack(symbol: language.Code, tree: TreeP) -> "CodeData":
+        for field in symbol.fields:
+            tree.visit(field)
+        return CodeData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            lang=symbol.lang,
+            code=symbol.code,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Code:
+        fields = tree.get_many(self.id, language.Field)
+        return language.Code(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            fields=fields,
+            lang=self.lang,
+            code=self.code,
+        )
+
+
+@dataclass(slots=True)
+class ModelData(SymbolData):
+    external_name: Optional[str]
+
+    @staticmethod
+    def pack(symbol: language.Model, tree: TreeP) -> "ModelData":
+        return ModelData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            external_name=symbol.external_name,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Model:
+        return language.Model(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            external_name=self.external_name,
+        )
+
+
+@dataclass(slots=True)
+class RequirementData(SymbolData):
+    reference_module: Optional[ModuleReference]
+
+    @staticmethod
+    def pack(symbol: language.Requirement, tree: TreeP) -> "RequirementData":
+        return RequirementData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            reference_module=ModuleReference(
+                module_id=symbol.module_id,
+                module_name=symbol.module_name,
+                version=symbol.version,
+            )
+            if symbol.module_id
+            else None,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Requirement:
+        return language.Requirement(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            module_id=self.reference_module.id,
+            module_name=self.reference_module.name,
+            version=self.reference_module.version,
+        )
+
+
+@dataclass(slots=True)
+class ValueData(SymbolData):
+    value: Optional[typing.Any]
+
+    @staticmethod
+    def pack(symbol: language.Value, tree: TreeP) -> "ValueData":
+        for field in symbol.fields:
+            tree.visit(field)
+        return ValueData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            value=symbol.value,
+        )
+
+
+@dataclass(slots=True)
+class DatasetData(SymbolData):
+    @staticmethod
+    def pack(symbol: language.Dataset, tree: TreeP) -> "DatasetData":
+        for field in symbol.fields:
+            tree.visit(field)
+        return DatasetData(
+            id=symbol.id,
+            parent_id=symbol.id,
+            modifier=symbol.modifier,
+            description=symbol.description,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.Dataset:
+        fields = tree.get_many(self.id, language.Field)
+        return language.Dataset(
+            id=self.id,
+            name=parent.name,
+            source=parent,
+            modifier=self.modifier,
+            description=self.description,
+            fields=fields,
+        )
+
+
+SYMBOL_DATA_CLASS_BY_TYPE = {
+    SymbolType.TYPE: TypeData,
+    SymbolType.TASK: TaskData,
+    SymbolType.EXPECTATION: ExpectationData,
+    SymbolType.CODE: CodeData,
+    SymbolType.MODEL: ModelData,
+    SymbolType.REQUIREMENT: RequirementData,
+    SymbolType.DATASET: DatasetData,
+    SymbolType.VALUE: ValueData,
+}
+
+
+@dataclass(slots=True)
+class FieldData(ModuleNode, Ordered):
+    PARENTS: ClassVar[Parents] = {MOT.SYMBOL}
+
     revision: int
     name: Optional[str]
     key: str
     tag: TypeTag
     hint: Optional[TypeHint]
-    statement_id: UUID
-    order_key: str
     description: Optional[str]
     flags: TypeFlag
     value: Optional[typing.Any] = None
@@ -49,28 +430,128 @@ class FieldData:
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
-        return f"{self.statement_id}:{self.order_key} {name_str}{self.tag.value}"
+        return f"{self.parent_id}:{self.order_key} {name_str}{self.tag.value}"
 
     def __repr__(self):
         return f"<Field {str(self)}>"
 
-    def deepcopy(self):
+    @staticmethod
+    def pack(field: language.Field) -> "FieldData":
         return FieldData(
-            id=self.id,
-            revision=self.revision,
-            name=self.name,
-            key=self.key,
-            tag=self.tag,
-            hint=self.hint,
-            statement_id=self.statement_id,
-            order_key=self.order_key,
-            description=self.description,
-            flags=self.flags,
-            reference_id=self.reference_id,
+            id=field.id,
+            order_key=field.order_key,
+            revision=field.revision,
+            name=field.name,
+            key=field.key,
+            tag=field.tag,
+            hint=field.hint,
+            description=field.description,
+            flags=field.flags,
+            value=field.value,
+            reference_id=field.reference_id,
+            metadata=field.metadata,
         )
 
 
-@dataclass(repr=False, slots=True)
+@dataclass(slots=True)
+class DatasetViewData(ModuleNode, Ordered):
+    PARENTS: ClassVar[Parents] = {MOT.SYMBOL}
+
+    id: UUID
+    name: str
+    query: Optional[Query] = None
+    sort: Optional[list[Sort]] = None
+    length: Optional[int] = None
+    reference_id: Optional[UUID] = None
+
+    @staticmethod
+    def pack(view: language.DatasetView, tree: TreeP) -> "DatasetViewData":
+        return DatasetViewData(
+            id=view.id,
+            order_key=view.order_key,
+            name=view.name,
+            query=view.query,
+            sort=view.sort,
+            reference_id=view.reference.id if view.reference else None,
+        )
+
+    def unpack(self, parent: language.Statement, tree: TreeP) -> language.DatasetView:
+        return language.DatasetView(
+            id=self.id,
+            name=self.name,
+            source=parent,
+            query=self.query,
+            sort=self.sort,
+            reference=self.reference_id,
+        )
+
+
+@dataclass(slots=True)
+class RecordData(ModuleNode, Ordered):
+    PARENTS = {MOT.SYMBOL}
+
+    revision: int
+    data: Optional[typing.Any] = None
+
+    def __str__(self):
+        return f"{self.parent_id}:{self.order_key} {describe_type(self.data)}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {str(self)}>"
+
+    @staticmethod
+    def pack(record: language.Record, tree: TreeP) -> "RecordData":
+        return RecordData(
+            id=record.id,
+            order_key=record.order_key,
+            revision=record.revision,
+            data=record.data,
+        )
+
+    @staticmethod
+    def unpack(record: "RecordData", parent: language.Statement, tree: TreeP) -> language.Record:
+        return language.Record(
+            id=record.id,
+            name=parent.name,
+            source=parent,
+            revision=record.revision,
+            data=record.data,
+        )
+
+
+# interp
+
+
+@dataclass(slots=True)
+class InterpData(ModuleNode):
+    scope: InterpScope
+    issues: Optional[list["IssueData"]] = None
+    resolved_fields: Optional[list[FieldData]] = None
+
+    def hash_content(self) -> str:
+        content = (
+            self.parent_id,
+            *(issue.id for issue in (self.issues or [])),
+            *(field.id for field in (self.resolved_fields or [])),
+        )
+        content = str(content).encode("utf-8")
+        return md5(content).hexdigest()
+
+
+@dataclass(slots=True)
+class IssueData(ModuleNode):
+    PARENTS: ClassVar[Parents] = {MOT.INTERP}
+
+    scope: InterpScope
+    kind: IssueKind
+    type: IssueType
+    message: Optional[str]
+
+
+# other objects
+
+
+@dataclass(slots=True)
 class XBlockData:
     kind: str
     source: str
@@ -84,7 +565,7 @@ class XBlockData:
         return f"<XBlock {str(self)}>"
 
 
-@dataclass(repr=False, slots=True)
+@dataclass(slots=True)
 class RemoteObjectData:
     id: UUID
     sha512: str
@@ -101,8 +582,27 @@ class RemoteObjectData:
     def __repr__(self):
         return f"<RemoteObject {self}>"
 
+    @staticmethod
+    def pack(object: language.RemoteObject) -> "RemoteObjectData":
+        return RemoteObjectData(
+            id=object.id,
+            name=object.name,
+            sha512=object.sha512,
+            content_type=object.content_type,
+            content_length=object.content_length,
+        )
 
-@dataclass(repr=False, slots=True)
+    def unpack(self) -> language.RemoteObject:
+        return language.RemoteObject(
+            id=self.id,
+            name=self.name,
+            sha512=self.sha512,
+            content_type=self.content_type,
+            content_length=self.content_length,
+        )
+
+
+@dataclass(slots=True)
 class SecretData:
     id: UUID
     sha512: str
@@ -117,509 +617,17 @@ class SecretData:
     def __repr__(self):
         return f"<Secret {self}>"
 
+    @staticmethod
+    def pack(secret: language.Secret) -> "SecretData":
+        return SecretData(
+            id=secret.id,
+            sha512=secret.sha512,
+            value=secret.value,
+        )
 
-@dataclass(repr=False, slots=True)
-class ModuleData:
-    id: UUID
-    name: str
-    files: list["FileData"]
-    committed: bool = False
-
-    def __str__(self):
-        return f"{self.name}@{self.id} ({len(self.files)} files)"
-
-    def __repr__(self):
-        return f"<Module {str(self)}>"
-
-    def deepcopy(self):
-        return ModuleData(
+    def unpack(self) -> language.Secret:
+        return language.Secret(
             id=self.id,
-            name=self.name,
-            committed=self.committed,
-            files=[f.deepcopy() for f in self.files],
+            sha512=self.sha512,
+            value=self.value,
         )
-
-
-@dataclass(repr=False, slots=True)
-class FileData:
-    id: UUID
-    module_id: UUID
-    path: str
-    statements: list["StatementData"]
-    revision: int
-
-    def __str__(self):
-        return f"{self.module_id}/{self.path}"
-
-    @property
-    def name(self):
-        # name property to emulate File model
-        return self.path.split(".")[-1]
-
-    def __repr__(self):
-        return f"<File {str(self)}>"
-
-    def deepcopy(self):
-        return FileData(
-            id=self.id,
-            module_id=self.module_id,
-            path=self.path,
-            revision=self.revision,
-            statements=[s.deepcopy() for s in self.statements],
-        )
-
-
-@dataclass(repr=False, slots=True)
-class StatementData:
-    id: UUID
-    module_id: UUID
-    file_id: UUID
-    order_key: str
-    revision: int
-    type: StatementType
-    modifier: Optional[StatementModifier]  # should really be in symbol data...
-    name: Optional[str]
-    fqn: Optional[str]
-    parent_id: Optional[UUID]
-    text: Optional[str]
-    # symbol contents
-    symbol_type: Optional[SymbolType] = None
-    description: Optional[str] = None
-    # specific symbol types until we get :WireFormat
-    _symbol_type: Optional["TypeData"] = None
-    _symbol_task: Optional["TaskData"] = None
-    _symbol_expectation: Optional["ExpectationData"] = None
-    _symbol_code: Optional["CodeData"] = None
-    _symbol_model: Optional["ModelData"] = None
-    _symbol_requirement: Optional["RequirementData"] = None
-    _symbol_value: Optional["ValueData"] = None
-    _symbol_dataset: Optional["DatasetData"] = None
-
-    @property
-    def symbol(self):
-        if self.symbol_type is None:
-            return None
-        return getattr(self, f"_symbol_{self.symbol_type.name.lower()}")
-
-    @symbol.setter
-    def symbol(self, value):
-        if self.symbol_type is None and value is not None:
-            raise ValueError(f"cannot set symbol {value} without symbol type")
-        setattr(self, f"_symbol_{self.symbol_type.name.lower()}", value)
-
-    def __str__(self):
-        parent_str = f"{self.parent_id}:" if self.parent_id else ""
-        loc = str(self.file_id) + ":" + parent_str + str(self.order_key)
-        symbol_type_str = self.symbol_type.name if self.symbol_type else ""
-        return f"{loc}: {self.type.name} {symbol_type_str} {self.name}"
-
-    def __repr__(self):
-        return f"<Statement {str(self)}>"
-
-    def deepcopy(self):
-        copied = {}
-        for field in _STATEMENT_DATA_FIELDS:
-            value = getattr(self, field.name)
-            if value is not None and hasattr(value, "deepcopy"):
-                copied[field.name] = value.deepcopy()
-            else:
-                copied[field.name] = copy.deepcopy(value)
-        return StatementData(**copied)
-
-
-_STATEMENT_DATA_FIELDS = fields(StatementData)
-
-
-# symbols
-
-
-@dataclass(repr=False, slots=True)
-class HasTypeData:
-    tag: Optional[TypeTag] = None
-    flags: Optional[TypeFlag] = TypeFlag.Zero
-    fields: Union[list[FieldData], None] = None
-
-
-@dataclass(repr=False, slots=True)
-class TypeData(HasTypeData):
-    pass
-
-
-@dataclass(repr=False, slots=True)
-class TaskData(HasTypeData):
-    pass
-
-
-@dataclass(repr=False, slots=True)
-class ExpectationData(HasTypeData):
-    pass
-
-
-@dataclass(repr=False, slots=True)
-class CodeData(HasTypeData):
-    lang: Optional[str] = None
-    code: Optional[str] = None
-
-
-@dataclass(repr=False, slots=True)
-class ModelData:
-    external_name: Optional[str] = None
-
-
-@dataclass(repr=False, slots=True)
-class RequirementData:
-    reference_module: Optional[ModuleReference] = None
-
-
-@dataclass(repr=False, slots=True)
-class ValueData(HasTypeData):
-    value: Optional[typing.Any] = None
-
-
-@dataclass(repr=False, slots=True)
-class DatasetViewData:
-    id: UUID
-    name: str
-    query: Optional[Query] = None
-    sort: Optional[list[Sort]] = None
-    length: Optional[int] = None
-    reference_id: Optional[UUID] = None
-
-
-@dataclass(repr=False, slots=True)
-class RecordData:
-    id: UUID
-    statement_id: UUID
-    order_key: str
-    revision: int
-    data: Optional[typing.Any] = None
-
-    def __str__(self):
-        return f"{self.statement_id}:{self.order_key} {describe_type(self.data)}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {str(self)}>"
-
-    def deepcopy(self):
-        return RecordData(**self.__dict__)
-
-
-@dataclass(repr=False, slots=True)
-class DatasetData(HasTypeData):
-    records: Optional[list[RecordData]] = None
-    length: Optional[int] = None
-
-    @property
-    def loaded(self):
-        return self.records is not None
-
-
-SYMBOL_DATA_CLASS_BY_TYPE = {
-    SymbolType.TYPE: TypeData,
-    SymbolType.TASK: TaskData,
-    SymbolType.EXPECTATION: ExpectationData,
-    SymbolType.CODE: CodeData,
-    SymbolType.MODEL: ModelData,
-    SymbolType.REQUIREMENT: RequirementData,
-    SymbolType.DATASET: DatasetData,
-    SymbolType.VALUE: ValueData,
-}
-
-
-# interp
-
-
-@dataclass(repr=False, slots=True)
-class IssueData:
-    id: UUID
-    scope: InterpScope
-    file_id: Optional[UUID]
-    statement_id: Optional[UUID]
-    kind: IssueKind
-    type: IssueType
-    message: Optional[str]
-
-
-@dataclass(repr=False, slots=True)
-class InterpData:
-    scope: InterpScope
-    file_id: Optional[UUID]
-    statement_id: Optional[UUID]
-    issues: Optional[list[IssueData]] = None
-    resolved_fields: Optional[list[FieldData]] = None
-
-    def hash_content(self) -> str:
-        content = (
-            self.statement_id,
-            *(issue.id for issue in (self.issues or [])),
-            *(field.id for field in (self.resolved_fields or [])),
-        )
-        content = str(content).encode("utf-8")
-        return md5(content).hexdigest()
-
-
-def pack_module(module: language.Module) -> ModuleData:
-    return ModuleData(
-        id=module.id,
-        name=module.name,
-        files=[pack_file(file) for file in module.files],
-    )
-
-
-def unpack_module(data: ModuleData) -> language.Module:
-    module = language.Module(id=data.id, name=data.name)
-    module.files = [unpack_file(file, module) for file in data.files]
-    return module
-
-
-def pack_file(file: language.File) -> FileData:
-    return FileData(
-        id=file.id,
-        module_id=file.module.id,
-        path=file.path,
-        statements=[pack_statement(statement) for statement in file.statements],
-        revision=1,
-    )
-
-
-def unpack_file(data: FileData, module: language.Module) -> language.File:
-    file = language.File(
-        id=data.id,
-        module=module,
-        path=data.path,
-    )
-    file.statements = [unpack_statement(statement, file) for statement in data.statements]
-    # restore parent refs
-    for statement in file.statements:
-        if statement.parent_id is not None:
-            statement.parent = module.symbols_by_id[statement.parent_id]
-    # sort statements
-    file._sort()
-    return file
-
-
-def pack_statement(statement: language.Statement) -> StatementData:
-    data = StatementData(
-        module_id=statement.file.module.id,
-        file_id=statement.file.id,
-        revision=1,
-        id=statement.id,
-        order_key=statement.order_key,
-        parent_id=statement.parent_id,
-        type=statement.type,
-        name=statement.name,
-        fqn=statement.fqn,
-        text=statement.text,
-        symbol_type=statement.symbol_type,
-    )
-    if statement.symbol is not None:
-        _pack_symbol(statement.symbol, data)
-    return data
-
-
-def unpack_statement(data: StatementData, file: language.File) -> language.Statement:
-    statement = language.Statement(
-        id=data.id,
-        file=file,
-        parent=None,  # must be restored later
-        order_key=data.order_key,
-        type=data.type,
-        name=data.name,
-        text=data.text,
-    )
-    if statement.type == bench.language.const.StatementType.SYMBOL:
-        base_args = dict(
-            id=data.id,
-            name=data.name,
-            modifier=data.modifier,
-            source=statement,
-            scope=statement,
-        )
-        statement.symbol = _unpack_symbol(data, base_args)
-        statement.symbol.source = statement
-    return statement
-
-
-def _pack_symbol(symbol: language.Symbol, data: StatementData) -> None:
-    # type content is also a component
-    data.modifier = symbol.modifier
-    if isinstance(symbol, language.TypeNode):
-        data.description = symbol.description
-        data.root_type_tag = symbol.tag
-        data.root_type_flags = symbol.flags
-        data.fields = [pack_field(data.id, node) for node in symbol.fields]
-    if isinstance(symbol, language.Task):
-        data.description = symbol.description
-    elif isinstance(symbol, language.Expectation):
-        data.description = symbol.description
-    elif isinstance(symbol, language.Code):
-        data.description = symbol.description
-        data.lang = symbol.language
-        data.code = symbol.code
-    elif isinstance(symbol, language.Model):
-        data.external_name = symbol.external_name
-    elif isinstance(symbol, language.Dataset):
-        data.description = symbol.description
-    elif isinstance(symbol, language.Requirement):
-        if symbol.module_name and symbol.version:
-            data.reference_module = ModuleReference(
-                symbol.module_name, symbol.version, id=symbol.module_id
-            )
-
-
-def _unpack_symbol(data: StatementData, base_args: dict) -> language.Symbol:
-    if isinstance(data.symbol, TypeData):
-        return language.Type(
-            **base_args,
-            description=data.description,
-            tag=data.symbol.tag,
-            fields=[unpack_field(node) for node in data.symbol.fields],
-        )
-    elif isinstance(data.symbol, TaskData):
-        return language.Task(
-            **base_args,
-            description=data.description,
-            tag=data.symbol.tag,
-            fields=[unpack_field(node) for node in data.symbol.fields],
-        )
-    elif isinstance(data.symbol, ExpectationData):
-        return language.Expectation(**base_args, description=data.description)
-    elif isinstance(data.symbol, CodeData):
-        return language.Code(
-            **base_args,
-            description=data.description,
-            language=data.symbol.lang,
-            code=data.symbol.code,
-            fields=[unpack_field(node) for node in data.symbol.fields],
-        )
-    elif isinstance(data.symbol, ModelData):
-        return language.Model(
-            **base_args,
-            external_name=data.symbol.external_name,
-        )
-    elif isinstance(data.symbol, DatasetData):
-        return language.Dataset(
-            **base_args,
-            description=data.description,
-            fields=[unpack_field(node) for node in data.symbol.fields],
-            inmemory=False,
-        )
-    elif isinstance(data.symbol, ValueData):
-        return language.Value(
-            **base_args,
-            value=data.symbol.value,
-            fields=[unpack_field(node) for node in data.symbol.fields],
-        )
-    elif isinstance(data.symbol, RequirementData):
-        if data.symbol.reference_module is not None:
-            return language.Requirement(
-                **base_args,
-                module_name=data.symbol.reference_module.name,
-                version=data.symbol.reference_module.version,
-                module_id=data.symbol.reference_module.id,
-            )
-        else:
-            return language.Requirement(**base_args)
-    else:
-        raise ValueError(
-            f"unexpected symbol type {data.symbol_type} for statement {describe_type(data.symbol)}"
-        )
-
-
-def pack_field(statement_id: UUID, node: language.Field) -> FieldData:
-    return FieldData(
-        id=node.id,
-        revision=1,
-        name=node.name,
-        key=node.key,
-        statement_id=statement_id,
-        tag=node.tag,
-        hint=node.hint,
-        description=node.description,
-        flags=node.flags,
-        reference_id=node.reference.id if hasattr(node.reference, "id") else node.reference,
-        order_key=node.order_key,
-    )
-
-
-def unpack_field(node: FieldData) -> language.Field:
-    return language.Field(
-        id=node.id,
-        name=node.name,
-        key=node.key,
-        tag=node.tag,
-        hint=node.hint,
-        description=node.description,
-        flags=node.flags,
-        reference=node.reference_id,
-        order_key=node.order_key,
-    )
-
-
-def pack_record(statement_id: UUID, record: language.Record) -> RecordData:
-    return RecordData(
-        id=record._id,
-        revision=1,
-        data=record._data,
-        statement_id=statement_id,
-        order_key=record._order_key,
-    )
-
-
-def unpack_record(data: RecordData) -> language.Record:
-    return language.Record(_id=data.id, _data=data.data, _order_key=data.order_key)
-
-
-def pack_issue(issue: language.Issue) -> IssueData:
-    if issue.subject is not None:
-        id = uuid5(issue.subject.id, issue.type.name)
-    else:
-        raise NotImplementedError(f"cannot handle unscoped issue: {issue}")
-
-    return IssueData(
-        id=id,
-        kind=IssueKind(issue.kind),
-        scope=InterpScope(issue.scope),
-        type=IssueType(issue.type),
-        file_id=issue.subject.id if isinstance(issue.subject, language.File) else None,
-        statement_id=issue.subject.id
-        if isinstance(issue.subject, (language.Statement, language.Symbol))
-        else None,
-        message=issue.message,
-    )
-
-
-def pack_remote_object(object: language.RemoteObject) -> RemoteObjectData:
-    return RemoteObjectData(
-        id=object.id,
-        name=object.name,
-        sha512=object.sha512,
-        content_type=object.content_type,
-        content_length=object.content_length,
-    )
-
-
-def unpack_remote_object(object: RemoteObjectData) -> language.RemoteObject:
-    return language.RemoteObject(
-        id=object.id,
-        name=object.name,
-        sha512=object.sha512,
-        content_type=object.content_type,
-        content_length=object.content_length,
-    )
-
-
-def pack_secret(secret: language.Secret) -> SecretData:
-    return SecretData(
-        id=secret.id,
-        sha512=secret.sha512,
-        value=secret.value,
-    )
-
-
-def unpack_secret(secret: SecretData) -> language.Secret:
-    return language.Secret(
-        id=secret.id,
-        sha512=secret.sha512,
-        value=secret.value,
-    )

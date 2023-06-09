@@ -48,6 +48,11 @@ if typing.TYPE_CHECKING:
 @dataclass(repr=False)
 class LanguageObject(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
+    revision: int = 0
+
+
+@property
+class SessionObject(LanguageObject):
     _session: "Session" = None
 
     @property
@@ -161,7 +166,7 @@ class Scope:
 
 
 @dataclass(repr=False)
-class Module(LanguageObject, Scope):
+class Module(SessionObject, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
@@ -205,7 +210,7 @@ class Module(LanguageObject, Scope):
 
 
 @dataclass(repr=False)
-class File(LanguageObject, Scope):
+class File(SessionObject, Scope):
     module: Module = required_field()
     path: str = required_field()
     statements: list[Statement] = field(default_factory=list)
@@ -270,7 +275,7 @@ class File(LanguageObject, Scope):
 
 
 @dataclass(repr=False)
-class Statement(LanguageObject, Scope):
+class Statement(SessionObject, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
     file: File = required_field()
@@ -377,7 +382,7 @@ class SymbolBase(abc.ABC):
 
 
 @dataclass(repr=False)
-class Symbol(LanguageObject, SymbolBase):
+class Symbol(SessionObject, SymbolBase):
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     name: str = field(default="")
@@ -503,12 +508,11 @@ def new_field_key() -> str:
 
 
 @dataclass(repr=False)
-class Field(TypeNode):
-    name: Optional[str]
-    tag: TypeTag
+class Field(LanguageObject, TypeNode):
+    name: Optional[str] = None
+    tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
-    id: UUID = field(default_factory=uuid.uuid4)
     key: str = field(default_factory=new_field_key)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
@@ -1157,7 +1161,7 @@ SYMBOL_FIELDS_NAMES_BY_TYPE = {
 
 
 @dataclass(repr=False)
-class RemoteObject(LanguageObject):
+class RemoteObject(SessionObject):
     """A proxy to a remotely stored object behaving like a Python file on demand."""
 
     id: UUID = field(default_factory=uuid.uuid4)
@@ -1203,7 +1207,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 
 
 @dataclass(repr=False)
-class Secret(LanguageObject, typing.Generic[SecretValueT]):
+class Secret(SessionObject, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
     id: UUID = field(default_factory=uuid.uuid4)
