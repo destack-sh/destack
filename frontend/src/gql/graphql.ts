@@ -251,6 +251,13 @@ export enum ExecutionTriggerType {
   Ui = "UI",
 }
 
+/** A modifier to a Bench statement. */
+export enum ExpectationModifier {
+  Check = "CHECK",
+  Like = "LIKE",
+  Unlike = "UNLIKE",
+}
+
 export type Field = Node &
   SimpleType & {
     __typename?: "Field";
@@ -476,7 +483,6 @@ export enum ModuleMutationType {
   CreateFile = "CREATE_FILE",
   CreateRecord = "CREATE_RECORD",
   CreateStatement = "CREATE_STATEMENT",
-  CreateStatementBlank = "CREATE_STATEMENT_BLANK",
   DeleteField = "DELETE_FIELD",
   DeleteFile = "DELETE_FILE",
   DeleteRecord = "DELETE_RECORD",
@@ -499,7 +505,6 @@ export enum ModuleMutationType {
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
-  TruncateInterp = "TRUNCATE_INTERP",
   TruncateRecords = "TRUNCATE_RECORDS",
   UpdateField = "UPDATE_FIELD",
   UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
@@ -509,13 +514,12 @@ export enum ModuleMutationType {
   UpdateRecord = "UPDATE_RECORD",
   UpdateRecordPath = "UPDATE_RECORD_PATH",
   UpdateStatement = "UPDATE_STATEMENT",
-  UpdateStatementCode = "UPDATE_STATEMENT_CODE",
-  UpdateStatementDescription = "UPDATE_STATEMENT_DESCRIPTION",
-  UpdateStatementLanguage = "UPDATE_STATEMENT_LANGUAGE",
-  UpdateStatementModifier = "UPDATE_STATEMENT_MODIFIER",
-  UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
-  UpdateStatementValue = "UPDATE_STATEMENT_VALUE",
+  UpdateSymbolCode = "UPDATE_SYMBOL_CODE",
+  UpdateSymbolDescription = "UPDATE_SYMBOL_DESCRIPTION",
+  UpdateSymbolLanguage = "UPDATE_SYMBOL_LANGUAGE",
+  UpdateSymbolModifier = "UPDATE_SYMBOL_MODIFIER",
+  UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
 }
 
 export type Mutation = {
@@ -543,7 +547,6 @@ export type Mutation = {
   createRecord: RecordOperationInfo;
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
-  createStatementBlank: StatementOperationInfo;
   deleteField: FieldOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
@@ -590,11 +593,10 @@ export type Mutation = {
   updateRecordPath: RecordOperationInfo;
   updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
-  updateStatementCode: StatementOperationInfo;
-  updateStatementDescription: StatementOperationInfo;
-  updateStatementLanguage: StatementOperationInfo;
   updateStatementModifier: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
+  updateSymbolCode: StatementOperationInfo;
+  updateSymbolDescription: StatementOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -685,10 +687,6 @@ export type MutationCreateSecretArgs = {
 
 export type MutationCreateStatementArgs = {
   input: StatementCreateInput;
-};
-
-export type MutationCreateStatementBlankArgs = {
-  input: StatementCreateBlankInput;
 };
 
 export type MutationDeleteFieldArgs = {
@@ -867,24 +865,20 @@ export type MutationUpdateStatementArgs = {
   input: StatementCreateInput;
 };
 
-export type MutationUpdateStatementCodeArgs = {
-  input: StatementUpdateCodeInput;
-};
-
-export type MutationUpdateStatementDescriptionArgs = {
-  input: StatementUpdateDescriptionInput;
-};
-
-export type MutationUpdateStatementLanguageArgs = {
-  input: StatementUpdateLanguageInput;
-};
-
 export type MutationUpdateStatementModifierArgs = {
-  input: StatementSetModifierInput;
+  input: StatementSetExpectationModifierInput;
 };
 
 export type MutationUpdateStatementTextArgs = {
-  input: StatementUpdateCodeInput;
+  input: StatementUpdateTextInput;
+};
+
+export type MutationUpdateSymbolCodeArgs = {
+  input: SymbolUpdateCodeInput;
+};
+
+export type MutationUpdateSymbolDescriptionArgs = {
+  input: SymbolUpdateDescriptionInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1788,6 +1782,7 @@ export type Statement = Node &
     rootTypeFlags?: Maybe<Scalars["Int"]>;
     rootTypeTag?: Maybe<TypeTag>;
     symbolType?: Maybe<SymbolType>;
+    text?: Maybe<Scalars["String"]>;
     type: StatementType;
     updatedAt: Scalars["DateTime"];
   };
@@ -1840,14 +1835,6 @@ export type StatementCommentedInput = {
   id: Scalars["GlobalID"];
 };
 
-/** Creates a blank statement */
-export type StatementCreateBlankInput = {
-  fileId: Scalars["GlobalID"];
-  id?: InputMaybe<Scalars["GlobalID"]>;
-  orderKey: Scalars["String"];
-  parentId?: InputMaybe<Scalars["GlobalID"]>;
-};
-
 /** Creates a full statement */
 export type StatementCreateInput = {
   code?: InputMaybe<Scalars["String"]>;
@@ -1856,13 +1843,14 @@ export type StatementCreateInput = {
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
   lang?: InputMaybe<Scalars["String"]>;
-  modifier?: InputMaybe<StatementModifier>;
+  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   symbolType?: InputMaybe<SymbolType>;
+  text?: InputMaybe<Scalars["String"]>;
   type: StatementType;
 };
 
@@ -1873,13 +1861,6 @@ export type StatementDeleteInput = {
 export type StatementFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
-
-/** A modifier to a Bench statement. */
-export enum StatementModifier {
-  Check = "CHECK",
-  Like = "LIKE",
-  Unlike = "UNLIKE",
-}
 
 export type StatementMorphInput = {
   id: Scalars["GlobalID"];
@@ -1909,9 +1890,9 @@ export type StatementRestoreInput = {
   id: Scalars["GlobalID"];
 };
 
-export type StatementSetModifierInput = {
+export type StatementSetExpectationModifierInput = {
   id: Scalars["GlobalID"];
-  modifier?: InputMaybe<StatementModifier>;
+  modifier?: InputMaybe<ExpectationModifier>;
 };
 
 export type StatementSoftDeleteInput = {
@@ -1925,19 +1906,9 @@ export enum StatementType {
   Symbol = "SYMBOL",
 }
 
-export type StatementUpdateCodeInput = {
-  code?: InputMaybe<Scalars["String"]>;
+export type StatementUpdateTextInput = {
   id: Scalars["GlobalID"];
-};
-
-export type StatementUpdateDescriptionInput = {
-  description: Scalars["String"];
-  id: Scalars["GlobalID"];
-};
-
-export type StatementUpdateLanguageInput = {
-  id: Scalars["GlobalID"];
-  language: Scalars["String"];
+  text?: InputMaybe<Scalars["String"]>;
 };
 
 export type Subscription = {
@@ -1982,6 +1953,16 @@ export enum SymbolType {
   Type = "TYPE",
   Value = "VALUE",
 }
+
+export type SymbolUpdateCodeInput = {
+  code?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+};
+
+export type SymbolUpdateDescriptionInput = {
+  description: Scalars["String"];
+  id: Scalars["GlobalID"];
+};
 
 export type SystemInfo = {
   __typename?: "SystemInfo";
@@ -3699,7 +3680,7 @@ export type CreateStatementMutationVariables = Exact<{
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
   type: StatementType;
-  modifier?: InputMaybe<StatementModifier>;
+  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   symbolType?: InputMaybe<SymbolType>;
   lang?: InputMaybe<Scalars["String"]>;
@@ -3772,12 +3753,12 @@ export type MorphStatementMutation = {
       };
 };
 
-export type UpdateStatementModifierMutationVariables = Exact<{
+export type UpdateExpectationModifierMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  modifier?: InputMaybe<StatementModifier>;
+  modifier?: InputMaybe<ExpectationModifier>;
 }>;
 
-export type UpdateStatementModifierMutation = {
+export type UpdateExpectationModifierMutation = {
   __typename?: "Mutation";
   updateStatementModifier:
     | ({ __typename?: "OperationInfo" } & {
@@ -3969,28 +3950,28 @@ export type CommentStatementMutation = {
       };
 };
 
-export type UpdateStatementDescriptionMutationVariables = Exact<{
+export type UpdateSymbolDescriptionMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   description: Scalars["String"];
 }>;
 
-export type UpdateStatementDescriptionMutation = {
+export type UpdateSymbolDescriptionMutation = {
   __typename?: "Mutation";
-  updateStatementDescription:
+  updateSymbolDescription:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Statement"; id: any; description?: string | null; revision: number };
 };
 
-export type UpdateStatementCodeMutationVariables = Exact<{
+export type UpdateSymbolCodeMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   code?: InputMaybe<Scalars["String"]>;
 }>;
 
-export type UpdateStatementCodeMutation = {
+export type UpdateSymbolCodeMutation = {
   __typename?: "Mutation";
-  updateStatementCode:
+  updateSymbolCode:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -3999,7 +3980,7 @@ export type UpdateStatementCodeMutation = {
 
 export type UpdateStatementTextMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  code?: InputMaybe<Scalars["String"]>;
+  text?: InputMaybe<Scalars["String"]>;
 }>;
 
 export type UpdateStatementTextMutation = {
@@ -4008,7 +3989,7 @@ export type UpdateStatementTextMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; code?: string | null; revision: number };
+    | { __typename?: "Statement"; id: any; text?: string | null; revision: number };
 };
 
 export type CreateRecordMutationVariables = Exact<{
@@ -10007,7 +9988,7 @@ export const CreateStatementDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "StatementModifier" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
         },
         {
           kind: "VariableDefinition",
@@ -10365,13 +10346,13 @@ export const MorphStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MorphStatementMutation, MorphStatementMutationVariables>;
-export const UpdateStatementModifierDocument = {
+export const UpdateExpectationModifierDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateStatementModifier" },
+      name: { kind: "Name", value: "updateExpectationModifier" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -10381,7 +10362,7 @@ export const UpdateStatementModifierDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "StatementModifier" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
         },
       ],
       selectionSet: {
@@ -10435,7 +10416,7 @@ export const UpdateStatementModifierDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<UpdateStatementModifierMutation, UpdateStatementModifierMutationVariables>;
+} as unknown as DocumentNode<UpdateExpectationModifierMutation, UpdateExpectationModifierMutationVariables>;
 export const MoveStatementDocument = {
   kind: "Document",
   definitions: [
@@ -11309,13 +11290,13 @@ export const CommentStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CommentStatementMutation, CommentStatementMutationVariables>;
-export const UpdateStatementDescriptionDocument = {
+export const UpdateSymbolDescriptionDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateStatementDescription" },
+      name: { kind: "Name", value: "updateSymbolDescription" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -11333,7 +11314,7 @@ export const UpdateStatementDescriptionDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateStatementDescription" },
+            name: { kind: "Name", value: "updateSymbolDescription" },
             arguments: [
               {
                 kind: "Argument",
@@ -11379,14 +11360,14 @@ export const UpdateStatementDescriptionDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<UpdateStatementDescriptionMutation, UpdateStatementDescriptionMutationVariables>;
-export const UpdateStatementCodeDocument = {
+} as unknown as DocumentNode<UpdateSymbolDescriptionMutation, UpdateSymbolDescriptionMutationVariables>;
+export const UpdateSymbolCodeDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "updateStatementCode" },
+      name: { kind: "Name", value: "updateSymbolCode" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -11404,7 +11385,7 @@ export const UpdateStatementCodeDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateStatementCode" },
+            name: { kind: "Name", value: "updateSymbolCode" },
             arguments: [
               {
                 kind: "Argument",
@@ -11450,7 +11431,7 @@ export const UpdateStatementCodeDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<UpdateStatementCodeMutation, UpdateStatementCodeMutationVariables>;
+} as unknown as DocumentNode<UpdateSymbolCodeMutation, UpdateSymbolCodeMutationVariables>;
 export const UpdateStatementTextDocument = {
   kind: "Document",
   definitions: [
@@ -11466,7 +11447,7 @@ export const UpdateStatementTextDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "text" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
       ],
@@ -11490,8 +11471,8 @@ export const UpdateStatementTextDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "code" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
+                      name: { kind: "Name", value: "text" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "text" } },
                     },
                   ],
                 },
@@ -11507,7 +11488,7 @@ export const UpdateStatementTextDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "code" } },
+                      { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },

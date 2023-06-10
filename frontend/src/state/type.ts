@@ -1,4 +1,4 @@
-import { StatementModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { ExpectationModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { reverseRecord } from "@/utils/functools";
 
 export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
@@ -23,13 +23,13 @@ export const SUPPORTED_SYMBOL_TYPES = [
   SymbolType.Task,
 ];
 export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
-export const MODIFIER_KEYWORD: Record<StatementModifier, string> = {
-  [StatementModifier.Like]: "like",
-  [StatementModifier.Unlike]: "unlike",
-  [StatementModifier.Check]: "check",
+export const MODIFIER_KEYWORD: Record<ExpectationModifier, string> = {
+  [ExpectationModifier.Like]: "like",
+  [ExpectationModifier.Unlike]: "unlike",
+  [ExpectationModifier.Check]: "check",
 };
-export const SUPPORTED_MODIFIERS = [StatementModifier.Like, StatementModifier.Unlike, StatementModifier.Check];
-export const MODIFIER_BY_KEYWORD: Record<string, StatementModifier> = reverseRecord(MODIFIER_KEYWORD);
+export const SUPPORTED_MODIFIERS = [ExpectationModifier.Like, ExpectationModifier.Unlike, ExpectationModifier.Check];
+export const MODIFIER_BY_KEYWORD: Record<string, ExpectationModifier> = reverseRecord(MODIFIER_KEYWORD);
 export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",

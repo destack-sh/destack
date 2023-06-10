@@ -171,7 +171,7 @@ class DatasetQuery:
     @async_safe
     def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
-        # nocheckin: return empty connection for now
+        # nocheckin: return actual dataset search
         return gql.Connection(
             edges=[],
             page_info=PageInfo(

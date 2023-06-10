@@ -13,12 +13,11 @@ import {
   type Scalars,
   type SoftDeleteRecordMutation,
   type SoftDeleteFieldMutation,
-  type TruncateRecordsMutation,
   type FieldCreateInput,
   type FieldUpdateInput,
   type UpdateRecordMutation,
-  type UpdateStatementCodeMutation,
-  type UpdateStatementDescriptionMutation,
+  type UpdateSymbolCodeMutation,
+  type UpdateSymbolDescriptionMutation,
   type UpdateStatementTextMutation,
   type UpdateFieldMutation,
 } from "@/gql/graphql";
@@ -32,11 +31,11 @@ export function useSymbolContentOps() {
 
   // symbol content mutations
 
-  const { mutate: updateStatementDescriptionMut } = registry.useMutation(
-    ModuleMutationType.UpdateStatementDescription,
+  const { mutate: updateSymbolDescriptionMut } = registry.useMutation(
+    ModuleMutationType.UpdateSymbolDescription,
     graphql(/* GraphQL */ `
-      mutation updateStatementDescription($id: GlobalID!, $description: String!) {
-        updateStatementDescription(input: { id: $id, description: $description }) {
+      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {
+        updateSymbolDescription(input: { id: $id, description: $description }) {
           ... on Statement {
             id
             description
@@ -49,17 +48,17 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string; description: string }) =>
         ({
-          updateStatementDescription: {
+          updateSymbolDescription: {
             __typename: "Statement",
             id: vars.id,
             description: vars.description,
             revision: PENDING_REVISION,
           },
-        } as UpdateStatementDescriptionMutation),
+        } as UpdateSymbolDescriptionMutation),
     }
   );
 
-  async function updateStatementDescription(
+  async function updateSymbolDescription(
     tx: Transaction | null,
     id: string,
     oldDescription: string,
@@ -69,21 +68,21 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateDescription",
       do: async () => {
-        return await updateStatementDescriptionMut({ id: id, description: newDescription });
+        return await updateSymbolDescriptionMut({ id: id, description: newDescription });
       },
       undo: async () => {
-        return await updateStatementDescriptionMut({ id: id, description: oldDescription });
+        return await updateSymbolDescriptionMut({ id: id, description: oldDescription });
       },
     });
   }
 
   // code mutations
 
-  const { mutate: updateStatementCodeMut } = registry.useMutation(
-    ModuleMutationType.UpdateStatementCode,
+  const { mutate: updateSymbolCodeMut } = registry.useMutation(
+    ModuleMutationType.UpdateSymbolCode,
     graphql(/* GraphQL */ `
-      mutation updateStatementCode($id: GlobalID!, $code: String) {
-        updateStatementCode(input: { id: $id, code: $code }) {
+      mutation updateSymbolCode($id: GlobalID!, $code: String) {
+        updateSymbolCode(input: { id: $id, code: $code }) {
           ... on Statement {
             id
             code
@@ -96,25 +95,25 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string; code: string }) =>
         ({
-          updateStatementCode: {
+          updateSymbolCode: {
             __typename: "Statement",
             id: vars.id,
             code: vars.code,
             revision: PENDING_REVISION,
           },
-        } as UpdateStatementCodeMutation),
+        } as UpdateSymbolCodeMutation),
     }
   );
 
-  async function updateStatementCode(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
+  async function updateSymbolCode(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
     await ops.perform({
       tx,
       type: "statement.updateCode",
       do: async () => {
-        return await updateStatementCodeMut({ id, code: newCode });
+        return await updateSymbolCodeMut({ id, code: newCode });
       },
       undo: async () => {
-        return await updateStatementCodeMut({ id, code: oldCode });
+        return await updateSymbolCodeMut({ id, code: oldCode });
       },
     });
   }
@@ -124,11 +123,11 @@ export function useSymbolContentOps() {
   const { mutate: updateStatementTextMut } = registry.useMutation(
     ModuleMutationType.UpdateStatementText,
     graphql(/* GraphQL */ `
-      mutation updateStatementText($id: GlobalID!, $code: String) {
-        updateStatementText(input: { id: $id, code: $code }) {
+      mutation updateStatementText($id: GlobalID!, $text: String) {
+        updateStatementText(input: { id: $id, text: $text }) {
           ... on Statement {
             id
-            code
+            text
             revision
           }
           ...OperationInfoContent
@@ -136,12 +135,12 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; code: string }) =>
+      optimisticResponse: (vars: { id: string; text: string }) =>
         ({
           updateStatementText: {
             __typename: "Statement",
             id: vars.id,
-            code: vars.code,
+            text: vars.text,
             revision: PENDING_REVISION,
           },
         } as UpdateStatementTextMutation),
@@ -153,10 +152,10 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateText",
       do: async () => {
-        return await updateStatementTextMut({ id, code: newCode });
+        return await updateStatementTextMut({ id, text: newCode });
       },
       undo: async () => {
-        return await updateStatementTextMut({ id, code: oldCode });
+        return await updateStatementTextMut({ id, text: oldCode });
       },
     });
   }
@@ -225,7 +224,7 @@ export function useSymbolContentOps() {
           node: { __ref: cache.identify(data?.createRecord) },
         };
         cache.modify({
-          id: cache.identify(data?.createRecord.statement),
+          id: cache.identify({ __typename: "Statement", id: data?.createRecord.statementId }),
           fields: {
             //  :StatementRecordsView
             records({ value: existing, args }) {
@@ -478,70 +477,76 @@ export function useSymbolContentOps() {
         });
       },
       undo: async () => {
-        return await softDeleteRecordMut({ id: id });
+        return await softDeleteRecordMut({ statementId, id });
       },
       redo: async () => {
-        return await restoreRecordMut({ id: id });
+        return await restoreRecordMut({ statementId, id });
       },
     });
   }
 
-  async function updateRecord(tx: Transaction | null, id: string, oldData: Scalars["JSON"], newData: Scalars["JSON"]) {
+  async function updateRecord(
+    tx: Transaction | null,
+    statementId: string,
+    id: string,
+    oldData: Scalars["JSON"],
+    newData: Scalars["JSON"]
+  ) {
     await ops.perform({
       tx,
       type: "statement.updateRecord",
       do: async () => {
-        return await updateRecordMut({ id, data: newData });
+        return await updateRecordMut({ statementId, id, data: newData });
       },
       undo: async () => {
-        return await updateRecordMut({ id, data: oldData });
+        return await updateRecordMut({ statementId, id, data: oldData });
       },
     });
   }
 
-  async function deleteRecord(tx: Transaction | null, id: string) {
+  async function deleteRecord(tx: Transaction | null, statementId: string, id: string) {
     await ops.perform({
       tx,
       type: "statement.deleteRecord",
       do: async () => {
-        return await deleteRecordMut({ id });
+        return await deleteRecordMut({ statementId, id });
       },
     });
   }
 
-  async function softDeleteRecord(tx: Transaction | null, id: string) {
+  async function softDeleteRecord(tx: Transaction | null, statementId: string, id: string) {
     await ops.perform({
       tx,
       type: "statement.softDeleteRecord",
       do: async () => {
-        return await softDeleteRecordMut({ id });
+        return await softDeleteRecordMut({ statementId, id });
       },
       undo: async () => {
-        return await restoreRecordMut({ id });
+        return await restoreRecordMut({ statementId, id });
       },
     });
   }
 
-  async function batchSoftDeleteRecord(ids: string[]) {
+  async function batchSoftDeleteRecord(statementId: string, ids: string[]) {
     await ops.perform({
       type: "statement.batchSoftDeleteRecord",
       do: async () => {
-        return await batchSoftDeleteRecordMut({ ids });
+        return await batchSoftDeleteRecordMut({ statementId, ids });
       },
       undo: async () => {
-        return await batchRestoreRecordMut({ ids });
+        return await batchRestoreRecordMut({ statementId, ids });
       },
     });
   }
 
-  async function batchRestoreRecord(ids: string[]) {
+  async function batchRestoreRecord(statementId: string, ids: string[]) {
     await ops.perform({
       type: "statement.batchRestoreRecord",
       do: async () => {
-        return await batchRestoreRecordMut({ ids });
+        return await batchRestoreRecordMut({ statementId, ids });
       },
       undo: async () => {
-        return await batchSoftDeleteRecordMut({ ids });
+        return await batchSoftDeleteRecordMut({ statementId, ids });
       },
     });
   }
@@ -905,8 +910,8 @@ export function useSymbolContentOps() {
 
   return {
     registry,
-    updateStatementDescription,
-    updateStatementCode,
+    updateSymbolDescription,
+    updateSymbolCode,
     updateStatementText,
     createRecord,
     updateRecord,

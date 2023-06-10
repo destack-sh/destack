@@ -13,7 +13,8 @@ from bench.language.mutate import ModuleMutator
 from bench.language.typer import check_type
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
-from bench.runtime.common.type import ExecutionFrame, ExecutionFrameData
+from bench.runtime.common.type import ExecutionFrame
+from bench.language.wire import ExecutionFrameData
 from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 

@@ -1,6 +1,6 @@
 import { useFragment, type FragmentType } from "@/gql";
 import {
-  StatementModifier,
+  ExpectationModifier,
   StatementType,
   SymbolType,
   TypeHint,
@@ -130,7 +130,7 @@ export function useStatementContext() {
   }
 
   async function morphToComment(text?: string) {
-    const updateCode = ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", text);
+    const updateCode = ops.symbol.updateSymbolCode(null, statement.value.id, statement.value.code ?? "", text);
     const morphType = ops.statement.morph(
       null,
       statement.value.id,
@@ -183,7 +183,7 @@ export function useStatementContext() {
     closeTransaction(tx);
   }
 
-  async function setModifier(modifier: StatementModifier | null) {
+  async function setModifier(modifier: ExpectationModifier | null) {
     await ops.statement.modify(null, statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
@@ -242,7 +242,7 @@ export function useStatementContext() {
       editing,
       read: () => (content.value = statement.value?.code ?? ""),
       write: () => {
-        ops.symbol.updateStatementCode(null, statement.value.id, statement.value.code ?? "", content.value);
+        ops.symbol.updateSymbolCode(null, statement.value.id, statement.value.code ?? "", content.value);
       },
       debounceMs: 1000,
       debounceMaxWait: 3000,
@@ -259,7 +259,7 @@ export function useStatementContext() {
       editing,
       read: () => (content.value = statement.value?.description ?? ""),
       write: () =>
-        ops.symbol.updateStatementDescription(
+        ops.symbol.updateSymbolDescription(
           null,
           statement.value.id,
           statement.value.description ?? "",

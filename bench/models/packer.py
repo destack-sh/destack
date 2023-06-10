@@ -7,33 +7,31 @@ Server-side mapper to translate between language and database models.
 from __future__ import annotations
 
 import abc
+from collections import defaultdict
 import typing
 from dataclasses import asdict
 from datetime import datetime
-from uuid import UUID, uuid5
+from uuid import UUID
+from typing import Optional, TypeVar
 
 import pytz
 from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, SymbolType, wire
-from bench.language.const import ExpectationModifier, TypeFlag, TypeHint, TypeTag
-from bench.language.mutate import NON_SEMANTIC_STATEMENT_TYPES
+from bench.language.const import TypeFlag, TypeHint, TypeTag
 from bench.language.wire import (
-    SYMBOL_DATA_CLASS_BY_TYPE,
-    FieldData,
-    FileData,
     ModuleObjectType,
-    StatementData,
+    ModuleTree,
 )
-from bench.runtime.common.type import ExecutionFrameData, RunErrorData
+from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
-NodeDataT = typing.TypeVar("NodeDataT", bound=wire.NodeData)
-NodeT = typing.TypeVar("NodeT", bound=Model)
-DataT = typing.TypeVar("DataT")
-ModelT = typing.TypeVar("ModelT", bound=Model)
+NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
+NodeT = TypeVar("NodeT", bound=Model)
+DataT = TypeVar("DataT")
+ModelT = TypeVar("ModelT", bound=Model)
 
 
 class DataPacker(typing.Generic[DataT, NodeT]):
@@ -46,28 +44,89 @@ class DataPacker(typing.Generic[DataT, NodeT]):
         raise NotImplementedError
 
 
-class TreeVis(abc.ABC):
-    def get_one(self, parent_id: UUID, t: typing.Type[NodeT]) -> typing.Optional[NodeT]:
-        raise NotImplementedError
-
-    def get_many(self, parent_id: UUID, t: typing.Type[NodeT]) -> list[NodeT]:
-        raise NotImplementedError
-
-
 class NodePacker(typing.Generic[NodeDataT, NodeT]):
-    def walk(self, nodes: list[NodeT]) -> list[QuerySet[Model]]:
-        """Walk any descendants of the given nodes."""
+    def walk(self, nodes: list[NodeT], tree: "PackContext") -> list[QuerySet[Model]]:
+        """Walk any descendants of the given nodes (visit or queryset)."""
         return []
 
     def pack(self, node: NodeT) -> NodeDataT:
         raise NotImplementedError
 
-    def unpack(self, data: NodeDataT, tree: TreeVis) -> NodeT:
+    def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT:
         raise NotImplementedError
 
 
-class FilePacker(NodePacker[FileData, models.File]):
-    def walk(self, nodes: list[models.File]) -> list[QuerySet[Model]]:
+class PackContext(abc.ABC):
+    def visit(self, model: ModelT, t: MOT) -> None:
+        pass
+
+
+# registered packers, where each MOT may have multiple packers (subtypes) per model type
+_node_packers: dict[MOT, dict[typing.Type[NodeDataT], "NodePacker"]] = defaultdict(dict)
+MOT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MOT] = {}
+
+
+def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT]):
+    """Decorator to register a node packer for a given type"""
+
+    def decorator(cls: "NodePacker"):
+        if data_t in _node_packers[t]:
+            raise ValueError(
+                f"packer for {t} and {data_t} already registered: {_node_packers[t][data_t]}"
+            )
+        if data_t in MOT_BY_DATA_CLASS:
+            raise ValueError(
+                f"data class {data_t} already registered for {MOT_BY_DATA_CLASS[data_t]}"
+            )
+        _node_packers[t][data_t] = cls
+        MOT_BY_DATA_CLASS[data_t] = t
+        return cls
+
+    return decorator
+
+
+def pack_node(model: ModelT) -> tuple[NodeDataT, list[NodeDataT]]:
+    """Pack a node and its descendants"""
+    tree = ModuleTree()
+    ctx = PackContext()
+
+    return list(tree.nodes.values())
+
+
+def unpack_node(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
+    """Unpack a node and its descendants"""
+    raise NotImplementedError
+
+
+def pack_node_flat(model: ModelT, mot: ModuleObjectType) -> NodeDataT:
+    """Pack a node (flat)"""
+    packer = _node_packers[mot][type(model)]
+    return packer.pack(model)
+
+
+@node_packer(MOT.MODULE, wire.ModuleData, models.ProjectVersion)
+class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
+    def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.File.objects.filter(project_version__in=nodes)]
+
+    def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
+        return wire.ModuleData(
+            id=module.id,
+            parent_id=None,
+            name=module.name,
+            revision=module.revision,
+            committed=module.committed,
+        )
+
+    def unpack(
+        self, data: wire.ModuleData, parent: Optional[models.ProjectVersion]
+    ) -> models.ProjectVersion:
+        raise NotImplementedError
+
+
+@node_packer(MOT.FILE, wire.FileData, models.File)
+class FilePacker(NodePacker[wire.FileData, models.File]):
+    def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [models.Statement.objects.filter(file__in=nodes)]
 
     def pack(self, file: models.File) -> wire.FileData:
@@ -78,73 +137,261 @@ class FilePacker(NodePacker[FileData, models.File]):
             revision=file.revision,
         )
 
-    def unpack(self, data: wire.FileData, tree: TreeVis) -> models.File:
+    def unpack(
+        self, data: wire.FileData, parent: models.File | models.ProjectVersion
+    ) -> models.File:
+        project_version_id = (
+            parent.id if isinstance(parent, models.ProjectVersion) else parent.project_version_id
+        )
         return models.File(
             id=data.id,
-            parent_id=data.parent_id,
+            project_version_id=project_version_id,
+            parent=parent if isinstance(parent, models.File) else None,
             name=data.name,
             revision=data.revision,
         )
 
 
-def pack_file_nested(file: models.File, exclude_non_semantic: bool = False) -> FileData:
-    """Reads a file and its statements (and their contents)."""
-    statements = (
-        file.statements.filter(deleted_at=None, commented=False)
-        .select_related("reference")
-        .prefetch_related("fields")
-    )
-    if exclude_non_semantic:
-        statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
+@node_packer(MOT.STATEMENT, wire.StatementData, models.Statement)
+class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        for node in nodes:
+            if node.symbol_type is not None:
+                tree.visit(node, MOT.SYMBOL)
+        return []
 
-    wire_file = pack_file_flat(file, module_id=file.project_version_id)
-    wire_file.statements = [
-        pack_statement(s, file_id=file.id, module_id=file.project_version_id) for s in statements
-    ]
-    return wire_file
+    def pack(self, statement: models.Statement) -> wire.StatementData:
+        return wire.StatementData(
+            id=statement.id,
+            revision=statement.revision,
+            parent_id=statement.parent_id if statement.parent_id else statement.file_id,
+            order_key=statement.order_key,
+            type=StatementType(statement.type),
+            name=statement.name,
+            text=statement.text,
+            symbol_type=SymbolType(statement.symbol_type) if statement.symbol_type else None,
+        )
 
-
-def pack_statement_nested(statement: models.Statement) -> list[StatementData]:
-    """Reads a statement and all its children."""
-    wire_statements = [
-        pack_statement(s, file_id=statement.file_id, module_id=statement.project_version_id)
-        for s in statement.descendants
-    ]
-    return wire_statements
-
-
-# (all module contents are used for tracking changes)
-def pack_flat(
-    obj: models.File | models.Statement | models.Field,
-) -> wire.FileData | wire.StatementData | wire.FieldData:
-    """Read a DB object into a wire object without any children."""
-    if isinstance(obj, models.File):
-        return pack_file_flat(obj, module_id=obj.project_version_id)
-    elif isinstance(obj, models.Statement):
-        return pack_statement(obj, file_id=obj.file_id, module_id=obj.project_version_id, flat=True)
-    elif isinstance(obj, models.Field):
-        return pack_field(obj)
-    else:
-        raise ValueError(f"unexpected obj: {obj}")
+    def unpack(
+        self, data: wire.StatementData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        return models.Statement(
+            id=data.id,
+            revision=data.revision,
+            parent_id=parent.id if isinstance(parent, models.File) else parent.id,
+            file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
+            order_key=data.order_key,
+            type=data.type.value,
+            name=data.name,
+            text=data.text,
+            symbol_type=data.symbol_type.value if data.symbol_type else None,
+        )
 
 
-def pack_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
-    return wire.FileData(
-        id=file.id,
-        module_id=module_id,
-        name=file.path,
-        statements=[],
-        revision=file.revision,
-    )
+@node_packer(MOT.SYMBOL, wire.TypeData, models.Statement)
+class TypePacker(NodePacker[wire.TypeData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.TypeData:
+        return wire.TypeData(
+            id=statement.id,
+            parent_id=statement.id,
+            tag=TypeTag(statement.root_type_tag),
+            flags=TypeFlag(statement.root_type_flags or 0),
+        )
+
+    def unpack(self, data: wire.TypeData, parent: models.Statement) -> models.Statement:
+        parent.root_type_tag = data.tag.value
+        parent.root_type_flags = data.flags.value
+        return parent
 
 
-def unpack_resolved_field(statement_id: UUID, field: FieldData, module_id: UUID):
-    return models.ResolvedField(
-        id=uuid5(statement_id, str(field.id)),
-        project_version_id=module_id,
-        statement_id=statement_id,
-        field_id=field.id,
-    )
+@node_packer(MOT.SYMBOL, wire.TaskData, models.Statement)
+class TaskPacker(NodePacker[wire.TaskData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.TaskData:
+        return wire.TaskData(
+            id=statement.id,
+            parent_id=statement.id,
+            description=statement.description,
+            modifier=statement.modifier,
+        )
+
+    def unpack(self, data: wire.TaskData, parent: models.Statement) -> models.Statement:
+        parent.description = data.description
+        parent.modifier = data.modifier
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.ExpectationData, models.Statement)
+class ExpectationPacker(NodePacker[wire.ExpectationData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.ExpectationData:
+        return wire.ExpectationData(
+            id=statement.id,
+            parent_id=statement.id,
+            modifier=statement.modifier,
+            description=statement.description,
+        )
+
+    def unpack(self, data: wire.ExpectationData, parent: models.Statement) -> models.Statement:
+        parent.description = data.description
+        parent.modifier = data.modifier
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.CodeData, models.Statement)
+class CodePacker(NodePacker[wire.CodeData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.CodeData:
+        return wire.CodeData(
+            id=statement.id,
+            parent_id=statement.id,
+            modifier=statement.modifier,
+            language=statement.lang,
+            code=statement.code,
+        )
+
+    def unpack(self, data: wire.CodeData, parent: models.Statement) -> models.Statement:
+        parent.modifier = data.modifier
+        parent.lang = data.language
+        parent.code = data.code
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.ModelData, models.Statement)
+class ModelPacker(NodePacker[wire.ModelData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.ModelData:
+        return wire.ModelData(
+            id=statement.id, parent_id=statement.id, external_name=statement.external_name
+        )
+
+    def unpack(self, data: wire.ModelData, parent: models.Statement) -> models.Statement:
+        parent.external_name = data.external_name
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.RequirementData, models.Statement)
+class RequirementPacker(NodePacker[wire.RequirementData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.RequirementData:
+        return wire.RequirementData(
+            id=statement.id,
+            parent_id=statement.id,
+            reference_module=wire.ModuleReference(id=statement.reference_project_id)
+            if statement.reference_project_id
+            else None,
+        )
+
+    def unpack(self, data: wire.RequirementData, parent: models.Statement) -> models.Statement:
+        parent.reference_project_id = data.reference_module.id if data.reference_module else None
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.ValueData, models.Statement)
+class ValuePacker(NodePacker[wire.ValueData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.ValueData:
+        return wire.ValueData(
+            id=statement.id,
+            parent_id=statement.id,
+            modifier=statement.modifier,
+            value=statement.value,
+        )
+
+    def unpack(self, data: wire.ValueData, parent: models.Statement) -> models.Statement:
+        parent.modifier = data.modifier
+        parent.value = data.value
+        return parent
+
+
+@node_packer(MOT.SYMBOL, wire.DatasetData, models.Statement)
+class DatasetPacker(NodePacker[wire.DatasetData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.DatasetData:
+        return wire.DatasetData(
+            id=statement.dataset.id,
+            parent_id=statement.id,
+            modifier=statement.modifier,
+            versioned=statement.dataset.versioned,
+        )
+
+    def unpack(self, data: wire.DatasetData, parent: models.Statement) -> models.Dataset:
+        parent.modifier = data.modifier
+        parent.dataset = models.Dataset(
+            id=data.id,
+            versioned=data.versioned,
+            statement=parent,
+        )
+        return parent.dataset
+
+
+@node_packer(MOT.FIELD, wire.FieldData, models.Field)
+class FieldPacker(NodePacker[wire.FieldData, models.Field]):
+    def pack(self, node: models.Field) -> wire.FieldData:
+        return wire.FieldData(
+            id=node.id,
+            parent_id=node.statement_id,
+            revision=node.revision,
+            name=node.name,
+            tag=TypeTag(node.tag),
+            hint=TypeHint(node.hint) if node.hint else None,
+            key=node.key,
+            order_key=node.order_key,
+            description=node.description,
+            flags=node.flags,
+            reference_id=node.reference_id,
+            metadata=node.metadata,
+        )
+
+    def unpack(self, data: wire.FieldData, parent: models.Statement) -> models.Field:
+        return models.Field(
+            id=data.id,
+            statement_id=data.parent_id,
+            key=data.key,
+            order_key=data.order_key,
+            name=data.name,
+            tag=data.tag.value,
+            hint=data.hint.value if data.hint else None,
+            description=data.description,
+            flags=data.flags,
+            reference_id=data.reference_id,
+            metadata=data.metadata,
+        )
+
+
+_data_packers: dict[typing.Type[DataT], "DataPacker"] = {}
+
+
+def data_packer(data_t: typing.Type[DataT]):
+    """Decorator to register a data packer for a given type"""
+
+    def decorator(cls: "DataPacker"):
+        if data_t in _data_packers:
+            raise ValueError(f"packer for {data_t} already registered: {_data_packers[data_t]}")
+        _data_packers[data_t] = cls
+        return cls
+
+    return decorator
+
+
+def pack_data(model: ModelT) -> DataT:
+    """Pack any non-node data type"""
+    packer = _data_packers[type(model)]
+    return packer.pack(model)
+
+
+def unpack_data(data: DataT) -> ModelT:
+    """Unpack any non-node data type"""
+    packer = _data_packers[type(data)]
+    return packer.unpack(data)
 
 
 def unpack_issue(issue: wire.IssueData, module_id: UUID):
@@ -160,187 +407,66 @@ def unpack_issue(issue: wire.IssueData, module_id: UUID):
     )
 
 
-def pack_statement(
-    statement: models.Statement, file_id: UUID, module_id: UUID, flat: bool = False
-) -> wire.StatementData:
-    """Reads a database statement into a wire statement."""
-    # map reference into wire-able reference (convert module-external ref to statement path)
-    data = wire.StatementData(
-        id=statement.id,
-        module_id=module_id,
-        file_id=file_id,
-        revision=statement.revision,
-        parent_id=statement.parent_id,
-        order_key=statement.order_key,
-        type=StatementType(statement.type),
-        name=statement.name,
-        fqn=None,
-        text=statement.code if statement.type == StatementType.COMMENT else None,
-        symbol_type=SymbolType(statement.symbol_type) if statement.symbol_type else None,
-        modifier=ExpectationModifier(statement.modifier) if statement.modifier else None,
-    )
-    if statement.type == StatementType.SYMBOL:
-        pack_symbol(statement, data, flat=flat)
-    return data
-
-
-def pack_symbol(statement: models.Statement, data: wire.StatementData, flat: bool) -> None:
-    """Reads a database statement's symbol into a wire statement."""
-    data.description = statement.description
-
-    data_cls = SYMBOL_DATA_CLASS_BY_TYPE[statement.symbol_type]
-    fields = None
-    if issubclass(data_cls, wire.HasTypeData) and not flat:
-        fields = [pack_field(node) for node in statement.fields.filter(deleted_at=None)]
-
-    if statement.symbol_type == SymbolType.TYPE:
-        data.symbol = wire.TypeData(
-            tag=TypeTag(statement.root_type_tag),
-            flags=TypeFlag(statement.root_type_flags or 0),
-            fields=fields,
+@data_packer(wire.ExecutionFrameData)
+class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]):
+    def pack(self, data: models.Execution) -> wire.ExecutionFrameData:
+        return wire.ExecutionFrameData(
+            id=data.id,
+            project_id=data.project_id,
+            module_id=data.project_version_id,
+            root_id=data.root_id,
+            parent_id=data.parent_id,
+            runnable_id=data.runnable_id,
+            entered_at=data.started_at,
+            exited_at=data.terminated_at,
+            cached_generated_at=data.cached_generated_at,
+            cached_duration=data.cached_duration,
+            queue_position=None,
+            inputs=data.inputs,
+            outputs=data.outputs,
+            error=RunErrorData.from_dict(data.error) if data.error else None,
+            # additional context
+            tracing_level=data.tracing_level,
+            worker_id=data.worker_id,
+            trigger_type=data.trigger_type,
+            trigger_id=data.user_id or data.access_token_id,
         )
-    elif statement.symbol_type == SymbolType.TASK:
-        data.symbol = wire.TaskData(fields=fields)
-    elif statement.symbol_type == SymbolType.EXPECTATION:
-        data.symbol = wire.ExpectationData()
-    elif statement.symbol_type == SymbolType.CODE:
-        data.symbol = wire.CodeData(fields=fields, lang=statement.lang, code=statement.code)
-    elif statement.symbol_type == SymbolType.REQUIREMENT:
-        data.symbol = wire.RequirementData(
-            reference_module=wire.ModuleReference(id=statement.reference_project_version_id),
-        )
-    elif statement.symbol_type == SymbolType.MODEL:
-        data.symbol = wire.ModelData(
-            external_name=statement.external_name,
-        )
-    elif statement.symbol_type == SymbolType.VALUE:
-        data.symbol = wire.ValueData(
-            tag=TypeTag(statement.root_type_tag),
-            flags=TypeFlag(statement.root_type_flags),
-            fields=fields,
-            value=statement.value,
-        )
-    elif statement.symbol_type == SymbolType.DATASET:
-        data.symbol = wire.DatasetData(fields=fields, records=None, length=None)
 
-
-def unpack_symbol(
-    statement: models.Statement, data: wire.StatementData, flat: bool
-) -> list[typing.Any]:
-    """Writes a wire statement's symbol into DB models."""
-    relations = []
-    statement.modifier = data.modifier.value if data.modifier else None
-    statement.description = data.description  # every symbol has a description
-    if isinstance(data.symbol, wire.HasTypeData):
-        statement.root_type_tag = data.symbol.tag.value if data.symbol.tag else None
-        statement.root_type_flags = data.symbol.flags
-        if not flat:
-            fields = [unpack_field(statement.id, node) for node in data.symbol.fields]
-            relations.extend(fields)
-    if isinstance(data.symbol, wire.CodeData):
-        statement.lang = data.symbol.lang
-        statement.code = data.symbol.code
-    if isinstance(data.symbol, wire.ModelData):
-        statement.external_name = data.symbol.external_name
-    if isinstance(data.symbol, wire.RequirementData):
-        statement.reference_project_version_id = data.symbol.reference_module.id
-    if isinstance(data.symbol, wire.ValueData):
-        statement.value = data.symbol.value
-    if isinstance(data.symbol, wire.DatasetData):
-        raise NotImplementedError  # what do?
-    return relations
-
-
-def pack_field(node: models.Field) -> wire.FieldData:
-    return wire.FieldData(
-        id=node.id,
-        revision=node.revision,
-        name=node.name,
-        tag=TypeTag(node.tag),
-        hint=TypeHint(node.hint) if node.hint else None,
-        statement_id=node.statement_id,
-        key=node.key,
-        order_key=node.order_key,
-        description=node.description,
-        flags=node.flags,
-        reference_id=node.reference_id,
-    )
-
-
-def unpack_field(statement_id: UUID, node: wire.FieldData) -> models.Field:
-    return models.Field(
-        id=node.id,
-        statement_id=statement_id,
-        key=node.key,
-        order_key=node.order_key,
-        name=node.name,
-        tag=node.tag.value,
-        hint=node.hint.value if node.hint else None,
-        description=node.description,
-        flags=node.flags,
-        reference_id=node.reference_id,
-    )
-
-
-def pack_execution_frame(frame: ExecutionFrameData) -> models.Execution:
-    if frame.error:
-        status = models.ExecutionStatus.Failed
-    elif frame.exited_at:
-        status = models.ExecutionStatus.Completed
-    elif frame.queue_position:
-        status = models.ExecutionStatus.Queued
-    else:
-        status = models.ExecutionStatus.Running
-    # additional context
-    user_id = frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.UI else None
-    access_token_id = (
-        frame.trigger_id if frame.trigger_type == models.ExecutionTriggerType.API else None
-    )
-    return models.Execution(
-        id=frame.id,
-        project_id=frame.project_id,
-        project_version_id=frame.module_id,
-        status=status,
-        root_id=frame.root_id,
-        parent_id=frame.parent_id,
-        runnable_id=frame.runnable_id,
-        created_at=frame.entered_at,  # not sure what to pass since it's not in DB, not frame
-        updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-        started_at=frame.entered_at,
-        terminated_at=frame.exited_at,
-        cached_generated_at=frame.cached_generated_at,
-        cached_duration=frame.cached_duration,
-        inputs=frame.inputs,
-        outputs=frame.outputs,
-        error=asdict(frame.error) if frame.error else None,
+    def unpack(self, data: wire.ExecutionFrameData) -> models.Execution:
+        if data.error:
+            status = models.ExecutionStatus.Failed
+        elif data.exited_at:
+            status = models.ExecutionStatus.Completed
+        elif data.queue_position:
+            status = models.ExecutionStatus.Queued
+        else:
+            status = models.ExecutionStatus.Running
         # additional context
-        tracing_level=frame.tracing_level,
-        worker_id=frame.worker_id,
-        trigger_type=frame.trigger_type,
-        user_id=user_id,
-        access_token_id=access_token_id,
-    )
-
-
-def unpack_execution_frame(frame: models.Execution) -> ExecutionFrameData:
-    return ExecutionFrameData(
-        id=frame.id,
-        project_id=frame.project_id,
-        module_id=frame.project_version_id,
-        root_id=frame.root_id,
-        parent_id=frame.parent_id,
-        runnable_id=frame.runnable_id,
-        entered_at=frame.started_at,
-        exited_at=frame.terminated_at,
-        cached_generated_at=frame.cached_generated_at,
-        cached_duration=frame.cached_duration,
-        queue_position=None,
-        inputs=frame.inputs,
-        outputs=frame.outputs,
-        error=RunErrorData.from_dict(frame.error) if frame.error else None,
-        # additional context
-        tracing_level=frame.tracing_level,
-        worker_id=frame.worker_id,
-        trigger_type=frame.trigger_type,
-        trigger_id=frame.user_id or frame.access_token_id,
-    )
+        user_id = data.trigger_id if data.trigger_type == models.ExecutionTriggerType.UI else None
+        access_token_id = (
+            data.trigger_id if data.trigger_type == models.ExecutionTriggerType.API else None
+        )
+        return models.Execution(
+            id=data.id,
+            project_id=data.project_id,
+            project_version_id=data.module_id,
+            status=status,
+            root_id=data.root_id,
+            parent_id=data.parent_id,
+            runnable_id=data.runnable_id,
+            created_at=data.entered_at,  # not sure what to pass since it's not in DB, not frame
+            updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            started_at=data.entered_at,
+            terminated_at=data.exited_at,
+            cached_generated_at=data.cached_generated_at,
+            cached_duration=data.cached_duration,
+            inputs=data.inputs,
+            outputs=data.outputs,
+            error=asdict(data.error) if data.error else None,
+            # additional context
+            tracing_level=data.tracing_level,
+            worker_id=data.worker_id,
+            trigger_type=data.trigger_type,
+            user_id=user_id,
+            access_token_id=access_token_id,
+        )

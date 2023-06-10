@@ -240,6 +240,13 @@ enum ExecutionTriggerType {
   SCHEDULED
 }
 
+"""A modifier to a Bench statement."""
+enum ExpectationModifier {
+  LIKE
+  UNLIKE
+  CHECK
+}
+
 type Field implements Node & SimpleType {
   id: GlobalID!
   name: String
@@ -468,23 +475,21 @@ enum ModuleMutationType {
   UPDATE_FILE
   DELETE_FILE
   CREATE_STATEMENT
-  CREATE_STATEMENT_BLANK
   PASTE_STATEMENT
   SOFT_DELETE_STATEMENT
   RESTORE_STATEMENT
-  UPDATE_STATEMENT_MODIFIER
-  UPDATE_STATEMENT_REFERENCE
   MORPH_STATEMENT
   COMMENT_STATEMENT
   MOVE_STATEMENT
   RENAME_STATEMENT
   UPDATE_STATEMENT_TEXT
-  UPDATE_STATEMENT_DESCRIPTION
-  UPDATE_STATEMENT_CODE
-  UPDATE_STATEMENT_LANGUAGE
-  UPDATE_STATEMENT_VALUE
   UPDATE_STATEMENT
   DELETE_STATEMENT
+  UPDATE_SYMBOL_DESCRIPTION
+  UPDATE_SYMBOL_CODE
+  UPDATE_SYMBOL_MODIFIER
+  UPDATE_SYMBOL_LANGUAGE
+  UPDATE_SYMBOL_VALUE
   CREATE_FIELD
   UPDATE_FIELD
   RENAME_FIELD
@@ -502,7 +507,6 @@ enum ModuleMutationType {
   SOFT_DELETE_RECORD
   DELETE_RECORD
   RESTORE_RECORD
-  TRUNCATE_INTERP
   UPDATE_INTERP
 }
 
@@ -530,7 +534,6 @@ type Mutation {
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
-  createStatementBlank(input: StatementCreateBlankInput!): StatementOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   updateStatement(input: StatementCreateInput!): StatementOperationInfo!
   deleteStatement(input: StatementDeleteInput!): StatementOperationInfo!
@@ -538,7 +541,7 @@ type Mutation {
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
-  updateStatementModifier(input: StatementSetModifierInput!): StatementOperationInfo!
+  updateStatementModifier(input: StatementSetExpectationModifierInput!): StatementOperationInfo!
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
@@ -546,10 +549,9 @@ type Mutation {
   batchCommentStatement(input: StatementBatchCommentedInput!): StatementBatchOperationInfo!
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
-  updateStatementText(input: StatementUpdateCodeInput!): StatementOperationInfo!
-  updateStatementDescription(input: StatementUpdateDescriptionInput!): StatementOperationInfo!
-  updateStatementCode(input: StatementUpdateCodeInput!): StatementOperationInfo!
-  updateStatementLanguage(input: StatementUpdateLanguageInput!): StatementOperationInfo!
+  updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
+  updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
+  updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
@@ -1499,6 +1501,7 @@ type Statement implements Node & SimplyTyped {
   children: [Statement!]!
   descendants: [Statement!]!
   orderKey: String!
+  text: String
   symbolType: SymbolType
   rootTypeFlags: Int
   lang: String
@@ -1548,14 +1551,6 @@ input StatementCommentedInput {
   commented: Boolean!
 }
 
-"""Creates a blank statement"""
-input StatementCreateBlankInput {
-  id: GlobalID = null
-  fileId: GlobalID!
-  orderKey: String!
-  parentId: GlobalID = null
-}
-
 """Creates a full statement"""
 input StatementCreateInput {
   id: GlobalID = null
@@ -1564,13 +1559,14 @@ input StatementCreateInput {
   type: StatementType!
   parentId: GlobalID = null
   commented: Boolean = null
-  modifier: StatementModifier = null
+  modifier: ExpectationModifier = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
   symbolType: SymbolType = null
   description: String = null
   lang: String = null
+  text: String = null
   code: String = null
 }
 
@@ -1580,13 +1576,6 @@ input StatementDeleteInput {
 
 input StatementFilter {
   isVisible: Boolean = true
-}
-
-"""A modifier to a Bench statement."""
-enum StatementModifier {
-  LIKE
-  UNLIKE
-  CHECK
 }
 
 input StatementMorphInput {
@@ -1617,9 +1606,9 @@ input StatementRestoreInput {
   id: GlobalID!
 }
 
-input StatementSetModifierInput {
+input StatementSetExpectationModifierInput {
   id: GlobalID!
-  modifier: StatementModifier
+  modifier: ExpectationModifier
 }
 
 input StatementSoftDeleteInput {
@@ -1633,19 +1622,9 @@ enum StatementType {
   BLANK
 }
 
-input StatementUpdateCodeInput {
+input StatementUpdateTextInput {
   id: GlobalID!
-  code: String = null
-}
-
-input StatementUpdateDescriptionInput {
-  id: GlobalID!
-  description: String!
-}
-
-input StatementUpdateLanguageInput {
-  id: GlobalID!
-  language: String!
+  text: String = null
 }
 
 type Subscription {
@@ -1666,6 +1645,16 @@ enum SymbolType {
   DATASET
   REQUIREMENT
   BLOCK
+}
+
+input SymbolUpdateCodeInput {
+  id: GlobalID!
+  code: String = null
+}
+
+input SymbolUpdateDescriptionInput {
+  id: GlobalID!
+  description: String!
 }
 
 type SystemInfo {

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import typing
+from uuid import uuid5
 
 from django.db import transaction
 from django.db.models import Q
@@ -17,7 +18,9 @@ from bench.models.project import ProjectVersion
 def read_packed_module(
     project_v: ProjectVersion, exclude_non_semantic: bool = False
 ) -> wire.ModuleData:
-    raise NotImplementedError
+    root, nodes = packer.pack_node(project_v)
+    root.nodes = nodes
+    return root
 
     # wire_module = wire.ModuleData(
     #     id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
@@ -59,13 +62,14 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         # DB
         if mmt == MMT.UPDATE_INTERP:
             # delete and re-create interp data
+            # should probably somehow fit into our other regular packer/mutation system
             file_ids = [
-                m.file_id for m in mut[MMT.UPDATE_INTERP] if m.data.scope == InterpScope.FILE
+                m.file_id for m in mut[MMT.UPDATE_INTERP] if m.type.scope == InterpScope.FILE
             ]
             statement_ids = [
                 m.statement_id
                 for m in mut[MMT.UPDATE_INTERP]
-                if m.data.scope == InterpScope.STATEMENT
+                if m.type.scope == InterpScope.STATEMENT
             ]
             models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
             models.Issue.objects.filter(
@@ -80,8 +84,11 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                     issues.append(packer.unpack_issue(issue_data, project_v.id))
                 for resolved_field_data in interp_data.resolved_fields or []:
                     resolved_fields.append(
-                        packer.unpack_resolved_field(
-                            interp_data.parent_id, resolved_field_data, project_v.id
+                        models.ResolvedField(
+                            id=uuid5(interp_data.parent_id, str(resolved_field_data.id)),
+                            project_version_id=project_v.id,
+                            statement_id=interp_data.parent_id,
+                            field_id=resolved_field_data.id,
                         )
                     )
             models.Issue.objects.bulk_create(issues)

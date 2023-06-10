@@ -51,7 +51,7 @@ class LanguageObject(abc.ABC):
     revision: int = 0
 
 
-@property
+@dataclass(repr=False)
 class SessionObject(LanguageObject):
     _session: "Session" = None
 
@@ -526,6 +526,7 @@ class Field(LanguageObject, TypeNode):
     key: str = field(default_factory=new_field_key)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
+    metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
 
     def __str__(self):
@@ -548,7 +549,7 @@ Expectable = Union["Expectation", "Task", "Dataset", "Code"]
 
 
 @dataclass(repr=False)
-class IsExpectable(SymbolBase):
+class IsExpectable:
     """Symbols that can define expectations"""
 
     modifier: Optional[ExpectationModifier] = None
@@ -843,7 +844,7 @@ SyncCodeCallable = typing.Callable[..., Any]
 @dataclass(repr=False)
 class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
-    language: Literal["python"] | Literal["x"] = "python"
+    language: str = "python"
     code: Optional[str] = None
     parse: Optional[CodeParse] = None
     references: dict[str, Symbol] | None = field(default_factory=dict)
@@ -939,7 +940,7 @@ RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 
 @dataclass(repr=False)
 class DatasetView:
-    name: str
+    name: str = None
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     reference: Optional[Dataset | UUID] = None
@@ -957,6 +958,7 @@ class Dataset(Symbol, HasType, IsExpectable):
     flags: TypeFlag = TypeFlag.IsArray
     length: Optional[int] = None
     inmemory: bool = True
+    versioned: bool = True
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
 
