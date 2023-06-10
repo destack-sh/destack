@@ -1,4 +1,4 @@
-from bench.language.const import StatementModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.language.const import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
 from bench.language.issue import Issue, IssueType
 from bench.language.type import (
     Code,
@@ -43,7 +43,7 @@ __all__ = [
     "Scope",
     "Secret",
     "Statement",
-    "StatementModifier",
+    "ExpectationModifier",
     "StatementType",
     "Symbol",
     "SymbolType",

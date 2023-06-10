@@ -80,7 +80,7 @@ class Issue:
         # auto convert kwargs
         for key, value in kwargs.items():
             if isinstance(value, (Symbol, Statement, File)):
-                kwargs[key] = value.path
+                kwargs[key] = value.name
             if isinstance(value, StatementPath):
                 kwargs[key] = statement_path_as_str(value)
 

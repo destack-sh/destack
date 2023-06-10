@@ -223,7 +223,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has read access to secret
         secrets = []
         async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = wire.pack_secret(secret)
+            secret_data = wire.pack_data(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepReadSecretPayload(secrets=secrets))
@@ -449,9 +449,7 @@ class LanguageWorker:
         interp_by_scope: dict[UUID, InterpData] = {}
         for symbol in self.interp.module.symbols_by_id.values():
             if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
-                resolved_fields = [
-                    wire.pack_field(symbol.id, field) for field in symbol.resolved_fields
-                ]
+                resolved_fields = [wire.pack_node_flat(field) for field in symbol.resolved_fields]
             else:
                 resolved_fields = None
             interp_by_scope[symbol.id] = InterpData(
@@ -469,7 +467,7 @@ class LanguageWorker:
                 continue  # not sure what to do here
             if interp.issues is None:
                 interp.issues = []
-            interp.issues.append(wire.pack_issue(issue))
+            interp.issues.append(wire.pack_data(issue))
         return interp_by_scope
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
@@ -520,7 +518,7 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
         if frame.id in seen_ids:
             continue
         seen_ids.add(frame.id)
-        execution = packer.unpack_execution_frame(frame)
+        execution = packer.pack_execution_frame(frame)
         model_executions.append(execution)
 
     try:

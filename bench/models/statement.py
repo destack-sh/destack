@@ -10,7 +10,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.language import StatementModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.language import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
 from bench.language.const import FIELD_KEY_LENGTH, TypeFlag
 from bench.language.type import new_field_key
 from bench.models.utils import (
@@ -253,7 +253,7 @@ class Statement(UUIDModel, CrudModel):
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
     type = models.CharField(max_length=32, choices=get_choices(StatementType))
     modifier = models.CharField(
-        max_length=32, choices=get_choices(StatementModifier), null=True, blank=True
+        max_length=32, choices=get_choices(ExpectationModifier), null=True, blank=True
     )
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
@@ -277,6 +277,7 @@ class Statement(UUIDModel, CrudModel):
     )
     root_type_flags = models.IntegerField(null=True, blank=True)
     lang = models.CharField(max_length=32, null=True, blank=True)
+    text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
     reference_project_version = models.ForeignKey(  # for requirement

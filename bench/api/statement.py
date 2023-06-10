@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 StatementType = gql.enum(language.StatementType)
-StatementModifier = gql.enum(language.StatementModifier)
 SymbolType = gql.enum(language.SymbolType)
+ExpectationModifier = gql.enum(language.ExpectationModifier)
 
 
 @gql.django.filter(models.Field)
@@ -142,7 +142,7 @@ class StatementCreateInput:
     type: StatementType
     parent_id: Optional[GlobalID] = None
     commented: Optional[bool] = None
-    modifier: Optional[StatementModifier] = None
+    modifier: Optional[ExpectationModifier] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -168,8 +168,8 @@ class StatementMorphInput(gql.NodeInput):
 
 
 @gql.input
-class StatementSetModifierInput(gql.NodeInput):
-    modifier: Optional[StatementModifier]
+class StatementSetExpectationModifierInput(gql.NodeInput):
+    modifier: Optional[ExpectationModifier]
 
 
 @gql.django.partial(models.Statement)
@@ -395,7 +395,7 @@ class StatementMutation:
 
     @tracked_mutation(MMT.UPDATE_STATEMENT_MODIFIER)
     def update_statement_modifier(
-        self, input: StatementSetModifierInput
+        self, input: StatementSetExpectationModifierInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.modifier = input.modifier

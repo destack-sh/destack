@@ -19,10 +19,10 @@ from bench.language import IssueType
 from bench.language.const import (
     FIELD_KEY_LENGTH,
     REFERENCE_REGEX,
+    ExpectationModifier,
     LookupBy,
     ModuleReference,
     RemoteObjectStatus,
-    StatementModifier,
     StatementPath,
     StatementType,
     SymbolType,
@@ -171,6 +171,9 @@ class Module(SessionObject, Scope):
     files: list[File] = field(default_factory=list)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
     parent_scope: Scope = None
+    committed: bool = False
+    # index
+    files_by_parent_id: dict[UUID | None, list[File]] | None = None
 
     def lookup_symbol(
         self,
@@ -196,12 +199,15 @@ class Module(SessionObject, Scope):
         return f"<Module {str(self)}>"
 
     def index(self, on_issue: IssueHandler = raise_if_error):
+        self.files_by_parent_id = {
+            file.parent.id if file.parent else None: file for file in self.files
+        }
         for file in self.files:
             file.index(on_issue=on_issue)
-            if file.path in self.scopes_by_name:
-                on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.path)
+            if file.name in self.scopes_by_name:
+                on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.name)
             else:
-                self.scopes_by_name[file.path] = file
+                self.scopes_by_name[file.name] = file
             self.symbols_by_id.update(file.symbols_by_id)
 
     def interp(self, on_issue: IssueHandler = raise_if_error):
@@ -212,9 +218,12 @@ class Module(SessionObject, Scope):
 @dataclass(repr=False)
 class File(SessionObject, Scope):
     module: Module = required_field()
-    path: str = required_field()
+    name: str = required_field()
+    parent: File | None = None
+    children: list[File] | None = None
     statements: list[Statement] = field(default_factory=list)
-    statements_by_parent_id: dict[UUID, list[Statement]] | None = None
+    # index
+    statements_by_parent_id: dict[UUID | None, list[Statement]] | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -223,14 +232,17 @@ class File(SessionObject, Scope):
         self._sort()
 
     def __str__(self):
-        return f"{self.module.name}/{self.path}"
+        return f"{self.module.name}/{self.name}"
 
     def __repr__(self):
         return f"<File {str(self)}>"
 
     @property
-    def root_statements(self) -> list[Statement]:
-        return [statement for statement in self.statements if statement.parent is None]
+    def path(self) -> str:
+        if self.parent:
+            return f"{self.parent.path}.{self.name}"
+        else:
+            return self.name
 
     def append(self, *statements: Statement):
         """Appends the statements to this file."""
@@ -280,6 +292,7 @@ class Statement(SessionObject, Scope):
 
     file: File = required_field()
     parent: Optional[Statement] = None
+    children: list[Statement] | None = None
     order_key: str | None = None
     type: StatementType = StatementType.SYMBOL
     name: Optional[str] = None
@@ -340,7 +353,7 @@ class Statement(SessionObject, Scope):
 
     @property
     def fqn(self) -> str:
-        return f"{self.file.module.name}.{self.file.path.replace('/', '.')}.{self.name}"
+        return f"{self.file.module.name}.{self.file.name.replace('/', '.')}.{self.name}"
 
     @property
     def ident(self) -> str:
@@ -352,8 +365,8 @@ class Statement(SessionObject, Scope):
 
     def index(self, on_issue: IssueHandler = raise_if_error):
         self.clear()
-        children = self.file.statements_by_parent_id.get(self.id, [])
-        for child in children:
+        self.children = self.file.statements_by_parent_id.get(self.id, [])
+        for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
             self.add_statement(child, by_name=True, on_issue=on_issue)
@@ -386,8 +399,6 @@ class Symbol(SessionObject, SymbolBase):
     """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
 
     name: str = field(default="")
-    description: Optional[str] = None
-    modifier: Optional[StatementModifier] = None
     source: Optional[Statement] = None
     scope: Optional[Scope] = None
     id: UUID = field(default_factory=uuid.uuid4)
@@ -417,8 +428,7 @@ class Symbol(SessionObject, SymbolBase):
         return SYMBOL_TYPE_BY_CLASS[self.__class__]
 
     def __str__(self):
-        modifier_str = f"{self.modifier} " if self.modifier else ""
-        return f"{modifier_str}{self.symbol_type} {self.name} (source={self.source or '<unknown>'})"
+        return f"{self.symbol_type} {self.name}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -538,9 +548,17 @@ Expectable = Union["Expectation", "Task", "Dataset", "Code"]
 
 
 @dataclass(repr=False)
-class HasExpectations(SymbolBase):
+class IsExpectable(SymbolBase):
+    """Symbols that can define expectations"""
+
+    modifier: Optional[ExpectationModifier] = None
+
+
+@dataclass(repr=False)
+class HasExpectations(SymbolBase, IsExpectable):
     """Symbols we can attach expectations to"""
 
+    description: Optional[str] = None
     expectations: list[Expectable] = field(default_factory=list)
     resolved_expectations: list[Expectable] | None = None
 
@@ -675,6 +693,7 @@ class HasType(TypeNode, SymbolBase):
 
 @dataclass(repr=False)
 class Type(Symbol, HasType, HasExpectations):
+    description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types
@@ -715,6 +734,7 @@ TYPE_FIELD_KEYS = {field.name for field in fields(Type)}
 
 @dataclass(repr=False)
 class Task(Symbol, HasType, HasExpectations):
+    description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     is_async: bool = True
     # should probably store last good implementation ... in redis?
@@ -792,6 +812,8 @@ class Task(Symbol, HasType, HasExpectations):
 
 @dataclass(repr=False)
 class Expectation(Symbol, HasExpectations):
+    description: Optional[str] = None
+
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         HasExpectations.interp(self, scope, on_issue)
 
@@ -819,7 +841,7 @@ SyncCodeCallable = typing.Callable[..., Any]
 
 
 @dataclass(repr=False)
-class Code(Symbol, HasType):
+class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: Literal["python"] | Literal["x"] = "python"
     code: Optional[str] = None
@@ -929,7 +951,8 @@ DEFAULT_VIEW = DatasetView(name="default")
 
 
 @dataclass(repr=False)
-class Dataset(Symbol, HasType):
+class Dataset(Symbol, HasType, IsExpectable):
+    description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     length: Optional[int] = None
@@ -1036,7 +1059,8 @@ class Dataset(Symbol, HasType):
 
 
 @dataclass(repr=False)
-class Value(Symbol, HasType):
+class Value(Symbol, HasType, IsExpectable):
+    description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
     value: Any = None

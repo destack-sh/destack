@@ -60,16 +60,16 @@ def map_mutation_from_public(
     )
     if type == MMT.PASTE_FILE:
         public_mutation.type = MMT.CREATE_FILE
-        statement_data = packer.pack_file_nested(thing, project_version_id)
-        internal = ModuleMutator(module_id=project_version_id).create(statement_data)
+        nodes_data = packer.pack_node(thing)
+        internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
         )
         return internal.mutations, public_mutations
     elif type in MMT.PASTE_STATEMENT:  # remap to create children
         public_mutation.type = MMT.CREATE_STATEMENT
-        statement_data = packer.pack_statement(thing, file_id, project_version_id, flat=False)
-        internal = ModuleMutator(module_id=project_version_id).create(statement_data)
+        nodes_data = packer.pack_node(thing)
+        internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
         )
@@ -95,20 +95,13 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
-            descendants_datas = packer.pack_statement_nested(thing)
+            nodes_data = packer.pack_node(thing)
             mut = ModuleMutator(module_id=mutation.project_version_id)
-            return mut.create_many(*descendants_datas).mutations
-    elif mutation.type == MMT.RESTORE_FILE:
-        file_data = packer.pack_file_nested(thing, exclude_non_semantic=False)
+            return mut.create_many(*nodes_data).mutations
+    elif mutation.type in (MMT.RESTORE_FILE, MMT.RESTORE_STATEMENT):
+        nodes_data = packer.pack_node(thing)
         mut = ModuleMutator(module_id=mutation.project_version_id)
-        return mut.create(file_data).mutations
-    elif mutation.type == MMT.RESTORE_STATEMENT:
-        # TODO @Robustness @Cleanup: restore statement includes the nested objects
-        #  both as separate create mutations and in the StatementData
-        #  this is not an error but not pretty and kind of inefficient
-        descendants_datas = packer.pack_statement_nested(thing)
-        mut = ModuleMutator(module_id=mutation.project_version_id)
-        return mut.create_many(*descendants_datas).mutations
+        return mut.create_many(*nodes_data).mutations
     else:
         # map everything else to a simple internal mutation (CRUD_X)
         internal_type = MMT(mutation.type.kind + "_" + mutation.type.scope)
@@ -188,8 +181,6 @@ def map_mutation_to_input(mutation: ModuleMutation) -> Any:
         s_key, t_key = field.name, field.name
         if s_key in _EXTRA_FIELD_RENAMES:
             s_key = _EXTRA_FIELD_RENAMES[s_key]
-        if s_key == "code" and mutation.data.type == StatementType.COMMENT:
-            s_key = "text"  # :StatementCodeTextReuse
         if s_key in extra_fields:
             value = extra_fields[s_key]
         else:
