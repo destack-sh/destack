@@ -14,7 +14,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language import StatementModifier, TypeHint, TypeTag, wire
+from bench.language import ExpectationModifier, TypeHint, TypeTag, wire
 from bench.language.const import TypeFlag
 from bench.language.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
 from bench.language.session import Session, instantiate_py_value_flat
@@ -219,7 +219,7 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
                 XSamples(
                     dataset=dataset,
                     task_label=task.name,
-                    positive=dataset.modifier == StatementModifier.LIKE,
+                    positive=dataset.modifier == ExpectationModifier.LIKE,
                 )
             )
     x.emit(

@@ -4,21 +4,31 @@ It shouldn't live in models, so we can use it in messages.py, which shouldn't de
 Maybe a better move would be to make the payload partially opaque and keep this in api.
 """
 import enum
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import cached_property
-from itertools import chain
 from typing import Any, Optional
 from uuid import UUID
 
-from bench.language import Module, StatementType, wire
+from bench.language import Module, StatementType, SymbolType, wire
 from bench.language.wire import (
+    SYMBOL_TYPE_BY_DATA_CLASS,
+    CodeData,
+    DatasetData,
+    DatasetViewData,
+    ExpectationData,
     FieldData,
     FileData,
     InterpData,
+    ModelData,
     ModuleData,
     ModuleObjectType,
+    NodeData,
     RecordData,
+    RequirementData,
     StatementData,
+    TaskData,
+    TypeData,
+    ValueData,
 )
 
 
@@ -165,15 +175,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.UPDATE_INTERP: (MMK.UPDATE, MOT.INTERP),
 }
 
-MutableData = FileData | StatementData | FieldData | RecordData | InterpData
-SCOPE_BY_CLASS = {
-    FileData: MOT.FILE,
-    StatementData: MOT.STATEMENT,
-    FieldData: MOT.FIELD,
-    RecordData: MOT.RECORD,
-    InterpData: MOT.INTERP,
-}
-
 
 @dataclass(repr=False, slots=True)
 class ModuleMutation:
@@ -186,44 +187,40 @@ class ModuleMutation:
 
     # data as a proper union doesn't work here since the dataclasses overlap
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
+    # really annoyingly manual until we get a proper :WireFormat
 
     _data_file: Optional[FileData] = None
     _data_statement: Optional[StatementData] = None
+    _data_symbol__discriminator: Optional[SymbolType] = None  # discriminator for 'union'
+    _data_symbol_type: Optional[TypeData] = None
+    _data_symbol_task: Optional[TaskData] = None
+    _data_symbol_expectation: Optional[ExpectationData] = None
+    _data_symbol_code: Optional[CodeData] = None
+    _data_symbol_model: Optional[ModelData] = None
+    _data_symbol_requirement: Optional[RequirementData] = None
+    _data_symbol_value: Optional[ValueData] = None
+    _data_symbol_dataset: Optional[DatasetData] = None
     _data_field: Optional[FieldData] = None
     _data_record: Optional[RecordData] = None
     _data_interp: Optional[InterpData] = None
+    _data_dataset_view: Optional[DatasetViewData] = None
 
     @property
-    def data(self) -> MutableData:
-        if self.type.scope == MOT.FILE:
-            return self._data_file
-        elif self.type.scope == MOT.STATEMENT:
-            return self._data_statement
-        elif self.type.scope == MOT.FIELD:
-            return self._data_field
-        elif self.type.scope == MOT.RECORD:
-            return self._data_record
-        elif self.type.scope == MOT.INTERP:
-            return self._data_interp
+    def data(self) -> NodeData:
+        if self.type.scope == MOT.SYMBOL:
+            # map to _symbol_<type>
+            symbol_type = self._data_symbol__discriminator
+            return getattr(self, f"_data_symbol_{symbol_type.value.lower()}")
         else:
-            raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
+            return getattr(self, f"_data_{self.type.scope.value.lower()}")
 
     @data.setter
-    def data(self, value: MutableData):
-        if value is not None and self.type.scope != SCOPE_BY_CLASS[type(value)]:
-            raise ValueError(f"type mismatch: {self.type} {self.type.scope}: {value}")
-        if self.type.scope == MOT.FILE:
-            self._data_file = value
-        elif self.type.scope == MOT.STATEMENT:
-            self._data_statement = value
-        elif self.type.scope == MOT.FIELD:
-            self._data_field = value
-        elif self.type.scope == MOT.RECORD:
-            self._data_record = value
-        elif self.type.scope == MOT.INTERP:
-            self._data_interp = value
-        else:
-            raise ValueError(f"unexpected mutation scope: {self.type} {self.type.scope}")
+    def data(self, value: NodeData):
+        if self.type.scope == MOT.SYMBOL:
+            # map to _symbol_<type>
+            symbol_type = SYMBOL_TYPE_BY_DATA_CLASS[type(value)]
+            self._data_symbol__discriminator = symbol_type
+            setattr(self, f"_data_symbol_{symbol_type.value.lower()}", value)
 
     def __str__(self):
         return f"{self.type} {self.revision} {self.data}"
@@ -248,7 +245,6 @@ class ModuleMutator:
         if self.module_id is None:
             raise ValueError("module_id is required")
         self.mutations = mutations or []
-        self._created_statements: dict[UUID, StatementData] = {}
 
     def __str__(self):
         return f"mutate {len(self.mutations)} {self.module or '<no module>'}"
@@ -258,30 +254,9 @@ class ModuleMutator:
 
     def reset(self):
         self.mutations = []
-        self._created_statements = {}
 
-    def do(
-        self,
-        type: MMT,
-        obj: MutableData,
-    ) -> "ModuleMutator":
-        if isinstance(obj, FileData):
-            file_id = obj.id
-            statement_id = None
-        elif isinstance(obj, StatementData):
-            statement_id = obj.id
-            file_id = obj.file_id
-        elif isinstance(obj, (FieldData, RecordData)):
-            if obj.statement_id in self._created_statements:
-                statement = self._created_statements[obj.statement_id]
-                statement_id = statement.id
-                file_id = statement.file_id
-            else:
-                statement = self.module.statements_by_id.get(obj.statement_id)
-                statement_id = statement.id
-                file_id = statement.file.id
-        else:
-            raise ValueError(f"unexpected mutation object: {obj}")
+    def do(self, type: MMT, obj: NodeData) -> "ModuleMutator":
+        raise NotImplementedError  # nocheckin
 
         mutation = ModuleMutation(
             type=type,
@@ -292,8 +267,6 @@ class ModuleMutator:
         )
         mutation.data = obj
         self.mutations.append(mutation)
-        if type.kind == MMK.CREATE and type.scope == MOT.STATEMENT:
-            self._created_statements[statement_id] = obj
         return self
 
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
@@ -302,66 +275,37 @@ class ModuleMutator:
         self.do(MMT.TRUNCATE_RECORDS, wire.pack_statement(symbol.source))
         return self
 
-    def create_many(self, *objs: MutableData) -> "ModuleMutator":
+    def create_many(self, *objs: NodeData) -> "ModuleMutator":
         for obj in objs:
             self.create(obj)
         return self
 
-    def create(self, obj: MutableData, flat: bool = False) -> "ModuleMutator":
-        if isinstance(obj, FileData):
-            self.do(MMT.CREATE_FILE, obj)
-            if not flat:
-                for statement in obj.statements:
-                    self.create(statement)
-        elif isinstance(obj, StatementData):
-            self.do(MMT.CREATE_STATEMENT, obj)
-            if not flat:
-                if isinstance(obj.symbol, wire.HasTypeData):
-                    for field in obj.symbol.fields or []:
-                        self.create(field)
-                # nocheckin: handle records here
-        elif isinstance(obj, FieldData):
-            self.do(MMT.CREATE_FIELD, obj)
-        elif isinstance(obj, RecordData):
-            self.do(MMT.CREATE_RECORD, obj)
-        else:
-            raise ValueError(f"unexpected mutation object: {obj}")
+    def create(self, obj: NodeData) -> "ModuleMutator":
+        mot = MOT_BY_DATA_CLASS[type(obj)]
+        mmt = MMT(f"CREATE_{mot.name}")
+        self.do(mmt, obj)
         return self
 
-    def update_many(self, *objs: MutableData) -> "ModuleMutator":
+    def update_many(self, *objs: NodeData) -> "ModuleMutator":
         for obj in objs:
             self.update(obj)
         return self
 
-    def update(self, obj: MutableData) -> "ModuleMutator":
-        if isinstance(obj, FileData):
-            self.do(MMT.UPDATE_FILE, obj)
-        elif isinstance(obj, StatementData):
-            self.do(MMT.UPDATE_STATEMENT, obj)
-        elif isinstance(obj, FieldData):
-            self.do(MMT.UPDATE_FIELD, obj)
-        elif isinstance(obj, RecordData):
-            self.do(MMT.UPDATE_RECORD, obj)
-        else:
-            raise ValueError(f"unexpected mutation object: {obj}")
+    def update(self, obj: NodeData) -> "ModuleMutator":
+        mot = MOT_BY_DATA_CLASS[type(obj)]
+        mmt = MMT(f"UPDATE_{mot.name}")
+        self.do(mmt, obj)
         return self
 
-    def delete_many(self, *objs: MutableData) -> "ModuleMutator":
+    def delete_many(self, *objs: NodeData) -> "ModuleMutator":
         for obj in objs:
             self.delete(obj)
         return self
 
-    def delete(self, obj: MutableData) -> "ModuleMutator":
-        if isinstance(obj, FileData):
-            self.do(MMT.DELETE_FILE, obj)
-        elif isinstance(obj, StatementData):
-            self.do(MMT.DELETE_STATEMENT, obj)
-        elif isinstance(obj, FieldData):
-            self.do(MMT.DELETE_FIELD, obj)
-        elif isinstance(obj, RecordData):
-            self.do(MMT.DELETE_RECORD, obj)
-        else:
-            raise ValueError(f"unexpected mutation object: {obj}")
+    def delete(self, obj: NodeData) -> "ModuleMutator":
+        mot = MOT_BY_DATA_CLASS[type(obj)]
+        mmt = MMT(f"DELETE_{mot.name}")
+        self.do(mmt, obj)
         return self
 
     def bundle(self) -> "MutationBundle":
@@ -382,67 +326,11 @@ class ModuleMutator:
             module = self.module_source.deepcopy()
         else:
             module = wire.pack_module(self.module)
-        files: dict[UUID, FileData] = {f.id: f for f in module.files}
-        statements: dict[UUID, StatementData] = {
-            s.id: s for s in chain.from_iterable(f.statements for f in module.files)
-        }
 
-        # apply deletes
-        deleted_fields = {m.data.id for m in mut[MMT.DELETE_FIELD]}
-        for m in chain(mut[MMT.DELETE_FIELD], mut[MMT.DELETE_RECORD]):
-            statement = statements[m.statement_id]
-            if isinstance(statement.symbol, wire.HasTypeData):
-                statement.symbol.fields = [
-                    t for t in statement.symbol.fields if t.id not in deleted_fields
-                ]
-        for m in mut[MMT.DELETE_STATEMENT]:
-            if m.statement_id in statements:  # statement may be non-semantic
-                del statements[m.statement_id]
-        for m in mut[MMT.DELETE_FILE]:
-            if m.file_id in files:  # file may not exist locally?
-                for statement in files[m.file_id].statements:
-                    del statements[statement.id]
-                del files[m.file_id]
+        # apply each mutation
+        for m in self.mutations:
+            raise NotImplementedError
 
-        # delete orphaned statements (who no longer have a parent, emulates delete cascade)
-        for statement in list(statements.values()):
-            if statement.parent_id is not None and statement.parent_id not in statements:
-                del statements[statement.id]
-
-        # apply creates
-        for m in mut[MMT.CREATE_FILE]:
-            files[m.data.id] = m.data
-        for m in mut[MMT.CREATE_STATEMENT]:
-            statements[m.data.id] = m.data
-        for m in mut[MMT.CREATE_FIELD]:
-            statement = statements[m.statement_id]
-            if isinstance(statement.symbol, wire.HasTypeData):
-                if statement.symbol.fields is None:
-                    statement.symbol.fields = []
-                _replace_by_id(statement.symbol.fields, m.data, append=True)
-
-        # apply updates
-        for m in mut[MMT.UPDATE_FILE]:
-            files[m.file_id] = m.data
-        for m in mut[MMT.UPDATE_STATEMENT]:
-            old_statement = statements.get(m.statement_id)
-            statements[m.statement_id] = m.data
-            # keep unrelated statement's relations
-            if old_statement is not None and isinstance(m.data.symbol, wire.HasTypeData):
-                m.data.symbol.fields = old_statement.symbol.fields
-        for m in mut[MMT.UPDATE_FIELD]:
-            statement = statements[m.statement_id]
-            if isinstance(statement.symbol, wire.HasTypeData):
-                _replace_by_id(statement.symbol.fields, m.data)
-
-        # nocheckin: handle record/dataset mutations
-
-        # re-assemble module data
-        new_module = replace(module, files=list(files.values()))
-        for file in files.values():
-            file.statements = []
-        for statement in statements.values():
-            files[statement.file_id].statements.append(statement)
         return new_module
 
 
@@ -510,6 +398,29 @@ class MutationBundle:
 
         reduced = list(reversed(reduced_inverse))
         return reduced
+
+    def batched(self) -> list[tuple[MMT, list[ModuleMutation]]]:
+        """
+        Batch mutations by type in order of appearance.
+        (there may be multiple batches of the same type).
+        """
+
+        batches: list[tuple[MMT, list[ModuleMutation]]] = []
+        current_batch: list[ModuleMutation] = []
+        current_type: MMT | None = None
+
+        for mutation in self.mutations:
+            if mutation.type != current_type:
+                if current_type is not None:
+                    batches.append((current_type, current_batch))
+                current_type = mutation.type
+                current_batch = []
+            current_batch.append(mutation)
+
+        if current_batch:
+            batches.append((current_type, current_batch))
+
+        return batches
 
 
 NON_SEMANTIC_MUTATION_TYPES = {

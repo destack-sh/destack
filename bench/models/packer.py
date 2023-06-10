@@ -6,19 +6,85 @@ Server-side mapper to translate between language and database models.
 
 from __future__ import annotations
 
+import abc
 import typing
 from dataclasses import asdict
 from datetime import datetime
 from uuid import UUID, uuid5
 
 import pytz
+from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, SymbolType, wire
-from bench.language.const import StatementModifier, TypeFlag, TypeHint, TypeTag
+from bench.language.const import ExpectationModifier, TypeFlag, TypeHint, TypeTag
 from bench.language.mutate import NON_SEMANTIC_STATEMENT_TYPES
-from bench.language.wire import SYMBOL_DATA_CLASS_BY_TYPE, FieldData, FileData, StatementData
+from bench.language.wire import (
+    SYMBOL_DATA_CLASS_BY_TYPE,
+    FieldData,
+    FileData,
+    ModuleObjectType,
+    StatementData,
+)
 from bench.runtime.common.type import ExecutionFrameData, RunErrorData
+
+MOT = ModuleObjectType
+ParentsT = set[MOT]
+NodeDataT = typing.TypeVar("NodeDataT", bound=wire.NodeData)
+NodeT = typing.TypeVar("NodeT", bound=Model)
+DataT = typing.TypeVar("DataT")
+ModelT = typing.TypeVar("ModelT", bound=Model)
+
+
+class DataPacker(typing.Generic[DataT, NodeT]):
+    """Generic data packer for non-node data types"""
+
+    def pack(self, model: ModelT) -> DataT:
+        raise NotImplementedError
+
+    def unpack(self, data: DataT) -> ModelT:
+        raise NotImplementedError
+
+
+class TreeVis(abc.ABC):
+    def get_one(self, parent_id: UUID, t: typing.Type[NodeT]) -> typing.Optional[NodeT]:
+        raise NotImplementedError
+
+    def get_many(self, parent_id: UUID, t: typing.Type[NodeT]) -> list[NodeT]:
+        raise NotImplementedError
+
+
+class NodePacker(typing.Generic[NodeDataT, NodeT]):
+    def walk(self, nodes: list[NodeT]) -> list[QuerySet[Model]]:
+        """Walk any descendants of the given nodes."""
+        return []
+
+    def pack(self, node: NodeT) -> NodeDataT:
+        raise NotImplementedError
+
+    def unpack(self, data: NodeDataT, tree: TreeVis) -> NodeT:
+        raise NotImplementedError
+
+
+class FilePacker(NodePacker[FileData, models.File]):
+    def walk(self, nodes: list[models.File]) -> list[QuerySet[Model]]:
+        return [models.Statement.objects.filter(file__in=nodes)]
+
+    def pack(self, file: models.File) -> wire.FileData:
+        return wire.FileData(
+            id=file.id,
+            parent_id=file.project_version_id if file.parent_id is None else file.parent_id,
+            name=file.name,
+            revision=file.revision,
+        )
+
+    def unpack(self, data: wire.FileData, tree: TreeVis) -> models.File:
+        return models.File(
+            id=data.id,
+            parent_id=data.parent_id,
+            name=data.name,
+            revision=data.revision,
+        )
 
 
 def pack_file_nested(file: models.File, exclude_non_semantic: bool = False) -> FileData:
@@ -66,7 +132,7 @@ def pack_file_flat(file: models.File, module_id: UUID) -> wire.FileData:
     return wire.FileData(
         id=file.id,
         module_id=module_id,
-        path=file.path,
+        name=file.path,
         statements=[],
         revision=file.revision,
     )
@@ -111,7 +177,7 @@ def pack_statement(
         fqn=None,
         text=statement.code if statement.type == StatementType.COMMENT else None,
         symbol_type=SymbolType(statement.symbol_type) if statement.symbol_type else None,
-        modifier=StatementModifier(statement.modifier) if statement.modifier else None,
+        modifier=ExpectationModifier(statement.modifier) if statement.modifier else None,
     )
     if statement.type == StatementType.SYMBOL:
         pack_symbol(statement, data, flat=flat)

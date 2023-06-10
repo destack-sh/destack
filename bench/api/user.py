@@ -231,7 +231,7 @@ class UserMutation:
         client.statement_id = input.statement_id.node_id if input.statement_id else None
         client.field_id = input.field_id.node_id if input.field_id else None
         client.record_id = input.record_id.node_id if input.record_id else None
-        client.path = input.path
+        client.name = input.path
         client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         client.save()
         # update client id in session if needed

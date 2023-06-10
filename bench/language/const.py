@@ -28,14 +28,6 @@ class StatementType(enum.StrEnum):
     BLANK = "blank"
 
 
-class StatementModifier(enum.StrEnum):
-    """A modifier to a Bench statement."""
-
-    LIKE = "like"
-    UNLIKE = "unlike"
-    CHECK = "check"
-
-
 class SymbolType(enum.StrEnum):
     """The type of symbol content."""
 
@@ -105,11 +97,6 @@ class TypeHint(enum.StrEnum):
     AUDIO = "audio"
 
 
-class LookupBy(enum.StrEnum):
-    Name = "name"
-    PyIdent = "py_ident"
-
-
 class TypeFlag(enum.IntFlag):
     # :TypeFlags
     Zero = 0
@@ -118,6 +105,19 @@ class TypeFlag(enum.IntFlag):
     IsNullable = 2**2
     IsUnionWith = 2**3
     IsSecret = 2**4
+
+
+class ExpectationModifier(enum.StrEnum):
+    """A modifier to a Bench statement."""
+
+    LIKE = "like"
+    UNLIKE = "unlike"
+    CHECK = "check"
+
+
+class LookupBy(enum.StrEnum):
+    Name = "name"
+    PyIdent = "py_ident"
 
 
 class RemoteObjectStatus(enum.StrEnum):

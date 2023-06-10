@@ -284,7 +284,7 @@ class SessionAccess:
         # get GET url to access file
         rep: NMessage[RepReadObjectPayload] = await request(
             NMessageType.REQUEST_READ_OBJECT,
-            ReqReadObjectPayload(objects=[wire.pack_remote_object(obj)]),
+            ReqReadObjectPayload(objects=[wire.pack_node_flat(obj)]),
             reply_t=RepReadObjectPayload,
             timeout=timeout,
         )

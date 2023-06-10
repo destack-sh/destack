@@ -154,7 +154,7 @@ def test_recursive_union_fail():
 def test_nested_resolve():
     with Session(ctx=MOCK_SESSION_CONTEXT).sync() as session:
         module = Module(name="test")
-        file = File(path="test-file", module=module)
+        file = File(name="test-file", module=module)
         task = Statement(name="task", order_key=INTEGER_ZERO, file=file, symbol=Code())
         dataset = Statement(name="a", order_key=INTEGER_ZERO, file=file, symbol=Dataset())
         code = Statement(name="b", order_key=INTEGER_ZERO, file=file, symbol=Code())

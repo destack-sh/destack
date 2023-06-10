@@ -122,7 +122,7 @@ class PyFrameData:
                         continue  # ignore
                     if isinstance(from_code.source, Statement):
                         frame.filename = to_pyidentifier_multi(
-                            from_code.source.file.path, from_code.source.name
+                            from_code.source.file.name, from_code.source.name
                         )
                     frame.name = from_code.name
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
