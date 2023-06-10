@@ -4,8 +4,6 @@ from django.db import models
 
 from bench.models.utils import UUIDModel
 
-# TODO @Incomplete: actually use this dataset model
-
 
 class DatasetBackend(models.TextChoices):
     """The backend used to store the dataset."""

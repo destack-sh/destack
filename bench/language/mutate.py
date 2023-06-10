@@ -29,6 +29,8 @@ from bench.language.wire import (
     TaskData,
     TypeData,
     ValueData,
+    MOT_BY_DATA_CLASS,
+    ModuleTree,
 )
 
 
@@ -46,23 +48,22 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_FILE = "DELETE_FILE"
     # Statements
     CREATE_STATEMENT = "CREATE_STATEMENT"
-    CREATE_STATEMENT_BLANK = "CREATE_STATEMENT_BLANK"
     PASTE_STATEMENT = "PASTE_STATEMENT"
     SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
-    UPDATE_STATEMENT_MODIFIER = "UPDATE_STATEMENT_MODIFIER"
-    UPDATE_STATEMENT_REFERENCE = "UPDATE_STATEMENT_REFERENCE"
     MORPH_STATEMENT = "MORPH_STATEMENT"
     COMMENT_STATEMENT = "COMMENT_STATEMENT"
     MOVE_STATEMENT = "MOVE_STATEMENT"
     RENAME_STATEMENT = "RENAME_STATEMENT"
     UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"  # for comments
-    UPDATE_STATEMENT_DESCRIPTION = "UPDATE_STATEMENT_DESCRIPTION"
-    UPDATE_STATEMENT_CODE = "UPDATE_STATEMENT_CODE"
-    UPDATE_STATEMENT_LANGUAGE = "UPDATE_STATEMENT_LANGUAGE"
-    UPDATE_STATEMENT_VALUE = "UPDATE_STATEMENT_VALUE"
     UPDATE_STATEMENT = "UPDATE_STATEMENT"
     DELETE_STATEMENT = "DELETE_STATEMENT"
+    # Symbols
+    UPDATE_SYMBOL_DESCRIPTION = "UPDATE_SYMBOL_DESCRIPTION"
+    UPDATE_SYMBOL_CODE = "UPDATE_SYMBOL_CODE"
+    UPDATE_SYMBOL_MODIFIER = "UPDATE_SYMBOL_MODIFIER"
+    UPDATE_SYMBOL_LANGUAGE = "UPDATE_SYMBOL_LANGUAGE"
+    UPDATE_SYMBOL_VALUE = "UPDATE_SYMBOL_VALUE"
     # Types
     CREATE_FIELD = "CREATE_FIELD"
     UPDATE_FIELD = "UPDATE_FIELD"
@@ -137,21 +138,21 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.DELETE_FILE: (MMK.DELETE, MOT.FILE),
     # Statements
     MMT.CREATE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
-    MMT.CREATE_STATEMENT_BLANK: (MMK.CREATE, MOT.STATEMENT),
     MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
     MMT.RESTORE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_MODIFIER: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MOT.STATEMENT),
     MMT.MORPH_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
     MMT.COMMENT_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
     MMT.MOVE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
     MMT.RENAME_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_DESCRIPTION: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_CODE: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_LANGUAGE: (MMK.UPDATE, MOT.STATEMENT),
     MMT.UPDATE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
     MMT.DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
+    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MOT.STATEMENT),
+    # Symbols
+    MMT.UPDATE_SYMBOL_DESCRIPTION: (MMK.UPDATE, MOT.SYMBOL),
+    MMT.UPDATE_SYMBOL_CODE: (MMK.UPDATE, MOT.SYMBOL),
+    MMT.UPDATE_SYMBOL_MODIFIER: (MMK.UPDATE, MOT.SYMBOL),
+    MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MOT.SYMBOL),
+    MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.SYMBOL),
     # Types
     MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
     MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
@@ -234,16 +235,19 @@ class ModuleMutator:
 
     def __init__(
         self,
-        module: Optional[Module] = None,
+        module: Module | ModuleData | UUID,
         mutations: list[ModuleMutation] = None,
-        module_id: Optional[UUID] = None,
-        source: Optional[wire.ModuleData] = None,
     ):
-        self.module = module
-        self.module_source = source
-        self.module_id = module_id or (module.id if module else None)
-        if self.module_id is None:
-            raise ValueError("module_id is required")
+        if isinstance(module, Module):
+            module = wire.pack_node(module)
+        if isinstance(module, ModuleData):
+            self.module = module
+            self.module_id = module.id
+            self.tree = ModuleTree.from_module(module)
+        else:
+            self.module = None
+            self.module_id = module
+            self.tree = ModuleTree()
         self.mutations = mutations or []
 
     def __str__(self):
@@ -253,26 +257,29 @@ class ModuleMutator:
         return f"<Mutator {self}>"
 
     def reset(self):
-        self.mutations = []
+        raise NotImplementedError
 
     def do(self, type: MMT, obj: NodeData) -> "ModuleMutator":
-        raise NotImplementedError  # nocheckin
-
+        statement = self.tree.find_ancestor(obj, MOT.STATEMENT)
+        file = self.tree.find_ancestor(obj, MOT.FILE)
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
-            revision=obj.revision,
-            file_id=file_id,
-            statement_id=statement_id,
+            revision=obj.revision if isinstance(obj, wire.Revisioned) else None,
+            file_id=file.id if file else None,
+            statement_id=statement.id if statement else None,
         )
         mutation.data = obj
         self.mutations.append(mutation)
         return self
 
+    def _apply(self, mut: ModuleMutation):
+        raise NotImplementedError  # nocheckin in memory mutation
+
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
         """Truncates all records of the given statement."""
         symbol = self.module.symbols_by_id[statement_id]
-        self.do(MMT.TRUNCATE_RECORDS, wire.pack_statement(symbol.source))
+        self.do(MMT.TRUNCATE_RECORDS, wire.pack_node_flat(symbol.source))
         return self
 
     def create_many(self, *objs: NodeData) -> "ModuleMutator":
@@ -312,26 +319,8 @@ class ModuleMutator:
         return MutationBundle(self.mutations)
 
     def apply(self) -> ModuleData:
-        """
-        Apply (simple!)  mutations to a copy of the module and return the mutated data.
-        TODO @Broken: mutations should consider ordering :OrderedMutations
-        """
-        if self.module is None:
-            raise ValueError("cannot apply mutations without a module")
-        mut = MutationBundle(self.mutations)
-        if not mut.simple:
-            raise ValueError(f"cannot apply complex mutations in {self}: {mut.complex_mutations}")
-
-        if self.module_source:
-            module = self.module_source.deepcopy()
-        else:
-            module = wire.pack_module(self.module)
-
-        # apply each mutation
-        for m in self.mutations:
-            raise NotImplementedError
-
-        return new_module
+        # already applied in memory
+        return self.tree.to_module()
 
 
 class MutationBundle:
@@ -401,7 +390,7 @@ class MutationBundle:
 
     def batched(self) -> list[tuple[MMT, list[ModuleMutation]]]:
         """
-        Batch mutations by type in order of appearance.
+        Batch consecutive mutations by type in order of appearance.
         (there may be multiple batches of the same type).
         """
 
@@ -424,11 +413,7 @@ class MutationBundle:
 
 
 NON_SEMANTIC_MUTATION_TYPES = {
-    MMT.CREATE_FILE,
-    MMT.CREATE_STATEMENT_BLANK,
     MMT.UPDATE_STATEMENT_TEXT,  # for comments
-    MMT.MOVE_FIELD,
-    MMT.MOVE_RECORD,
 }
 NON_SEMANTIC_STATEMENT_TYPES = {
     StatementType.COMMENT,

@@ -14,7 +14,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
 from bench import language, models
-from bench.api.auth import check_can_view_project, check_can_write_project
+from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_mutation
 
@@ -96,6 +96,7 @@ class Statement(gql.Node, SimplyTyped):
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
+    text: auto
     symbol_type: Optional[SymbolType]
     # symbol contents
     root_type_tag: Optional[TypeTag]
@@ -123,16 +124,6 @@ class Statement(gql.Node, SimplyTyped):
 
 
 @gql.input
-class StatementCreateBlankInput:
-    """Creates a blank statement"""
-
-    id: Optional[GlobalID] = None
-    file_id: GlobalID
-    order_key: str
-    parent_id: Optional[GlobalID] = None
-
-
-@gql.input
 class StatementCreateInput:
     """Creates a full statement"""
 
@@ -149,6 +140,7 @@ class StatementCreateInput:
     symbol_type: Optional[SymbolType] = None
     description: Optional[str] = None
     lang: Optional[str] = None
+    text: Optional[str] = None
     code: Optional[str] = None
 
 
@@ -261,6 +253,11 @@ class StatementBatchPasteInput:
     target_order_keys: list[str]
 
 
+@gql.input
+class StatementUpdateTextInput(gql.NodeInput):
+    text: Optional[str] = None
+
+
 class ThingBatch(Iterable):
     @property
     def things(self):
@@ -291,30 +288,12 @@ class StatementBatch(ThingBatch):
 
 @gql.type
 class StatementMutation:
-    @tracked_mutation(MMT.CREATE_STATEMENT_BLANK)
-    def create_statement_blank(self, input: StatementCreateBlankInput) -> Statement | OperationInfo:
-        file = models.File.objects.get(id=input.file_id.node_id)
-        project_version = file.project_version
-        id = input.id.node_id if input.id else None
-        statement = models.Statement(
-            id=id,
-            project_version=project_version,
-            file=file,
-            type=StatementType.BLANK,
-            name=None,
-            parent_id=input.parent_id.node_id if input.parent_id else None,
-            order_key=input.order_key,
-        )
-        return statement
-
     @tracked_mutation(MMT.CREATE_STATEMENT)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
-        project_version = file.project_version
-        id = input.id.node_id if input.id else None
         statement = models.Statement(
-            id=id,
-            project_version=project_version,
+            id=(input.id.node_id if input.id else None),
+            project_version=file.project_version,
             file=file,
             type=input.type,
             name=input.name,
@@ -328,12 +307,17 @@ class StatementMutation:
             description=input.description,
             lang=input.lang,
             code=input.code,
+            text=input.text,
         )
         return statement
 
     @tracked_mutation(MMT.UPDATE_STATEMENT)
     def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
+        if statement.symbol_type != input.symbol_type:
+            raise ValueError(
+                f"cannot change symbol type: {statement.symbol_type} -> {input.symbol_type}"
+            )
         statement.type = input.type
         statement.name = input.name
         statement.file_id = input.file_id.node_id
@@ -348,6 +332,7 @@ class StatementMutation:
         statement.description = input.description
         statement.lang = input.lang
         statement.code = input.code
+        statement.text = input.text
         return statement
 
     @tracked_mutation(MMT.DELETE_STATEMENT)
@@ -359,13 +344,6 @@ class StatementMutation:
     @tracked_mutation(MMT.MORPH_STATEMENT, atomic=True)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        if (
-            input.type == StatementType.SYMBOL
-            and input.symbol_type in (SymbolType.DATASET, SymbolType.CODE, SymbolType.TASK)
-            and input.root_type_tag is None
-        ):
-            raise ValidationError(f"root_type_tag is required for {input.type} {input.symbol_type}")
-
         statement.type = input.type
         statement.symbol_type = input.symbol_type
         statement.name = input.name
@@ -393,7 +371,7 @@ class StatementMutation:
         statement.restore()
         return statement
 
-    @tracked_mutation(MMT.UPDATE_STATEMENT_MODIFIER)
+    @tracked_mutation(MMT.UPDATE_SYMBOL_MODIFIER)
     def update_statement_modifier(
         self, input: StatementSetExpectationModifierInput
     ) -> Statement | OperationInfo:
@@ -507,7 +485,7 @@ class StatementMutation:
             raise ValidationError("statements must be from the same project version")
         # check that the user can read the source (if different)
         if source_project_v != target_file.project_version:
-            check_can_view_project(info, source_project_v.project)
+            check_can_read_project(info, source_project_v.project)
 
         # actually paste and store paste refmappings
         target_ids = [UUID(i.node_id) for i in input.target_ids]
@@ -536,6 +514,12 @@ class StatementMutation:
             )
         return StatementBatch(statements=target_statements)
 
+    @tracked_mutation(MMT.UPDATE_STATEMENT_TEXT)
+    def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.text = input.text
+        return statement
+
 
 #
 # Statement content / symbol mutations
@@ -548,12 +532,12 @@ class StatementTextInput(gql.NodeInput):
 
 
 @gql.input
-class StatementUpdateDescriptionInput(gql.NodeInput):
+class SymbolUpdateDescriptionInput(gql.NodeInput):
     description: str
 
 
 @gql.input
-class StatementUpdateCodeInput(gql.NodeInput):
+class SymbolUpdateCodeInput(gql.NodeInput):
     code: Optional[str] = None
 
 
@@ -621,34 +605,18 @@ class FieldRestoreInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
-    # both text and code save to code, but UPDATE_STATEMENT_TEXT is more descriptive
-    # and allows us to ignore comment updates trivially :StatementCodeTextReuse
-    @tracked_mutation(MMT.UPDATE_STATEMENT_TEXT)
-    def update_statement_text(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.code = input.code
-        return statement
-
-    @tracked_mutation(MMT.UPDATE_STATEMENT_DESCRIPTION)
-    def update_statement_description(
-        self, input: StatementUpdateDescriptionInput
+    @tracked_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
+    def update_symbol_description(
+        self, input: SymbolUpdateDescriptionInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.description = input.description
         return statement
 
-    @tracked_mutation(MMT.UPDATE_STATEMENT_CODE)
-    def update_statement_code(self, input: StatementUpdateCodeInput) -> Statement | OperationInfo:
+    @tracked_mutation(MMT.UPDATE_SYMBOL_CODE)
+    def update_symbol_code(self, input: SymbolUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
-        return statement
-
-    @tracked_mutation(MMT.UPDATE_STATEMENT_LANGUAGE)
-    def update_statement_language(
-        self, input: StatementUpdateLanguageInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.language = input.language
         return statement
 
     @tracked_mutation(MMT.CREATE_FIELD)
@@ -702,7 +670,7 @@ class SymbolMutation:
     @tracked_mutation(MMT.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
-        field._order_key = input.order_key
+        field.order_key = input.order_key
         return field
 
     @tracked_mutation(MMT.SOFT_DELETE_FIELD)

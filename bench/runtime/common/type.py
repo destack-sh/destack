@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import enum
-import re
 import sys
 import traceback
 from dataclasses import dataclass, field
@@ -10,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
 from bench.language import SymbolType
-from bench.language.const import ExecutionTriggerType, LiteralValue
+from bench.language.const import LiteralValue
 from bench.language.type import Code, Model, Statement, Task
 from bench.utils.utils import to_pyidentifier_multi
 
@@ -158,76 +157,6 @@ class RunErrorData:
             traceback=[PyFrameData(**frame) for frame in data["traceback"]]
             if data.get("traceback")
             else [],
-        )
-
-
-@dataclass(slots=True)
-class ExecutionFrameData:
-    """Wire-able representation of an execution frame."""
-
-    id: UUID
-    module_id: UUID
-    runnable_id: UUID
-    root_id: Optional[UUID]
-    parent_id: Optional[UUID]
-    entered_at: datetime
-    exited_at: Optional[datetime]
-    cached_generated_at: Optional[datetime]
-    cached_duration: Optional[float]
-    inputs: Optional[Any]
-    outputs: Optional[Any]
-    error: Optional[RunErrorData]
-    queue_position: Optional[int]
-    # additional context data not in ExecutionFrame
-    project_id: UUID
-    tracing_level: Optional[int]
-    worker_id: UUID
-    trigger_type: Optional[ExecutionTriggerType]
-    trigger_id: Optional[UUID]
-
-    @staticmethod
-    def from_frame(frame: ExecutionFrame, *, session: "Session") -> ExecutionFrameData:
-        if frame.error:
-            if frame.runnable is None:
-                raise ValueError(f"error outside code: {frame}")
-            stack_summary = traceback.StackSummary.extract(
-                traceback.walk_tb(frame.error.__traceback__), capture_locals=True
-            )
-            if isinstance(frame.runnable, Code):
-                stack = PyFrameData.from_stack(stack_summary)
-                stack = PyFrameData.clean(stack, frame.runnable, session=session)
-            else:
-                stack = []
-            error_str = str(frame.error)
-            # remove (source=...) from error message
-            error_str = re.sub(r"\(source=.+\)", "", error_str)
-            error_data = RunErrorData(
-                type=type(frame.error).__name__,
-                symbol=str(frame.runnable),
-                message=f"{type(frame.error).__name__}: {error_str}",
-                traceback=stack,
-            )
-        else:
-            error_data = None
-        return ExecutionFrameData(
-            id=frame.id,
-            module_id=frame.module_id,
-            runnable_id=frame.runnable.id if frame.runnable else None,
-            root_id=frame.root.id if frame.root else None,
-            parent_id=frame.parent.id if frame.parent else None,
-            entered_at=frame.entered_at,
-            exited_at=frame.exited_at,
-            cached_generated_at=frame.cached_generated_at,
-            cached_duration=frame.cached_duration,
-            inputs=frame.inputs,
-            outputs=frame.outputs,
-            error=error_data,
-            queue_position=frame.queue_position,
-            project_id=session.ctx.project_id,
-            tracing_level=session.ctx.tracing_level,
-            worker_id=session.ctx.worker_id,
-            trigger_type=session.ctx.trigger_type,
-            trigger_id=session.ctx.trigger_id,
         )
 
 

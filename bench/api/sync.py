@@ -21,7 +21,7 @@ from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
-from bench.runtime.server.mutate import (
+from bench.runtime.common.mutate import (
     MutableThing,
     input_to_gql_jsonable,
     map_mutation_from_public,

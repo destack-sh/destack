@@ -222,7 +222,7 @@ def normalize_to_project(obj) -> models.Project:
     return obj
 
 
-def can_view_project(user: User, obj: Any) -> bool:
+def can_read_project(user: User, obj: Any) -> bool:
     """Whether the given user can view the project-related object."""
     if user.is_authenticated and user.is_staff:
         return True
@@ -255,10 +255,10 @@ def can_write_project(user: User, obj: Any) -> bool:
     return is_owner or is_org_member
 
 
-def check_can_view_project(info: Info, obj: Any) -> None:
+def check_can_read_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
-    if not can_view_project(user, obj):
+    if not can_read_project(user, obj):
         raise PermissionDenied("User cannot view this.")
 
 
@@ -279,7 +279,7 @@ def check_can_view_project_by_id(
         project = project_version.project
         if project_id is not None and project_id != project.id:
             raise ValueError("project_id must match project_version_id")
-    if not can_view_project(user, project):
+    if not can_read_project(user, project):
         raise PermissionDenied("You don't have permission to view this project.")
 
 
@@ -310,7 +310,7 @@ class CanViewProject(HasCustomPermDirective):
 
     @resolvers.async_safe
     def has_perm_safe(self, root: Any, info: GraphQLResolveInfo, user: User, obj: Any) -> bool:
-        return can_view_project(user, obj)
+        return can_read_project(user, obj)
 
     def filter_for_user(self, qs: QuerySet, info: Info, user: User) -> QuerySet:
         if user.is_authenticated and user.is_staff:

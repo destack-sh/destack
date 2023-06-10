@@ -14,9 +14,9 @@ import {
   type RenameStatementMutation,
   type RestoreStatementMutation,
   type SoftDeleteStatementMutation,
-  type StatementModifier,
+  type ExpectationModifier,
   type SymbolType,
-  type UpdateStatementModifierMutation,
+  type UpdateExpectationModifierMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -61,7 +61,7 @@ export function useStatementOps() {
         $parentId: GlobalID
         $orderKey: String!
         $type: StatementType!
-        $modifier: StatementModifier
+        $modifier: ExpectationModifier
         $name: String
         $symbolType: SymbolType
         $lang: String
@@ -90,7 +90,7 @@ export function useStatementOps() {
           }
         ) {
           ... on Statement {
-            # should match STatementContent fragment
+            # should match StatementContent fragment
             id
             type
             revision
@@ -139,7 +139,7 @@ export function useStatementOps() {
         parentId: string | null;
         orderKey: string;
         type: StatementType;
-        modifier: StatementModifier | null;
+        modifier: ExpectationModifier | null;
         name: string | null;
         symbolType: SymbolType | null;
         lang: string | null;
@@ -381,10 +381,10 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: updateStatementModifier } = registry.useMutation(
-    ModuleMutationType.UpdateStatementModifier,
+  const { mutate: updateExpectationModifier } = registry.useMutation(
+    ModuleMutationType.UpdateExpectationModifier,
     graphql(/* GraphQL */ `
-      mutation updateStatementModifier($id: GlobalID!, $modifier: StatementModifier) {
+      mutation updateExpectationModifier($id: GlobalID!, $modifier: ExpectationModifier) {
         updateStatementModifier(input: { id: $id, modifier: $modifier }) {
           ... on Statement {
             id
@@ -396,32 +396,32 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; modifier: StatementModifier | null }) =>
+      optimisticResponse: (vars: { id: string; modifier: ExpectationModifier | null }) =>
         ({
-          updateStatementModifier: {
+          updateExpectationModifier: {
             __typename: "Statement",
             id: vars.id,
             modifier: vars.modifier,
             revision: PENDING_REVISION,
           },
-        } as UpdateStatementModifierMutation),
+        } as UpdateExpectationModifierMutation),
     }
   );
 
   async function modify(
     tx: Transaction | null,
     id: string,
-    oldModifier: StatementModifier | null,
-    newModifier: StatementModifier | null
+    oldModifier: ExpectationModifier | null,
+    newModifier: ExpectationModifier | null
   ) {
     await ops.perform({
       tx,
       type: "statement.modify",
       do: async () => {
-        return await updateStatementModifier({ id: id, modifier: newModifier });
+        return await updateExpectationModifier({ id: id, modifier: newModifier });
       },
       undo: async () => {
-        return await updateStatementModifier({ id: id, modifier: oldModifier });
+        return await updateExpectationModifier({ id: id, modifier: oldModifier });
       },
     });
   }

@@ -129,12 +129,14 @@ class StatementManager(models.Manager["Statement"]):
         copy_revisions: bool = True,
     ) -> list["RefMapping"]:
         """Copies the given source statements into the target version in given new files"""
-        # TODO @Performance: copy statements server-side (in SQL)
 
         from bench.models import RefMapping, RefType  # avoid circular import
 
         ref_mappings: list[RefMapping] = []
         ref_mappings_ids: dict[UUID, UUID] = {}
+
+        # nocheckin: replace copy files/statements with packer-based copy
+        # nocheckin: also copy datasets if versioned
 
         def _refmap(type: RefType, old_id: UUID, old_revision: int, new: models.Model):
             ref_mapping = RefMapping(

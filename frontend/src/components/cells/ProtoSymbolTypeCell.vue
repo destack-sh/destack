@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
-import { StatementModifier, SymbolType, TypeTag } from "@/gql/graphql";
+import { ExpectationModifier, SymbolType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { MODIFIER_BY_KEYWORD, SUPPORTED_MODIFIERS, SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
 import { TypeFlag } from "@/state/module";
@@ -147,12 +147,12 @@ const commands = computed(() => {
     commands.push({
       label: "like",
       description: "Give positive behaviour examples.",
-      action: () => (context.setModifier(StatementModifier.Like), emit("morphed")),
+      action: () => (context.setModifier(ExpectationModifier.Like), emit("morphed")),
     });
     commands.push({
       label: "unlike",
       description: "Give negative behaviour examples.",
-      action: () => (context.setModifier(StatementModifier.Unlike), emit("morphed")),
+      action: () => (context.setModifier(ExpectationModifier.Unlike), emit("morphed")),
     });
   }
 

@@ -38,7 +38,8 @@ from bench.msg.messages import (
     WorkerHeartbeatPayload,
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
-from bench.runtime.common.type import ExecutionFrame, ExecutionFrameData, WorkerTenancy
+from bench.runtime.common.type import ExecutionFrame, WorkerTenancy
+from bench.language.wire import ExecutionFrameData
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -83,6 +84,7 @@ class ModuleWorker:
         self.ready = asyncio.Event()
 
         self.interpreter = LanguageInterpreter(master.fetch)
+        self.source: wire.ModuleData | None = None
         self.interp: InterpModule | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
@@ -99,16 +101,20 @@ class ModuleWorker:
 
     async def start(self, source: wire.ModuleData):
         self.log.debug("module.init")
+        self.source = source
         self.interp = await self.interpreter.interp(source)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
-        new_source = ModuleMutator(self.interp.module, mutations).apply()
+        self.log.debug("module.interp", mutations=len(mutations))
+        new_source = ModuleMutator(self.source, mutations).apply()
+        self.source = new_source
         self.interp = await self.interpreter.interp(new_source)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
         new_source = ModuleMutator(self.interp.module, mutations).apply()
         # interp and write in parallel
+        self.source = new_source
         self.interp, rep = await asyncio.gather(
             self.interpreter.interp(new_source),
             request(

@@ -180,7 +180,7 @@ class Session:
         active_session.set(self)
         logger.debug("session.open", session=self)
 
-    async def aflush(self):
+    async def aflush(self, keep_open: bool = True):
         """Flushes all module mutations."""
         if not self.mutator.mutations:
             return
@@ -191,7 +191,8 @@ class Session:
         success = await self.write(mutations)
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
-        self.mutator.reset()
+        if keep_open:
+            self.mutator.reset()
         logger.debug("session.flush.done", session=self)
 
     def flush(self):
@@ -203,7 +204,7 @@ class Session:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
         if flush:
-            await self.aflush()
+            await self.aflush(keep_open=False)
         active_session.set(None)
         logger.debug("session.close", session=self)
 
@@ -284,7 +285,7 @@ class SessionAccess:
         # get GET url to access file
         rep: NMessage[RepReadObjectPayload] = await request(
             NMessageType.REQUEST_READ_OBJECT,
-            ReqReadObjectPayload(objects=[wire.pack_node_flat(obj)]),
+            ReqReadObjectPayload(objects=[wire.pack_data(obj)]),
             reply_t=RepReadObjectPayload,
             timeout=timeout,
         )
@@ -302,7 +303,7 @@ class SessionAccess:
         """Reads a remote secret."""
         rep: NMessage[RepReadSecretPayload] = await request(
             NMessageType.REQUEST_READ_SECRET,
-            ReqReadSecretPayload(secrets=[wire.pack_secret(secret)]),
+            ReqReadSecretPayload(secrets=[wire.pack_data(secret)]),
             reply_t=RepReadSecretPayload,
             timeout=timeout,
         )

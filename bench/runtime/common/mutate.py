@@ -103,7 +103,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*nodes_data).mutations
     else:
-        # map everything else to a simple internal mutation (CRUD_X)
+        # map everything else to a simple internal mutation (CUD_X)
         internal_type = MMT(mutation.type.kind + "_" + mutation.type.scope)
 
     internal_mutation = ModuleMutation(
@@ -113,7 +113,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         statement_id=mutation.statement_id,
         revision=thing.revision,
     )
-    internal_mutation.data = packer.pack_flat(thing)
+    internal_mutation.data = packer.pack_node_flat(thing)
     return [internal_mutation]
 
 
