@@ -7,17 +7,15 @@ from django.db import transaction
 from django.db.models import Q
 
 from bench import models
-from bench.language import wire
-from bench.language.const import InterpScope
-from bench.language.mutate import MMT, ModuleMutation, MutationBundle
-from bench.language.wire import InterpData
+from bench.bench import wire
+from bench.bench.const import InterpScope
+from bench.bench.mutate import MMT, ModuleMutation, MutationBundle
+from bench.bench.wire import InterpData
 from bench.models import packer
 from bench.models.project import ProjectVersion
 
 
-def read_packed_module(
-    project_v: ProjectVersion, exclude_non_semantic: bool = False
-) -> wire.ModuleData:
+def read_packed_module(project_v: ProjectVersion) -> wire.ModuleData:
     root, nodes = packer.pack_node(project_v)
     root.nodes = nodes
     return root

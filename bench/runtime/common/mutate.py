@@ -9,8 +9,8 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language import StatementType, wire
-from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
+from bench.bench import wire
+from bench.bench.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 
 MutableThing = Union[

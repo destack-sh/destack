@@ -14,8 +14,8 @@ import aiohttp
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.language import TypeHint, TypeTag, wire
-from bench.language.const import (
+from bench.bench import TypeHint, TypeTag, wire
+from bench.bench.const import (
     STATIC_BUILTINS,
     TYPE_TAG_BY_TYPE_HINT,
     ModuleOp,
@@ -24,17 +24,18 @@ from bench.language.const import (
     SessionMode,
     TypeFlag,
 )
-from bench.language.dataset import Query, Sort
-from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.tracing import SessionTracer
-from bench.language.type import (
+from bench.bench.dataset import Query, Sort
+from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.tracing import SessionTracer
+from bench.bench.type import (
     Code,
     CodeTransformation,
     Dataset,
     File,
-    LanguageObject,
+    HasSession,
     Model,
     Module,
+    ModuleNode,
     RemoteObject,
     Scope,
     Secret,
@@ -42,10 +43,10 @@ from bench.language.type import (
     Symbol,
     Task,
     Type,
-    TypeNode,
+    TypeBase,
 )
-from bench.language.typer import map_rekey_enum, map_unkey_enum
-from bench.language.unsecure import do_execute_arbitrary_code
+from bench.bench.typer import map_rekey_enum, map_unkey_enum
+from bench.bench.unsecure import do_execute_arbitrary_code
 from bench.msg import NMessageType
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
@@ -57,8 +58,8 @@ from bench.msg.messages import (
 from bench.utils.utils import to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language.build import Build, XPrompt
-    from bench.language.inference import ModelInference
+    from bench.bench.build import Build, XPrompt
+    from bench.bench.inference import ModelInference
 
 logger = structlog.get_logger(__name__)
 
@@ -74,10 +75,10 @@ class SessionBase(abc.ABC):
     def is_open(self) -> bool:
         raise NotImplementedError
 
-    def add(self, obj: LanguageObject):
+    def add(self, obj: ModuleNode):
         raise NotImplementedError
 
-    def remove(self, obj: LanguageObject):
+    def remove(self, obj: ModuleNode):
         raise NotImplementedError
 
 
@@ -88,7 +89,7 @@ class Session:
         self,
         module: Module,
         ctx: SessionContext | None = None,
-        instances: list["LanguageObject"] = None,
+        instances: list["ModuleNode"] = None,
         builds: dict[str, "Build"] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
@@ -102,9 +103,7 @@ class Session:
         self.id = uuid4()
         self.ctx = ctx
         self.module = module
-        self.instances: dict[UUID, "LanguageObject"] = (
-            {i.id: i for i in instances} if instances else {}
-        )
+        self.instances: dict[UUID, "HasSession"] = {i.id: i for i in instances} if instances else {}
         self.builds: dict[str, Build] = builds or {}
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -134,7 +133,7 @@ class Session:
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
 
-    def add(self, *objs: "LanguageObject", new: bool = False) -> None:
+    def add(self, *objs: "HasSession", new: bool = False) -> None:
         if new:
             for obj in objs:
                 # permissions are checked in tracer
@@ -142,14 +141,13 @@ class Session:
                     self.tracer.file_create(obj)
                 elif isinstance(obj, Statement):
                     self.tracer.statement_create(obj)
-                elif isinstance(obj, Symbol):
-                    self.tracer.symbol_create(obj)
-                    # it feels like this should be done in some tracer?
-                    self.module.symbols_by_id[obj.id] = obj
+                    if isinstance(obj, Symbol):
+                        # it feels like this should be done in some tracer?
+                        self.module.symbols_by_id[obj.id] = obj
         for obj in objs:
             self.instances[obj.id] = obj
 
-    def remove(self, *objs: "LanguageObject") -> None:
+    def remove(self, *objs: "HasSession") -> None:
         for obj in objs:
             if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
                 del self.instances[obj.id]
@@ -161,10 +159,7 @@ class Session:
 
     def can(self, op: ModuleOp, thing: File | Statement | Symbol) -> bool:
         if self.mode == SessionMode.READ_ONLY:
-            return op in (
-                ModuleOp.READ,
-                ModuleOp.SEARCH,
-            )
+            return op in (ModuleOp.READ, ModuleOp.SEARCH)
         elif self.mode == SessionMode.WRITE_GLOBAL:
             return True
         else:
@@ -244,12 +239,12 @@ class SessionAccess:
         self, task: "Task", build: str = None, model: Model | str = None
     ) -> list["XPrompt"]:
         """Gets or builds an implementation for a task."""
-        from bench.language.build import build_task_implementation
+        from bench.bench.build import build_task_implementation
 
         build = build or "balanced"
         if model is not None:
             if isinstance(model, str):
-                model = self.session.idx.symbol(model, symbol_t=Model)
+                model = self.session.module.find_symbol(model, symbol_t=Model)
             models = [model]
         else:
             build = self.session.builds[build]
@@ -324,13 +319,13 @@ class TypeMapper:
     Don't bother with lists and optional types here.
     """
 
-    def to_py_type(self, type: TypeNode) -> type:
+    def to_py_type(self, type: TypeBase) -> type:
         raise NotImplementedError
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return value
 
-    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return value
 
 
@@ -356,7 +351,7 @@ def register_mapper(
         type_mappers[TypeSignature(tag, hint, flags)] = mapping
 
 
-def get_flat_mapper(type: TypeNode) -> TypeMapper:
+def get_flat_mapper(type: TypeBase) -> TypeMapper:
     """
     Gets the most appropriate mapping for the given type.
     (flat because we ignore list and optional types).
@@ -379,47 +374,47 @@ def get_flat_mapper(type: TypeNode) -> TypeMapper:
 class StaticTypeMapper(TypeMapper):
     py_type: type
 
-    def to_py_type(self, type: TypeNode) -> type:
+    def to_py_type(self, type: TypeBase) -> type:
         return self.py_type
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
 
 class StringifyTypeMapping(StaticTypeMapper):
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
-    def from_py_value(self, type: TypeNode, value: Any) -> str:
+    def from_py_value(self, type: TypeBase, value: Any) -> str:
         return str(value)
 
 
 class IsoDtTypeMapping(StaticTypeMapper):
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type.fromisoformat(value)
 
-    def from_py_value(self, type: TypeNode, value: Any) -> str:
+    def from_py_value(self, type: TypeBase, value: Any) -> str:
         return value.isoformat()
 
 
 class EnumMapper(TypeMapper):
-    def to_py_type(self, type: TypeNode) -> Any:
+    def to_py_type(self, type: TypeBase) -> Any:
         members = {to_pyidentifier(child.name): child.name for child in type.fields}
         enum_name = type.name or "_anon_" + uuid4().hex
         return enum.StrEnum(enum_name, members)
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return map_unkey_enum(value, type)
 
-    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return map_rekey_enum(value, type)
 
 
 class FileMapper(TypeMapper):
-    def to_py_type(self, type: TypeNode) -> type:
+    def to_py_type(self, type: TypeBase) -> type:
         return RemoteObject
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return RemoteObject(
             id=UUID(value["id"]),
             name=value["name"],
@@ -429,7 +424,7 @@ class FileMapper(TypeMapper):
             status=RemoteObjectStatus[value["status"]],
         )
 
-    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
             "id": str(value.id),
@@ -442,16 +437,16 @@ class FileMapper(TypeMapper):
 
 
 class SecretTypeMapper(TypeMapper):
-    def to_py_type(self, type: TypeNode) -> Any:
+    def to_py_type(self, type: TypeBase) -> Any:
         return Secret
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return Secret(
             id=UUID(value["id"]),
             sha512=value["sha512"],
         )
 
-    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: SECRET_TYPENAME,
             "id": str(value.id),
@@ -460,13 +455,13 @@ class SecretTypeMapper(TypeMapper):
 
 
 class StructTypeMapper(TypeMapper):
-    def to_py_type(self, type: TypeNode) -> typing.TypedDict:
+    def to_py_type(self, type: TypeBase) -> typing.TypedDict:
         return typing.TypedDict(
             type.name,
             {member.ident: instantiate_py_type(member) for member in type.fields},
         )
 
-    def to_py_value(self, type: TypeNode, value: Any) -> Any:
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
         if not isinstance(type, Type):
             # may be a simple type node
             if isinstance(type.reference, Type):
@@ -475,7 +470,7 @@ class StructTypeMapper(TypeMapper):
                 raise ValueError(f"struct type is not an instance: {type}")
         return type(**value)
 
-    def from_py_value(self, type: TypeNode, value: Any) -> Any:
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
 
 
@@ -497,7 +492,7 @@ register_mapper(StaticTypeMapper(int), hints=[TypeHint.INTEGER])
 register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)
 
 
-def instantiate_py_type(node: TypeNode) -> type | Any | None:
+def instantiate_py_type(node: TypeBase) -> type | Any | None:
     """Create the Python-native type for the given type node."""
     if node.tag == TypeTag.FUNCTION:
         return None  # functions don't have a pytype
@@ -509,7 +504,7 @@ def instantiate_py_type(node: TypeNode) -> type | Any | None:
         return py_type
 
 
-def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = False) -> Any:
+def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
     """Maps to the Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
@@ -529,7 +524,7 @@ def instantiate_py_value_flat(value: Any, type: TypeNode, ignore_array: bool = F
         return value  # type checking is done elsewhere
 
 
-def strip_py_value_flat(value: Any, type: TypeNode, *args, **kwargs) -> Any:
+def strip_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
     """Maps back to the raw value from the Python representation."""
     # we don't auto-coerce here since that's only needed for external data
     if value is None:
@@ -596,7 +591,7 @@ def _instantiate_model(model: Model, session: Session) -> "ModelInference":
     Instantiates the model inference endpoints for the session.
     If we don't have the key, we proxy to the langserver.
     """
-    from bench.language.inference import (
+    from bench.bench.inference import (
         CachedInferenceEndpoint,
         ModelInference,
         RemoteInferenceEndpoint,

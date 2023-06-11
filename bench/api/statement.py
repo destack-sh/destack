@@ -13,7 +13,8 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language, models
+from bench import bench as language
+from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_mutation

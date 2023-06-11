@@ -10,9 +10,9 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.language import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
-from bench.language.const import FIELD_KEY_LENGTH, TypeFlag
-from bench.language.type import new_field_key
+from bench.bench import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.bench.const import FIELD_KEY_LENGTH, TypeFlag
+from bench.bench.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,

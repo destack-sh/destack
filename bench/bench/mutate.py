@@ -9,8 +9,9 @@ from functools import cached_property
 from typing import Any, Optional
 from uuid import UUID
 
-from bench.language import Module, StatementType, SymbolType, wire
-from bench.language.wire import (
+from bench.bench import Module, StatementType, SymbolType, wire
+from bench.bench.wire import (
+    MOT_BY_DATA_CLASS,
     SYMBOL_TYPE_BY_DATA_CLASS,
     CodeData,
     DatasetData,
@@ -22,6 +23,7 @@ from bench.language.wire import (
     ModelData,
     ModuleData,
     ModuleObjectType,
+    ModuleTree,
     NodeData,
     RecordData,
     RequirementData,
@@ -29,8 +31,6 @@ from bench.language.wire import (
     TaskData,
     TypeData,
     ValueData,
-    MOT_BY_DATA_CLASS,
-    ModuleTree,
 )
 
 
@@ -148,11 +148,11 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
     MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MOT.STATEMENT),
     # Symbols
-    MMT.UPDATE_SYMBOL_DESCRIPTION: (MMK.UPDATE, MOT.SYMBOL),
-    MMT.UPDATE_SYMBOL_CODE: (MMK.UPDATE, MOT.SYMBOL),
-    MMT.UPDATE_SYMBOL_MODIFIER: (MMK.UPDATE, MOT.SYMBOL),
-    MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MOT.SYMBOL),
-    MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.SYMBOL),
+    MMT.UPDATE_SYMBOL_DESCRIPTION: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_SYMBOL_CODE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_SYMBOL_MODIFIER: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.STATEMENT),
     # Types
     MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
     MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
@@ -208,7 +208,7 @@ class ModuleMutation:
 
     @property
     def data(self) -> NodeData:
-        if self.type.scope == MOT.SYMBOL:
+        if self._data_symbol__discriminator is not None:
             # map to _symbol_<type>
             symbol_type = self._data_symbol__discriminator
             return getattr(self, f"_data_symbol_{symbol_type.value.lower()}")
@@ -217,11 +217,13 @@ class ModuleMutation:
 
     @data.setter
     def data(self, value: NodeData):
-        if self.type.scope == MOT.SYMBOL:
+        if type(value) in SYMBOL_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
             symbol_type = SYMBOL_TYPE_BY_DATA_CLASS[type(value)]
             self._data_symbol__discriminator = symbol_type
             setattr(self, f"_data_symbol_{symbol_type.value.lower()}", value)
+        else:
+            setattr(self, f"_data_{self.type.scope.value.lower()}", value)
 
     def __str__(self):
         return f"{self.type} {self.revision} {self.data}"
@@ -239,7 +241,7 @@ class ModuleMutator:
         mutations: list[ModuleMutation] = None,
     ):
         if isinstance(module, Module):
-            module = wire.pack_node(module)
+            module = wire.pack_module(module)
         if isinstance(module, ModuleData):
             self.module = module
             self.module_id = module.id

@@ -2,7 +2,7 @@ import ast
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from bench.language.type import CodeParse
+    from bench.bench.type import CodeParse
 
 
 def parse_code(code: str | None) -> "CodeParse":
@@ -28,8 +28,8 @@ def parse_code(code: str | None) -> "CodeParse":
     -> 'c' is an external reference to ("x.flotothemoon.test.a", "b")
     -> 'apple' is an external reference to ("<module>.local", "apple").
     """
-    from bench.language.const import DYNAMIC_BUILTINS, STATIC_BUILTINS
-    from bench.language.type import CodeParse, StatementPath
+    from bench.bench.const import DYNAMIC_BUILTINS, STATIC_BUILTINS
+    from bench.bench.type import CodeParse, StatementPath
 
     if code is None:
         return CodeParse()

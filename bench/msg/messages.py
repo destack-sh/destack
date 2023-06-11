@@ -9,10 +9,10 @@ from itertools import chain
 from typing import Optional
 from uuid import UUID
 
-from bench.language import mutate, wire
-from bench.language.const import ExecutionTriggerType
-from bench.language.dataset import Query, Sort
-from bench.language.wire import RemoteObjectData, SecretData, XBlockData, ExecutionFrameData
+from bench.bench import mutate, wire
+from bench.bench.const import ExecutionTriggerType
+from bench.bench.dataset import Query, Sort
+from bench.bench.wire import ExecutionFrameData, RemoteObjectData, SecretData, XBlockData
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 

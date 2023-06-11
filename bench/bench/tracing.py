@@ -7,19 +7,19 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.language.const import ModuleOp
-from bench.language.dataset import Query, Sort
-from bench.language.mutate import ModuleMutator
-from bench.language.typer import check_type
+from bench.bench.const import ModuleOp
+from bench.bench.dataset import Query, Sort
+from bench.bench.mutate import ModuleMutator
+from bench.bench.typer import check_type
+from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
 from bench.runtime.common.type import ExecutionFrame
-from bench.language.wire import ExecutionFrameData
 from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
 if typing.TYPE_CHECKING:
-    from bench.language import (
+    from bench.bench import (
         Code,
         Dataset,
         Field,
@@ -32,9 +32,9 @@ if typing.TYPE_CHECKING:
         Task,
         Value,
     )
-    from bench.language.build import XBlock
-    from bench.language.inference import Inference
-    from bench.language.session import Session
+    from bench.bench.build import XBlock
+    from bench.bench.inference import Inference
+    from bench.bench.session import Session
 
     Runnable = Code | Task
 
@@ -52,9 +52,6 @@ class Tracer:
         pass
 
     def statement_create(self, statement: Statement):
-        pass
-
-    def symbol_create(self, symbol: Symbol):
         pass
 
     def field_append(self, symbol: HasType, field: Field):
@@ -119,7 +116,7 @@ class SessionTracer(Tracer):
         publish: bool = True,
         validate: bool = True,
     ):
-        from bench.language.const import SessionTracingLevel
+        from bench.bench.const import SessionTracingLevel
 
         self.session = session
         self.execution = ExecutionTracer(

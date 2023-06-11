@@ -12,7 +12,7 @@ from typing import Any, Optional
 import pytz
 import structlog
 
-from bench.language import Model
+from bench.bench import Model
 from bench.msg.core import NMessage, request
 from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
 from bench.utils.cache import redis
@@ -20,8 +20,8 @@ from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language.build import XBlock
-    from bench.language.tracing import Tracer
+    from bench.bench.build import XBlock
+    from bench.bench.tracing import Tracer
 
 logger = structlog.get_logger(__name__)
 
@@ -282,7 +282,7 @@ class RemoteInferenceEndpoint:
         self.timeout = timeout
 
     async def __call__(self, blocks: list["XBlock"], settings: Any, timeout: int = None) -> Any:
-        from bench.language import build
+        from bench.bench import build
 
         timeout = timeout if timeout is not None else self.timeout
         rep: NMessage[RepRunInferencePayload] = await request(

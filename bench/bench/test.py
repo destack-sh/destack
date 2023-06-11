@@ -4,12 +4,12 @@ from uuid import UUID
 
 import pytest
 
-from bench.language import TypeHint, TypeTag
-from bench.language.const import SessionContext, SessionTracingLevel, TypeFlag
-from bench.language.issue import IssueType, LanguageError
-from bench.language.parse import parse_code
-from bench.language.session import Session
-from bench.language.type import (
+from bench.bench import TypeHint, TypeTag
+from bench.bench.const import SessionContext, SessionTracingLevel, TypeFlag
+from bench.bench.issue import IssueType, LanguageError
+from bench.bench.parse import parse_code
+from bench.bench.session import Session
+from bench.bench.type import (
     Code,
     Dataset,
     Field,
@@ -18,6 +18,7 @@ from bench.language.type import (
     Scope,
     Statement,
     StatementPath,
+    Task,
     Type,
 )
 from bench.utils.fractional import INTEGER_ZERO
@@ -155,9 +156,7 @@ def test_nested_resolve():
     with Session(ctx=MOCK_SESSION_CONTEXT).sync() as session:
         module = Module(name="test")
         file = File(name="test-file", module=module)
-        task = Statement(name="task", order_key=INTEGER_ZERO, file=file, symbol=Code())
-        dataset = Statement(name="a", order_key=INTEGER_ZERO, file=file, symbol=Dataset())
-        code = Statement(name="b", order_key=INTEGER_ZERO, file=file, symbol=Code())
+        task = Task(name="task", file=file)
+        dataset = Dataset(name="a", file=file)
+        code = Code(name="b", file=file)
         # nocheckin: test this
-
-    session.instances

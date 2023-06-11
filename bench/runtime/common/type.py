@@ -8,13 +8,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
-from bench.language import SymbolType
-from bench.language.const import LiteralValue
-from bench.language.type import Code, Model, Statement, Task
+from bench.bench import SymbolType
+from bench.bench.const import LiteralValue
+from bench.bench.type import Code, Model, Statement, Task
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language.session import Session
+    from bench.bench.session import Session
 
 
 @dataclass(slots=True)
@@ -68,7 +68,7 @@ class ExecutionFrame:
 
 IGNORED_PACKAGE_PREFIXES = [
     "bench.runtime",
-    "bench.language",
+    "bench.bench",
     "asgiref",
     "concurrent",
 ]
