@@ -9,14 +9,14 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
 from functools import cached_property
-from typing import Any, Literal, Optional, Self, Union
+from typing import Any, Optional, Self, Union
 from uuid import UUID
 
 from asgiref.sync import async_to_sync
 from more_itertools import first
 
-from bench.language import IssueType
-from bench.language.const import (
+from bench.bench import IssueType
+from bench.bench.const import (
     FIELD_KEY_LENGTH,
     REFERENCE_REGEX,
     ExpectationModifier,
@@ -31,9 +31,9 @@ from bench.language.const import (
     TypeTag,
     parse_statement_path,
 )
-from bench.language.dataset import Query, Sort
-from bench.language.issue import IssueHandler, raise_if_error
-from bench.language.parse import parse_code
+from bench.bench.dataset import Query, Sort
+from bench.bench.issue import IssueHandler, raise_if_error
+from bench.bench.parse import parse_code
 from bench.settings import logging
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
 from bench.utils.func import describe_type, dict_minus
@@ -41,18 +41,24 @@ from bench.utils.proxy import unproxy_value
 from bench.utils.utils import required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language.inference import ModelInference
-    from bench.language.session import Session
+    from bench.bench.inference import ModelInference
+    from bench.bench.session import Session
 
 
 @dataclass(repr=False)
-class LanguageObject(abc.ABC):
+class ModuleNode(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
+    parent: Optional[ModuleNode] = None
     revision: int = 0
 
+    @property
+    def attached(self) -> bool:
+        return self.parent is not None
+
 
 @dataclass(repr=False)
-class SessionObject(LanguageObject):
+class HasSession(abc.ABC):
+    id: UUID = field(default_factory=uuid.uuid4)
     _session: "Session" = None
 
     @property
@@ -64,7 +70,7 @@ class SessionObject(LanguageObject):
 
     def __post_init__(self):
         if self._session is None:
-            from bench.language.session import active_session
+            from bench.bench.session import active_session
 
             self._session = active_session.get()
             if self._session is not None:
@@ -110,9 +116,9 @@ class Scope:
         else:
             raise ValueError(f"unexpected lookup type: {by}")
         if scope is not None:
-            if not isinstance(scope, Statement):
+            if not isinstance(scope, Symbol):
                 raise TypeError(f"expected symbol, got {type(scope)}")
-            return scope.symbol
+            return scope
         if self.parent_scope is not None:
             return self.parent_scope.find_symbol(name, by=by)
         return None
@@ -153,8 +159,8 @@ class Scope:
                 self.names_by_identifier[statement.ident] = statement.name
 
         self.symbols_by_id.update(statement.symbols_by_id)
-        if statement.symbol is not None:
-            self.symbols_by_id[statement.symbol.id] = statement.symbol
+        if isinstance(statement, Symbol):
+            self.symbols_by_id[statement.id] = statement
 
     def clear(self):
         """Resets this scope and all child scopes."""
@@ -166,7 +172,7 @@ class Scope:
 
 
 @dataclass(repr=False)
-class Module(SessionObject, Scope):
+class Module(ModuleNode, HasSession, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
@@ -174,6 +180,10 @@ class Module(SessionObject, Scope):
     committed: bool = False
     # index
     files_by_parent_id: dict[UUID | None, list[File]] | None = None
+
+    @property
+    def attached(self) -> bool:
+        return True  # root is always "attached"
 
     def lookup_symbol(
         self,
@@ -216,7 +226,7 @@ class Module(SessionObject, Scope):
 
 
 @dataclass(repr=False)
-class File(SessionObject, Scope):
+class File(ModuleNode, HasSession, Scope):
     module: Module = required_field()
     name: str = required_field()
     parent: File | None = None
@@ -287,7 +297,7 @@ class File(SessionObject, Scope):
 
 
 @dataclass(repr=False)
-class Statement(SessionObject, Scope):
+class Statement(ModuleNode, HasSession, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
     file: File = required_field()
@@ -297,7 +307,6 @@ class Statement(SessionObject, Scope):
     type: StatementType = StatementType.SYMBOL
     name: Optional[str] = None
     text: Optional[str] = None
-    symbol: Optional[Symbol] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
@@ -305,13 +314,6 @@ class Statement(SessionObject, Scope):
         if self.parent_scope is None:
             # default scope to parent or file if not set
             self.parent_scope = self.parent or self.file
-        if self.symbol is not None:
-            # set base symbol properties
-            self.symbol.id = self.id
-            self.symbol.source = self
-            if self.symbol.name and self.symbol.name != self.name:
-                raise ValueError(f"symbol name {self.symbol.name} != statement name {self.name}")
-            self.symbol.name = self.name
 
     def __str__(self):
         if self.type == StatementType.SYMBOL:
@@ -325,11 +327,11 @@ class Statement(SessionObject, Scope):
         return f"{self.path} {self.type} {self.symbol_type} {self.name} {content_str}"
 
     def __repr__(self):
-        return f"<Statement {self}>"
+        return f"<{self.__class__.name} {self}>"
 
     @property
     def symbol_type(self) -> Optional[SymbolType]:
-        return SYMBOL_TYPE_BY_CLASS.get(type(self.symbol))
+        return SYMBOL_TYPE_BY_CLASS.get(type(self))
 
     @property
     def path(self) -> str:
@@ -371,16 +373,15 @@ class Statement(SessionObject, Scope):
             # (unlike in file/module, statement nesting is only semantic, not structural)
             self.add_statement(child, by_name=True, on_issue=on_issue)
 
-    def interp(self, on_issue: IssueHandler = raise_if_error) -> None:
-        if self.symbol is not None:
-            self.symbol.interp(self, on_issue)
+    def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        pass
 
 
 StatementReference = typing.Union[Statement, StatementPath, UUID]
 
 
 class SymbolBase(abc.ABC):
-    """For type checking some symbol access."""
+    """Base for interpretable symbols for type-checking."""
 
     session: Session
 
@@ -395,13 +396,8 @@ class SymbolBase(abc.ABC):
 
 
 @dataclass(repr=False)
-class Symbol(SessionObject, SymbolBase):
-    """An interpreted - fully resolved, templated and validated - symbol from Bench source."""
-
-    name: str = field(default="")
-    source: Optional[Statement] = None
-    scope: Optional[Scope] = None
-    id: UUID = field(default_factory=uuid.uuid4)
+class Symbol(Statement, SymbolBase):
+    """An interpretable and semantic statement (symbol) in Bench source."""
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         """Updates, resolves and checks any derived/interpreted values on this symbol."""
@@ -413,28 +409,10 @@ class Symbol(SessionObject, SymbolBase):
 
     def reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
         self.clear_interp()
-        self.interp(scope or self.scope, on_issue=on_issue)
-
-    @cached_property
-    def ident(self) -> str:
-        return to_pyidentifier(self.name)
-
-    @property
-    def fqn(self) -> str | None:
-        return self.source.fqn if self.source else None
-
-    @property
-    def symbol_type(self) -> SymbolType:
-        return SYMBOL_TYPE_BY_CLASS[self.__class__]
-
-    def __str__(self):
-        return f"{self.symbol_type} {self.name}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
+        self.interp(scope or self, on_issue=on_issue)
 
 
-class TypeNode(abc.ABC):
+class TypeBase(abc.ABC):
     id: UUID
     name: Optional[str]
     key: Optional[str]
@@ -442,8 +420,8 @@ class TypeNode(abc.ABC):
     hint: Optional[TypeHint]
     flags: TypeFlag
     description: Optional[str]
-    fields: list["TypeNode"]
-    resolved_fields: list["TypeNode"]  # resolved fields with unions and such
+    fields: list["TypeBase"]
+    resolved_fields: list["TypeBase"]  # resolved fields with unions and such
     reference: Union[None, StatementReference, "HasType"]
     source: Optional[Statement]
 
@@ -456,14 +434,14 @@ class TypeNode(abc.ABC):
         return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
 
     @property
-    def inputs(self) -> list["TypeNode"]:
+    def inputs(self) -> list["TypeBase"]:
         return [child for child in self.fields if not child.flags & TypeFlag.IsOutput]
 
     @property
-    def outputs(self) -> list["TypeNode"]:
+    def outputs(self) -> list["TypeBase"]:
         return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
-    def __getitem__(self, item: str) -> "TypeNode":
+    def __getitem__(self, item: str) -> "TypeBase":
         node = first(
             (
                 child
@@ -483,7 +461,7 @@ class TypeNode(abc.ABC):
             if child.name == item or child.ident == item or child.key == item
         )
 
-    def walk(self, path: list[TypeNode] | None = None, include_references: bool = False):
+    def walk(self, path: list[TypeBase] | None = None, include_references: bool = False):
         if path is None:
             path = [self]
         else:
@@ -499,13 +477,13 @@ class TypeNode(abc.ABC):
 
     def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
         """'Unkeys' data by replacing keys with the names of the type nodes."""
-        from bench.language.typer import unkey_value
+        from bench.bench.typer import unkey_value
 
         return unkey_value(data, self, is_output=is_output, to_ident=to_ident)
 
     def rekey(self, data: Any, is_output: bool = None, via_ident: bool = False) -> Any:
         """'Keys' data by replacing names with the keys of the type nodes."""
-        from bench.language.typer import rekey_value
+        from bench.bench.typer import rekey_value
 
         return rekey_value(data, self, is_output=is_output, from_ident=via_ident)
 
@@ -518,7 +496,7 @@ def new_field_key() -> str:
 
 
 @dataclass(repr=False)
-class Field(LanguageObject, TypeNode):
+class Field(ModuleNode, HasSession, TypeBase):
     name: Optional[str] = None
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
@@ -537,7 +515,7 @@ class Field(LanguageObject, TypeNode):
         return f"<Field {self}>"
 
     @property
-    def resolved_fields(self) -> list[TypeNode]:
+    def resolved_fields(self) -> list[TypeBase]:
         if isinstance(self.reference, Type):
             return self.reference.fields
         return []
@@ -595,14 +573,14 @@ class HasExpectations(SymbolBase, IsExpectable):
 
 
 @dataclass(repr=False)
-class HasType(TypeNode, SymbolBase):
+class HasType(TypeBase, SymbolBase):
     """A symbol that has (but is not) a type"""
 
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     flags: TypeFlag = TypeFlag.Zero
-    fields: list[TypeNode] = field(default_factory=list)
-    resolved_fields: list[TypeNode] | None = None
+    fields: list[TypeBase] = field(default_factory=list)
+    resolved_fields: list[TypeBase] | None = None
     key: str = None
     reference = None
 
@@ -615,7 +593,7 @@ class HasType(TypeNode, SymbolBase):
             symbol = scope.lookup_symbol(node.reference, SymbolType.TYPE)
             if symbol is None:
                 continue  # error already reported
-            if not isinstance(symbol, TypeNode):
+            if not isinstance(symbol, TypeBase):
                 on_issue(type=IssueType.MISSING_REFERENCE, symbol=node, reference=node.reference)
             node.reference = symbol
 
@@ -648,14 +626,14 @@ class HasType(TypeNode, SymbolBase):
         return self
 
     @property
-    def type(self) -> TypeNode:
+    def type(self) -> TypeBase:
         """For clarity when explicitly referring to the type of a symbol"""
         return self
 
     @staticmethod
     def _resolve_unions(
-        node: TypeNode, path: list[TypeNode], on_issue: IssueHandler
-    ) -> list[TypeNode]:
+        node: TypeBase, path: list[TypeBase], on_issue: IssueHandler
+    ) -> list[TypeBase]:
         if any(n.id == node.id for n in path):
             path = "->".join(str(n) for n in path + [node])
             on_issue(type=IssueType.CIRCULAR_UNION, subject=node, path=path)
@@ -672,7 +650,7 @@ class HasType(TypeNode, SymbolBase):
             if not child.flags & TypeFlag.IsUnionWith:
                 resolved_fields.append(child)
                 continue
-            if not isinstance(child.reference, TypeNode):
+            if not isinstance(child.reference, TypeBase):
                 continue  # ignore unresolved
             # inline child's type nodes
             for to_inline in Type._resolve_unions(child.reference, path, on_issue):
@@ -759,7 +737,7 @@ class Task(Symbol, HasType, HasExpectations):
         timeout: float = None,
         **kwargs,
     ):
-        from bench.language.build import XConsiderError, XGenerationError
+        from bench.bench.build import XConsiderError, XGenerationError
 
         implementations = self.session.instance.get_implementations(self, build=build, model=model)
         # TODO @Broken: sort/filter implementations with some smartness
@@ -1187,7 +1165,7 @@ SYMBOL_FIELDS_NAMES_BY_TYPE = {
 
 
 @dataclass(repr=False)
-class RemoteObject(SessionObject):
+class RemoteObject(HasSession):
     """A proxy to a remotely stored object behaving like a Python file on demand."""
 
     id: UUID = field(default_factory=uuid.uuid4)
@@ -1233,7 +1211,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 
 
 @dataclass(repr=False)
-class Secret(SessionObject, typing.Generic[SecretValueT]):
+class Secret(HasSession, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
     id: UUID = field(default_factory=uuid.uuid4)

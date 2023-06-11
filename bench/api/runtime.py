@@ -10,11 +10,12 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import language, models
+from bench import bench as language
+from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.utils import asafe_mutation, to_uuid
-from bench.language.const import SessionTracingLevel
+from bench.bench.const import SessionTracingLevel
 from bench.models import packer
 from bench.msg import NMessageType, messages
 from bench.msg.core import NMessage, request

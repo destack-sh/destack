@@ -11,7 +11,7 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-import bench.language.const
+import bench.bench.const
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_mutation
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from bench.api.statement import Statement
     from bench.api.user import User
 
-StatementType = gql.enum(bench.language.const.StatementType)
+StatementType = gql.enum(bench.bench.const.StatementType)
 
 
 @gql.django.filter(models.ProjectVersion)

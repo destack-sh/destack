@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any, Callable, Collection, Mapping, Union
 
-from bench.language import TypeTag
-from bench.language.const import PRIMITIVE_TYPES, TypeFlag
-from bench.language.type import RemoteObject, TypeNode
+from bench.bench import TypeTag
+from bench.bench.const import PRIMITIVE_TYPES, TypeFlag
+from bench.bench.type import RemoteObject, TypeBase
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
@@ -12,7 +12,7 @@ PyValueType = Union[int, float, bool, str, dict, list]
 
 class TypeError(TypeError):
     def __init__(
-        self, value: Any, expected: TypeNode, message: str = None, suberrors: list[TypeError] = None
+        self, value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
     ):
         super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value}")
         self.value = value
@@ -22,14 +22,14 @@ class TypeError(TypeError):
 
 
 def on_invalid_raise(
-    value: Any, expected: TypeNode, message: str = None, suberrors: list[TypeError] = None
+    value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
 ):
     raise TypeError(value, expected, message, suberrors)
 
 
 def check_type(
     value: Any,
-    expected: TypeNode,
+    expected: TypeBase,
     eager_error: bool = True,
     on_invalid=on_invalid_raise,
     ignore_array: bool = False,
@@ -44,7 +44,7 @@ def check_type(
 
     def _on_invalid_collect(
         value: Any,
-        expected: TypeNode,
+        expected: TypeBase,
         message: str = None,
         suberrors: list[TypeError] = None,
     ):
@@ -123,9 +123,9 @@ def _map_k_noop(t):
 
 def map_value(
     value: Any,
-    type: TypeNode,
-    map_v: Callable[[Any, TypeNode, bool], Any] = None,
-    map_k: Callable[[TypeNode], tuple[str, str]] = None,
+    type: TypeBase,
+    map_v: Callable[[Any, TypeBase, bool], Any] = None,
+    map_k: Callable[[TypeBase], tuple[str, str]] = None,
     is_output: bool = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
@@ -162,13 +162,13 @@ def map_value(
     return mapped
 
 
-def map_unkey_enum(value: Any, type: TypeNode, *args, **kwargs):
+def map_unkey_enum(value: Any, type: TypeBase, *args, **kwargs):
     if type.tag == TypeTag.ENUM:
         return type[value].name
     return value
 
 
-def map_rekey_enum(value: Any, type: TypeNode, *args, **kwargs):
+def map_rekey_enum(value: Any, type: TypeBase, *args, **kwargs):
     if type.tag == TypeTag.ENUM:
         return type[value].key
     return value
@@ -176,7 +176,7 @@ def map_rekey_enum(value: Any, type: TypeNode, *args, **kwargs):
 
 def unkey_value(
     value: Any,
-    type: TypeNode,
+    type: TypeBase,
     is_output: bool = None,
     ignore_array: bool = False,
     to_ident: bool = False,
@@ -184,12 +184,12 @@ def unkey_value(
     """Replaces keys with actual values."""
     if to_ident:
 
-        def map_k(t: TypeNode):
+        def map_k(t: TypeBase):
             return t.key, t.ident
 
     else:
 
-        def map_k(t: TypeNode):
+        def map_k(t: TypeBase):
             return t.key, t.name
 
     return map_value(
@@ -204,7 +204,7 @@ def unkey_value(
 
 def rekey_value(
     value: Any,
-    type: TypeNode,
+    type: TypeBase,
     is_output: bool = None,
     ignore_array: bool = False,
     from_ident: bool = False,
@@ -212,12 +212,12 @@ def rekey_value(
     """Replaces names with keys."""
     if from_ident:
 
-        def map_k(t: TypeNode):
+        def map_k(t: TypeBase):
             return t.ident, t.key
 
     else:
 
-        def map_k(t: TypeNode):
+        def map_k(t: TypeBase):
             return t.name, t.key
 
     return map_value(

@@ -8,9 +8,10 @@ from strawberry import lazy
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
-from bench import language, models
+from bench import bench as language
+from bench import models
 from bench.api.utils import to_global_id
-from bench.language import wire
+from bench.bench import wire
 from bench.models import packer
 
 if TYPE_CHECKING:

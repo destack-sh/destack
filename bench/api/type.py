@@ -2,7 +2,7 @@ import enum
 
 from strawberry_django_plus import gql
 
-from bench.language.mutate import MMT
+from bench.bench.mutate import MMT
 
 # module mutations are special since they're used to sync semantic changes
 # so they're defined in the language/runtime

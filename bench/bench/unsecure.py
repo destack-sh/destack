@@ -5,8 +5,8 @@ import traceback
 import typing
 from typing import Any, Optional
 
-from bench.language.const import LiteralValue
-from bench.language.type import Symbol
+from bench.bench.const import LiteralValue
+from bench.bench.type import Symbol
 from bench.runtime.common.type import PyFrameData
 from bench.utils.utils import get_from_env, to_pyidentifier
 

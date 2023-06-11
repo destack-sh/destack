@@ -1,33 +1,33 @@
 from __future__ import annotations
 
 import abc
-from datetime import datetime
 import enum
 import re
 import traceback
 import typing
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import md5
-from typing import ClassVar, Optional, Any
+from typing import Any, ClassVar, Optional
 from uuid import UUID
 
-from bench import language
-from bench.language import IssueType, StatementType, SymbolType, TypeHint, TypeTag, Code
-from bench.language.const import ExpectationModifier, InterpScope, TypeFlag, ExecutionTriggerType
-from bench.language.dataset import Query, Sort
-from bench.language.issue import IssueKind
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, LanguageObject, ModuleReference
-from bench.runtime.common.type import RunErrorData, ExecutionFrame, PyFrameData
+from bench import bench as language
+from bench.bench import Code, IssueType, StatementType, SymbolType, TypeHint, TypeTag
+from bench.bench.const import ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag
+from bench.bench.dataset import Query, Sort
+from bench.bench.issue import IssueKind
+from bench.bench.type import ModuleNode, ModuleReference
+from bench.runtime.common.type import ExecutionFrame, PyFrameData, RunErrorData
 from bench.utils.func import describe_type
 
 if typing.TYPE_CHECKING:
-    from bench.language.build import XBlock
-    from bench.language.session import Session
+    from bench.bench.build import XBlock
+    from bench.bench.session import Session
 
 
 #
-# Stable, concise and flat language data structures for transit and storage.
+# Stable, concise and flat language data nodes for transit and storage.
 # TODO @Performance @Robustness: use an optimized and evolvable :WireFormat
 #
 
@@ -36,7 +36,6 @@ class ModuleObjectType(enum.StrEnum):
     MODULE = "MODULE"
     FILE = "FILE"
     STATEMENT = "STATEMENT"
-    SYMBOL = "SYMBOL"
     FIELD = "FIELD"
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
@@ -81,7 +80,7 @@ class DataPacker(typing.Generic[DataT, ObjectT]):
 class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
     """Module node packer"""
 
-    def walk(self, node: NodeT, tree: PackContext):
+    def walk(self, node: NodeT, tree: PackContext) -> None:
         """Walks all direct children of the given node"""
         pass
 
@@ -93,7 +92,7 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Unpacks the node itself from the wire format"""
         raise NotImplementedError
 
-    def unwalk(self, node: NodeT, tree: PackContext):
+    def unwalk(self, node: NodeT, tree: UnpackContext) -> None:
         """Re-assigns the node's children"""
         pass
 
@@ -101,21 +100,22 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
 class PackContext(abc.ABC):
     """Tree visitor for packing"""
 
-    def visit(self, node: LanguageObject):
-        pass
+    def __init__(self):
+        self.visited: dict[UUID, ModuleNode] = {}
+
+    def visit(self, node: ModuleNode):
+        self.visited[node.id] = node
 
 
 class UnpackContext(abc.ABC):
     """Tree visitor for unpacking"""
 
-    def get_one(
-        self, parent_id: UUID, t: typing.Type[LanguageObject]
-    ) -> Optional["LanguageObject"]:
+    def get_one(self, parent_id: UUID, t: typing.Type[ModuleNode]) -> Optional["ModuleNode"]:
         return None
 
     def get_many(
-        self, parent_id: UUID, t: typing.Type[LanguageObject], recursive: bool = False
-    ) -> list["LanguageObject"]:
+        self, parent_id: UUID, t: typing.Type[ModuleNode], recursive: bool = False
+    ) -> list["ModuleNode"]:
         return []
 
 
@@ -139,6 +139,31 @@ def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
         return cls
 
     return decorator
+
+
+def pack_module(module: language.Module) -> "ModuleData":
+    module_data, nodes = pack_node(module)
+    module_data.nodes = nodes
+    return module_data
+
+
+def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
+    packed: dict[UUID, NodeDataT] = {}
+    ctx = PackContext()
+
+    to_pack: list[NodeT] = [root]
+    while to_pack is not None:
+        for node in to_pack:
+            packer = _node_packers[node.mot][type(node)]
+            packer.walk(node, ctx)
+            packed[node.id] = packer.pack(node)
+        to_pack = [node for node in ctx.visited.values() if node.id not in packed]
+
+    return packed[root.id], list(packed.values())
+
+
+def unpack_node(root: NodeDataT, parent: Optional[NodeT]) -> NodeT:
+    raise NotImplementedError
 
 
 def pack_node_flat(node: NodeT) -> NodeDataT:
@@ -277,8 +302,6 @@ class StatementPacker(NodePacker[StatementData, language.Statement]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT, MOT.FILE}
 
     def walk(self, statement: language.Statement, tree: PackContext):
-        if statement.symbol is not None:
-            tree.visit(statement.symbol)
         for child in statement.children:
             tree.visit(child)
 
@@ -308,11 +331,9 @@ class StatementPacker(NodePacker[StatementData, language.Statement]):
             name=statement.name,
             text=statement.text,
             symbol_type=statement.symbol_type,
-            symbol=None,
         )
 
     def unwalk(self, statement: language.Statement, tree: UnpackContext):
-        statement.symbol = tree.get_one(statement.id, language.Symbol)
         statement.children = tree.get_many(statement.id, language.Statement)
 
 
@@ -320,21 +341,8 @@ class StatementPacker(NodePacker[StatementData, language.Statement]):
 
 
 @dataclass(slots=True)
-class SymbolData(NodeData):
-    type: SymbolType
-
-
-@node_packer(MOT.SYMBOL, SymbolData, language.Symbol)
-class SymbolPacker(NodePacker[SymbolData, language.Symbol]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
-
-    def pack(self, symbol: language.Symbol) -> "SymbolData":
-        cls = SYMBOL_DATA_CLASS_BY_TYPE[symbol.symbol_type]
-        return cls(id=symbol.id, parent_id=symbol.id)
-
-    def unpack(self, symbol: SymbolData, parent: language.Statement) -> language.Symbol:
-        cls = SYMBOL_CLASS_BY_TYPE[symbol.type]
-        return cls(id=symbol.id, parent=parent)
+class SymbolData(StatementData):
+    symbol_type: SymbolType
 
 
 @dataclass(slots=True)
@@ -344,28 +352,29 @@ class TypeData(SymbolData):
     description: Optional[str]
 
 
-@node_packer(MOT.SYMBOL, TypeData, language.Type)
-class TypePacker(NodePacker[TypeData, language.Type]):
+@node_packer(MOT.STATEMENT, TypeData, language.Type)
+class TypePacker(StatementPacker, NodePacker[TypeData, language.Type]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def walk(self, symbol: language.Type, tree: PackContext):
+        super().walk(symbol, tree)
         for field in symbol.fields:
             tree.visit(field)
 
     def pack(self, symbol: language.Type) -> "TypeData":
+        statement_data = super().pack(symbol)
         return TypeData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             description=symbol.description,
             tag=symbol.tag,
             flags=symbol.flags,
+            symbol_type=symbol.symbol_type,
         )
 
-    def unpack(self, symbol: TypeData, parent: language.Statement) -> language.Type:
+    def unpack(self, symbol: TypeData, parent: language.File | language.Statement) -> language.Type:
+        statement = super().unpack(symbol, parent)
         return language.Type(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
+            **statement.__dict__,
             description=symbol.description,
             tag=symbol.tag,
             flags=symbol.flags,
@@ -373,6 +382,7 @@ class TypePacker(NodePacker[TypeData, language.Type]):
         )
 
     def unwalk(self, symbol: language.Type, tree: UnpackContext):
+        super().unwalk(symbol, tree)
         symbol.fields = tree.get_many(symbol.id, language.Field)
 
 
@@ -382,33 +392,35 @@ class TaskData(SymbolData):
     modifier: Optional[ExpectationModifier]
 
 
-@node_packer(MOT.SYMBOL, TaskData, language.Task)
-class TaskPacker(NodePacker[TaskData, language.Task]):
+@node_packer(MOT.STATEMENT, TaskData, language.Task)
+class TaskPacker(StatementPacker, NodePacker[TaskData, language.Task]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def walk(self, symbol: language.Task, tree: PackContext):
+        super().walk(symbol, tree)
         for field in symbol.fields:
             tree.visit(field)
 
     def pack(self, symbol: language.Task) -> "TaskData":
+        statement_data = super().pack(symbol)
         return TaskData(
-            id=symbol.id,
-            parent_id=symbol.id,
-            modifier=symbol.modifier,
+            **statement_data.__dict__,
             description=symbol.description,
+            modifier=symbol.modifier,
+            symbol_type=symbol.symbol_type,
         )
 
-    def unpack(self, symbol: TaskData, parent: language.Statement) -> language.Task:
+    def unpack(self, symbol: TaskData, parent: language.File | language.Statement) -> language.Task:
+        statement = super().unpack(symbol, parent)
         return language.Task(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
-            modifier=symbol.modifier,
+            **statement.__dict__,
             description=symbol.description,
+            modifier=symbol.modifier,
             fields=[],
         )
 
     def unwalk(self, symbol: language.Task, tree: UnpackContext):
+        super().unwalk(symbol, tree)
         symbol.fields = tree.get_many(symbol.id, language.Field)
 
 
@@ -418,25 +430,25 @@ class ExpectationData(SymbolData):
     modifier: Optional[ExpectationModifier]
 
 
-@node_packer(MOT.SYMBOL, ExpectationData, language.Expectation)
-class ExpectationPacker(NodePacker[ExpectationData, language.Expectation]):
+@node_packer(MOT.STATEMENT, ExpectationData, language.Expectation)
+class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, language.Expectation]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, symbol: language.Expectation) -> "ExpectationData":
+        statement_data = super().pack(symbol)
         return ExpectationData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             modifier=symbol.modifier,
             description=symbol.description,
+            symbol_type=symbol.symbol_type,
         )
 
-    def unpack(self, symbol: ExpectationData, parent: language.Statement) -> language.Expectation:
+    def unpack(
+        self, symbol: ExpectationData, parent: language.File | language.Statement
+    ) -> language.Expectation:
+        statement = super().unpack(symbol, parent)
         return language.Expectation(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
-            modifier=symbol.modifier,
-            description=symbol.description,
+            **statement.__dict__, modifier=symbol.modifier, description=symbol.description
         )
 
 
@@ -447,28 +459,29 @@ class CodeData(SymbolData):
     code: Optional[str]
 
 
-@node_packer(MOT.SYMBOL, CodeData, language.Code)
-class CodePacker(NodePacker[CodeData, language.Code]):
+@node_packer(MOT.STATEMENT, CodeData, language.Code)
+class CodePacker(StatementPacker, NodePacker[CodeData, language.Code]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def walk(self, symbol: language.Code, tree: PackContext):
+        super().walk(symbol, tree)
         for field in symbol.fields:
             tree.visit(field)
 
     def pack(self, symbol: language.Code) -> "CodeData":
+        statement_data = super().pack(symbol)
         return CodeData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             modifier=symbol.modifier,
             language=symbol.language,
             code=symbol.code,
+            symbol_type=symbol.symbol_type,
         )
 
-    def unpack(self, symbol: CodeData, parent: language.Statement) -> language.Code:
+    def unpack(self, symbol: CodeData, parent: language.File | language.Statement) -> language.Code:
+        statement = super().unpack(symbol, parent)
         return language.Code(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
+            **statement.__dict__,
             modifier=symbol.modifier,
             fields=[],
             language=symbol.language,
@@ -476,6 +489,7 @@ class CodePacker(NodePacker[CodeData, language.Code]):
         )
 
     def unwalk(self, symbol: language.Code, tree: UnpackContext):
+        super().unwalk(symbol, tree)
         symbol.fields = tree.get_many(symbol.id, language.Field)
 
 
@@ -484,23 +498,19 @@ class ModelData(SymbolData):
     external_name: Optional[str]
 
 
-@node_packer(MOT.SYMBOL, ModelData, language.Model)
-class ModelPacker(NodePacker[ModelData, language.Model]):
+@node_packer(MOT.STATEMENT, ModelData, language.Model)
+class ModelPacker(StatementPacker, NodePacker[ModelData, language.Model]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, symbol: language.Model) -> "ModelData":
-        return ModelData(
-            id=symbol.id,
-            parent_id=symbol.id,
-            modifier=symbol.modifier,
-            description=symbol.description,
-            external_name=symbol.external_name,
-        )
+        statement_data = super().pack(symbol)
+        return ModelData(**statement_data.__dict__, external_name=symbol.external_name)
 
-    def unpack(self, symbol: ModelData, parent: language.Statement) -> language.Model:
-        return language.Model(
-            id=symbol.id, name=parent.name, source=parent, external_name=symbol.external_name
-        )
+    def unpack(
+        self, symbol: ModelData, parent: language.File | language.Statement
+    ) -> language.Model:
+        statement = super().unpack(symbol, parent)
+        return language.Model(**statement.__dict__, external_name=symbol.external_name)
 
 
 @dataclass(slots=True)
@@ -508,11 +518,12 @@ class RequirementData(SymbolData):
     reference_module: Optional[ModuleReference]
 
 
-@node_packer(MOT.SYMBOL, RequirementData, language.Requirement)
-class RequirementPacker(NodePacker[RequirementData, language.Requirement]):
+@node_packer(MOT.STATEMENT, RequirementData, language.Requirement)
+class RequirementPacker(StatementPacker, NodePacker[RequirementData, language.Requirement]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, symbol: language.Requirement) -> "RequirementData":
+        statement_data = super().pack(symbol)
         reference = (
             ModuleReference(
                 module_id=symbol.module_id,
@@ -523,16 +534,17 @@ class RequirementPacker(NodePacker[RequirementData, language.Requirement]):
             else None
         )
         return RequirementData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             reference_module=reference,
+            symbol_type=symbol.symbol_type,
         )
 
-    def unpack(self, symbol: RequirementData, parent: language.Statement) -> language.Requirement:
+    def unpack(
+        self, symbol: RequirementData, parent: language.File | language.Statement
+    ) -> language.Requirement:
+        statement = super().unpack(symbol, parent)
         return language.Requirement(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
+            **statement.__dict__,
             module_id=symbol.reference_module.id if symbol.reference_module else None,
             module_name=symbol.reference_module.name if symbol.reference_module else None,
             version=symbol.reference_module.version if symbol.reference_module else None,
@@ -548,18 +560,19 @@ class ValueData(SymbolData):
     modifier: Optional[ExpectationModifier]
 
 
-@node_packer(MOT.SYMBOL, ValueData, language.Value)
-class ValuePacker(NodePacker[ValueData, language.Value]):
+@node_packer(MOT.STATEMENT, ValueData, language.Value)
+class ValuePacker(StatementPacker, NodePacker[ValueData, language.Value]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def walk(self, symbol: language.Value, tree: PackContext):
+        super().walk(symbol, tree)
         for field in symbol.fields:
             tree.visit(field)
 
     def pack(self, symbol: language.Value) -> "ValueData":
+        statement_data = super().pack(symbol)
         return ValueData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             tag=symbol.tag,
             flags=symbol.flags,
             modifier=symbol.modifier,
@@ -567,11 +580,12 @@ class ValuePacker(NodePacker[ValueData, language.Value]):
             value=symbol.value,
         )
 
-    def unpack(self, symbol: ValueData, parent: language.Statement) -> language.Value:
+    def unpack(
+        self, symbol: ValueData, parent: language.File | language.Statement
+    ) -> language.Value:
+        statement = super().unpack(symbol, parent)
         return language.Value(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
+            **statement.__dict__,
             tag=symbol.tag,
             flags=symbol.flags,
             modifier=symbol.modifier,
@@ -580,6 +594,7 @@ class ValuePacker(NodePacker[ValueData, language.Value]):
         )
 
     def unwalk(self, symbol: language.Value, tree: UnpackContext):
+        super().unwalk(symbol, tree)
         symbol.fields = tree.get_many(symbol.id, language.Field)
 
 
@@ -590,28 +605,28 @@ class DatasetData(SymbolData):
     versioned: Optional[bool]
 
 
-@node_packer(MOT.SYMBOL, DatasetData, language.Dataset)
+@node_packer(MOT.STATEMENT, DatasetData, language.Dataset)
 class DatasetPacker(NodePacker[DatasetData, language.Dataset]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def walk(self, symbol: language.Dataset, tree: PackContext):
+        super().walk(symbol, tree)
         for field in symbol.fields:
             tree.visit(field)
 
     def pack(self, symbol: language.Dataset) -> "DatasetData":
+        statement_data = super().pack(symbol)
         return DatasetData(
-            id=symbol.id,
-            parent_id=symbol.id,
+            **statement_data.__dict__,
             modifier=symbol.modifier,
             description=symbol.description,
             versioned=symbol.versioned,
         )
 
     def unpack(self, symbol: DatasetData, parent: language.Statement) -> language.Dataset:
+        statement = super().unpack(symbol, parent)
         return language.Dataset(
-            id=symbol.id,
-            name=parent.name,
-            source=parent,
+            **statement.__dict__,
             modifier=symbol.modifier,
             description=symbol.description,
             versioned=symbol.versioned,
@@ -619,6 +634,7 @@ class DatasetPacker(NodePacker[DatasetData, language.Dataset]):
         )
 
     def unwalk(self, symbol: language.Dataset, tree: UnpackContext):
+        super().unwalk(symbol, tree)
         symbol.fields = tree.get_many(symbol.id, language.Field)
 
 
@@ -691,7 +707,7 @@ class FieldPacker(NodePacker[FieldData, language.Field]):
 
 @dataclass(slots=True)
 class DatasetViewData(NodeData, Ordered, Revisioned):
-    PARENTS: ClassVar[ParentsT] = {MOT.SYMBOL}
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     id: UUID
     name: str
@@ -701,13 +717,9 @@ class DatasetViewData(NodeData, Ordered, Revisioned):
     reference_id: Optional[UUID] = None
 
 
-@node_packer(MOT.SYMBOL, DatasetViewData, language.DatasetView)
+@node_packer(MOT.STATEMENT, DatasetViewData, language.DatasetView)
 class DatasetViewPacker(NodePacker[DatasetViewData, language.DatasetView]):
-    PARENTS: ClassVar[ParentsT] = {MOT.SYMBOL}
-
-    def walk(self, view: language.DatasetView, tree: PackContext):
-        for field in view.fields:
-            tree.visit(field)
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, view: language.DatasetView) -> "DatasetViewData":
         return DatasetViewData(
@@ -729,13 +741,10 @@ class DatasetViewPacker(NodePacker[DatasetViewData, language.DatasetView]):
             reference=view.reference_id,
         )
 
-    def unwalk(self, view: language.DatasetView, tree: UnpackContext):
-        view.fields = tree.get_many(view.id, language.Field)
-
 
 @dataclass(slots=True)
 class RecordData(NodeData, Ordered, Revisioned):
-    PARENTS: ClassVar[ParentsT] = {MOT.SYMBOL}
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     data: Optional[typing.Any] = None
 
@@ -746,9 +755,9 @@ class RecordData(NodeData, Ordered, Revisioned):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MOT.SYMBOL, RecordData, language.Record)
+@node_packer(MOT.STATEMENT, RecordData, language.Record)
 class RecordPacker(NodePacker[RecordData, language.Record]):
-    PARENTS: ClassVar[ParentsT] = {MOT.SYMBOL}
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, record: language.Record) -> "RecordData":
         return RecordData(
@@ -850,7 +859,7 @@ class XBlockPacker(DataPacker[XBlockData, "XBlock"]):
         )
 
     def unpack(self, data: XBlockData) -> "XBlock":
-        from bench.language.build import XBlock
+        from bench.bench.build import XBlock
 
         return XBlock(kind=data.kind, source=data.source, value=data.value, path=data.path)
 

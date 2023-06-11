@@ -6,18 +6,19 @@ from uuid import UUID
 
 import structlog
 
-from bench.language import SymbolType, wire
-from bench.language.const import (
+from bench.bench import SymbolType, wire
+from bench.bench.const import (
     ExecutionTriggerType,
     LiteralValue,
     SessionContext,
     SessionMode,
     SessionTracingLevel,
 )
-from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import Session
-from bench.language.type import SYMBOL_CLASS_BY_TYPE, Code, Module, Task
-from bench.language.unsecure import RunError, run
+from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.session import Session
+from bench.bench.type import SYMBOL_CLASS_BY_TYPE, Code, Module, Task
+from bench.bench.unsecure import RunError, run
+from bench.bench.wire import ExecutionFrameData
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
@@ -39,7 +40,6 @@ from bench.msg.messages import (
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
 from bench.runtime.common.type import ExecutionFrame, WorkerTenancy
-from bench.language.wire import ExecutionFrameData
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -155,7 +155,7 @@ class ModuleWorker:
         root_id = execution_id or UUIDT()
         # instantiate
         try:
-            from bench.language.build import get_default_builds
+            from bench.bench.build import get_default_builds
 
             builds = {b.name: b for b in get_default_builds(self.interp)}
             session_ctx = SessionContext(

@@ -5,7 +5,7 @@ from uuid import UUID
 
 import opensearchpy as os
 
-from bench.language import wire
+from bench.bench import wire
 
 
 class FieldType(enum.StrEnum):

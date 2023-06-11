@@ -10,17 +10,18 @@ import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench import language, models
-from bench.language import build, wire
-from bench.language.const import InterpScope
-from bench.language.inference import (
+from bench import bench as language
+from bench import models
+from bench.bench import build, wire
+from bench.bench.const import InterpScope
+from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
     get_inference_cache_key,
     run_inference,
 )
-from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
-from bench.language.wire import InterpData, ExecutionFrameData
+from bench.bench.mutate import MMT, ModuleMutation, ModuleMutator
+from bench.bench.wire import ExecutionFrameData, InterpData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.msg import NMessage

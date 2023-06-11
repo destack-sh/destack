@@ -14,12 +14,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.language import ExpectationModifier, TypeHint, TypeTag, wire
-from bench.language.const import TypeFlag
-from bench.language.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
-from bench.language.session import Session, instantiate_py_value_flat
-from bench.language.type import Dataset, Expectation, Model, Symbol, Task, Type, TypeNode
-from bench.language.typer import check_type, map_value
+from bench.bench import ExpectationModifier, TypeHint, TypeTag, wire
+from bench.bench.const import TypeFlag
+from bench.bench.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
+from bench.bench.session import Session, instantiate_py_value_flat
+from bench.bench.type import Dataset, Expectation, Model, Symbol, Task, Type, TypeBase
+from bench.bench.typer import check_type, map_value
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.utils import DotDict
 
@@ -543,7 +543,7 @@ SAMPLE_BY_TYPE_HINT = {
 }
 
 
-def fabricate_value(type: TypeNode, skip_array: bool = False, is_output: bool = None) -> Any:
+def fabricate_value(type: TypeBase, skip_array: bool = False, is_output: bool = None) -> Any:
     """Synthesizes a value of the given type with fake fields."""
     if type.flags & TypeFlag.IsArray and not skip_array:
         return [fabricate_value(type, skip_array=True)]

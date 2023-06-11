@@ -2,10 +2,10 @@ import enum
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.const import InterpScope, StatementPath, statement_path_as_str
+from bench.bench.const import InterpScope, StatementPath, statement_path_as_str
 
 if TYPE_CHECKING:
-    from bench.language.type import File, Statement, Symbol
+    from bench.bench.type import File, Statement, Symbol
 
 
 class IssueKind(enum.StrEnum):
@@ -75,7 +75,7 @@ class Issue:
     def __init__(
         self, type: IssueType, subject: Union["Symbol", "Statement", "File", None], **kwargs
     ):
-        from bench.language.type import File, Statement, Symbol
+        from bench.bench.type import File, Statement, Symbol
 
         # auto convert kwargs
         for key, value in kwargs.items():
