@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import {
-  SymbolType,
+  StatementType,
   type File,
   type Project,
   type ProjectVersion,
@@ -46,7 +46,6 @@ export type StatementHeader = Pick<
   | "id"
   | "modifier"
   | "type"
-  | "symbolType"
   | "name"
   | "createdAt"
   | "updatedAt"
@@ -954,7 +953,7 @@ export class StatementEditor extends NavigableEditor {
 export class TerminalEditor extends Editor {
   type = "terminal" as const;
   statementId: string;
-  statementType?: SymbolType.Task | SymbolType.Code;
+  statementType?: StatementType.Task | StatementType.Code;
   arguments: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
   lastExecutionTerminatedAt?: string;
@@ -964,9 +963,9 @@ export class TerminalEditor extends Editor {
     super("terminal", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
     this.statementId = statement.id;
     if (statement.__typename == "Task") {
-      this.statementType = SymbolType.Task;
+      this.statementType = StatementType.Task;
     } else if (statement.__typename == "Code") {
-      this.statementType = SymbolType.Code;
+      this.statementType = StatementType.Code;
     }
   }
 

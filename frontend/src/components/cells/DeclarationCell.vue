@@ -1,9 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import ModifierCell from "@/components/cells/ModifierCell.vue";
-import SelectTypeInterface from "@/components/cells/ProtoSymbolTypeCell.vue";
-import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
-import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
+import SelectTypeInterface from "@/components/cells/ProtoStatementTypeCell.vue";
+import StatementTypeCell from "@/components/cells/StatementTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
 import { StatementType } from "@/gql/graphql";
 import { computed, ref, type Ref } from "vue";
@@ -28,8 +27,7 @@ const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
 const module = useCurrentModule();
 const availableSymbols = module.statementsLike({
-  types: [StatementType.Symbol],
-  symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
+  types: [context.statement.value?.type],
   includeDependencies: true,
 });
 
@@ -82,10 +80,9 @@ defineExpose({
       @enter="context.insertAbove"
       @escape="context.escape"
     />
-    <SymbolTypeCell />
+    <StatementTypeCell />
     <!-- Name or ref -->
     <EditableSpan
-      v-if="context.statement.value.type == StatementType.Symbol"
       ref="nameRef"
       class="mx-0.5"
       v-model="name"
@@ -96,22 +93,6 @@ defineExpose({
       @navigate-right="emit('navigateRight')"
       @escape="context.escape"
       @enter="context.insertBelow"
-    />
-    <ReferenceComboCell
-      v-else-if="context.statement.value.type == StatementType.Reference"
-      ref="nameRef"
-      :self="context.statement.value"
-      :reference="context.reference.value"
-      :available-symbols="availableSymbols"
-      :readonly="context.readonly.value"
-      @navigate-up="context.navigateUp"
-      @navigate-down="emit('navigateDown')"
-      @navigate-left="gapRef?.focus"
-      @navigate-right="emit('navigateRight')"
-      @insert-below="context.insertBelow"
-      @escape="context.escape"
-      @enter="context.insertBelow"
-      @set-reference="context.setReference"
     />
     <button
       tabindex="-1"

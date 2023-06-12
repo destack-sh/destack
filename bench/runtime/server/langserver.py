@@ -85,9 +85,7 @@ class ModuleDB:
         if module_id in self._cached_modules:
             return self._cached_modules[module_id]
         project_version = await ProjectVersion.objects.aget(id=module_id)
-        module = await sync_to_async(read_packed_module)(
-            project_version, exclude_non_semantic=False
-        )
+        module = await sync_to_async(read_packed_module)(project_version)
         if self.cache_committed and project_version.committed:
             self._cached_modules[module_id] = module, project_version.id
         return module, project_version.project_id

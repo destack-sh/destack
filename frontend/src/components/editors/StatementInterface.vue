@@ -9,7 +9,7 @@ import ProtoCell from "@/components/cells/ProtoCell.vue";
 import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
 import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementType, SymbolType } from "@/gql/graphql";
+import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { getClientColor, useCurrentClients } from "@/state/client";
@@ -103,33 +103,27 @@ const rootCell: Ref<Cell> = computed(() => {
     return {
       component: CommentCell,
     };
-  } else if (statement.value.type == StatementType.Symbol) {
-    if (statement.value.symbolType == SymbolType.Type) {
-      return {
-        component: TypeDefinitionCell,
-      };
-    } else if (statement.value.symbolType == SymbolType.Task) {
-      return {
-        component: TaskDefinitionCell,
-        props: { isTyped: true },
-      };
-    } else if (statement.value.symbolType == SymbolType.Expectation) {
-      return {
-        component: TaskDefinitionCell,
-        props: { isTyped: false },
-      };
-    } else if (statement.value.symbolType == SymbolType.Code) {
-      return {
-        component: CodeDefinitionCell,
-      };
-    } else if (statement.value.symbolType == SymbolType.Dataset || statement.value.symbolType == SymbolType.Value) {
-      return {
-        component: DataDefinitionCell,
-      };
-    }
-    // default to just declaration cell
+  } else if (statement.value.type == StatementType.Type) {
     return {
-      component: DeclarationCell,
+      component: TypeDefinitionCell,
+    };
+  } else if (statement.value.type == StatementType.Task) {
+    return {
+      component: TaskDefinitionCell,
+      props: { isTyped: true },
+    };
+  } else if (statement.value.type == StatementType.Expectation) {
+    return {
+      component: TaskDefinitionCell,
+      props: { isTyped: false },
+    };
+  } else if (statement.value.type == StatementType.Code) {
+    return {
+      component: CodeDefinitionCell,
+    };
+  } else if (statement.value.type == StatementType.Dataset || statement.value.type == StatementType.Value) {
+    return {
+      component: DataDefinitionCell,
     };
   }
 
@@ -519,7 +513,7 @@ defineExpose({
       <span class="lowercase">
         {{ statement.modifier }}
         {{ statement.type }}
-        <template v-if="statement.symbolType">{{ statement.symbolType }}:</template>
+        <template v-if="statement.type">{{ statement.type }}:</template>
       </span>
       <template v-if="statement.name != null">{{ statement.name }}</template>
       r:{{ statement.revision }} i:{{ statement.orderKey }} d:{{ depth }}

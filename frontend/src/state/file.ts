@@ -1,6 +1,6 @@
 import type StatementInterface from "@/components/editors/StatementInterface.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
-import { SymbolType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
+import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
 import { orderStatements, TypeFlag, type OrderedStatement } from "@/state/module";
 import { useObjects } from "@/state/object";
@@ -755,18 +755,18 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
   async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
     /** Insert files as records into this statement */
-    if (!as && statement.value?.symbolType != SymbolType.Data) {
-      throw new Error("can only insert records into data statements");
+    if (!as && statement.value?.type != StatementType.Dataset) {
+      throw new Error("can only insert records into datasets");
     }
     const newRecordIds = files.map(() => newDatasetRecordId());
     const tx = openTransaction({
       name: "insertFilesAsRecords",
       blockPartialUndo: true,
       undo: async () => {
-        await ops.symbol.batchSoftDeleteRecord(newRecordIds);
+        await ops.symbol.batchSoftDeleteRecord(statement.value?.id, newRecordIds);
       },
       redo: async () => {
-        await ops.symbol.batchRestoreRecord(newRecordIds);
+        await ops.symbol.batchRestoreRecord(statement.value?.id, newRecordIds);
       },
     });
     const uploads = [];
@@ -780,7 +780,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       uploads.push(
         objects.upload(bench.projectId as string, file, (updatedObject) => {
           const newData = { ...data, [key]: updatedObject };
-          ops.symbol.updateRecord(tx, newRecordId, data, newData);
+          ops.symbol.updateRecord(tx, statement.value?.id, newRecordId, data, newData);
         })
       );
     }
@@ -803,10 +803,10 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     }
     const dataset = {
       id: newStatementId(),
+      type: StatementType.Dataset,
       parentId: location.parentId,
       orderKey: location.orderKey,
       fileId: nav.value.file.id,
-      symbolType: SymbolType.Data,
       rootTypeTag: TypeTag.Struct,
       rootTypeFlags: TypeFlag.IsArray,
       name: getRandomAdjective() + " documents",

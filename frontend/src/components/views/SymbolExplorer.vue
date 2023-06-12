@@ -9,7 +9,7 @@ import {
   type InterpStatement,
   getSymbolSubtype,
 } from "@/state/module";
-import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
+import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllStatements?: boolean }>();
@@ -87,9 +87,7 @@ defineExpose({
       @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
       @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
     >
-      <span class="">{{
-        getSymbolSubtype(ordered.statement) ?? SYMBOL_TYPE_KEYWORD[ordered.statement.symbolType]
-      }}</span>
+      <span class="">{{ getSymbolSubtype(ordered.statement) ?? STATEMENT_TYPE_KEYWORD[ordered.statement.type] }}</span>
       <span class="">{{ ordered.statement.name }}</span>
     </li>
   </ul>

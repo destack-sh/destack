@@ -25,7 +25,6 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 StatementType = gql.enum(language.StatementType)
-SymbolType = gql.enum(language.SymbolType)
 ExpectationModifier = gql.enum(language.ExpectationModifier)
 
 
@@ -87,7 +86,6 @@ class Statement(gql.Node, SimplyTyped):
     file: Annotated["File", lazy(".project")]
     revision: auto
     type: StatementType
-    modifier: auto
     name: auto
     created_at: auto
     updated_at: auto
@@ -98,8 +96,8 @@ class Statement(gql.Node, SimplyTyped):
     descendants: list["Statement"]
     order_key: auto
     text: auto
-    symbol_type: Optional[SymbolType]
     # symbol contents
+    modifier: auto
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     fields: list[Field] = gql.django.field(filters=FieldFilter)
@@ -138,7 +136,6 @@ class StatementCreateInput:
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
-    symbol_type: Optional[SymbolType] = None
     description: Optional[str] = None
     lang: Optional[str] = None
     text: Optional[str] = None
@@ -153,7 +150,6 @@ class StatementDeleteInput(gql.NodeInput):
 @gql.input
 class StatementMorphInput(gql.NodeInput):
     type: StatementType
-    symbol_type: Optional[SymbolType] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -304,7 +300,6 @@ class StatementMutation:
             modifier=input.modifier,
             root_type_tag=input.root_type_tag,
             root_type_flags=input.root_type_flags,
-            symbol_type=input.symbol_type,
             description=input.description,
             lang=input.lang,
             code=input.code,
@@ -315,10 +310,6 @@ class StatementMutation:
     @tracked_mutation(MMT.UPDATE_STATEMENT)
     def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        if statement.symbol_type != input.symbol_type:
-            raise ValueError(
-                f"cannot change symbol type: {statement.symbol_type} -> {input.symbol_type}"
-            )
         statement.type = input.type
         statement.name = input.name
         statement.file_id = input.file_id.node_id
@@ -329,7 +320,6 @@ class StatementMutation:
         statement.modifier = input.modifier
         statement.root_type_tag = input.root_type_tag
         statement.root_type_flags = input.root_type_flags
-        statement.symbol_type = input.symbol_type
         statement.description = input.description
         statement.lang = input.lang
         statement.code = input.code
@@ -346,7 +336,6 @@ class StatementMutation:
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
-        statement.symbol_type = input.symbol_type
         statement.name = input.name
         statement.root_type_tag = input.root_type_tag
         statement.root_type_flags = input.root_type_flags
@@ -370,14 +359,6 @@ class StatementMutation:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
-        return statement
-
-    @tracked_mutation(MMT.UPDATE_SYMBOL_MODIFIER)
-    def update_statement_modifier(
-        self, input: StatementSetExpectationModifierInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.modifier = input.modifier
         return statement
 
     @tracked_mutation(MMT.COMMENT_STATEMENT, atomic=True)
@@ -606,6 +587,14 @@ class FieldRestoreInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
+    @tracked_mutation(MMT.UPDATE_SYMBOL_MODIFIER)
+    def update_symbol_modifier(
+        self, input: StatementSetExpectationModifierInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.modifier = input.modifier
+        return statement
+
     @tracked_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
     def update_symbol_description(
         self, input: SymbolUpdateDescriptionInput

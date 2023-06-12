@@ -7,7 +7,7 @@ import ExecutionsTile from "@/components/tiles/ExecutionsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
-import { SymbolType } from "@/gql/graphql";
+import { StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementAction, type TerminalEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
@@ -59,11 +59,11 @@ const terminalActions = computed(() => {
 
 // sync symbol type into editor
 watchEffect(() => {
-  if (statement.value?.symbolType != null && statement.value.symbolType != editor.value.statementType) {
-    if (![SymbolType.Code, SymbolType.Task].includes(statement.value.symbolType)) {
-      throw new Error(`unexpected symbol type ${statement.value.symbolType}`);
+  if (statement.value?.type != null && statement.value.type != editor.value.statementType) {
+    if (![StatementType.Code, StatementType.Task].includes(statement.value.type)) {
+      throw new Error(`unexpected symbol type ${statement.value.type}`);
     }
-    editor.value.statementType = statement.value.symbolType;
+    editor.value.statementType = statement.value.type;
   }
 });
 
@@ -263,7 +263,7 @@ defineExpose({
           :project-version-id="bench.projectVersionId"
           include-ancestor-versions
           :runnable-id="editor?.statementId"
-          :symbol-type="statement?.symbolType"
+          :symbol-type="statement?.type"
           live
         />
       </ContainerTile>

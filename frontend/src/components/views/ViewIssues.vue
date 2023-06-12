@@ -2,7 +2,7 @@
 import type { IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { SYMBOL_TYPE_KEYWORD } from "@/state/type";
+import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -42,7 +42,7 @@ function focusError(error: IssueContentFragment) {
         @click="focusError(error)"
       >
         <div v-if="error.statement != null" class="px-3">
-          <span class="text-gray-700">{{ SYMBOL_TYPE_KEYWORD[error.statement.statementType] }}</span>
+          <span class="text-gray-700">{{ STATEMENT_TYPE_KEYWORD[error.statement.statementType] }}</span>
           <span class="pl-1 text-gray-900">{{ module.fileOf(error.statement)?.path }}.{{ error.statement.name }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">

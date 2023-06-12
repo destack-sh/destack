@@ -20,18 +20,11 @@ class InterpScope(enum.StrEnum):
     STATEMENT = "statement"
 
 
-# TODO @Cleanup @Architecture: Merge StatementType and SymbolType?
 class StatementType(enum.StrEnum):
     """The type of Bench statement."""
 
-    SYMBOL = "symbol"
     COMMENT = "comment"
     BLANK = "blank"
-
-
-class SymbolType(enum.StrEnum):
-    """The type of symbol content."""
-
     TYPE = "type"
     TASK = "task"
     EXPECTATION = "expect"

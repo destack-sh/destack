@@ -2,7 +2,6 @@ import { useFragment, type FragmentType } from "@/gql";
 import {
   ExpectationModifier,
   StatementType,
-  SymbolType,
   TypeHint,
   TypeTag,
   type Field,
@@ -11,9 +10,9 @@ import {
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FieldType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { getSymbolSubtype } from "@/state/module";
+import { getSymbolSubtype, type InterpStatement } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
+import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { computed, inject, type Ref } from "vue";
@@ -31,7 +30,6 @@ export type StatementContext = {
   editing: Ref<boolean>;
   statement: Ref<FragmentType<typeof StatementContentType>>;
   file: Ref<FragmentType<typeof FileHeaderType>>;
-  reference: Ref<InterpSymbol | { id: string; name: string } | null>;
   destroyed: Ref<boolean>;
   standalone: Ref<boolean>;
 };
@@ -46,7 +44,6 @@ export function useStatementContext() {
 
   const statement = computed(() => useFragment(StatementContentType, context.statement.value));
   const file = computed(() => useFragment(FileHeaderType, context.file.value));
-  const reference = computed(() => useFragment(StatementHeaderType, context.reference.value));
 
   const rootTypeTag = computed(() => statement.value.rootTypeTag);
   const fields = computed(
@@ -121,12 +118,7 @@ export function useStatementContext() {
   const ops = useOperations();
 
   async function morphToBlank() {
-    await ops.statement.morph(
-      null,
-      statement.value.id,
-      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
-      { type: StatementType.Blank }
-    );
+    await ops.statement.morph(null, statement.value.id, { type: statement.value.type }, { type: StatementType.Blank });
   }
 
   async function morphToComment(text?: string) {
@@ -134,29 +126,29 @@ export function useStatementContext() {
     const morphType = ops.statement.morph(
       null,
       statement.value.id,
-      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
+      { type: statement.value.type },
       { type: StatementType.Comment }
     );
     await Promise.all([morphType, updateCode]);
   }
 
   async function morpthToSymbol(config: {
-    symbolType: SymbolType | null;
+    type: StatementType | null;
     name?: string;
     rootTypeFlags?: number;
     rootTypeTag?: TypeTag;
   }) {
-    if (statement.value.type != StatementType.Blank || config.symbolType == null) {
+    if (statement.value.type != StatementType.Blank || config.type == null) {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
-    const defaults = getDefaultSymbolDefinition(config.symbolType);
+    const defaults = getDefaultSymbolDefinition(config.type);
     let newTypeTag;
     if (config.rootTypeTag) {
       newTypeTag = config.rootTypeTag;
     } else if (rootTypeTag.value == null) {
       newTypeTag = defaults.rootTypeTag;
     } else {
-      newTypeTag = isTypeTagCompatible(rootTypeTag.value, config.symbolType) ? rootTypeTag.value : defaults.rootTypeTag;
+      newTypeTag = isTypeTagCompatible(rootTypeTag.value, config.type) ? rootTypeTag.value : defaults.rootTypeTag;
     }
 
     const tx = openTransaction({ name: "morph init", blockPartialUndo: true, collapseUndoToFirst: true });
@@ -165,15 +157,13 @@ export function useStatementContext() {
       statement.value.id,
       {
         type: statement.value.type,
-        symbolType: statement.value.symbolType ?? undefined,
         name: undefined,
         lang: statement.value.lang ?? undefined,
         rootTypeTag: statement.value.rootTypeTag ?? undefined,
         rootTypeFlags: statement.value.rootTypeFlags ?? undefined,
       },
       {
-        type: StatementType.Symbol,
-        symbolType: config?.symbolType,
+        type: config?.type,
         name: config.name,
         lang: config.rootTypeTag ?? defaults.language,
         rootTypeTag: newTypeTag,
@@ -187,29 +177,22 @@ export function useStatementContext() {
     await ops.statement.modify(null, statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
-  async function setSymbolType(symbolType: SymbolType | null) {
-    await ops.statement.morph(
-      null,
-      statement.value.id,
-      { type: statement.value.type, symbolType: statement.value.symbolType ?? undefined },
-      { type: statement.value.type, symbolType: symbolType ?? undefined }
-    );
+  async function setStatementType(type: StatementType) {
+    await ops.statement.morph(null, statement.value.id, { type: statement.value.type }, { type });
   }
 
-  async function setSymbolTypeEnum() {
+  async function setStatementTypeEnum() {
     // morphs to type symbol with an enum as head type node
     await ops.statement.morph(
       null,
       statement.value.id,
       {
         type: statement.value.type,
-        symbolType: statement.value.symbolType ?? undefined,
         name: statement.value.name ?? undefined,
         rootTypeTag: statement.value.rootTypeTag ?? undefined,
       },
       {
-        type: statement.value.type,
-        symbolType: SymbolType.Type,
+        type: StatementType.Type,
         name: statement.value.name ?? undefined,
         rootTypeTag: TypeTag.Enum,
       }
@@ -259,12 +242,7 @@ export function useStatementContext() {
       editing,
       read: () => (content.value = statement.value?.description ?? ""),
       write: () =>
-        ops.symbol.updateSymbolDescription(
-          null,
-          statement.value.id,
-          statement.value.description ?? "",
-          content.value
-        ),
+        ops.symbol.updateSymbolDescription(null, statement.value.id, statement.value.description ?? "", content.value),
       enabled: computed(() => !isDeleted.value),
     });
   }
@@ -286,7 +264,6 @@ export function useStatementContext() {
       hint: newField.hint ?? null,
       name: newField.name ?? oldField.name,
       description: newField.description ?? oldField.description,
-      value: newField.value,
       reference: newField.reference,
       flags: newField.flags,
     };
@@ -314,7 +291,6 @@ export function useStatementContext() {
     // state
     statement,
     file,
-    reference,
     depth: context.depth,
     readonly: context.readonly,
     focused: context.focused,
@@ -336,8 +312,8 @@ export function useStatementContext() {
     morphToComment,
     morpthToSymbol,
     setModifier,
-    setSymbolType,
-    setSymbolTypeEnum,
+    setStatementType,
+    setStatementTypeEnum,
     syncText,
     syncName,
     syncCode,
@@ -364,7 +340,6 @@ function makeFieldInput(id: string, field: SimpleType): FieldCreateInput {
     referenceId: field.reference?.id ?? null,
     description: field.description ?? null,
     name: field.name ?? null,
-    value: field.value ?? null,
     flags: field.flags,
   };
 }
@@ -377,30 +352,23 @@ function makeFieldUpdate(field: SimpleType): FieldUpdateInput {
     referenceId: field.reference?.id ?? null,
     description: field.description ?? null,
     name: field.name ?? null,
-    value: field.value ?? null,
     flags: field.flags,
   };
 }
 
-export function getDefaultSymbolDefinition(symbolType: SymbolType): {
+export function getDefaultSymbolDefinition(type: StatementType): {
   language?: string;
   rootTypeTag?: TypeTag;
 } {
-  if (symbolType == SymbolType.Code) {
+  if (type == StatementType.Code) {
     return {
       language: "python",
-      rootTypeTag: TypeTag.Function,
     };
-  } else if (symbolType == SymbolType.Task) {
-    return {
-      rootTypeTag: TypeTag.Function,
-    };
-  } else if (symbolType == SymbolType.Data) {
-    return {
-      language: "jsonl",
-      rootTypeTag: TypeTag.Struct,
-    };
-  } else if (symbolType == SymbolType.Type) {
+  } else if (type == StatementType.Task) {
+    return {};
+  } else if (type == StatementType.Dataset) {
+    return {};
+  } else if (type == StatementType.Type) {
     // default to struct
     return {
       rootTypeTag: TypeTag.Struct,
@@ -411,12 +379,12 @@ export function getDefaultSymbolDefinition(symbolType: SymbolType): {
   }
 }
 
-export function isTypeTagCompatible(tag: TypeTag, symbolType: SymbolType): boolean {
-  if (symbolType == SymbolType.Code || symbolType == SymbolType.Task) {
+export function isTypeTagCompatible(tag: TypeTag, type: StatementType): boolean {
+  if (type == StatementType.Code || type == StatementType.Task) {
     return tag == TypeTag.Function;
-  } else if (symbolType == SymbolType.Data) {
+  } else if (type == StatementType.Dataset) {
     return tag == TypeTag.Struct;
-  } else if (symbolType == SymbolType.Type) {
+  } else if (type == StatementType.Type) {
     return tag == TypeTag.Struct || tag == TypeTag.Enum;
   } else {
     return false;

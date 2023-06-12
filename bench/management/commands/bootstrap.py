@@ -5,7 +5,7 @@ import structlog
 from django.core.management import BaseCommand
 from django.db import transaction
 
-from bench.bench import StatementType, SymbolType
+from bench.bench import StatementType
 from bench.models import Organization, Project, Statement
 from bench.models.project import ProjectType, ProjectVersion, ProjectVisibility
 from bench.utils.fractional import generate_n_keys_between
@@ -100,8 +100,7 @@ def create_model_providers():
                     file=models_file,
                     parent=None,
                     order_key=order_key,
-                    type=StatementType.SYMBOL,
-                    symbol_type=SymbolType.MODEL,
+                    type=StatementType.MODEL,
                     name=model_id,
                     external_name=external_name,
                 )

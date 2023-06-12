@@ -593,10 +593,10 @@ export type Mutation = {
   updateRecordPath: RecordOperationInfo;
   updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
-  updateStatementModifier: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateSymbolCode: StatementOperationInfo;
   updateSymbolDescription: StatementOperationInfo;
+  updateSymbolModifier: StatementOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -865,10 +865,6 @@ export type MutationUpdateStatementArgs = {
   input: StatementCreateInput;
 };
 
-export type MutationUpdateStatementModifierArgs = {
-  input: StatementSetExpectationModifierInput;
-};
-
 export type MutationUpdateStatementTextArgs = {
   input: StatementUpdateTextInput;
 };
@@ -879,6 +875,10 @@ export type MutationUpdateSymbolCodeArgs = {
 
 export type MutationUpdateSymbolDescriptionArgs = {
   input: SymbolUpdateDescriptionInput;
+};
+
+export type MutationUpdateSymbolModifierArgs = {
+  input: StatementSetExpectationModifierInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1781,7 +1781,6 @@ export type Statement = Node &
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
     rootTypeTag?: Maybe<TypeTag>;
-    symbolType?: Maybe<SymbolType>;
     text?: Maybe<Scalars["String"]>;
     type: StatementType;
     updatedAt: Scalars["DateTime"];
@@ -1849,7 +1848,6 @@ export type StatementCreateInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
-  symbolType?: InputMaybe<SymbolType>;
   text?: InputMaybe<Scalars["String"]>;
   type: StatementType;
 };
@@ -1868,7 +1866,6 @@ export type StatementMorphInput = {
   name?: InputMaybe<Scalars["String"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
-  symbolType?: InputMaybe<SymbolType>;
   type: StatementType;
 };
 
@@ -1902,8 +1899,16 @@ export type StatementSoftDeleteInput = {
 /** The type of Bench statement. */
 export enum StatementType {
   Blank = "BLANK",
+  Block = "BLOCK",
+  Code = "CODE",
   Comment = "COMMENT",
-  Symbol = "SYMBOL",
+  Dataset = "DATASET",
+  Expectation = "EXPECTATION",
+  Model = "MODEL",
+  Requirement = "REQUIREMENT",
+  Task = "TASK",
+  Type = "TYPE",
+  Value = "VALUE",
 }
 
 export type StatementUpdateTextInput = {
@@ -1940,19 +1945,6 @@ export type SubscriptionModuleChangedArgs = {
 export type SubscriptionProjectChangedArgs = {
   projectId: Scalars["GlobalID"];
 };
-
-/** The type of symbol content. */
-export enum SymbolType {
-  Block = "BLOCK",
-  Code = "CODE",
-  Dataset = "DATASET",
-  Expectation = "EXPECTATION",
-  Model = "MODEL",
-  Requirement = "REQUIREMENT",
-  Task = "TASK",
-  Type = "TYPE",
-  Value = "VALUE",
-}
 
 export type SymbolUpdateCodeInput = {
   code?: InputMaybe<Scalars["String"]>;
@@ -3018,7 +3010,6 @@ export type StatementHeaderFragment = {
   id: any;
   type: StatementType;
   revision: number;
-  symbolType?: SymbolType | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3051,7 +3042,6 @@ export type StatementContentFragment = {
   id: any;
   type: StatementType;
   revision: number;
-  symbolType?: SymbolType | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3116,7 +3106,6 @@ export type InterpStatementFragment = {
   __typename?: "Statement";
   id: any;
   type: StatementType;
-  symbolType?: SymbolType | null;
   name?: string | null;
   modifier?: string | null;
   revision: number;
@@ -3682,7 +3671,6 @@ export type CreateStatementMutationVariables = Exact<{
   type: StatementType;
   modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
-  symbolType?: InputMaybe<SymbolType>;
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
@@ -3702,7 +3690,6 @@ export type CreateStatementMutation = {
         id: any;
         type: StatementType;
         revision: number;
-        symbolType?: SymbolType | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -3727,7 +3714,6 @@ export type CreateStatementMutation = {
 export type MorphStatementMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   type: StatementType;
-  symbolType?: InputMaybe<SymbolType>;
   name?: InputMaybe<Scalars["String"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
@@ -3745,7 +3731,6 @@ export type MorphStatementMutation = {
         id: any;
         revision: number;
         type: StatementType;
-        symbolType?: SymbolType | null;
         name?: string | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
@@ -3760,7 +3745,7 @@ export type UpdateExpectationModifierMutationVariables = Exact<{
 
 export type UpdateExpectationModifierMutation = {
   __typename?: "Mutation";
-  updateStatementModifier:
+  updateSymbolModifier:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
@@ -4802,7 +4787,6 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -4907,7 +4891,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -5058,7 +5041,6 @@ export const InterpStatementFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
-          { kind: "Field", name: { kind: "Name", value: "symbolType" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
@@ -9997,11 +9979,6 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10081,11 +10058,6 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "symbolType" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "lang" },
                       value: { kind: "Variable", name: { kind: "Name", value: "lang" } },
                     },
@@ -10130,7 +10102,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -10240,11 +10211,6 @@ export const MorphStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "SymbolType" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10289,11 +10255,6 @@ export const MorphStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "symbolType" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "symbolType" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
@@ -10328,7 +10289,6 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "symbolType" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
@@ -10370,7 +10330,7 @@ export const UpdateExpectationModifierDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "updateStatementModifier" },
+            name: { kind: "Name", value: "updateSymbolModifier" },
             arguments: [
               {
                 kind: "Argument",

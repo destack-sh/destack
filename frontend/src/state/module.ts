@@ -1,11 +1,5 @@
-import { graphql, useFragment, type FragmentType } from "@/gql";
-import {
-  SymbolType,
-  TypeTag,
-  type InterpFileFragment,
-  type InterpStatementFragment,
-  type StatementType,
-} from "@/gql/graphql";
+import { graphql, useFragment } from "@/gql";
+import { StatementType, TypeTag, type InterpFileFragment, type InterpStatementFragment } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType } from "@/state/fragments";
@@ -218,13 +212,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
         if (filterRef.value.types != null && !filterRef.value.types.includes(s.type)) {
           return false;
         }
-        if (
-          filterRef.value.symbolTypes != null &&
-          (s.symbolType == null || !filterRef.value.symbolTypes.includes(s.symbolType))
-        ) {
-          return false;
-        }
-
         return true;
       });
     });
@@ -302,7 +289,6 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
 
 export type StatementFilter = {
   types?: StatementType[];
-  symbolTypes?: SymbolType[];
   includeAnonymous?: boolean;
   includeDependencies?: boolean;
 };
@@ -331,22 +317,20 @@ export function newExecutionId(): string {
 }
 
 export function getSymbolSubtype(statement: {
-  symbolType?: SymbolType | null;
+  type?: StatementType | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
 }) {
-  if (statement.symbolType == SymbolType.Type) {
+  if (statement.type == StatementType.Type) {
     if (statement.rootTypeTag == TypeTag.Enum) {
       return "choice";
     } else {
       return "type";
     }
-  } else if (statement.symbolType == SymbolType.Data) {
-    if ((statement.rootTypeFlags ?? 0) & TypeFlag.IsArray) {
-      return "table";
-    } else {
-      return "record";
-    }
+  } else if (statement.type == StatementType.Dataset) {
+    return "table";
+  } else if (statement.type == StatementType.Value) {
+    return "record";
   }
 
   return null;

@@ -15,7 +15,6 @@ import {
   type RestoreStatementMutation,
   type SoftDeleteStatementMutation,
   type ExpectationModifier,
-  type SymbolType,
   type UpdateExpectationModifierMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
@@ -63,7 +62,6 @@ export function useStatementOps() {
         $type: StatementType!
         $modifier: ExpectationModifier
         $name: String
-        $symbolType: SymbolType
         $lang: String
         $code: String
         $description: String
@@ -80,7 +78,6 @@ export function useStatementOps() {
             type: $type
             modifier: $modifier
             name: $name
-            symbolType: $symbolType
             lang: $lang
             code: $code
             description: $description
@@ -94,7 +91,6 @@ export function useStatementOps() {
             id
             type
             revision
-            symbolType
             createdAt
             updatedAt
             deletedAt
@@ -141,7 +137,6 @@ export function useStatementOps() {
         type: StatementType;
         modifier: ExpectationModifier | null;
         name: string | null;
-        symbolType: SymbolType | null;
         lang: string | null;
         code: string | null;
         description: string | null;
@@ -168,7 +163,6 @@ export function useStatementOps() {
             type: vars.type,
             modifier: vars.modifier,
             name: vars.name,
-            symbolType: vars.symbolType,
             description: vars.description,
             code: vars.code,
             referenceProjectVersion: null,
@@ -224,7 +218,6 @@ export function useStatementOps() {
           type: StatementType.Blank,
           modifier: null,
           name: null,
-          symbolType: null,
           lang: null,
           code: null,
           description: null,
@@ -242,14 +235,14 @@ export function useStatementOps() {
     });
   }
 
-  async function createDefinition(
+  async function create(
     tx: Transaction | null,
     input: {
       id: string;
+      type: StatementType;
       fileId: string;
       parentId: string | undefined | null;
       orderKey: string;
-      symbolType: SymbolType;
       name?: string;
       description?: string;
       rootTypeTag?: TypeTag;
@@ -265,10 +258,9 @@ export function useStatementOps() {
           fileId: input.fileId,
           parentId: input.parentId ?? null,
           orderKey: input.orderKey,
-          type: StatementType.Symbol,
+          type: input.type,
           modifier: null,
           name: input.name ?? null,
-          symbolType: input.symbolType,
           lang: null,
           code: null,
           description: input.description ?? null,
@@ -292,7 +284,6 @@ export function useStatementOps() {
       mutation morphStatement(
         $id: GlobalID!
         $type: StatementType!
-        $symbolType: SymbolType
         $name: String
         $rootTypeTag: TypeTag
         $rootTypeFlags: Int
@@ -302,7 +293,6 @@ export function useStatementOps() {
           input: {
             id: $id
             type: $type
-            symbolType: $symbolType
             name: $name
             rootTypeTag: $rootTypeTag
             rootTypeFlags: $rootTypeFlags
@@ -313,7 +303,6 @@ export function useStatementOps() {
             id
             revision
             type
-            symbolType
             name
             rootTypeTag
             rootTypeFlags
@@ -327,7 +316,6 @@ export function useStatementOps() {
       optimisticResponse: (vars: {
         id: string;
         type: StatementType;
-        symbolType?: SymbolType;
         name?: string;
         rootTypeTag?: TypeTag;
         rootTypeFlags?: number;
@@ -339,7 +327,6 @@ export function useStatementOps() {
             id: vars.id,
             revision: PENDING_REVISION,
             type: vars.type,
-            symbolType: vars.symbolType ?? null,
             name: vars.name ?? null,
             rootTypeTag: vars.rootTypeTag ?? null,
             rootTypeFlags: vars.rootTypeFlags ?? null,
@@ -354,7 +341,6 @@ export function useStatementOps() {
     id: string,
     oldStatement: {
       type: StatementType;
-      symbolType?: SymbolType;
       name?: string;
       rootTypeTag?: TypeTag;
       rootTypeFlags?: number;
@@ -362,7 +348,6 @@ export function useStatementOps() {
     },
     newStatement: {
       type: StatementType;
-      symbolType?: SymbolType;
       name?: string;
       rootTypeTag?: TypeTag;
       rootTypeFlags?: number;
@@ -382,10 +367,10 @@ export function useStatementOps() {
   }
 
   const { mutate: updateExpectationModifier } = registry.useMutation(
-    ModuleMutationType.UpdateExpectationModifier,
+    ModuleMutationType.UpdateSymbolModifier,
     graphql(/* GraphQL */ `
       mutation updateExpectationModifier($id: GlobalID!, $modifier: ExpectationModifier) {
-        updateStatementModifier(input: { id: $id, modifier: $modifier }) {
+        updateSymbolModifier(input: { id: $id, modifier: $modifier }) {
           ... on Statement {
             id
             modifier
@@ -398,7 +383,7 @@ export function useStatementOps() {
     {
       optimisticResponse: (vars: { id: string; modifier: ExpectationModifier | null }) =>
         ({
-          updateExpectationModifier: {
+          updateSymbolModifier: {
             __typename: "Statement",
             id: vars.id,
             modifier: vars.modifier,
@@ -929,7 +914,7 @@ export function useStatementOps() {
   return {
     registry,
     create: createBlank,
-    createDefinition,
+    createDefinition: create,
     morph,
     modify,
     move,
