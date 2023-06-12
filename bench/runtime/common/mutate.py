@@ -60,7 +60,7 @@ def map_mutation_from_public(
     )
     if type == MMT.PASTE_FILE:
         public_mutation.type = MMT.CREATE_FILE
-        nodes_data = packer.pack_node(thing)
+        _, nodes_data = packer.pack_node(thing)
         internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
@@ -68,7 +68,7 @@ def map_mutation_from_public(
         return internal.mutations, public_mutations
     elif type in MMT.PASTE_STATEMENT:  # remap to create children
         public_mutation.type = MMT.CREATE_STATEMENT
-        nodes_data = packer.pack_node(thing)
+        _, nodes_data = packer.pack_node(thing)
         internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
         public_mutations = list(
             chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
@@ -95,11 +95,11 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
-            nodes_data = packer.pack_node(thing)
+            _, nodes_data = packer.pack_node(thing)
             mut = ModuleMutator(module_id=mutation.project_version_id)
             return mut.create_many(*nodes_data).mutations
     elif mutation.type in (MMT.RESTORE_FILE, MMT.RESTORE_STATEMENT):
-        nodes_data = packer.pack_node(thing)
+        _, nodes_data = packer.pack_node(thing)
         mut = ModuleMutator(module_id=mutation.project_version_id)
         return mut.create_many(*nodes_data).mutations
     else:

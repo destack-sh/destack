@@ -12,7 +12,7 @@ from uuid import UUID
 from bench.bench import Module, StatementType, wire
 from bench.bench.wire import (
     MOT_BY_DATA_CLASS,
-    SYMBOL_TYPE_BY_DATA_CLASS,
+    STATEMENT_TYPE_BY_DATA_CLASS,
     CodeData,
     DatasetData,
     DatasetViewData,
@@ -192,15 +192,15 @@ class ModuleMutation:
 
     _data_file: Optional[FileData] = None
     _data_statement: Optional[StatementData] = None
-    _data_symbol__discriminator: Optional[StatementType] = None  # discriminator for 'union'
-    _data_symbol_type: Optional[TypeData] = None
-    _data_symbol_task: Optional[TaskData] = None
-    _data_symbol_expectation: Optional[ExpectationData] = None
-    _data_symbol_code: Optional[CodeData] = None
-    _data_symbol_model: Optional[ModelData] = None
-    _data_symbol_requirement: Optional[RequirementData] = None
-    _data_symbol_value: Optional[ValueData] = None
-    _data_symbol_dataset: Optional[DatasetData] = None
+    _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
+    _data_statement_type: Optional[TypeData] = None
+    _data_statement_task: Optional[TaskData] = None
+    _data_statement_expectation: Optional[ExpectationData] = None
+    _data_statement_code: Optional[CodeData] = None
+    _data_statement_model: Optional[ModelData] = None
+    _data_statement_requirement: Optional[RequirementData] = None
+    _data_statement_value: Optional[ValueData] = None
+    _data_statement_dataset: Optional[DatasetData] = None
     _data_field: Optional[FieldData] = None
     _data_record: Optional[RecordData] = None
     _data_interp: Optional[InterpData] = None
@@ -208,20 +208,19 @@ class ModuleMutation:
 
     @property
     def data(self) -> NodeData:
-        if self._data_symbol__discriminator is not None:
+        if self._data_statement__type is not None:
             # map to _symbol_<type>
-            symbol_type = self._data_symbol__discriminator
-            return getattr(self, f"_data_symbol_{symbol_type.value.lower()}")
+            return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
         else:
             return getattr(self, f"_data_{self.type.scope.value.lower()}")
 
     @data.setter
     def data(self, value: NodeData):
-        if type(value) in SYMBOL_TYPE_BY_DATA_CLASS:
+        if type(value) in STATEMENT_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
-            symbol_type = SYMBOL_TYPE_BY_DATA_CLASS[type(value)]
-            self._data_symbol__discriminator = symbol_type
-            setattr(self, f"_data_symbol_{symbol_type.value.lower()}", value)
+            statement_type = STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
+            self._data_statement__type = statement_type
+            setattr(self, f"_data_statement_{statement_type.value.lower()}", value)
         else:
             setattr(self, f"_data_{self.type.scope.value.lower()}", value)
 
