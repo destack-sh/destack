@@ -119,9 +119,7 @@ class PyFrameData:
                     elif not found_start:
                         continue  # ignore
                     if isinstance(from_code.source, Statement):
-                        frame.filename = to_pyidentifier_multi(
-                            from_code.source.file.name, from_code.source.name
-                        )
+                        frame.filename = to_pyidentifier_multi(from_code.file.name, from_code.name)
                     frame.name = from_code.name
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset

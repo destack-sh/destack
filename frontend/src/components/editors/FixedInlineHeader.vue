@@ -83,7 +83,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
         class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
         @click.stop="editorAppearance.wide = !editorAppearance.wide"
       >
-        <component :is="editorAppearance.wide ? ArrowsPointingInIcon : ArrowsPointingOutIcon" class="h-4 w-4" />
+        <component :is="!editorAppearance.wide ? ArrowsPointingInIcon : ArrowsPointingOutIcon" class="h-4 w-4" />
       </button>
     </div>
   </div>

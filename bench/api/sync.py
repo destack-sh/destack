@@ -200,7 +200,7 @@ def track_mutation_for_analytics(
 
     if "FILE" in type.value:
         properties = {"file_id": things[0].id, "name": things[0].name, "path": things[0].path}
-    elif "STATEMENT" in type.value:
+    elif "STATEMENT" in type.value or "SYMBOL" in type.value:
         properties = {
             "statement_id": things[0].id,
             "name": things[0].name,

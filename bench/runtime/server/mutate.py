@@ -7,7 +7,6 @@ from django.db import transaction
 from django.db.models import Q
 
 from bench import models
-from bench.bench.const import InterpScope
 from bench.bench.mutate import MMT, ModuleMutation, MutationBundle
 from bench.bench.wire import InterpData
 from bench.models import packer
@@ -27,14 +26,8 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
         if mmt == MMT.UPDATE_INTERP:
             # delete and re-create interp data
             # should probably somehow fit into our other regular packer/mutation system
-            file_ids = [
-                m.file_id for m in mut[MMT.UPDATE_INTERP] if m.type.scope == InterpScope.FILE
-            ]
-            statement_ids = [
-                m.statement_id
-                for m in mut[MMT.UPDATE_INTERP]
-                if m.type.scope == InterpScope.STATEMENT
-            ]
+            file_ids = [m.file_id for m in batch]
+            statement_ids = [m.statement_id for m in batch]
             models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
             models.Issue.objects.filter(
                 Q(statement_id__in=statement_ids) | Q(file_id__in=file_ids)
@@ -49,9 +42,9 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
                 for resolved_field_data in interp_data.resolved_fields or []:
                     resolved_fields.append(
                         models.ResolvedField(
-                            id=uuid5(interp_data.parent_id, str(resolved_field_data.id)),
+                            id=uuid5(interp_data.statement_id, str(resolved_field_data.id)),
                             project_version_id=project_v.id,
-                            statement_id=interp_data.parent_id,
+                            statement_id=interp_data.statement_id,
                             field_id=resolved_field_data.id,
                         )
                     )

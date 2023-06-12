@@ -2,7 +2,6 @@
 import type { IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -11,10 +10,10 @@ const module = useCurrentModule();
 const nav = useNavigation();
 const issues = computed(() => module.issues.value);
 
-function focusError(error: IssueContentFragment) {
-  console.debug("focus error", error);
-  if (error.statement != null) {
-    nav.focus(error.statement);
+function focusIssue(issue: IssueContentFragment) {
+  console.debug("focus issue", issue);
+  if (issue.statement != null) {
+    nav.focus(issue.statement);
   }
 }
 </script>
@@ -36,18 +35,19 @@ function focusError(error: IssueContentFragment) {
     </div>
     <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
       <li
-        v-for="(error, i) in issues ?? []"
+        v-for="(issue, i) in issues ?? []"
         :key="i"
         class="group flex flex-col justify-between py-0.5 text-sm hover:cursor-pointer hover:bg-orange-100"
-        @click="focusError(error)"
+        @click="focusIssue(issue)"
       >
-        <div v-if="error.statement != null" class="px-3">
-          <span class="text-gray-700">{{ STATEMENT_TYPE_KEYWORD[error.statement.statementType] }}</span>
-          <span class="pl-1 text-gray-900">{{ module.fileOf(error.statement)?.path }}.{{ error.statement.name }}</span>
+        <div v-if="issue.statement != null" class="px-3">
+          <span class="pl-1 text-gray-900"
+            >{{ module.fileOf(issue.statement)?.path }}.{{ module.statementOf(issue.statement.id)?.name }}</span
+          >
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
           <XCircleIcon class="mt-0.5 h-4 w-4" />
-          <span>{{ error.message }}</span>
+          <span>{{ issue.message }}</span>
         </span>
       </li>
       <div v-if="issues.length == 0" class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center">
