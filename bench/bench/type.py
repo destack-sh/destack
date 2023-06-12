@@ -25,7 +25,6 @@ from bench.bench.const import (
     RemoteObjectStatus,
     StatementPath,
     StatementType,
-    SymbolType,
     TypeFlag,
     TypeHint,
     TypeTag,
@@ -126,7 +125,7 @@ class Scope:
     def lookup_symbol(
         self,
         path: StatementPath | UUID | str,
-        symbol_t: SymbolType | typing.Type[SymbolT] | None = None,
+        symbol_t: StatementType | typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT | None:
         """Lookup the symbol either by path or id. If path is a string, it can be
@@ -300,42 +299,39 @@ class File(ModuleNode, HasSession, Scope):
 class Statement(ModuleNode, HasSession, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
-    file: File = required_field()
+    file: File | None = None
     parent: Optional[Statement] = None
     children: list[Statement] | None = None
     order_key: str | None = None
-    type: StatementType = StatementType.SYMBOL
+    type: StatementType = StatementType.BLANK
     name: Optional[str] = None
     text: Optional[str] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
         super().__post_init__()
+        if self.file is None and self.parent is not None:
+            self.file = self.parent.file
         if self.parent_scope is None:
             # default scope to parent or file if not set
             self.parent_scope = self.parent or self.file
 
     def __str__(self):
-        if self.type == StatementType.SYMBOL:
-            content_str = "()"  # should have some nice __str__ here
-        elif self.type == StatementType.COMMENT:
-            content_str = ""
-        elif self.type == StatementType.BLANK:
-            content_str = ""
-        else:
-            raise ValueError(f"unknown statement type {self.type}")
-        return f"{self.path} {self.type} {self.symbol_type} {self.name} {content_str}"
+        return f"{self.path} {self.type} {self.symbol_type} {self.name}"
 
     def __repr__(self):
         return f"<{self.__class__.name} {self}>"
 
     @property
-    def symbol_type(self) -> Optional[SymbolType]:
+    def symbol_type(self) -> Optional[StatementType]:
         return SYMBOL_TYPE_BY_CLASS.get(type(self))
 
     @property
     def path(self) -> str:
-        return self.file.path + ":" + str(self.infile_path)
+        if self.file is None:
+            return f"<detached>:{self.infile_path}"
+        else:
+            return self.file.path + ":" + str(self.infile_path)
 
     @property
     def infile_path(self) -> str:
@@ -355,6 +351,8 @@ class Statement(ModuleNode, HasSession, Scope):
 
     @property
     def fqn(self) -> str:
+        if self.file is None:
+            raise ValueError(f"cannot get fqn of detached statement {self}")
         return f"{self.file.module.name}.{self.file.name.replace('/', '.')}.{self.name}"
 
     @property
@@ -590,7 +588,7 @@ class HasType(TypeBase, SymbolBase):
             if node.reference is None or isinstance(node.reference, Symbol):
                 continue  # nothing to resolve
             # normalize path to statement
-            symbol = scope.lookup_symbol(node.reference, SymbolType.TYPE)
+            symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
             if symbol is None:
                 continue  # error already reported
             if not isinstance(symbol, TypeBase):
@@ -791,10 +789,21 @@ class Task(Symbol, HasType, HasExpectations):
 
 @dataclass(repr=False)
 class Expectation(Symbol, HasExpectations):
+    reference: StatementReference | Statement | None = None
     description: Optional[str] = None
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+        # resolve reference
+        if self.reference is not None:
+            resolved = scope.lookup_symbol(self.reference)
+            if resolved is None:
+                on_issue(type=IssueType.MISSING_REFERENCE, reference=self.reference, subject=self)
+            else:
+                self.reference = resolved
+        # interp
         HasExpectations.interp(self, scope, on_issue)
+        if isinstance(self.reference, HasExpectations):
+            self.resolved_expectations.extend(self.reference.expectations)
 
     def clear_interp(self) -> None:
         HasExpectations.clear_interp(self)
@@ -1141,18 +1150,18 @@ class Block(Symbol):
         pass
 
 
-SYMBOL_CLASS_BY_TYPE: dict[SymbolType, typing.Type[Symbol]] = {
-    SymbolType.TYPE: Type,
-    SymbolType.TASK: Task,
-    SymbolType.EXPECTATION: Expectation,
-    SymbolType.DATASET: Dataset,
-    SymbolType.VALUE: Value,
-    SymbolType.MODEL: Model,
-    SymbolType.CODE: Code,
-    SymbolType.REQUIREMENT: Requirement,
-    SymbolType.BLOCK: Block,
+SYMBOL_CLASS_BY_TYPE: dict[StatementType, typing.Type[Symbol]] = {
+    StatementType.TYPE: Type,
+    StatementType.TASK: Task,
+    StatementType.EXPECTATION: Expectation,
+    StatementType.DATASET: Dataset,
+    StatementType.VALUE: Value,
+    StatementType.MODEL: Model,
+    StatementType.CODE: Code,
+    StatementType.REQUIREMENT: Requirement,
+    StatementType.BLOCK: Block,
 }
-SYMBOL_TYPE_BY_CLASS: dict[typing.Type[Symbol], SymbolType] = {
+SYMBOL_TYPE_BY_CLASS: dict[typing.Type[Symbol], StatementType] = {
     v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
 }
 SYMBOL_FIELDS_BY_TYPE = {t: fields(c) for t, c in SYMBOL_CLASS_BY_TYPE.items()}

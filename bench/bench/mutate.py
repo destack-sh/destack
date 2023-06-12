@@ -9,7 +9,7 @@ from functools import cached_property
 from typing import Any, Optional
 from uuid import UUID
 
-from bench.bench import Module, StatementType, SymbolType, wire
+from bench.bench import Module, StatementType, wire
 from bench.bench.wire import (
     MOT_BY_DATA_CLASS,
     SYMBOL_TYPE_BY_DATA_CLASS,
@@ -192,7 +192,7 @@ class ModuleMutation:
 
     _data_file: Optional[FileData] = None
     _data_statement: Optional[StatementData] = None
-    _data_symbol__discriminator: Optional[SymbolType] = None  # discriminator for 'union'
+    _data_symbol__discriminator: Optional[StatementType] = None  # discriminator for 'union'
     _data_symbol_type: Optional[TypeData] = None
     _data_symbol_task: Optional[TaskData] = None
     _data_symbol_expectation: Optional[ExpectationData] = None

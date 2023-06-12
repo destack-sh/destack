@@ -1,4 +1,4 @@
-from bench.bench.const import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.bench.const import ExpectationModifier, StatementType, TypeHint, TypeTag
 from bench.bench.issue import Issue, IssueType
 from bench.bench.type import (
     Code,
@@ -46,7 +46,7 @@ __all__ = [
     "ExpectationModifier",
     "StatementType",
     "Symbol",
-    "SymbolType",
+    "StatementType",
     "Task",
     "Type",
     "TypeHint",

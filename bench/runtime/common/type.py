@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union, cast
 from uuid import UUID
 
-from bench.bench import SymbolType
+from bench.bench import StatementType
 from bench.bench.const import LiteralValue
 from bench.bench.type import Code, Model, Statement, Task
 from bench.utils.utils import to_pyidentifier_multi
@@ -102,7 +102,7 @@ class PyFrameData:
         code_by_method: dict[str, Code] = {
             instance.transform.method_name: cast(Code, instance)
             for instance in session.instances.values()
-            if instance.symbol_type == SymbolType.CODE and instance.transform is not None
+            if instance.symbol_type == StatementType.CODE and instance.transform is not None
         }
 
         transform = from_code.transform

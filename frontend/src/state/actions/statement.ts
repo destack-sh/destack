@@ -315,20 +315,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
-  // jump to reference
-  const { focus: focusSymbol } = useNavigation();
-  const jumpToReference = provideGlobalAction({
-    id: "statement.jumpToReference",
-    label: "Jump to reference",
-    shortcuts: ["ctrl+b", "meta+b"],
-    enabled: computed(() => cur.value?.statement != null && cur.value?.statement.reference != null),
-    apply: () => {
-      if (cur.value?.statement?.reference != null) {
-        focusSymbol(cur.value?.statement.reference);
-      }
-    },
-  });
-
   // optimistic insert that doesn't wait for the server response
   function _insertOptimisticBlank(parentId: string | null, orderKey: string): { __typename: string; id: string } {
     const newStatement = { __typename: "Statement", id: newStatementId() };
@@ -497,7 +483,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     delete: delete_,
     deleteSelection,
     deleteAbove,
-    jumpToReference,
     insertStart,
     insertEnd,
     insertAbove,

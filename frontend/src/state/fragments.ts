@@ -89,7 +89,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     id
     type
     revision
-    symbolType
     createdAt
     updatedAt
     deletedAt
@@ -129,7 +128,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     id
     type
     revision
-    symbolType
     createdAt
     updatedAt
     deletedAt
@@ -213,7 +211,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
   fragment InterpStatement on Statement {
     id
     type
-    symbolType
     name
     modifier
     revision

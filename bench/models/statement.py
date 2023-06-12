@@ -10,16 +10,10 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.bench import ExpectationModifier, StatementType, SymbolType, TypeHint, TypeTag
+from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag
 from bench.bench.const import FIELD_KEY_LENGTH, TypeFlag
 from bench.bench.type import new_field_key
-from bench.models.utils import (
-    NAME_VALIDATOR,
-    CrudModel,
-    UUIDModel,
-    get_choices,
-    walk_children_bfs_batched,
-)
+from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, get_choices
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -157,68 +151,8 @@ class StatementManager(models.Manager["Statement"]):
         }
         target_parent_ids = target_parent_ids or {}
         target_order_keys = target_order_keys or {}
-        new_statements: dict[UUID, Statement] = {}
-        new_fields: dict[UUID, Field] = {}
 
-        # copy statements
-        for statement in statements:
-            if statement.type == StatementType.SYMBOL:
-                # the relations are saved below after statement creation
-                # copy type nodes
-                if statement.root_type_tag is not None:
-                    for field in statement.fields.all():
-                        old_id = field.id
-                        old_revision = field.revision
-                        field.id = uuid4()
-                        field._state.adding = True
-                        field.statement_id = target_statement_ids[statement.id]
-                        if field.reference_id is not None:
-                            # replace type node reference if it was copied (default to same for externals)
-                            field.reference_id = target_statement_ids.get(
-                                field.reference_id, field.reference_id
-                            )
-                        new_fields[old_id] = field
-                        _refmap(RefType.FIELD, old_id, old_revision, field)
-
-            # copy statement
-            # automatically copies all non-relational columns
-            old_id = statement.id
-            old_revision = statement.revision
-            statement.id = target_statement_ids[old_id]
-            statement._state.adding = True
-            if statement.parent_id is not None:
-                if statement.parent_id not in target_statement_ids:
-                    # TODO @Robustness: ensure orphaned statements are impossible
-                    logger.warning("statement_lost_parent", statement=statement)
-                    continue
-                statement.parent_id = target_parent_ids.get(
-                    statement.id,
-                    target_statement_ids[statement.parent_id],
-                )
-            statement.order_key = target_order_keys.get(statement.id, statement.order_key)
-            statement.deleted_at = None  # restore in copy if it was deleted
-            statement.revision = old_revision if copy_revisions else 0
-            statement.file = target_files[statement.file_id]
-            statement.project_version = target_version
-            statement.reference = None
-            new_statements[old_id] = statement
-            _refmap(RefType.STATEMENT, old_id, old_revision, statement)
-
-        # create statements and relations
-        for new_statements_batch in walk_children_bfs_batched(new_statements.values(), "parent_id"):
-            Statement.objects.bulk_create(new_statements_batch)
-        Field.objects.bulk_create(new_fields.values())
-
-        # re-assign references (can't be part of bfs walk)
-        for old in statements.only("id", "reference_id"):
-            if old.id not in new_statements:
-                # skip ghost statement whose parent was deleted or lost somehow
-                # TODO @Robustness: fix/prevent ghost orphan statements on insert
-                continue
-            new = new_statements[old.id]
-            # replace ref (default to same ref if not in refs since outside refs are not copied)
-            new.reference_id = target_statement_ids.get(old.reference_id, old.reference_id)
-        Statement.objects.bulk_update(new_statements.values(), ["reference_id"])
+        raise NotImplementedError
 
         return ref_mappings
 
@@ -254,14 +188,10 @@ class Statement(UUIDModel, CrudModel):
     )
     file = models.ForeignKey("File", on_delete=models.CASCADE, related_name="statements")
     type = models.CharField(max_length=32, choices=get_choices(StatementType))
-    modifier = models.CharField(
-        max_length=32, choices=get_choices(ExpectationModifier), null=True, blank=True
-    )
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
     commented = models.BooleanField(default=False)
-    generated = models.BooleanField(default=False)
 
     parent = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
@@ -270,8 +200,11 @@ class Statement(UUIDModel, CrudModel):
     order_key = models.CharField(max_length=64)  # in file/parent
 
     # symbol
-    symbol_type = models.CharField(
-        max_length=32, choices=get_choices(SymbolType), null=True, blank=True
+    modifier = models.CharField(
+        max_length=32, choices=get_choices(ExpectationModifier), null=True, blank=True
+    )
+    reference = models.ForeignKey(
+        "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="references+"
     )
     description = models.TextField(null=True, blank=True)
     root_type_tag = models.CharField(
@@ -293,16 +226,8 @@ class Statement(UUIDModel, CrudModel):
     resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")
 
     def __str__(self):
-        if self.type == StatementType.SYMBOL:
-            content_str = "()"  # should have some nice __str__ here
-        elif self.type == StatementType.COMMENT:
-            content_str = ""
-        elif self.type == StatementType.BLANK:
-            content_str = ""
-        else:
-            raise ValueError(f"unknown statement type {self.type}")
         modifier_str = f" {self.modifier}" if self.modifier else ""
-        return f"{self.path}{modifier_str} {self.type} {self.symbol_type} {self.name} {content_str}"
+        return f"{self.path}{modifier_str} {self.type} {self.name}"
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:
@@ -332,8 +257,6 @@ class Statement(UUIDModel, CrudModel):
     class Meta:
         ordering = ["order_key"]
         default_manager_name = "objects"
-        # no constraint on contents since statements may be partially defined
-        #  (during creation, editing and after reference deletion)
         constraints = [
             # check that order key is unique within parent/file (if not "deleted")
             models.UniqueConstraint(
@@ -345,10 +268,5 @@ class Statement(UUIDModel, CrudModel):
                 fields=["parent", "order_key"],
                 name="bench_statement_parent_order_key_ak",
                 condition=models.Q(parent__isnull=False, deleted_at__isnull=True),
-            ),
-            # if reference is set symbol type must also be set
-            models.CheckConstraint(
-                check=models.Q(reference__isnull=True) | models.Q(symbol_type__isnull=False),
-                name="bench_statement_reference_symbol_type_set",
             ),
         ]

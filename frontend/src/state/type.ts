@@ -1,28 +1,28 @@
-import { ExpectationModifier, SymbolType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { ExpectationModifier, StatementType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
 import { reverseRecord } from "@/utils/functools";
 
-export const SYMBOL_TYPE_KEYWORD: Record<SymbolType, string> = {
-  [SymbolType.Type]: "type",
-  [SymbolType.Code]: "code",
-  [SymbolType.Dataset]: "table",
-  [SymbolType.Value]: "value",
-  [SymbolType.Model]: "model",
-  [SymbolType.Expectation]: "expect",
-  [SymbolType.Task]: "task",
-  [SymbolType.Requirement]: "require",
-  [SymbolType.Build]: "build",
-  [SymbolType.Block]: "block",
+export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
+  [StatementType.Type]: "type",
+  [StatementType.Task]: "task",
+  [StatementType.Code]: "code",
+  [StatementType.Value]: "value",
+  [StatementType.Dataset]: "table",
+  [StatementType.Model]: "model",
+  [StatementType.Expectation]: "expect",
+  [StatementType.Block]: "block",
 };
-export const SUPPORTED_SYMBOL_TYPES = [
-  SymbolType.Type,
-  SymbolType.Code,
-  SymbolType.Dataset,
-  SymbolType.Value,
-  SymbolType.Model,
-  SymbolType.Expectation,
-  SymbolType.Task,
+export const SUPPORTED_STATEMENT_TYPES = [
+  StatementType.Blank,
+  StatementType.Comment,
+  StatementType.Type,
+  StatementType.Code,
+  StatementType.Dataset,
+  StatementType.Value,
+  StatementType.Model,
+  StatementType.Expectation,
+  StatementType.Task,
 ];
-export const SYMBOL_TYPE_BY_KEYWORD: Record<string, SymbolType> = reverseRecord(SYMBOL_TYPE_KEYWORD);
+export const STATEMENT_TYPE_BY_KEYWORD: Partial<Record<string, StatementType>> = reverseRecord(STATEMENT_TYPE_KEYWORD);
 export const MODIFIER_KEYWORD: Record<ExpectationModifier, string> = {
   [ExpectationModifier.Like]: "like",
   [ExpectationModifier.Unlike]: "unlike",
@@ -30,7 +30,7 @@ export const MODIFIER_KEYWORD: Record<ExpectationModifier, string> = {
 };
 export const SUPPORTED_MODIFIERS = [ExpectationModifier.Like, ExpectationModifier.Unlike, ExpectationModifier.Check];
 export const MODIFIER_BY_KEYWORD: Record<string, ExpectationModifier> = reverseRecord(MODIFIER_KEYWORD);
-export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
+export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
   [TypeTag.Number]: "number",
@@ -41,8 +41,8 @@ export const TYPETAG_KEYWORD: Record<TypeTag, string> = {
   [TypeTag.Struct]: "type",
   [TypeTag.Union]: "union",
 };
-export const TYPETAG_BY_KEYWORD: Record<string, TypeTag> = reverseRecord(TYPETAG_KEYWORD);
-export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
+export const TYPETAG_BY_KEYWORD: Partial<Record<string, TypeTag>> = reverseRecord(TYPETAG_KEYWORD);
+export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   // string
   [TypeHint.Name]: "name",
   [TypeHint.Uuid]: "UUID",
@@ -72,7 +72,7 @@ export const TYPEHINT_KEYWORD: Record<TypeHint, string> = {
   [TypeHint.Audio]: "audio",
   [TypeHint.Video]: "video",
 };
-export const SUPPORTED_TYPEHINTS: Record<TypeHint, TypeTag> = {
+export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // string
   [TypeHint.Name]: TypeTag.String,
   [TypeHint.Uuid]: TypeTag.String,
@@ -98,9 +98,8 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
     builtin = TYPEHINT_KEYWORD[hint];
   } else if (tag in TYPETAG_KEYWORD) {
     builtin = TYPETAG_KEYWORD[tag];
-  } else {
-    return null;
   }
+  if (builtin == null) return null;
   return builtin.slice(0, 1).toUpperCase() + builtin.slice(1); // always uppercase first letter
 }
 

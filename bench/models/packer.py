@@ -18,7 +18,7 @@ import pytz
 from django.db.models import Model, QuerySet
 
 from bench import models
-from bench.bench import StatementType, SymbolType, wire
+from bench.bench import StatementType, wire
 from bench.bench.const import TypeFlag, TypeHint, TypeTag
 from bench.bench.wire import ModuleObjectType, ModuleTree
 from bench.runtime.common.type import RunErrorData
@@ -184,7 +184,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             type=StatementType(statement.type),
             name=statement.name,
             text=statement.text,
-            symbol_type=SymbolType(statement.symbol_type) if statement.symbol_type else None,
+            symbol_type=StatementType(statement.symbol_type) if statement.symbol_type else None,
         )
 
     def unpack(
@@ -255,6 +255,7 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
             **statement_data.__dict__,
             modifier=statement.modifier,
             description=statement.description,
+            reference_id=statement.reference_id,
         )
 
     def unpack(
@@ -263,6 +264,7 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
         statement = super().unpack(data, parent)
         statement.modifier = data.modifier
         statement.description = data.description
+        statement.reference_id = data.reference_id
         return parent
 
 

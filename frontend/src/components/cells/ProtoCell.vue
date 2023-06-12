@@ -1,55 +1,21 @@
 <script lang="ts" setup>
-import ModifierCell from "@/components/cells/ModifierCell.vue";
-import ReferenceComboCell from "@/components/cells/ReferenceComboCell.vue";
-import ProtoSymbolTypeCell from "@/components/cells/ProtoSymbolTypeCell.vue";
-import SymbolTypeCell from "@/components/cells/SymbolTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
+import ModifierCell from "@/components/cells/ModifierCell.vue";
+import ProtoStatementTypeCell from "@/components/cells/ProtoStatementTypeCell.vue";
+import StatementTypeCell from "@/components/cells/StatementTypeCell.vue";
+import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
-import { StatementType, SymbolType } from "@/gql/graphql";
-import { SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
-import { useCurrentModule, type InterpStatement } from "@/state/module";
+import { ref, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean }>();
 
 const context = useStatementContext();
 
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const gapRef: Ref<InstanceType<typeof ProtoSymbolTypeCell> | null> = ref(null);
-const nameRef: Ref<InstanceType<typeof ReferenceComboCell> | null> = ref(null);
+const gapRef: Ref<InstanceType<typeof ProtoStatementTypeCell> | null> = ref(null);
 
 // symbols available for reference
 const module = useCurrentModule();
-const availableSymbols = module.statementsLike(
-  computed(() => ({
-    types: [StatementType.Symbol],
-    symbolTypes: context.statement.value.symbolType != null ? [context.statement.value?.symbolType] : undefined,
-    includeDependencies: true,
-  }))
-);
-
-// set symbol type if query starts with it and it's not yet set (like in ProtoSymbolTypeCell)
-// define in place if it ends with :
-watch(
-  () => nameRef.value?.query,
-  (newContent) => {
-    if (
-      newContent == null ||
-      context.statement.value.type != StatementType.Blank ||
-      context.statement.value.symbolType != null
-    ) {
-      return;
-    }
-    // :ParseStatementInput
-    const endsInSep =
-      newContent.endsWith(" ") || newContent.endsWith(" ") || newContent.endsWith(":") || newContent.endsWith(";");
-    newContent = newContent.slice(0, -1);
-    if (endsInSep && SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContent])) {
-      context.setSymbolType(SYMBOL_TYPE_BY_KEYWORD[newContent]);
-      nameRef.value?.clearQuery();
-    }
-  }
-);
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -59,43 +25,17 @@ function deleteModifierOrAbove() {
   }
 }
 
-function deleteSymbolTypeOrModifier() {
-  if (context.statement.value.symbolType != null) {
-    context.setSymbolType(null);
-  } else {
-    context.setModifier(null);
-  }
-  gapRef.value?.focus();
-}
-
-function morpthToSymbol(name: string) {
-  context.morpthToSymbol(context.statement.value.symbolType ?? null, name);
-}
-
-function morphToReference(symbol: InterpStatement) {
-  if (symbol.symbolType == null || symbol.name == null) {
-    throw new Error("cannot set reference to: " + symbol);
-  }
-  context.setReference(symbol);
-  context.morphToReference(symbol.symbolType, symbol.name);
-}
-
-function morphed() {
-  nextTick(() => nameRef.value?.focus());
-}
-
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    if (context.statement.value.symbolType == null) {
+    if (context.statement.value.type == null) {
       // prever gap if we don't have a symbol type declared yet
       gapRef.value?.focus();
     } else {
-      nameRef.value?.focus();
+      gapRef.value?.focus();
     }
   },
   blur: () => {
     startRef.value?.blur();
-    nameRef.value?.blur();
     gapRef.value?.blur();
   },
 });
@@ -117,44 +57,22 @@ defineExpose({
       :readonly="context.readonly.value"
     />
     <ModifierCell v-if="context.statement.value.modifier" />
-    <ProtoSymbolTypeCell
+    <ProtoStatementTypeCell
       class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
       @delete-left="deleteModifierOrAbove"
       @navigate-left="startRef?.focus"
-      @navigate-right="nameRef?.focus"
       @enter="context.insertAbove"
       @escape="context.escape"
-      @morphed="morphed"
     />
-    <SymbolTypeCell v-if="context.statement.value.symbolType" />
-    <ReferenceComboCell
-      v-if="context.statement.value.symbolType || context.statement.value.modifier"
-      ref="nameRef"
-      :reference="context.reference.value"
-      :self="context.statement.value"
-      :available-symbols="availableSymbols"
-      class="mx-0.5"
-      @navigate-up="context.navigateUp"
-      @navigate-down="context.navigateDown"
-      @delete-left="deleteSymbolTypeOrModifier"
-      @navigate-left="gapRef?.focus"
-      @insert-below="context.insertBelow"
-      :can-define-in-place="
-        context.statement.value.symbolType != null && context.statement.value.symbolType != SymbolType.Model
-      "
-      can-define-anonymous
-      @define-in-place="morpthToSymbol"
-      @set-reference="(ref) => ref == null || morphToReference(ref)"
-      @escape="context.escape"
-    />
+    <StatementTypeCell v-if="context.statement.value.type" />
     <!-- Empty dots / prompt -->
     <div
       v-if="
         showDots &&
-        context.statement.value.symbolType == null &&
+        context.statement.value.type == null &&
         context.statement.value.modifier == null &&
         gapRef?.content?.length == 0 &&
         context.focused.value

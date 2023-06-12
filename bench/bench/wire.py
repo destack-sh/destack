@@ -13,7 +13,7 @@ from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from bench import bench as language
-from bench.bench import Code, IssueType, StatementType, SymbolType, TypeHint, TypeTag
+from bench.bench import Code, IssueType, StatementType, TypeHint, TypeTag
 from bench.bench.const import ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag
 from bench.bench.dataset import Query, Sort
 from bench.bench.issue import IssueKind
@@ -45,7 +45,7 @@ class ModuleObjectType(enum.StrEnum):
 MOT = ModuleObjectType
 ParentsT = set[MOT]
 NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
-NodeT = typing.TypeVar("NodeT", bound="LanguageObject")
+NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 DataT = typing.TypeVar("DataT")
 ObjectT = typing.TypeVar("ObjectT")
 
@@ -285,7 +285,7 @@ class StatementData(NodeData, Ordered, Revisioned):
     type: StatementType
     name: Optional[str]
     text: Optional[str]
-    symbol_type: Optional[SymbolType]
+    symbol_type: Optional[StatementType]
 
     def __str__(self):
         parent_str = f"{self.parent_id}:" if self.parent_id else ""
@@ -342,7 +342,7 @@ class StatementPacker(NodePacker[StatementData, language.Statement]):
 
 @dataclass(slots=True)
 class SymbolData(StatementData):
-    symbol_type: SymbolType
+    symbol_type: StatementType
 
 
 @dataclass(slots=True)
@@ -428,6 +428,7 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, language.Task]):
 class ExpectationData(SymbolData):
     description: Optional[str]
     modifier: Optional[ExpectationModifier]
+    reference_id: Optional[UUID]
 
 
 @node_packer(MOT.STATEMENT, ExpectationData, language.Expectation)
@@ -441,6 +442,7 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, language.Ex
             modifier=symbol.modifier,
             description=symbol.description,
             symbol_type=symbol.symbol_type,
+            reference_id=symbol.reference.id if symbol.reference else None,
         )
 
     def unpack(
@@ -448,7 +450,10 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, language.Ex
     ) -> language.Expectation:
         statement = super().unpack(symbol, parent)
         return language.Expectation(
-            **statement.__dict__, modifier=symbol.modifier, description=symbol.description
+            **statement.__dict__,
+            modifier=symbol.modifier,
+            description=symbol.description,
+            reference=symbol.reference_id,
         )
 
 
@@ -639,14 +644,14 @@ class DatasetPacker(NodePacker[DatasetData, language.Dataset]):
 
 
 SYMBOL_DATA_CLASS_BY_TYPE = {
-    SymbolType.TYPE: TypeData,
-    SymbolType.TASK: TaskData,
-    SymbolType.EXPECTATION: ExpectationData,
-    SymbolType.CODE: CodeData,
-    SymbolType.MODEL: ModelData,
-    SymbolType.REQUIREMENT: RequirementData,
-    SymbolType.DATASET: DatasetData,
-    SymbolType.VALUE: ValueData,
+    StatementType.TYPE: TypeData,
+    StatementType.TASK: TaskData,
+    StatementType.EXPECTATION: ExpectationData,
+    StatementType.CODE: CodeData,
+    StatementType.MODEL: ModelData,
+    StatementType.REQUIREMENT: RequirementData,
+    StatementType.DATASET: DatasetData,
+    StatementType.VALUE: ValueData,
 }
 SYMBOL_TYPE_BY_DATA_CLASS = {v: k for k, v in SYMBOL_DATA_CLASS_BY_TYPE.items()}
 

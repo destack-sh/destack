@@ -9,7 +9,7 @@ import structlog
 
 import bench.bench
 from bench import bench as language
-from bench.bench import Module, SymbolType, wire
+from bench.bench import Module, StatementType, wire
 from bench.bench.issue import IssueCollector
 from bench.bench.wire import ModuleReference
 from bench.utils.func import wrap_task
@@ -78,7 +78,7 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     """Returns the set of module ids required by the given module source (not transitive)"""
     requirements_ids: set[ModuleReference] = set()
     for statement in chain.from_iterable(file.statements for file in source.files):
-        if statement.symbol_type == SymbolType.REQUIREMENT:
+        if statement.symbol_type == StatementType.REQUIREMENT:
             if not isinstance(statement.reference_module.id, UUID):
                 raise ValueError(f"requirement must specify reference module id: {statement}")
             requirements_ids.add(statement.reference_module)

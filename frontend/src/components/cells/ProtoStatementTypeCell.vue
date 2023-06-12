@@ -2,9 +2,14 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
-import { ExpectationModifier, SymbolType, TypeTag } from "@/gql/graphql";
+import { ExpectationModifier, StatementType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { MODIFIER_BY_KEYWORD, SUPPORTED_MODIFIERS, SUPPORTED_SYMBOL_TYPES, SYMBOL_TYPE_BY_KEYWORD } from "@/state/type";
+import {
+  MODIFIER_BY_KEYWORD,
+  SUPPORTED_MODIFIERS,
+  SUPPORTED_STATEMENT_TYPES,
+  STATEMENT_TYPE_BY_KEYWORD,
+} from "@/state/type";
 import { TypeFlag } from "@/state/module";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
@@ -27,7 +32,7 @@ const context = useStatementContext();
 const content: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(SYMBOL_TYPE_BY_KEYWORD)].reduce(
+const MAX_KEYWORD_LENGTH = [...Object.keys(MODIFIER_BY_KEYWORD), ...Object.keys(STATEMENT_TYPE_BY_KEYWORD)].reduce(
   (max, keyword) => Math.max(max, keyword.length),
   0
 );
@@ -68,16 +73,16 @@ function handleKeyword(newContentTrim: string): boolean {
     SUPPORTED_MODIFIERS.includes(MODIFIER_BY_KEYWORD[newContentTrim])
   ) {
     context.setModifier(MODIFIER_BY_KEYWORD[newContentTrim]);
-  } else if (SUPPORTED_SYMBOL_TYPES.includes(SYMBOL_TYPE_BY_KEYWORD[newContentTrim])) {
-    context.morpthToSymbol({ symbolType: SYMBOL_TYPE_BY_KEYWORD[newContentTrim] });
+  } else if (SUPPORTED_STATEMENT_TYPES.includes(STATEMENT_TYPE_BY_KEYWORD[newContentTrim])) {
+    context.morpthToSymbol({ type: STATEMENT_TYPE_BY_KEYWORD[newContentTrim] });
   } else if (newContentTrim == "enum" || newContentTrim == "choice") {
-    context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum });
+    context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum });
   } else if (newContentTrim == "struct") {
-    context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct });
+    context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct });
   } else if (newContentTrim == "record") {
-    context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: 0 });
+    context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: 0 });
   } else if (newContentTrim == "table") {
-    context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray });
+    context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: TypeFlag.IsArray });
   } else {
     return false;
   }
@@ -103,43 +108,41 @@ const commands = computed(() => {
     {
       label: "task",
       description: "Instruct AI to do something.",
-      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Task }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ type: StatementType.Task }), emit("morphed")),
     },
     {
       label: "expect",
       description: "Specify desired behaviour.",
-      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Expectation }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
     },
     {
       label: "struct",
       description: "Define a data structure.",
       action: () => (
-        context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
+        context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
       ),
     },
     {
       label: "choice",
       description: "Define a choice type.",
-      action: () => (
-        context.morpthToSymbol({ symbolType: SymbolType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")
-      ),
+      action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
     },
     {
       label: "record",
       description: "Configure context and secrets.",
-      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: 0 }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
       label: "table",
       description: "Define state or examples.",
       action: () => (
-        context.morpthToSymbol({ symbolType: SymbolType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
+        context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),
     },
     {
       label: "code",
       description: "Implement logic in Python.",
-      action: () => (context.morpthToSymbol({ symbolType: SymbolType.Code }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
     },
   ];
 

@@ -541,7 +541,6 @@ type Mutation {
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
-  updateStatementModifier(input: StatementSetExpectationModifierInput!): StatementOperationInfo!
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
@@ -550,6 +549,7 @@ type Mutation {
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
+  updateSymbolModifier(input: StatementSetExpectationModifierInput!): StatementOperationInfo!
   updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
   updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
   createField(input: FieldCreateInput!): FieldOperationInfo!
@@ -1491,7 +1491,6 @@ type Statement implements Node & SimplyTyped {
   file: File!
   revision: Int!
   type: StatementType!
-  modifier: String
   name: String
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1502,7 +1501,7 @@ type Statement implements Node & SimplyTyped {
   descendants: [Statement!]!
   orderKey: String!
   text: String
-  symbolType: SymbolType
+  modifier: String
   rootTypeFlags: Int
   lang: String
   code: String
@@ -1563,7 +1562,6 @@ input StatementCreateInput {
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
-  symbolType: SymbolType = null
   description: String = null
   lang: String = null
   text: String = null
@@ -1581,7 +1579,6 @@ input StatementFilter {
 input StatementMorphInput {
   id: GlobalID!
   type: StatementType!
-  symbolType: SymbolType = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
@@ -1617,9 +1614,17 @@ input StatementSoftDeleteInput {
 
 """The type of Bench statement."""
 enum StatementType {
-  SYMBOL
   COMMENT
   BLANK
+  TYPE
+  TASK
+  EXPECTATION
+  CODE
+  MODEL
+  VALUE
+  DATASET
+  REQUIREMENT
+  BLOCK
 }
 
 input StatementUpdateTextInput {
@@ -1632,19 +1637,6 @@ type Subscription {
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
   executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, runnableIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
-}
-
-"""The type of symbol content."""
-enum SymbolType {
-  TYPE
-  TASK
-  EXPECTATION
-  CODE
-  MODEL
-  VALUE
-  DATASET
-  REQUIREMENT
-  BLOCK
 }
 
 input SymbolUpdateCodeInput {

@@ -6,7 +6,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.bench import SymbolType, wire
+from bench.bench import StatementType, wire
 from bench.bench.const import (
     ExecutionTriggerType,
     LiteralValue,
@@ -144,7 +144,7 @@ class ModuleWorker:
         # get the runconfig
         try:
             if runnable_type:
-                runnable_type = SYMBOL_CLASS_BY_TYPE[SymbolType(runnable_type)]
+                runnable_type = SYMBOL_CLASS_BY_TYPE[StatementType(runnable_type)]
             else:
                 runnable_type = None
             runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)

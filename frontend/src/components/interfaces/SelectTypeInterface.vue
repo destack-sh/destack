@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import TypePreview from "@/components/interfaces/TypePreview.vue";
 import { ANY_FIELD, makeField, type SimpleType } from "@/state/statement";
-import { StatementType, SymbolType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { TypeFlag, useCurrentModule } from "@/state/module";
@@ -52,8 +52,7 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
 });
 
 const availableSymbols = module.statementsLike({
-  types: [StatementType.Symbol],
-  symbolTypes: [SymbolType.Type],
+  types: [StatementType.Type],
 });
 const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {
   const types = [];
