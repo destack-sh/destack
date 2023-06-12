@@ -5,10 +5,9 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench import StatementType
 from bench.bench.const import LiteralValue
 from bench.bench.type import Code, Model, Statement, Task
 from bench.utils.utils import to_pyidentifier_multi
@@ -100,9 +99,9 @@ class PyFrameData:
     @staticmethod
     def clean(stack: list[PyFrameData], from_code: "Code", session: "Session") -> list[PyFrameData]:
         code_by_method: dict[str, Code] = {
-            instance.transform.method_name: cast(Code, instance)
-            for instance in session.instances.values()
-            if instance.symbol_type == StatementType.CODE and instance.transform is not None
+            symbol.transform.method_name: symbol
+            for symbol in session.instances.values()
+            if isinstance(symbol, Code) and symbol.transform is not None
         }
 
         transform = from_code.transform

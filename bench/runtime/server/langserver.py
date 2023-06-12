@@ -60,7 +60,7 @@ from bench.runtime.common.interp import (
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.common.mutate import map_mutation_to_public
-from bench.runtime.server.mutate import read_packed_module, write_mutations
+from bench.runtime.server.mutate import write_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
@@ -85,7 +85,7 @@ class ModuleDB:
         if module_id in self._cached_modules:
             return self._cached_modules[module_id]
         project_version = await ProjectVersion.objects.aget(id=module_id)
-        module = await sync_to_async(read_packed_module)(project_version)
+        module = await sync_to_async(packer.pack_module)(project_version)
         if self.cache_committed and project_version.committed:
             self._cached_modules[module_id] = module, project_version.id
         return module, project_version.project_id

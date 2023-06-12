@@ -20,7 +20,7 @@ from django.db.models import Model, QuerySet
 from bench import models
 from bench.bench import StatementType, wire
 from bench.bench.const import TypeFlag, TypeHint, TypeTag
-from bench.bench.wire import ModuleObjectType, ModuleTree
+from bench.bench.wire import ModuleObjectType
 from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
@@ -56,62 +56,122 @@ class NodePacker(typing.Generic[NodeDataT, NodeT]):
 
 
 class PackContext(abc.ABC):
-    def visit(self, model: ModelT, t: MOT) -> None:
-        pass
+    # nothing here yet (if we want visit(...), consider how it affects filtering)
+    pass
 
 
-# registered packers, where each MOT may have multiple packers (subtypes) per model type
-_node_packers: dict[MOT, dict[typing.Type[NodeDataT], "NodePacker"]] = defaultdict(dict)
-MOT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MOT] = {}
+PackFilter = typing.Callable[[QuerySet[ModelT]], QuerySet[ModelT]]
 
 
-def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT]):
+class PackMultiFilter:
+    def __init__(self, filters: list[tuple[typing.Type[ModelT], PackFilter]]):
+        self.filters: dict[typing.Type[ModelT], list[PackFilter]] = defaultdict(list)
+        for type, filter in filters:
+            self.filters[type].append(filter)
+
+    def filter(self, type: ModelT, callable: PackFilter):
+        self.filters[type].append(callable)
+
+    def __call__(self, qs: QuerySet[Model]) -> QuerySet[Model]:
+        applicable_filters = self.filters.get(qs.model, [])
+        for filter in applicable_filters:
+            qs = filter(qs)
+        return qs
+
+
+DEFAULT_PACK_FILTERS = [
+    (models.File, lambda qs: qs.filter(deleted_at__isnull=True)),
+    (models.Statement, lambda qs: qs.filter(deleted_at__isnull=True, commented=False)),
+    (models.Field, lambda qs: qs.filter(deleted_at__isnull=True)),
+]
+DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
+
+# registered packers
+# some node models correspond to multiple actual module node / node data types
+_node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
+_node_packers_by_node: dict[tuple[typing.Type[NodeT], Optional[str]], NodePacker] = {}
+
+
+def node_packer(
+    t: MOT,
+    data_t: typing.Type[NodeDataT],
+    node_t: typing.Type[NodeT],
+    subtype: Optional[str] = None,
+):
     """Decorator to register a node packer for a given type"""
 
     def decorator(cls: "NodePacker"):
-        if data_t in _node_packers[t]:
+        if data_t in _node_packers_by_data:
             raise ValueError(
-                f"packer for {t} and {data_t} already registered: {_node_packers[t][data_t]}"
+                f"packer for {data_t} already registered: {_node_packers_by_data[data_t]}"
             )
-        if data_t in MOT_BY_DATA_CLASS:
+        if (node_t, subtype) in _node_packers_by_node:
             raise ValueError(
-                f"data class {data_t} already registered for {MOT_BY_DATA_CLASS[data_t]}"
+                f"packer for {node_t} already registered: {_node_packers_by_node[(node_t, subtype)]}"
             )
-        _node_packers[t][data_t] = cls
-        MOT_BY_DATA_CLASS[data_t] = t
+        packer = cls()
+        _node_packers_by_data[data_t] = packer
+        _node_packers_by_node[(node_t, subtype)] = packer
         return cls
 
     return decorator
 
 
-DEFAULT_NODE_BY_MOT = {
-    MOT.MODULE: models.ProjectVersion,
-    MOT.FILE: models.File,
-    MOT.STATEMENT: models.Statement,
-    MOT.FIELD: models.Field,
-}
+def get_node_packer(node: NodeT) -> NodePacker:
+    if isinstance(node, models.Statement):
+        return _node_packers_by_node[(models.Statement, node.type)]
+    else:
+        return _node_packers_by_node[(type(node), None)]
 
 
-def get_node_packer(t: MOT, data_t: Optional[typing.Type[NodeDataT]] = None):
-    """Gets the packer for the given type (must specify data_t if more than one)"""
-    packers = _node_packers[t]
-    if data_t is None:
-        if len(packers) != 1:
-            raise ValueError(f"must specify data_t for {t} (got {packers})")
-        return next(iter(packers.values()))
-    return packers[data_t]
+def pack_module(module: models.ProjectVersion) -> wire.ModuleData:
+    """Pack a module (convenience wrapper)"""
+    roots, nodes = pack_node(module)
+    roots[0].nodes = nodes
+    return roots[0]
 
 
-def pack_node(model: ModelT) -> tuple[NodeDataT, list[NodeDataT]]:
+def pack_node(
+    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER
+) -> tuple[list[NodeDataT], list[NodeDataT]]:
     """Pack a node and its descendants"""
-    tree = ModuleTree()
+    packed: dict[UUID, NodeDataT] = {}
+    packed_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
     ctx = PackContext()
 
-    to_pack: list[ModelT] = [model]
-    while to_pack is not None:
-        raise NotImplementedError
+    to_pack: list[ModelT] = [*models]
+    while to_pack:
+        # assemble different packers and nodes by type
+        packers: dict[NodePacker, list[ModelT]] = defaultdict(list)
+        for node in to_pack:
+            packer = get_node_packer(node)
+            packers[packer].append(node)
 
-    return list(tree.nodes.values())
+        # walk each packer
+        # merge querysets of the same model
+        querysets: dict[typing.Type[ModelT], QuerySet[ModelT]] = {}
+        for packer, nodes in packers.items():
+            for qs in packer.walk(nodes, ctx):
+                qs = filter(qs)
+                if packed_by_node_t[qs.model]:
+                    qs = qs.exclude(id__in=packed_by_node_t[qs.model])
+                existing_qs = querysets.get(qs.model)
+                # skip if existing queryset is the same, otherwise union
+                if existing_qs is None:
+                    querysets[qs.model] = qs
+                elif existing_qs.query != qs.query:
+                    querysets[qs.model] = querysets[qs.model].union(qs)
+            for node in nodes:
+                packed[node.id] = packer.pack(node)
+                packed_by_node_t[type(node)].append(node.id)
+
+        # get the next set of nodes to pack
+        to_pack = []
+        for qs in querysets.values():
+            to_pack.extend(qs)
+
+    roots = [packed[node.id] for node in models]
+    return roots, list(packed.values())
 
 
 def unpack_node(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
@@ -121,7 +181,7 @@ def unpack_node(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
 
 def pack_node_flat(model: ModelT, mot: ModuleObjectType) -> NodeDataT:
     """Pack a node (flat)"""
-    packer = _node_packers[mot][type(model)]
+    packer = get_node_packer(model)
     return packer.pack(model)
 
 
@@ -133,10 +193,9 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
         return wire.ModuleData(
             id=module.id,
-            parent_id=None,
-            name=module.name,
-            revision=module.revision,
+            name=module.project.name,
             committed=module.committed,
+            parent_id=None,
         )
 
     def unpack(
@@ -183,8 +242,6 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             order_key=statement.order_key,
             type=StatementType(statement.type),
             name=statement.name,
-            text=statement.text,
-            symbol_type=StatementType(statement.symbol_type) if statement.symbol_type else None,
         )
 
     def unpack(
@@ -198,12 +255,39 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             order_key=data.order_key,
             type=data.type.value,
             name=data.name,
-            text=data.text,
-            symbol_type=data.symbol_type.value if data.symbol_type else None,
         )
 
 
-@node_packer(MOT.STATEMENT, wire.TypeData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.BlankData, models.Statement, StatementType.BLANK)
+class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.BlankData:
+        statement_data = super().pack(statement)
+        return wire.BlankData(**statement_data.__dict__)
+
+    def unpack(
+        self, data: wire.BlankData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        return super().unpack(data, parent)
+
+
+@node_packer(MOT.STATEMENT, wire.CommentData, models.Statement, StatementType.COMMENT)
+class CommentPacker(StatementPacker, NodePacker[wire.CommentData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.CommentData:
+        statement_data = super().pack(statement)
+        return wire.CommentData(
+            **statement_data.__dict__,
+            html=statement.text,
+        )
+
+    def unpack(
+        self, data: wire.CommentData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        statement = super().unpack(data, parent)
+        statement.text = data.html
+        return statement
+
+
+@node_packer(MOT.STATEMENT, wire.TypeData, models.Statement, StatementType.TYPE)
 class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
@@ -212,6 +296,7 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         statement_data = super().pack(statement)
         return wire.TypeData(
             **statement_data.__dict__,
+            description=statement.description,
             tag=TypeTag(statement.root_type_tag),
             flags=TypeFlag(statement.root_type_flags or 0),
         )
@@ -220,12 +305,13 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         self, data: wire.TypeData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
+        statement.description = data.description
         statement.root_type_tag = data.tag.value
         statement.root_type_flags = data.flags.value
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.TaskData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.TaskData, models.Statement, StatementType.TASK)
 class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
@@ -247,7 +333,7 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.ExpectationData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.ExpectationData, models.Statement, StatementType.EXPECTATION)
 class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.ExpectationData:
         statement_data = super().pack(statement)
@@ -268,7 +354,7 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
         return parent
 
 
-@node_packer(MOT.STATEMENT, wire.CodeData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.CodeData, models.Statement, StatementType.CODE)
 class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
@@ -292,7 +378,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.ModelData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.ModelData, models.Statement, StatementType.MODEL)
 class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.ModelData:
         statement_data = super().pack(statement)
@@ -311,7 +397,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.RequirementData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.RequirementData, models.Statement, StatementType.REQUIREMENT)
 class RequirementPacker(StatementPacker, NodePacker[wire.RequirementData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.RequirementData:
         statement_data = super().pack(statement)
@@ -330,7 +416,7 @@ class RequirementPacker(StatementPacker, NodePacker[wire.RequirementData, models
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.ValueData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.ValueData, models.Statement, StatementType.VALUE)
 class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
@@ -338,19 +424,27 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
     def pack(self, statement: models.Statement) -> wire.ValueData:
         statement_data = super().pack(statement)
         return wire.ValueData(
-            **statement_data.__dict__, modifier=statement.modifier, value=statement.value
+            **statement_data.__dict__,
+            description=statement.description,
+            tag=statement.root_type_tag,
+            flags=statement.root_type_flags,
+            modifier=statement.modifier,
+            value=statement.value,
         )
 
     def unpack(
         self, data: wire.ValueData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
+        statement.description = data.description
+        statement.root_type_tag = data.tag
+        statement.root_type_flags = data.flags
         statement.modifier = data.modifier
         statement.value = data.value
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement)
+@node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement, StatementType.DATASET)
 class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
@@ -359,14 +453,16 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         statement_data = super().pack(statement)
         return wire.DatasetData(
             **statement_data.__dict__,
+            description=statement.description,
             modifier=statement.modifier,
-            versioned=statement.dataset.versioned,
+            versioned=statement.dataset.versioned if statement.dataset else False,
         )
 
     def unpack(
         self, data: wire.DatasetData, parent: models.File | models.Statement
     ) -> models.Dataset:
         statement = super().unpack(data, parent)
+        statement.description = data.description
         statement.modifier = data.modifier
         statement.dataset = models.Dataset(
             id=data.id,
@@ -408,6 +504,9 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
             reference_id=data.reference_id,
             metadata=data.metadata,
         )
+
+
+# not module data
 
 
 _data_packers: dict[typing.Type[DataT], "DataPacker"] = {}

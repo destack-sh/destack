@@ -16,7 +16,7 @@ from bench.bench.const import (
 )
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.session import Session
-from bench.bench.type import SYMBOL_CLASS_BY_TYPE, Code, Module, Task
+from bench.bench.type import STATEMENT_CLASS_BY_TYPE, Code, Module, Task
 from bench.bench.unsecure import RunError, run
 from bench.bench.wire import ExecutionFrameData
 from bench.msg import NMessage, NMessageType
@@ -144,7 +144,7 @@ class ModuleWorker:
         # get the runconfig
         try:
             if runnable_type:
-                runnable_type = SYMBOL_CLASS_BY_TYPE[StatementType(runnable_type)]
+                runnable_type = STATEMENT_CLASS_BY_TYPE[StatementType(runnable_type)]
             else:
                 runnable_type = None
             runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)

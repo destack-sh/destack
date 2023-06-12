@@ -1,15 +1,13 @@
 import asyncio
 from dataclasses import dataclass
 from functools import partial
-from itertools import chain
 from typing import Awaitable, Callable, Optional, cast
 from uuid import UUID
 
 import structlog
 
-import bench.bench
 from bench import bench as language
-from bench.bench import Module, StatementType, wire
+from bench.bench import Module, wire
 from bench.bench.issue import IssueCollector
 from bench.bench.wire import ModuleReference
 from bench.utils.func import wrap_task
@@ -77,11 +75,11 @@ class LanguageInterpreter:
 def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     """Returns the set of module ids required by the given module source (not transitive)"""
     requirements_ids: set[ModuleReference] = set()
-    for statement in chain.from_iterable(file.statements for file in source.files):
-        if statement.symbol_type == StatementType.REQUIREMENT:
-            if not isinstance(statement.reference_module.id, UUID):
-                raise ValueError(f"requirement must specify reference module id: {statement}")
-            requirements_ids.add(statement.reference_module)
+    for node in source.nodes:
+        if isinstance(node, wire.RequirementData):
+            if not isinstance(node.reference_module.id, UUID):
+                raise ValueError(f"requirement must specify reference module id: {node}")
+            requirements_ids.add(node.reference_module)
     return requirements_ids
 
 
@@ -89,7 +87,7 @@ def interp_module(source: wire.ModuleData) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     collector = IssueCollector()
-    module: Module = wire.unpack_node(source)
+    module: Module = wire.unpack_node(source, parent=None)
     module.index(on_issue=collector)
     module.interp(on_issue=collector)
     logger.debug("module.interp.done", module=module)

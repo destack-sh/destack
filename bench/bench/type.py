@@ -305,7 +305,6 @@ class Statement(ModuleNode, HasSession, Scope):
     order_key: str | None = None
     type: StatementType = StatementType.BLANK
     name: Optional[str] = None
-    text: Optional[str] = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
@@ -317,15 +316,12 @@ class Statement(ModuleNode, HasSession, Scope):
             self.parent_scope = self.parent or self.file
 
     def __str__(self):
-        return f"{self.path} {self.type} {self.symbol_type} {self.name}"
+        return f"{self.path} {self.type} {self.name}"
 
     def __repr__(self):
         return f"<{self.__class__.name} {self}>"
 
     @property
-    def symbol_type(self) -> Optional[StatementType]:
-        return SYMBOL_TYPE_BY_CLASS.get(type(self))
-
     @property
     def path(self) -> str:
         if self.file is None:
@@ -373,6 +369,26 @@ class Statement(ModuleNode, HasSession, Scope):
 
     def interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
         pass
+
+
+@dataclass(repr=False)
+class Blank(Statement):
+    """A blank statement."""
+
+    type: StatementType = StatementType.BLANK
+
+
+@dataclass(repr=False)
+class Comment(Statement):
+    """A comment that's not semantic/interpreted by default."""
+
+    type: StatementType = StatementType.COMMENT
+    html: str | None = None
+
+    @property
+    def text(self) -> str:
+        """The rendered text of this comment."""
+        return self.html or ""
 
 
 StatementReference = typing.Union[Statement, StatementPath, UUID]
@@ -1150,7 +1166,7 @@ class Block(Symbol):
         pass
 
 
-SYMBOL_CLASS_BY_TYPE: dict[StatementType, typing.Type[Symbol]] = {
+STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Symbol]] = {
     StatementType.TYPE: Type,
     StatementType.TASK: Task,
     StatementType.EXPECTATION: Expectation,
@@ -1161,21 +1177,17 @@ SYMBOL_CLASS_BY_TYPE: dict[StatementType, typing.Type[Symbol]] = {
     StatementType.REQUIREMENT: Requirement,
     StatementType.BLOCK: Block,
 }
-SYMBOL_TYPE_BY_CLASS: dict[typing.Type[Symbol], StatementType] = {
-    v: k for k, v in SYMBOL_CLASS_BY_TYPE.items()
+STATEMENT_TYPE_BY_CLASS: dict[typing.Type[Symbol], StatementType] = {
+    v: k for k, v in STATEMENT_CLASS_BY_TYPE.items()
 }
-SYMBOL_FIELDS_BY_TYPE = {t: fields(c) for t, c in SYMBOL_CLASS_BY_TYPE.items()}
-SYMBOL_FIELDS_NAMES_BY_TYPE = {
-    t: {f.name for f in fields(c)} for t, c in SYMBOL_CLASS_BY_TYPE.items()
-}
-
-
-# :RemoteObjectType
 
 
 @dataclass(repr=False)
 class RemoteObject(HasSession):
-    """A proxy to a remotely stored object behaving like a Python file on demand."""
+    """
+    A proxy to a remotely stored object behaving like a Python file on demand.
+    :RemoteObjectType
+    """
 
     id: UUID = field(default_factory=uuid.uuid4)
     sha512: str = required_field()

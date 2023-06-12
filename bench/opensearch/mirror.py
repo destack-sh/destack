@@ -65,10 +65,6 @@ class Statement(CrudThing, os.Document):
     file_id = Keyword()
     name = NAME_FIELD
     type = Keyword()
-    modifier = Keyword()
-    symbol_type = Keyword()
-    description = Text()
-    code = Text()
 
 
 class Field(CrudThing, os.Document):

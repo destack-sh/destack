@@ -48,7 +48,7 @@ class RunError:
 
     type: str
     message: str
-    symbol: Optional[str]
+    statement: Optional[str]
     traceback: Optional[list[PyFrame]]
 
     @staticmethod
@@ -58,7 +58,10 @@ class RunError:
         else:
             traceback = None
         return RunError(
-            type=data["type"], message=data["message"], symbol=data["symbol"], traceback=traceback
+            type=data["type"],
+            message=data["message"],
+            statement=data.get("statement"),
+            traceback=traceback,
         )
 
 
@@ -112,13 +115,13 @@ async def _expand_filter(
         )
         project_version_ids = [pv.id for pv in project_versions]
         # expand symbols using RefMapping.source_id/target_id up to ancestor_depth
-        expanded_symbol_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
+        expanded_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
             runnable_ids or [], ancestor_depth
         )
     else:
         project_version_ids = [project_version_id]
-        expanded_symbol_ids = runnable_ids or []
-    return expanded_symbol_ids, project_version_ids
+        expanded_ids = runnable_ids or []
+    return expanded_ids, project_version_ids
 
 
 @gql.type
@@ -189,7 +192,7 @@ class ExecutionSubscription:
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
         runnable_ids = to_uuids(runnable_ids)
-        expanded_symbol_ids, project_version_ids = await _expand_filter(
+        expanded_ids, project_version_ids = await _expand_filter(
             project_version_id, include_ancestor_versions, runnable_ids
         )
         log.debug("executions.listen")
@@ -199,7 +202,7 @@ class ExecutionSubscription:
                 # :ExecutionsFilter
                 other_runnable = (
                     frame_data.runnable_id is not None
-                    and frame_data.runnable_id not in expanded_symbol_ids
+                    and frame_data.runnable_id not in expanded_ids
                 )
                 other_root = (
                     root_id is not None

@@ -1681,7 +1681,7 @@ export type RestoreInput = {
 export type RunError = {
   __typename?: "RunError";
   message: Scalars["String"];
-  symbol?: Maybe<Scalars["String"]>;
+  statement?: Maybe<Scalars["String"]>;
   traceback?: Maybe<Array<PyFrame>>;
   type: Scalars["String"];
 };

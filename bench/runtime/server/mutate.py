@@ -7,44 +7,10 @@ from django.db import transaction
 from django.db.models import Q
 
 from bench import models
-from bench.bench import wire
 from bench.bench.const import InterpScope
 from bench.bench.mutate import MMT, ModuleMutation, MutationBundle
 from bench.bench.wire import InterpData
 from bench.models import packer
-from bench.models.project import ProjectVersion
-
-
-def read_packed_module(project_v: ProjectVersion) -> wire.ModuleData:
-    root, nodes = packer.pack_node(project_v)
-    root.nodes = nodes
-    return root
-
-    # wire_module = wire.ModuleData(
-    #     id=project_v.id, name=project_v.project.path, files=[], committed=project_v.committed
-    # )
-    # wire_files: dict[UUID, wire.FileData] = {}
-    #
-    # # map files
-    # for file in project_v.files.filter(deleted_at=None).all():
-    #     wire_file = packer.pack_file_flat(file, module_id=wire_module.id)
-    #     wire_files[file.id] = wire_file
-    #     wire_module.files.append(wire_file)
-    #
-    # # map statements
-    # statements = project_v.statements.filter(deleted_at=None, commented=False).prefetch_related(
-    #     "fields"
-    # )
-    # if exclude_non_semantic:
-    #     statements = statements.exclude(type__in=NON_SEMANTIC_STATEMENT_TYPES)
-    #
-    # for statement in statements:
-    #     wire_statement = packer.pack_statement(
-    #         statement, file_id=statement.file_id, module_id=wire_module.id
-    #     )
-    #     wire_files[statement.file_id].statements.append(wire_statement)
-    #
-    # return wire_module
 
 
 @transaction.atomic(savepoint=False)
