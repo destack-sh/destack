@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import abc
 import typing
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from dataclasses import asdict
 from datetime import datetime
 from typing import Optional, TypeVar
@@ -20,7 +20,7 @@ from django.db.models import Model, QuerySet
 from bench import models
 from bench.bench import StatementType, wire
 from bench.bench.const import TypeFlag, TypeHint, TypeTag
-from bench.bench.wire import ModuleObjectType
+from bench.bench.wire import ModuleObjectType, ModuleTree
 from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
@@ -135,7 +135,7 @@ def pack_node(
     *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER
 ) -> tuple[list[NodeDataT], list[NodeDataT]]:
     """Pack a node and its descendants"""
-    packed: dict[UUID, NodeDataT] = {}
+    packed: dict[UUID, NodeDataT] = OrderedDict()
     packed_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
     ctx = PackContext()
 
@@ -174,15 +174,32 @@ def pack_node(
     return roots, list(packed.values())
 
 
-def unpack_node(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
+def unpack_nodes(
+    nodes: list[NodeDataT], parent: Optional[NodeT] = None
+) -> tuple[list[NodeT], list[NodeT]]:
     """Unpack a node and its descendants"""
-    raise NotImplementedError
+    data_tree = ModuleTree(nodes)
+    unpacked: dict[UUID, NodeT] = {}
+
+    # unpack all nodes top down (breadth first)
+    for node in data_tree.walk_bfs():
+        packer = _node_packers_by_data[type(node)]
+        node_parent = unpacked.get(node.parent_id) if node.parent_id else parent
+        unpacked[node.id] = packer.unpack(node, node_parent)
+
+    return [unpacked[node.id] for node in nodes], list(unpacked.values())
 
 
-def pack_node_flat(model: ModelT, mot: ModuleObjectType) -> NodeDataT:
+def pack_node_flat(model: ModelT) -> NodeDataT:
     """Pack a node (flat)"""
     packer = get_node_packer(model)
     return packer.pack(model)
+
+
+def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
+    """Unpack a node (flat)"""
+    packer = _node_packers_by_data[type(data)]
+    return packer.unpack(data, parent)
 
 
 @node_packer(MOT.MODULE, wire.ModuleData, models.ProjectVersion)

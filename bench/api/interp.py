@@ -52,14 +52,11 @@ def unpack_interp_data(interp_data: wire.InterpData, module_id: UUID) -> InterpD
         else None
     )
     resolved_fields = (
-        [
-            packer.unpack_field(interp_data.statement_id, field)
-            for field in interp_data.resolved_fields
-        ]
+        [packer.unpack_node_flat(field) for field in interp_data.resolved_fields]
         if interp_data.resolved_fields is not None
         else None
     )
-    # set created/updated since they're not set by wmap
+    # set created/updated since they're not set model-side (only on save)
     now = datetime.utcnow().replace(tzinfo=pytz.utc)
     for field in resolved_fields or []:
         field.created_at = now

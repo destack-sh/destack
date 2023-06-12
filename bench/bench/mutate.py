@@ -4,7 +4,7 @@ It shouldn't live in models, so we can use it in messages.py, which shouldn't de
 Maybe a better move would be to make the payload partially opaque and keep this in api.
 """
 import enum
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cached_property
 from typing import Any, Optional
 from uuid import UUID
@@ -238,18 +238,32 @@ class ModuleMutator:
         self,
         module: Module | ModuleData | UUID,
         mutations: list[ModuleMutation] = None,
+        extra_nodes: list[NodeData] = None,
+        file_id: UUID = None,
+        statement_id: UUID = None,
     ):
         if isinstance(module, Module):
             module = wire.pack_module(module)
         if isinstance(module, ModuleData):
             self.module = module
             self.module_id = module.id
-            self.tree = ModuleTree.from_module(module)
+            self.tree = ModuleTree(module.nodes)
         else:
             self.module = None
             self.module_id = module
             self.tree = ModuleTree()
-        self.mutations = mutations or []
+        # default file and statement id
+        self.file_id = file_id
+        self.statement_id = statement_id
+        if self.statement_id and not self.file_id:
+            raise ValueError("statement_id requires file_id")
+        self.mutations = []
+        # add extra nodes
+        for node in extra_nodes or []:
+            self.tree.add(node)
+        # immediately apply mutations
+        for mutation in mutations or []:
+            self._apply(mutation)
 
     def __str__(self):
         return f"mutate {len(self.mutations)} {self.module or '<no module>'}"
@@ -261,21 +275,38 @@ class ModuleMutator:
         raise NotImplementedError
 
     def do(self, type: MMT, obj: NodeData) -> "ModuleMutator":
-        statement = self.tree.find_ancestor(obj, MOT.STATEMENT)
-        file = self.tree.find_ancestor(obj, MOT.FILE)
+        if type == MMT.CREATE_STATEMENT:
+            statement_id = obj.id
+            file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData)
+        elif type == MMT.CREATE_FILE:
+            statement_id = None
+            file_id = obj.id
+        else:
+            statement_id = (
+                self.statement_id or self.tree.get_ancestor(obj.parent_id, wire.StatementData).id
+            )
+            file_id = self.file_id or self.tree.get_ancestor(statement_id, wire.FileData).id
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
             revision=obj.revision if isinstance(obj, wire.Revisioned) else None,
-            file_id=file.id if file else None,
-            statement_id=statement.id if statement else None,
+            file_id=file_id,
+            statement_id=statement_id,
         )
         mutation.data = obj
         self.mutations.append(mutation)
+        self._apply(mutation)
         return self
 
     def _apply(self, mut: ModuleMutation):
-        raise NotImplementedError  # nocheckin in memory mutation
+        if mut.type.kind == MMK.CREATE:
+            self.tree.add(mut.data)
+        elif mut.type.kind == MMK.UPDATE:
+            self.tree.replace(mut.data)
+        elif mut.type.kind == MMK.DELETE:
+            self.tree.remove(mut.data)
+        else:
+            raise ValueError(f"unexpected mutation kind {mut}")
 
     def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
         """Truncates all records of the given statement."""
@@ -321,7 +352,9 @@ class ModuleMutator:
 
     def apply(self) -> ModuleData:
         # already applied in memory
-        return self.tree.to_module()
+        if self.module is None:
+            raise ValueError(f"cannot apply {self} without a module")
+        return replace(self.module, nodes=list(self.tree.nodes.values()))
 
 
 class MutationBundle:
@@ -411,33 +444,3 @@ class MutationBundle:
             batches.append((current_type, current_batch))
 
         return batches
-
-
-NON_SEMANTIC_MUTATION_TYPES = {
-    MMT.UPDATE_STATEMENT_TEXT,  # for comments
-}
-NON_SEMANTIC_STATEMENT_TYPES = {
-    StatementType.COMMENT,
-    StatementType.BLANK,
-}
-
-
-def is_semantic_statement(statement_type: StatementType) -> bool:
-    return statement_type not in NON_SEMANTIC_STATEMENT_TYPES
-
-
-def is_semantic_mutation(mutation: ModuleMutation) -> bool:
-    # trivial filter for definitely non-semantic mutations
-    # we could do more here (like filter blank morphs), but not worth it now
-    return mutation.type not in NON_SEMANTIC_MUTATION_TYPES
-
-
-def _replace_by_id(things, new_thing, append: bool = False) -> bool:
-    for i, t in enumerate(things):
-        if t.id == new_thing.id:
-            things[i] = new_thing
-            return True
-    if append:
-        things.append(new_thing)
-        return True
-    return False

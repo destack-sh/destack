@@ -15,13 +15,10 @@ from bench.bench.type import (
     Field,
     File,
     Module,
-    Scope,
-    Statement,
     StatementPath,
     Task,
     Type,
 )
-from bench.utils.fractional import INTEGER_ZERO
 
 
 def test_extract_code_references():
@@ -98,18 +95,18 @@ MOCK_SESSION_CONTEXT = SessionContext(
 def test_type_union_with():
     module = Module(name="test")
     with Session(module, ctx=MOCK_SESSION_CONTEXT).sync():
-        resource = Type(name="Resource", tag=TypeTag.STRUCT).append(
+        resource = Type(name="Resource", tag=TypeTag.STRUCT).add_field(
             Field(name="name", tag=TypeTag.STRING)
         )
         connection = (
             Type(name="Connection", tag=TypeTag.STRUCT)
-            .extend(resource)
-            .append(Field(name="access_token", tag=TypeTag.STRING))
+            .extend_type(resource)
+            .add_field(Field(name="access_token", tag=TypeTag.STRING))
         )
         oauth_connection = (
             Type(name="OAuthConnection", tag=TypeTag.STRUCT)
-            .extend(connection)
-            .append(
+            .extend_type(connection)
+            .add_field(
                 Field(
                     name="refresh_token",
                     flags=TypeFlag.IsNullable,
@@ -124,8 +121,8 @@ def test_type_union_with():
         )
         github_connection = (
             Type(name="GithubConnection", tag=TypeTag.STRUCT)
-            .extend(oauth_connection, github_thing)
-            .append(
+            .extend_type(oauth_connection, github_thing)
+            .add_field(
                 Field(name="username", tag=TypeTag.STRING),
                 Field(name="email", tag=TypeTag.STRING),
             )
@@ -148,7 +145,7 @@ def test_recursive_union_fail():
     with Session(module, ctx=MOCK_SESSION_CONTEXT).sync():
         with pytest.raises(LanguageError) as e:
             type_a = Type(name="A", tag=TypeTag.STRUCT)
-            type_a.extend(type_a)
+            type_a.extend_type(type_a)
     assert e.value.issue.type == IssueType.CIRCULAR_UNION
 
 

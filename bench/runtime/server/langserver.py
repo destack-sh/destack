@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from functools import partial
 from itertools import chain
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import pytz
 import structlog
@@ -59,7 +59,7 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.common.mutate import map_mutation_to_public
+from bench.runtime.common.mutate import get_public_mutation_from_internal
 from bench.runtime.server.mutate import write_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -409,9 +409,8 @@ class LanguageWorker:
     def interpreted(self) -> bool:
         return self.interp.module is not None
 
-    async def on_module_changed(self, mutator: list[ModuleMutation] | ModuleMutator):
-        if not isinstance(mutator, ModuleMutator):
-            mutator = ModuleMutator(self.module, mutator, source=self.source)
+    async def on_module_changed(self, mutations: list[ModuleMutation]):
+        mutator = ModuleMutator(self.source, mutations)
         new_source = mutator.apply()
         await self.do_interp(new_source)
 
@@ -423,7 +422,9 @@ class LanguageWorker:
         await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
         await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
-        public_mutations = list(chain.from_iterable(map_mutation_to_public(m) for m in mutations))
+        public_mutations = list(
+            chain.from_iterable(get_public_mutation_from_internal(m) for m in mutations)
+        )
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
@@ -451,9 +452,10 @@ class LanguageWorker:
             else:
                 resolved_fields = None
             interp_by_scope[symbol.id] = InterpData(
+                id=uuid5(symbol.id, "interp"),
                 scope=InterpScope.STATEMENT,
-                file_id=symbol.source.file.id,
-                statement_id=symbol.source.id,
+                statement_id=symbol.id,
+                file_id=symbol.file.id,
                 issues=None,
                 resolved_fields=resolved_fields,
             )

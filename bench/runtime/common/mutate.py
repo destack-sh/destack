@@ -59,29 +59,31 @@ def map_mutation_from_public(
         input=input,
     )
     if type == MMT.PASTE_FILE:
-        public_mutation.type = MMT.CREATE_FILE
         _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
+        internal = ModuleMutator(module=project_version_id).create_many(*nodes_data)
         public_mutations = list(
-            chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
+            chain.from_iterable(get_public_mutation_from_internal(m) for m in internal.mutations)
         )
         return internal.mutations, public_mutations
     elif type in MMT.PASTE_STATEMENT:  # remap to create children
-        public_mutation.type = MMT.CREATE_STATEMENT
         _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module_id=project_version_id).create_many(*nodes_data)
+        internal = ModuleMutator(module=project_version_id, file_id=thing.file_id).create_many(
+            *nodes_data
+        )
         public_mutations = list(
-            chain.from_iterable(map_mutation_to_public(m) for m in internal.mutations)
+            chain.from_iterable(get_public_mutation_from_internal(m) for m in internal.mutations)
         )
         return internal.mutations, public_mutations
     else:
         # TODO @Broken: remap restore public mutations for previously offline clients
         #  (restore is insufficient if you don't have the original file?/statement/etc.)
-        internal = map_mutation_to_internal(public_mutation, thing)
+        internal = _get_internal_mutation_from_public(public_mutation, thing)
         return internal, [public_mutation]
 
 
-def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> list[ModuleMutation]:
+def _get_internal_mutation_from_public(
+    mutation: ModuleMutation, thing: MutableThing
+) -> list[ModuleMutation]:
     """
     Maps the full multiplayer mutation set into simple internal mutations.
 
@@ -96,11 +98,15 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
             _, nodes_data = packer.pack_node(thing)
-            mut = ModuleMutator(module_id=mutation.project_version_id)
+            mut = ModuleMutator(module=mutation.project_version_id)
             return mut.create_many(*nodes_data).mutations
-    elif mutation.type in (MMT.RESTORE_FILE, MMT.RESTORE_STATEMENT):
+    elif mutation.type == MMT.RESTORE_FILE:
         _, nodes_data = packer.pack_node(thing)
-        mut = ModuleMutator(module_id=mutation.project_version_id)
+        mut = ModuleMutator(module=mutation.project_version_id)
+        return mut.create_many(*nodes_data).mutations
+    elif mutation.type == MMT.RESTORE_STATEMENT:
+        _, nodes_data = packer.pack_node(thing)
+        mut = ModuleMutator(module=mutation.project_version_id, file_id=thing.file_id)
         return mut.create_many(*nodes_data).mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
@@ -117,7 +123,7 @@ def map_mutation_to_internal(mutation: ModuleMutation, thing: MutableThing) -> l
     return [internal_mutation]
 
 
-def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
+def get_public_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
     Maps a simple internal mutation to a public multiplayer mutation.
 
@@ -135,7 +141,7 @@ def map_mutation_to_public(mutation: ModuleMutation) -> list[ModuleMutation]:
         input = None
         data = mutation.data
     else:
-        input = map_mutation_to_input(mutation)
+        input = get_gql_input_from_mutation(mutation)
         data = None
     public_mutation = ModuleMutation(
         type=mutation.type,
@@ -164,7 +170,7 @@ _EXTRA_FIELDS_BY_SCOPE = {
 _EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
 
 
-def map_mutation_to_input(mutation: ModuleMutation) -> Any:
+def get_gql_input_from_mutation(mutation: ModuleMutation) -> Any:
     """
     Maps a simple internal mutation to an input that would cause the same mutation.
     The returned input is already jsonable (not the original input class).

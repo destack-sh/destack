@@ -1,6 +1,8 @@
 import enum
+import uuid
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
+from uuid import UUID
 
 from bench.bench.const import InterpScope, StatementPath, statement_path_as_str
 
@@ -66,6 +68,7 @@ class LanguageError(ValueError):
 
 @dataclass
 class Issue:
+    id: Optional[UUID]
     kind: IssueKind
     type: IssueType
     message: str
@@ -95,6 +98,25 @@ class Issue:
 
         self.message = type.description.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[type]
+        # generate id if not provided
+        if "id" not in kwargs:
+            self.id = uuid.uuid5(subject.id, type.value + self.message)
+        else:
+            self.id = kwargs.pop("id")
+
+    @property
+    def statement_id(self) -> UUID | None:
+        if self.scope == InterpScope.STATEMENT:
+            return self.subject.id
+        return None
+
+    @property
+    def file_id(self) -> UUID | None:
+        if self.scope == InterpScope.FILE:
+            return self.subject.id
+        if self.scope == InterpScope.STATEMENT:
+            return self.subject.file.id
+        return None
 
     def to_error(self) -> LanguageError:
         return LanguageError(self)

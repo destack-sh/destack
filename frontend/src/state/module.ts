@@ -2,7 +2,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType, TypeTag, type InterpFileFragment, type InterpStatementFragment } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
-import { InterpFileType, InterpStatementType } from "@/state/fragments";
+import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import type { SimpleType } from "@/state/statement";
 import { toValueRef } from "@/utils/functools";
@@ -122,7 +122,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     const issues = [];
     for (const statement of Object.values(idx.value?.statementsById ?? {})) {
       if (statement.issues == null) continue;
-      issues.push(...statement.issues);
+      issues.push(...statement.issues.map((i: any) => useFragment(IssueContentType, i)));
     }
     return issues;
   });

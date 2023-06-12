@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 
 from bench import bench as language
-from bench.bench import Module, wire
+from bench.bench import wire
 from bench.bench.issue import IssueCollector
 from bench.bench.wire import ModuleReference
 from bench.utils.func import wrap_task
@@ -87,7 +87,7 @@ def interp_module(source: wire.ModuleData) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     collector = IssueCollector()
-    module: Module = wire.unpack_node(source, parent=None)
+    module = wire.unpack_module(source)
     module.index(on_issue=collector)
     module.interp(on_issue=collector)
     logger.debug("module.interp.done", module=module)
