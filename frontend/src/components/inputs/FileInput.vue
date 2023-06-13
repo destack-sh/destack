@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import { RemoteObjectStatus, type SimpleType } from "@/gql/graphql";
+import { RemoteObjectStatus, type Field } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/module";
@@ -9,7 +9,7 @@ import { ArrowPathIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/
 import { computed, nextTick, ref } from "vue";
 
 const props = defineProps<{
-  type: SimpleType;
+  type: Field;
   modelValue: ObjectRecord[];
   readonly?: boolean;
   active?: boolean;

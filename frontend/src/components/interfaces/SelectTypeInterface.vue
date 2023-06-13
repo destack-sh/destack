@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import TypePreview from "@/components/interfaces/TypePreview.vue";
-import { ANY_FIELD, makeField, type SimpleType } from "@/state/statement";
+import { ANY_FIELD, makeField } from "@/state/statement";
 import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
@@ -16,18 +16,18 @@ import {
 import { computed, onMounted, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
-  modelValue?: SimpleType;
+  modelValue?: Field;
   inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<SimpleType, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
   (e: "escape"): void;
 }>();
 
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
+const value: Ref<Field> = ref(props.modelValue ?? ANY_FIELD);
 const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
@@ -54,7 +54,7 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
 const availableSymbols = module.statementsLike({
   types: [StatementType.Type],
 });
-const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() => {
+const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
   // builtin types
   if (!props.structrefOnly) {
@@ -75,7 +75,7 @@ const availableTypes: Ref<SimpleType[] & { primitive?: boolean }> = computed(() 
   return types;
 });
 const filteredTypes = computed(() =>
-  availableTypes.value.filter((t) => renderSimpleType(t).toLowerCase().includes(query.value.toLowerCase()))
+  availableTypes.value.filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
 );
 
 function writeValue(type: Field) {
@@ -153,7 +153,7 @@ const LISTABLE_HINTS = [
   TypeHint.Video,
 ];
 const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
-function isFlagSupported(type: SimpleType, flag: TypeFlag) {
+function isFlagSupported(type: Field, flag: TypeFlag) {
   if (flag == TypeFlag.IsNullable) {
     return !isFlagSet(TypeFlag.IsArray) && !NONNULL_TAGS.includes(type.tag);
   } else if (flag == TypeFlag.IsArray) {
@@ -182,7 +182,7 @@ function toggleFlag(flag: TypeFlag) {
   emit("update:modelValue", value.value);
 }
 
-function renderSimpleType(node: SimpleType): string {
+function renderField(node: Field): string {
   const builtin = renderBuiltinType(node.tag, node.hint ?? null);
   if (builtin != null) return builtin;
   if (node.tag == TypeTag.TypeReference || node.reference != null) {
@@ -197,7 +197,7 @@ function renderSimpleType(node: SimpleType): string {
 
 // use 'combobox id' as a stable id
 
-function toComboId(type: SimpleType) {
+function toComboId(type: Field) {
   return `${type.tag}.${type.hint ?? ""}.${type.reference?.id ?? ""}`;
 }
 
@@ -257,7 +257,7 @@ defineExpose({
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el: any) => renderSimpleType(findByComboId(el) ?? value)"
+      :display-value="(el: any) => renderField(findByComboId(el) ?? value)"
       placeholder="..."
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"

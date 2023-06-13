@@ -192,6 +192,7 @@ type Execution implements Node {
   outputs: JSON
   error: JSON
   errorNice: RunError
+  metadata: JSON
   root: Execution
   parent: Execution
   descendants: [Execution!]!
@@ -247,8 +248,16 @@ enum ExpectationModifier {
   CHECK
 }
 
-type Field implements Node & SimpleType {
+type Field implements Node {
   id: GlobalID!
+  revision: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+  statement: Statement!
   name: String
   key: String!
   orderKey: String!
@@ -257,11 +266,6 @@ type Field implements Node & SimpleType {
   flags: Int!
   description: String
   reference: Statement
-  statement: Statement!
-  revision: Int!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
 }
 
 input FieldCreateInput {
@@ -326,13 +330,16 @@ input FieldUpdateTypeInput {
 
 type File implements Node {
   id: GlobalID!
-  projectVersion: ProjectVersion!
   revision: Int!
-  name: String!
-  path: String!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+  projectVersion: ProjectVersion!
+  name: String!
+  path: String!
   directory: Boolean!
   parent: File
   files: [File!]!
@@ -502,7 +509,6 @@ enum ModuleMutationType {
   TRUNCATE_RECORDS
   CREATE_RECORD
   UPDATE_RECORD
-  UPDATE_RECORD_PATH
   MOVE_RECORD
   SOFT_DELETE_RECORD
   DELETE_RECORD
@@ -563,7 +569,6 @@ type Mutation {
   restoreStatementField(input: FieldRestoreInput!): FieldOperationInfo!
   createRecord(input: RecordCreateInput!): RecordOperationInfo!
   updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
-  updateRecordPath(input: RecordUpdatePathInput!): RecordOperationInfo!
   moveRecord(input: RecordMoveInput!): RecordOperationInfo!
   softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
   deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
@@ -1007,13 +1012,19 @@ input ProjectUpdateVisibilityInput {
 
 type ProjectVersion implements Node {
   id: GlobalID!
+  revision: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
   project: Project!
   name: String
   tag: String
   description: String
   parents: [ProjectVersion!]!
   children: [ProjectVersion!]!
-  createdAt: DateTime!
   committed: Boolean!
   committedAt: DateTime
   files(
@@ -1317,13 +1328,6 @@ input RecordUpdateInput {
   data: JSON!
 }
 
-input RecordUpdatePathInput {
-  id: GlobalID!
-  statementId: GlobalID!
-  path: String!
-  data: JSON = null
-}
-
 type RefMapping implements Node {
   id: GlobalID!
   kind: RefMappingKind!
@@ -1465,36 +1469,19 @@ input SecretUpdateInput {
   value: JSON!
 }
 
-interface SimpleType {
+type Statement implements Node {
   id: GlobalID!
-  name: String
-  key: String!
-  orderKey: String!
-  tag: TypeTag!
-  hint: TypeHint
-  flags: Int!
-  description: String
-  reference: Statement
-}
-
-"""Anything typed using SimpleType nodes."""
-interface SimplyTyped {
-  rootTypeTag: TypeTag
-  fields: [SimpleType!]
-}
-
-type Statement implements Node & SimplyTyped {
-  id: GlobalID!
-  rootTypeTag: TypeTag
-  fields(filters: FieldFilter): [Field!]!
-  projectVersion: ProjectVersion!
-  file: File!
   revision: Int!
-  type: StatementType!
-  name: String
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+  projectVersion: ProjectVersion!
+  file: File!
+  type: StatementType!
+  name: String
   commented: Boolean!
   parent: Statement
   children: [Statement!]!
@@ -1502,7 +1489,9 @@ type Statement implements Node & SimplyTyped {
   orderKey: String!
   text: String
   modifier: String
+  rootTypeTag: TypeTag
   rootTypeFlags: Int
+  fields(filters: FieldFilter): [Field!]!
   lang: String
   code: String
   description: String

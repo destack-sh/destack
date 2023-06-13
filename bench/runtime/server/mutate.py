@@ -10,6 +10,7 @@ from bench import models
 from bench.bench.mutate import MMT, ModuleMutation, MutationBundle
 from bench.bench.wire import InterpData
 from bench.models import packer
+from bench.opensearch.index import write_mutations_to_os
 
 
 @transaction.atomic(savepoint=False)
@@ -60,3 +61,5 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
             raise NotImplementedError
         elif mmt == MMT.TRUNCATE_RECORDS:
             raise NotImplementedError
+
+    write_mutations_to_os(project_v.project_id, mut.mutations)

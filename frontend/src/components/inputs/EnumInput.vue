@@ -3,10 +3,10 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { getEnumColor, type SimpleType } from "@/state/statement";
+import { getEnumColor, type Field } from "@/state/statement";
 
 const props = defineProps<{
-  type: SimpleType;
+  type: Field;
   modelValue?: string[];
   readonly?: boolean;
   preview?: boolean;
@@ -24,8 +24,7 @@ const members = computed(() => {
   return runtimeType.value?.fields ?? [];
 });
 const selectedMembers = computed(
-  () =>
-    (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as SimpleType[]) ?? []
+  () => (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as Field[]) ?? []
 );
 const missingMembers = computed(() => members.value.filter((m) => !props.modelValue?.find((v) => v == m.key)));
 
@@ -74,7 +73,7 @@ defineExpose({
       as="div"
       class="flex w-full min-w-[300px] flex-col"
       :model-value="isArray ? null : selectedMembers[0]"
-      @update:model-value="(val: SimpleType) => {
+      @update:model-value="(val: Field) => {
         if (isArray) {
           emit('update:modelValue', [...(modelValue ?? []), val.key as string]);
         } else {

@@ -1,11 +1,10 @@
 <script lang="ts" setup>
-import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,
   ArrowsRightLeftIcon,
-  ArrowUpRightIcon,
   AtSymbolIcon,
   Bars3BottomLeftIcon,
   CalendarDaysIcon,
@@ -35,7 +34,7 @@ import {
 import { computed } from "vue";
 
 const props = defineProps<{
-  type: SimpleType;
+  type: Field;
   showTypeName?: boolean;
   hideIcon?: boolean;
   hideFlags?: boolean;

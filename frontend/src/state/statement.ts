@@ -249,11 +249,11 @@ export function useStatementContext() {
 
   // type node helpers
 
-  async function createField(field: SimpleType) {
+  async function createField(field: Field) {
     await ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
   }
 
-  async function updateField(field: SimpleType, newField: SimpleType) {
+  async function updateField(field: Field, newField: Field) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
       throw new Error("cannot update type node that doesn't exist");
@@ -270,7 +270,7 @@ export function useStatementContext() {
     await ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
   }
 
-  async function moveField(field: SimpleType, orderKey: string) {
+  async function moveField(field: Field, orderKey: string) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
       throw new Error("cannot move type node that doesn't exist");
@@ -329,7 +329,7 @@ export function useStatementContext() {
   };
 }
 
-function makeFieldInput(id: string, field: SimpleType): FieldCreateInput {
+function makeFieldInput(id: string, field: Field): FieldCreateInput {
   return {
     statementId: id,
     id: field.id,
@@ -344,7 +344,7 @@ function makeFieldInput(id: string, field: SimpleType): FieldCreateInput {
   };
 }
 
-function makeFieldUpdate(field: SimpleType): FieldUpdateInput {
+function makeFieldUpdate(field: Field): FieldUpdateInput {
   return {
     id: field.id,
     tag: field.tag,
@@ -400,8 +400,8 @@ export function makeField(data: {
   value?: any;
   reference?: { id: string; name?: string };
   flags?: number;
-}): SimpleType {
-  const fieldData: SimpleType = {
+}): Field {
+  const fieldData: Field = {
     id: newFieldId(),
     name: data.name ?? null,
     tag: data.tag,
@@ -415,7 +415,7 @@ export function makeField(data: {
   return fieldData;
 }
 
-export type SimpleType = Omit<Field, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
+export type Field = Omit<Field, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
 
 export const STRING_FIELD = makeField({ tag: TypeTag.String });
 export const NAME_FIELD = makeField({ tag: TypeTag.String, hint: TypeHint.Name });

@@ -2,7 +2,16 @@ import abc
 import dataclasses
 import functools
 import random
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Self, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Optional,
+    Self,
+    Union,
+    cast,
+)
 from uuid import UUID
 
 import strawberry
@@ -222,21 +231,23 @@ def normalize_to_project(obj) -> models.Project:
     return obj
 
 
-def can_read_project(user: User, obj: Any) -> bool:
+def can_read_project(user: User, obj: Any) -> Optional[models.Project]:
     """Whether the given user can view the project-related object."""
-    if user.is_authenticated and user.is_staff:
-        return True
     obj = normalize_to_project(obj)
+    if user.is_authenticated and user.is_staff:
+        return obj
     # is public or user is owner or user is member (any level) of owning organization
     is_org_member = (
         obj.organization_id is not None
         and obj.organization.memberships.filter(user_id=user.id).exists()
     )
     is_owner = obj.user_id is not None and obj.user_id == user.id
-    return obj.visibility == models.ProjectVisibility.PUBLIC or is_owner or is_org_member
+    if obj.visibility == models.ProjectVisibility.PUBLIC or is_owner or is_org_member:
+        return obj
+    return None
 
 
-def can_write_project(user: User, obj: Any) -> bool:
+def can_write_project(user: User, obj: Any) -> Optional[models.Project]:
     """Whether the given user can write to the project-related object."""
     if user.is_authenticated and user.is_staff:
         return True
@@ -252,14 +263,18 @@ def can_write_project(user: User, obj: Any) -> bool:
         ).exists()
     )
     is_owner = obj.user_id is not None and obj.user_id == user.id
-    return is_owner or is_org_member
+    if is_owner or is_org_member:
+        return obj
+    return None
 
 
-def check_can_read_project(info: Info, obj: Any) -> None:
+def check_can_read_project(info: Info, obj: Any) -> Optional[models.Project]:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
-    if not can_read_project(user, obj):
+    project = can_read_project(user, obj)
+    if not project:
         raise PermissionDenied("User cannot view this.")
+    return project
 
 
 def check_can_view_project_by_id(
@@ -283,11 +298,13 @@ def check_can_view_project_by_id(
         raise PermissionDenied("You don't have permission to view this project.")
 
 
-def check_can_write_project(info: Info, obj: Any) -> None:
+def check_can_write_project(info: Info, obj: Any) -> Optional[models.Project]:
     """Raises a PermissionDenied error if the user cannot write to the given object."""
     user = cast(User, info.context.request.scope["user"]._wrapped)
-    if not can_write_project(user, obj):
+    project = can_write_project(user, obj)
+    if not project:
         raise PermissionDenied("User cannot write to this.")
+    return project
 
 
 def check_can_write_project_by_id(user: models.User, project_version_id: UUID):

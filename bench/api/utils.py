@@ -1,11 +1,13 @@
 import functools
 import typing
+from datetime import datetime
 from typing import Optional, Sequence, Union
 from uuid import UUID
 
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from strawberry import auto, lazy
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
@@ -13,10 +15,24 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
+from bench import models
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 
-log = structlog.get_logger(__name__)
+if typing.TYPE_CHECKING:
+    from bench.api.user import User
+
+logger = structlog.get_logger(__name__)
+
+
+class CrudModel:
+    revision: int
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+    created_by: Optional[typing.Annotated["User", lazy(".user")]]
+    last_edited_at: Optional[datetime]
+    last_edited_by: Optional[typing.Annotated["User", lazy(".user")]]
 
 
 def safe_mutation(
@@ -85,7 +101,9 @@ def asafe_subscription(func, **kwargs):
         except Exception as e:
             e = map_exception(e)
             # no way to propagate exception to client here?
-            log.error("subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e))
+            logger.error(
+                "subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e)
+            )
             raise StopAsyncIteration from e
 
     return gql.subscription(wrapped, **kwargs)

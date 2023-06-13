@@ -3,7 +3,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import TypePreview from "@/components/interfaces/TypePreview.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { ANY_FIELD, getEnumColor, type SimpleType } from "@/state/statement";
+import { ANY_FIELD, getEnumColor, type Field } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/bench";
@@ -14,7 +14,7 @@ import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
-  modelValue?: SimpleType;
+  modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
   structrefOnly?: boolean;
@@ -27,7 +27,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<SimpleType, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -42,7 +42,7 @@ const emit = defineEmits<{
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
+const value: Ref<Field> = ref(props.modelValue ?? ANY_FIELD);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
 const description: Ref<string> = ref(props.modelValue?.description ?? "");
 const editing = ref(false);

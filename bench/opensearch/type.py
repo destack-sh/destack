@@ -5,8 +5,6 @@ from uuid import UUID
 
 import opensearchpy as os
 
-from bench.bench import wire
-
 
 class FieldType(enum.StrEnum):
     """
@@ -211,9 +209,6 @@ class XYShape:
 
     type: XYShapeType
     coordinates: list[list[float]]
-
-
-Record = wire.RecordData
 
 
 class Document(os.Document):

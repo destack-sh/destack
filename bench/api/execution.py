@@ -88,6 +88,7 @@ class Execution(gql.Node):
     outputs: auto
     error: auto
     error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
+    metadata: auto
     root: Optional["Execution"]
     parent: Optional["Execution"]
     descendants: list["Execution"]

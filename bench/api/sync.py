@@ -16,17 +16,17 @@ from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
-from bench.bench.mutate import ModuleMutationKind
+from bench.bench.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
+from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.mutate import (
     MutableThing,
     input_to_gql_jsonable,
     map_mutation_from_public,
 )
-from bench.settings import SEND_API_PUB_MSG
 
 logger = structlog.get_logger(__name__)
 
@@ -119,9 +119,12 @@ def tracked_mutation(
                 if not is_new:
                     thing.refresh_from_db(fields=["revision"])  # @Performance: inefficient?
 
-            # publish and track mutation
+            # dual write, publish and track mutation
             origin = get_client_origin_from_info(info)
-            publish_tracked_mutation(origin, type, kwargs.get("input", None), things, batch=batch)
+            public_mutations, internal_mutations = publish_tracked_mutation(
+                origin, type, kwargs.get("input"), things, batch
+            )
+            write_mutations_to_os(project_version.project_id, internal_mutations)
             track_mutation_for_analytics(type, project_version, things, batch, info)
 
             return ret
@@ -157,29 +160,28 @@ def tracked_mutation(
 
 def publish_tracked_mutation(
     origin: ClientOrigin, type: MMT, original_input: Any, things: list[MutableThing], batch: bool
-):
+) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
     """Publish mutations."""
-    if not things or not SEND_API_PUB_MSG:
-        return
-
     if type in (MMT.PASTE_FILE, MMT.PASTE_STATEMENT):
         inputs = [original_input] * len(things)  # not directly unbatchable
     elif batch:
         inputs = original_input.unbatch()
     else:
         inputs = [original_input]
-    mutations = []
+    public_mutations = []
     internal_mutations = []
     for input, thing in zip(inputs, things):
         input = input_to_gql_jsonable(input)
         internal, public = map_mutation_from_public(type, input, thing)
-        mutations.extend(public)
+        public_mutations.extend(public)
         internal_mutations.extend(internal)
 
-    project_version_id = mutations[0].project_version_id
+    project_version_id = public_mutations[0].project_version_id
     publish_soon(
         NMessageType.MODULE_CHANGED,
-        ModuleChangedPayload(module_id=project_version_id, origins=[origin], mutations=mutations),
+        ModuleChangedPayload(
+            module_id=project_version_id, origins=[origin], mutations=public_mutations
+        ),
     )
     if internal_mutations:
         publish_soon(
@@ -188,6 +190,7 @@ def publish_tracked_mutation(
                 module_id=project_version_id, origins=[origin], mutations=internal_mutations
             ),
         )
+    return public_mutations, internal_mutations
 
 
 def track_mutation_for_analytics(

@@ -2,7 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import { makeField, NAME_FIELD, useStatementContext, type SimpleType } from "@/state/statement";
+import { makeField, NAME_FIELD, useStatementContext } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
@@ -60,9 +60,9 @@ function writeColumn(kind: "input" | "output", memberId: string, column: ColumnT
   }
   const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    context.updateField(member as SimpleType, { ...value, flags } as SimpleType);
+    context.updateField(member as Field, { ...value, flags } as Field);
   } else {
-    context.updateField(member as SimpleType, { ...member, [column]: value, flags } as SimpleType);
+    context.updateField(member as Field, { ...member, [column]: value, flags } as Field);
   }
 }
 

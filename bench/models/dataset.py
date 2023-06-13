@@ -20,7 +20,6 @@ class Dataset(UUIDModel):
     updated_at = models.DateTimeField(auto_now=True)
     versioned = models.BooleanField(default=True)
     # opensearch
-    os_index_name = models.CharField(max_length=256, null=True)
     os_mappings: models.QuerySet[OpensearchMapping]  # noqa via OpensearchMapping.dataset
 
 

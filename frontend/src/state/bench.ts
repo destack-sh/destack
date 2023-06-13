@@ -5,7 +5,7 @@ import {
   type Project,
   type ProjectVersion,
   type Scalars,
-  type SimpleType,
+  type Field,
   type Statement,
 } from "@/gql/graphql";
 import {
@@ -795,7 +795,7 @@ export type Action<T> = {
 
 export type FileAction = Action<FileHeader>;
 export type StatementAction = Action<StatementHeader>;
-export type TypeAction = Action<SimpleType>;
+export type TypeAction = Action<Field>;
 export type RecordAction = Action<Record>;
 export type EditorAction = Action<Editor>;
 

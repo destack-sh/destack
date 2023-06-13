@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import { useAppearance } from "@/state/appearance";
 import { useSecrets, type SecretRecord } from "@/state/secret";
 import { syncProperty } from "@/utils/sync";
@@ -8,7 +8,7 @@ import { computed, nextTick, ref } from "vue";
 
 const props = defineProps<{
   modelValue: SecretRecord | null;
-  type: SimpleType;
+  type: Field;
   readonly: boolean;
   preview: boolean;
   active: boolean;

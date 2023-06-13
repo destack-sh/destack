@@ -1,4 +1,4 @@
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import { TypeHint, TypeTag } from "@/gql/graphql";
 import { isValidObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/module";
@@ -12,9 +12,9 @@ export type ValueInterface = {
   supportsList?: boolean;
   isSecret?: boolean;
   // read/write mapping
-  read?(type: SimpleType, value: any): any;
-  write?(type: SimpleType, value: any): any;
-  map?(type: SimpleType, value: any): any;
+  read?(type: Field, value: any): any;
+  write?(type: Field, value: any): any;
+  map?(type: Field, value: any): any;
   // display and sizing (see table in data cell)
   minWidth?: number;
   grow?: number;
@@ -47,7 +47,7 @@ function fromArray(value: any) {
   }
 }
 
-function toArrayAsFlagged(type: SimpleType, value: any) {
+function toArrayAsFlagged(type: Field, value: any) {
   if (Array.isArray(value)) {
     if (!(type.flags & TypeFlag.IsArray)) {
       return value.slice(0, 1);
@@ -60,7 +60,7 @@ function toArrayAsFlagged(type: SimpleType, value: any) {
   return [];
 }
 
-function toArrayIfFlagged(type: SimpleType, value: any) {
+function toArrayIfFlagged(type: Field, value: any) {
   if (type.flags & TypeFlag.IsArray) {
     if (Array.isArray(value)) {
       return value;
@@ -72,12 +72,12 @@ function toArrayIfFlagged(type: SimpleType, value: any) {
   }
 }
 
-function coerceToBoolean(type: SimpleType, value: any) {
+function coerceToBoolean(type: Field, value: any) {
   value = fromArray(value);
   return typeof value == "boolean" ? value : false;
 }
 
-function coerceToString(type: SimpleType, value: any) {
+function coerceToString(type: Field, value: any) {
   value = fromArray(value);
   if (typeof value == "number") {
     value = value.toString();
@@ -85,7 +85,7 @@ function coerceToString(type: SimpleType, value: any) {
   return typeof value == "string" ? value : "";
 }
 
-function coerceToNumber(type: SimpleType, value: any) {
+function coerceToNumber(type: Field, value: any) {
   value = fromArray(value);
   if (typeof value == "string") {
     value = Number.parseFloat(value.trim());
@@ -174,7 +174,7 @@ registerInterface("file", {
   grow: 1.0,
 });
 
-export function getInterface(type: SimpleType): ValueInterface | undefined {
+export function getInterface(type: Field): ValueInterface | undefined {
   let filtered = Object.values(interfaces);
   // find most specific interface that supports the type
   filtered = filtered.filter((i) => {
@@ -197,7 +197,7 @@ export function getInterface(type: SimpleType): ValueInterface | undefined {
   return filtered.find((i) => i.tags?.includes(type.tag));
 }
 
-export function getMinWidth(type: SimpleType): number | undefined {
+export function getMinWidth(type: Field): number | undefined {
   const iface = getInterface(type);
   return iface?.minWidth;
 }

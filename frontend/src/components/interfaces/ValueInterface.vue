@@ -11,7 +11,7 @@ import StringInput from "@/components/inputs/StringInput.vue";
 import StructInput from "@/components/inputs/StructInput.vue";
 import ThumbsInput from "@/components/inputs/ThumbsInput.vue";
 import ToggleInput from "@/components/inputs/ToggleInput.vue";
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
@@ -37,7 +37,7 @@ const INTERFACES: Record<string, any> = {
 
 const props = defineProps<{
   modelValue: any;
-  type: SimpleType;
+  type: Field;
   readonly: boolean;
   active: boolean;
   debounced?: boolean;

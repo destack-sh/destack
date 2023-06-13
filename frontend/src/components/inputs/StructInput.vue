@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import { TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
@@ -8,7 +8,7 @@ import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 
 const props = defineProps<{
-  type: SimpleType;
+  type: Field;
   modelValue: Record<string, any>[];
   readonly?: boolean;
   preview?: boolean;
@@ -48,7 +48,7 @@ const runtimeType = computed(() => module.statementOf(props.type.reference?.id))
 const fields = computed(() => {
   return runtimeType.value?.fields.map((f) => module.runtimeTypeOf(f)) ?? [];
 });
-const titleField: Ref<SimpleType | undefined> = computed(() => {
+const titleField: Ref<Field | undefined> = computed(() => {
   // get first name or string field
   const nameField = fields.value.find((f) => f.hint == TypeHint.Name);
   if (nameField) return nameField;

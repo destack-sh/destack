@@ -1,4 +1,4 @@
-import { ExpectationModifier, StatementType, TypeHint, TypeTag, type SimpleType } from "@/gql/graphql";
+import { ExpectationModifier, StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { reverseRecord } from "@/utils/functools";
 
 export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
@@ -107,7 +107,7 @@ export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const REMOTE_OBJECT_TYPENAME = "RemoteObject";
 export const SECRET_TYPENAME = "Secret";
 
-export function unkey(fields: SimpleType[], value: Record<string, any>): Record<string, any> {
+export function unkey(fields: Field[], value: Record<string, any>): Record<string, any> {
   // TODO @Broken: unkey doesn't work with nested types
   const mapped: Record<string, any> = {};
   for (const field of fields) {

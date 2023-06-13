@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import TypePreview from "@/components/interfaces/TypePreview.vue";
-import { ANY_FIELD, type SimpleType } from "@/state/statement";
+import { ANY_FIELD } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { Field } from "@/gql/graphql";
 import { nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
-  modelValue?: SimpleType;
+  modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
   structrefOnly?: boolean;
@@ -16,7 +16,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<SimpleType, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -28,7 +28,7 @@ const emit = defineEmits<{
   (e: "focus", event: FocusEvent): void;
 }>();
 
-const value: Ref<SimpleType> = ref(props.modelValue ?? ANY_FIELD);
+const value: Ref<Field> = ref(props.modelValue ?? ANY_FIELD);
 const editing = ref(false);
 
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);

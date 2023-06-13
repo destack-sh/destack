@@ -1,9 +1,14 @@
 from uuid import UUID
 
+import structlog
+
 import bench.opensearch.type as os
-from bench.opensearch import mirror
+from bench.bench.mutate import ModuleMutation
+from bench.opensearch import mapping, mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.type import IndexType
+
+logger = structlog.get_logger(__name__)
 
 DOCUMENTS_BY_INDEX = {
     IndexType.GLOBAL: [
@@ -14,14 +19,15 @@ DOCUMENTS_BY_INDEX = {
         mirror.File,
         mirror.Statement,
         mirror.Field,
-        mirror.Screen,
         mirror.Tile,
         mirror.Comment,
     ],
-    IndexType.DATASETS: [],  # all dynamic
+    IndexType.DATASETS: [
+        mapping.Record,  # only the static parts
+    ],
     IndexType.SESSIONS: [
         mirror.Session,
-        mirror.Execution,
+        mirror.Execution,  # only the static parts
         mirror.LogEntry,
     ],
 }
@@ -54,3 +60,8 @@ def create_index(index: IndexType, project_id: UUID) -> None:
             "mappings": {"dynamic": "strict", "properties": mappings},
         },
     )
+
+
+def write_mutations_to_os(project_id: UUID, mutations: list[ModuleMutation]):
+    """Writes any relevant mutations to OpenSearch."""
+    pass

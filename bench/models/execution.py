@@ -73,6 +73,7 @@ class Execution(UUIDTModel):
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
+    metadata = models.JSONField(null=True, blank=True)
 
     @gql.model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:

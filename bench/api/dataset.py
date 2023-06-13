@@ -14,6 +14,7 @@ from bench import models
 from bench.api.statement import ThingBatch
 from bench.api.sync import BatchMutationInput, tracked_mutation
 from bench.api.type import MMT
+from bench.opensearch import mapping
 
 
 @gql.type
@@ -94,29 +95,25 @@ class RecordBatchRestoreInput(BatchMutationInput):
 class DatasetMutation:
     @tracked_mutation(MMT.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        record = models.Record(
-            statement=statement,
-            id=UUID(input.id.node_id),
-            data=input.data,
+        statement = models.Statement.objects.select_related("dataset").get(
+            id=input.statement_id.node_id
+        )
+        dataset = statement.dataset
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        record = mapping.Record(
+            _id=UUID(input.id.node_id),
+            statement_id=input.statement_id.node_id,
+            created_at=now,
+            updated_at=now,
+            last_edited_at=now,
+            revision=0,
             order_key=input.order_key,
         )
-        return record
 
     @tracked_mutation(MMT.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=input.id.node_id)
         record._data = input.data
-        return record
-
-    @tracked_mutation(MMT.UPDATE_RECORD_PATH)
-    def update_record_path(self, input: RecordUpdatePathInput) -> Record | OperationInfo:
-        # update record data at the given path
-        record = models.Record.objects.get(id=input.id.node_id)
-        if input.value is None:
-            del record._data[input.path]
-        else:
-            record._data[input.path] = input.value
         return record
 
     @tracked_mutation(MMT.MOVE_RECORD)

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/gql/graphql";
+import type { Field } from "@/gql/graphql";
 import { ref, type Ref } from "vue";
 
 const props = defineProps<{
-  type: SimpleType;
+  type: Field;
   modelValue?: string;
   preview?: boolean;
   previewWidth?: number;
