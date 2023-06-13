@@ -420,7 +420,8 @@ class LanguageWorker:
         await sync_to_async(write_mutations)(self.project_version, self.interp.tree, mutations)
         await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
-        public_mutations = list(
+        # nocheckin: trim public record mutations if too large
+        api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in mutations)
         )
         await publish(
@@ -432,7 +433,7 @@ class LanguageWorker:
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
-                module_id=self.module_id, origins=origins, mutations=public_mutations
+                module_id=self.module_id, origins=origins, mutations=api_mutations
             ),
         )
 

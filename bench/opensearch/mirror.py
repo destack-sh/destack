@@ -82,6 +82,12 @@ class Tile(CrudThing, os.Document):
     screen_id = Keyword()
 
 
+class Record(CrudThing, os.Document):  # partial
+    statement_id = Keyword()
+    order_key = Keyword()
+    data = Object()  # will be inlined
+
+
 class Comment(CrudThing, os.Document):
     pass
 

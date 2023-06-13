@@ -1514,14 +1514,17 @@ export type QueryUsersArgs = {
 export type Record = Node & {
   __typename?: "Record";
   createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
   data: Scalars["JSON"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
   orderKey: Scalars["String"];
   revision: Scalars["Int"];
   statementId: Scalars["GlobalID"];
-  updatedAt?: Maybe<Scalars["DateTime"]>;
+  updatedAt: Scalars["DateTime"];
 };
 
 export type RecordBatch = {
@@ -2198,7 +2201,7 @@ export type SearchRecordsQuery = {
         id: any;
         revision: number;
         createdAt: any;
-        updatedAt?: any | null;
+        updatedAt: any;
         deletedAt?: any | null;
         orderKey: string;
         data: any;
@@ -3978,7 +3981,7 @@ export type CreateRecordMutation = {
         __typename?: "Record";
         id: any;
         createdAt: any;
-        updatedAt?: any | null;
+        updatedAt: any;
         deletedAt?: any | null;
         revision: number;
         orderKey: string;
@@ -4003,7 +4006,7 @@ export type UpdateRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Record"; id: any; updatedAt?: any | null; revision: number; data: any };
+    | { __typename?: "Record"; id: any; updatedAt: any; revision: number; data: any };
 };
 
 export type DeleteRecordMutationVariables = Exact<{

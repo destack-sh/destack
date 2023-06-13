@@ -16,17 +16,14 @@ from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, wrap_exceptions
+from bench.bench import Statement
 from bench.bench.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
 from bench.opensearch.index import write_mutations_to_os
-from bench.runtime.common.mutate import (
-    MutableThing,
-    input_to_gql_jsonable,
-    map_mutation_from_api,
-)
+from bench.runtime.common.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_api
 
 logger = structlog.get_logger(__name__)
 
@@ -38,7 +35,7 @@ class BatchMutationInput:
         raise NotImplementedError
 
 
-def tracked_mutation(
+def tracked_db_mutation(
     type: MMT | PMT,
     *,
     atomic: bool = False,
@@ -48,27 +45,23 @@ def tracked_mutation(
     directives: Optional[Sequence[object]] = None,
 ):
     """
-    A project content mutation (CUD) of a specific type.
-    Handles auth, revision bumping and mutation pub. Must be used as a decorator.
+    A module in-DB mutation of a specific type
+    Handles auth, revision bumping and mutation pub. To be used as a decorator.
 
-    For batch mutations does not handle revision bumping,
+    For batch mutations this does not handle revision bumping,
      and assumes that all things belong to the same project (only checks committed for one).
 
-    :ProjectContentSync
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
+
+    :ProjectContentSync
     """
 
     directives = directives or []
 
     def make_resolver(func):
         needs_info = "info" in func.__annotations__
-
-        # register mutation type to input class
         if register:
-            if type in INPUT_CLASS_BY_TYPE:
-                raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_TYPE[type]}")
-            input_class = func.__annotations__["input"]
-            INPUT_CLASS_BY_TYPE[type] = input_class
+            _register_mutation(type, func)
 
         @functools.wraps(func)
         def wrapped_mutation(self, info: Info, *args, **kwargs):
@@ -76,7 +69,7 @@ def tracked_mutation(
                 kwargs["info"] = info
             ret = func(self, *args, **kwargs)
             if batch:
-                # assumes things property on any returned batches (see StatementBatch)
+                # assumes things property on any returned batches (see ThingBatch)
                 things = ret.things
                 if len(things) == 0:
                     raise RuntimeError("batch mutation returned empty batch")
@@ -85,27 +78,8 @@ def tracked_mutation(
                 thing = ret
                 things = [thing]
 
-            if isinstance(thing, (models.File, models.Statement)):
-                project_version = models.ProjectVersion.objects.only("committed_at").get(
-                    id=thing.project_version_id
-                )
-            elif isinstance(thing, models.Field):
-                # TODO @Performance: fetching project_version for statement mutation is inefficient
-                project_version = models.ProjectVersion.objects.only("committed_at").get(
-                    id=thing.statement.project_version_id
-                )
-            else:
-                raise TypeError(f"thing is not a project thing: {thing}")
-
-            # check that containing project is not committed
-            if project_version.committed:
-                raise PermissionDenied("cannot mutate committed project version")
-
-            # check auth
-            if not skip_auth_check:
-                check_can_write_project(info, thing)
-
-            # validate (ignoring uniqueness, constraints, and 'revision' field which may be an F expression)
+            # validate (ignoring constraints; 'revision' field which may be an F expression)
+            project_v = check_can_write_thing(info, thing, check_auth=not skip_auth_check)
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )
@@ -122,24 +96,15 @@ def tracked_mutation(
             # dual write, publish and track mutation
             origin = get_client_origin_from_info(info)
             public_mutations, internal_mutations = publish_tracked_mutation(
-                origin, type, kwargs.get("input"), things, batch
+                project_v, origin, type, kwargs.get("input"), things, batch
             )
-            write_mutations_to_os(project_version.project_id, internal_mutations)
-            track_mutation_for_analytics(type, project_version, things, batch, info)
+            write_mutations_to_os(project_v.project_id, internal_mutations)
+            track_mutation_for_analytics(type, project_v, things, batch, info)
 
             return ret
 
         # add info to wrapped_mutation function signature if missing
-        if "info" not in wrapped_mutation.__annotations__:
-            wrapped_mutation.__annotations__["info"] = Info
-            original_signature = Signature.from_callable(func)
-            original_parameters = list(original_signature.parameters.values())
-            info_arg = inspect.Parameter(
-                "info", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Info
-            )
-            wrapped_mutation.__signature__ = original_signature.replace(
-                parameters=original_parameters + [info_arg]
-            )
+        _add_info_parameter(func, wrapped_mutation)
 
         # wrap in atomic if needed
         if atomic:
@@ -158,8 +123,98 @@ def tracked_mutation(
     return make_resolver
 
 
+def tracked_os_mutation(
+    type: MMT,
+    *,
+    batch: bool = False,
+    register: bool = True,
+):
+    """
+    A module out-of-DB mutations that uses OpenSearch as the source of truth.
+    Does NOT handle auth, revision bumping or mutation pub. To be used as a decorator.
+    Currently only used for Record mutations.
+    """
+
+    def make_resolver(func):
+        needs_info = "info" in func.__annotations__
+        if register:
+            _register_mutation(type, func)
+
+        @functools.wraps(func)
+        def wrapped_mutation(self, info: Info, *args, **kwargs):
+            if needs_info:
+                kwargs["info"] = info
+            project_v, statement, ret = func(self, *args, **kwargs)
+            if batch:
+                # assumes things property on any returned batches (see ThingBatch)
+                things = ret.things
+            else:
+                things = [ret]
+
+            # dual write, publish and track mutation
+            origin = get_client_origin_from_info(info)
+            publish_tracked_mutation(
+                project_v, origin, type, kwargs.get("input"), things, batch, statement=statement
+            )
+            track_mutation_for_analytics(type, project_v, things, batch, info)
+
+            return ret
+
+        return gql.mutation(async_safe(wrap_exceptions(wrapped_mutation)))
+
+    return make_resolver
+
+
+def check_can_write_thing(info: Info, thing: MutableThing, check_auth: bool = True):
+    if isinstance(thing, (models.File, models.Statement)):
+        project_v = models.ProjectVersion.objects.only("committed_at").get(
+            id=thing.project_version_id
+        )
+    elif isinstance(thing, models.Field):
+        # TODO @Performance: fetching project_version for statement mutation is inefficient
+        project_v = models.ProjectVersion.objects.only("committed_at").get(
+            id=thing.statement.project_version_id
+        )
+    else:
+        raise TypeError(f"thing is not a project thing: {thing}")
+    # check that containing project is not committed
+    if project_v.committed:
+        raise PermissionDenied("cannot mutate committed project version")
+    # check auth
+    if check_auth:
+        check_can_write_project(info, thing)
+    return project_v
+
+
+def _register_mutation(type, func):
+    if type in INPUT_CLASS_BY_TYPE:
+        raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_TYPE[type]}")
+    input_class = func.__annotations__["input"]
+    INPUT_CLASS_BY_TYPE[type] = input_class
+
+
+def _add_info_parameter(original: callable, wrapped: callable):
+    """Adds an 'info' parameter to a wrapped function signature if missing."""
+    if "info" not in wrapped.__annotations__:
+        wrapped.__annotations__["info"] = Info
+        original_signature = Signature.from_callable(original)
+        original_parameters = list(original_signature.parameters.values())
+        info_arg = inspect.Parameter(
+            "info", inspect.Parameter.POSITIONAL_OR_KEYWORD, annotation=Info
+        )
+        wrapped.__signature__ = original_signature.replace(
+            parameters=original_parameters + [info_arg]
+        )
+
+
 def publish_tracked_mutation(
-    origin: ClientOrigin, type: MMT, original_input: Any, things: list[MutableThing], batch: bool
+    project_v: ProjectVersion,
+    origin: ClientOrigin,
+    type: MMT,
+    original_input: Any,
+    things: list[MutableThing],
+    batch: bool,
+    statement: Optional[Statement] = None,
 ) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
     """Publish mutations."""
     if type in (MMT.PASTE_FILE, MMT.PASTE_STATEMENT):
@@ -172,7 +227,7 @@ def publish_tracked_mutation(
     internal_mutations = []
     for input, thing in zip(inputs, things):
         input = input_to_gql_jsonable(input)
-        internal, public = map_mutation_from_api(type, input, thing)
+        internal, public = map_mutation_from_api(type, input, thing, project_v, statement)
         public_mutations.extend(public)
         internal_mutations.extend(internal)
 
