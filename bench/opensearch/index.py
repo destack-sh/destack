@@ -63,5 +63,8 @@ def create_index(index: IndexType, project_id: UUID) -> None:
 
 
 def write_mutations_to_os(project_id: UUID, mutations: list[ModuleMutation]):
-    """Writes any relevant mutations to OpenSearch."""
+    """
+    Writes any relevant mutations to OpenSearch.
+    For now assumes that there is only one index per type per project/scope.
+    """
     pass

@@ -410,15 +410,6 @@ export type FileRenameInput = {
   path: Scalars["String"];
 };
 
-export type InterpData = {
-  __typename?: "InterpData";
-  fileId?: Maybe<Scalars["GlobalID"]>;
-  issues?: Maybe<Array<Issue>>;
-  resolvedFields?: Maybe<Array<Field>>;
-  scope: InterpScope;
-  statementId?: Maybe<Scalars["GlobalID"]>;
-};
-
 export enum InterpScope {
   File = "FILE",
   Module = "MODULE",
@@ -441,6 +432,8 @@ export enum IssueKind {
   Suggestion = "SUGGESTION",
   Warning = "WARNING",
 }
+
+export type IssueResolvedField = Issue | ResolvedField;
 
 export enum IssueType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
@@ -473,7 +466,7 @@ export type ModuleChange = Change & {
 
 export type ModuleMutation = {
   __typename?: "ModuleMutation";
-  data?: Maybe<InterpData>;
+  data?: Maybe<IssueResolvedField>;
   fileId: Scalars["GlobalID"];
   input?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -487,10 +480,13 @@ export enum ModuleMutationType {
   CommentStatement = "COMMENT_STATEMENT",
   CreateField = "CREATE_FIELD",
   CreateFile = "CREATE_FILE",
+  CreateIssue = "CREATE_ISSUE",
   CreateRecord = "CREATE_RECORD",
+  CreateResolvedField = "CREATE_RESOLVED_FIELD",
   CreateStatement = "CREATE_STATEMENT",
   DeleteField = "DELETE_FIELD",
   DeleteFile = "DELETE_FILE",
+  DeleteIssue = "DELETE_ISSUE",
   DeleteRecord = "DELETE_RECORD",
   DeleteStatement = "DELETE_STATEMENT",
   MorphStatement = "MORPH_STATEMENT",
@@ -511,12 +507,16 @@ export enum ModuleMutationType {
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  TruncateFields = "TRUNCATE_FIELDS",
+  TruncateFiles = "TRUNCATE_FILES",
+  TruncateIssues = "TRUNCATE_ISSUES",
   TruncateRecords = "TRUNCATE_RECORDS",
+  TruncateResolvedFields = "TRUNCATE_RESOLVED_FIELDS",
+  TruncateStatements = "TRUNCATE_STATEMENTS",
   UpdateField = "UPDATE_FIELD",
   UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
   UpdateFieldType = "UPDATE_FIELD_TYPE",
   UpdateFile = "UPDATE_FILE",
-  UpdateInterp = "UPDATE_INTERP",
   UpdateRecord = "UPDATE_RECORD",
   UpdateStatement = "UPDATE_STATEMENT",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
@@ -1670,6 +1670,13 @@ export type RequestUploadObjectInput = {
   name?: InputMaybe<Scalars["String"]>;
   projectId: Scalars["GlobalID"];
   sha512: Scalars["String"];
+};
+
+export type ResolvedField = Node & {
+  __typename?: "ResolvedField";
+  field: Field;
+  id: Scalars["GlobalID"];
+  statement: Statement;
 };
 
 export type RestoreInput = {
@@ -3059,18 +3066,12 @@ export type IssueContentFragment = {
   statement?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "IssueContentFragment" };
 
-export type InterpDataContentFragment = {
-  __typename?: "InterpData";
-  scope: InterpScope;
-  fileId?: any | null;
-  statementId?: any | null;
-  issues?: Array<
-    { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
-  > | null;
-  resolvedFields?: Array<
-    { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
-  > | null;
-} & { " $fragmentName"?: "InterpDataContentFragment" };
+export type ResolvedFieldContentFragment = {
+  __typename?: "ResolvedField";
+  id: any;
+  statement: { __typename?: "Statement"; id: any };
+  field: { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } };
+} & { " $fragmentName"?: "ResolvedFieldContentFragment" };
 
 export type InterpFileFragment = {
   __typename?: "File";
@@ -4344,41 +4345,6 @@ export type RevealSecretQuery = {
   secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
 };
 
-export type ModuleChangedSubscriptionVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type ModuleChangedSubscription = {
-  __typename?: "Subscription";
-  moduleChanged: {
-    __typename?: "ModuleChange";
-    id: any;
-    clientId?: any | null;
-    mutations: Array<{
-      __typename?: "ModuleMutation";
-      type: ModuleMutationType;
-      fileId: any;
-      statementId?: any | null;
-      revision?: number | null;
-      input?: any | null;
-      data?:
-        | ({ __typename?: "InterpData" } & {
-            " $fragmentRefs"?: { InterpDataContentFragment: InterpDataContentFragment };
-          })
-        | null;
-    }>;
-  };
-};
-
-export type ProjectChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-}>;
-
-export type ProjectChangedSubscription = {
-  __typename?: "Subscription";
-  projectChanged: { __typename?: "ProjectChange"; id: any; clientId?: any | null };
-};
-
 export type SystemInfoQueryVariables = Exact<{ [key: string]: never }>;
 
 export type SystemInfoQuery = {
@@ -4947,30 +4913,28 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
-export const InterpDataContentFragmentDoc = {
+export const ResolvedFieldContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "InterpDataContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpData" } },
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
-          { kind: "Field", name: { kind: "Name", value: "scope" } },
-          { kind: "Field", name: { kind: "Name", value: "fileId" } },
-          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "id" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "issues" },
+            name: { kind: "Name", value: "statement" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "resolvedFields" },
+            name: { kind: "Name", value: "field" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
@@ -4980,7 +4944,7 @@ export const InterpDataContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<InterpDataContentFragment, unknown>;
+} as unknown as DocumentNode<ResolvedFieldContentFragment, unknown>;
 export const InterpFileFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -13095,122 +13059,6 @@ export const RevealSecretDocument = {
     },
   ],
 } as unknown as DocumentNode<RevealSecretQuery, RevealSecretQueryVariables>;
-export const ModuleChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "moduleChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "moduleChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "clientId" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "mutations" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "type" } },
-                      { kind: "Field", name: { kind: "Name", value: "fileId" } },
-                      { kind: "Field", name: { kind: "Name", value: "statementId" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "input" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "data" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "InlineFragment",
-                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "InterpData" } },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "InterpDataContent" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...InterpDataContentFragmentDoc.definitions,
-    ...IssueContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
-export const ProjectChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "projectChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "clientId" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ProjectChangedSubscription, ProjectChangedSubscriptionVariables>;
 export const SystemInfoDocument = {
   kind: "Document",
   definitions: [

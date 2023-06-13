@@ -94,7 +94,7 @@ class ModuleTree:
     def remove(self, node: NodeT | NodeDataT, recursive: bool = True):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         if recursive:
-            descendants = self.get_children(node.id, recursive=True)
+            descendants = self.get_descendants(node.id, recursive=True)
             for descendant in descendants:
                 self.nodes.pop(descendant.id)
                 self.children.pop(descendant.id)
@@ -105,7 +105,7 @@ class ModuleTree:
         self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
     ):
         """Truncate descendants of a node"""
-        descendants = self.get_children(node.id, t, recursive=recursive)
+        descendants = self.get_descendants(node.id, t, recursive=recursive)
         for descendant in descendants:
             self.children.pop(descendant.id)
             self.nodes.pop(descendant.id)
@@ -142,14 +142,14 @@ class ModuleTree:
         self, parent_id: UUID, t: NodeT | NodeDataT | None = None
     ) -> Optional["NodeT | NodeDataT"]:
         """Finds one or zero children of the given type"""
-        children = self.get_children(parent_id, t)
+        children = self.get_descendants(parent_id, t)
         if len(children) > 1:
             raise ValueError(
                 f"expected 0 or 1 children of type {t} for parent {parent_id}, got {children}"
             )
         return children[0] if children else None
 
-    def get_children(
+    def get_descendants(
         self, parent_id: UUID, t: NodeT | NodeDataT | None = None, recursive: bool = False
     ) -> list["NodeT | NodeDataT"]:
         """Finds all children (or descendants) of the given type"""
@@ -160,21 +160,41 @@ class ModuleTree:
         ]
         if recursive:
             for child in children:
-                children.extend(self.get_children(child.id, t, recursive=True))
+                children.extend(self.get_descendants(child.id, t, recursive=True))
         return children
 
-    def get_ancestor(self, node_id: UUID, t: NodeT | NodeDataT) -> Optional["NodeT | NodeDataT"]:
+    def get_ancestor(
+        self, node_id: UUID, t: NodeT | NodeDataT | None = None
+    ) -> Optional["NodeT | NodeDataT"]:
         """Finds the next ancestor of the given type"""
         node = self.nodes.get(node_id)
         if node is None:
             raise ValueError(f"node {node_id} is not in {self}")
         while node:
-            if isinstance(node, t):
+            if t is None or isinstance(node, t):
                 return node
             if node.parent_id is None:
                 return None
             node = self.nodes[node.parent_id]
         return None
+
+    def get_ancestors(
+        self, node_id: UUID, t: NodeT | NodeDataT | None = None, include_self: bool = False
+    ) -> list["NodeT | NodeDataT"]:
+        """Finds all ancestors of the given type"""
+        ancestors = []
+        node = self.nodes.get(node_id)
+        if node is None:
+            raise ValueError(f"node {node_id} is not in {self}")
+        if include_self:
+            ancestors.append(node)
+        while node:
+            if t is None or isinstance(node, t):
+                ancestors.append(node)
+            if node.parent_id is None:
+                break
+            node = self.nodes[node.parent_id]
+        return ancestors
 
 
 class DataPacker(typing.Generic[DataT, ObjectT]):
@@ -368,7 +388,7 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
         )
 
     def unwalk(self, module: lang.Module, tree: ModuleTree):
-        module.files = tree.get_children(module.id, lang.File, recursive=True)
+        module.files = tree.get_descendants(module.id, lang.File, recursive=True)
 
 
 @dataclass
@@ -411,8 +431,8 @@ class FilePacker(NodePacker[FileData, lang.File]):
         )
 
     def unwalk(self, file: lang.File, tree: ModuleTree):
-        file.statements = tree.get_children(file.id, lang.Statement, recursive=True)
-        file.children = tree.get_children(file.id, lang.File)
+        file.statements = tree.get_descendants(file.id, lang.Statement, recursive=True)
+        file.children = tree.get_descendants(file.id, lang.File)
 
 
 @dataclass
@@ -461,7 +481,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         )
 
     def unwalk(self, statement: lang.Statement, tree: ModuleTree):
-        statement.children = tree.get_children(statement.id, lang.Statement)
+        statement.children = tree.get_descendants(statement.id, lang.Statement)
 
 
 class BlankData(StatementData):
@@ -544,7 +564,7 @@ class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
 
     def unwalk(self, symbol: lang.Type, tree: ModuleTree):
         super().unwalk(symbol, tree)
-        symbol.fields = tree.get_children(symbol.id, lang.Field)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 @dataclass
@@ -581,7 +601,7 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
 
     def unwalk(self, symbol: lang.Task, tree: ModuleTree):
         super().unwalk(symbol, tree)
-        symbol.fields = tree.get_children(symbol.id, lang.Field)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 @dataclass
@@ -655,7 +675,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
 
     def unwalk(self, symbol: lang.Code, tree: ModuleTree):
         super().unwalk(symbol, tree)
-        symbol.fields = tree.get_children(symbol.id, lang.Field)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 @dataclass
@@ -755,7 +775,7 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 
     def unwalk(self, symbol: lang.Value, tree: ModuleTree):
         super().unwalk(symbol, tree)
-        symbol.fields = tree.get_children(symbol.id, lang.Field)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 @dataclass
@@ -795,7 +815,7 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
 
     def unwalk(self, symbol: lang.Dataset, tree: ModuleTree):
         super().unwalk(symbol, tree)
-        symbol.fields = tree.get_children(symbol.id, lang.Field)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 STATEMENT_DATA_BY_TYPE = {

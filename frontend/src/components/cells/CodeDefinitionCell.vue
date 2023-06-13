@@ -235,8 +235,7 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1 mt-1 rounded-sm px-1 pb-1.5 pt-1 transition-colors duration-75"
-    :class="context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100'"
+    class="-mx-1.5 mt-1 rounded-sm border border-orange-900 border-opacity-[15%] px-1.5 pb-1.5 pt-1 transition-colors duration-75"
   />
   <button
     v-if="code.length == 0"

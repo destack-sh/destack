@@ -131,8 +131,11 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
             revision
             input
             data {
-              ... on InterpData {
-                ...InterpDataContent
+              ... on Issue {
+                ...IssueContent
+              }
+              ... on ResolvedField {
+                ...ResolvedFieldContent
               }
             }
           }
@@ -222,7 +225,7 @@ function useSyncedOps() {
 
   function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
     // manual mutations (when we don't have a registered op from a standard GQL mutation)
-    if (mutation.type == ModuleMutationType.UpdateInterp) {
+    if (mutation.type == ModuleMutationType.TruncateIssues) {
       // set the interp data (resolvedFields and issues) on the target
       if (mutation.statementId != null) {
         client.cache.writeFragment({

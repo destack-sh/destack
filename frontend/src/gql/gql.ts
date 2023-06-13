@@ -95,8 +95,8 @@ const documents = {
     types.StatementContentFragmentDoc,
   "\n  fragment IssueContent on Issue {\n    # :IssueContent\n    id\n    scope\n    kind\n    type\n    message\n    file {\n      id\n    }\n    statement {\n      id\n    }\n  }\n":
     types.IssueContentFragmentDoc,
-  "\n  fragment InterpDataContent on InterpData {\n    scope\n    fileId\n    statementId\n    issues {\n      ...IssueContent\n    }\n    resolvedFields {\n      ...FieldContent\n    }\n  }\n":
-    types.InterpDataContentFragmentDoc,
+  "\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    statement {\n      id\n    }\n    field {\n      ...FieldContent\n    }\n  }\n":
+    types.ResolvedFieldContentFragmentDoc,
   "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n":
     types.InterpFileFragmentDoc,
   "\n  fragment InterpStatement on Statement {\n    id\n    type\n    name\n    modifier\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    file {\n      id\n    }\n    parent {\n      id\n    }\n    orderKey\n    referenceProjectVersion {\n      id\n    }\n    rootTypeTag\n    rootTypeFlags\n    fields(filters: { isVisible: true }) {\n      ...FieldContent\n    }\n  }\n":
@@ -229,10 +229,6 @@ const documents = {
     types.RestoreDocument,
   "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      ":
     types.RevealSecretDocument,
-  "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on InterpData {\n                ...InterpDataContent\n              }\n            }\n          }\n        }\n      }\n    ":
-    types.ModuleChangedDocument,
-  "\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    ":
-    types.ProjectChangedDocument,
   "\n      query systemInfo {\n        systemInfo {\n          version\n          gitCommit\n        }\n      }\n    ":
     types.SystemInfoDocument,
 };
@@ -501,8 +497,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment InterpDataContent on InterpData {\n    scope\n    fileId\n    statementId\n    issues {\n      ...IssueContent\n    }\n    resolvedFields {\n      ...FieldContent\n    }\n  }\n"
-): typeof documents["\n  fragment InterpDataContent on InterpData {\n    scope\n    fileId\n    statementId\n    issues {\n      ...IssueContent\n    }\n    resolvedFields {\n      ...FieldContent\n    }\n  }\n"];
+  source: "\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    statement {\n      id\n    }\n    field {\n      ...FieldContent\n    }\n  }\n"
+): typeof documents["\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    statement {\n      id\n    }\n    field {\n      ...FieldContent\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -899,18 +895,6 @@ export function graphql(
 export function graphql(
   source: "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      "
 ): typeof documents["\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on InterpData {\n                ...InterpDataContent\n              }\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on InterpData {\n                ...InterpDataContent\n              }\n            }\n          }\n        }\n      }\n    "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    "
-): typeof documents["\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

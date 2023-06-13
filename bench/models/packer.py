@@ -15,12 +15,16 @@ from typing import Optional, TypeVar
 from uuid import UUID
 
 import pytz
+from django.db import transaction
 from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.bench import StatementType, wire
-from bench.bench.const import TypeFlag, TypeHint, TypeTag
+from bench.bench.const import InterpScope, TypeFlag, TypeHint, TypeTag
+from bench.bench.issue import IssueKind, IssueType
+from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
 from bench.bench.wire import ModuleObjectType, ModuleTree
+from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
@@ -179,20 +183,36 @@ def pack_node(
     return roots, list(packed.values())
 
 
-def unpack_nodes(
-    nodes: list[NodeDataT], parent: Optional[NodeT] = None
-) -> tuple[list[NodeT], list[NodeT]]:
+def unpack_nodes_tree(nodes: list[NodeDataT], parent: Optional[NodeT] = None) -> ModuleTree:
     """Unpack a node and its descendants"""
     data_tree = ModuleTree(nodes)
-    unpacked: dict[UUID, NodeT] = {}
+    unpacked_tree = ModuleTree()
 
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
-        node_parent = unpacked.get(node.parent_id) if node.parent_id else parent
-        unpacked[node.id] = packer.unpack(node, node_parent)
+        node_parent = unpacked_tree.nodes.get(node.parent_id) if node.parent_id else parent
+        unpacked = packer.unpack(node, node_parent)
+        unpacked_tree.add(unpacked)
 
-    return [unpacked[node.id] for node in nodes], list(unpacked.values())
+    return unpacked_tree
+
+
+def unpack_nodes(
+    project_v: models.ProjectVersion, module: ModuleTree, nodes: list[NodeDataT]
+) -> list[NodeT]:
+    nodes = []
+    ancestors_by_id = {project_v.id: project_v}
+    for data in nodes:
+        ancestors = module.get_ancestors(data.parent_id, include_self=True)
+        for ancestor in reversed(ancestors):
+            if ancestor.id not in ancestors_by_id:
+                parent = ancestors_by_id.get(ancestor.parent_id)
+                unpacked = unpack_node_flat(ancestor, parent)
+                ancestors_by_id[ancestor.id] = unpacked
+        node = unpack_node_flat(data, ancestors_by_id[data.parent_id])
+        nodes.append(node)
+    return nodes
 
 
 def pack_node_flat(model: ModelT) -> NodeDataT:
@@ -271,9 +291,10 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     ) -> models.Statement:
         return models.Statement(
             id=data.id,
-            revision=data.revision,
+            project_version_id=parent.project_version_id,
             parent_id=parent.id if isinstance(parent, models.File) else parent.id,
             file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
+            revision=data.revision,
             order_key=data.order_key,
             type=data.type.value,
             name=data.name,
@@ -534,7 +555,14 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
 @node_packer(MOT.ISSUE, wire.IssueData, models.Issue)
 class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
-        raise NotImplementedError
+        return wire.IssueData(
+            id=issue.id,
+            parent_id=issue.statemen_id or issue.file_id or issue.project_version_id,
+            scope=InterpScope(issue.scope),
+            kind=IssueKind(issue.kind),
+            type=IssueType(issue.type),
+            message=issue.message,
+        )
 
     def unpack(
         self, data: wire.IssueData, parent: models.Statement | models.File | models.ProjectVersion
@@ -556,19 +584,23 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         return models.Issue(
             id=data.id,
             project_version_id=project_version_id,
+            file_id=file_id,
+            statement_id=statement_id,
             scope=data.scope.value,
             kind=data.kind.value,
             type=data.type.value,
             message=data.message,
-            file_id=file_id,
-            statement_id=statement_id,
         )
 
 
 @node_packer(MOT.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
 class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
-        raise NotImplementedError
+        return wire.ResolvedFieldData(
+            id=resolved_field.id,
+            parent_id=resolved_field.statement_id,
+            field_id=resolved_field.field_id,
+        )
 
     def unpack(
         self, data: wire.ResolvedFieldData, parent: models.Statement
@@ -674,3 +706,42 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
             user_id=user_id,
             access_token_id=access_token_id,
         )
+
+
+@transaction.atomic(savepoint=False)
+def write_mutations(
+    project_v: models.ProjectVersion, module: ModuleTree, mutations: list[ModuleMutation]
+):
+    """
+    Writes a series of module mutations to the database.
+    Currently only interp and record mutations are supported.
+    """
+
+    mut = MutationBundle(mutations)
+
+    for mmt, batch in mut.batch():
+        if mmt.kind == MMK.TRUNCATE:
+            # remove descendants of a certain type by scope
+            statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
+            file_ids = [m.file_id for m in batch if m.file_id is not None]
+            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            if statement_ids:
+                model_cls.objects.filter(statement_id__in=statement_ids).delete()
+            elif file_ids:
+                model_cls.objects.filter(file_id__in=file_ids).delete()
+            else:
+                model_cls.objects.filter(project_version_id=project_v.id).delete()
+        elif mmt.kind in (MMK.CREATE, MMK.UPDATE):
+            # create or update nodes in place
+            # (first assemble ancestor models - no queries, just unpacking)
+            nodes = unpack_nodes(project_v, module, [m.data for m in batch])
+            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            if mmt.kind == MMK.CREATE:
+                model_cls.objects.bulk_create(nodes)
+            else:
+                model_cls.objects.bulk_update(nodes)
+        elif mmt.kind == MMK.DELETE:
+            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
+
+    write_mutations_to_os(project_v.project_id, mut.mutations)

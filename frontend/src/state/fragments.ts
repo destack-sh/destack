@@ -177,15 +177,13 @@ export const IssueContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export const InterpDataContentType = graphql(/* GraphQL */ `
-  fragment InterpDataContent on InterpData {
-    scope
-    fileId
-    statementId
-    issues {
-      ...IssueContent
+export const ResolvedFieldContentType = graphql(/* GraphQL */ `
+  fragment ResolvedFieldContent on ResolvedField {
+    id
+    statement {
+      id
     }
-    resolvedFields {
+    field {
       ...FieldContent
     }
   }
