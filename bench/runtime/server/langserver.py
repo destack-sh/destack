@@ -4,24 +4,22 @@ from datetime import datetime, timedelta
 from functools import partial
 from itertools import chain
 from typing import Optional
-from uuid import UUID, uuid5
+from uuid import UUID
 
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench import bench as language
 from bench import models
-from bench.bench import build, wire
-from bench.bench.const import InterpScope
+from bench.bench import HasType, build, wire
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
     get_inference_cache_key,
     run_inference,
 )
-from bench.bench.mutate import MMT, ModuleMutation, ModuleMutator
-from bench.bench.wire import ExecutionFrameData, InterpData
+from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.wire import MOT, ExecutionFrameData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.msg import NMessage
@@ -383,8 +381,8 @@ class LanguageWorker:
         self.interpreter = LanguageInterpreter(fetcher)
         # module data
         self.source: wire.ModuleData | None = None
-        self.last_interp_by_statement: dict[UUID, InterpData] = {}
         self.interp: Optional[InterpModule] = None
+        self.last_interp: Optional[InterpModule] = None
 
     @property
     def client(self) -> ClientOrigin:
@@ -440,68 +438,55 @@ class LanguageWorker:
 
     def _do_interp_sync(
         self, new_source: wire.ModuleData, dependencies: list[InterpModule]
-    ) -> dict[UUID, InterpData]:
+    ) -> tuple[InterpModule, InterpModule]:
         self.source = new_source
+        old = self.interp
         self.interp = interp_module(new_source)
-
-        # interpret
-        interp_by_scope: dict[UUID, InterpData] = {}
-        for symbol in self.interp.module.symbols_by_id.values():
-            if isinstance(symbol, language.HasType) and symbol.resolved_fields is not None:
-                resolved_fields = [wire.pack_node_flat(field) for field in symbol.resolved_fields]
-            else:
-                resolved_fields = None
-            interp_by_scope[symbol.id] = InterpData(
-                id=uuid5(symbol.id, "interp"),
-                scope=InterpScope.STATEMENT,
-                statement_id=symbol.id,
-                file_id=symbol.file.id,
-                issues=None,
-                resolved_fields=resolved_fields,
-            )
-        # add issues to interp scope
-        for issue in self.interp.issues:
-            if issue.subject is not None and issue.subject.id in interp_by_scope:
-                interp = interp_by_scope[issue.subject.id]
-            else:
-                continue  # not sure what to do here
-            if interp.issues is None:
-                interp.issues = []
-            interp.issues.append(wire.pack_data(issue))
-        return interp_by_scope
+        return old, self.interp
 
     async def do_interp(self, new_source: wire.ModuleData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
         dependencies = await self.interpreter.interp_requirements(requirements)
-        interp_by_scope = await asyncio.get_event_loop().run_in_executor(
+        old_interp, new_interp = await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
 
         # check for any interp changes
-        mutations = []
-        for interp_data in interp_by_scope.values():
-            last_interp = self.last_interp_by_statement.get(interp_data.statement_id)
-            if last_interp is not None and last_interp.hash_content() == interp_data.hash_content():
+        interp_mut = ModuleMutator(new_source)
+        # resolved fields
+        if old_interp is None:
+            interp_mut.truncate(new_source.strip(), MOT.RESOLVED_FIELD)
+        for symbol in new_interp.module.symbols_by_id.values():
+            if not isinstance(symbol, HasType):
                 continue
-            mutation = ModuleMutation(
-                type=MMT.UPDATE_INTERP,
-                project_version_id=self.module_id,
-                file_id=interp_data.file_id,
-                statement_id=interp_data.statement_id,
-            )
-            mutation.data = interp_data
-            mutations.append(mutation)
-        self.last_interp_by_statement = interp_by_scope
+            old_symbol = old_interp.module.symbols_by_id.get(symbol.id)
+            if old_symbol is None or old_symbol.resolved_fields != symbol.resolved_fields:
+                if old_interp is not None:
+                    interp_mut.truncate(wire.pack_node_flat(symbol), MOT.RESOLVED_FIELD)
+                for resolved in symbol.resolved_fields:
+                    interp_mut.create(wire.pack_node_flat(resolved))
+        # issues
+        if old_interp is not None:
+            interp_mut.truncate(new_source.strip(), MOT.ISSUE)
+        new_issues = {issue.id: issue for issue in new_interp.module.issues}
+        old_issues = (issue.id for issue in old_interp.module.issues) if old_interp else ()
+        for issue in old_interp.module.issues:
+            if issue.id not in new_issues:
+                interp_mut.delete(issue)
+        for issue in new_issues.values():
+            if issue.id not in old_issues:
+                interp_mut.create(issue)
+
         # save and notify
-        if mutations:
+        if interp_mut.mutations:
             await sync_to_async(write_mutations)(
-                project_v=self.project_version, mutations=mutations
+                project_v=self.project_version, mutations=interp_mut.mutations
             )
             await publish(
                 NMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(
-                    module_id=self.module_id, origins=(self.client,), mutations=mutations
+                    module_id=self.module_id, origins=(self.client,), mutations=interp_mut.mutations
                 ),
             )
 

@@ -6,9 +6,8 @@ import re
 import traceback
 import typing
 from collections import OrderedDict, defaultdict, deque
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
-from hashlib import md5
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
@@ -33,6 +32,7 @@ if typing.TYPE_CHECKING:
 
 
 class ModuleObjectType(enum.StrEnum):
+    # source
     MODULE = "MODULE"
     FILE = "FILE"
     STATEMENT = "STATEMENT"
@@ -40,7 +40,8 @@ class ModuleObjectType(enum.StrEnum):
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
     # interp
-    # TODO @Cleanup @Architecture: split INTERP into constituent issue, resolved, etc.
+    ISSUE = "ISSUE"
+    RESOLVED_FIELD = "RESOLVED_FIELD"
     INTERP = "INTERP"
     # user
     COMMENT = "COMMENT"
@@ -100,6 +101,15 @@ class ModuleTree:
                 self.children.pop(descendant.id)
         self.nodes.pop(node.id)
         self.children.pop(node.id)
+
+    def truncate(
+        self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
+    ):
+        """Truncate descendants of a node"""
+        descendants = self.get_children(node.id, t, recursive=True)
+        for descendant in descendants:
+            self.children.pop(descendant.id)
+            self.nodes.pop(descendant.id)
 
     @property
     def root(self) -> Optional[NodeT | NodeDataT]:
@@ -206,6 +216,7 @@ class PackContext(abc.ABC):
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
 MOT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MOT] = {}
+BASE_DATA_CLASS_BY_MOT: dict[MOT, typing.Type[NodeDataT]] = {}
 
 
 def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT] | None):
@@ -224,6 +235,12 @@ def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
         _node_packers_by_node[node_t] = packer
         _node_packers_by_data[data_t] = packer
         MOT_BY_DATA_CLASS[data_t] = t
+        if t not in BASE_DATA_CLASS_BY_MOT:
+            BASE_DATA_CLASS_BY_MOT[t] = data_t
+        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MOT[t]):
+            raise ValueError(
+                f"cannot register {data_t} as {t}, it is not a subclass of {BASE_DATA_CLASS_BY_MOT[t]}"
+            )
         return cls
 
     return decorator
@@ -310,6 +327,9 @@ class ModuleData(NodeData):
     committed: bool
     parent_id: Optional[UUID]
     nodes: Optional[list[NodeData]] = None
+
+    def strip(self) -> ModuleData:
+        return replace(self, nodes=None)
 
     def __str__(self):
         return f"{self.name}@{self.id}"
@@ -854,7 +874,7 @@ class DatasetViewData(NodeData, Ordered, Revisioned):
     reference_id: Optional[UUID] = None
 
 
-@node_packer(MOT.STATEMENT, DatasetViewData, lang.DatasetView)
+@node_packer(MOT.DATASET_VIEW, DatasetViewData, lang.DatasetView)
 class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
@@ -892,7 +912,7 @@ class RecordData(NodeData, Ordered, Revisioned):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MOT.STATEMENT, RecordData, lang.Record)
+@node_packer(MOT.RECORD, RecordData, lang.Record)
 class RecordPacker(NodePacker[RecordData, lang.Record]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
@@ -910,6 +930,49 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             revision=record.revision,
             data=record.data,
         )
+
+
+@dataclass
+class ResolvedFieldData(NodeData):
+    field_id: UUID
+
+
+@node_packer(MOT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
+class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+
+    def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
+        return ResolvedFieldData(
+            id=resolved_field.id,
+            parent_id=resolved_field.parent_id,
+            field_id=resolved_field.field.id,
+        )
+
+
+@dataclass
+class IssueData(NodeData):
+    scope: InterpScope
+    kind: IssueKind
+    type: IssueType
+    message: Optional[str]
+
+
+@node_packer(MOT.ISSUE, IssueData, lang.Issue)
+class IssuePacker(DataPacker[IssueData, lang.Issue]):
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+
+    def pack(self, issue: lang.Issue) -> "IssueData":
+        return IssueData(
+            id=issue.id,
+            parent_Id=issue.statement_id or issue.file_id,
+            scope=issue.scope,
+            kind=issue.kind,
+            type=issue.type,
+            message=issue.message,
+        )
+
+    def unpack(self, issue: IssueData) -> lang.Issue:
+        raise NotImplementedError
 
 
 # other objects
@@ -950,59 +1013,6 @@ def unpack_data(data: DataT) -> ObjectT:
     """Unpack a flat module node into a language data object"""
     packer = _data_packers_by_data[type(data)]
     return packer.unpack(data)
-
-
-@dataclass
-class InterpData:
-    id: UUID
-    statement_id: Optional[UUID]
-    file_id: Optional[UUID]
-    scope: InterpScope
-    issues: Optional[list["IssueData"]] = None
-    resolved_fields: Optional[list[FieldData]] = None
-
-    @property
-    def parent_id(self) -> UUID:
-        return self.statement_id or self.file_id
-
-    def hash_content(self) -> str:
-        content = (
-            self.parent_id,
-            *(issue.id for issue in (self.issues or [])),
-            *(field.id for field in (self.resolved_fields or [])),
-        )
-        content = str(content).encode("utf-8")
-        return md5(content).hexdigest()
-
-
-@dataclass
-class IssueData:
-    id: UUID
-    statement_id: Optional[UUID]
-    file_id: Optional[UUID]
-    scope: InterpScope
-    kind: IssueKind
-    type: IssueType
-    message: Optional[str]
-
-
-@data_packer(IssueData, lang.Issue)
-class IssuePacker(DataPacker[IssueData, lang.Issue]):
-    PARENTS: ClassVar[ParentsT] = {MOT.INTERP}
-
-    def pack(self, issue: lang.Issue) -> "IssueData":
-        return IssueData(
-            id=issue.id,
-            statement_id=issue.statement_id,
-            file_id=issue.file_id,
-            scope=issue.scope,
-            kind=issue.kind,
-            type=issue.type,
-            message=issue.message,
-        )
-
-    def unpack(self, issue: IssueData) -> lang.Issue:
-        raise NotImplementedError
 
 
 @dataclass

@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Optional, cast
+from typing import AsyncGenerator, Optional, Union, cast
 from uuid import UUID
 
 import structlog
@@ -12,7 +12,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
-from bench.api.interp import InterpData, unpack_interp_data
+from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.bench import mutate
@@ -52,7 +52,7 @@ class ModuleMutation:
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
-    data: Optional[InterpData]
+    data: Union[Issue, ResolvedField, None]
 
 
 @gql.type

@@ -11,7 +11,7 @@ from bench.bench.const import ModuleOp
 from bench.bench.dataset import Query, Sort
 from bench.bench.mutate import ModuleMutator
 from bench.bench.typer import check_type
-from bench.bench.wire import ExecutionFrameData
+from bench.bench.wire import MOT, ExecutionFrameData
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
 from bench.runtime.common.type import ExecutionFrame
@@ -357,7 +357,7 @@ class MutationTracer(Tracer):
         # publish not supported yet
 
     def dataset_clear(self, table: Dataset):
-        self.mutator.truncate_records(table.id)
+        self.mutator.truncate(table.id, MOT.RECORD)
 
     def dataset_append(self, table: Dataset, record: Record):
         self.mutator.create(record._to_wire(include_data=True))

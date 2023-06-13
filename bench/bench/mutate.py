@@ -11,6 +11,7 @@ from uuid import UUID
 
 from bench.bench import Module, StatementType, wire
 from bench.bench.wire import (
+    BASE_DATA_CLASS_BY_MOT,
     MOT_BY_DATA_CLASS,
     STATEMENT_TYPE_BY_DATA_CLASS,
     CodeData,
@@ -19,7 +20,7 @@ from bench.bench.wire import (
     ExpectationData,
     FieldData,
     FileData,
-    InterpData,
+    IssueData,
     ModelData,
     ModuleData,
     ModuleObjectType,
@@ -27,6 +28,7 @@ from bench.bench.wire import (
     NodeData,
     RecordData,
     RequirementData,
+    ResolvedFieldData,
     StatementData,
     TaskData,
     TypeData,
@@ -38,6 +40,7 @@ class ModuleMutationType(enum.StrEnum):
     """Fine-grained atomic mutations for multiplayer modules."""
 
     # Files
+    TRUNCATE_FILES = "TRUNCATE_FILES"
     CREATE_FILE = "CREATE_FILE"
     PASTE_FILE = "PASTE_FILE"
     SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
@@ -47,6 +50,7 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_FILE = "UPDATE_FILE"
     DELETE_FILE = "DELETE_FILE"
     # Statements
+    TRUNCATE_STATEMENTS = "TRUNCATE_STATEMENTS"
     CREATE_STATEMENT = "CREATE_STATEMENT"
     PASTE_STATEMENT = "PASTE_STATEMENT"
     SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
@@ -65,6 +69,7 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_SYMBOL_LANGUAGE = "UPDATE_SYMBOL_LANGUAGE"
     UPDATE_SYMBOL_VALUE = "UPDATE_SYMBOL_VALUE"
     # Types
+    TRUNCATE_FIELDS = "TRUNCATE_FIELDS"
     CREATE_FIELD = "CREATE_FIELD"
     UPDATE_FIELD = "UPDATE_FIELD"
     RENAME_FIELD = "RENAME_FIELD"
@@ -83,7 +88,11 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
     # Interp
-    UPDATE_INTERP = "UPDATE_INTERP"
+    TRUNCATE_ISSUES = "TRUNCATE_ISSUES"
+    CREATE_ISSUE = "CREATE_ISSUE"
+    DELETE_ISSUE = "DELETE_ISSUE"
+    TRUNCATE_RESOLVED_FIELDS = "TRUNCATE_RESOLVED_FIELDS"
+    CREATE_RESOLVED_FIELD = "CREATE_RESOLVED_FIELD"
 
     @property
     def kind(self) -> "ModuleMutationKind":
@@ -102,24 +111,36 @@ class ModuleMutationKind(enum.StrEnum):
     CREATE = "CREATE"
     UPDATE = "UPDATE"
     DELETE = "DELETE"
+    TRUNCATE = "TRUNCATE"
 
 
-# Basic CRUD mutations with full (flat) data for the model
+# Basic CUD mutations with full (flat) data for the model
 SIMPLE_MUTATIONS = {
+    # File
+    ModuleMutationType.TRUNCATE_FILES,
     ModuleMutationType.CREATE_FILE,
     ModuleMutationType.UPDATE_FILE,
     ModuleMutationType.DELETE_FILE,
+    # Statement
+    ModuleMutationType.TRUNCATE_STATEMENTS,
     ModuleMutationType.CREATE_STATEMENT,
     ModuleMutationType.UPDATE_STATEMENT,
     ModuleMutationType.DELETE_STATEMENT,
+    # Fields
+    ModuleMutationType.TRUNCATE_FIELDS,
     ModuleMutationType.CREATE_FIELD,
     ModuleMutationType.UPDATE_FIELD,
     ModuleMutationType.DELETE_FIELD,
+    # Record
+    ModuleMutationType.TRUNCATE_RECORDS,
     ModuleMutationType.CREATE_RECORD,
     ModuleMutationType.UPDATE_RECORD,
     ModuleMutationType.DELETE_RECORD,
-    # other not directly CRUD
-    ModuleMutationType.TRUNCATE_RECORDS,
+    # Interp
+    ModuleMutationType.TRUNCATE_ISSUES,
+    ModuleMutationType.CREATE_ISSUE,
+    ModuleMutationType.TRUNCATE_RESOLVED_FIELDS,
+    ModuleMutationType.CREATE_RESOLVED_FIELD,
 }
 
 MMT = ModuleMutationType
@@ -128,6 +149,7 @@ MOT = ModuleObjectType
 
 _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     # Files
+    MMT.TRUNCATE_FILES: (MMK.TRUNCATE, MOT.FILE),
     MMT.CREATE_FILE: (MMK.CREATE, MOT.FILE),
     MMT.SOFT_DELETE_FILE: (MMK.DELETE, MOT.FILE),
     MMT.RESTORE_FILE: (MMK.CREATE, MOT.FILE),
@@ -136,6 +158,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.UPDATE_FILE: (MMK.UPDATE, MOT.FILE),
     MMT.DELETE_FILE: (MMK.DELETE, MOT.FILE),
     # Statements
+    MMT.TRUNCATE_STATEMENTS: (MMK.TRUNCATE, MOT.STATEMENT),
     MMT.CREATE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
     MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
     MMT.RESTORE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
@@ -153,6 +176,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MOT.STATEMENT),
     MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.STATEMENT),
     # Types
+    MMT.TRUNCATE_FIELDS: (MMK.TRUNCATE, MOT.FIELD),
     MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
     MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
     MMT.RENAME_FIELD: (MMK.UPDATE, MOT.FIELD),
@@ -163,7 +187,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MOT.FIELD),
     MMT.RESTORE_FIELD: (MMK.CREATE, MOT.FIELD),
     # Records
-    MMT.TRUNCATE_RECORDS: (MMK.DELETE, MOT.STATEMENT),
+    MMT.TRUNCATE_RECORDS: (MMK.TRUNCATE, MOT.RECORD),
     MMT.CREATE_RECORD: (MMK.CREATE, MOT.RECORD),
     MMT.UPDATE_RECORD: (MMK.UPDATE, MOT.RECORD),
     MMT.MOVE_RECORD: (MMK.UPDATE, MOT.RECORD),
@@ -171,7 +195,11 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MOT.RECORD),
     MMT.RESTORE_RECORD: (MMK.CREATE, MOT.RECORD),
     # Interp
-    MMT.UPDATE_INTERP: (MMK.UPDATE, MOT.INTERP),
+    MMT.TRUNCATE_ISSUES: (MMK.TRUNCATE, MOT.ISSUE),
+    MMT.CREATE_ISSUE: (MMK.CREATE, MOT.ISSUE),
+    MMT.DELETE_ISSUE: (MMK.DELETE, MOT.ISSUE),
+    MMT.TRUNCATE_RESOLVED_FIELDS: (MMK.TRUNCATE, MOT.RESOLVED_FIELD),
+    MMT.CREATE_RESOLVED_FIELD: (MMK.CREATE, MOT.RESOLVED_FIELD),
 }
 
 
@@ -179,7 +207,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
 class ModuleMutation:
     type: MMT
     project_version_id: UUID
-    file_id: UUID
+    file_id: Optional[UUID] = None
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
@@ -201,8 +229,9 @@ class ModuleMutation:
     _data_statement_dataset: Optional[DatasetData] = None
     _data_field: Optional[FieldData] = None
     _data_record: Optional[RecordData] = None
-    _data_interp: Optional[InterpData] = None
     _data_dataset_view: Optional[DatasetViewData] = None
+    _data_issue: Optional[IssueData] = None
+    _data_resolved_field: Optional[ResolvedFieldData] = None
 
     @property
     def data(self) -> NodeData:
@@ -279,11 +308,14 @@ class ModuleMutator:
         elif type == MMT.CREATE_FILE:
             statement_id = None
             file_id = obj.id
-        else:
+        elif type.scope != MOT.MODULE:
             statement_id = (
                 self.statement_id or self.tree.get_ancestor(obj.parent_id, wire.StatementData).id
             )
             file_id = self.file_id or self.tree.get_ancestor(statement_id, wire.FileData).id
+        else:
+            statement_id = None
+            file_id = None
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
@@ -303,13 +335,15 @@ class ModuleMutator:
             self.tree.replace(mut.data)
         elif mut.type.kind == MMK.DELETE:
             self.tree.remove(mut.data)
+        elif mut.type.kind == MMK.TRUNCATE:
+            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MOT[mut.type.scope])
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 
-    def truncate_records(self, statement_id: UUID) -> "ModuleMutator":
+    def truncate(self, obj: NodeData, mot: MOT) -> "ModuleMutator":
         """Truncates all records of the given statement."""
-        symbol = self.module.symbols_by_id[statement_id]
-        self.do(MMT.TRUNCATE_RECORDS, wire.pack_node_flat(symbol.source))
+        mmt = MMT(f"TRUNCATE_{mot.name}S")
+        self.do(mmt, obj)
         return self
 
     def create_many(self, *objs: NodeData) -> "ModuleMutator":
@@ -370,10 +404,7 @@ class MutationBundle:
 
     @cached_property
     def simple(self) -> bool:
-        # interp changes are 'simple' because we don't apply them here
-        return not any(
-            m.type not in SIMPLE_MUTATIONS and m.type.scope != MOT.INTERP for m in self.mutations
-        )
+        return not any(m.type not in SIMPLE_MUTATIONS for m in self.mutations)
 
     @property
     def complex_mutations(self):
@@ -393,6 +424,7 @@ class MutationBundle:
         self._cache[type] = mutations
         return mutations
 
+    # TODO @Perofmrance: mutation compaction & batching can be much smarter
     def compact(self) -> list[ModuleMutation]:
         """
         Compact simple mutations into fewer semantically identical mutations.

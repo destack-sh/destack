@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-import typing
-from uuid import uuid5
-
 from django.db import transaction
-from django.db.models import Q
 
 from bench import models
-from bench.bench.mutate import MMT, ModuleMutation, MutationBundle
-from bench.bench.wire import InterpData
-from bench.models import packer
+from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
+from bench.models.packer import BASE_MODEL_CLASS_BY_MOT
 from bench.opensearch.index import write_mutations_to_os
 
 
@@ -23,43 +18,21 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
     mut = MutationBundle(mutations)
 
     for mmt, batch in mut.batched():
-        # DB
-        if mmt == MMT.UPDATE_INTERP:
-            # delete and re-create interp data
-            # should probably somehow fit into our other regular packer/mutation system
-            file_ids = [m.file_id for m in batch]
-            statement_ids = [m.statement_id for m in batch]
-            models.ResolvedField.objects.filter(statement_id__in=statement_ids).delete()
-            models.Issue.objects.filter(
-                Q(statement_id__in=statement_ids) | Q(file_id__in=file_ids)
-            ).delete()
-            # create new interp data
-            issues = []
-            resolved_fields = []
-            for m in mut[MMT.UPDATE_INTERP]:
-                interp_data = typing.cast(InterpData, m.data)
-                for issue_data in interp_data.issues or []:
-                    issues.append(packer.unpack_issue(issue_data, project_v.id))
-                for resolved_field_data in interp_data.resolved_fields or []:
-                    resolved_fields.append(
-                        models.ResolvedField(
-                            id=uuid5(interp_data.statement_id, str(resolved_field_data.id)),
-                            project_version_id=project_v.id,
-                            statement_id=interp_data.statement_id,
-                            field_id=resolved_field_data.id,
-                        )
-                    )
-            models.Issue.objects.bulk_create(issues)
-            models.ResolvedField.objects.bulk_create(resolved_fields)
-        # Opensearch mutations
-        # nocheckin: implement opensearch mutations
-        elif mmt == MMT.CREATE_RECORD:
+        if mmt.kind == MMK.TRUNCATE:
+            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.scope]
+            statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
+            file_ids = [m.file_id for m in batch if m.file_id is not None]
+            if statement_ids:
+                model_cls.objects.filter(id__in=statement_ids).delete()
+            elif file_ids:
+                model_cls.objects.filter(id__in=file_ids).delete()
+            else:
+                model_cls.objects.filter(project_version_id=project_v.id).delete()
+        elif mmt.kind == MMK.CREATE:
             raise NotImplementedError
-        elif mmt == MMT.UPDATE_RECORD:
+        elif mmt.kind == MMK.UPDATE:
             raise NotImplementedError
-        elif mmt == MMT.DELETE_RECORD:
-            raise NotImplementedError
-        elif mmt == MMT.TRUNCATE_RECORDS:
+        elif mmt.kind == MMK.DELETE:
             raise NotImplementedError
 
     write_mutations_to_os(project_v.project_id, mut.mutations)

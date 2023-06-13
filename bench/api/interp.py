@@ -1,18 +1,11 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional
-from uuid import UUID
 
-import pytz
 import structlog
 from strawberry import lazy
 from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
 
 from bench import bench as language
 from bench import models
-from bench.api.utils import to_global_id
-from bench.bench import wire
-from bench.models import packer
 
 if TYPE_CHECKING:
     from bench.api.project import File
@@ -35,41 +28,7 @@ class Issue(gql.Node):
     message: Optional[str]
 
 
-# doesn't exist in the DB (part of statement) but used for data sync
-@gql.type
-class InterpData:
-    scope: InterpScope
-    file_id: Optional[GlobalID]
-    statement_id: Optional[GlobalID]
-    issues: Optional[list[Issue]]
-    resolved_fields: Optional[list[Annotated["Field", lazy(".statement")]]]
-
-
-def unpack_interp_data(interp_data: wire.InterpData, module_id: UUID) -> InterpData:
-    issues = (
-        [packer.unpack_issue(issue, module_id) for issue in interp_data.issues]
-        if interp_data.issues is not None
-        else None
-    )
-    resolved_fields = (
-        [packer.unpack_node_flat(field) for field in interp_data.resolved_fields]
-        if interp_data.resolved_fields is not None
-        else None
-    )
-    # set created/updated since they're not set model-side (only on save)
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    for field in resolved_fields or []:
-        field.created_at = now
-        field.updated_at = now
-
-    file_id = to_global_id("File", interp_data.file_id) if interp_data.file_id else None
-    statement_id = (
-        to_global_id("Statement", interp_data.statement_id) if interp_data.statement_id else None
-    )
-    return InterpData(
-        scope=interp_data.scope,
-        file_id=file_id,
-        statement_id=statement_id,
-        issues=issues,
-        resolved_fields=resolved_fields,
-    )
+@gql.django.type(models.ResolvedField)
+class ResolvedField(gql.Node):
+    statement: Annotated["Statement", lazy(".statement")]
+    field: Annotated["Field", lazy(".statement")]
