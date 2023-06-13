@@ -224,22 +224,76 @@ function useSyncedOps() {
   }
 
   function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
-    // manual mutations (when we don't have a registered op from a standard GQL mutation)
-    if (mutation.type == ModuleMutationType.TruncateIssues) {
-      // set the interp data (resolvedFields and issues) on the target
+    // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
+    if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
       if (mutation.statementId != null) {
-        client.cache.writeFragment({
-          fragment: InterpStatementDataType,
-          data: {
-            __typename: "Statement",
-            id: mutation.statementId,
-            resolvedFields: mutation.data?.resolvedFields,
-            issues: mutation.data?.issues,
+        client.cache.modify({
+          id: `Statement:${mutation.statementId}`,
+          fields: {
+            resolvedFields(existingResolvedFields = []) {
+              return [];
+            },
+          },
+        });
+      } else {
+        // clear all resolved fields
+        client.cache.modify({
+          fields: {
+            resolvedFields() {
+              return [];
+            },
           },
         });
       }
+    } else if (mutation.type == ModuleMutationType.TruncateIssues) {
+      if (mutation.statementId != null) {
+        client.cache.modify({
+          id: `Statement:${mutation.statementId}`,
+          fields: {
+            issues(existingIssues = []) {
+              return [];
+            },
+          },
+        });
+      } else {
+        // clear all issues
+        client.cache.modify({
+          fields: {
+            issues() {
+              return [];
+            },
+          },
+        });
+      }
+    } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
+      client.cache.modify({
+        id: `Statement:${mutation.statementId}`,
+        fields: {
+          resolvedFields(existingResolvedFields = []) {
+            return [...existingResolvedFields, mutation.data];
+          },
+        },
+      });
+    } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.statementId != null) {
+      client.cache.modify({
+        id: `Statement:${mutation.statementId}`,
+        fields: {
+          issues(existingIssues = []) {
+            return [...existingIssues, mutation.data];
+          },
+        },
+      });
+    } else if (mutation.type == ModuleMutationType.DeleteIssue && mutation.statementId != null) {
+      client.cache.modify({
+        id: `Statement:${mutation.statementId}`,
+        fields: {
+          issues(existingIssues = []) {
+            return existingIssues.filter((issue: any) => issue.id != mutation.data?.id);
+          },
+        },
+      });
     } else {
-      throw new Error(`cannot apply unknown data: ${mutation.type}`);
+      throw new Error(`cannot apply unknown data: ${mutation.type} ${mutation.data}`);
     }
   }
 

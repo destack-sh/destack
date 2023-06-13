@@ -467,7 +467,7 @@ export type ModuleChange = Change & {
 export type ModuleMutation = {
   __typename?: "ModuleMutation";
   data?: Maybe<IssueResolvedField>;
-  fileId: Scalars["GlobalID"];
+  fileId?: Maybe<Scalars["GlobalID"]>;
   input?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   revision?: Maybe<Scalars["Int"]>;
@@ -1676,7 +1676,7 @@ export type ResolvedField = Node & {
   __typename?: "ResolvedField";
   field: Field;
   id: Scalars["GlobalID"];
-  statement: Statement;
+  statement?: Maybe<Statement>;
 };
 
 export type RestoreInput = {
@@ -3069,7 +3069,7 @@ export type IssueContentFragment = {
 export type ResolvedFieldContentFragment = {
   __typename?: "ResolvedField";
   id: any;
-  statement: { __typename?: "Statement"; id: any };
+  statement?: { __typename?: "Statement"; id: any } | null;
   field: { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } };
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
 
@@ -4343,6 +4343,42 @@ export type RevealSecretQueryVariables = Exact<{
 export type RevealSecretQuery = {
   __typename?: "Query";
   secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
+};
+
+export type ModuleChangedSubscriptionVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type ModuleChangedSubscription = {
+  __typename?: "Subscription";
+  moduleChanged: {
+    __typename?: "ModuleChange";
+    id: any;
+    clientId?: any | null;
+    mutations: Array<{
+      __typename?: "ModuleMutation";
+      type: ModuleMutationType;
+      fileId?: any | null;
+      statementId?: any | null;
+      revision?: number | null;
+      input?: any | null;
+      data?:
+        | ({ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } })
+        | ({ __typename?: "ResolvedField" } & {
+            " $fragmentRefs"?: { ResolvedFieldContentFragment: ResolvedFieldContentFragment };
+          })
+        | null;
+    }>;
+  };
+};
+
+export type ProjectChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type ProjectChangedSubscription = {
+  __typename?: "Subscription";
+  projectChanged: { __typename?: "ProjectChange"; id: any; clientId?: any | null };
 };
 
 export type SystemInfoQueryVariables = Exact<{ [key: string]: never }>;
@@ -13059,6 +13095,130 @@ export const RevealSecretDocument = {
     },
   ],
 } as unknown as DocumentNode<RevealSecretQuery, RevealSecretQueryVariables>;
+export const ModuleChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "moduleChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "moduleChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "clientId" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "mutations" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "fileId" } },
+                      { kind: "Field", name: { kind: "Name", value: "statementId" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "input" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "data" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Issue" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [
+                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } },
+                                ],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...IssueContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
+export const ProjectChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "projectChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "clientId" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ProjectChangedSubscription, ProjectChangedSubscriptionVariables>;
 export const SystemInfoDocument = {
   kind: "Document",
   definitions: [

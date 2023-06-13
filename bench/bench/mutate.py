@@ -241,8 +241,10 @@ class ModuleMutation:
         if self._data_statement__type is not None:
             # map to _symbol_<type>
             return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
-        else:
+        elif self._data__mot is not None:
             return getattr(self, f"_data_{self._data__mot.value.lower()}")
+        else:
+            raise ValueError(f"mot is not set on {self}")
 
     @data.setter
     def data(self, value: NodeData):
@@ -268,7 +270,7 @@ class ModuleMutation:
         return self.type.mot
 
     def __str__(self):
-        return f"{self.type} {self.revision} {self.data}"
+        return f"{self.type} {self .revision}"
 
     def __repr__(self):
         return f"<Mutation {self}>"
@@ -318,13 +320,10 @@ class ModuleMutator:
     def __repr__(self):
         return f"<Mutator {self}>"
 
-    def reset(self):
-        raise NotImplementedError
-
-    def do(self, type: MMT, obj: NodeData) -> "ModuleMutator":
+    def do(self, type: MMT, obj: NodeData, apply: bool = True) -> "ModuleMutator":
         if isinstance(obj, StatementData):
             statement_id = obj.id
-            file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData)
+            file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData).id
         elif isinstance(obj, FileData):
             statement_id = None
             file_id = obj.id
@@ -345,7 +344,8 @@ class ModuleMutator:
         )
         mutation.data = obj
         self.mutations.append(mutation)
-        self.apply(mutation)
+        if apply:
+            self.apply(mutation)
         return self
 
     def apply(self, mut: ModuleMutation):
@@ -360,47 +360,47 @@ class ModuleMutator:
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 
-    def truncate(self, obj: NodeData | ModuleNode, mot: MOT) -> "ModuleMutator":
+    def truncate(self, obj: NodeData | ModuleNode, mot: MOT, apply: bool = True) -> "ModuleMutator":
         """Truncates all records of the given statement."""
         obj = pack_node_flat_if_needed(obj)
         mmt = MMT(f"TRUNCATE_{mot.name}S")
-        self.do(mmt, obj)
+        self.do(mmt, obj, apply=apply)
         return self
 
-    def create_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
+    def create_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         for obj in objs:
-            self.create(obj)
+            self.create(obj, apply=apply)
         return self
 
-    def create(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+    def create(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"CREATE_{mot.name}")
-        self.do(mmt, obj)
+        self.do(mmt, obj, apply=apply)
         return self
 
-    def update_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
+    def update_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         for obj in objs:
-            self.update(obj)
+            self.update(obj, apply=apply)
         return self
 
-    def update(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+    def update(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"UPDATE_{mot.name}")
-        self.do(mmt, obj)
+        self.do(mmt, obj, apply=apply)
         return self
 
-    def delete_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
+    def delete_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         for obj in objs:
-            self.delete(obj)
+            self.delete(obj, apply=apply)
         return self
 
-    def delete(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+    def delete(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"DELETE_{mot.name}")
-        self.do(mmt, obj)
+        self.do(mmt, obj, apply=apply)
         return self
 
     def bundle(self) -> "MutationBundle":

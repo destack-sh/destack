@@ -186,8 +186,6 @@ class Session:
         success = await self.write(mutations)
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
-        if keep_open:
-            self.mutator.reset()
         logger.debug("session.flush.done", session=self)
 
     def flush(self):

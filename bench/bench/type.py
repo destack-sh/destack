@@ -43,8 +43,16 @@ if typing.TYPE_CHECKING:
     from bench.bench.inference import ModelInference
     from bench.bench.session import Session
 
+if typing.TYPE_CHECKING:
+    node = dataclass
+else:
 
-@dataclass(repr=False)
+    def node(cls):
+        """Decorator alias for dataclass."""
+        return dataclass(cls, repr=False, eq=False)
+
+
+@node
 class ModuleNode(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
     parent: Optional[ModuleNode] = None
@@ -62,7 +70,7 @@ class ModuleNode(abc.ABC):
         return self.parent is not None
 
 
-@dataclass(repr=False)
+@node
 class HasSession(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
     _session: "Session" = None
@@ -97,7 +105,7 @@ class HasSession(abc.ABC):
 SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
 
 
-@dataclass(repr=False)
+@node
 class Scope:
     parent: Optional[Scope] = None
     scopes_by_name: dict[str, Scope] = field(default_factory=dict)
@@ -177,7 +185,7 @@ class Scope:
             scope._clear()
 
 
-@dataclass(repr=False)
+@node
 class Module(ModuleNode, HasSession, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
@@ -227,7 +235,7 @@ class Module(ModuleNode, HasSession, Scope):
             file.interp(on_issue=on_issue)
 
 
-@dataclass(repr=False)
+@node
 class File(ModuleNode, HasSession, Scope):
     module: Module = required_field()
     name: str = required_field()
@@ -298,7 +306,7 @@ class File(ModuleNode, HasSession, Scope):
             statement._interp(statement, on_issue=on_issue)
 
 
-@dataclass(repr=False)
+@node
 class Statement(ModuleNode, HasSession, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
@@ -372,14 +380,14 @@ class Statement(ModuleNode, HasSession, Scope):
         pass
 
 
-@dataclass(repr=False)
+@node
 class Blank(Statement):
     """A blank statement."""
 
     type: StatementType = StatementType.BLANK
 
 
-@dataclass(repr=False)
+@node
 class Comment(Statement):
     """A comment that's not semantic/interpreted by default."""
 
@@ -411,7 +419,7 @@ class SymbolBase(abc.ABC):
         raise NotImplementedError
 
 
-@dataclass(repr=False)
+@node
 class Symbol(Statement, SymbolBase):
     """An interpretable and semantic statement (symbol) in Bench source."""
 
@@ -511,7 +519,7 @@ def new_field_key() -> str:
     return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
 
 
-@dataclass(repr=False)
+@node
 class Field(ModuleNode, HasSession, TypeBase):
     parent: Statement | None = None
     name: Optional[str] = None
@@ -540,7 +548,7 @@ class Field(ModuleNode, HasSession, TypeBase):
     fields = resolved_fields  # the same by default
 
 
-@dataclass(repr=False)
+@node
 class ResolvedField(Field):
     parent: Statement = required_field()
     field: Field = required_field()
@@ -549,14 +557,14 @@ class ResolvedField(Field):
 Expectable = Union["Expectation", "Task", "Dataset", "Code"]
 
 
-@dataclass(repr=False)
+@node
 class IsExpectable:
     """Symbols that can define expectations"""
 
     modifier: Optional[ExpectationModifier] = None
 
 
-@dataclass(repr=False)
+@node
 class HasExpectations(SymbolBase, IsExpectable):
     """Symbols we can attach expectations to"""
 
@@ -595,7 +603,7 @@ class HasExpectations(SymbolBase, IsExpectable):
         self.resolved_expectations = None
 
 
-@dataclass(repr=False)
+@node
 class HasType(TypeBase, SymbolBase):
     """A symbol that has (but is not) a type"""
 
@@ -695,7 +703,7 @@ class HasType(TypeBase, SymbolBase):
         type.resolved_fields = resolved_fields
 
 
-@dataclass(repr=False)
+@node
 class Type(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = required_field()
@@ -736,7 +744,7 @@ class Type(Symbol, HasType, HasExpectations):
 TYPE_FIELD_KEYS = {field.name for field in fields(Type)}
 
 
-@dataclass(repr=False)
+@node
 class Task(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
@@ -814,7 +822,7 @@ class Task(Symbol, HasType, HasExpectations):
         return sync_task
 
 
-@dataclass(repr=False)
+@node
 class Expectation(Symbol, HasExpectations):
     reference: StatementReference | Statement | None = None
     description: Optional[str] = None
@@ -836,7 +844,7 @@ class Expectation(Symbol, HasExpectations):
         HasExpectations._clear_interp(self)
 
 
-@dataclass(repr=False)
+@node
 class CodeTransformation:
     original_code: str
     transformed_code: str
@@ -844,7 +852,7 @@ class CodeTransformation:
     start_offset: int
 
 
-@dataclass(repr=False)
+@node
 class CodeParse:
     references: dict[str, "StatementPath"] = field(default_factory=dict)
     is_async: bool = False
@@ -855,7 +863,7 @@ AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., Any]
 
 
-@dataclass(repr=False)
+@node
 class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
@@ -910,7 +918,7 @@ class Code(Symbol, HasType, IsExpectable):
         return sync_code
 
 
-@dataclass(repr=False)
+@node
 class Record:
     _dataset: Dataset
     _order_key: str
@@ -952,7 +960,7 @@ class Record:
 RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 
 
-@dataclass(repr=False)
+@node
 class DatasetView(ModuleNode):
     name: str = None
     query: Optional[Query] = None
@@ -965,7 +973,7 @@ class DatasetView(ModuleNode):
 DEFAULT_VIEW = DatasetView(name="default")
 
 
-@dataclass(repr=False)
+@node
 class Dataset(Symbol, HasType, IsExpectable):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -1074,7 +1082,7 @@ class Dataset(Symbol, HasType, IsExpectable):
         raise NotImplementedError("nocheckin: remote datasets")
 
 
-@dataclass(repr=False)
+@node
 class Value(Symbol, HasType, IsExpectable):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -1116,7 +1124,7 @@ class Value(Symbol, HasType, IsExpectable):
 VALUE_INSTANCE_FIELDS = {field.name for field in fields(Value)}
 
 
-@dataclass(repr=False)
+@node
 class Model(Symbol):
     external_name: str = required_field()
 
@@ -1141,7 +1149,7 @@ class Model(Symbol):
             raise AttributeError(item)
 
 
-@dataclass(repr=False)
+@node
 class Requirement(Symbol):
     module_name: Optional[str] = None
     module_id: Optional[UUID] = None
@@ -1154,7 +1162,7 @@ class Requirement(Symbol):
         pass
 
 
-@dataclass(repr=False)
+@node
 class Block(Symbol):
     contents: list[Symbol] = field(default_factory=list)
 
@@ -1188,7 +1196,7 @@ STATEMENT_TYPE_BY_CLASS: dict[typing.Type[Symbol], StatementType] = {
 }
 
 
-@dataclass(repr=False)
+@node
 class RemoteObject(HasSession):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
@@ -1237,7 +1245,7 @@ class RemoteObject(HasSession):
 SecretValueT = typing.TypeVar("SecretValueT")
 
 
-@dataclass(repr=False)
+@node
 class Secret(HasSession, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
