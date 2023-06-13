@@ -25,6 +25,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
+@gql.type
 class CrudModel:
     revision: int
     created_at: datetime

@@ -14,7 +14,7 @@ import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import { TypeTag } from "@/gql/graphql";
+import { StatementType, TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useOperations } from "@/state/operations";
@@ -38,7 +38,7 @@ const context = useStatementContext();
 const PAGE_SIZE = context.standalone.value ? 20 : 10;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
-const isTable = computed(() => (context.statement.value.rootTypeFlags ?? 0) & TypeFlag.IsArray);
+const isTable = computed(() => context.statement.value.type == StatementType.Dataset);
 
 const appearance = useAppearance();
 const module = useCurrentModule();
@@ -438,7 +438,7 @@ function writeRecordField(recordId: string, key: string, value: any) {
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData, [key]: value };
-  ops.symbol.updateRecord(null, recordId, oldData, newData);
+  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldData, newData);
 }
 
 function deleteRecordField(recordId: string, key: string) {
@@ -447,14 +447,14 @@ function deleteRecordField(recordId: string, key: string) {
   const oldData = record?.data;
   const newData = { ...oldData };
   delete newData[key];
-  ops.symbol.updateRecord(null, recordId, oldData, newData);
+  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldData, newData);
 }
 
 function deleteRecord(recordId: string) {
   if (!isTable.value) return; // can't delete the main record
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
-  ops.symbol.softDeleteRecord(null, recordId);
+  ops.symbol.softDeleteRecord(null, context.statement.value.id, recordId);
   // move focus up
   grid.focus(recordIdx - 1, columnsInOrder.value[0]);
 }
@@ -657,7 +657,6 @@ defineExpose({
     <div class="-mx-1 flex min-w-fit flex-col">
       <!-- Header placeholder -->
       <div
-        class="bg-white"
         :style="{
           width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
           height: minRowHeight + 'px',
@@ -666,7 +665,7 @@ defineExpose({
       <!-- Header (with types) -->
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
       <div
-        class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%] bg-white"
+        class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
         :style="{
           position: headerOffsetY == 0 ? 'absolute' : 'fixed',
           left:

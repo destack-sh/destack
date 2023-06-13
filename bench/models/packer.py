@@ -720,7 +720,9 @@ def write_mutations(
     mut = MutationBundle(mutations)
 
     for mmt, batch in mut.batch():
-        if mmt.kind == MMK.TRUNCATE:
+        if mmt.mot == MOT.RECORD:
+            continue  # stored in OpenSearch below
+        elif mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
             file_ids = [m.file_id for m in batch if m.file_id is not None]

@@ -23,7 +23,7 @@ DOCUMENTS_BY_INDEX = {
         mirror.Comment,
     ],
     IndexType.DATASETS: [
-        mapping.Record,  # only the static parts
+        mirror.Record,  # only the static parts
     ],
     IndexType.SESSIONS: [
         mirror.Session,

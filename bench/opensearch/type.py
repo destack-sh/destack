@@ -217,6 +217,18 @@ class Document(os.Document):
     Also prevent ORM / index mutations.
     """
 
+    def __init__(self, **kwargs):
+        # copy id to meta id
+        if "id" in kwargs:
+            kwargs["meta"] = {"id": kwargs.pop("id")}
+        else:
+            raise ValueError("document must have an id")
+        super().__init__(**kwargs)
+
+    @property
+    def id(self) -> UUID:
+        return UUID(self.meta.id)
+
     @classmethod
     def fields(cls) -> dict[str, Field]:
         """

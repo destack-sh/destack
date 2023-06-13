@@ -3,21 +3,22 @@ from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from itertools import chain
-from typing import Any, Union, Optional
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.bench import wire
 from bench.bench.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
+from bench.opensearch import mirror
+from bench.opensearch.mapping import pack_record
 
 MutableThing = Union[
     models.File,
     models.Statement,
     models.Field,
-    wire.RecordData,
+    mirror.Record,
 ]
 
 _SCOPE_TO_TYPE_NAME = {
@@ -29,45 +30,51 @@ _SCOPE_TO_TYPE_NAME = {
 
 
 def map_mutation_from_api(
-    type: MMT, input: Any, thing: MutableThing
+    type: MMT,
+    input: Any,
+    thing: MutableThing,
+    project_v: models.ProjectVersion,
+    statement: Optional[models.Statement],
 ) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
     """
     Remap/create API multiplayer mutation for other clients and internals.
     Returns both the internal and API mutations to publish.
     """
-    if isinstance(thing, models.File):
-        project_version_id = thing.project_version_id
-        file_id = thing.id
-        statement_id = None
-    elif isinstance(thing, models.Statement):
-        project_version_id = thing.project_version_id
-        file_id = thing.file_id
-        statement_id = thing.id
-    elif isinstance(thing, models.Field):
-        project_version_id = thing.statement.project_version_id
-        file_id = thing.statement.file_id
-        statement_id = thing.statement_id
-    else:
-        raise TypeError(f"thing is not a project thing: {thing}")
-
     api_mutation = ModuleMutation(
         type=type,
-        project_version_id=project_version_id,
-        file_id=file_id,
-        statement_id=statement_id,
+        project_version_id=project_v.id,
         revision=thing.revision,
         input=input,
     )
-    if type == MMT.PASTE_FILE:
+    if statement is not None:
+        api_mutation.file_id = statement.file_id
+        api_mutation.statement_id = statement.id
+    elif isinstance(thing, models.File):
+        api_mutation.file_id = thing.id
+        api_mutation.statement_id = None
+    elif isinstance(thing, models.Statement):
+        api_mutation.file_id = thing.file_id
+        api_mutation.statement_id = thing.id
+    elif isinstance(thing, models.Field):
+        api_mutation.file_id = thing.statement.file_id
+        api_mutation.statement_id = thing.statement_id
+    else:
+        raise TypeError(f"thing is not a project thing: {thing}")
+
+    # TODO @Broken: remap restore API mutations for previously offline clients
+    #  (restore is insufficient if you don't have the original file?/statement/etc.)
+    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE):
         _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module=project_version_id).create_many(*nodes_data)
+        internal = ModuleMutator(module=project_v.id).create_many(*nodes_data)
         api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
         return internal.mutations, api_mutations
-    elif type in MMT.PASTE_STATEMENT:  # remap to create children
+    elif type in (MMT.PASTE_STATEMENT, MMT.PASTE_STATEMENT) or (
+        type == MMT.COMMENT_STATEMENT and not thing.commented
+    ):
         _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module=project_version_id, file_id=thing.file_id).create_many(
+        internal = ModuleMutator(module=project_v.id, file_id=thing.file_id).create_many(
             *nodes_data
         )
         api_mutations = list(
@@ -75,10 +82,20 @@ def map_mutation_from_api(
         )
         return internal.mutations, api_mutations
     else:
-        # TODO @Broken: remap restore API mutations for previously offline clients
-        #  (restore is insufficient if you don't have the original file?/statement/etc.)
-        internal = _get_internal_mutation_from_api(api_mutation, thing)
-        return internal, [api_mutation]
+        if type == MMT.COMMENT_STATEMENT:  # comment -> delete internally
+            type = MMT.DELETE_STATEMENT
+        # map everything else to a simple internal mutation (CUD_X)
+        internal_type = MMT(type.kind + "_" + api_mutation.mot)
+        internal_mutation = ModuleMutation(
+            type=internal_type,
+            project_version_id=api_mutation.project_version_id,
+            revision=thing.revision,
+        )
+        if isinstance(thing, mirror.Record):
+            internal_mutation.data = pack_record(thing)
+        else:
+            internal_mutation.data = packer.pack_node_flat(thing)
+        return [internal_mutation], [api_mutation]
 
 
 def _get_internal_mutation_from_api(
@@ -100,14 +117,6 @@ def _get_internal_mutation_from_api(
             _, nodes_data = packer.pack_node(thing)
             mut = ModuleMutator(module=mutation.project_version_id)
             return mut.create_many(*nodes_data).mutations
-    elif mutation.type == MMT.RESTORE_FILE:
-        _, nodes_data = packer.pack_node(thing)
-        mut = ModuleMutator(module=mutation.project_version_id)
-        return mut.create_many(*nodes_data).mutations
-    elif mutation.type == MMT.RESTORE_STATEMENT:
-        _, nodes_data = packer.pack_node(thing)
-        mut = ModuleMutator(module=mutation.project_version_id, file_id=thing.file_id)
-        return mut.create_many(*nodes_data).mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
         internal_type = MMT(mutation.type.kind + "_" + mutation.mot)

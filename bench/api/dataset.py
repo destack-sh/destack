@@ -12,18 +12,15 @@ from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.statement import ThingBatch
-from bench.api.sync import BatchMutationInput, tracked_mutation
+from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.opensearch import mapping
+from bench.api.utils import CrudModel
+from bench.opensearch import mirror
 
 
 @gql.type
-class Record(gql.Node):
+class Record(CrudModel, gql.Node):
     statement_id: GlobalID
-    revision: int
-    created_at: datetime
-    updated_at: Optional[datetime]
-    deleted_at: Optional[datetime]
     order_key: str
     data: JSON
 
@@ -93,73 +90,55 @@ class RecordBatchRestoreInput(BatchMutationInput):
 
 @gql.type
 class DatasetMutation:
-    @tracked_mutation(MMT.CREATE_RECORD)
-    def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
-        statement = models.Statement.objects.select_related("dataset").get(
-            id=input.statement_id.node_id
-        )
-        dataset = statement.dataset
+    @tracked_os_mutation(MMT.CREATE_RECORD)
+    def create_record(self, info: Info, input: RecordCreateInput) -> Record | OperationInfo:
+        statement = models.Statement.objects.get(id=input.statement_id.node_id)
+        project_v = check_can_write_thing(info, statement)
         now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        record = mapping.Record(
-            _id=UUID(input.id.node_id),
+        record = mirror.Record(
+            id=UUID(input.id.node_id),
             statement_id=input.statement_id.node_id,
             created_at=now,
             updated_at=now,
             last_edited_at=now,
             revision=0,
             order_key=input.order_key,
+            data=input.data,
         )
+        # nocheckin: actually index/update/delete/etc.
+        return project_v, statement, record  # noqa (will be unwrapped)
 
-    @tracked_mutation(MMT.UPDATE_RECORD)
-    def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record._data = input.data
-        return record
+    @tracked_os_mutation(MMT.UPDATE_RECORD)
+    def update_record(self, info: Info, input: RecordUpdateInput) -> Record | OperationInfo:
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.MOVE_RECORD)
+    @tracked_os_mutation(MMT.MOVE_RECORD)
     def move_record(self, input: RecordMoveInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record._order_key = input.order_key
-        return record
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.SOFT_DELETE_RECORD)
+    @tracked_os_mutation(MMT.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.soft_delete()
-        return record
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.DELETE_RECORD)
+    @tracked_os_mutation(MMT.DELETE_RECORD)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        record = models.Record.objects.get(id=input.id.node_id)
-        record.delete()
-        return record
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.RESTORE_RECORD)
+    @tracked_os_mutation(MMT.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
-        # use _base_manager since soft deleted records are not visible
-        record = models.Record._base_manager.get(id=input.id.node_id)
-        record.restore()
-        return record
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
+    @tracked_os_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
     def batch_soft_delete_record(
         self, input: RecordBatchSoftDeleteInput
     ) -> RecordBatch | OperationInfo:
         # imitate soft_delete_record but for a batch
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        models.Record.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
-        # use base manager since the records are now deleted
-        records = models.Record._base_manager.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
+        raise NotImplementedError
 
-    @tracked_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
+    @tracked_os_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
     def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
         # imitate restore_record but for a batch
-        record_ids = [UUID(i.node_id) for i in input.ids]
-        models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)
-        records = models.Record.objects.filter(id__in=record_ids)
-        return RecordBatch(records=list(records))
+        raise NotImplementedError
 
 
 @gql.type

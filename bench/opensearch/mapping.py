@@ -1,14 +1,11 @@
 from dataclasses import dataclass
-from typing import NamedTuple, Optional
-
-from opensearchpy import Date, Keyword, Long
+from typing import Any, NamedTuple, Optional
 
 import bench.bench as lang
 import bench.opensearch.type as os
-from bench.bench import TypeHint, TypeTag
+from bench.bench import TypeHint, TypeTag, wire
 from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.opensearch import mirror
-from bench.opensearch.mirror import CrudThing
 
 
 class FieldMapper:
@@ -17,7 +14,13 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os(self, field: lang.Field) -> os.Field:
+    def to_os_type(self, field: lang.Field) -> os.Field:
+        raise NotImplementedError
+
+    def to_os_value(self, field: lang.Field, value: Any) -> Any:
+        raise NotImplementedError
+
+    def from_os_value(self, field: lang.Field, value: Any) -> Any:
         raise NotImplementedError
 
 
@@ -52,7 +55,7 @@ def register_mapper(
 class StaticFieldMapper(FieldMapper):
     field: os.Field | os.FieldType
 
-    def to_os(self, field: lang.Field) -> os.Field:
+    def to_os_type(self, field: lang.Field) -> os.Field:
         return self.field
 
 
@@ -95,10 +98,21 @@ register_mapper(
 )
 
 
-class Record(CrudThing):
-    statement_id = os.Field(os.FieldType.KEYWORD)
-    order_key = Keyword()
+def pack_record(record: mirror.Record) -> wire.RecordData:
+    return wire.RecordData(
+        id=record.id,
+        parent_id=record.statement_id,
+        order_key=record.order_key,
+        revision=record.revision,
+        data=record.data,
+    )
 
 
-def map_to_record():
-    raise NotImplementedError
+def unpack_record(data: wire.RecordData) -> mirror.Record:
+    return mirror.Record(
+        id=data.id,
+        statement_id=data.parent_id,
+        order_key=data.order_key,
+        revision=data.revision,
+        data=data.data,
+    )

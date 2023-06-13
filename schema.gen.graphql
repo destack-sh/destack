@@ -249,7 +249,6 @@ enum ExpectationModifier {
 }
 
 type Field implements Node {
-  id: GlobalID!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -257,6 +256,7 @@ type Field implements Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  id: GlobalID!
   statement: Statement!
   name: String
   key: String!
@@ -329,7 +329,6 @@ input FieldUpdateTypeInput {
 }
 
 type File implements Node {
-  id: GlobalID!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -337,6 +336,7 @@ type File implements Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
   path: String!
@@ -1012,7 +1012,6 @@ input ProjectUpdateVisibilityInput {
 }
 
 type ProjectVersion implements Node {
-  id: GlobalID!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1020,6 +1019,7 @@ type ProjectVersion implements Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  id: GlobalID!
   project: Project!
   name: String
   tag: String
@@ -1250,13 +1250,17 @@ type Query {
 }
 
 type Record implements Node {
+  revision: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+
   """The Globally Unique ID of this object"""
   id: GlobalID!
   statementId: GlobalID!
-  revision: Int!
-  createdAt: DateTime!
-  updatedAt: DateTime
-  deletedAt: DateTime
   orderKey: String!
   data: JSON!
 }
@@ -1477,7 +1481,6 @@ input SecretUpdateInput {
 }
 
 type Statement implements Node {
-  id: GlobalID!
   revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1485,6 +1488,7 @@ type Statement implements Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
   type: StatementType!
