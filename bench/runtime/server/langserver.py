@@ -11,7 +11,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.bench import HasType, build, wire
+from bench.bench import HasType, build, wire, ResolvedField
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
@@ -57,7 +57,7 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.common.mutate import get_public_mutation_from_internal
+from bench.runtime.common.mutate import get_api_mutation_from_internal
 from bench.runtime.server.mutate import write_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -421,7 +421,7 @@ class LanguageWorker:
         await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
         public_mutations = list(
-            chain.from_iterable(get_public_mutation_from_internal(m) for m in mutations)
+            chain.from_iterable(get_api_mutation_from_internal(m) for m in mutations)
         )
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
@@ -454,26 +454,29 @@ class LanguageWorker:
 
         # check for any interp changes
         interp_mut = ModuleMutator(new_source)
+        # prune existing interp data from mut tree to track changes
+        interp_mut.tree.prune(wire.ResolvedFieldData)
         # resolved fields
         if old_interp is None:
             interp_mut.truncate(new_source.strip(), MOT.RESOLVED_FIELD)
         for symbol in new_interp.module.symbols_by_id.values():
             if not isinstance(symbol, HasType):
                 continue
-            old_symbol = old_interp.module.symbols_by_id.get(symbol.id)
+            old_symbol = old_interp.module.symbols_by_id.get(symbol.id) if old_interp else None
             if old_symbol is None or old_symbol.resolved_fields != symbol.resolved_fields:
                 if old_interp is not None:
-                    interp_mut.truncate(wire.pack_node_flat(symbol), MOT.RESOLVED_FIELD)
+                    interp_mut.truncate(symbol, MOT.RESOLVED_FIELD)
                 for resolved in symbol.resolved_fields:
-                    interp_mut.create(wire.pack_node_flat(resolved))
+                    if isinstance(resolved, ResolvedField):
+                        interp_mut.create(resolved)
         # issues
+        new_issues = {issue.id: issue for issue in new_interp.issues}
+        old_issues = (issue.id for issue in old_interp.issues) if old_interp else ()
         if old_interp is not None:
             interp_mut.truncate(new_source.strip(), MOT.ISSUE)
-        new_issues = {issue.id: issue for issue in new_interp.module.issues}
-        old_issues = (issue.id for issue in old_interp.module.issues) if old_interp else ()
-        for issue in old_interp.module.issues:
-            if issue.id not in new_issues:
-                interp_mut.delete(issue)
+            for issue in old_interp.module.issues:
+                if issue.id not in new_issues:
+                    interp_mut.delete(issue)
         for issue in new_issues.values():
             if issue.id not in old_issues:
                 interp_mut.create(issue)

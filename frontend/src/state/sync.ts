@@ -159,10 +159,10 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       for (const mutation of result.data.moduleChanged.mutations) {
         if (mutation.input != null) {
           // apply like regular input op
-          syncedOps.applyInputMutation(mutation);
+          syncedOps.applyApiMutation(mutation);
         } else {
           // apply manually
-          syncedOps.applyDataMutation(mutation);
+          syncedOps.applyRawMutation(mutation);
         }
       }
     }
@@ -210,9 +210,7 @@ function useSyncedOps() {
   const { client } = useApolloClient();
   const opRegistry = OpRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
 
-  function applyInputMutation(
-    mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">
-  ) {
+  function applyApiMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
     // mutations that we just pass through to the regular op with the original input
     const registeredOp = opRegistry.ops[mutation.type];
     if (registeredOp == null) {
@@ -222,7 +220,7 @@ function useSyncedOps() {
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
-  function applyDataMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
+  function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
     // manual mutations (when we don't have a registered op from a standard GQL mutation)
     if (mutation.type == ModuleMutationType.UpdateInterp) {
       // set the interp data (resolvedFields and issues) on the target
@@ -242,5 +240,5 @@ function useSyncedOps() {
     }
   }
 
-  return { applyInputMutation, applyDataMutation };
+  return { applyApiMutation, applyRawMutation };
 }
