@@ -6,7 +6,7 @@ import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { makeField, NAME_FIELD, useStatementContext, type SimpleType } from "@/state/statement";
+import { makeField, NAME_FIELD, useStatementContext, type Field } from "@/state/statement";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
@@ -28,11 +28,11 @@ context.syncDescription(
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const isStruct = computed(() => context.typeRootTag.value == TypeTag.Struct);
 const members = computed(
-  () => context.fields.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as SimpleType) ?? []
+  () => context.fields.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as Field) ?? []
 );
 const membersLength = computed(() => members.value?.length ?? 0);
 const extendedTypes = computed(
-  () => context.fields.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+  () => context.fields.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
 );
 const addMemberRef: Ref<HTMLButtonElement | null> = ref(null);
 const addingDescription = ref(false);
@@ -116,7 +116,7 @@ function deleteMember(memberId: string) {
   grid.focus(memberIdx - 1, "type"); // move focus above
 }
 
-function moveMember(node: SimpleType, position: "before" | "after", other: SimpleType) {
+function moveMember(node: Field, position: "before" | "after", other: Field) {
   const otherIndex = members.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(members.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
@@ -135,7 +135,7 @@ function dropMember(droppedId: string, position: "above" | "below", memberId: st
   nextTick(() => grid.focus(droppedId, "type"));
 }
 
-function writeType(memberId: string, newType: SimpleType) {
+function writeType(memberId: string, newType: Field) {
   const oldType = members.value?.find((m) => m.id === memberId);
   if (!oldType) return;
   context.updateField(oldType, { ...oldType, ...newType, id: memberId });

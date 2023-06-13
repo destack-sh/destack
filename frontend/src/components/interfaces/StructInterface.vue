@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
@@ -21,7 +21,7 @@ const DEFAULT_APPEARANCE = {
 };
 
 const props = defineProps<{
-  fields: SimpleType[];
+  fields: Field[];
   modelValue: Record<string, any>;
   readonly?: boolean;
   active?: boolean;

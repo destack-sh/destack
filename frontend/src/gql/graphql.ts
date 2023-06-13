@@ -199,6 +199,7 @@ export type Execution = Node & {
   errorNice?: Maybe<RunError>;
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;
+  metadata?: Maybe<Scalars["JSON"]>;
   outputs?: Maybe<Scalars["JSON"]>;
   parent?: Maybe<Execution>;
   project: Project;
@@ -258,24 +259,26 @@ export enum ExpectationModifier {
   Unlike = "UNLIKE",
 }
 
-export type Field = Node &
-  SimpleType & {
-    __typename?: "Field";
-    createdAt: Scalars["DateTime"];
-    deletedAt?: Maybe<Scalars["DateTime"]>;
-    description?: Maybe<Scalars["String"]>;
-    flags: Scalars["Int"];
-    hint?: Maybe<TypeHint>;
-    id: Scalars["GlobalID"];
-    key: Scalars["String"];
-    name?: Maybe<Scalars["String"]>;
-    orderKey: Scalars["String"];
-    reference?: Maybe<Statement>;
-    revision: Scalars["Int"];
-    statement: Statement;
-    tag: TypeTag;
-    updatedAt: Scalars["DateTime"];
-  };
+export type Field = Node & {
+  __typename?: "Field";
+  createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
+  deletedAt?: Maybe<Scalars["DateTime"]>;
+  description?: Maybe<Scalars["String"]>;
+  flags: Scalars["Int"];
+  hint?: Maybe<TypeHint>;
+  id: Scalars["GlobalID"];
+  key: Scalars["String"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
+  name?: Maybe<Scalars["String"]>;
+  orderKey: Scalars["String"];
+  reference?: Maybe<Statement>;
+  revision: Scalars["Int"];
+  statement: Statement;
+  tag: TypeTag;
+  updatedAt: Scalars["DateTime"];
+};
 
 export type FieldCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
@@ -340,10 +343,13 @@ export type FieldUpdateTypeInput = {
 export type File = Node & {
   __typename?: "File";
   createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
   deletedAt?: Maybe<Scalars["DateTime"]>;
   directory: Scalars["Boolean"];
   files: Array<File>;
   id: Scalars["GlobalID"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
   name: Scalars["String"];
   parent?: Maybe<File>;
   path: Scalars["String"];
@@ -512,7 +518,6 @@ export enum ModuleMutationType {
   UpdateFile = "UPDATE_FILE",
   UpdateInterp = "UPDATE_INTERP",
   UpdateRecord = "UPDATE_RECORD",
-  UpdateRecordPath = "UPDATE_RECORD_PATH",
   UpdateStatement = "UPDATE_STATEMENT",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
   UpdateSymbolCode = "UPDATE_SYMBOL_CODE",
@@ -590,7 +595,6 @@ export type Mutation = {
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
   updateRecord: RecordOperationInfo;
-  updateRecordPath: RecordOperationInfo;
   updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
@@ -851,10 +855,6 @@ export type MutationUpdateProjectVisibilityArgs = {
 
 export type MutationUpdateRecordArgs = {
   input: RecordUpdateInput;
-};
-
-export type MutationUpdateRecordPathArgs = {
-  input: RecordUpdatePathInput;
 };
 
 export type MutationUpdateSecretArgs = {
@@ -1287,14 +1287,20 @@ export type ProjectVersion = Node & {
   committed: Scalars["Boolean"];
   committedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
+  deletedAt?: Maybe<Scalars["DateTime"]>;
   description?: Maybe<Scalars["String"]>;
   files: FileConnection;
   id: Scalars["GlobalID"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
   name?: Maybe<Scalars["String"]>;
   parentRefs: RefMappingConnection;
   parents: Array<ProjectVersion>;
   project: Project;
+  revision: Scalars["Int"];
   tag?: Maybe<Scalars["String"]>;
+  updatedAt: Scalars["DateTime"];
 };
 
 export type ProjectVersionChildRefsArgs = {
@@ -1586,13 +1592,6 @@ export type RecordUpdateInput = {
   statementId: Scalars["GlobalID"];
 };
 
-export type RecordUpdatePathInput = {
-  data?: InputMaybe<Scalars["JSON"]>;
-  id: Scalars["GlobalID"];
-  path: Scalars["String"];
-  statementId: Scalars["GlobalID"];
-};
-
 export type RefMapping = Node & {
   __typename?: "RefMapping";
   id: Scalars["GlobalID"];
@@ -1738,53 +1737,37 @@ export type SecretUpdateInput = {
   value: Scalars["JSON"];
 };
 
-export type SimpleType = {
+export type Statement = Node & {
+  __typename?: "Statement";
+  children: Array<Statement>;
+  code?: Maybe<Scalars["String"]>;
+  commented: Scalars["Boolean"];
+  createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
+  deletedAt?: Maybe<Scalars["DateTime"]>;
+  descendants: Array<Statement>;
   description?: Maybe<Scalars["String"]>;
-  flags: Scalars["Int"];
-  hint?: Maybe<TypeHint>;
+  fields: Array<Field>;
+  file: File;
   id: Scalars["GlobalID"];
-  key: Scalars["String"];
+  issues?: Maybe<Array<Issue>>;
+  lang?: Maybe<Scalars["String"]>;
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
+  modifier?: Maybe<Scalars["String"]>;
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
-  reference?: Maybe<Statement>;
-  tag: TypeTag;
-};
-
-/** Anything typed using SimpleType nodes. */
-export type SimplyTyped = {
-  fields?: Maybe<Array<SimpleType>>;
+  parent?: Maybe<Statement>;
+  projectVersion: ProjectVersion;
+  referenceProjectVersion?: Maybe<ProjectVersion>;
+  resolvedFields?: Maybe<Array<Field>>;
+  revision: Scalars["Int"];
+  rootTypeFlags?: Maybe<Scalars["Int"]>;
   rootTypeTag?: Maybe<TypeTag>;
+  text?: Maybe<Scalars["String"]>;
+  type: StatementType;
+  updatedAt: Scalars["DateTime"];
 };
-
-export type Statement = Node &
-  SimplyTyped & {
-    __typename?: "Statement";
-    children: Array<Statement>;
-    code?: Maybe<Scalars["String"]>;
-    commented: Scalars["Boolean"];
-    createdAt: Scalars["DateTime"];
-    deletedAt?: Maybe<Scalars["DateTime"]>;
-    descendants: Array<Statement>;
-    description?: Maybe<Scalars["String"]>;
-    fields: Array<Field>;
-    file: File;
-    id: Scalars["GlobalID"];
-    issues?: Maybe<Array<Issue>>;
-    lang?: Maybe<Scalars["String"]>;
-    modifier?: Maybe<Scalars["String"]>;
-    name?: Maybe<Scalars["String"]>;
-    orderKey: Scalars["String"];
-    parent?: Maybe<Statement>;
-    projectVersion: ProjectVersion;
-    referenceProjectVersion?: Maybe<ProjectVersion>;
-    resolvedFields?: Maybe<Array<Field>>;
-    revision: Scalars["Int"];
-    rootTypeFlags?: Maybe<Scalars["Int"]>;
-    rootTypeTag?: Maybe<TypeTag>;
-    text?: Maybe<Scalars["String"]>;
-    type: StatementType;
-    updatedAt: Scalars["DateTime"];
-  };
 
 export type StatementFieldsArgs = {
   filters?: InputMaybe<FieldFilter>;

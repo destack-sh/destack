@@ -1,12 +1,14 @@
 from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
+from opensearchpy import Date, Keyword, Long
+
 import bench.bench as lang
 import bench.opensearch.type as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.const import TypeFlag
-from bench.bench.type import TYPE_TAG_BY_TYPE_HINT
+from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.opensearch import mirror
+from bench.opensearch.mirror import CrudThing
 
 
 class FieldMapper:
@@ -58,7 +60,7 @@ class StaticFieldMapper(FieldMapper):
 register_mapper(
     os.Field(
         os.FieldType.TEXT,
-        fields={os.FieldType.TOKEN_COUNT.value: os.Field(os.FieldType.TOKEN_COUNT)},
+        fields={os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT)},
     ),
     tags=[TypeTag.STRING],
 )
@@ -66,9 +68,9 @@ register_mapper(
     os.Field(
         os.FieldType.TEXT,
         fields={
-            os.FieldType.KEYWORD.value: os.Field(os.FieldType.KEYWORD),
-            os.FieldType.SEARCH_AS_YOU_TYPE.value: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
-            os.FieldType.TOKEN_COUNT.value: os.Field(os.FieldType.TOKEN_COUNT),
+            os.FieldType.KEYWORD: os.Field(os.FieldType.KEYWORD),
+            os.FieldType.SEARCH_AS_YOU_TYPE: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
+            os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT),
         },
     ),
     hints=[TypeHint.NAME],
@@ -91,3 +93,12 @@ register_mapper(
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )
+
+
+class Record(CrudThing):
+    statement_id = os.Field(os.FieldType.KEYWORD)
+    order_key = Keyword()
+
+
+def map_to_record():
+    raise NotImplementedError

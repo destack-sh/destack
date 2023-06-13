@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 
 const props = defineProps<{
-  fields: SimpleType[];
+  fields: Field[];
   modelValue: Record<string, any>;
   readonly?: boolean;
   active?: boolean;

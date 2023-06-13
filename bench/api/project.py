@@ -15,7 +15,7 @@ import bench.bench.const
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_mutation
-from bench.api.utils import get_client_origin_from_info, safe_mutation
+from bench.api.utils import CrudModel, get_client_origin_from_info, safe_mutation
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ProjectChangedPayload
@@ -111,7 +111,7 @@ class Project(gql.Node):
     @gql.field
     def can_write(self, info: OperationInfo) -> bool:
         user = cast(models.User, info.context.request.scope["user"]._wrapped)
-        return can_write_project(user, self)
+        return can_write_project(user, self) is not None
 
     @gql.field
     def migration_mappings(
@@ -194,14 +194,13 @@ class RefMappingFilter:
 
 
 @gql.django.type(models.ProjectVersion)
-class ProjectVersion(gql.Node):
+class ProjectVersion(CrudModel, gql.Node):
     project: Project
     name: auto
     tag: auto  # :ProjectVersionTags
     description: auto
     parents: list["ProjectVersion"]
     children: list["ProjectVersion"]
-    created_at: auto
     committed: auto
     committed_at: auto
     files: gql.relay.Connection["File"] = gql.django.connection(filters=FileFilter)
@@ -210,14 +209,10 @@ class ProjectVersion(gql.Node):
 
 
 @gql.django.type(models.File)
-class File(gql.Node):
+class File(CrudModel, gql.Node):
     project_version: ProjectVersion
-    revision: auto
     name: auto
     path: auto
-    created_at: auto
-    updated_at: auto
-    deleted_at: auto
     directory: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder

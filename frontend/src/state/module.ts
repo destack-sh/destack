@@ -4,7 +4,7 @@ import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import type { SimpleType } from "@/state/statement";
+import type { Field } from "@/state/statement";
 import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
@@ -133,7 +133,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   // utils
 
-  function runtimeTypeOf(field: SimpleType): SimpleType {
+  function runtimeTypeOf(field: Field): Field {
     if (field.tag != TypeTag.TypeReference) {
       return field;
     } else {

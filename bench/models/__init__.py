@@ -24,6 +24,7 @@ from .secret import Secret
 from .statement import Field, Statement
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User
+from .utils import CrudModel
 from .worker import Worker, WorkerStatus, WorkerTenancy
 
 __all__ = [
@@ -32,6 +33,7 @@ __all__ = [
     "AccessTokenStatus",
     "Client",
     "ClientType",
+    "CrudModel",
     "Dataset",
     "Execution",
     "ExecutionStatus",

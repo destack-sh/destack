@@ -18,6 +18,7 @@ from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_mutation
+from bench.api.utils import CrudModel
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -42,34 +43,9 @@ TypeTag = gql.enum(language.TypeTag)
 TypeHint = gql.enum(language.TypeHint)
 
 
-@gql.interface
-class SimplyTyped:
-    """Anything typed using SimpleType nodes."""
-
-    root_type_tag: Optional[TypeTag]
-    fields: Optional[list["SimpleType"]]
-
-
-@gql.interface
-class SimpleType:
-    id: GlobalID
-    name: Optional[str]
-    key: str
-    order_key: str
-    tag: TypeTag
-    hint: Optional[TypeHint]
-    flags: int
-    description: Optional[str]
-    reference: Optional["Statement"]
-
-
 @gql.django.type(models.Field)
-class Field(gql.Node, SimpleType):
+class Field(CrudModel, gql.Node):
     statement: "Statement"
-    revision: auto
-    created_at: auto
-    updated_at: auto
-    deleted_at: auto
     name: auto
     key: auto
     order_key: auto
@@ -81,15 +57,11 @@ class Field(gql.Node, SimpleType):
 
 
 @gql.django.type(models.Statement)
-class Statement(gql.Node, SimplyTyped):
+class Statement(CrudModel, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
-    revision: auto
     type: StatementType
     name: auto
-    created_at: auto
-    updated_at: auto
-    deleted_at: auto
     commented: auto
     parent: Optional["Statement"]
     children: list["Statement"]

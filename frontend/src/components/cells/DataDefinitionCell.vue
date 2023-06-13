@@ -10,7 +10,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import { useMagicActions } from "@/state/file";
 import { getInterface } from "@/components/inputs";
-import { makeField, useStatementContext, type SimpleType } from "@/state/statement";
+import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
@@ -123,16 +123,16 @@ const selfFields = computed(
   () =>
     context.fields.value
       ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
-      .map((n) => module.runtimeTypeOf(n as SimpleType)) ?? []
+      .map((n) => module.runtimeTypeOf(n as Field)) ?? []
 );
 const baseTypes = computed(
-  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as SimpleType) ?? []
+  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
 );
 const inheritedFields = computed(() => {
   return (
     context.resolvedFields.value
       ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
-      .map((n) => module.runtimeTypeOf(n as SimpleType) as SimpleType) ?? []
+      .map((n) => module.runtimeTypeOf(n as Field) as Field) ?? []
   );
 });
 const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
@@ -378,14 +378,14 @@ function duplicateField(fieldId: string) {
   }
 }
 
-function updateFieldType(key: string, changed: SimpleType) {
+function updateFieldType(key: string, changed: Field) {
   // we use key instead of id here because of the module.runtimeTypeOf hack (has different id, see above)
   const old = context.fields.value.find((n) => n.key == key);
   if (old == null) return;
   context.updateField(old, { ...changed, id: old.id });
 }
 
-function deleteField(node: SimpleType) {
+function deleteField(node: Field) {
   const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
   grid.beginBatchChange();
   context.deleteField(node);
@@ -393,7 +393,7 @@ function deleteField(node: SimpleType) {
   nextTick(() => grid.flush());
 }
 
-function moveField(node: SimpleType, position: "before" | "after", other: SimpleType) {
+function moveField(node: Field, position: "before" | "after", other: Field) {
   const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);

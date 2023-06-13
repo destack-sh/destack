@@ -33,13 +33,4 @@ class Screen(UUIDModel):
     A custom UI made of tiles.
     """
 
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="screens"
-    )
-    name = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
-    revision = models.IntegerField(default=0)
-
     tiles: models.QuerySet[Tile]  # noqa via Tile.screen

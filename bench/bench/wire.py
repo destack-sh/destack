@@ -39,8 +39,11 @@ class ModuleObjectType(enum.StrEnum):
     FIELD = "FIELD"
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
+    # interp
     # TODO @Cleanup @Architecture: split INTERP into constituent issue, resolved, etc.
     INTERP = "INTERP"
+    # user
+    COMMENT = "COMMENT"
 
 
 MOT = ModuleObjectType

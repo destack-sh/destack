@@ -129,9 +129,6 @@ class StatementManager(models.Manager["Statement"]):
         ref_mappings: list[RefMapping] = []
         ref_mappings_ids: dict[UUID, UUID] = {}
 
-        # nocheckin: replace copy files/statements with packer-based copy
-        # nocheckin: also copy datasets if versioned
-
         def _refmap(type: RefType, old_id: UUID, old_revision: int, new: models.Model):
             ref_mapping = RefMapping(
                 type=type,
@@ -152,7 +149,9 @@ class StatementManager(models.Manager["Statement"]):
         target_parent_ids = target_parent_ids or {}
         target_order_keys = target_order_keys or {}
 
-        raise NotImplementedError
+        # nocheckin: replace copy files/statements with packer-based copy
+        # nocheckin: also copy datasets if versioned
+        raise NotImplementedError  # nocheckin
 
         return ref_mappings
 

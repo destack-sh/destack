@@ -75,12 +75,6 @@ class Field(CrudThing, os.Document):
     hint = Keyword()
 
 
-class Screen(CrudThing, os.Document):
-    project_version_id = Keyword()
-    name = NAME_FIELD
-    description = Text()
-
-
 class Tile(CrudThing, os.Document):
     project_version_id = Keyword()
     name = NAME_FIELD
@@ -119,6 +113,9 @@ class Execution(os.Document):
     cached_duration = Float()
     duration = Float()
     status = Keyword()
+    inputs = Object()
+    outputs = Object()
+    metadata = Object()
 
 
 class LogEntry(os.Document):
