@@ -90,6 +90,7 @@ DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
 # some node models correspond to multiple actual module node / node data types
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[tuple[typing.Type[NodeT], Optional[str]], NodePacker] = {}
+BASE_MODEL_CLASS_BY_MOT: dict[MOT, typing.Type[Model]] = {}
 
 
 def node_packer(
@@ -112,6 +113,10 @@ def node_packer(
         packer = cls()
         _node_packers_by_data[data_t] = packer
         _node_packers_by_node[(node_t, subtype)] = packer
+        if t not in BASE_MODEL_CLASS_BY_MOT:
+            BASE_MODEL_CLASS_BY_MOT[t] = node_t
+        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MOT[t]):
+            raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MOT[t]}")
         return cls
 
     return decorator
@@ -523,6 +528,59 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
         )
 
 
+# interp module data
+
+
+@node_packer(MOT.ISSUE, wire.IssueData, models.Issue)
+class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
+    def pack(self, issue: models.Issue) -> wire.IssueData:
+        raise NotImplementedError
+
+    def unpack(
+        self, data: wire.IssueData, parent: models.Statement | models.File | models.ProjectVersion
+    ) -> models.Issue:
+        if isinstance(parent, models.Statement):
+            project_version_id = parent.project_version_id
+            statement_id = parent.id
+            file_id = parent.file_id
+        elif isinstance(parent, models.File):
+            project_version_id = parent.project_version_id
+            statement_id = None
+            file_id = parent.id
+        elif isinstance(parent, models.ProjectVersion):
+            project_version_id = parent.id
+            statement_id = None
+            file_id = None
+        else:
+            raise ValueError(f"unexpected parent type: {parent}")
+        return models.Issue(
+            id=data.id,
+            project_version_id=project_version_id,
+            scope=data.scope.value,
+            kind=data.kind.value,
+            type=data.type.value,
+            message=data.message,
+            file_id=file_id,
+            statement_id=statement_id,
+        )
+
+
+@node_packer(MOT.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
+class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
+    def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
+        raise NotImplementedError
+
+    def unpack(
+        self, data: wire.ResolvedFieldData, parent: models.Statement
+    ) -> models.ResolvedField:
+        return models.ResolvedField(
+            id=data.id,
+            project_version_id=parent.project_version_id,
+            statement_id=parent.id,
+            field_id=data.field_id,
+        )
+
+
 # not module data
 
 
@@ -551,19 +609,6 @@ def unpack_data(data: DataT) -> ModelT:
     """Unpack any non-node data type"""
     packer = _data_packers[type(data)]
     return packer.unpack(data)
-
-
-def unpack_issue(issue: wire.IssueData, module_id: UUID):
-    return models.Issue(
-        id=issue.id,
-        project_version_id=module_id,
-        scope=issue.scope.value,
-        kind=issue.kind.value,
-        type=issue.type.value,
-        message=issue.message,
-        file_id=issue.file_id,
-        statement_id=issue.statement_id,
-    )
 
 
 @data_packer(wire.ExecutionFrameData)

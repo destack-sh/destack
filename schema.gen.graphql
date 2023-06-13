@@ -399,14 +399,6 @@ The `ID` scalar type represents a unique identifier, often used to refetch an ob
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
 
-type InterpData {
-  scope: InterpScope!
-  fileId: GlobalID
-  statementId: GlobalID
-  issues: [Issue!]
-  resolvedFields: [Field!]
-}
-
 enum InterpScope {
   MODULE
   FILE
@@ -428,6 +420,8 @@ enum IssueKind {
   WARNING
   SUGGESTION
 }
+
+union IssueResolvedField = Issue | ResolvedField
 
 enum IssueType {
   INTERNAL
@@ -468,11 +462,12 @@ type ModuleMutation {
   statementId: GlobalID
   revision: Int
   input: JSON
-  data: InterpData
+  data: IssueResolvedField
 }
 
 """Fine-grained atomic mutations for multiplayer modules."""
 enum ModuleMutationType {
+  TRUNCATE_FILES
   CREATE_FILE
   PASTE_FILE
   SOFT_DELETE_FILE
@@ -481,6 +476,7 @@ enum ModuleMutationType {
   MOVE_FILE
   UPDATE_FILE
   DELETE_FILE
+  TRUNCATE_STATEMENTS
   CREATE_STATEMENT
   PASTE_STATEMENT
   SOFT_DELETE_STATEMENT
@@ -497,6 +493,7 @@ enum ModuleMutationType {
   UPDATE_SYMBOL_MODIFIER
   UPDATE_SYMBOL_LANGUAGE
   UPDATE_SYMBOL_VALUE
+  TRUNCATE_FIELDS
   CREATE_FIELD
   UPDATE_FIELD
   RENAME_FIELD
@@ -513,7 +510,11 @@ enum ModuleMutationType {
   SOFT_DELETE_RECORD
   DELETE_RECORD
   RESTORE_RECORD
-  UPDATE_INTERP
+  TRUNCATE_ISSUES
+  CREATE_ISSUE
+  DELETE_ISSUE
+  TRUNCATE_RESOLVED_FIELDS
+  CREATE_RESOLVED_FIELD
 }
 
 type Mutation {
@@ -1405,6 +1406,12 @@ input RequestUploadObjectInput {
   contentLength: Int!
   contentType: String!
   name: String
+}
+
+type ResolvedField implements Node {
+  id: GlobalID!
+  statement: Statement!
+  field: Field!
 }
 
 input RestoreInput {

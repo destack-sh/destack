@@ -50,6 +50,9 @@ class ModuleNode(abc.ABC):
     parent: Optional[ModuleNode] = None
     revision: int = 0
 
+    def __eq__(self, other):
+        return self.id == other.id
+
     @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
@@ -537,6 +540,12 @@ class Field(ModuleNode, HasSession, TypeBase):
     fields = resolved_fields  # the same by default
 
 
+@dataclass(repr=False)
+class ResolvedField(Field):
+    parent: Statement = required_field()
+    field: Field = required_field()
+
+
 Expectable = Union["Expectation", "Task", "Dataset", "Code"]
 
 
@@ -593,8 +602,8 @@ class HasType(TypeBase, SymbolBase):
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     flags: TypeFlag = TypeFlag.Zero
-    fields: list[TypeBase] = field(default_factory=list)
-    resolved_fields: list[TypeBase] | None = None
+    fields: list[Field] = field(default_factory=list)
+    resolved_fields: list[Field | ResolvedField] | None = None
     key: str = None
     reference = None
 
@@ -647,43 +656,43 @@ class HasType(TypeBase, SymbolBase):
         return self
 
     @staticmethod
-    def _resolve_unions(
-        node: TypeBase, path: list[TypeBase], on_issue: IssueHandler
-    ) -> list[TypeBase]:
-        if any(n.id == node.id for n in path):
-            path = "->".join(str(n) for n in path + [node])
-            on_issue(type=IssueType.CIRCULAR_UNION, subject=node, path=path)
-            return []  # circle!
-        if node.resolved_fields is not None:
-            return node.resolved_fields  # already resolved
-        if not any(n.flags & TypeFlag.IsUnionWith for n in node.fields):
-            node.resolved_fields = node.fields
-            return node.fields  # skip, not a union
-        path = path + [node]
+    def _resolve_unions(type: Type, path: list[TypeBase], on_issue: IssueHandler) -> None:
+        if any(n.id == type.id for n in path):
+            path = "->".join(str(n) for n in path + [type])
+            on_issue(type=IssueType.CIRCULAR_UNION, subject=type, path=path)
+        if type.resolved_fields is not None:
+            return  # already resolved
+        if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
+            type.resolved_fields = type.fields
+            return  # skip, not a union
+        path = path + [type]
 
         resolved_fields = []
-        for child in node.fields:
-            if not child.flags & TypeFlag.IsUnionWith:
-                resolved_fields.append(child)
+        for maybe_union in type.fields:
+            if not maybe_union.flags & TypeFlag.IsUnionWith:
+                resolved_fields.append(maybe_union)
                 continue
-            if not isinstance(child.reference, TypeBase):
+            if not isinstance(maybe_union.reference, Type):
                 continue  # ignore unresolved
             # inline child's type nodes
-            for to_inline in Type._resolve_unions(child.reference, path, on_issue):
-                existing = first((n for n in resolved_fields if n.name == to_inline.name), None)
+            Type._resolve_unions(maybe_union.reference, path, on_issue)
+            for child in maybe_union.reference.resolved_fields:
+                existing = first((n for n in resolved_fields if n.name == child.name), None)
                 # check if type is compatible if overlapping
                 if existing is not None and (
-                    existing.tag != to_inline.tag
-                    or existing.flags != to_inline.flags
-                    or existing.hint != to_inline.hint
+                    existing.tag != child.tag
+                    or existing.flags != child.flags
+                    or existing.hint != child.hint
                 ):
                     # TODO @Robustness: check union type compatibility properly/deeply
                     path = "->".join(str(n) for n in path)
-                    on_issue(type=IssueType.MISMATCHED_UNION, symbol=node, path=path)
+                    on_issue(type=IssueType.MISMATCHED_UNION, symbol=type, path=path)
                     continue
-                resolved_fields.append(to_inline)
-        node.resolved_fields = resolved_fields
-        return node.fields
+                resolved = ResolvedField(
+                    id=uuid.uuid5(child.id, type.id.hex), parent=type, field=child, **child.__dict__
+                )
+                resolved_fields.append(resolved)
+        type.resolved_fields = resolved_fields
 
 
 @dataclass(repr=False)
@@ -944,7 +953,7 @@ RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 
 
 @dataclass(repr=False)
-class DatasetView:
+class DatasetView(ModuleNode):
     name: str = None
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
