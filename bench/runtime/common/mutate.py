@@ -3,7 +3,7 @@ from collections import OrderedDict
 from dataclasses import fields, is_dataclass
 from datetime import datetime
 from itertools import chain
-from typing import Any, Union
+from typing import Any, Union, Optional
 from uuid import UUID
 
 from strawberry.utils.str_converters import to_camel_case
@@ -28,12 +28,12 @@ _SCOPE_TO_TYPE_NAME = {
 }
 
 
-def map_mutation_from_public(
+def map_mutation_from_api(
     type: MMT, input: Any, thing: MutableThing
 ) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
     """
-    Remap/create public multiplayer mutation for other clients and internals.
-    Returns both the internal and public mutations to publish.
+    Remap/create API multiplayer mutation for other clients and internals.
+    Returns both the internal and API mutations to publish.
     """
     if isinstance(thing, models.File):
         project_version_id = thing.project_version_id
@@ -50,7 +50,7 @@ def map_mutation_from_public(
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
 
-    public_mutation = ModuleMutation(
+    api_mutation = ModuleMutation(
         type=type,
         project_version_id=project_version_id,
         file_id=file_id,
@@ -61,27 +61,27 @@ def map_mutation_from_public(
     if type == MMT.PASTE_FILE:
         _, nodes_data = packer.pack_node(thing)
         internal = ModuleMutator(module=project_version_id).create_many(*nodes_data)
-        public_mutations = list(
-            chain.from_iterable(get_public_mutation_from_internal(m) for m in internal.mutations)
+        api_mutations = list(
+            chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
-        return internal.mutations, public_mutations
+        return internal.mutations, api_mutations
     elif type in MMT.PASTE_STATEMENT:  # remap to create children
         _, nodes_data = packer.pack_node(thing)
         internal = ModuleMutator(module=project_version_id, file_id=thing.file_id).create_many(
             *nodes_data
         )
-        public_mutations = list(
-            chain.from_iterable(get_public_mutation_from_internal(m) for m in internal.mutations)
+        api_mutations = list(
+            chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
-        return internal.mutations, public_mutations
+        return internal.mutations, api_mutations
     else:
-        # TODO @Broken: remap restore public mutations for previously offline clients
+        # TODO @Broken: remap restore API mutations for previously offline clients
         #  (restore is insufficient if you don't have the original file?/statement/etc.)
-        internal = _get_internal_mutation_from_public(public_mutation, thing)
-        return internal, [public_mutation]
+        internal = _get_internal_mutation_from_api(api_mutation, thing)
+        return internal, [api_mutation]
 
 
-def _get_internal_mutation_from_public(
+def _get_internal_mutation_from_api(
     mutation: ModuleMutation, thing: MutableThing
 ) -> list[ModuleMutation]:
     """
@@ -110,7 +110,7 @@ def _get_internal_mutation_from_public(
         return mut.create_many(*nodes_data).mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
-        internal_type = MMT(mutation.type.kind + "_" + mutation.type.scope)
+        internal_type = MMT(mutation.type.kind + "_" + mutation.mot)
 
     internal_mutation = ModuleMutation(
         type=internal_type,
@@ -123,12 +123,12 @@ def _get_internal_mutation_from_public(
     return [internal_mutation]
 
 
-def get_public_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutation]:
+def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
-    Maps a simple internal mutation to a public multiplayer mutation.
+    Maps a simple internal mutation to an API multiplayer mutation.
 
     This is conceptually the inverse of map_mutation_to_internal, but is a bit simpler
-    since all internal mutations are also valid public mutations (it's a subset).
+    since all internal mutations are also valid API mutations (it's a subset).
 
     The main challenge is reconstructing an "input" that is exactly the input that
     would have caused the same internal mutation. Note that for some mutations, this
@@ -137,13 +137,8 @@ def get_public_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMu
     """
     if not mutation.type.simple:
         raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
-    if mutation.type.scope == MOT.INTERP:
-        input = None
-        data = mutation.data
-    else:
-        input = get_gql_input_from_mutation(mutation)
-        data = None
-    public_mutation = ModuleMutation(
+    input = get_gql_input_from_mutation(mutation)
+    api_mutation = ModuleMutation(
         type=mutation.type,
         project_version_id=mutation.project_version_id,
         file_id=mutation.file_id,
@@ -151,12 +146,12 @@ def get_public_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMu
         revision=mutation.revision,
         input=input,
     )
-    if data is not None:
-        public_mutation.data = data
-    return [public_mutation]
+    if input is None:
+        api_mutation.data = mutation.data
+    return [api_mutation]
 
 
-# extra fields in public mutations that are not in internal module data
+# extra fields in API mutations that are not in internal module data
 _EXTRA_FIELDS_BY_SCOPE = {
     MOT.STATEMENT: {
         "commented": False,
@@ -170,7 +165,7 @@ _EXTRA_FIELDS_BY_SCOPE = {
 _EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
 
 
-def get_gql_input_from_mutation(mutation: ModuleMutation) -> Any:
+def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     """
     Maps a simple internal mutation to an input that would cause the same mutation.
     The returned input is already jsonable (not the original input class).
@@ -180,7 +175,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Any:
     if mutation.data is None:
         raise ValueError(f"mutation has no data: {mutation}")
 
-    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.scope, {})
+    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.mot, {})
     input_cls = INPUT_CLASS_BY_TYPE[mutation.type]
     input_args = {}
     for field in fields(input_cls):
@@ -192,7 +187,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Any:
         else:
             value = getattr(mutation.data, s_key)
         if isinstance(value, UUID):
-            value = _map_id_field(s_key, value, mutation.type.scope)
+            value = _map_id_field(s_key, value, mutation.type.mot)
         input_args[t_key] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)

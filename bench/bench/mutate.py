@@ -10,6 +10,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from bench.bench import Module, StatementType, wire
+from bench.bench.type import ModuleNode
 from bench.bench.wire import (
     BASE_DATA_CLASS_BY_MOT,
     MOT_BY_DATA_CLASS,
@@ -99,7 +100,7 @@ class ModuleMutationType(enum.StrEnum):
         return _MODULE_MUTATION_MAP[self][0]
 
     @property
-    def scope(self) -> "ModuleObjectType":
+    def mot(self) -> "ModuleObjectType":
         return _MODULE_MUTATION_MAP[self][1]
 
     @property
@@ -216,6 +217,8 @@ class ModuleMutation:
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
     # really annoyingly manual until we get a proper :WireFormat
 
+    _data__mot: Optional[ModuleObjectType] = None  # discriminator for 'union'
+    _data_module: Optional[ModuleData] = None
     _data_file: Optional[FileData] = None
     _data_statement: Optional[StatementData] = None
     _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
@@ -239,23 +242,43 @@ class ModuleMutation:
             # map to _symbol_<type>
             return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
         else:
-            return getattr(self, f"_data_{self.type.scope.value.lower()}")
+            return getattr(self, f"_data_{self._data__mot.value.lower()}")
 
     @data.setter
     def data(self, value: NodeData):
+        self._data__mot = MOT_BY_DATA_CLASS[type(value)]
+        if isinstance(value, ModuleData) and value.nodes is not None:
+            raise ValueError(f"ModuleData.nodes must be None: {value}")
         if type(value) in STATEMENT_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
             statement_type = STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
             self._data_statement__type = statement_type
             setattr(self, f"_data_statement_{statement_type.value.lower()}", value)
         else:
-            setattr(self, f"_data_{self.type.scope.value.lower()}", value)
+            setattr(self, f"_data_{self._data__mot.value.lower()}", value)
+
+    @property
+    def scope(self) -> ModuleObjectType:
+        if self._data__mot is None:
+            raise ValueError(f"mot is not set on {self}")
+        return self._data__mot
+
+    @property
+    def mot(self) -> ModuleObjectType:
+        return self.type.mot
 
     def __str__(self):
         return f"{self.type} {self.revision} {self.data}"
 
     def __repr__(self):
         return f"<Mutation {self}>"
+
+
+def pack_node_flat_if_needed(node: ModuleNode | NodeData) -> NodeData:
+    if isinstance(node, NodeData):
+        return node
+    else:
+        return wire.pack_node_flat(node)
 
 
 class ModuleMutator:
@@ -265,7 +288,7 @@ class ModuleMutator:
         self,
         module: Module | ModuleData | UUID,
         mutations: list[ModuleMutation] = None,
-        extra_nodes: list[NodeData] = None,
+        # default file and statement id
         file_id: UUID = None,
         statement_id: UUID = None,
     ):
@@ -285,9 +308,6 @@ class ModuleMutator:
         if self.statement_id and not self.file_id:
             raise ValueError("statement_id requires file_id")
         self.mutations = []
-        # add extra nodes
-        for node in extra_nodes or []:
-            self.tree.add(node)
         # immediately apply mutations
         for mutation in mutations or []:
             self._apply(mutation)
@@ -302,20 +322,20 @@ class ModuleMutator:
         raise NotImplementedError
 
     def do(self, type: MMT, obj: NodeData) -> "ModuleMutator":
-        if type == MMT.CREATE_STATEMENT:
+        if isinstance(obj, StatementData):
             statement_id = obj.id
             file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData)
-        elif type == MMT.CREATE_FILE:
+        elif isinstance(obj, FileData):
             statement_id = None
             file_id = obj.id
-        elif type.scope != MOT.MODULE:
+        elif isinstance(obj, ModuleData):
+            statement_id = None
+            file_id = None
+        else:
             statement_id = (
                 self.statement_id or self.tree.get_ancestor(obj.parent_id, wire.StatementData).id
             )
             file_id = self.file_id or self.tree.get_ancestor(statement_id, wire.FileData).id
-        else:
-            statement_id = None
-            file_id = None
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
@@ -336,44 +356,48 @@ class ModuleMutator:
         elif mut.type.kind == MMK.DELETE:
             self.tree.remove(mut.data)
         elif mut.type.kind == MMK.TRUNCATE:
-            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MOT[mut.type.scope])
+            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MOT[mut.mot])
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 
-    def truncate(self, obj: NodeData, mot: MOT) -> "ModuleMutator":
+    def truncate(self, obj: NodeData | ModuleNode, mot: MOT) -> "ModuleMutator":
         """Truncates all records of the given statement."""
+        obj = pack_node_flat_if_needed(obj)
         mmt = MMT(f"TRUNCATE_{mot.name}S")
         self.do(mmt, obj)
         return self
 
-    def create_many(self, *objs: NodeData) -> "ModuleMutator":
+    def create_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
         for obj in objs:
             self.create(obj)
         return self
 
-    def create(self, obj: NodeData) -> "ModuleMutator":
+    def create(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+        obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"CREATE_{mot.name}")
         self.do(mmt, obj)
         return self
 
-    def update_many(self, *objs: NodeData) -> "ModuleMutator":
+    def update_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
         for obj in objs:
             self.update(obj)
         return self
 
-    def update(self, obj: NodeData) -> "ModuleMutator":
+    def update(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+        obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"UPDATE_{mot.name}")
         self.do(mmt, obj)
         return self
 
-    def delete_many(self, *objs: NodeData) -> "ModuleMutator":
+    def delete_many(self, *objs: NodeData | ModuleNode) -> "ModuleMutator":
         for obj in objs:
             self.delete(obj)
         return self
 
-    def delete(self, obj: NodeData) -> "ModuleMutator":
+    def delete(self, obj: NodeData | ModuleNode) -> "ModuleMutator":
+        obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"DELETE_{mot.name}")
         self.do(mmt, obj)
@@ -394,7 +418,6 @@ class MutationBundle:
 
     def __init__(self, mutations: list[ModuleMutation]):
         self.mutations = mutations
-        self._cache: dict[Any, list[ModuleMutation]] = {}
 
     def __str__(self):
         return f"mut {len(self.mutations)}"
@@ -409,20 +432,6 @@ class MutationBundle:
     @property
     def complex_mutations(self):
         return [m for m in self.mutations if m.type not in SIMPLE_MUTATIONS]
-
-    def __getitem__(self, type: MMT | MMK | MOT) -> list[ModuleMutation]:
-        if type in self._cache:
-            return self._cache[type]
-        if isinstance(type, MMT):
-            mutations = [m for m in self.mutations if m.type == type]
-        elif isinstance(type, MMK):
-            mutations = [m for m in self.mutations if m.type.kind == type]
-        elif isinstance(type, MOT):
-            mutations = [m for m in self.mutations if m.type.scope == type]
-        else:
-            raise TypeError(f"Invalid mutation type: {type}")
-        self._cache[type] = mutations
-        return mutations
 
     # TODO @Perofmrance: mutation compaction & batching can be much smarter
     def compact(self) -> list[ModuleMutation]:

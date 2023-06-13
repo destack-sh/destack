@@ -25,7 +25,7 @@ from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.mutate import (
     MutableThing,
     input_to_gql_jsonable,
-    map_mutation_from_public,
+    map_mutation_from_api,
 )
 
 logger = structlog.get_logger(__name__)
@@ -172,7 +172,7 @@ def publish_tracked_mutation(
     internal_mutations = []
     for input, thing in zip(inputs, things):
         input = input_to_gql_jsonable(input)
-        internal, public = map_mutation_from_public(type, input, thing)
+        internal, public = map_mutation_from_api(type, input, thing)
         public_mutations.extend(public)
         internal_mutations.extend(internal)
 

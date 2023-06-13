@@ -42,7 +42,6 @@ class ModuleObjectType(enum.StrEnum):
     # interp
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
-    INTERP = "INTERP"
     # user
     COMMENT = "COMMENT"
 
@@ -106,10 +105,16 @@ class ModuleTree:
         self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
     ):
         """Truncate descendants of a node"""
-        descendants = self.get_children(node.id, t, recursive=True)
+        descendants = self.get_children(node.id, t, recursive=recursive)
         for descendant in descendants:
             self.children.pop(descendant.id)
             self.nodes.pop(descendant.id)
+
+    def prune(self, t: NodeT | NodeDataT):
+        """Prune all nodes of the given type"""
+        for node in list(self.nodes.values()):
+            if isinstance(node, t):
+                self.remove(node, recursive=True)
 
     @property
     def root(self) -> Optional[NodeT | NodeDataT]:
@@ -119,14 +124,14 @@ class ModuleTree:
         return roots[0] if roots else None
 
     def walk_bfs(
-        self, node: typing.Union[NodeT, None] = None
+        self, root: typing.Union[NodeT, None] = None
     ) -> typing.Generator[NodeT | NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
-        node = node or self.root
-        if node is None:
+        root = root or self.root
+        if root is None:
             raise ValueError(f"cannot walk tree with no root node")
 
-        queue = deque([node])
+        queue = deque([root])
         while queue:
             current_node = queue.popleft()
             yield current_node
@@ -964,7 +969,7 @@ class IssuePacker(DataPacker[IssueData, lang.Issue]):
     def pack(self, issue: lang.Issue) -> "IssueData":
         return IssueData(
             id=issue.id,
-            parent_Id=issue.statement_id or issue.file_id,
+            parent_id=issue.statement_id or issue.file_id,
             scope=issue.scope,
             kind=issue.kind,
             type=issue.type,

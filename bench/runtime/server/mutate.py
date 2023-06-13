@@ -19,7 +19,7 @@ def write_mutations(project_v: models.ProjectVersion, mutations: list[ModuleMuta
 
     for mmt, batch in mut.batched():
         if mmt.kind == MMK.TRUNCATE:
-            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.scope]
+            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
             file_ids = [m.file_id for m in batch if m.file_id is not None]
             if statement_ids:
