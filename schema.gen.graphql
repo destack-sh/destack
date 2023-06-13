@@ -458,7 +458,7 @@ type ModuleChange implements Change {
 type ModuleMutation {
   type: ModuleMutationType!
   projectVersionId: GlobalID!
-  fileId: GlobalID!
+  fileId: GlobalID
   statementId: GlobalID
   revision: Int
   input: JSON
@@ -1410,7 +1410,7 @@ input RequestUploadObjectInput {
 
 type ResolvedField implements Node {
   id: GlobalID!
-  statement: Statement!
+  statement: Statement
   field: Field!
 }
 

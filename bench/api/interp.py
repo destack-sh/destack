@@ -30,5 +30,6 @@ class Issue(gql.Node):
 
 @gql.django.type(models.ResolvedField)
 class ResolvedField(gql.Node):
-    statement: Annotated["Statement", lazy(".statement")]
+    # statement here is not actually optional but it needs to be to union with Issue
+    statement: Optional[Annotated["Statement", lazy(".statement")]]
     field: Annotated["Field", lazy(".statement")]

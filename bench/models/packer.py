@@ -199,11 +199,11 @@ def unpack_nodes_tree(nodes: list[NodeDataT], parent: Optional[NodeT] = None) ->
 
 
 def unpack_nodes(
-    project_v: models.ProjectVersion, module: ModuleTree, nodes: list[NodeDataT]
+    project_v: models.ProjectVersion, module: ModuleTree, data_nodes: list[NodeDataT]
 ) -> list[NodeT]:
-    nodes = []
+    unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
-    for data in nodes:
+    for data in data_nodes:
         ancestors = module.get_ancestors(data.parent_id, include_self=True)
         for ancestor in reversed(ancestors):
             if ancestor.id not in ancestors_by_id:
@@ -211,8 +211,8 @@ def unpack_nodes(
                 unpacked = unpack_node_flat(ancestor, parent)
                 ancestors_by_id[ancestor.id] = unpacked
         node = unpack_node_flat(data, ancestors_by_id[data.parent_id])
-        nodes.append(node)
-    return nodes
+        unpacked_nodes.append(node)
+    return unpacked_nodes
 
 
 def pack_node_flat(model: ModelT) -> NodeDataT:
@@ -739,6 +739,7 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:
+                # note: this probably doesn't work yet, just a placeholder until we need it
                 model_cls.objects.bulk_update(nodes)
         elif mmt.kind == MMK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]

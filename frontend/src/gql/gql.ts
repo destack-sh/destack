@@ -101,7 +101,7 @@ const documents = {
     types.InterpFileFragmentDoc,
   "\n  fragment InterpStatement on Statement {\n    id\n    type\n    name\n    modifier\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    file {\n      id\n    }\n    parent {\n      id\n    }\n    orderKey\n    referenceProjectVersion {\n      id\n    }\n    rootTypeTag\n    rootTypeFlags\n    fields(filters: { isVisible: true }) {\n      ...FieldContent\n    }\n  }\n":
     types.InterpStatementFragmentDoc,
-  "\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n":
+  "\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found when used here for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n":
     types.InterpStatementDataFragmentDoc,
   "\n      query module($projectVersionId: GlobalID!) {\n        projectVersion(id: $projectVersionId) {\n          id\n          committed\n          project {\n            path\n            name\n          }\n          files {\n            edges {\n              node {\n                ...InterpFile\n                statements {\n                  ...InterpStatement\n                  issues {\n                    ...IssueContent\n                  }\n                }\n              }\n            }\n          }\n        }\n      }\n    ":
     types.ModuleDocument,
@@ -229,6 +229,10 @@ const documents = {
     types.RestoreDocument,
   "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      ":
     types.RevealSecretDocument,
+  "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on Issue {\n                ...IssueContent\n              }\n              ... on ResolvedField {\n                ...ResolvedFieldContent\n              }\n            }\n          }\n        }\n      }\n    ":
+    types.ModuleChangedDocument,
+  "\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    ":
+    types.ProjectChangedDocument,
   "\n      query systemInfo {\n        systemInfo {\n          version\n          gitCommit\n        }\n      }\n    ":
     types.SystemInfoDocument,
 };
@@ -515,8 +519,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n"];
+  source: "\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found when used here for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment InterpStatementData on Statement {\n    id\n    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found when used here for some reason)\n    resolvedFields {\n      # :FieldContent\n      id\n      createdAt\n      updatedAt\n      deletedAt\n      revision\n      name\n      key\n      tag\n      hint\n      description\n      orderKey\n      reference {\n        id\n      }\n      flags\n    }\n    issues {\n      # :IssueContent\n      id\n      kind\n      scope\n      type\n      message\n      file {\n        id\n      }\n      statement {\n        id\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -895,6 +899,18 @@ export function graphql(
 export function graphql(
   source: "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      "
 ): typeof documents["\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on Issue {\n                ...IssueContent\n              }\n              ... on ResolvedField {\n                ...ResolvedFieldContent\n              }\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      subscription moduleChanged($projectVersionId: GlobalID!) {\n        moduleChanged(projectVersionId: $projectVersionId) {\n          id\n          clientId\n          mutations {\n            type\n            fileId\n            statementId\n            revision\n            input\n            data {\n              ... on Issue {\n                ...IssueContent\n              }\n              ... on ResolvedField {\n                ...ResolvedFieldContent\n              }\n            }\n          }\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    "
+): typeof documents["\n      subscription projectChanged($projectId: GlobalID!) {\n        projectChanged(projectId: $projectId) {\n          id\n          clientId\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

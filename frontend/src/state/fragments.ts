@@ -236,7 +236,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
 export const InterpStatementDataType = graphql(/* GraphQL */ `
   fragment InterpStatementData on Statement {
     id
-    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found for some reason)
+    # TODO @Cleanup: use FieldContent and IssueContent fragments (which can't be found when used here for some reason)
     resolvedFields {
       # :FieldContent
       id

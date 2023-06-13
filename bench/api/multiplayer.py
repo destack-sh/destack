@@ -15,9 +15,7 @@ from bench.api.auth import check_can_view_project_by_id
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
-from bench.bench import mutate
-from bench.bench.mutate import ModuleMutator
-from bench.bench.wire import ModuleTree
+from bench.bench import mutate, wire
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
@@ -51,7 +49,7 @@ ModuleMutationType = gql.enum(sync.MMT)
 class ModuleMutation:
     type: ModuleMutationType
     project_version_id: GlobalID
-    file_id: GlobalID
+    file_id: Optional[GlobalID]
     statement_id: Optional[GlobalID]
     revision: Optional[int]
     input: Optional[JSON]
@@ -110,25 +108,34 @@ def unpack_project_mutation(mutation: ProjectMutation) -> ProjectMutation:
     )
 
 
-def unpack_module_mutations(
-    mutations: list[mutate.ModuleMutation], module: ModuleTree, project_v: models.ProjectVersion
+async def unpack_module_mutations(
+    mutations: list[mutate.ModuleMutation], project_v: models.ProjectVersion
 ) -> list[ModuleMutation]:
     unpacked_mutations = []
-    unpacked_data = {}
-    data_to_unpack = [m.data for m in mutations if m.data is not None]
-    if data_to_unpack:
-        for node in packer.unpack_nodes(project_v, module, data_to_unpack):
-            unpacked_data[node.id] = node
     for m in mutations:
-        unpacked_mutations = ModuleMutation(
+        # :RawMutations
+        if isinstance(m.data, (wire.IssueData, wire.ResolvedFieldData)):
+            # unpack data (somewhat inefficiently)
+            if m.statement_id is not None:
+                parent = await project_v.statements.aget(id=m.statement_id)
+            elif m.file_id is not None:
+                parent = await project_v.files.aget(id=m.file_id)
+            else:
+                parent = project_v
+            data = packer.unpack_node_flat(m.data, parent)
+        else:  # ignore other data types
+            data = None
+
+        unpacked_mutation = ModuleMutation(
             type=m.type,
             project_version_id=to_global_id("ProjectVersion", m.project_version_id),
             file_id=to_global_id("File", m.file_id),
             statement_id=to_global_id("Statement", m.statement_id),
             revision=m.revision,
             input=m.input,
-            data=unpacked_data.get(m.data.id) if m.data is not None else None,
+            data=data,
         )
+        unpacked_mutations.append(unpacked_mutation)
     return unpacked_mutations
 
 
@@ -186,18 +193,13 @@ class MultiplayerSubscription:
             log.warning("module_changed.subscribe_denied", exc_info=True)
             return
 
-        # keep synced module state in memory for efficient updates
-        # this may be inefficient/too much, we'll see
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        mutator = ModuleMutator(await sync_to_async(packer.pack_module)(project_version))
         module_sub = await subscribe(
             f"{NMessageType.MODULE_CHANGED}.{project_version_id}", payload_t=ModuleChangedPayload
         )
         log.info("module.listen")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
-            for mutation in change.p.mutations:
-                mutator.apply(mutation)  # keep local module data in sync
             if client_id is not None and change.p.has_origin(client_id, client_nonce):
                 continue  # skip self
 
@@ -212,5 +214,5 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            mutations = unpack_module_mutations(change.p.mutations, mutator.module, project_version)
+            mutations = await unpack_module_mutations(change.p.mutations, project_version)
             yield ModuleChange(id=change.id, client_id=origin_id, mutations=mutations)

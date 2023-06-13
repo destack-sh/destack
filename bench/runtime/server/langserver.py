@@ -475,9 +475,9 @@ class LanguageWorker:
         if old_interp is None:
             interp_mut.truncate(new_source.strip(), MOT.ISSUE)
         else:
-            for issue in old_interp.module.issues:
+            for issue in old_interp.issues:
                 if issue.id not in new_issues:
-                    interp_mut.delete(issue)
+                    interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():
             if issue.id not in old_issues:
                 interp_mut.create(issue)
