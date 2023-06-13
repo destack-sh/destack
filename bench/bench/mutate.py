@@ -310,7 +310,7 @@ class ModuleMutator:
         self.mutations = []
         # immediately apply mutations
         for mutation in mutations or []:
-            self._apply(mutation)
+            self.apply(mutation)
 
     def __str__(self):
         return f"mutate {len(self.mutations)} {self.module or '<no module>'}"
@@ -345,10 +345,10 @@ class ModuleMutator:
         )
         mutation.data = obj
         self.mutations.append(mutation)
-        self._apply(mutation)
+        self.apply(mutation)
         return self
 
-    def _apply(self, mut: ModuleMutation):
+    def apply(self, mut: ModuleMutation):
         if mut.type.kind == MMK.CREATE:
             self.tree.add(mut.data)
         elif mut.type.kind == MMK.UPDATE:
@@ -406,7 +406,7 @@ class ModuleMutator:
     def bundle(self) -> "MutationBundle":
         return MutationBundle(self.mutations)
 
-    def apply(self) -> ModuleData:
+    def to_module(self) -> ModuleData:
         # already applied in memory
         if self.module is None:
             raise ValueError(f"cannot apply {self} without a module")
@@ -461,7 +461,7 @@ class MutationBundle:
         reduced = list(reversed(reduced_inverse))
         return reduced
 
-    def batched(self) -> list[tuple[MMT, list[ModuleMutation]]]:
+    def batch(self) -> list[tuple[MMT, list[ModuleMutation]]]:
         """
         Batch consecutive mutations by type in order of appearance.
         (there may be multiple batches of the same type).

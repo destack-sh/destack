@@ -19,6 +19,7 @@ logger = structlog.get_logger(__name__)
 class InterpModule:
     module: Optional[language.Module]
     issues: list[language.Issue]
+    tree: Optional[wire.ModuleTree]
 
     def __str__(self):
         return str(self.module)
@@ -91,4 +92,5 @@ def interp_module(source: wire.ModuleData) -> InterpModule:
     module.index(on_issue=collector)
     module.interp(on_issue=collector)
     logger.debug("module.interp.done", module=module)
-    return InterpModule(module=module, issues=collector.issues)
+    tree = wire.ModuleTree(wire.pack_module(module).nodes)
+    return InterpModule(module=module, tree=tree, issues=collector.issues)

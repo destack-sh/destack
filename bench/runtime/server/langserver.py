@@ -11,7 +11,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.bench import HasType, build, wire, ResolvedField
+from bench.bench import HasType, ResolvedField, build, wire
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
@@ -22,6 +22,7 @@ from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import MOT, ExecutionFrameData
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
+from bench.models.packer import write_mutations
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -58,7 +59,6 @@ from bench.runtime.common.interp import (
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.common.mutate import get_api_mutation_from_internal
-from bench.runtime.server.mutate import write_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
@@ -409,7 +409,7 @@ class LanguageWorker:
 
     async def on_module_changed(self, mutations: list[ModuleMutation]):
         mutator = ModuleMutator(self.source, mutations)
-        new_source = mutator.apply()
+        new_source = mutator.to_module()
         await self.do_interp(new_source)
 
     async def write_module(
@@ -417,7 +417,7 @@ class LanguageWorker:
     ):
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
-        await sync_to_async(write_mutations)(project_v=self.project_version, mutations=mutations)
+        await sync_to_async(write_mutations)(self.project_version, self.interp.tree, mutations)
         await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
         public_mutations = list(
@@ -472,8 +472,9 @@ class LanguageWorker:
         # issues
         new_issues = {issue.id: issue for issue in new_interp.issues}
         old_issues = (issue.id for issue in old_interp.issues) if old_interp else ()
-        if old_interp is not None:
+        if old_interp is None:
             interp_mut.truncate(new_source.strip(), MOT.ISSUE)
+        else:
             for issue in old_interp.module.issues:
                 if issue.id not in new_issues:
                     interp_mut.delete(issue)
@@ -484,7 +485,7 @@ class LanguageWorker:
         # save and notify
         if interp_mut.mutations:
             await sync_to_async(write_mutations)(
-                project_v=self.project_version, mutations=interp_mut.mutations
+                self.project_version, self.interp.tree, interp_mut.mutations
             )
             await publish(
                 NMessageType.MODULE_CHANGED,

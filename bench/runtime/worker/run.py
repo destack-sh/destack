@@ -106,13 +106,13 @@ class ModuleWorker:
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
-        new_source = ModuleMutator(self.source, mutations).apply()
+        new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
         self.interp = await self.interpreter.interp(new_source)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
-        new_source = ModuleMutator(self.interp.module, mutations).apply()
+        new_source = ModuleMutator(self.interp.module, mutations).to_module()
         # interp and write in parallel
         self.source = new_source
         self.interp, rep = await asyncio.gather(

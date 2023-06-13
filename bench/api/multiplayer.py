@@ -16,6 +16,9 @@ from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.bench import mutate
+from bench.bench.mutate import ModuleMutator
+from bench.bench.wire import ModuleTree
+from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
 
@@ -107,16 +110,26 @@ def unpack_project_mutation(mutation: ProjectMutation) -> ProjectMutation:
     )
 
 
-def unpack_module_mutation(mutation: mutate.ModuleMutation, module_id: UUID) -> ModuleMutation:
-    return ModuleMutation(
-        type=mutation.type,
-        project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
-        file_id=to_global_id("File", mutation.file_id),
-        statement_id=to_global_id("Statement", mutation.statement_id),
-        revision=mutation.revision,
-        input=mutation.input,
-        data=unpack_interp_data(mutation.data, module_id) if mutation.data else None,
-    )
+def unpack_module_mutations(
+    mutations: list[mutate.ModuleMutation], module: ModuleTree, project_v: models.ProjectVersion
+) -> list[ModuleMutation]:
+    unpacked_mutations = []
+    unpacked_data = {}
+    data_to_unpack = [m.data for m in mutations if m.data is not None]
+    if data_to_unpack:
+        for node in packer.unpack_nodes(project_v, module, data_to_unpack):
+            unpacked_data[node.id] = node
+    for m in mutations:
+        unpacked_mutations = ModuleMutation(
+            type=m.type,
+            project_version_id=to_global_id("ProjectVersion", m.project_version_id),
+            file_id=to_global_id("File", m.file_id),
+            statement_id=to_global_id("Statement", m.statement_id),
+            revision=m.revision,
+            input=m.input,
+            data=unpacked_data.get(m.data.id) if m.data is not None else None,
+        )
+    return unpacked_mutations
 
 
 @gql.type
@@ -173,12 +186,18 @@ class MultiplayerSubscription:
             log.warning("module_changed.subscribe_denied", exc_info=True)
             return
 
+        # keep synced module state in memory for efficient updates
+        # this may be inefficient/too much, we'll see
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        mutator = ModuleMutator(await sync_to_async(packer.pack_module)(project_version))
         module_sub = await subscribe(
             f"{NMessageType.MODULE_CHANGED}.{project_version_id}", payload_t=ModuleChangedPayload
         )
         log.info("module.listen")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
+            for mutation in change.p.mutations:
+                mutator.apply(mutation)  # keep local module data in sync
             if client_id is not None and change.p.has_origin(client_id, client_nonce):
                 continue  # skip self
 
@@ -193,5 +212,5 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            mutations = [unpack_module_mutation(m, project_version_id) for m in change.p.mutations]
+            mutations = unpack_module_mutations(change.p.mutations, mutator.module, project_version)
             yield ModuleChange(id=change.id, client_id=origin_id, mutations=mutations)
