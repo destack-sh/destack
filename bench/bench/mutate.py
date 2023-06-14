@@ -11,6 +11,7 @@ from uuid import UUID
 
 from bench.bench import Module, StatementType, wire
 from bench.bench.type import ModuleNode
+from bench.bench.const import ModuleObjectType
 from bench.bench.wire import (
     BASE_DATA_CLASS_BY_MOT,
     MOT_BY_DATA_CLASS,
@@ -24,7 +25,6 @@ from bench.bench.wire import (
     IssueData,
     ModelData,
     ModuleData,
-    ModuleObjectType,
     ModuleTree,
     NodeData,
     RecordData,
@@ -213,6 +213,8 @@ class ModuleMutation:
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
 
+    thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
+
     # data as a proper union doesn't work here since the dataclasses overlap
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
     # really annoyingly manual until we get a proper :WireFormat
@@ -235,6 +237,9 @@ class ModuleMutation:
     _data_dataset_view: Optional[DatasetViewData] = None
     _data_issue: Optional[IssueData] = None
     _data_resolved_field: Optional[ResolvedFieldData] = None
+
+    def encode_some_attrs(self):  # see serialize and :WireFormat
+        return {"thing": None}  # always omit thing
 
     @property
     def data(self) -> NodeData:
@@ -270,7 +275,7 @@ class ModuleMutation:
         return self.type.mot
 
     def __str__(self):
-        return f"{self.type} {self .revision}"
+        return f"{self.type} {self.revision}"
 
     def __repr__(self):
         return f"<Mutation {self}>"

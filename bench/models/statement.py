@@ -13,7 +13,7 @@ from django.db.models.expressions import RawSQL
 from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag
 from bench.bench.const import FIELD_KEY_LENGTH, TypeFlag
 from bench.bench.type import new_field_key
-from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, get_choices
+from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, get_choices, Revisioned
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -28,7 +28,7 @@ class FieldManager(models.Manager["Field"]):
         return super().get_queryset().select_related("statement")
 
 
-class Field(UUIDModel, CrudModel):
+class Field(UUIDModel, CrudModel, Revisioned):
     """
     A (usually) named type of something.
     Do not write to this model directly as any change affects the opensearch indices.
@@ -177,7 +177,7 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-class Statement(UUIDModel, CrudModel):
+class Statement(UUIDModel, CrudModel, Revisioned):
     """
     A nested statement in a file for working with Bench symbols and other stuff.
     """

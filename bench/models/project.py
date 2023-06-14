@@ -14,8 +14,7 @@ from strawberry_django_plus import gql
 
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
-from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched
-from bench.opensearch.index import create_index
+from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched, Revisioned
 from bench.opensearch.type import IndexType
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
@@ -98,16 +97,12 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
-class Project(UUIDModel):
+class Project(UUIDModel, CrudModel):
     """
-    A project to instruct an AI to do some things.
+    A project to instruct beautiful bots..
 
     Projects are the root of versioning, similar to repositories in Git.
     All versions are available in 'versions' and may not be linear (also like in Git).
-    Projects contain statements organized into files (organized into directories).
-
-    Executable projects have main programs (top-level code).
-    Library projects define reusable symbols (like in software).
     """
 
     type = models.CharField(
@@ -119,8 +114,6 @@ class Project(UUIDModel):
     visibility = models.CharField(
         max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
     )
-    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
-    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
 
     # TODO @Feature: basic branching (per-head branch with head pointing to main head)
     head = models.ForeignKey(
@@ -258,6 +251,8 @@ def create_project_s3_bucket(project: Project):
 
 def create_project_indices(project: Project):
     """Creates OpenSearch indices for the project."""
+    from bench.opensearch.index import create_index
+
     indices = [
         IndexType.DATASETS,
         # other indices are not used yet
@@ -653,7 +648,7 @@ class FileManager(models.Manager):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class File(UUIDModel, CrudModel):
+class File(UUIDModel, CrudModel, Revisioned):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.

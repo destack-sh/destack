@@ -7,11 +7,11 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.bench.const import ModuleOp
+from bench.bench.const import ModuleOp, MOT
 from bench.bench.dataset import Query, Sort
 from bench.bench.mutate import ModuleMutator
 from bench.bench.typer import check_type
-from bench.bench.wire import MOT, ExecutionFrameData
+from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
 from bench.runtime.common.type import ExecutionFrame

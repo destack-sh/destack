@@ -14,12 +14,13 @@ from bench import models
 from bench.api.statement import ThingBatch
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import CrudModel
+from bench.api.utils import CrudModel, Revisioned
 from bench.opensearch import mirror
+from bench.opensearch.index import create_record, update_record, delete_record, batch_update_records
 
 
 @gql.type
-class Record(CrudModel, gql.Node):
+class Record(CrudModel, Revisioned, gql.Node):
     statement_id: GlobalID
     order_key: str
     data: JSON
@@ -35,38 +36,43 @@ class RecordBatch(ThingBatch):
 
 
 @gql.input
-class RecordCreateInput(gql.NodeInput):
+class RecordInput(gql.NodeInput):
+    statement_id: GlobalID
+
+
+@gql.input
+class RecordCreateInput(RecordInput):
     statement_id: GlobalID
     data: JSON
     order_key: str
 
 
 @gql.input
-class RecordUpdateInput(gql.NodeInput):
+class RecordUpdateInput(RecordInput):
     statement_id: GlobalID
     data: JSON
 
 
 @gql.input
-class RecordUpdatePathInput(gql.NodeInput):
+class RecordUpdatePathInput(RecordInput):
     statement_id: GlobalID
     path: str
     data: Optional[JSON] = None
 
 
 @gql.input
-class RecordMoveInput(gql.NodeInput):
+class RecordMoveInput(RecordInput):
     statement_id: GlobalID
     order_key: str
 
 
 @gql.input
-class RecordDeleteInput(gql.NodeInput):
+class RecordDeleteInput(RecordInput):
     statement_id: GlobalID
 
 
 @gql.input
-class RecordRestoreInput(gql.NodeInput):
+class RecordRestoreInput(RecordInput):
     statement_id: GlobalID
 
 
@@ -88,57 +94,117 @@ class RecordBatchRestoreInput(BatchMutationInput):
         return [RecordRestoreInput(id=i) for i in self.ids]
 
 
+def _prep_dataset_access(
+    info: Info, input: RecordInput
+) -> tuple[datetime, models.ProjectVersion, models.Statement]:
+    statement = models.Statement.objects.get(id=input.statement_id.node_id)
+    project_v = check_can_write_thing(info, statement)
+    now = datetime.utcnow().replace(tzinfo=pytz.utc)
+    return now, project_v, statement
+
+
 @gql.type
 class DatasetMutation:
     @tracked_os_mutation(MMT.CREATE_RECORD)
     def create_record(self, info: Info, input: RecordCreateInput) -> Record | OperationInfo:
-        statement = models.Statement.objects.get(id=input.statement_id.node_id)
-        project_v = check_can_write_thing(info, statement)
-        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record(
             id=UUID(input.id.node_id),
             statement_id=input.statement_id.node_id,
             created_at=now,
             updated_at=now,
             last_edited_at=now,
-            revision=0,
             order_key=input.order_key,
             data=input.data,
         )
-        # nocheckin: actually index/update/delete/etc.
+        record = create_record(project_v, record)
         return project_v, statement, record  # noqa (will be unwrapped)
 
     @tracked_os_mutation(MMT.UPDATE_RECORD)
     def update_record(self, info: Info, input: RecordUpdateInput) -> Record | OperationInfo:
-        raise NotImplementedError
+        now, project_v, statement = _prep_dataset_access(info, input)
+        record = mirror.Record(
+            id=UUID(input.id.node_id),
+            data=input.data,
+            updated_at=now,
+            last_edited_at=now,
+        )
+        record = update_record(project_v, record)
+        return project_v, statement, record  # noqa
 
     @tracked_os_mutation(MMT.MOVE_RECORD)
-    def move_record(self, input: RecordMoveInput) -> Record | OperationInfo:
-        raise NotImplementedError
+    def move_record(self, info: Info, input: RecordMoveInput) -> Record | OperationInfo:
+        now, project_v, statement = _prep_dataset_access(info, input)
+        record = mirror.Record(
+            id=UUID(input.id.node_id),
+            order_key=input.order_key,
+            updated_at=now,
+            last_edited_at=now,
+        )
+        record = update_record(project_v, record)
+        return project_v, statement, record  # noqa
 
     @tracked_os_mutation(MMT.SOFT_DELETE_RECORD)
-    def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        raise NotImplementedError
-
-    @tracked_os_mutation(MMT.DELETE_RECORD)
-    def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
-        raise NotImplementedError
+    def soft_delete_record(self, info: Info, input: RecordDeleteInput) -> Record | OperationInfo:
+        now, project_v, statement = _prep_dataset_access(info, input)
+        record = mirror.Record(
+            id=UUID(input.id.node_id),
+            deleted_at=now,
+            updated_at=now,
+        )
+        record = update_record(project_v, record)
+        return project_v, statement, record  # noqa
 
     @tracked_os_mutation(MMT.RESTORE_RECORD)
-    def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
-        raise NotImplementedError
+    def restore_record(self, info: Info, input: RecordRestoreInput) -> Record | OperationInfo:
+        now, project_v, statement = _prep_dataset_access(info, input)
+        record = mirror.Record(
+            id=UUID(input.id.node_id),
+            deleted_at="-",  # invalid value to set to null
+            updated_at=now,
+        )
+        record = update_record(project_v, record)
+        return project_v, statement, record  # noqa
+
+    @tracked_os_mutation(MMT.DELETE_RECORD)
+    def delete_record(self, info: Info, input: RecordDeleteInput) -> Record | OperationInfo:
+        now, project_v, statement = _prep_dataset_access(info, input)
+        delete_record(project_v, UUID(input.id.node_id))
+        return project_v, statement, None  # noqa
 
     @tracked_os_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
     def batch_soft_delete_record(
-        self, input: RecordBatchSoftDeleteInput
+        self, info: Info, input: RecordBatchSoftDeleteInput
     ) -> RecordBatch | OperationInfo:
         # imitate soft_delete_record but for a batch
-        raise NotImplementedError
+        now, project_v, statement = _prep_dataset_access(info, input)
+        records = [
+            mirror.Record(
+                id=UUID(i.node_id),
+                deleted_at=now,
+                updated_at=now,
+            )
+            for i in input.unbatch()
+        ]
+        records = batch_update_records(project_v, records)
+        return project_v, statement, records  # noqa
 
     @tracked_os_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
-    def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
+    def batch_restore_record(
+        self, info: Info, input: RecordBatchRestoreInput
+    ) -> RecordBatch | OperationInfo:
         # imitate restore_record but for a batch
-        raise NotImplementedError
+        now, project_v, statement = _prep_dataset_access(info, input)
+        records = [
+            mirror.Record(
+                id=UUID(i.node_id),
+                deleted_at="-",  # invalid value to set to null
+                updated_at=now,
+            )
+            for i in input.unbatch()
+        ]
+        records = batch_update_records(project_v, records)
+        return project_v, statement, records  # noqa
 
 
 @gql.type

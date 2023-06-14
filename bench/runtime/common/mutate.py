@@ -12,7 +12,6 @@ from bench import models
 from bench.bench.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.opensearch import mirror
-from bench.opensearch.mapping import pack_record
 
 MutableThing = Union[
     models.File,
@@ -63,20 +62,12 @@ def map_mutation_from_api(
 
     # TODO @Broken: remap restore API mutations for previously offline clients
     #  (restore is insufficient if you don't have the original file?/statement/etc.)
-    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE):
-        _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module=project_v.id).create_many(*nodes_data)
-        api_mutations = list(
-            chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
-        )
-        return internal.mutations, api_mutations
-    elif type in (MMT.PASTE_STATEMENT, MMT.PASTE_STATEMENT) or (
+    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT) or (
         type == MMT.COMMENT_STATEMENT and not thing.commented
     ):
         _, nodes_data = packer.pack_node(thing)
-        internal = ModuleMutator(module=project_v.id, file_id=thing.file_id).create_many(
-            *nodes_data
-        )
+        file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
+        internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(*nodes_data)
         api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
@@ -91,8 +82,8 @@ def map_mutation_from_api(
             project_version_id=api_mutation.project_version_id,
             revision=thing.revision,
         )
-        if isinstance(thing, mirror.Record):
-            internal_mutation.data = pack_record(thing)
+        if isinstance(thing, mirror.Document):  # os indexed Document
+            internal_mutation.data = mirror.pack_node_flat(thing)
         else:
             internal_mutation.data = packer.pack_node_flat(thing)
         return [internal_mutation], [api_mutation]

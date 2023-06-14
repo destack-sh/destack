@@ -19,7 +19,8 @@ from bench.bench.inference import (
     run_inference,
 )
 from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.wire import MOT, ExecutionFrameData
+from bench.bench.wire import ExecutionFrameData
+from bench.bench.const import MOT
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.packer import write_mutations

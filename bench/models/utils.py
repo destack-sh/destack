@@ -27,10 +27,18 @@ class UUIDTModel(UUIDModel):
         abstract = True
 
 
+class Revisioned(models.Model):
+    """Versioned model."""
+
+    revision = models.IntegerField(default=0)
+
+    class Meta:
+        abstract = True
+
+
 class CrudModel(models.Model):
     """Versioned CRUD-tracked model."""
 
-    revision = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)

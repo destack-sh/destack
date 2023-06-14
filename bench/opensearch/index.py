@@ -3,12 +3,18 @@ from uuid import UUID
 import structlog
 
 import bench.opensearch.type as os
-from bench.bench.mutate import ModuleMutation
-from bench.opensearch import mapping, mirror
+from bench.bench.mutate import ModuleMutation, MOT
+from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.type import IndexType
+from bench import models
 
 logger = structlog.get_logger(__name__)
+
+
+class IndexError(ValueError):
+    pass
+
 
 DOCUMENTS_BY_INDEX = {
     IndexType.GLOBAL: [
@@ -62,9 +68,35 @@ def create_index(index: IndexType, project_id: UUID) -> None:
     )
 
 
-def write_mutations_to_os(project_id: UUID, mutations: list[ModuleMutation]):
+def write_mutations_to_os(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
     """
     Writes any relevant mutations to OpenSearch.
+    All regular DB mutations come this way (records are not stored in the DB).
     For now assumes that there is only one index per type per project/scope.
     """
-    pass
+    os_operations = []
+    for m in mutations:
+        if m.mot == MOT.RECORD:
+            pass  # nocheckin: index
+
+    if os_operations:
+        os_client.bulk(os_operations)
+
+
+def create_record(project_v: models.ProjectVersion, record: mirror.Record):
+    index_name = IndexType.DATASETS.get_index_name(project_v.project_id)
+    os_client.create(index=index_name, id=record.id, body=record.to_dict())
+
+
+def update_record(project_v: models.ProjectVersion, record: mirror.Record) -> mirror.Record:
+    raise NotImplementedError  # nocheckin: index
+
+
+def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
+    raise NotImplementedError  # nocheckin: index
+
+
+def batch_update_records(
+    project_v: models.ProjectVersion, records: list[mirror.Record]
+) -> list[mirror.Record]:
+    raise NotImplementedError  # nocheckin: index

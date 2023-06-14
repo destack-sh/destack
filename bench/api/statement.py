@@ -18,7 +18,7 @@ from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
-from bench.api.utils import CrudModel
+from bench.api.utils import CrudModel, Revisioned
 
 if TYPE_CHECKING:
     from bench.api.project import File, ProjectVersion
@@ -44,7 +44,7 @@ TypeHint = gql.enum(language.TypeHint)
 
 
 @gql.django.type(models.Field)
-class Field(CrudModel, gql.Node):
+class Field(CrudModel, Revisioned, gql.Node):
     statement: "Statement"
     name: auto
     key: auto
@@ -57,7 +57,7 @@ class Field(CrudModel, gql.Node):
 
 
 @gql.django.type(models.Statement)
-class Statement(CrudModel, gql.Node):
+class Statement(CrudModel, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
     type: StatementType

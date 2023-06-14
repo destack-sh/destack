@@ -15,7 +15,7 @@ import bench.bench.const
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_db_mutation
-from bench.api.utils import CrudModel, get_client_origin_from_info, safe_mutation
+from bench.api.utils import CrudModel, get_client_origin_from_info, safe_mutation, Revisioned
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ProjectChangedPayload
@@ -209,7 +209,7 @@ class ProjectVersion(CrudModel, gql.Node):
 
 
 @gql.django.type(models.File)
-class File(CrudModel, gql.Node):
+class File(CrudModel, Revisioned, gql.Node):
     project_version: ProjectVersion
     name: auto
     path: auto

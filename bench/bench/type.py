@@ -388,10 +388,10 @@ class Blank(Statement):
 
 
 @node
-class Comment(Statement):
+class Text(Statement):
     """A comment that's not semantic/interpreted by default."""
 
-    type: StatementType = StatementType.COMMENT
+    type: StatementType = StatementType.TEXT
     html: str | None = None
 
     @property
@@ -979,7 +979,7 @@ class Dataset(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     length: Optional[int] = None
-    inmemory: bool = True
+    inmemory: bool = False  # TODO @Performance: keep small datasets in memory
     versioned: bool = True
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
@@ -1006,7 +1006,7 @@ class Dataset(Symbol, HasType, IsExpectable):
         if self.inmemory:
             self.records = []
 
-    def add_field(self, record: Record = None, **data):
+    def append(self, record: Record = None, **data):
         """Appends a record to the dataset."""
         if record is not None:
             if data:
@@ -1028,7 +1028,7 @@ class Dataset(Symbol, HasType, IsExpectable):
                 self.records = []
             self.records.append(record)
 
-    def extend_type(self, records: typing.Iterable[Record | dict]):
+    def extend(self, records: typing.Iterable[Record | dict]):
         """Extends the dataset with the given records."""
         datas = [  # remove source proxy if any
             unproxy_value(record._data) if isinstance(record, Record) else unproxy_value(record)

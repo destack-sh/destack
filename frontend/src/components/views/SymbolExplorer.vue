@@ -27,7 +27,7 @@ const orderedStatements = computed(() => {
     return undefined;
   }
   const statements = Object.values(runtime.idx.value?.statementsById ?? {}).filter(
-    (s) => s.file.id == bench.focusedFileId && (s.type == StatementType.Symbol || s.type == StatementType.Redefinition)
+    (s) => s.file.id == bench.focusedFileId && s.type != StatementType.Blank && s.type != StatementType.Text
   );
   return orderStatements(statements);
 });
