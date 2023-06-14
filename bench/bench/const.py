@@ -14,6 +14,24 @@ import pandas
 from more_itertools import first, last
 
 
+class ModuleObjectType(enum.StrEnum):
+    # source
+    MODULE = "MODULE"
+    FILE = "FILE"
+    STATEMENT = "STATEMENT"
+    FIELD = "FIELD"
+    RECORD = "RECORD"
+    DATASET_VIEW = "DATASET_VIEW"
+    # interp
+    ISSUE = "ISSUE"
+    RESOLVED_FIELD = "RESOLVED_FIELD"
+    # user
+    COMMENT = "COMMENT"
+
+
+MOT = ModuleObjectType
+
+
 class InterpScope(enum.StrEnum):
     MODULE = "module"
     FILE = "file"
@@ -23,7 +41,7 @@ class InterpScope(enum.StrEnum):
 class StatementType(enum.StrEnum):
     """The type of Bench statement."""
 
-    COMMENT = "comment"
+    TEXT = "text"
     BLANK = "blank"
     TYPE = "type"
     TASK = "task"

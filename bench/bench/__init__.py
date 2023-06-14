@@ -3,7 +3,7 @@ from bench.bench.issue import Issue, IssueType
 from bench.bench.type import (
     Blank,
     Code,
-    Comment,
+    Text,
     Dataset,
     DatasetView,
     Expectation,
@@ -30,7 +30,7 @@ from bench.bench.type import (
 __all__ = [
     "Blank",
     "Code",
-    "Comment",
+    "Text",
     "Dataset",
     "DatasetView",
     "Expectation",

@@ -26,8 +26,12 @@ logger = structlog.get_logger(__name__)
 
 
 @gql.type
-class CrudModel:
+class Revisioned:
     revision: int
+
+
+@gql.type
+class CrudModel:
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]

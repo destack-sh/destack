@@ -20,10 +20,10 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.bench import StatementType, wire
-from bench.bench.const import InterpScope, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import InterpScope, TypeFlag, TypeHint, TypeTag, ModuleObjectType
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
-from bench.bench.wire import ModuleObjectType, ModuleTree
+from bench.bench.wire import ModuleTree
 from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.type import RunErrorData
 
@@ -35,17 +35,9 @@ DataT = TypeVar("DataT")
 ModelT = TypeVar("ModelT", bound=Model)
 
 
-class DataPacker(typing.Generic[DataT, NodeT]):
-    """Generic data packer for non-node data types"""
-
-    def pack(self, model: ModelT) -> DataT:
-        raise NotImplementedError
-
-    def unpack(self, data: DataT) -> ModelT:
-        raise NotImplementedError
-
-
 class NodePacker(typing.Generic[NodeDataT, NodeT]):
+    """Module node (DB<->wire) packer."""
+
     def walk(self, nodes: list[NodeT], tree: "PackContext") -> list[QuerySet[Model]]:
         """Walk any descendants of the given nodes (visit or queryset)."""
         return []
@@ -60,7 +52,7 @@ class NodePacker(typing.Generic[NodeDataT, NodeT]):
 
 
 class PackContext(abc.ABC):
-    # nothing here yet (if we want visit(...), consider how it affects filtering)
+    # nothing here yet (if we want a visit(...), consider how it affects filtering below)
     pass
 
 
@@ -119,7 +111,7 @@ def node_packer(
         _node_packers_by_node[(node_t, subtype)] = packer
         if t not in BASE_MODEL_CLASS_BY_MOT:
             BASE_MODEL_CLASS_BY_MOT[t] = node_t
-        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MOT[t]):
+        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MOT[t]):  # type: ignore
             raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MOT[t]}")
         return cls
 
@@ -313,17 +305,17 @@ class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement])
         return super().unpack(data, parent)
 
 
-@node_packer(MOT.STATEMENT, wire.CommentData, models.Statement, StatementType.COMMENT)
-class CommentPacker(StatementPacker, NodePacker[wire.CommentData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.CommentData:
+@node_packer(MOT.STATEMENT, wire.TextData, models.Statement, StatementType.TEXT)
+class CommentPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
+    def pack(self, statement: models.Statement) -> wire.TextData:
         statement_data = super().pack(statement)
-        return wire.CommentData(
+        return wire.TextData(
             **statement_data.__dict__,
             html=statement.text,
         )
 
     def unpack(
-        self, data: wire.CommentData, parent: models.File | models.Statement
+        self, data: wire.TextData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.text = data.html
@@ -616,6 +608,16 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
 # not module data
 
 
+class DataPacker(typing.Generic[DataT, NodeT]):
+    """Generic data packer for non-node data types"""
+
+    def pack(self, model: ModelT) -> DataT:
+        raise NotImplementedError
+
+    def unpack(self, data: DataT) -> ModelT:
+        raise NotImplementedError
+
+
 _data_packers: dict[typing.Type[DataT], "DataPacker"] = {}
 
 
@@ -743,8 +745,10 @@ def write_mutations(
             else:
                 # note: this probably doesn't work yet, just a placeholder until we need it
                 model_cls.objects.bulk_update(nodes)
+            for m, node in zip(batch, nodes):
+                m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
-    write_mutations_to_os(project_v.project_id, mut.mutations)
+    write_mutations_to_os(project_v, mut.mutations)

@@ -1298,7 +1298,6 @@ export type ProjectVersion = Node & {
   parentRefs: RefMappingConnection;
   parents: Array<ProjectVersion>;
   project: Project;
-  revision: Scalars["Int"];
   tag?: Maybe<Scalars["String"]>;
   updatedAt: Scalars["DateTime"];
 };
@@ -1894,12 +1893,12 @@ export enum StatementType {
   Blank = "BLANK",
   Block = "BLOCK",
   Code = "CODE",
-  Comment = "COMMENT",
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",
   Requirement = "REQUIREMENT",
   Task = "TASK",
+  Text = "TEXT",
   Type = "TYPE",
   Value = "VALUE",
 }

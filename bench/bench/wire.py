@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import enum
 import re
 import traceback
 import typing
@@ -13,7 +12,7 @@ from uuid import UUID
 
 from bench import bench as lang
 from bench.bench import Code, IssueType, StatementType, TypeHint, TypeTag
-from bench.bench.const import ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag
+from bench.bench.const import ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag, MOT
 from bench.bench.dataset import Query, Sort
 from bench.bench.issue import IssueKind
 from bench.bench.type import ModuleNode, ModuleReference
@@ -31,22 +30,6 @@ if typing.TYPE_CHECKING:
 #
 
 
-class ModuleObjectType(enum.StrEnum):
-    # source
-    MODULE = "MODULE"
-    FILE = "FILE"
-    STATEMENT = "STATEMENT"
-    FIELD = "FIELD"
-    RECORD = "RECORD"
-    DATASET_VIEW = "DATASET_VIEW"
-    # interp
-    ISSUE = "ISSUE"
-    RESOLVED_FIELD = "RESOLVED_FIELD"
-    # user
-    COMMENT = "COMMENT"
-
-
-MOT = ModuleObjectType
 ParentsT = set[MOT]
 NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
 NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
@@ -195,16 +178,6 @@ class ModuleTree:
                 break
             node = self.nodes[node.parent_id]
         return ancestors
-
-
-class DataPacker(typing.Generic[DataT, ObjectT]):
-    """Generic data packer for non-node data types"""
-
-    def pack(self, object: ObjectT) -> DataT:
-        raise NotImplementedError
-
-    def unpack(self, data: DataT) -> ObjectT:
-        raise NotImplementedError
 
 
 class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
@@ -502,21 +475,21 @@ class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
 
 
 @dataclass
-class CommentData(StatementData):
+class TextData(StatementData):
     html: str
 
 
-@node_packer(MOT.STATEMENT, CommentData, lang.Comment)
-class CommentPacker(StatementPacker, NodePacker[CommentData, lang.Comment]):
+@node_packer(MOT.STATEMENT, TextData, lang.Text)
+class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
-    def pack(self, symbol: lang.Comment) -> "CommentData":
+    def pack(self, symbol: lang.Text) -> "TextData":
         statement_data = super().pack(symbol)
-        return CommentData(**statement_data.__dict__, html=symbol.html)
+        return TextData(**statement_data.__dict__, html=symbol.html)
 
-    def unpack(self, symbol: CommentData, parent: lang.Statement | lang.File) -> lang.Comment:
+    def unpack(self, symbol: TextData, parent: lang.Statement | lang.File) -> lang.Text:
         statement = super().unpack(symbol, parent)
-        return lang.Comment(**statement.__dict__, html=symbol.html)
+        return lang.Text(**statement.__dict__, html=symbol.html)
 
 
 # symbols
@@ -983,7 +956,7 @@ class IssueData(NodeData):
 
 
 @node_packer(MOT.ISSUE, IssueData, lang.Issue)
-class IssuePacker(DataPacker[IssueData, lang.Issue]):
+class IssuePacker(NodePacker[IssueData, lang.Issue]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, issue: lang.Issue) -> "IssueData":
@@ -996,11 +969,21 @@ class IssuePacker(DataPacker[IssueData, lang.Issue]):
             message=issue.message,
         )
 
-    def unpack(self, issue: IssueData) -> lang.Issue:
+    def unpack(self, issue: IssueData, parent: lang.Statement) -> lang.Issue:
         raise NotImplementedError
 
 
 # other objects
+
+
+class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
+    """Generic data packer for non-node data types"""
+
+    def pack(self, object: ObjectT) -> DataT:
+        raise NotImplementedError
+
+    def unpack(self, data: DataT) -> ObjectT:
+        raise NotImplementedError
 
 
 _data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}

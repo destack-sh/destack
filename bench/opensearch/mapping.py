@@ -53,7 +53,7 @@ def register_mapper(
 
 @dataclass
 class StaticFieldMapper(FieldMapper):
-    field: os.Field | os.FieldType
+    field: os.Field | os.FT
 
     def to_os_type(self, field: lang.Field) -> os.Field:
         return self.field
@@ -62,57 +62,37 @@ class StaticFieldMapper(FieldMapper):
 # string
 register_mapper(
     os.Field(
-        os.FieldType.TEXT,
-        fields={os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT)},
+        os.FT.TEXT,
+        fields={os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT)},
     ),
     tags=[TypeTag.STRING],
 )
 register_mapper(
     os.Field(
-        os.FieldType.TEXT,
+        os.FT.TEXT,
         fields={
-            os.FieldType.KEYWORD: os.Field(os.FieldType.KEYWORD),
-            os.FieldType.SEARCH_AS_YOU_TYPE: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
-            os.FieldType.TOKEN_COUNT: os.Field(os.FieldType.TOKEN_COUNT),
+            os.FT.KEYWORD: os.Field(os.FT.KEYWORD),
+            os.FT.SEARCH_AS_YOU_TYPE: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
+            os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT),
         },
     ),
     hints=[TypeHint.NAME],
 )
-register_mapper(os.Field(os.FieldType.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
+register_mapper(os.Field(os.FT.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
 # number
-register_mapper(os.Field(os.FieldType.DOUBLE), tags=[TypeTag.NUMBER])
-register_mapper(os.Field(os.FieldType.LONG), hints=[TypeHint.INTEGER])
+register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER])
+register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 # boolean
-register_mapper(os.Field(os.FieldType.BOOLEAN), tags=[TypeTag.BOOLEAN])
+register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
-register_mapper(os.Field(os.FieldType.KNN_VECTOR), tags=[TypeTag.VECTOR])
+register_mapper(os.Field(os.FT.KNN_VECTOR), tags=[TypeTag.VECTOR])
 # file
 register_mapper(
-    os.Field(os.FieldType.OBJECT, fields=mirror.RemoteObject.fields()), tags=[TypeTag.FILE]
+    os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.fields()), tags=[TypeTag.FILE]
 )
 # secret
 register_mapper(
-    os.Field(os.FieldType.OBJECT, fields=mirror.Secret.fields()),
+    os.Field(os.FT.OBJECT, properties=mirror.Secret.fields()),
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )
-
-
-def pack_record(record: mirror.Record) -> wire.RecordData:
-    return wire.RecordData(
-        id=record.id,
-        parent_id=record.statement_id,
-        order_key=record.order_key,
-        revision=record.revision,
-        data=record.data,
-    )
-
-
-def unpack_record(data: wire.RecordData) -> mirror.Record:
-    return mirror.Record(
-        id=data.id,
-        statement_id=data.parent_id,
-        order_key=data.order_key,
-        revision=data.revision,
-        data=data.data,
-    )

@@ -63,30 +63,32 @@ class FieldType(enum.StrEnum):
 
     @property
     def can_ignore_malformed(self) -> bool:
-        return self in IGNORE_MALFORMED_TYPES
+        return self in MALFORMABLE_TYPES
 
+
+FT = FieldType
 
 COERCIBLE_TYPES = {
-    FieldType.BYTE,
-    FieldType.DOUBLE,
-    FieldType.FLOAT,
-    FieldType.HALF_FLOAT,
-    FieldType.INTEGER,
-    FieldType.LONG,
-    FieldType.UNSIGNED_LONG,
-    FieldType.SHORT,
+    FT.BYTE,
+    FT.DOUBLE,
+    FT.FLOAT,
+    FT.HALF_FLOAT,
+    FT.INTEGER,
+    FT.LONG,
+    FT.UNSIGNED_LONG,
+    FT.SHORT,
 }
 
-IGNORE_MALFORMED_TYPES = {
-    FieldType.BYTE,
-    FieldType.DOUBLE,
-    FieldType.FLOAT,
-    FieldType.HALF_FLOAT,
-    FieldType.INTEGER,
-    FieldType.LONG,
-    FieldType.UNSIGNED_LONG,
-    FieldType.SHORT,
-    FieldType.DATE,
+MALFORMABLE_TYPES = {
+    FT.BYTE,
+    FT.DOUBLE,
+    FT.FLOAT,
+    FT.HALF_FLOAT,
+    FT.INTEGER,
+    FT.LONG,
+    FT.UNSIGNED_LONG,
+    FT.SHORT,
+    FT.DATE,
 }
 
 
@@ -98,13 +100,14 @@ class Field:
     and https://www.elastic.co/guide/en/elasticsearch/reference/current/mapping-types.html
     """
 
-    type: FieldType
+    type: FT
     fields: dict[str, "Field"] = None
     properties: dict[str, "Field"] = None
     meta: dict[str, str] = None
     index: bool = None  # default: true
     store: bool = None  # default: true
     coerce: bool = None
+    dynamic: bool = None
     copy_to: list[str] = None
     ignore_malformed: bool = None
     ignore_above: int = None
@@ -150,6 +153,8 @@ class Field:
             d["store"] = self.store
         if self.coerce is not None:
             d["coerce"] = self.coerce
+        if self.dynamic is not None:
+            d["dynamic"] = self.dynamic
         if self.copy_to is not None:
             d["copy_to"] = self.copy_to
         if self.ignore_above is not None:
@@ -161,7 +166,7 @@ class Field:
         """
         Convert a dict wireable from OpenSearch to a Field.
         """
-        type = FieldType(d.pop("type"))
+        type = FT(d.pop("type"))
         fields = d.pop("fields", None)
         properties = d.pop("properties", None)
         return cls(

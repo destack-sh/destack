@@ -249,13 +249,13 @@ enum ExpectationModifier {
 }
 
 type Field implements Node {
-  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  revision: Int!
   id: GlobalID!
   statement: Statement!
   name: String
@@ -329,13 +329,13 @@ input FieldUpdateTypeInput {
 }
 
 type File implements Node {
-  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  revision: Int!
   id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
@@ -572,8 +572,8 @@ type Mutation {
   updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
   moveRecord(input: RecordMoveInput!): RecordOperationInfo!
   softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
-  deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
   restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
+  deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
   batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
   batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
@@ -1012,7 +1012,6 @@ input ProjectUpdateVisibilityInput {
 }
 
 type ProjectVersion implements Node {
-  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
@@ -1250,13 +1249,13 @@ type Query {
 }
 
 type Record implements Node {
-  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  revision: Int!
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1481,13 +1480,13 @@ input SecretUpdateInput {
 }
 
 type Statement implements Node {
-  revision: Int!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  revision: Int!
   id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
@@ -1614,7 +1613,7 @@ input StatementSoftDeleteInput {
 
 """The type of Bench statement."""
 enum StatementType {
-  COMMENT
+  TEXT
   BLANK
   TYPE
   TASK
