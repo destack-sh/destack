@@ -5,7 +5,7 @@ import structlog
 
 import bench.opensearch.type as os
 from bench import models
-from bench.bench.mutate import MOT, ModuleMutation
+from bench.bench.mutate import MOT, ModuleMutation, MMK
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.type import IndexType
@@ -110,13 +110,23 @@ def write_mutations_to_os(
     Writes/mirrors any relevant mutations to OpenSearch.
     All regular DB mutations come this way (records are not stored in the DB).
     """
-    os_operations = []
+    os_operations: list[typing.Iterable[dict, dict]] = []
+    global_index_name = IndexType.GLOBAL.get_index_name()
+    bench_index_name = IndexType.BENCH.get_index_name(project_v.project_id)
     for m in mutations:
         if m.mot == MOT.RECORD:
             pass  # nocheckin: index
         elif mirror.has_mirror(m.thing):
-            mirrored = mirror.mirror_node(m.thing)
-            pass  # nocheckin: mirror
+            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
+                mirrored = mirror.mirror_node(project_v, m.thing)
+                op = (
+                    {"index": {"_index": global_index_name, "_id": str(m.thing.id)}},
+                    mirrored.to_dict(),
+                )
+                os_operations.append(op)
+            elif m.type.kind == MMK.DELETE:
+                op = {"delete": {"_index": global_index_name, "_id": str(m.thing.id)}}
+                os_operations.append(op)
 
     if os_operations:
         os_client.bulk(os_operations)
@@ -124,8 +134,8 @@ def write_mutations_to_os(
 
 def create_record(project_v: models.ProjectVersion, record: mirror.Record):
     index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_record = os_client.index(index=index_name, id=record.id, body=record.to_dict())
-    record._revision = os_record["_version"]
+    os_record = os_client.create(index=index_name, id=record.id, body=record.to_dict())
+    record.revision = os_record["_version"]
     return record
 
 
@@ -138,7 +148,7 @@ def update_record(
         id=record.id,
         body={"doc": record.to_dict()},
     )
-    record._revision = os_record["_version"]
+    record.revision = os_record["_version"]
     return record
 
 

@@ -1152,20 +1152,7 @@ type Query {
     active: Boolean = null
     present: Boolean = true
   ): ClientConnection!
-  searchRecords(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    statementId: GlobalID!
-  ): RecordConnection!
+  searchRecords(before: String = null, after: String = null, first: Int = null, last: Int = null, statementId: GlobalID!): RecordConnection!
   systemInfo: SystemInfo!
   me: User
   user(

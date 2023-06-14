@@ -6,14 +6,14 @@ export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
   [StatementType.Task]: "task",
   [StatementType.Code]: "code",
   [StatementType.Value]: "value",
-  [StatementType.Dataset]: "table",
+  [StatementType.Dataset]: "dataset",
   [StatementType.Model]: "model",
   [StatementType.Expectation]: "expect",
   [StatementType.Block]: "block",
 };
 export const SUPPORTED_STATEMENT_TYPES = [
   StatementType.Blank,
-  StatementType.Comment,
+  StatementType.Text,
   StatementType.Type,
   StatementType.Code,
   StatementType.Dataset,

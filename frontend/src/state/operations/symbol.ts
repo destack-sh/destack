@@ -218,6 +218,7 @@ export function useSymbolContentOps() {
         }
 
         // extend relevant records views with the new record
+        // nocheckin: record append is broken because records are now loaded with searchRecords query
         const newEdge = {
           __typename: "RecordEdge",
           // cursor is set below
