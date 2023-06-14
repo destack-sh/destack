@@ -1,3 +1,4 @@
+import typing
 from uuid import UUID
 
 import structlog
@@ -21,29 +22,37 @@ DOCUMENTS_BY_INDEX = {
         mirror.User,
         mirror.Organization,
         mirror.Project,
-    ],
-    IndexType.PROJECT: [
+        mirror.ProjectVersion,
         mirror.File,
         mirror.Statement,
         mirror.Field,
         mirror.Tile,
         mirror.Comment,
     ],
-    IndexType.DATASETS: [
+    IndexType.BENCH: [
         mirror.Record,  # only the static parts
-    ],
-    IndexType.SESSIONS: [
         mirror.Session,
         mirror.Execution,  # only the static parts
         mirror.LogEntry,
     ],
 }
 
+GLOBAL_INDEX_SHARDS = 5
+GLOBAL_INDEX_REPLICAS = 1
+
+BENCH_INDEX_SHARDS = 1
+BENCH_INDEX_REPLICAS = 0
+BENCH_MAPPING_TOTAL_FIELDS_LIMIT = 10000  # TODO @Performance: reconsider OS mapping limit
+
+DEFAULT_FIELDS = {
+    os.TYPE_DISCRIMINATOR_KEY: os.TYPE_DISCRIMINATOR_FIELD,
+}
+
 
 def _collect_fields(doc_classes: list[os.Document]) -> dict[str, os.Field]:
     fields = {}
     for doc_class in doc_classes:
-        for field_name, field in doc_class.fields.items():
+        for field_name, field in doc_class.__fields__.items():
             existing_field = fields.get(field_name)
             if existing_field is not None and existing_field != field:
                 raise ValueError(
@@ -53,23 +62,44 @@ def _collect_fields(doc_classes: list[os.Document]) -> dict[str, os.Field]:
     return fields
 
 
-def create_index(index: IndexType, project_id: UUID) -> None:
-    index_name = index.get_index_name(project_id)
-
-    doc_classes = DOCUMENTS_BY_INDEX[index]
-    fields = _collect_fields(doc_classes)
+def _create_index(
+    index_name: str,
+    *,
+    shards: int,
+    replicas: int,
+    documents: list[typing.Type[os.Document]],
+) -> None:
+    fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
     mappings = {field_name: field.to_dict() for field_name, field in fields.items()}
     analyzers = {analyzer.value: definition for analyzer, definition in os.ANALYZERS.items()}
-
     os_client.indices.create(
         index=index_name,
         body={
             "settings": {
-                "index": {"number_of_shards": 1, "number_of_replicas": 0, "knn": True},
+                "index": {"number_of_shards": shards, "number_of_replicas": replicas, "knn": True},
                 "analysis": {"analyzer": analyzers},
+                "mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}},
             },
             "mappings": {"dynamic": "strict", "properties": mappings},
         },
+    )
+
+
+def create_global_index(name: str = None) -> None:
+    _create_index(
+        name or IndexType.GLOBAL.get_index_name(),
+        shards=GLOBAL_INDEX_SHARDS,
+        replicas=GLOBAL_INDEX_REPLICAS,
+        documents=DOCUMENTS_BY_INDEX[IndexType.GLOBAL],
+    )
+
+
+def create_bench_index(project_id: UUID, name: str = None) -> None:
+    _create_index(
+        name or IndexType.BENCH.get_index_name(project_id),
+        shards=BENCH_INDEX_SHARDS,
+        replicas=BENCH_INDEX_REPLICAS,
+        documents=DOCUMENTS_BY_INDEX[IndexType.BENCH],
     )
 
 
@@ -89,7 +119,7 @@ def write_mutations_to_os(project_v: models.ProjectVersion, mutations: list[Modu
 
 
 def create_record(project_v: models.ProjectVersion, record: mirror.Record):
-    index_name = IndexType.DATASETS.get_index_name(project_v.project_id)
+    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
     os_client.create(index=index_name, id=record.id, body=record.to_dict())
 
 

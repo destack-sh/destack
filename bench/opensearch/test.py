@@ -1,10 +1,9 @@
 from uuid import UUID
 
-import opensearchpy.exceptions
 import pytest
 
 from bench.opensearch.client import os_client
-from bench.opensearch.index import create_index
+from bench.opensearch.index import create_global_index, create_bench_index
 from bench.opensearch.type import IndexType
 
 MOCK_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000000")
@@ -12,9 +11,7 @@ MOCK_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000000")
 
 @pytest.mark.parametrize("index_t", IndexType)
 def test_create_indices(index_t: IndexType):
-    project_id = MOCK_PROJECT_ID if index_t.is_project_scoped else None
-    try:
-        os_client.indices.delete(index=index_t.get_index_name(project_id))
-    except opensearchpy.exceptions.NotFoundError:
-        pass
-    create_index(index_t, project_id)
+    os_client.indices.delete("test-bench-global", ignore=[404])
+    os_client.indices.delete("test-bench-user", ignore=[404])
+    create_global_index(name="test-bench-global")
+    create_bench_index(MOCK_PROJECT_ID, name="test-bench-user")

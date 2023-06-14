@@ -122,10 +122,10 @@ class Field:
             self.ignore_malformed = True
 
     def __str__(self):
-        fields_str = ",˜".join(f"{k}={v}" for k, v in self.fields.items())
+        fields_str = ",˜".join(f"{k}={v}" for k, v in (self.fields or {}).items())
         if fields_str:
             return f"{self.type} (fields={fields_str})"
-        properties_str = ",˜".join(f"{k}={v}" for k, v in self.properties.items())
+        properties_str = ",˜".join(f"{k}={v}" for k, v in (self.properties or {}).items())
         if properties_str:
             return f"{self.type} (properties={properties_str})"
         return f"{self.type}"
@@ -184,6 +184,9 @@ class Field:
 
 field = Field
 
+TYPE_DISCRIMINATOR_FIELD = Field(FT.KEYWORD)
+TYPE_DISCRIMINATOR_KEY = "_type"
+
 
 class Document:
     """
@@ -191,9 +194,9 @@ class Document:
     """
 
     Partial: ClassVar[typing.Type["Document"]] = None
-    fields: ClassVar[dict[str, Field]] = {}
-
-    id: UUID = field(type=FT.KEYWORD)
+    __fields__: ClassVar[dict[str, Field]] = {}
+    __type__: ClassVar[typing.Optional[str]] = None
+    __store_type__: ClassVar[bool] = True
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -202,7 +205,9 @@ class Document:
          as they are all user-defined and thus already JSON-able.
         """
         d = {}
-        for name, field in self.fields.items():
+        if self.__type__ is not None and self.__store_type__:
+            d[TYPE_DISCRIMINATOR_KEY] = self.__type__
+        for name, field in self.__fields__.items():
             value = getattr(self, name)
             if value is None:
                 continue
@@ -221,13 +226,14 @@ class Document:
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
         d = {**d}
-        for name, field in cls.fields.items():
+        for name, field in cls.__fields__.items():
+            annotation = cls.__annotations__[name]
             value = d.pop(name, None)
             if value is None:
                 continue
             if field.type == FT.DATE:
                 value = datetime.fromisoformat(value)
-            elif field.type == FT.KEYWORD:
+            elif annotation == UUID:
                 value = UUID(value)
             elif field.type == FT.TEXT:
                 value = value
@@ -247,7 +253,9 @@ PYTHON_RESERVED_NAMES = {
 }
 
 
-def document(cls: typing.Optional[typing.Type[Document]] = None):
+def document(
+    cls: typing.Optional[typing.Type[Document]], _type: str = None, store_type: bool = None
+):
     """Decorator for mapping a class as an OpenSearch-style dataclass."""
 
     def decorator(cls: typing.Type[Document]):
@@ -269,13 +277,16 @@ def document(cls: typing.Optional[typing.Type[Document]] = None):
         # then convert the class to a dataclass
         cls = dataclasses.dataclass(cls, repr=False, slots=True)
         # then add the fields back
-        cls.fields = fields
+        cls.__fields__ = fields
         # add a partial class with all fields optional (copy and set fields with default None)
         partial_fields = {
             **{name: dataclasses.field(default=None) for name, field in fields.items()},
         }
         partial_cls = type(cls.__name__ + "Partial", (object,), partial_fields)
         cls.Partial = partial_cls
+        if _type is not None:
+            cls.__type__ = _type
+        cls.__store_type__ = store_type
         return cls
 
     if cls is None:
@@ -299,13 +310,11 @@ class IndexType(enum.StrEnum):
     """The index type within Bench."""
 
     GLOBAL = "global"
-    PROJECT = "project"
-    DATASETS = "datasets"
-    SESSIONS = "sessions"
+    BENCH = "project"
 
     @property
     def is_project_scoped(self) -> bool:
-        return self in (IndexType.DATASETS, IndexType.SESSIONS)
+        return self in (IndexType.BENCH,)
 
     def get_index_name(self, project_id: UUID = None):
         if self.is_project_scoped != (project_id is not None):

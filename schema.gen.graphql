@@ -1293,15 +1293,15 @@ type RecordConnection {
 }
 
 input RecordCreateInput {
-  id: GlobalID!
   statementId: GlobalID!
+  id: GlobalID!
   data: JSON!
   orderKey: String!
 }
 
 input RecordDeleteInput {
-  id: GlobalID!
   statementId: GlobalID!
+  id: GlobalID!
 }
 
 """An edge in a connection."""
@@ -1314,21 +1314,21 @@ type RecordEdge {
 }
 
 input RecordMoveInput {
-  id: GlobalID!
   statementId: GlobalID!
+  id: GlobalID!
   orderKey: String!
 }
 
 union RecordOperationInfo = Record | OperationInfo
 
 input RecordRestoreInput {
-  id: GlobalID!
   statementId: GlobalID!
+  id: GlobalID!
 }
 
 input RecordUpdateInput {
-  id: GlobalID!
   statementId: GlobalID!
+  id: GlobalID!
   data: JSON!
 }
 
