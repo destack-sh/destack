@@ -15,7 +15,6 @@ from strawberry_django_plus import gql
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched, Revisioned
-from bench.opensearch.type import IndexType
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -251,14 +250,9 @@ def create_project_s3_bucket(project: Project):
 
 def create_project_indices(project: Project):
     """Creates OpenSearch indices for the project."""
-    from bench.opensearch.index import create_index
+    from bench.opensearch.index import create_bench_index
 
-    indices = [
-        IndexType.DATASETS,
-        # other indices are not used yet
-    ]
-    for index_t in indices:
-        create_index(index_t, project.id)
+    create_bench_index(project.id)
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):

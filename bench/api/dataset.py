@@ -104,6 +104,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record(
             id=UUID(input.id.node_id),
+            project_version_id=project_v.id,
             statement_id=input.statement_id.node_id,
             created_at=now,
             updated_at=now,

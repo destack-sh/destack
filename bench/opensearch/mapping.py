@@ -81,10 +81,12 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(os.Field(os.FT.KNN_VECTOR), tags=[TypeTag.VECTOR])
 # file
-register_mapper(os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.fields), tags=[TypeTag.FILE])
+register_mapper(
+    os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.__fields__), tags=[TypeTag.FILE]
+)
 # secret
 register_mapper(
-    os.Field(os.FT.OBJECT, properties=mirror.Secret.fields),
+    os.Field(os.FT.OBJECT, properties=mirror.Secret.__fields__),
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )
