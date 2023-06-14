@@ -16,7 +16,7 @@ from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os
 from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned
 from bench.opensearch import mirror
-from bench.opensearch.index import create_record, update_record, delete_record, batch_update_records
+from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
 
 
 @gql.type
@@ -36,49 +36,44 @@ class RecordBatch(ThingBatch):
 
 
 @gql.input
-class RecordInput(gql.NodeInput):
+class RecordInput:
     statement_id: GlobalID
 
 
 @gql.input
-class RecordCreateInput(RecordInput):
-    statement_id: GlobalID
+class RecordCreateInput(RecordInput, gql.NodeInput):
     data: JSON
     order_key: str
 
 
 @gql.input
-class RecordUpdateInput(RecordInput):
-    statement_id: GlobalID
+class RecordUpdateInput(RecordInput, gql.NodeInput):
     data: JSON
 
 
 @gql.input
-class RecordUpdatePathInput(RecordInput):
-    statement_id: GlobalID
+class RecordUpdatePathInput(RecordInput, gql.NodeInput):
     path: str
     data: Optional[JSON] = None
 
 
 @gql.input
-class RecordMoveInput(RecordInput):
-    statement_id: GlobalID
+class RecordMoveInput(RecordInput, gql.NodeInput):
     order_key: str
 
 
 @gql.input
-class RecordDeleteInput(RecordInput):
-    statement_id: GlobalID
+class RecordDeleteInput(RecordInput, gql.NodeInput):
+    pass
 
 
 @gql.input
-class RecordRestoreInput(RecordInput):
-    statement_id: GlobalID
+class RecordRestoreInput(RecordInput, gql.NodeInput):
+    pass
 
 
 @gql.input
-class RecordBatchSoftDeleteInput(BatchMutationInput):
-    statement_id: GlobalID
+class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -86,8 +81,7 @@ class RecordBatchSoftDeleteInput(BatchMutationInput):
 
 
 @gql.input
-class RecordBatchRestoreInput(BatchMutationInput):
-    statement_id: GlobalID
+class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -123,7 +117,7 @@ class DatasetMutation:
     @tracked_os_mutation(MMT.UPDATE_RECORD)
     def update_record(self, info: Info, input: RecordUpdateInput) -> Record | OperationInfo:
         now, project_v, statement = _prep_dataset_access(info, input)
-        record = mirror.Record(
+        record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
             data=input.data,
             updated_at=now,
@@ -135,7 +129,7 @@ class DatasetMutation:
     @tracked_os_mutation(MMT.MOVE_RECORD)
     def move_record(self, info: Info, input: RecordMoveInput) -> Record | OperationInfo:
         now, project_v, statement = _prep_dataset_access(info, input)
-        record = mirror.Record(
+        record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
             order_key=input.order_key,
             updated_at=now,
@@ -147,7 +141,7 @@ class DatasetMutation:
     @tracked_os_mutation(MMT.SOFT_DELETE_RECORD)
     def soft_delete_record(self, info: Info, input: RecordDeleteInput) -> Record | OperationInfo:
         now, project_v, statement = _prep_dataset_access(info, input)
-        record = mirror.Record(
+        record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
             deleted_at=now,
             updated_at=now,
@@ -158,7 +152,7 @@ class DatasetMutation:
     @tracked_os_mutation(MMT.RESTORE_RECORD)
     def restore_record(self, info: Info, input: RecordRestoreInput) -> Record | OperationInfo:
         now, project_v, statement = _prep_dataset_access(info, input)
-        record = mirror.Record(
+        record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
             deleted_at="-",  # invalid value to set to null
             updated_at=now,
@@ -179,7 +173,7 @@ class DatasetMutation:
         # imitate soft_delete_record but for a batch
         now, project_v, statement = _prep_dataset_access(info, input)
         records = [
-            mirror.Record(
+            mirror.Record.Partial(
                 id=UUID(i.node_id),
                 deleted_at=now,
                 updated_at=now,
@@ -196,7 +190,7 @@ class DatasetMutation:
         # imitate restore_record but for a batch
         now, project_v, statement = _prep_dataset_access(info, input)
         records = [
-            mirror.Record(
+            mirror.Record.Partial(
                 id=UUID(i.node_id),
                 deleted_at="-",  # invalid value to set to null
                 updated_at=now,

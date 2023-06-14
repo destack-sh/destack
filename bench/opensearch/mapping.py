@@ -1,9 +1,9 @@
 from dataclasses import dataclass
-from typing import Any, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import bench.bench as lang
 import bench.opensearch.type as os
-from bench.bench import TypeHint, TypeTag, wire
+from bench.bench import TypeHint, TypeTag
 from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.opensearch import mirror
 
@@ -15,12 +15,6 @@ class FieldMapper:
     """
 
     def to_os_type(self, field: lang.Field) -> os.Field:
-        raise NotImplementedError
-
-    def to_os_value(self, field: lang.Field, value: Any) -> Any:
-        raise NotImplementedError
-
-    def from_os_value(self, field: lang.Field, value: Any) -> Any:
         raise NotImplementedError
 
 
@@ -87,12 +81,10 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(os.Field(os.FT.KNN_VECTOR), tags=[TypeTag.VECTOR])
 # file
-register_mapper(
-    os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.fields()), tags=[TypeTag.FILE]
-)
+register_mapper(os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.fields), tags=[TypeTag.FILE])
 # secret
 register_mapper(
-    os.Field(os.FT.OBJECT, properties=mirror.Secret.fields()),
+    os.Field(os.FT.OBJECT, properties=mirror.Secret.fields),
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )

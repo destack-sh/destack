@@ -3,11 +3,11 @@ from uuid import UUID
 import structlog
 
 import bench.opensearch.type as os
-from bench.bench.mutate import ModuleMutation, MOT
+from bench import models
+from bench.bench.mutate import MOT, ModuleMutation
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.type import IndexType
-from bench import models
 
 logger = structlog.get_logger(__name__)
 
@@ -18,7 +18,8 @@ class IndexError(ValueError):
 
 DOCUMENTS_BY_INDEX = {
     IndexType.GLOBAL: [
-        mirror.Owner,
+        mirror.User,
+        mirror.Organization,
         mirror.Project,
     ],
     IndexType.PROJECT: [
@@ -42,7 +43,7 @@ DOCUMENTS_BY_INDEX = {
 def _collect_fields(doc_classes: list[os.Document]) -> dict[str, os.Field]:
     fields = {}
     for doc_class in doc_classes:
-        for field_name, field in doc_class.fields().items():
+        for field_name, field in doc_class.fields.items():
             existing_field = fields.get(field_name)
             if existing_field is not None and existing_field != field:
                 raise ValueError(
@@ -58,11 +59,15 @@ def create_index(index: IndexType, project_id: UUID) -> None:
     doc_classes = DOCUMENTS_BY_INDEX[index]
     fields = _collect_fields(doc_classes)
     mappings = {field_name: field.to_dict() for field_name, field in fields.items()}
+    analyzers = {analyzer.value: definition for analyzer, definition in os.ANALYZERS.items()}
 
     os_client.indices.create(
         index=index_name,
         body={
-            "settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}},
+            "settings": {
+                "index": {"number_of_shards": 1, "number_of_replicas": 0, "knn": True},
+                "analysis": {"analyzer": analyzers},
+            },
             "mappings": {"dynamic": "strict", "properties": mappings},
         },
     )
@@ -88,7 +93,7 @@ def create_record(project_v: models.ProjectVersion, record: mirror.Record):
     os_client.create(index=index_name, id=record.id, body=record.to_dict())
 
 
-def update_record(project_v: models.ProjectVersion, record: mirror.Record) -> mirror.Record:
+def update_record(project_v: models.ProjectVersion, record: mirror.Record.Partial) -> mirror.Record:
     raise NotImplementedError  # nocheckin: index
 
 
@@ -97,6 +102,6 @@ def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
 
 
 def batch_update_records(
-    project_v: models.ProjectVersion, records: list[mirror.Record]
+    project_v: models.ProjectVersion, records: list[mirror.Record.Partial]
 ) -> list[mirror.Record]:
     raise NotImplementedError  # nocheckin: index

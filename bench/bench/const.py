@@ -32,7 +32,7 @@ class ModuleObjectType(enum.StrEnum):
 MOT = ModuleObjectType
 
 
-class InterpScope(enum.StrEnum):
+class InterpScope(enum.StrEnum):  # not sure if we still need this?
     MODULE = "module"
     FILE = "file"
     STATEMENT = "statement"
@@ -117,6 +117,38 @@ class TypeFlag(enum.IntFlag):
     IsNullable = 2**2
     IsUnionWith = 2**3
     IsSecret = 2**4
+
+
+Vector = list[float]
+
+
+@dataclass
+class XYPoint:
+    """The value of an OpenSearch/GeoJSON-compatible geo_point field."""
+
+    x: float
+    y: float
+
+
+class XYShapeType(enum.StrEnum):
+    """The type in an OpenSearch-compatible geo_shape field."""
+
+    POINT = "point"
+    LINE_STRING = "line_string"
+    POLYGON = "polygon"
+    MULTI_POINT = "multi_point"
+    MULTI_LINE_STRING = "multi_line_string"
+    MULTI_POLYGON = "multi_polygon"
+    GEOMETRY_COLLECTION = "geometry_collection"
+    ENVELOPE = "envelope"
+
+
+@dataclass
+class XYShape:
+    """The value of an OpenSearch-compatible geo_shape field."""
+
+    type: XYShapeType
+    coordinates: typing.Union[list[float], list[list[float]]]
 
 
 class ExpectationModifier(enum.StrEnum):

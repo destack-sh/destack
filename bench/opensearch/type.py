@@ -1,9 +1,11 @@
+import dataclasses
 import enum
+import inspect
+import typing
 from dataclasses import dataclass
-from typing import Any
+from datetime import datetime
+from typing import Any, ClassVar
 from uuid import UUID
-
-import opensearchpy as os
 
 
 class FieldType(enum.StrEnum):
@@ -101,7 +103,7 @@ class Field:
     """
 
     type: FT
-    fields: dict[str, "Field"] = None
+    fields: dict[FieldType, "Field"] = None
     properties: dict[str, "Field"] = None
     meta: dict[str, str] = None
     index: bool = None  # default: true
@@ -111,6 +113,7 @@ class Field:
     copy_to: list[str] = None
     ignore_malformed: bool = None
     ignore_above: int = None
+    analyzer: "Analyzer" = None
 
     def __post_init__(self):
         if self.coerce is None and self.type.coercible:
@@ -142,7 +145,7 @@ class Field:
         if self.ignore_malformed is not None:
             d["ignore_malformed"] = self.ignore_malformed
         if self.fields is not None:
-            d["fields"] = {k: v.to_dict() for k, v in self.fields.items()}
+            d["fields"] = {k.value: v.to_dict() for k, v in self.fields.items()}
         if self.properties is not None:
             d["properties"] = {k: v.to_dict() for k, v in self.properties.items()}
         if self.meta is not None:
@@ -159,6 +162,8 @@ class Field:
             d["copy_to"] = self.copy_to
         if self.ignore_above is not None:
             d["ignore_above"] = self.ignore_above
+        if self.analyzer is not None:
+            d["analyzer"] = self.analyzer.value
         return d
 
     @classmethod
@@ -177,70 +182,117 @@ class Field:
         )
 
 
-# The value of a KNN vector field.
-Vector = list[float]
+field = Field
 
 
-@dataclass(repr=False, slots=True)
-class XYPoint:
+class Document:
     """
-    The value of a geo_point field.
+    Base for OpenSearch-style dataclass document.
     """
 
-    x: float
-    y: float
+    Partial: ClassVar[typing.Type["Document"]] = None
+    fields: ClassVar[dict[str, Field]] = {}
 
+    id: UUID = field(type=FT.KEYWORD)
 
-class XYShapeType(enum.StrEnum):
-    """
-    The type of a geo_shape field.
-    """
-
-    POINT = "point"
-    LINE_STRING = "line_string"
-    POLYGON = "polygon"
-    MULTI_POINT = "multi_point"
-    MULTI_LINE_STRING = "multi_line_string"
-    MULTI_POLYGON = "multi_polygon"
-    GEOMETRY_COLLECTION = "geometry_collection"
-    ENVELOPE = "envelope"
-
-
-@dataclass(repr=False, slots=True)
-class XYShape:
-    """
-    The value of a geo_shape field.
-    """
-
-    type: XYShapeType
-    coordinates: list[list[float]]
-
-
-class Document(os.Document):
-    """
-    Custom OpenSearch document for using ouw own Fields etc.
-    Also prevent ORM / index mutations.
-    """
-
-    def __init__(self, **kwargs):
-        # copy id to meta id
-        if "id" in kwargs:
-            kwargs["meta"] = {"id": kwargs.pop("id")}
-        else:
-            raise ValueError("document must have an id")
-        super().__init__(**kwargs)
-
-    @property
-    def id(self) -> UUID:
-        return UUID(self.meta.id)
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert this document to a dict wireable to OpenSearch.
+        We convert top level fields to JSON-able types - inner fields are left as is,
+         as they are all user-defined and thus already JSON-able.
+        """
+        d = {}
+        for name, field in self.fields.items():
+            value = getattr(self, name)
+            if value is None:
+                continue
+            if isinstance(value, datetime):
+                value = value.isoformat()
+            elif isinstance(value, UUID):
+                value = str(value)
+            elif isinstance(value, enum.Enum):
+                value = value.value
+            d[name] = value
+        return d
 
     @classmethod
-    def fields(cls) -> dict[str, Field]:
+    def from_dict(cls, d: dict[str, Any]) -> "Document":
         """
-        Return the fields of this document.
+        Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
-        properties = cls._doc_type.mapping.to_dict().get("properties", {})
-        return {k: Field.from_dict(v) for k, v in properties.items()}
+        d = {**d}
+        for name, field in cls.fields.items():
+            value = d.pop(name, None)
+            if value is None:
+                continue
+            if field.type == FT.DATE:
+                value = datetime.fromisoformat(value)
+            elif field.type == FT.KEYWORD:
+                value = UUID(value)
+            elif field.type == FT.TEXT:
+                value = value
+            d[name] = value
+        return cls(**d)
+
+
+PYTHON_RESERVED_NAMES = {
+    "__annotations__",
+    "__dict__",
+    "__weakref__",
+    "__slots__",
+    "__doc__",
+    "__module__",
+    "__qualname__",
+    "__parameters__",
+}
+
+
+def document(cls: typing.Optional[typing.Type[Document]] = None):
+    """Decorator for mapping a class as an OpenSearch-style dataclass."""
+
+    def decorator(cls: typing.Type[Document]):
+        # first convert the fields to dataclass fields (and store the original fields)
+        fields = {}
+        for name, field in cls.__dict__.items():
+            # ignore reserved names
+            if name in PYTHON_RESERVED_NAMES:
+                continue
+            # ignore methods
+            if inspect.isfunction(field):
+                continue
+            if not isinstance(field, Field):
+                raise TypeError(f"{name} is not a Field in {cls.__name__}")
+            fields[name] = field
+        # remove fields values
+        for name in fields.keys():
+            delattr(cls, name)
+        # then convert the class to a dataclass
+        cls = dataclasses.dataclass(cls, repr=False, slots=True)
+        # then add the fields back
+        cls.fields = fields
+        # add a partial class with all fields optional (copy and set fields with default None)
+        partial_fields = {
+            **{name: dataclasses.field(default=None) for name, field in fields.items()},
+        }
+        partial_cls = type(cls.__name__ + "Partial", (object,), partial_fields)
+        cls.Partial = partial_cls
+        return cls
+
+    if cls is None:
+        return decorator
+    else:
+        return decorator(cls)
+
+
+if typing.TYPE_CHECKING:
+    document = dataclasses.dataclass
+
+
+class Analyzer(enum.StrEnum):
+    HTML = "html"
+
+
+ANALYZERS = {Analyzer.HTML: {"tokenizer": "standard", "char_filter": ["html_strip"]}}
 
 
 class IndexType(enum.StrEnum):
@@ -253,7 +305,7 @@ class IndexType(enum.StrEnum):
 
     @property
     def is_project_scoped(self) -> bool:
-        return self in (IndexType.PROJECT, IndexType.DATASETS, IndexType.SESSIONS)
+        return self in (IndexType.DATASETS, IndexType.SESSIONS)
 
     def get_index_name(self, project_id: UUID = None):
         if self.is_project_scoped != (project_id is not None):
