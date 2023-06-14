@@ -115,6 +115,7 @@ class Field:
     ignore_above: int = None
     analyzer: "Analyzer" = None
     can_set_directly: bool = True
+    _annotation: Any = None  # type annotation on the LHS of a field in a document
 
     def __post_init__(self):
         if self.coerce is None and self.type.coercible:
@@ -227,36 +228,26 @@ class Document:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Document":
+    def from_dict(cls, d: dict[str, Any], id: str, version: str) -> "Document":
         """
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
-        d = {**d}
+        d = {**d, "id": UUID(id), "revision": version}
         for name, field in cls.__fields__.items():
-            annotation = cls.__annotations__[name]
+            if not field.can_set_directly:
+                continue
             value = d.pop(name, None)
             if value is None:
-                continue
-            if field.type == FT.DATE:
+                pass  # just leave it as None
+            elif field.type == FT.DATE:
                 value = datetime.fromisoformat(value)
-            elif annotation == UUID:
+            elif field._annotation == UUID:
                 value = UUID(value)
             elif field.type == FT.TEXT:
                 value = value
             d[name] = value
+        # add id and revision ("version") from meta
         return cls(**d)
-
-
-PYTHON_RESERVED_NAMES = {
-    "__annotations__",
-    "__dict__",
-    "__weakref__",
-    "__slots__",
-    "__doc__",
-    "__module__",
-    "__qualname__",
-    "__parameters__",
-}
 
 
 def document(
@@ -267,17 +258,21 @@ def document(
     def decorator(cls: typing.Type[Document]):
         # first convert the fields to dataclass fields (and store the original fields)
         fields = {}
+
         for name, field in cls.__dict__.items():
             # ignore reserved names and non-fields
             if (
-                name in PYTHON_RESERVED_NAMES
+                name.startswith("_")
+                or name == "Partial"
                 or field is None
+                or inspect.ismethod(field)
                 or inspect.isfunction(field)
                 or isinstance(field, property)
             ):
                 continue
             if not isinstance(field, Field):
                 raise TypeError(f"{name} is not a Field in {cls.__name__}")
+            field._annotation = cls.__annotations__[name]
             fields[name] = field
         # remove field values from annotation (since it's not a dataclass field)
         for name, field in fields.items():
@@ -285,6 +280,11 @@ def document(
                 setattr(cls, name, dataclasses.field(init=False))
             else:
                 delattr(cls, name)
+        # add fields from parent classes
+        for base in reversed(cls.__bases__):
+            if base is Document:
+                continue
+            fields.update(base.__fields__)
         # then convert the class to a dataclass
         cls = dataclasses.dataclass(cls, repr=False, slots=True)
         # then add the fields back

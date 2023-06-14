@@ -17,7 +17,10 @@ from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os
 from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned, to_global_id
 from bench.opensearch import mirror
+from bench.opensearch.client import os_client
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
+from bench.opensearch.type import IndexType
+from bench.utils.fractional import SMALLEST_INTEGER, BIGGEST_INTEGER
 
 
 @gql.type
@@ -233,15 +236,62 @@ class DatasetMutation:
 class DatasetQuery:
     @gql.relay.connection
     @async_safe
-    def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
+    def search_records(
+        self,
+        info: Info,
+        statement_id: GlobalID,
+        before: Optional[str] = None,
+        after: Optional[str] = None,
+        first: Optional[int] = None,
+        last: Optional[int] = None,
+    ) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        # nocheckin: return actual dataset search
-        return gql.Connection(
-            edges=[],
-            page_info=PageInfo(
-                start_cursor=None, end_cursor=None, has_next_page=False, has_previous_page=False
-            ),
-            total_count=0,
+        default_limit = 25
+        query = {
+            "bool": {
+                "filter": [
+                    # parent statement
+                    {"term": {"statement_id": statement_id.node_id}},
+                    # deleted at must not exist
+                    {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
+                    # apply pagination
+                    {
+                        "range": {
+                            "order_key": {
+                                "gt": after or SMALLEST_INTEGER,
+                                "lt": before or BIGGEST_INTEGER,
+                            }
+                        }
+                    },
+                ],
+            },
+        }
+        sort = [{"order_key": "asc"}]
+        results = os_client.search(
+            index=IndexType.BENCH.get_index_name(statement.project_version.project_id),
+            body={
+                "size": first or last or default_limit,
+                "query": query,
+                "sort": sort,
+                "track_total_hits": True,
+                "version": True,
+            },
         )
+
+        edges = []
+        for r in results["hits"]["hits"]:
+            doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
+            node = Record.from_os(doc)
+            edge = gql.relay.Edge(node=node, cursor=doc.order_key)
+            edges.append(edge)
+
+        page_info = gql.relay.PageInfo(
+            start_cursor=edges[0].cursor if edges else None,
+            end_cursor=edges[-1].cursor if edges else None,
+            has_next_page=False,
+            has_previous_page=False,
+        )
+        total_count = results["hits"]["total"]["value"]
+        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
