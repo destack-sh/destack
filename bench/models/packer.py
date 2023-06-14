@@ -20,7 +20,7 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.bench import StatementType, wire
-from bench.bench.const import InterpScope, TypeFlag, TypeHint, TypeTag, ModuleObjectType
+from bench.bench.const import InterpScope, ModuleObjectType, TypeFlag, TypeHint, TypeTag
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
 from bench.bench.wire import ModuleTree
@@ -723,7 +723,7 @@ def write_mutations(
 
     for mmt, batch in mut.batch():
         if mmt.mot == MOT.RECORD:
-            continue  # stored in OpenSearch below
+            continue  # stored in OpenSearch only (see below)
         elif mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]

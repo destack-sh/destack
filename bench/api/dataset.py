@@ -11,19 +11,37 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
+from bench.api.auth import check_can_read_project
 from bench.api.statement import ThingBatch
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import CrudModel, Revisioned
+from bench.api.utils import CrudModel, Revisioned, to_global_id
 from bench.opensearch import mirror
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
 
 
 @gql.type
-class Record(CrudModel, Revisioned, gql.Node):
+class Record(CrudModel, Revisioned):
+    id: GlobalID
     statement_id: GlobalID
     order_key: str
     data: JSON
+
+    @staticmethod
+    def from_os(record: mirror.Record) -> "Record":
+        return Record(
+            id=to_global_id("Record", record.id),
+            statement_id=to_global_id("Statement", record.statement_id),
+            order_key=record.order_key,
+            data=record.data,
+            revision=record.revision,
+            created_at=record.created_at,
+            created_by=None,
+            updated_at=record.updated_at,
+            deleted_at=record.deleted_at,
+            last_edited_at=record.last_edited_at,
+            last_edited_by=None,
+        )
 
 
 @gql.type
@@ -33,6 +51,12 @@ class RecordBatch(ThingBatch):
     @property
     def things(self):
         return self.records
+
+    @staticmethod
+    def from_os(batch: "RecordBatch") -> "RecordBatch":
+        return RecordBatch(
+            records=[Record.from_os(r) for r in batch.records],
+        )
 
 
 @gql.input
@@ -107,8 +131,11 @@ class DatasetMutation:
             project_version_id=project_v.id,
             statement_id=input.statement_id.node_id,
             created_at=now,
+            created_by_id=None,  # not handled yet
             updated_at=now,
+            deleted_at=None,
             last_edited_at=now,
+            last_edited_by_id=None,  # not handled yet
             order_key=input.order_key,
             data=input.data,
         )
@@ -208,6 +235,8 @@ class DatasetQuery:
     @async_safe
     def search_records(self, info: Info, statement_id: GlobalID) -> gql.Connection[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
+        check_can_read_project(info, statement.project_version)
+
         # nocheckin: return actual dataset search
         return gql.Connection(
             edges=[],

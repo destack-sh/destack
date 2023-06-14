@@ -1510,13 +1510,12 @@ export type QueryUsersArgs = {
   last?: InputMaybe<Scalars["Int"]>;
 };
 
-export type Record = Node & {
+export type Record = {
   __typename?: "Record";
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
   data: Scalars["JSON"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
-  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;

@@ -44,6 +44,7 @@ def map_mutation_from_api(
         project_version_id=project_v.id,
         revision=thing.revision,
         input=input,
+        thing=thing,
     )
     if statement is not None:
         api_mutation.file_id = statement.file_id
@@ -81,6 +82,7 @@ def map_mutation_from_api(
             type=internal_type,
             project_version_id=api_mutation.project_version_id,
             revision=thing.revision,
+            thing=thing,
         )
         if isinstance(thing, mirror.Document):  # os indexed Document
             internal_mutation.data = mirror.pack_node_flat(thing)

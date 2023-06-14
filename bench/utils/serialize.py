@@ -41,7 +41,7 @@ def to_dict(obj: typing.Any, omit_empty: bool = False) -> typing.Any:
         else:
             encoded = {}
         for f in fields.values():
-            if f in encoded:
+            if f in encoded or not hasattr(obj, f.name):
                 continue
             if omit_empty and getattr(obj, f.name) is None:
                 continue

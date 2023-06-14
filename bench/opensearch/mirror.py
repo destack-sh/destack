@@ -1,4 +1,5 @@
 import enum
+from dataclasses import replace
 from datetime import datetime
 from typing import Any, Generic, Optional, TypeVar
 from uuid import UUID
@@ -97,6 +98,20 @@ def packer(model_t: type[ModelT], mirror_t: type[MirrorT], data_t: Optional[type
         return cls
 
     return decorator
+
+
+def has_mirror(node: ModelT) -> bool:
+    return type(node) in _packers_by_model
+
+
+def mirror_node(node: ModelT) -> MirrorT:
+    packer = _packers_by_model[type(node)]
+    return packer.mirror(node)
+
+
+def pack_node_flat(node: MirrorT) -> DataT:
+    packer = _packers_by_mirror[type(node)]
+    return packer.pack(node)
 
 
 # basic
@@ -323,12 +338,18 @@ class Tile(CrudThing, Revisioned, os.Document):
 
 
 @document(DocumentType.RECORD, store_type=False)
-class Record(CrudThing, os.Document):  # uses seq number as revision
+class Record(CrudThing, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
     order_key: str = os.field(os.FT.KEYWORD)
-    name: Optional[str] = NAME_FIELD  # single name field to copy all data names to
+    # single name field to copy all data names to
+    name: Optional[str] = replace(NAME_FIELD, can_set_directly=False)
     data: dict = os.field(os.FT.OBJECT, dynamic=False)  # user defined
+    _revision: Optional[int] = None  # set from OS-internal version on access
+
+    @property
+    def revision(self) -> Optional[int]:
+        return self._revision
 
 
 @packer(Record, Record, wire.RecordData)
@@ -341,8 +362,8 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             id=node.id,
             parent_id=node.statement_id,
             order_key=node.order_key,
-            name=node.name,
             data=node.data,
+            revision=node.revision,
         )
 
 
