@@ -923,13 +923,17 @@ class Record:
     _dataset: Dataset
     _order_key: str
     _data: typing.Any = field(default_factory=dict)
-    _id: UUID = field(default_factory=uuid.uuid4)
+    id: UUID = field(default_factory=uuid.uuid4)
 
     def __str__(self):
         return f"{self._order_key} {describe_type(self._data)}"
 
     def __repr__(self):
         return f"<Record {self}>"
+
+    @property
+    def parent_id(self):
+        return self._dataset.id
 
     @property
     def keys(self):

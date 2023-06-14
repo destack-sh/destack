@@ -12,7 +12,7 @@ from uuid import UUID
 
 from bench import bench as lang
 from bench.bench import Code, IssueType, StatementType, TypeHint, TypeTag
-from bench.bench.const import ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag, MOT
+from bench.bench.const import MOT, ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag
 from bench.bench.dataset import Query, Sort
 from bench.bench.issue import IssueKind
 from bench.bench.type import ModuleNode, ModuleReference
@@ -112,7 +112,7 @@ class ModuleTree:
         """Walks the tree in breadth-first order"""
         root = root or self.root
         if root is None:
-            raise ValueError(f"cannot walk tree with no root node")
+            raise ValueError("cannot walk tree with no root node")
 
         queue = deque([root])
         while queue:
@@ -917,16 +917,16 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
     def pack(self, record: lang.Record) -> "RecordData":
         return RecordData(
             id=record.id,
-            order_key=record.order_key,
-            revision=record.revision,
-            data=record.data,
+            order_key=record._order_key,
+            data=record._data,
         )
 
     def unpack(self, record: "RecordData", parent: lang.Statement) -> lang.Record:
         return lang.Record(
             id=record.id,
-            revision=record.revision,
-            data=record.data,
+            _data=record.data,
+            _order_key=record.order_key,
+            _dataset=parent,
         )
 
 

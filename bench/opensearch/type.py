@@ -114,6 +114,7 @@ class Field:
     ignore_malformed: bool = None
     ignore_above: int = None
     analyzer: "Analyzer" = None
+    can_set_directly: bool = True
 
     def __post_init__(self):
         if self.coerce is None and self.type.coercible:
@@ -134,7 +135,7 @@ class Field:
         return f"<Field {self.type}>"
 
     def __eq__(self, other):
-        return self.to_dict() == other.to_dict()  # not efficient, I know
+        return id(self) == id(other) or self.to_dict() == other.to_dict()  # not efficient, I know
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -188,6 +189,7 @@ TYPE_DISCRIMINATOR_FIELD = Field(FT.KEYWORD)
 TYPE_DISCRIMINATOR_KEY = "_type"
 
 
+@dataclass
 class Document:
     """
     Base for OpenSearch-style dataclass document.
@@ -197,6 +199,8 @@ class Document:
     __fields__: ClassVar[dict[str, Field]] = {}
     __type__: ClassVar[typing.Optional[str]] = None
     __store_type__: ClassVar[bool] = True
+
+    id: UUID  # not technically a field on the document, so no Field annotation
 
     def to_dict(self) -> dict[str, Any]:
         """
@@ -208,6 +212,8 @@ class Document:
         if self.__type__ is not None and self.__store_type__:
             d[TYPE_DISCRIMINATOR_KEY] = self.__type__
         for name, field in self.__fields__.items():
+            if not field.can_set_directly:
+                continue
             value = getattr(self, name)
             if value is None:
                 continue
@@ -262,18 +268,23 @@ def document(
         # first convert the fields to dataclass fields (and store the original fields)
         fields = {}
         for name, field in cls.__dict__.items():
-            # ignore reserved names
-            if name in PYTHON_RESERVED_NAMES:
-                continue
-            # ignore methods
-            if inspect.isfunction(field):
+            # ignore reserved names and non-fields
+            if (
+                name in PYTHON_RESERVED_NAMES
+                or field is None
+                or inspect.isfunction(field)
+                or isinstance(field, property)
+            ):
                 continue
             if not isinstance(field, Field):
                 raise TypeError(f"{name} is not a Field in {cls.__name__}")
             fields[name] = field
-        # remove fields values
-        for name in fields.keys():
-            delattr(cls, name)
+        # remove field values from annotation (since it's not a dataclass field)
+        for name, field in fields.items():
+            if not field.can_set_directly:
+                setattr(cls, name, dataclasses.field(init=False))
+            else:
+                delattr(cls, name)
         # then convert the class to a dataclass
         cls = dataclasses.dataclass(cls, repr=False, slots=True)
         # then add the fields back
@@ -296,7 +307,7 @@ def document(
 
 
 if typing.TYPE_CHECKING:
-    document = dataclasses.dataclass
+    document = dataclasses.dataclass  # type: ignore
 
 
 class Analyzer(enum.StrEnum):

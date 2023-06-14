@@ -1248,7 +1248,7 @@ type Query {
   ): ProjectConnection!
 }
 
-type Record implements Node {
+type Record {
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
@@ -1256,8 +1256,6 @@ type Record implements Node {
   lastEditedAt: DateTime
   lastEditedBy: User
   revision: Int!
-
-  """The Globally Unique ID of this object"""
   id: GlobalID!
   statementId: GlobalID!
   orderKey: String!

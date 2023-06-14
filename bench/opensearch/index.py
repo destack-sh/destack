@@ -103,16 +103,20 @@ def create_bench_index(project_id: UUID, name: str = None) -> None:
     )
 
 
-def write_mutations_to_os(project_v: models.ProjectVersion, mutations: list[ModuleMutation]):
+def write_mutations_to_os(
+    project_v: models.ProjectVersion, mutations: list[ModuleMutation]
+) -> None:
     """
-    Writes any relevant mutations to OpenSearch.
+    Writes/mirrors any relevant mutations to OpenSearch.
     All regular DB mutations come this way (records are not stored in the DB).
-    For now assumes that there is only one index per type per project/scope.
     """
     os_operations = []
     for m in mutations:
         if m.mot == MOT.RECORD:
             pass  # nocheckin: index
+        elif mirror.has_mirror(m.thing):
+            mirrored = mirror.mirror_node(m.thing)
+            pass  # nocheckin: mirror
 
     if os_operations:
         os_client.bulk(os_operations)
@@ -120,11 +124,22 @@ def write_mutations_to_os(project_v: models.ProjectVersion, mutations: list[Modu
 
 def create_record(project_v: models.ProjectVersion, record: mirror.Record):
     index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    os_client.create(index=index_name, id=record.id, body=record.to_dict())
+    os_record = os_client.index(index=index_name, id=record.id, body=record.to_dict())
+    record._revision = os_record["_version"]
+    return record
 
 
-def update_record(project_v: models.ProjectVersion, record: mirror.Record.Partial) -> mirror.Record:
-    raise NotImplementedError  # nocheckin: index
+def update_record(
+    project_v: models.ProjectVersion, record: mirror.Record.Partial
+) -> mirror.Record.Partial:
+    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
+    os_record = os_client.update(
+        index=index_name,
+        id=record.id,
+        body={"doc": record.to_dict()},
+    )
+    record._revision = os_record["_version"]
+    return record
 
 
 def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
@@ -133,5 +148,5 @@ def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
 
 def batch_update_records(
     project_v: models.ProjectVersion, records: list[mirror.Record.Partial]
-) -> list[mirror.Record]:
-    raise NotImplementedError  # nocheckin: index
+) -> list[mirror.Record.Partial]:
+    raise NotImplementedError

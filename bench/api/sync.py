@@ -1,5 +1,6 @@
 import functools
 import inspect
+import typing
 from inspect import Signature
 from typing import Any, Optional, Sequence, cast
 
@@ -140,6 +141,10 @@ def tracked_os_mutation(
         if register:
             _register_mutation(type, func)
 
+        return_type = func.__annotations__["return"]
+        return_type_args = typing.get_args(return_type)
+        return_type = return_type_args[0]
+
         @functools.wraps(func)
         def wrapped_mutation(self, info: Info, *args, **kwargs):
             if needs_info:
@@ -158,6 +163,7 @@ def tracked_os_mutation(
             )
             track_mutation_for_analytics(type, project_v, things, batch, info)
 
+            ret = return_type.from_os(ret)
             return ret
 
         return gql.mutation(async_safe(wrap_exceptions(wrapped_mutation)))
