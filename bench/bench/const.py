@@ -91,6 +91,7 @@ class TypeHint(enum.StrEnum):
     HTML = "html"
     CODE = "code"
     KEY = "key"
+    SECRET = "secret"
     # number
     INTEGER = "integer"
     FLOAT = "float"
@@ -213,6 +214,7 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.HTML: TypeTag.STRING,
     TypeHint.CODE: TypeTag.STRING,
     TypeHint.KEY: TypeTag.STRING,
+    TypeHint.SECRET: TypeTag.STRING,
     # number
     TypeHint.INTEGER: TypeTag.NUMBER,
     TypeHint.FLOAT: TypeTag.NUMBER,

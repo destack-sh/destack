@@ -340,7 +340,7 @@ export function getSymbolSubtype(statement: {
       return "type";
     }
   } else if (statement.type == StatementType.Dataset) {
-    return "database";
+    return "dataset";
   } else if (statement.type == StatementType.Value) {
     return "record";
   }

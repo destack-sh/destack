@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { Field } from "@/state/statement";
-import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { onStartTyping } from "@vueuse/core";
@@ -87,7 +87,7 @@ const rowHeights = computed(() =>
       :class="[y < fields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
     >
       <td class="w-1/3">
-        <TypeTupleInterface
+        <FieldInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
           :readonly="readonly ?? false"

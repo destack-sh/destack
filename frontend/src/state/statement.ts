@@ -13,7 +13,8 @@ import { FieldType, FileHeaderType, StatementContentType, StatementHeaderType } 
 import { getSymbolSubtype, TypeFlag, useCurrentModule, type InterpStatement } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
-import { INTEGER_ZERO } from "@/utils/fractional";
+import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
+import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import { computed, inject, type Ref } from "vue";
 
@@ -264,11 +265,67 @@ export function useStatementContext() {
     return fieldsByName;
   });
 
-  async function createField(field: Field) {
-    await ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
+  function createField(field: Field) {
+    ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
   }
 
-  async function updateField(oldField: { id?: string }, newField: Field) {
+  function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
+    const nextOrderKey = generateKeyBetween(
+      fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
+      null
+    );
+
+    const name: string = TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? "field";
+    const field = makeField({
+      name,
+      tag: template.tag,
+      hint: template.hint ?? null,
+      orderKey: nextOrderKey,
+      flags: template.flags ?? 0,
+      reference: template.reference,
+    });
+    createField(field);
+    return field;
+  }
+
+  function createUnionField(referenceId?: string) {
+    const nextOrderKey = generateKeyBetween(
+      fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
+      null
+    );
+    const field = makeField({
+      name: "",
+      tag: TypeTag.TypeReference,
+      orderKey: nextOrderKey,
+      flags: TypeFlag.IsUnionWith,
+      reference: { id: referenceId ?? "" },
+    });
+    createField(field);
+    return field;
+  }
+
+  function duplicateField(fieldId: string) {
+    // :DuplicateField
+    const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
+    if (fieldIdx < 0) return;
+    const field = selfFields.value?.[fieldIdx];
+    const orderKey = generateKeyBetween(field?.orderKey ?? null, selfFields.value?.[fieldIdx + 1]?.orderKey ?? null);
+    // "name" => "name 2", "name 2" => "name 3", etc.
+    const newName =
+      field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
+    const newFieldNode = {
+      ...field,
+      id: newFieldId(),
+      name: newName,
+      key: newFieldKey(),
+      orderKey,
+      reference: field.reference ? { id: field.reference.id } : undefined,
+    };
+    createField(newFieldNode);
+    return newFieldNode;
+  }
+
+  function updateField(oldField: { id?: string }, newField: Field) {
     oldField = fields.value?.find((n) => n.id == oldField.id) as Field;
     if (!oldField) {
       throw new Error("cannot update field that doesn't exist");
@@ -282,23 +339,23 @@ export function useStatementContext() {
       reference: newField.reference,
       flags: newField.flags,
     } as Field;
-    await ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
+    ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
   }
 
-  async function moveField(field: Field, orderKey: string) {
+  function moveField(field: Field, orderKey: string) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
       throw new Error("cannot move field that doesn't exist");
     }
-    await ops.symbol.moveField(null, field.id, oldField.orderKey, orderKey);
+    ops.symbol.moveField(null, field.id, oldField.orderKey, orderKey);
   }
 
-  async function deleteField(field: { id: string }) {
+  function deleteField(field: { id: string }) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
       throw new Error("cannot delete field that doesn't exist");
     }
-    await ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField));
+    ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField));
   }
 
   // basic inline actions
@@ -344,6 +401,9 @@ export function useStatementContext() {
     inheritedFields,
     baseTypes,
     createField,
+    createNewField,
+    createUnionField,
+    duplicateField,
     updateField,
     moveField,
     deleteField,
