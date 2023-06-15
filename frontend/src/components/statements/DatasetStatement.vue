@@ -3,24 +3,22 @@ import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { getInterface } from "@/components/inputs";
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
-import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { TypeFlag } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { makeField, useStatementContext, type Field } from "@/state/statement";
-import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { newDatasetRecordId } from "@/state/operations/statement";
+import { useStatementContext, type Field } from "@/state/statement";
+import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
@@ -35,7 +33,7 @@ import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from 
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
-const PAGE_SIZE = context.standalone.value ? 50 : 25;
+const PAGE_SIZE = context.standalone.value ? 50 : 20;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
 
@@ -279,8 +277,8 @@ function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "refere
   grid.beginBatchChange();
   const field = context.createNewField(template);
   nextTick(() => {
-    grid.focus("", field.key ?? "");
     grid.flush();
+    nextTick(() => grid.focus("", field.key));
   });
 }
 
@@ -527,6 +525,7 @@ defineExpose({
       <!-- TODO @Broken: header pokes out of containing editor view (because it's fixed) -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
+        :class="(context.focused.value && !context.editing.value) || headerOffsetY == 0 ? '' : 'bg-white'"
         :style="{
           position: headerOffsetY == 0 ? 'absolute' : 'fixed',
           left:
@@ -639,13 +638,13 @@ defineExpose({
       <!-- Load more/loading -->
       <button
         v-if="pageInfo?.hasNextPage"
+        ref="loadMoreRef"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="loadMore()"
         @keydown.up.exact.prevent="focusLastRecord"
         @keydown.down.exact.prevent="context.navigateDown"
         :disabled="loading"
-        ref="loadMoreRef"
       >
         <template v-if="loading">
           <ArrowPathIcon class="h-4 w-4" :class="loading ? 'animate-spin' : ''" />
@@ -653,19 +652,19 @@ defineExpose({
         </template>
         <template v-else>
           <ArrowDownIcon class="h-4 w-4" />
-          Load {{ PAGE_SIZE }} more
+          Load more
         </template>
       </button>
       <!-- Insert button -->
       <button
         v-if="!context.readonly.value"
+        ref="addRecordRef"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="insertRecordAtEnd()"
         @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
         @keydown.down.exact.prevent="context.navigateDown"
         :disabled="loading"
-        ref="loadMoreRef"
       >
         <PlusIcon class="h-4 w-4" /> New
       </button>

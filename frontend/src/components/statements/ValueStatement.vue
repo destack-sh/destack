@@ -6,24 +6,34 @@ import type { StatementAction } from "@/state/bench";
 import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref, ref } from "vue";
+import { nextTick } from "process";
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 
 const context = useStatementContext();
 
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
+const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
+
+function createUnionField() {
+  context.createUnionField();
+  nextTick(() => declarationRef.value?.focusLastBase());
+}
+
+function createNewField(template) {}
 
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Extend type",
     icon: CubeTransparentIcon,
-    action: () => insertField(true),
+    action: () => createUnionField(),
     hideInline: true,
   });
   actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
-    action: () => insertField(),
+    action: () => createFieldRef.value?.show(),
   });
   return actions;
 });
@@ -42,7 +52,14 @@ defineExpose({
   <div>
     <div class="flex flex-row justify-between">
       <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
-      <InlineActionsCell :extra-actions="extraStatementActions" />
+      <div class="flex flex-row">
+        <InlineActionsCell :extra-actions="extraStatementActions" />
+        <CreateFieldInterface
+          ref="createFieldRef"
+          :title="'New field on ' + context.statement.value.name"
+          @select="createNewField"
+        />
+      </div>
     </div>
     <StructInterface
       ref="gridRef"

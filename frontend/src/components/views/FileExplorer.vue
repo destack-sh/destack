@@ -67,7 +67,7 @@ defineExpose({
 </script>
 <template>
   <!-- Panel: file explorer -->
-  <ul ref="listRef" role="list" class="flex flex-col py-1 text-sm">
+  <ul ref="listRef" role="list" class="flex flex-col text-sm">
     <li
       v-for="file in filesSorted"
       :key="file.id"
@@ -75,9 +75,9 @@ defineExpose({
       tabindex="-1"
       @keydown.up.exact.prevent="filesGrid.navigateUp(file.id, 'name')"
       @keydown.down.exact.prevent="filesGrid.navigateDown(file.id, 'name')"
-      class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer focus:border-orange-600"
+      class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'bg-orange-100 text-orange-600': file.id == bench?.focusedFileId,
+        'text-orange-600': file.id == bench?.focusedFileId,
         'text-gray-700 hover:text-orange-600': file.id != bench?.focusedFileId,
       }"
       @click="focusFile(file)"

@@ -12,7 +12,7 @@ import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
 import { PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, ssrContextKey, type Ref } from "vue";
 
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
@@ -24,13 +24,7 @@ context.syncDescription(
 );
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
-const selfFields = computed(
-  () => context.fields.value.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => n as Field) ?? []
-);
-const fieldsLength = computed(() => selfFields.value?.length ?? 0);
-const baseTypes = computed(
-  () => context.fields.value.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
-);
+const fieldsLength = computed(() => context.selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const addingDescription = ref(false);
@@ -39,7 +33,7 @@ const addingDescription = ref(false);
 type ColumnType = "type";
 const grid = useNavigationGrid<ColumnType, InstanceType<typeof FieldInterface>>(
   ref(["type"] as ColumnType[]),
-  selfFields,
+  context.selfFields,
   {
     gridNavigateUp: focusDescriptionFromBottom,
     gridNavigateDown,
@@ -65,6 +59,15 @@ function createUnionField() {
   nextTick(() => declarationRef.value?.focusLastBase());
 }
 
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
+  grid.beginBatchChange();
+  const field = context.createNewField(template);
+  nextTick(() => {
+    grid.flush();
+    nextTick(() => grid.focus(field.id, "type"));
+  });
+}
+
 function duplicateField(fieldId: string) {
   const newField = context.duplicateField(fieldId);
   if (newField != null) {
@@ -73,36 +76,36 @@ function duplicateField(fieldId: string) {
 }
 
 function deleteField(fieldId: string) {
-  const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
+  const fieldIdx = context.selfFields.value?.findIndex((m) => m.id === fieldId);
   if (fieldIdx == null || fieldIdx < 0) {
     return;
   }
-  const field = selfFields.value?.[fieldIdx];
+  const field = context.selfFields.value?.[fieldIdx];
   context.deleteField(field as any); // must exist
   grid.focus(fieldIdx - 1, "type"); // move focus above
 }
 
 function moveField(node: Field, position: "before" | "after", other: Field) {
-  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
+  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
-    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
     context.moveField(node, orderKey);
   } else {
-    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
     context.moveField(node, orderKey);
   }
 }
 
 function dropField(droppedId: string, position: "above" | "below", fieldId: string) {
-  const dropped = selfFields.value.find((n) => n.id == droppedId);
-  const field = selfFields.value.find((n) => n.id == fieldId);
+  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
+  const field = context.selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
   nextTick(() => grid.focus(droppedId, "type"));
 }
 
 function writeType(fieldId: string, newType: Field) {
-  const oldType = selfFields.value?.find((m) => m.id === fieldId);
+  const oldType = context.selfFields.value?.find((m) => m.id === fieldId);
   if (!oldType) return;
   context.updateField(oldType, { ...oldType, ...newType, id: fieldId });
 }
@@ -187,7 +190,11 @@ defineExpose({
         :class="context.focused.value ? '' : 'opacity-0'"
         :extraActions="extraInlineActions"
       />
-      <CreateFieldInterface ref="createFieldRef" :title="'New field on ' + context.statement.value.name" />
+      <CreateFieldInterface
+        ref="createFieldRef"
+        :title="'New field on ' + context.statement.value.name"
+        @select="createNewField"
+      />
     </div>
   </div>
   <!-- Description -->
@@ -211,7 +218,7 @@ defineExpose({
   <!-- Fields (enum options or struct fields) -->
   <div v-if="fieldsLength > 0" class="my-0.5 flex w-full flex-col gap-0.5">
     <FieldInterface
-      v-for="field of selfFields"
+      v-for="field of context.selfFields.value"
       :key="field.id"
       :model-value="field"
       @update:model-value="(val: any) => writeType(field.id, val)"

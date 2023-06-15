@@ -21,17 +21,12 @@ function focusIssue(issue: IssueContentFragment) {
   <div class="">
     <!-- View header -->
     <div
-      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+      class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
       :style="{
         height: appearance.editorHeaderHeight + 'px',
       }"
     >
-      <span class="text-xs font-bold uppercase">
-        Issues
-        <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="issues.length">
-          {{ issues.length }}
-        </span>
-      </span>
+      <span class="text-sm font-extrabold text-gray-500">Issues</span>
     </div>
     <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
       <li

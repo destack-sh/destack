@@ -67,7 +67,7 @@ defineExpose({
 });
 </script>
 <template>
-  <ul v-if="orderedStatements != null" role="list" class="flex flex-col py-1 text-sm">
+  <ul v-if="orderedStatements != null" role="list" class="flex flex-col text-sm">
     <li
       v-for="ordered in orderedStatements"
       :key="ordered.id"
@@ -75,7 +75,7 @@ defineExpose({
       tabindex="-1"
       class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'bg-orange-100 text-orange-600': ordered.id == bench?.focusedStatementId,
+        'text-orange-600': ordered.id == bench?.focusedStatementId,
         'text-gray-700 hover:bg-orange-100': ordered.id != bench?.focusedStatementId,
       }"
       :style="{

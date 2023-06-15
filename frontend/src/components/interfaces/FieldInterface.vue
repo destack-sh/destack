@@ -238,8 +238,8 @@ defineExpose({
       <div class="flex max-w-full flex-row">
         <div
           ref="previewRef"
-          class="flex max-w-full flex-row items-center text-left"
-          :class="[isEnum ? 'bg-gray-100 px-2' : '']"
+          class="flex max-w-full flex-row items-center rounded-sm text-left"
+          :class="[isEnum ? 'bg-stone-100 px-2' : '']"
         >
           <!-- :EnumStyle -->
           <svg
