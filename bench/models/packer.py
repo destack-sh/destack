@@ -479,8 +479,8 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement, StatementType.DATASET)
-class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
+@node_packer(MOT.STATEMENT, wire.DatasetData, models.Dataset, StatementType.DATASET)
+class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Dataset]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
 

@@ -9,12 +9,12 @@ from typing import Optional
 #
 
 
-@dataclass(repr=False, slots=True)
+@dataclass(repr=False)
 class Query:
     op: str
 
 
-@dataclass(repr=False, slots=True)
+@dataclass(repr=False)
 class Aggregation(Query):
     pass
 
