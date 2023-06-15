@@ -5,7 +5,7 @@ import structlog
 
 import bench.opensearch.type as os
 from bench import models
-from bench.bench.mutate import MOT, ModuleMutation, MMK
+from bench.bench.mutate import MMK, MOT, ModuleMutation
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.type import IndexType
@@ -110,23 +110,23 @@ def write_mutations_to_os(
     Writes/mirrors any relevant mutations to OpenSearch.
     All regular DB mutations come this way (records are not stored in the DB).
     """
-    os_operations: list[typing.Iterable[dict, dict]] = []
+    os_operations: list[dict] = []
     global_index_name = IndexType.GLOBAL.get_index_name()
     bench_index_name = IndexType.BENCH.get_index_name(project_v.project_id)
     for m in mutations:
-        if m.mot == MOT.RECORD:
-            pass  # nocheckin: index
-        elif mirror.has_mirror(m.thing):
-            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
-                mirrored = mirror.mirror_node(project_v, m.thing)
-                op = (
-                    {"index": {"_index": global_index_name, "_id": str(m.thing.id)}},
-                    mirrored.to_dict(),
-                )
-                os_operations.append(op)
-            elif m.type.kind == MMK.DELETE:
-                op = {"delete": {"_index": global_index_name, "_id": str(m.thing.id)}}
-                os_operations.append(op)
+        if m.mot != MOT.RECORD and not mirror.has_mirror(m.thing):
+            continue
+        index_name = bench_index_name if m.mot == MOT.RECORD else global_index_name
+        if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
+            mirrored = mirror.mirror_node(project_v, m.thing)
+            op = (
+                {"index": {"_index": index_name, "_id": str(m.thing.id)}},
+                mirrored.to_dict(),
+            )
+            os_operations.extend(op)
+        elif m.type.kind == MMK.DELETE:
+            op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
+            os_operations.append(op)
 
     if os_operations:
         os_client.bulk(os_operations)
@@ -153,10 +153,19 @@ def update_record(
 
 
 def delete_record(project_v: models.ProjectVersion, record_id: UUID) -> None:
-    raise NotImplementedError  # nocheckin: index
+    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
+    os_client.delete(index=index_name, id=record_id)
 
 
 def batch_update_records(
     project_v: models.ProjectVersion, records: list[mirror.Record.Partial]
 ) -> list[mirror.Record.Partial]:
-    raise NotImplementedError
+    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
+    os_operations = []
+    for record in records:
+        os_operations.append({"update": {"_index": index_name, "_id": str(record.id)}})
+        os_operations.append({"doc": record.to_dict()})
+    os_records = os_client.bulk(os_operations)
+    for i, os_record in enumerate(os_records["items"]):
+        records[i].revision = os_record["update"]["_version"]
+    return records

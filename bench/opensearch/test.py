@@ -3,7 +3,7 @@ from uuid import UUID
 import pytest
 
 from bench.opensearch.client import os_client
-from bench.opensearch.index import create_global_index, create_bench_index
+from bench.opensearch.index import create_bench_index, create_global_index
 from bench.opensearch.type import IndexType
 
 MOCK_PROJECT_ID = UUID("00000000-0000-0000-0000-000000000000")
