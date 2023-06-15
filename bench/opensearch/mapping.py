@@ -5,6 +5,7 @@ import bench.bench as lang
 import bench.opensearch.type as os
 from bench.bench import TypeHint, TypeTag
 from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
+from bench.bench.session import TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
 
@@ -72,6 +73,7 @@ class StaticFieldMapper(FieldMapper):
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field) -> os.Field:
         subfields = {f.key: get_mapper(f).to_os_type(f) for f in type.resolved_fields}
+        subfields[TYPENAME_SENTINEL] = os.Field(os.FT.KEYWORD)
         return os.Field(
             os.FT.OBJECT,
             dynamic="strict",
@@ -108,16 +110,33 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(os.Field(os.FT.KNN_VECTOR), tags=[TypeTag.VECTOR])
 # file
 register_mapper(
-    os.Field(os.FT.OBJECT, properties=mirror.RemoteObject.__fields__), tags=[TypeTag.FILE]
+    os.Field(
+        os.FT.OBJECT,
+        properties={
+            **mirror.RemoteObject.__fields__,
+            "id": os.Field(os.FT.KEYWORD),
+            TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
+        },
+    ),
+    tags=[TypeTag.FILE],
 )
 # secret
 register_mapper(
-    os.Field(os.FT.OBJECT, properties=mirror.Secret.__fields__),
+    os.Field(
+        os.FT.OBJECT,
+        properties={
+            **mirror.Secret.__fields__,
+            "id": os.Field(os.FT.KEYWORD),
+            TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD),
+        },
+    ),
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )
 # struct
 register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
+# enum
+register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 
 def map_to_os_field(field: lang.Field) -> os.Field:
