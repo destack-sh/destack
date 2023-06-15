@@ -4,9 +4,10 @@ import ModifierCell from "@/components/statements/ModifierCell.vue";
 import SelectTypeInterface from "@/components/statements/ProtoStatementTypeCell.vue";
 import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
-import { StatementType } from "@/gql/graphql";
 import { computed, ref, type Ref } from "vue";
 import { useCurrentModule } from "@/state/module";
+import { useKeyModifier } from "@vueuse/core";
+import { useEditorContext, type StatementHeader } from "@/state/bench";
 
 const context = useStatementContext();
 
@@ -25,11 +26,9 @@ const hasName = computed(() => name.value.trim().length > 0);
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
+const altKeyState = useKeyModifier("Alt");
+const editor = useEditorContext();
 const module = useCurrentModule();
-const availableSymbols = module.statementsLike({
-  types: [context.statement.value?.type],
-  includeDependencies: true,
-});
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {
@@ -37,6 +36,10 @@ function deleteModifierOrAbove() {
   } else {
     context.tryDeleteLeft();
   }
+}
+
+function openInEditor() {
+  editor.editor.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
 }
 
 // runtime
@@ -82,9 +85,12 @@ defineExpose({
     />
     <StatementTypeCell />
     <!-- Name or ref -->
+    <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
       class="mx-0.5"
+      :class="altKeyState ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : ''"
+      @click="altKeyState && openInEditor()"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"

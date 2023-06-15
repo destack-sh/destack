@@ -31,6 +31,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "update:modelValue", value: Record<string, any>): void;
+  (e: "update:field", value: Field): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "deleteSelf"): void;

@@ -2,7 +2,6 @@
 import { useBenchState } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { useRelativeDropZone } from "@/utils/drop";
-import { PlusIcon } from "@heroicons/vue/24/outline";
 import { ref } from "vue";
 
 const props = defineProps<{ position: "start" | "end" }>();
@@ -33,9 +32,10 @@ function onDrop(files: File[] | any) {
       :class="[isOverDropZone && !bench.readonly ? 'opacity-100' : 'opacity-0']"
     />
     <div v-if="!bench.readonly" class="justify-left relative flex align-top opacity-0 group-hover:opacity-100">
-      <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">
+      <!-- too noisy -->
+      <!-- <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">
         <PlusIcon class="h-4 w-4" aria-hidden="true" />
-      </span>
+      </span> -->
     </div>
   </button>
 </template>

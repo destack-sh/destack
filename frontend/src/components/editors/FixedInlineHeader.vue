@@ -44,7 +44,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
 </script>
 <template>
   <div
-    class="fixed z-10 flex flex-row items-center justify-between gap-1 border-b border-orange-900 border-opacity-[12%] bg-white px-1.5"
+    class="fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5"
     :class="appearance.baseClass"
     :style="{ height: appearance.editorHeaderHeight + 'px', width: editor.size?.value?.width + 'px' }"
   >

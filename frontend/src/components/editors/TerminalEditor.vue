@@ -166,7 +166,13 @@ defineExpose({
 <template>
   <div class="relative flex flex-col" :style="{ minHeight: editorSize.height + 'px' }">
     <!-- Fixed inline header -->
-    <FixedInlineHeader :editing="false" :thing="statement" :actions="terminalActions" :path="path" />
+    <FixedInlineHeader
+      class="border-b border-orange-900 border-opacity-[12%]"
+      :editing="false"
+      :thing="statement"
+      :actions="terminalActions"
+      :path="path"
+    />
     <!-- Tiles -->
     <div
       class="relative flex h-full w-full flex-col gap-6"

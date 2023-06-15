@@ -277,7 +277,7 @@ export function useStatementContext() {
 
     const name: string = TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? "field";
     const field = makeField({
-      name,
+      name: name.toLowerCase(),
       tag: template.tag,
       hint: template.hint ?? null,
       orderKey: nextOrderKey,

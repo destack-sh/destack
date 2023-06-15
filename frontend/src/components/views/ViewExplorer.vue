@@ -79,25 +79,18 @@ watch(
 </script>
 <template>
   <div ref="containerRef" class="relative flex h-full flex-col">
-    <!-- View header -->
-    <div
-      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
-      :style="{
-        height: appearance.editorHeaderHeight + 'px',
-      }"
-    >
-      <span class="select-none text-xs font-bold uppercase">Explorer</span>
-    </div>
     <!-- View panels -->
-    <div class="flex flex-1 flex-col gap-y-2 divide-y divide-orange-900 divide-opacity-[12%]">
+    <div class="flex flex-1 flex-col gap-y-3">
       <div v-for="panel in panels" :key="panel.title" class="min-h-0">
         <!-- Panel header -->
-        <div class="flex flex-shrink-0 flex-row items-center justify-between px-3 py-1">
-          <span class="select-none text-xs font-bold uppercase">
+        <div
+          class="flex flex-shrink-0 flex-row items-center justify-between px-3"
+          :style="{
+            height: appearance.editorHeaderHeight + 'px',
+          }"
+        >
+          <span class="select-none text-sm font-extrabold text-gray-500">
             {{ panel.title }}
-            <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="panel.count != null">
-              {{ panel.count }}
-            </span>
           </span>
           <!-- Panel actions -->
           <span class="inline-flex flex-row gap-1">

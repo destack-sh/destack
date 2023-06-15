@@ -224,17 +224,12 @@ defineExpose({
   <div ref="containerRef">
     <!-- View header -->
     <div
-      class="flex h-[31px] flex-row items-center justify-between border-b border-orange-900 border-opacity-[12%] px-3 py-2"
+      class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
       :style="{
         height: appearance.editorHeaderHeight + 'px',
       }"
     >
-      <span class="text-xs font-bold uppercase">
-        History
-        <span class="ml-1 rounded-lg bg-gray-200 px-1 font-normal text-gray-800" v-if="versionsCount != null">
-          {{ versionsCount }}
-        </span>
-      </span>
+      <span class="text-sm font-extrabold text-gray-500">History</span>
       <!-- Version controls -->
       <!-- Note that this commit popover duplicates the one from the main version list -->
       <!-- This is because it's easier to open the right popover in the right place that way -->
