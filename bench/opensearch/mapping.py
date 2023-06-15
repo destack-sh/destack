@@ -14,7 +14,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, field: lang.Field) -> os.Field:
+    def to_os_type(self, type: lang.TypeBase) -> os.Field:
         raise NotImplementedError
 
 
@@ -30,7 +30,7 @@ def register_mapper(
     tags: list[TypeTag] = None,
     hints: list[TypeHint] = None,
     flags: TypeFlag = None,
-):
+) -> None:
     if not tags and not hints:
         raise ValueError("at least one tag or hint must be specified")
     if isinstance(mapper, os.Field):
@@ -45,12 +45,38 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint, flags)] = mapper
 
 
+def get_mapper(type: lang.TypeBase) -> FieldMapper:
+    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Type):
+        return get_mapper(type.reference)  # skip the reference
+    stripped_flags = type.flags & TypeFlag.IsSecret
+    exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
+    mapping = field_mappers.get(exact_signature)
+    if mapping is not None:
+        return mapping
+    # no exact match, try generic without hint
+    stripped_signature = TypeSignature(type.tag, None, stripped_flags)
+    mapping = field_mappers.get(stripped_signature)
+    if mapping is not None:
+        return mapping
+    raise LookupError(f"no mapping found for {type}")
+
+
 @dataclass
 class StaticFieldMapper(FieldMapper):
     field: os.Field | os.FT
 
-    def to_os_type(self, field: lang.Field) -> os.Field:
+    def to_os_type(self, type: lang.Field) -> os.Field:
         return self.field
+
+
+class StructFieldMapper(FieldMapper):
+    def to_os_type(self, type: lang.Field) -> os.Field:
+        subfields = {f.key: get_mapper(f).to_os_type(f) for f in type.resolved_fields}
+        return os.Field(
+            os.FT.OBJECT,
+            dynamic="strict",
+            properties=subfields,
+        )
 
 
 # string
@@ -90,3 +116,9 @@ register_mapper(
     tags=[TypeTag.STRING, TypeTag.NUMBER],
     flags=TypeFlag.IsSecret,
 )
+# struct
+register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
+
+
+def map_to_os_field(field: lang.Field) -> os.Field:
+    return get_mapper(field).to_os_type(field)

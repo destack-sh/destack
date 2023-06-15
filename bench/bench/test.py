@@ -6,7 +6,7 @@ import pytest
 
 from bench.bench import TypeHint, TypeTag
 from bench.bench.const import SessionContext, SessionTracingLevel, TypeFlag
-from bench.bench.issue import IssueType, LanguageError
+from bench.bench.issue import BenchError, IssueType
 from bench.bench.parse import parse_code
 from bench.bench.session import Session
 from bench.bench.type import (
@@ -143,7 +143,7 @@ def test_type_union_with():
 def test_recursive_union_fail():
     module = Module(name="test")
     with Session(module, ctx=MOCK_SESSION_CONTEXT).sync():
-        with pytest.raises(LanguageError) as e:
+        with pytest.raises(BenchError) as e:
             type_a = Type(name="A", tag=TypeTag.STRUCT)
             type_a.extend_type(type_a)
     assert e.value.issue.type == IssueType.CIRCULAR_UNION

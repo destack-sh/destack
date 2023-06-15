@@ -6,7 +6,7 @@ export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
   [StatementType.Task]: "task",
   [StatementType.Code]: "code",
   [StatementType.Value]: "value",
-  [StatementType.Dataset]: "dataset",
+  [StatementType.Dataset]: "database",
   [StatementType.Model]: "model",
   [StatementType.Expectation]: "expect",
   [StatementType.Block]: "block",

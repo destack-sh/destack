@@ -111,7 +111,7 @@ class Session:
         self.mode = mode
         self.write = write
 
-        self.anonymous_scope = Scope(parent_scope=self.module)
+        self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
         self.mutator = ModuleMutator(self.module)
@@ -365,7 +365,7 @@ def get_flat_mapper(type: TypeBase) -> TypeMapper:
     mapping = type_mappers.get(stripped_signature)
     if mapping is not None:
         return mapping
-    raise LookupError(f"no mapping for {type}")
+    raise LookupError(f"no mapping found for {type}")
 
 
 @dataclass(repr=False, slots=True)
@@ -533,8 +533,8 @@ def strip_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
 
 def _instantiate_code(code: Code, session: Session) -> Callable[..., Any]:
     """Instantiates code into a Python callable in the context of the session."""
-    context = {**code.references}
-    if not code.parse.is_async:
+    context = {**code._references}
+    if not code._parse.is_async:
         # replace any async functions with sync versions
         for key, symbol in context.items():
             if isinstance(symbol, (Code, Task)) and symbol.is_async:
@@ -555,14 +555,14 @@ def _instantiate_code(code: Code, session: Session) -> Callable[..., Any]:
 
     # stub fake lines
     python_code_lines = python_code.splitlines()
-    for i in code.parse.fake_line_numbers:
+    for i in code._parse.fake_line_numbers:
         python_code_lines[i] = "pass # " + python_code_lines[i]
     python_code = "\n".join(python_code_lines)
 
     # create python function from python code
     input_keys = [i.name for i in code.type.inputs]
     func_name = f"{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
-    async_str = "async " if code.parse.is_async else ""
+    async_str = "async " if code._parse.is_async else ""
     func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
     try:
@@ -575,7 +575,7 @@ def _instantiate_code(code: Code, session: Session) -> Callable[..., Any]:
         method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
         callable = do_execute_arbitrary_code(method_str, locals)[func_name]
 
-    code.transform = CodeTransformation(
+    code._transform = CodeTransformation(
         original_code=code.code,
         transformed_code=method_str,
         start_offset=1,  # for method signature

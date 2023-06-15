@@ -130,13 +130,13 @@ const commands = computed(() => {
     {
       label: "record",
       description: "Configure context and secrets.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: 0 }), emit("morphed")),
+      action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
-      label: "dataset",
-      description: "Define state or examples.",
+      label: "database",
+      description: "Connect or define state or examples.",
       action: () => (
-        context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
+        context.morpthToSymbol({ type: StatementType.Dataset, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),
     },
     {

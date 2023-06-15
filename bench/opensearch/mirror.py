@@ -281,7 +281,7 @@ class Statement(CrudThing, Revisioned, os.Document):
     description: Optional[str] = os.field(os.FT.TEXT)
     html: Optional[str] = HTML_FIELD
     code: Optional[str] = os.field(os.FT.TEXT)
-    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
+    # can't index value as it would explode our mappings (module index is global)
 
 
 @packer(models.Statement, Statement, wire.StatementData)
@@ -298,7 +298,6 @@ class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.
             description=node.description,
             html=node.text,
             code=node.code,
-            value=node.value,
         )
 
 
@@ -345,7 +344,7 @@ class Record(CrudThing, os.Document):
     statement_id: UUID = os.field(os.FT.KEYWORD)
     order_key: str = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to
-    name: Optional[str] = replace(NAME_FIELD, can_set_directly=False)
+    name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
     data: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     revision: Optional[int] = None  # set from OS-internal version on access
 

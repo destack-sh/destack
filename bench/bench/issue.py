@@ -1,3 +1,4 @@
+import abc
 import enum
 import uuid
 from dataclasses import dataclass
@@ -60,7 +61,7 @@ _ISSUE_KIND_BY_TYPE = {
 }
 
 
-class LanguageError(ValueError):
+class BenchError(ValueError):
     def __init__(self, issue: "Issue", **kwargs):
         super().__init__(issue.message.format(**kwargs))
         self.issue = issue
@@ -118,11 +119,11 @@ class Issue:
             return self.subject.file.id
         return None
 
-    def to_error(self) -> LanguageError:
-        return LanguageError(self)
+    def to_error(self) -> BenchError:
+        return BenchError(self)
 
 
-class IssueHandler:
+class IssueHandler(abc.ABC):
     def __call__(
         self,
         issue: "Issue" = None,
@@ -132,44 +133,3 @@ class IssueHandler:
         **kwargs,
     ):
         pass
-
-
-class IssueRaiser(IssueHandler):
-    def __init__(self, kinds: list[IssueKind] = None):
-        self.kinds = kinds
-
-    def __call__(
-        self,
-        issue: Issue = None,
-        *,
-        type: IssueType,
-        subject: Union["Symbol", "Statement", "File", None],
-        **kwargs,
-    ):
-        issue = issue or Issue(type, subject, **kwargs)
-        if self.kinds is None or issue.kind in self.kinds:
-            raise issue.to_error()
-
-
-class IssueCollector(IssueHandler):
-    def __init__(self, on_issue: IssueHandler | None = None):
-        self.on_issue = on_issue
-        self.issues: list[Issue] = []
-
-    def __call__(
-        self,
-        issue: Issue = None,
-        *,
-        type: IssueType,
-        subject: Union["Symbol", "Statement", "File", None],
-        **kwargs,
-    ):
-        issue = issue or Issue(type, subject, **kwargs)
-        if self.on_issue:
-            self.on_issue(issue)
-        self.issues.append(issue)
-
-
-raise_if_error = IssueRaiser(kinds=[IssueKind.ERROR])
-raise_any = IssueRaiser(kinds=[IssueKind.ERROR, IssueKind.WARNING])
-ignore_issues = IssueHandler()

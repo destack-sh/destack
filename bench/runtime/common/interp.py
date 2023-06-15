@@ -8,7 +8,6 @@ import structlog
 
 from bench import bench as language
 from bench.bench import wire
-from bench.bench.issue import IssueCollector
 from bench.bench.wire import ModuleReference
 from bench.utils.func import wrap_task
 
@@ -87,10 +86,9 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
 def interp_module(source: wire.ModuleData) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
-    collector = IssueCollector()
     module = wire.unpack_module(source)
-    module.index(on_issue=collector)
-    module.interp(on_issue=collector)
+    module.index()
+    module.interp()
     logger.debug("module.interp.done", module=module)
     tree = wire.ModuleTree(wire.pack_module(module).nodes)
-    return InterpModule(module=module, tree=tree, issues=collector.issues)
+    return InterpModule(module=module, tree=tree, issues=module.issues)
