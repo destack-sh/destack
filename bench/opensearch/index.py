@@ -154,16 +154,13 @@ def write_mutations_to_os(
             mappings_dirty = True
 
     if mappings_dirty:
-        mappings = get_dynamic_field_mappings(project_v)
-        # put all mappings into a single bulk request
-        op = {"put_mapping": {"properties": mappings}}
-        os_operations.append(op)
+        update_dynamic_field_mappings(project_v)
 
     if os_operations:
         os_client.bulk(os_operations)
 
 
-def get_dynamic_field_mappings(project_v: models.ProjectVersion) -> dict:
+def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field mutations
@@ -200,11 +197,13 @@ def get_dynamic_field_mappings(project_v: models.ProjectVersion) -> dict:
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
     )
-    return {
+    mappings = {
         "data": {"type": "object", "dynamic": "strict", "properties": data_mappings},
         "inputs": {"type": "object", "dynamic": "strict", "properties": inputs_mappings},
         "outputs": {"type": "object", "dynamic": "strict", "properties": outputs_mappings},
     }
+    index_name = IndexType.BENCH.get_index_name(project_v.project_id)
+    os_client.indices.put_mapping(index=index_name, body={"properties": mappings})
 
 
 def create_record(project_v: models.ProjectVersion, record: mirror.Record):

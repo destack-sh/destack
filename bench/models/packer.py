@@ -12,7 +12,7 @@ from collections import OrderedDict, defaultdict
 from dataclasses import asdict
 from datetime import datetime
 from typing import Optional, TypeVar
-from uuid import UUID
+from uuid import UUID, uuid5
 
 import pytz
 from django.db import transaction
@@ -43,9 +43,14 @@ class NodePacker(typing.Generic[NodeDataT, NodeT]):
         return []
 
     def pack(self, node: NodeT) -> NodeDataT:
+        """Pack the node and any relevant normalized related nodes."""
         raise NotImplementedError
 
-    def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT:
+    def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT | list[NodeT]:
+        """
+        Unpack the node and any relevant normalized related nodes.
+        If returning a list, the first item is the main node.
+        """
         raise NotImplementedError
 
     # we don't need an 'unwalk' here because child models are associated automatically
@@ -184,8 +189,8 @@ def unpack_nodes_tree(nodes: list[NodeDataT], parent: Optional[NodeT] = None) ->
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
         node_parent = unpacked_tree.nodes.get(node.parent_id) if node.parent_id else parent
-        unpacked = packer.unpack(node, node_parent)
-        unpacked_tree.add(unpacked)
+        for unpacked in packer.unpack(node, node_parent):
+            unpacked_tree.add(unpacked)
 
     return unpacked_tree
 
@@ -193,6 +198,7 @@ def unpack_nodes_tree(nodes: list[NodeDataT], parent: Optional[NodeT] = None) ->
 def unpack_nodes(
     project_v: models.ProjectVersion, module: ModuleTree, data_nodes: list[NodeDataT]
 ) -> list[NodeT]:
+    """Unpack a list nodes (incl. their ancestors) without DB queries"""
     unpacked_nodes = []
     ancestors_by_id = {project_v.id: project_v}
     for data in data_nodes:
@@ -201,9 +207,9 @@ def unpack_nodes(
             if ancestor.id not in ancestors_by_id:
                 parent = ancestors_by_id.get(ancestor.parent_id)
                 unpacked = unpack_node_flat(ancestor, parent)
-                ancestors_by_id[ancestor.id] = unpacked
-        node = unpack_node_flat(data, ancestors_by_id[data.parent_id])
-        unpacked_nodes.append(node)
+                ancestors_by_id[ancestor.id] = unpacked[0]
+        nodes = unpack_node_flat(data, ancestors_by_id[data.parent_id])
+        unpacked_nodes.extend(nodes)
     return unpacked_nodes
 
 
@@ -213,10 +219,13 @@ def pack_node_flat(model: ModelT) -> NodeDataT:
     return packer.pack(model)
 
 
-def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> NodeT:
-    """Unpack a node (flat)"""
+def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> list[NodeT]:
+    """Unpack a node (flat) (can return multiple nodes for normalized/related models)"""
     packer = _node_packers_by_data[type(data)]
-    return packer.unpack(data, parent)
+    unpacked = packer.unpack(data, parent)
+    if not isinstance(unpacked, list):
+        unpacked = [unpacked]
+    return unpacked
 
 
 @node_packer(MOT.MODULE, wire.ModuleData, models.ProjectVersion)
@@ -479,8 +488,8 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.DatasetData, models.Dataset, StatementType.DATASET)
-class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Dataset]):
+@node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement, StatementType.DATASET)
+class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
 
@@ -495,16 +504,16 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Dataset
 
     def unpack(
         self, data: wire.DatasetData, parent: models.File | models.Statement
-    ) -> models.Dataset:
+    ) -> list[models.Statement | models.Dataset]:
         statement = super().unpack(data, parent)
         statement.description = data.description
         statement.modifier = data.modifier
         statement.dataset = models.Dataset(
-            id=data.id,
+            id=uuid5(statement.id, "dataset"),
             versioned=data.versioned,
             statement=statement,
         )
-        return statement.dataset
+        return [statement, statement.dataset]
 
 
 @node_packer(MOT.FIELD, wire.FieldData, models.Field)

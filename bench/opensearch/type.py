@@ -319,6 +319,14 @@ if typing.TYPE_CHECKING:
 
 
 class Analyzer(enum.StrEnum):
+    STANDARD = "standard"
+    SIMPLE = "simple"
+    WHITESPACE = "whitespace"
+    STOP = "stop"
+    KEYWORD = "keyword"
+    PATTERN = "pattern"
+    LANGUAGE = "language"
+    FINGERPRINT = "fingerprint"
     HTML = "html"
 
 

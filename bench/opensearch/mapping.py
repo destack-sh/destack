@@ -83,7 +83,7 @@ class StructFieldMapper(FieldMapper):
 register_mapper(
     os.Field(
         os.FT.TEXT,
-        fields={os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT)},
+        fields={os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD)},
     ),
     tags=[TypeTag.STRING],
 )
@@ -93,7 +93,7 @@ register_mapper(
         fields={
             os.FT.KEYWORD: os.Field(os.FT.KEYWORD),
             os.FT.SEARCH_AS_YOU_TYPE: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
-            os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT),
+            os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD),
         },
     ),
     hints=[TypeHint.NAME],
