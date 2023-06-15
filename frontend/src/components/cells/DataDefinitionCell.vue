@@ -35,7 +35,7 @@ import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from 
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
-const PAGE_SIZE = context.standalone.value ? 20 : 10;
+const PAGE_SIZE = context.standalone.value ? 50 : 25;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
 const isTable = computed(() => context.statement.value.type == StatementType.Dataset);
@@ -659,7 +659,7 @@ defineExpose({
       <div
         :style="{
           width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
-          height: minRowHeight + 'px',
+          height: minRowHeight - 1 + 'px',
         }"
       ></div>
       <!-- Header (with types) -->
@@ -772,11 +772,45 @@ defineExpose({
           />
         </div>
       </div>
+      <!-- Bottom actions -->
+      <!-- Load more/loading -->
+      <button
+        v-if="pageInfo?.hasNextPage && isTable"
+        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        :style="{ height: minRowHeight + 'px' }"
+        @click.stop="loadMore()"
+        @keydown.up.exact.prevent="focusLastRecord"
+        @keydown.down.exact.prevent="context.navigateDown"
+        :disabled="loading"
+        ref="loadMoreRef"
+      >
+        <template v-if="loading">
+          <ArrowPathIcon class="h-4 w-4" :class="loading ? 'animate-spin' : ''" />
+          Loading
+        </template>
+        <template v-else>
+          <ArrowDownIcon class="h-4 w-4" />
+          Load {{ PAGE_SIZE }} more
+        </template>
+      </button>
+      <!-- Insert button -->
+      <button
+        v-if="!context.readonly.value && isTable"
+        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        :style="{ height: minRowHeight + 'px' }"
+        @click.stop="loadMore()"
+        @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
+        @keydown.down.exact.prevent="context.navigateDown"
+        :disabled="loading"
+        ref="loadMoreRef"
+      >
+        <PlusIcon class="h-4 w-4" /> New
+      </button>
     </div>
   </div>
   <!-- Single value (vertical) -->
   <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
-    <!-- TODO @Cleanup: restructure table/value views to reduce duplication -->
+    <!-- TODO @Cleanup: restructure table/value views to reduce duplication, move into value cell -->
     <tr
       v-for="(field, y) in allFields"
       :key="field.id"
@@ -829,55 +863,4 @@ defineExpose({
       </td>
     </tr>
   </table>
-  <!-- Bottom actions -->
-  <div class="my-0.5 flex flex-row gap-2">
-    <button
-      v-if="pageInfo?.hasNextPage && isTable"
-      @click.stop="loadMore()"
-      @keydown.up.exact.prevent="focusLastRecord"
-      @keydown.right.exact.prevent="addRecordRef?.focus"
-      @keydown.down.exact.prevent="context.navigateDown"
-      :disabled="loading"
-      ref="loadMoreRef"
-      class="flex w-fit select-none flex-row items-center rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-    >
-      <template v-if="loading">
-        <ArrowPathIcon class="mr-0.5 h-3 w-3" :class="loading ? 'animate-spin' : ''" />
-        loading
-      </template>
-      <template v-else>
-        <ArrowDownIcon class="h-3 w-3" />
-        load {{ PAGE_SIZE }} more
-      </template>
-    </button>
-    <!-- Insert button -->
-    <button
-      v-if="!context.readonly.value && isTable"
-      tabindex="-1"
-      ref="addRecordRef"
-      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click.stop="insertRecordAtEnd()"
-      @enter="insertRecordAtEnd()"
-      @keydown.up.exact.prevent="focusLastRecord"
-      @keydown.right.exact.prevent="addFieldRef?.focus"
-      @keydown.left.exact.prevent="loadMoreRef?.focus"
-      @keydown.down.exact.prevent="context.navigateDown"
-    >
-      +record
-    </button>
-    <!-- Add field button -->
-    <button
-      v-if="!context.readonly.value"
-      tabindex="-1"
-      ref="addFieldRef"
-      class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click.stop="insertField()"
-      @enter="insertField()"
-      @keydown.up.exact.prevent="focusLastRecord"
-      @keydown.left.exact.prevent="addRecordRef?.focus"
-      @keydown.down.exact.prevent="context.navigateDown"
-    >
-      +field
-    </button>
-  </div>
 </template>
