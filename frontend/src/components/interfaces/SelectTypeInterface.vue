@@ -1,18 +1,12 @@
 <script lang="ts" setup>
 import TypePreview from "@/components/interfaces/TypePreview.vue";
-import { ANY_FIELD, makeField } from "@/state/statement";
 import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { TypeFlag, useCurrentModule } from "@/state/module";
+import { ANY_FIELD, makeField } from "@/state/statement";
+import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import {
-  ExclamationCircleIcon,
-  ListBulletIcon,
-  LockClosedIcon,
-  LockOpenIcon,
-  QuestionMarkCircleIcon,
-} from "@heroicons/vue/24/outline";
+import { ExclamationCircleIcon, ListBulletIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import { computed, onMounted, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -24,7 +18,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference" | "metadata">): void;
   (e: "escape"): void;
 }>();
 
@@ -33,6 +27,14 @@ const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
 const module = useCurrentModule();
+
+function getDefaultFlags(t: TypeHint | TypeTag): number {
+  if (t == TypeHint.Secret) {
+    return TypeFlag.IsSecret & TypeFlag.IsNullable;
+  } else {
+    return TypeFlag.IsNullable;
+  }
+}
 
 const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.String,
@@ -58,7 +60,7 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
   // builtin types
   if (!props.structrefOnly) {
-    types.push(...BUILTINS_TYPES_NODES);
+    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, flags: getDefaultFlags(t.tag) })));
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -74,6 +76,8 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   }
   return types;
 });
+// TODO @UX @Architecture: support changing field type to any other type (without compatibility constraints)
+// We're forced to limit this right now for simplicity with our OpenSearch integration.
 const filteredTypes = computed(() =>
   availableTypes.value
     .filter((t) => props.allowIncompatible || props.modelValue == null || t.tag == props.modelValue.tag)
@@ -131,13 +135,6 @@ const flagButtons: FlagButton[] = [
     setIcon: ListBulletIcon,
     unsetIcon: ListBulletIcon,
   },
-  {
-    flag: TypeFlag.IsSecret,
-    invert: false,
-    label: "secret",
-    unsetIcon: LockOpenIcon,
-    setIcon: LockClosedIcon,
-  },
 ];
 
 // constraint list & secret flags to UX-sensible types
@@ -188,11 +185,7 @@ function renderField(node: Field): string {
   const builtin = renderBuiltinType(node.tag, node.hint ?? null);
   if (builtin != null) return builtin;
   if (node.tag == TypeTag.TypeReference || node.reference != null) {
-    if (node.reference != null) {
-      return module.statementOf(node.reference.id)?.name ?? "???";
-    } else {
-      return node.reference?.name ?? "...";
-    }
+    return module.statementOf(node.reference?.id)?.name ?? "???";
   }
   throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
 }
@@ -230,7 +223,7 @@ defineExpose({
         v-for="flagButton in flagButtons"
         :key="flagButton.label"
         :disabled="!isFlagSupported(value, flagButton.flag)"
-        class="flex flex-row items-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
+        class="flex flex-1 flex-row items-center justify-center gap-1 rounded-sm px-1 py-0.5 hover:bg-orange-100"
         :class="[
           isFlagSet(flagButton.flag) !== flagButton.invert ? 'font-bold text-orange-600' : '',
           isFlagSupported(value, flagButton.flag) ? 'text-gray-600' : 'cursor-not-allowed text-gray-400',
@@ -252,15 +245,15 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:underline focus:ring-0"
+      class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
       :class="{
         'font-mono': appearance.fontMono,
         'text-sm placeholder:text-sm': appearance.textSmall,
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el: any) => renderField(findByComboId(el) ?? value)"
-      placeholder="..."
+      :display-value="(el: any) => props.modelValue == null ? undefined : renderField(findByComboId(el) ?? value)"
+      placeholder="Search types"
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"
     />

@@ -3,8 +3,9 @@ import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { getInterface } from "@/components/inputs";
-import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
@@ -15,7 +16,7 @@ import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
 import { makeField, useStatementContext, type Field } from "@/state/statement";
@@ -39,8 +40,7 @@ const editorView = useEditorContext();
 const addingDescription = ref(false);
 
 const appearance = useAppearance();
-const module = useCurrentModule();
-const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(
@@ -50,6 +50,7 @@ context.syncDescription(
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
+const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
 const {
   loading,
@@ -116,7 +117,7 @@ function loadMore() {
 
 const columnsInOrder: Ref<string[]> = computed(() => context.allFields.value?.map((n) => n.key ?? "") ?? []);
 const rowIdsInOrder: Ref<string[]> = computed(() => recordsInView.value?.map((r) => r.id) ?? []);
-const grid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface> | InstanceType<typeof ValueInterface>>(
+const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
   computed(() => {
     // one row for fields, then values
@@ -274,56 +275,29 @@ function focusLastRecord() {
 
 const ops = useOperations();
 
-function insertField(isUnionWith?: boolean) {
-  const nextOrderKey = generateKeyBetween(
-    context.fields.value?.[context.fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
-    null
-  );
-  if (!isUnionWith) {
-    const field = makeField({
-      name: "field " + context.selfFields.value?.length,
-      tag: TypeTag.String,
-      orderKey: nextOrderKey,
-      flags: TypeFlag.IsNullable, // :DefaultTypeOptional
-    });
-    grid.beginBatchChange();
-    context.createField(field);
-    nextTick(() => (grid.flush(), grid.focus("", field.key)));
-  } else {
-    context.createField(
-      makeField({
-        name: "",
-        tag: TypeTag.TypeReference,
-        orderKey: nextOrderKey,
-        flags: TypeFlag.IsUnionWith,
-      })
-    );
-    nextTick(() => declarationRef.value?.focusLastBase());
-  }
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
+  grid.beginBatchChange();
+  const field = context.createNewField(template);
+  nextTick(() => {
+    grid.focus("", field.key ?? "");
+    grid.flush();
+  });
+}
+
+function createUnionField() {
+  grid.beginBatchChange();
+  context.createUnionField();
+  nextTick(() => {
+    declarationRef.value?.focusLastBase();
+    grid.flush();
+  });
 }
 
 function duplicateField(fieldId: string) {
-  // :DuplicateField
-  const fieldIdx = context.selfFields.value?.findIndex((m) => m.id === fieldId);
-  if (fieldIdx < 0) return;
-  const field = context.selfFields.value?.[fieldIdx];
-  const orderKey = generateKeyBetween(
-    field?.orderKey ?? null,
-    context.selfFields.value?.[fieldIdx + 1]?.orderKey ?? null
-  );
-  // "name" => "name 2", "name 2" => "name 3", etc.
-  const newName =
-    field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
-  const newFieldNode = {
-    ...field,
-    id: newFieldId(),
-    name: newName,
-    key: newFieldKey(),
-    orderKey,
-    referenceId: field.reference?.id,
-  };
-  context.createField(newFieldNode);
-  nextTick(() => grid.focus("", newFieldNode.key ?? ""));
+  const field = context.duplicateField(fieldId);
+  if (field != null) {
+    nextTick(() => grid.focus("", field.key ?? ""));
+  }
 }
 
 function updateFieldType(key: string, changed: Field) {
@@ -440,12 +414,12 @@ const extraStatementActions = computed(() => {
   actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
-    action: () => insertField(),
+    action: () => createFieldRef.value?.show(),
   });
   actions.push({
     label: "Include type",
     icon: CubeTransparentIcon,
-    action: () => insertField(true),
+    action: () => createUnionField,
   });
   return actions;
 });
@@ -489,7 +463,7 @@ defineExpose({
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
         @navigate-up="context.navigateUp"
-        @add-base="insertField(true)"
+        @add-base="createUnionField"
       />
     </div>
     <div
@@ -501,6 +475,11 @@ defineExpose({
         {{ humanizeNumber(fetchedRecords?.searchRecords.totalCount ?? 0) }}
       </span>
       <InlineActions :extraActions="extraStatementActions" />
+      <CreateFieldInterface
+        ref="createFieldRef"
+        :title="'New field on ' + context.statement.value.name"
+        @select="createNewField"
+      />
     </div>
   </div>
   <!-- Description -->
@@ -559,7 +538,7 @@ defineExpose({
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
-            <TypeTupleInterface
+            <FieldInterface
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"

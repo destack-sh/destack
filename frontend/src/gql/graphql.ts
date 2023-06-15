@@ -271,6 +271,7 @@ export type Field = Node & {
   key: Scalars["String"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;
+  metadata?: Maybe<Scalars["JSON"]>;
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   reference?: Maybe<Statement>;
@@ -1969,6 +1970,7 @@ export enum TypeHint {
   Phone = "PHONE",
   Rating = "RATING",
   RichText = "RICH_TEXT",
+  Secret = "SECRET",
   Slider = "SLIDER",
   Thumbs = "THUMBS",
   Time = "TIME",

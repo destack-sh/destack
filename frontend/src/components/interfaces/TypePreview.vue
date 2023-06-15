@@ -78,6 +78,7 @@ const iconsByHint: Partial<Record<TypeHint, any>> = {
   [TypeHint.Html]: CodeBracketIcon,
   [TypeHint.Code]: CodeBracketIcon,
   [TypeHint.Key]: KeyIcon,
+  [TypeHint.Secret]: LockClosedIcon,
   // number
   [TypeHint.Integer]: HashtagIcon, // should have a different icon from float
   [TypeHint.Float]: HashtagIcon,
@@ -125,8 +126,7 @@ const icon = computed(() => {
       class="absolute -bottom-0.5 h-0.5 w-full bg-gray-300"
       v-if="!(type.flags & TypeFlag.IsNullable) && !(type.flags & TypeFlag.IsArray) && !hideFlags"
     /> -->
-    <!-- List & secret flags -->
-    <LockClosedIcon v-if="type.flags & TypeFlag.IsSecret && !hideFlags" class="-ml-1 h-4 w-4" />
+    <!-- Flags -->
     <ListBulletIcon v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="-ml-1 h-4 w-4" />
   </div>
 </template>

@@ -54,6 +54,7 @@ class Field(CrudModel, Revisioned, gql.Node):
     flags: int
     description: auto
     reference: Optional["Statement"]
+    metadata: auto
 
 
 @gql.django.type(models.Statement)

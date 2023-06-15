@@ -266,6 +266,7 @@ type Field implements Node {
   flags: Int!
   description: String
   reference: Statement
+  metadata: JSON
 }
 
 input FieldCreateInput {
@@ -1649,6 +1650,7 @@ enum TypeHint {
   HTML
   CODE
   KEY
+  SECRET
   INTEGER
   FLOAT
   SLIDER

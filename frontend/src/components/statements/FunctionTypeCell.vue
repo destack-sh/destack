@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
-import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
+import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { makeField, NAME_FIELD, useStatementContext } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
@@ -28,14 +28,14 @@ const outputNodes = computed(
 
 type ColumnType = "type";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);
-const inputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface>>(columnsInOrder, inputNodes, {
+const inputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, inputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addInputRef.value?.focus(),
   gridNavigateRight: (rowIdx) => focusColumn("output", rowIdx, 0),
   nowrapLeft: true,
   nowrapRight: true,
 });
-const outputGrid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface>>(columnsInOrder, outputNodes, {
+const outputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, outputNodes, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addOutputRef.value?.focus(),
   gridNavigateLeft: (rowIdx) => focusColumn("input", rowIdx, -1),
@@ -147,7 +147,7 @@ defineExpose({
     <!-- Inputs -->
     <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
       <template v-for="member of inputNodes" :key="member.id">
-        <TypeTupleInterface
+        <FieldInterface
           :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
           :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('input', member.id, 'type', val)"
@@ -187,9 +187,9 @@ defineExpose({
     <!-- Outputs -->
     <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
       <template v-for="member of outputNodes" :key="member.id">
-        <TypeTupleInterface
+        <FieldInterface
           :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"
-          :is="'type' == 'type' ? TypeTupleInterface : ValueInterface"
+          :is="'type' == 'type' ? FieldInterface : ValueInterface"
           :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', member.id, 'type', val)"
           :readonly="context.readonly.value"
