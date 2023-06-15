@@ -5,8 +5,7 @@ import InlineActionsCell from "@/components/statements/InlineActionsCell.vue";
 import type { StatementAction } from "@/state/bench";
 import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
-import { computed, type Ref, ref } from "vue";
-import { nextTick } from "process";
+import { computed, type Ref, ref, nextTick } from "vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 
 const context = useStatementContext();
