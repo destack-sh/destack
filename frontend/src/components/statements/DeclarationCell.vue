@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import ModifierCell from "@/components/cells/ModifierCell.vue";
-import SelectTypeInterface from "@/components/cells/ProtoStatementTypeCell.vue";
-import StatementTypeCell from "@/components/cells/StatementTypeCell.vue";
+import ModifierCell from "@/components/statements/ModifierCell.vue";
+import SelectTypeInterface from "@/components/statements/ProtoStatementTypeCell.vue";
+import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
 import { StatementType } from "@/gql/graphql";
 import { computed, ref, type Ref } from "vue";
@@ -96,7 +96,7 @@ defineExpose({
     />
     <button
       tabindex="-1"
-      v-if="!hasName && context.statement.value.type == StatementType.Symbol"
+      v-if="!hasName"
       @click="nameRef?.focus()"
       class="-ml-1 w-fit select-none rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >

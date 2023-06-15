@@ -305,12 +305,13 @@ defineExpose({
           <div
             v-if="editingType"
             ref="typeEditablePopoverRef"
-            class="z-10 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+            class="z-10 flex w-72 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
             :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
           >
             <SelectTypeInterface
               :model-value="value"
               @update:model-value="emit('update:modelValue', $event)"
+              class="w-full"
               @escape="
                 editingType = false;
                 typeButtonRef?.focus();

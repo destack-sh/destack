@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import ModifierCell from "@/components/cells/ModifierCell.vue";
-import ProtoStatementTypeCell from "@/components/cells/ProtoStatementTypeCell.vue";
-import StatementTypeCell from "@/components/cells/StatementTypeCell.vue";
+import ModifierCell from "@/components/statements/ModifierCell.vue";
+import ProtoStatementTypeCell from "@/components/statements/ProtoStatementTypeCell.vue";
+import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { ref, type Ref } from "vue";
