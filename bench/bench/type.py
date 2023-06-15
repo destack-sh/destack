@@ -661,7 +661,7 @@ class HasType(TypeBase, SymbolBase):
             symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
             if not isinstance(symbol, TypeBase):
                 self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, reference=node.reference
+                    type=IssueType.MISSING_REFERENCE, subject=self, path=node.name or "<root>"
                 )
                 continue
             node.reference = symbol
@@ -881,9 +881,7 @@ class Expectation(Symbol, HasExpectations):
         if self.reference is not None:
             resolved = scope.lookup_symbol(self.reference)
             if resolved is None:
-                self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, reference=self.reference, subject=self
-                )
+                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
             else:
                 self.reference = resolved
         # interp
@@ -947,7 +945,7 @@ class Code(Symbol, HasType, IsExpectable):
             if resolved is not None:
                 self._references[key] = resolved
             else:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, reference=reference, subject=self)
+                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=key)
 
     async def __call__(self, *args, **kwargs):
         if self._code_callable is None:
@@ -1052,7 +1050,11 @@ class Dataset(Symbol, HasType, IsExpectable):
             if view.reference is not None:
                 view.reference = scope.lookup_symbol(view.reference, by=LookupBy.PyIdent)
                 if view.reference is None:
-                    self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self)
+                    self._on_issue(
+                        type=IssueType.MISSING_REFERENCE,
+                        subject=self,
+                        path=f"views.{view.name}.reference",
+                    )
         HasType._interp(self, scope)
 
     @property

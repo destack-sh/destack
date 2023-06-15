@@ -38,7 +38,7 @@ class IssueType(enum.StrEnum):
 _ISSUE_MESSAGES = {
     # errors
     IssueType.INTERNAL.value: "Internal error",
-    IssueType.MISSING_REFERENCE.value: "missing reference {reference}",
+    IssueType.MISSING_REFERENCE.value: "missing reference at {path}",
     IssueType.AMBIGUOUS_REQUIREMENT.value: "multiple requirements for {path}",
     IssueType.CIRCULAR_ANCESTRY.value: "circular ancestry via {path}",
     IssueType.CIRCULAR_UNION.value: "circular union via {path}",
