@@ -352,7 +352,6 @@ export type File = Node & {
   lastEditedBy?: Maybe<User>;
   name: Scalars["String"];
   parent?: Maybe<File>;
-  path: Scalars["String"];
   projectVersion: ProjectVersion;
   revision: Scalars["Int"];
   statements: Array<Statement>;
@@ -379,7 +378,6 @@ export type FileCreateInput = {
   id?: InputMaybe<Scalars["GlobalID"]>;
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  path: Scalars["String"];
   projectVersionId: Scalars["GlobalID"];
 };
 
@@ -399,7 +397,6 @@ export type FileFilter = {
 export type FileMoveInput = {
   id: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  path: Scalars["String"];
 };
 
 export type FileOperationInfo = File | OperationInfo;
@@ -407,7 +404,6 @@ export type FileOperationInfo = File | OperationInfo;
 export type FileRenameInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  path: Scalars["String"];
 };
 
 export enum InterpScope {
@@ -2187,7 +2183,7 @@ export type EmptyEditorSuggestedFilesQuery = {
       totalCount?: number | null;
       edges: Array<{
         __typename?: "FileEdge";
-        node: { __typename?: "File"; id: any; name: string; path: string; deletedAt?: any | null; directory: boolean };
+        node: { __typename?: "File"; id: any; name: string; deletedAt?: any | null; directory: boolean };
       }>;
     };
   } | null;
@@ -2987,7 +2983,6 @@ export type FileHeaderFragment = {
   id: any;
   revision: number;
   name: string;
-  path: string;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3079,7 +3074,6 @@ export type InterpFileFragment = {
   id: any;
   revision: number;
   name: string;
-  path: string;
   directory: boolean;
   createdAt: any;
   updatedAt: any;
@@ -3286,7 +3280,6 @@ export type CreateFileMutationVariables = Exact<{
   name: Scalars["String"];
   directory?: InputMaybe<Scalars["Boolean"]>;
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  path: Scalars["String"];
 }>;
 
 export type CreateFileMutation = {
@@ -3297,7 +3290,6 @@ export type CreateFileMutation = {
         id: any;
         revision: number;
         name: string;
-        path: string;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -3353,13 +3345,12 @@ export type RestoreFileMutation = {
 export type RenameFileMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   name: Scalars["String"];
-  path: Scalars["String"];
 }>;
 
 export type RenameFileMutation = {
   __typename?: "Mutation";
   renameFile:
-    | { __typename?: "File"; id: any; name: string; path: string; revision: number }
+    | { __typename?: "File"; id: any; name: string; revision: number }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -4734,7 +4725,6 @@ export const FileHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "path" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -4995,7 +4985,6 @@ export const InterpFileFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "path" } },
           { kind: "Field", name: { kind: "Name", value: "directory" } },
           {
             kind: "Field",
@@ -5510,7 +5499,6 @@ export const EmptyEditorSuggestedFilesDocument = {
                                 selections: [
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
                                   { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "path" } },
                                   { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                                   { kind: "Field", name: { kind: "Name", value: "directory" } },
                                 ],
@@ -8382,11 +8370,6 @@ export const CreateFileDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "path" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8426,11 +8409,6 @@ export const CreateFileDocument = {
                       name: { kind: "Name", value: "directory" },
                       value: { kind: "Variable", name: { kind: "Name", value: "directory" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "path" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "path" } },
-                    },
                   ],
                 },
               },
@@ -8447,7 +8425,6 @@ export const CreateFileDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "path" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "parent" },
@@ -8703,11 +8680,6 @@ export const RenameFileDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "path" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -8732,11 +8704,6 @@ export const RenameFileDocument = {
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "path" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "path" } },
-                    },
                   ],
                 },
               },
@@ -8752,7 +8719,6 @@ export const RenameFileDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "path" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },

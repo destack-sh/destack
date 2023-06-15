@@ -339,7 +339,6 @@ type File implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
-  path: String!
   directory: Boolean!
   parent: File
   files: [File!]!
@@ -362,7 +361,6 @@ input FileCreateInput {
   id: GlobalID = null
   projectVersionId: GlobalID!
   name: String!
-  path: String!
   parentId: GlobalID = null
   directory: Boolean! = false
 }
@@ -383,7 +381,6 @@ input FileFilter {
 input FileMoveInput {
   id: GlobalID!
   parentId: GlobalID = null
-  path: String!
 }
 
 union FileOperationInfo = File | OperationInfo
@@ -391,7 +388,6 @@ union FileOperationInfo = File | OperationInfo
 input FileRenameInput {
   id: GlobalID!
   name: String!
-  path: String!
 }
 
 """

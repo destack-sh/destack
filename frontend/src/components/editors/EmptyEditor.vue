@@ -21,7 +21,6 @@ const { result: suggestedFiles } = useQuery(
             node {
               id
               name
-              path
               deletedAt
               directory
             }

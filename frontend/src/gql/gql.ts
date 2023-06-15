@@ -19,7 +19,7 @@ const documents = {
     types.ExistingProjectVersionTagDocument,
   "\n    query notifications($status: NotificationStatus, $notArchived: Boolean, $first: Int) {\n      me {\n        id\n        notifications(filters: { status: $status, notArchived: $notArchived }, first: $first) {\n          totalCount\n          edges {\n            node {\n              id\n              type\n              createdAt\n              readAt\n              archivedAt\n              expiresAt\n              status\n              invite {\n                id\n                organization {\n                  id\n                  slug\n                  name\n                }\n                level\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
     types.NotificationsDocument,
-  "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  ":
+  "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  ":
     types.EmptyEditorSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
@@ -85,7 +85,7 @@ const documents = {
     types.ProjectVersionHeaderFragmentDoc,
   "\n  fragment ProjectHeader on Project {\n    id\n    type\n    visibility\n    name\n    slug\n    createdAt\n    updatedAt\n    canWrite\n    head {\n      ...ProjectVersionHeader\n    }\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
-  "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n":
+  "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
   "\n  fragment StatementHeader on Statement {\n    id\n    type\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    commented\n    orderKey\n    parent {\n      id\n    }\n  }\n":
     types.StatementHeaderFragmentDoc,
@@ -97,7 +97,7 @@ const documents = {
     types.IssueContentFragmentDoc,
   "\n  fragment ResolvedFieldContent on ResolvedField {\n    id\n    statement {\n      id\n    }\n    field {\n      ...FieldContent\n    }\n  }\n":
     types.ResolvedFieldContentFragmentDoc,
-  "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n":
+  "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n":
     types.InterpFileFragmentDoc,
   "\n  fragment InterpStatement on Statement {\n    id\n    type\n    name\n    modifier\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    file {\n      id\n    }\n    parent {\n      id\n    }\n    orderKey\n    referenceProjectVersion {\n      id\n    }\n    rootTypeTag\n    rootTypeFlags\n    fields(filters: { isVisible: true }) {\n      ...FieldContent\n    }\n  }\n":
     types.InterpStatementFragmentDoc,
@@ -117,7 +117,7 @@ const documents = {
     types.CloseClientDocument,
   "\n      mutation updatePresence {\n        updatePresence {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdatePresenceDocument,
-  "\n      # path is only used for optimistic responses\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n        $path: String!\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n            path: $path\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            path\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateFileDocument,
   "\n      mutation deleteFile($id: GlobalID!) {\n        deleteFile(input: { id: $id }) {\n          ... on File {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteFileDocument,
@@ -125,7 +125,7 @@ const documents = {
     types.SoftDeleteFileDocument,
   "\n      mutation restoreFile($id: GlobalID!) {\n        restoreFile(input: { id: $id }) {\n          ... on File {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreFileDocument,
-  "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameFileDocument,
   "\n      mutation requestUploadObject(\n        $projectId: GlobalID!\n        $name: String\n        $contentType: String!\n        $contentLength: Int!\n        $sha512: String!\n      ) {\n        requestUploadObject(\n          input: {\n            projectId: $projectId\n            name: $name\n            contentType: $contentType\n            contentLength: $contentLength\n            sha512: $sha512\n          }\n        ) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedPost\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RequestUploadObjectDocument,
@@ -273,8 +273,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "];
+  source: "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -471,8 +471,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n"
-): typeof documents["\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    path\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n"];
+  source: "\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n"
+): typeof documents["\n  fragment FileHeader on File {\n    id\n    revision\n    name\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    directory\n    projectVersion {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -507,8 +507,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"
-): typeof documents["\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    path\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"];
+  source: "\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"
+): typeof documents["\n  fragment InterpFile on File {\n    id\n    revision\n    name\n    directory\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -567,8 +567,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      # path is only used for optimistic responses\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n        $path: String!\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n            path: $path\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            path\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      # path is only used for optimistic responses\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n        $path: String!\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n            path: $path\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            path\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createFile(\n        $id: GlobalID\n        $projectVersionId: GlobalID!\n        $name: String!\n        $directory: Boolean\n        $parentId: GlobalID\n      ) {\n        createFile(\n          input: {\n            id: $id\n            projectVersionId: $projectVersionId\n            parentId: $parentId\n            name: $name\n            directory: $directory\n          }\n        ) {\n          ... on File {\n            id\n            revision\n            name\n            parent {\n              id\n            }\n            createdAt\n            updatedAt\n            deletedAt\n            directory\n            projectVersion {\n              id\n            }\n            statements(filters: { isVisible: true }) {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -591,8 +591,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {\n        renameFile(input: { id: $id, name: $name, path: $path }) {\n          ... on File {\n            id\n            name\n            path\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

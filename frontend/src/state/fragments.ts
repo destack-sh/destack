@@ -70,7 +70,6 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     id
     revision
     name
-    path
     parent {
       id
     }
@@ -194,7 +193,6 @@ export const InterpFileType = graphql(/* GraphQL */ `
     id
     revision
     name
-    path
     directory
     parent {
       id

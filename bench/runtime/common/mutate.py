@@ -164,8 +164,6 @@ _EXTRA_FIELDS_BY_SCOPE = {
     },
 }
 
-_EXTRA_FIELD_RENAMES = {"project_version_id": "module_id"}
-
 
 def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     """
@@ -181,16 +179,19 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     input_cls = INPUT_CLASS_BY_TYPE[mutation.type]
     input_args = {}
     for field in fields(input_cls):
-        s_key, t_key = field.name, field.name
-        if s_key in _EXTRA_FIELD_RENAMES:
-            s_key = _EXTRA_FIELD_RENAMES[s_key]
-        if s_key in extra_fields:
-            value = extra_fields[s_key]
+        if field.name == "project_version_id":
+            value = mutation.project_version_id
+        elif field.name == "file_id":
+            value = mutation.file_id
+        elif field.name == "statement_id":
+            value = mutation.statement_id
+        elif field.name in extra_fields:
+            value = extra_fields[field.name]
         else:
-            value = getattr(mutation.data, s_key)
+            value = getattr(mutation.data, field.name, field.default)
         if isinstance(value, UUID):
-            value = _map_id_field(s_key, value, mutation.type.mot)
-        input_args[t_key] = value
+            value = _map_id_field(field.name, value, mutation.type.mot)
+        input_args[field.name] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)
     return input

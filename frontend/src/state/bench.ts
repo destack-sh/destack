@@ -391,12 +391,12 @@ export const useBenchState = defineStore("bench", {
     },
 
     openFile(
-      file: { id: string; path: string },
+      file: { id: string; name: string },
       options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
     ): Editor {
       let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       if (!editor || options?.create) {
-        console.log(`create new file editor for ${file.id} ${file.path}`);
+        console.log(`create new file editor for ${file.id} ${file.name}`);
         editor = new FileEditor(file);
         editor.onDeserialized(this);
       }
@@ -894,8 +894,8 @@ export class FileEditor extends NavigableEditor {
   type = "file" as const;
   fileId: string;
 
-  constructor(file: { id: string; path: string }) {
-    super("file", file.id + "-" + randomHexString(), file.path, file.path, null);
+  constructor(file: { id: string; name: string }) {
+    super("file", file.id + "-" + randomHexString(), file.name, file.name, null);
     this.fileId = file.id;
   }
 
@@ -907,11 +907,11 @@ export class FileEditor extends NavigableEditor {
     const file = module.filesById[fileHeader.id];
     if (file == null) return;
     this.name = file.name;
-    this.path = file.path;
+    this.path = file.name;
   }
 
   static parsePath(path: string, module: ModuleIndex): Editor | null {
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == path);
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == path);
     if (matchingFile == null) return null;
     return new FileEditor(matchingFile);
   }
@@ -935,12 +935,12 @@ export class StatementEditor extends NavigableEditor {
     const file = module.filesById[statement?.file.id ?? ""];
     if (statement == null || file == null) return;
     this.name = statement.name ?? "";
-    this.path = `${file.path}:${statement.name ?? ""}`;
+    this.path = `${file.name}:${statement.name ?? ""}`;
   }
 
   static parsePath(path: string, module: ModuleIndex): Editor | null {
     const [filePath, statementName] = path.split(":");
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == filePath);
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
     if (matchingFile == null) return null;
     const matchingStatement = module.statementsByFileId[matchingFile.id].find(
       (s) => prettifySlug(s.name ?? "") == statementName
@@ -978,12 +978,12 @@ export class TerminalEditor extends Editor {
     const file = module.filesById[statement?.file?.id ?? ""];
     if (statement == null || file == null) return;
     this.name = statement.name ?? "";
-    this.path = `${file.path}:${statement.name ?? ""}@${this.type}`;
+    this.path = `${file.name}:${statement.name ?? ""}@${this.type}`;
   }
 
   static parsePath(path: string, module: ModuleIndex): Editor | null {
     const [filePath, statementName] = path.split(":");
-    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.path) == filePath);
+    const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
     if (matchingFile == null) return null;
     const matchingStatement = module.statementsByFileId[matchingFile.id].find(
       (s) => prettifySlug(s.name ?? "") == statementName

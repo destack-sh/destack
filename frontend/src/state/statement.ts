@@ -88,12 +88,12 @@ export function useStatementContext() {
   }
 
   async function morphToComment(text?: string) {
-    const updateCode = ops.symbol.updateSymbolCode(null, statement.value.id, statement.value.code ?? "", text);
+    const updateCode = ops.symbol.updateSymbolCode(null, statement.value.id, statement.value.code ?? "", text ?? "");
     const morphType = ops.statement.morph(
       null,
       statement.value.id,
       { type: statement.value.type },
-      { type: StatementType.Comment }
+      { type: StatementType.Text }
     );
     await Promise.all([morphType, updateCode]);
   }

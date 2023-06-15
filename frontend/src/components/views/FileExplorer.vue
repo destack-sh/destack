@@ -19,7 +19,7 @@ const filesSorted = computed(() => {
   }
   const files = Object.values(module.idx.value.filesById)?.filter((f) => f.deletedAt == null && !f.directory);
   return files.sort((a, b) => {
-    return a.path.localeCompare(b.path);
+    return a.name.localeCompare(b.name);
   });
 });
 const focusedFileId = computed(() => filesSorted.value.find((f) => f.id == bench.focusedFileId)?.id);
@@ -87,7 +87,7 @@ defineExpose({
       <span
         class="decoration-none inline select-none truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
       >
-        {{ file.path.length > 0 ? file.path : "(Untitled)" }}
+        {{ file.name.length > 0 ? file.name : "(Untitled)" }}
       </span>
     </li>
   </ul>

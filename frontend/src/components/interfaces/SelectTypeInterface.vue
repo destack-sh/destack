@@ -20,6 +20,7 @@ const props = defineProps<{
   inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
+  allowIncompatible?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -38,7 +39,6 @@ const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.Boolean,
   TypeTag.Number,
   TypeTag.File,
-  TypeTag.Vector,
   ...(Object.keys(SUPPORTED_TYPEHINTS) as TypeHint[]),
 ];
 const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
@@ -58,7 +58,7 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
   // builtin types
   if (!props.structrefOnly) {
-    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, primitive: true })));
+    types.push(...BUILTINS_TYPES_NODES);
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -75,7 +75,9 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   return types;
 });
 const filteredTypes = computed(() =>
-  availableTypes.value.filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
+  availableTypes.value
+    .filter((t) => props.allowIncompatible || props.modelValue == null || t.tag == props.modelValue.tag)
+    .filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
 );
 
 function writeValue(type: Field) {

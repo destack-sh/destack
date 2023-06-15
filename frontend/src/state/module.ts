@@ -148,6 +148,17 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
   }
 
+  function pathOf(file: { id: string }) {
+    // traverse parents
+    let f = idx.value?.filesById[file.id];
+    let path = "";
+    while (f != null) {
+      path = `${f.name}/${path}`;
+      f = idx.value?.filesById[f.parent?.id ?? ""];
+    }
+    return path;
+  }
+
   function contextOf(symbol: { id: string }) {
     for (const i of [idx.value, ...dependenciesIndex.value]) {
       if (i && symbol.id in i.filesById) {
@@ -183,9 +194,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (!from || !to) {
       return undefined;
     } else if (from.path == to.path) {
-      return `.${to.file.path}`;
+      return `.${to.file.name}`;
     } else {
-      return `${to.path}.${to.file.path}`;
+      return `${to.path}.${to.file.name}`;
     }
   }
 
@@ -230,6 +241,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     // utils
     runtimeTypeOf,
     fileOf,
+    pathOf,
     contextOf,
     statementOf,
     relativePath,

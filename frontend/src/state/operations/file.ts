@@ -24,14 +24,12 @@ export function useFileOps() {
   const { mutate: createFileMut } = registry.useMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
-      # path is only used for optimistic responses
       mutation createFile(
         $id: GlobalID
         $projectVersionId: GlobalID!
         $name: String!
         $directory: Boolean
         $parentId: GlobalID
-        $path: String!
       ) {
         createFile(
           input: {
@@ -40,14 +38,12 @@ export function useFileOps() {
             parentId: $parentId
             name: $name
             directory: $directory
-            path: $path
           }
         ) {
           ... on File {
             id
             revision
             name
-            path
             parent {
               id
             }
@@ -72,7 +68,6 @@ export function useFileOps() {
         projectVersionId: string;
         parentId: string | null;
         name: string;
-        path: string;
         directory: boolean;
       }) =>
         ({
@@ -86,7 +81,6 @@ export function useFileOps() {
             parent: vars.parentId == null ? null : { __typename: "File", id: vars.parentId },
             id: vars.id,
             name: vars.name,
-            path: vars.path,
             revision: -1,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -233,7 +227,6 @@ export function useFileOps() {
     id: string,
     projectVersionId: string,
     name: string,
-    path: string,
     parentId: string | null,
     directory?: boolean
   ) {
@@ -241,7 +234,7 @@ export function useFileOps() {
       tx,
       type: "file.create",
       do: async () => {
-        return await createFileMut({ id, projectVersionId, name, path, parentId, directory: directory ?? false });
+        return await createFileMut({ id, projectVersionId, name, parentId, directory: directory ?? false });
       },
       undo: async () => {
         return await softDeleteFileMut({ id });
@@ -255,12 +248,11 @@ export function useFileOps() {
   const { mutate: renameFileMut } = registry.useMutation(
     ModuleMutationType.RenameFile,
     graphql(/* GraphQL */ `
-      mutation renameFile($id: GlobalID!, $name: String!, $path: String!) {
-        renameFile(input: { id: $id, name: $name, path: $path }) {
+      mutation renameFile($id: GlobalID!, $name: String!) {
+        renameFile(input: { id: $id, name: $name }) {
           ... on File {
             id
             name
-            path
             revision
           }
           ...OperationInfoContent
@@ -268,14 +260,13 @@ export function useFileOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; name: string; path: string }) =>
+      optimisticResponse: (vars: { id: string; name: string }) =>
         ({
           __typename: "Mutation",
           renameFile: {
             __typename: "File",
             id: vars.id,
             name: vars.name,
-            path: vars.path,
             revision: -1,
           },
         } as RenameFileMutation),
@@ -287,10 +278,10 @@ export function useFileOps() {
       tx,
       type: "file.rename",
       do: async () => {
-        return await renameFileMut({ id: id, name: newName, path: newName });
+        return await renameFileMut({ id: id, name: newName });
       },
       undo: async () => {
-        return await renameFileMut({ id: id, name: oldName, path: oldName });
+        return await renameFileMut({ id: id, name: oldName });
       },
     });
   }
