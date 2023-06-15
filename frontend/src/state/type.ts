@@ -71,6 +71,8 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Image]: "image",
   [TypeHint.Audio]: "audio",
   [TypeHint.Video]: "video",
+  // vector
+  [TypeHint.Embedding]: "vector",
 };
 export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // string
@@ -89,6 +91,10 @@ export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // boolean
   [TypeHint.Toggle]: TypeTag.Boolean,
   [TypeHint.Thumbs]: TypeTag.Boolean,
+  // file
+  // <only file for now>
+  // vector
+  [TypeHint.Embedding]: TypeTag.Vector,
 };
 export const TYPEHINT_BY_KEYWORD: Record<string, TypeHint> = reverseRecord(TYPEHINT_KEYWORD);
 

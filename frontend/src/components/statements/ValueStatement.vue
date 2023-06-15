@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import InlineActionsCell from "@/components/statements/InlineActionsCell.vue";
 import type { StatementAction } from "@/state/bench";
 import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
@@ -29,17 +30,20 @@ const extraStatementActions = computed(() => {
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    // incomplete
+    declarationRef.value?.focus();
   },
   blur: () => {
-    // incomplete
+    declarationRef.value?.blur();
+    gridRef.value?.blur?.();
   },
 });
 </script>
 <template>
   <div>
-    <!-- Single value (vertical) -->
-    <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+    <div class="flex flex-row justify-between">
+      <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+      <InlineActionsCell :extra-actions="extraStatementActions" />
+    </div>
     <StructInterface
       ref="gridRef"
       class="-mx-1 w-full table-fixed"

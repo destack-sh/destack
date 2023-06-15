@@ -15,7 +15,7 @@ import bench.bench.const
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_db_mutation
-from bench.api.utils import CrudModel, get_client_origin_from_info, safe_mutation, Revisioned
+from bench.api.utils import CrudModel, Revisioned, get_client_origin_from_info, safe_mutation
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ProjectChangedPayload
@@ -212,7 +212,6 @@ class ProjectVersion(CrudModel, gql.Node):
 class File(CrudModel, Revisioned, gql.Node):
     project_version: ProjectVersion
     name: auto
-    path: auto
     directory: auto
     parent: Optional["File"]  # containing folder
     files: list["File"]  # if folder
@@ -432,7 +431,6 @@ class FileCreateInput:
     id: Optional[GlobalID] = None
     project_version_id: GlobalID
     name: str
-    path: str  # not used here, needed to update optimistically in client
     parent_id: Optional[GlobalID] = None
     directory: bool = False
 
@@ -445,13 +443,11 @@ class FileDeleteInput(gql.NodeInput):
 @gql.input
 class FileRenameInput(gql.NodeInput):
     name: str
-    path: str  # unused, as in FileCreateInput
 
 
 @gql.input
 class FileMoveInput(gql.NodeInput):
     parent_id: Optional[GlobalID] = None
-    path: str  # unused, as in FileCreateInput
 
 
 @gql.type

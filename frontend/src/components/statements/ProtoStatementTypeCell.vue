@@ -80,9 +80,9 @@ function handleKeyword(newContentTrim: string): boolean {
   } else if (newContentTrim == "struct") {
     context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct });
   } else if (newContentTrim == "record") {
-    context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: 0 });
-  } else if (newContentTrim == "table") {
-    context.morpthToSymbol({ type: StatementType.Data, rootTypeFlags: TypeFlag.IsArray });
+    context.morpthToSymbol({ type: StatementType.Value });
+  } else if (newContentTrim == "dataset") {
+    context.morpthToSymbol({ type: StatementType.Dataset });
   } else {
     return false;
   }

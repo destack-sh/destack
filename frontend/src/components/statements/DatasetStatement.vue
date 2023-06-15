@@ -682,7 +682,7 @@ defineExpose({
         v-if="!context.readonly.value"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
-        @click.stop="loadMore()"
+        @click.stop="insertRecordAtEnd()"
         @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
         @keydown.down.exact.prevent="context.navigateDown"
         :disabled="loading"
