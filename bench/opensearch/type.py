@@ -109,7 +109,7 @@ class Field:
     index: bool = None  # default: true
     store: bool = None  # default: true
     coerce: bool = None
-    dynamic: bool = None
+    dynamic: bool | typing.Literal["strict"] = None
     copy_to: list[str] = None
     ignore_malformed: bool = None
     ignore_above: int = None
@@ -286,14 +286,22 @@ def document(
                 continue
             fields.update(base.__fields__)
         # then convert the class to a dataclass
-        cls = dataclasses.dataclass(cls, repr=False, slots=True)
+        cls = dataclasses.dataclass(cls, repr=False)
         # then add the fields back
         cls.__fields__ = fields
         # add a partial class with all fields optional (copy and set fields with default None)
         partial_fields = {
             **{name: dataclasses.field(default=None) for name, field in fields.items()},
+            "id": dataclasses.field(default=None),
         }
-        partial_cls = type(cls.__name__ + "Partial", (object,), partial_fields)
+        partial_cls = type(cls.__name__ + "Partial", (cls,), partial_fields)
+        # copy all type annotations from the original class and its bases
+        for c in cls.__mro__[:-2]:  # skip object and Document
+            for name in fields:
+                if name in c.__annotations__:
+                    partial_cls.__annotations__[name] = c.__annotations__[name]
+        partial_cls.__annotations__["id"] = UUID
+        partial_cls = dataclasses.dataclass(partial_cls, repr=False)
         cls.Partial = partial_cls
         if _type is not None:
             cls.__type__ = _type
@@ -307,7 +315,7 @@ def document(
 
 
 if typing.TYPE_CHECKING:
-    document = dataclasses.dataclass  # type: ignore
+    document = dataclasses.dataclass  # noqa
 
 
 class Analyzer(enum.StrEnum):

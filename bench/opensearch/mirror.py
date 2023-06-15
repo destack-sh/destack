@@ -93,6 +93,7 @@ def packer(model_t: type[ModelT], mirror_t: type[MirrorT], data_t: Optional[type
         packer = cls()
         _packers_by_model[model_t] = packer
         _packers_by_mirror[mirror_t] = packer
+        _packers_by_mirror[mirror_t.Partial] = packer
         if data_t is not None:
             _packers_by_data[data_t] = packer
         return cls
@@ -280,7 +281,7 @@ class Statement(CrudThing, Revisioned, os.Document):
     description: Optional[str] = os.field(os.FT.TEXT)
     html: Optional[str] = HTML_FIELD
     code: Optional[str] = os.field(os.FT.TEXT)
-    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic=False)  # user defined
+    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
 
 
 @packer(models.Statement, Statement, wire.StatementData)
@@ -345,7 +346,7 @@ class Record(CrudThing, os.Document):
     order_key: str = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False)
-    data: dict = os.field(os.FT.OBJECT, dynamic=False)  # user defined
+    data: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     revision: Optional[int] = None  # set from OS-internal version on access
 
 
@@ -399,9 +400,9 @@ class Execution(os.Document):
     cached_duration: Optional[float] = os.field(os.FT.FLOAT)
     duration: Optional[float] = os.field(os.FT.FLOAT)
     status: str = os.field(os.FT.KEYWORD)
-    inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic=False)  # user defined
-    outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic=False)  # user defined
-    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic=False)  # user defined (mostly)
+    inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
+    outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
+    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly)
 
 
 @document(DocumentType.LOG_ENTRY)

@@ -6,7 +6,7 @@ import pytz
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID, PageInfo
+from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
@@ -20,7 +20,7 @@ from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
 from bench.opensearch.type import IndexType
-from bench.utils.fractional import SMALLEST_INTEGER, BIGGEST_INTEGER
+from bench.utils.fractional import BIGGEST_INTEGER, SMALLEST_INTEGER
 
 
 @gql.type
@@ -150,6 +150,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
+            statement_id=input.statement_id.node_id,
             data=input.data,
             updated_at=now,
             last_edited_at=now,
@@ -162,6 +163,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
+            statement_id=input.statement_id.node_id,
             order_key=input.order_key,
             updated_at=now,
             last_edited_at=now,
@@ -174,6 +176,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
+            statement_id=input.statement_id.node_id,
             deleted_at=now,
             updated_at=now,
         )
@@ -185,6 +188,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_dataset_access(info, input)
         record = mirror.Record.Partial(
             id=UUID(input.id.node_id),
+            statement_id=input.statement_id.node_id,
             deleted_at="-",  # invalid value to set to null
             updated_at=now,
         )
@@ -206,6 +210,7 @@ class DatasetMutation:
         records = [
             mirror.Record.Partial(
                 id=UUID(i.node_id),
+                statement_id=input.statement_id.node_id,
                 deleted_at=now,
                 updated_at=now,
             )
@@ -223,6 +228,7 @@ class DatasetMutation:
         records = [
             mirror.Record.Partial(
                 id=UUID(i.node_id),
+                statement_id=input.statement_id.node_id,
                 deleted_at="-",  # invalid value to set to null
                 updated_at=now,
             )

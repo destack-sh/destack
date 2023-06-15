@@ -10,8 +10,8 @@ from typing import Any, Optional
 from uuid import UUID
 
 from bench.bench import Module, StatementType, wire
-from bench.bench.type import ModuleNode
 from bench.bench.const import ModuleObjectType
+from bench.bench.type import ModuleNode
 from bench.bench.wire import (
     BASE_DATA_CLASS_BY_MOT,
     MOT_BY_DATA_CLASS,
