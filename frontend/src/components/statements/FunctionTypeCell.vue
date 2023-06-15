@@ -6,7 +6,7 @@ import { makeField, NAME_FIELD, useStatementContext } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
-import { ArrowLongRightIcon } from "@heroicons/vue/24/outline";
+import { ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -172,14 +172,14 @@ defineExpose({
         v-show="!context.readonly.value"
         tabindex="-1"
         ref="addInputRef"
-        class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('input')"
         @enter="insertBelow('input')"
         @keydown.up.exact.prevent="inputNodes.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
-        +input
+        <PlusIcon class="h-4 w-4" /> Input
       </button>
     </div>
     <!-- Lil' arrow -->
@@ -212,14 +212,14 @@ defineExpose({
         v-if="!context.readonly.value"
         tabindex="-1"
         ref="addOutputRef"
-        class="w-fit select-none rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="insertBelow('output')"
         @enter="insertBelow('output')"
         @keydown.up.exact.prevent="outputNodes.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.left.exact.prevent="addInputRef?.focus"
       >
-        +output
+        <PlusIcon class="h-4 w-4" /> Output
       </button>
     </div>
   </div>

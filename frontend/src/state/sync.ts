@@ -236,14 +236,7 @@ function useSyncedOps() {
           },
         });
       } else {
-        // clear all resolved fields
-        client.cache.modify({
-          fields: {
-            resolvedFields() {
-              return [];
-            },
-          },
-        });
+        // TODO @Broken: clear all resolved fields (cache.modify does not work as it needs an id)
       }
     } else if (mutation.type == ModuleMutationType.TruncateIssues) {
       if (mutation.statementId != null) {
@@ -256,21 +249,14 @@ function useSyncedOps() {
           },
         });
       } else {
-        // clear all issues
-        client.cache.modify({
-          fields: {
-            issues() {
-              return [];
-            },
-          },
-        });
+        // TODO @Broken: clear all issues (cache.modify does not work as it needs an id)
       }
     } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
       client.cache.modify({
         id: `Statement:${mutation.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
-            return [...existingResolvedFields, mutation.data];
+            return [...existingResolvedFields, mutation.data?.field];
           },
         },
       });

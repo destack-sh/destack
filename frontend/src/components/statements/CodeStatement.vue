@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
+import DeclarationCell from "@/components/statements/DeclarationCell.vue";
+import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import { useStatementContext } from "@/state/statement";
 import { useTimeFromNow } from "@/composables/useNow";
@@ -9,7 +9,7 @@ import { useExecutions } from "@/state/executions";
 import { computed, toRef, ref, type Ref } from "vue";
 import { newExecutionId, useSymbolOps } from "@/state/module";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
-import InlineActions from "@/components/cells/InlineActionsCell.vue";
+import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
@@ -235,15 +235,8 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1.5 mt-1 rounded-sm border border-orange-900 border-opacity-[15%] px-1.5 pb-1.5 pt-1 transition-colors duration-75"
+    class="-mx-1.5 mt-1 min-h-[32px] rounded-sm border border-orange-900 border-opacity-[15%] px-1.5 pb-1.5 pt-1 transition-colors duration-75"
   />
-  <button
-    v-if="code.length == 0"
-    class="absolute bottom-3 z-10 w-fit rounded-sm px-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
-    @click="monacoRef?.focus()"
-  >
-    +code
-  </button>
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
     v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"

@@ -10,7 +10,7 @@ import {
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { FieldType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { getSymbolSubtype, type InterpStatement } from "@/state/module";
+import { getSymbolSubtype, TypeFlag, useCurrentModule, type InterpStatement } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { INTEGER_ZERO } from "@/utils/fractional";
@@ -42,43 +42,9 @@ export function useStatementContext() {
 
   // state
 
+  const module = useCurrentModule();
   const statement = computed(() => useFragment(StatementContentType, context.statement.value));
   const file = computed(() => useFragment(FileHeaderType, context.file.value));
-
-  const rootTypeTag = computed(() => statement.value.rootTypeTag);
-  const fields = computed(
-    () =>
-      statement.value.fields
-        ?.map((n) => useFragment(FieldType, n))
-        .filter((n) => n.deletedAt == null)
-        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
-  );
-  const resolvedFields = computed(
-    () =>
-      statement.value.resolvedFields
-        ?.map((n) => useFragment(FieldType, n))
-        .filter((n) => n.deletedAt == null)
-        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
-  );
-  const fieldsByName = computed(() => {
-    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
-    for (const field of fields.value) {
-      if (field.name != null) {
-        fieldsByName[field.name] = field;
-      }
-    }
-    return fieldsByName;
-  });
-  const resolvedFieldsByName = computed(() => {
-    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
-    for (const field of resolvedFields.value) {
-      if (field.name != null) {
-        fieldsByName[field.name] = field;
-      }
-    }
-    return fieldsByName;
-  });
-
   const symbolSubtype: Ref<string | null> = computed(() => getSymbolSubtype(statement.value));
 
   // basic actions
@@ -182,7 +148,7 @@ export function useStatementContext() {
   }
 
   async function setStatementTypeEnum() {
-    // morphs to type symbol with an enum as head type node
+    // morphs to type symbol with an enum as head field
     await ops.statement.morph(
       null,
       statement.value.id,
@@ -247,16 +213,65 @@ export function useStatementContext() {
     });
   }
 
-  // type node helpers
+  // typing
+
+  const rootTypeTag = computed(() => statement.value.rootTypeTag);
+  const fields = computed(
+    () =>
+      statement.value.fields
+        ?.map((n) => useFragment(FieldType, n))
+        .filter((n) => n.deletedAt == null)
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+  );
+  const resolvedFields = computed(
+    () =>
+      statement.value.resolvedFields
+        ?.map((n) => useFragment(FieldType, n))
+        .filter((n) => n.deletedAt == null)
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+  );
+  const selfFields = computed(
+    () =>
+      fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => module.runtimeTypeOf(n as Field)) ?? []
+  );
+  const baseTypes = computed(
+    () => fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
+  );
+  const inheritedFields = computed(() => {
+    return (
+      resolvedFields.value
+        ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
+        .map((n) => module.runtimeTypeOf(n as Field) as Field) ?? []
+    );
+  });
+  const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
+  const fieldsByName = computed(() => {
+    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    for (const field of fields.value) {
+      if (field.name != null) {
+        fieldsByName[field.name] = field as any;
+      }
+    }
+    return fieldsByName;
+  });
+  const resolvedFieldsByName = computed(() => {
+    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    for (const field of resolvedFields.value) {
+      if (field.name != null) {
+        fieldsByName[field.name] = field as any;
+      }
+    }
+    return fieldsByName;
+  });
 
   async function createField(field: Field) {
     await ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
   }
 
-  async function updateField(field: Field, newField: Field) {
-    const oldField = fields.value?.find((n) => n.id == field.id);
+  async function updateField(oldField: { id?: string }, newField: Field) {
+    oldField = fields.value?.find((n) => n.id == oldField.id) as Field;
     if (!oldField) {
-      throw new Error("cannot update type node that doesn't exist");
+      throw new Error("cannot update field that doesn't exist");
     }
     newField = {
       ...oldField,
@@ -266,14 +281,14 @@ export function useStatementContext() {
       description: newField.description ?? oldField.description,
       reference: newField.reference,
       flags: newField.flags,
-    };
+    } as Field;
     await ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
   }
 
   async function moveField(field: Field, orderKey: string) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
-      throw new Error("cannot move type node that doesn't exist");
+      throw new Error("cannot move field that doesn't exist");
     }
     await ops.symbol.moveField(null, field.id, oldField.orderKey, orderKey);
   }
@@ -281,7 +296,7 @@ export function useStatementContext() {
   async function deleteField(field: { id: string }) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
-      throw new Error("cannot delete type node that doesn't exist");
+      throw new Error("cannot delete field that doesn't exist");
     }
     await ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField));
   }
@@ -289,6 +304,7 @@ export function useStatementContext() {
   // basic inline actions
   return {
     // state
+    module,
     statement,
     file,
     depth: context.depth,
@@ -299,10 +315,6 @@ export function useStatementContext() {
     typeRootTag: rootTypeTag,
     standalone: context.standalone,
     symbolSubtype,
-    fields,
-    fieldsByName,
-    resolvedFields,
-    resolvedFieldsByName,
     // actions
     actions,
     navigateUp,
@@ -318,14 +330,23 @@ export function useStatementContext() {
     syncName,
     syncCode,
     syncDescription,
-    createField,
-    updateField,
-    moveField,
-    deleteField,
     deleteSelf,
     tryDeleteLeft,
     insertAbove,
     insertBelow,
+    // typing
+    fields,
+    fieldsByName,
+    resolvedFields,
+    resolvedFieldsByName,
+    selfFields,
+    allFields,
+    inheritedFields,
+    baseTypes,
+    createField,
+    updateField,
+    moveField,
+    deleteField,
   };
 }
 

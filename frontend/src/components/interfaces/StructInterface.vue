@@ -80,7 +80,6 @@ const rowHeights = computed(() =>
 );
 </script>
 <template>
-  <!-- I'm not quite sure why w-fit is necessary here, but it overflows otherwise -->
   <table ref="gridRef" class="w-full table-fixed">
     <tr
       v-for="(field, y) in fields"
@@ -91,7 +90,7 @@ const rowHeights = computed(() =>
         <TypeTupleInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
-          readonly
+          :readonly="readonly ?? false"
           orientation="vertical"
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
@@ -112,8 +111,8 @@ const rowHeights = computed(() =>
           :model-value="readField(field.key as string)"
           @update:model-value="(val) => writeField(field.key as string, val)"
           :type="field"
-          :readonly="readonly"
-          :active="active"
+          :readonly="readonly ?? false"
+          :active="active ?? false"
           :debounced="debounced"
           :supports-drop="false"
           @delete-self="deleteField(field.key as string)"

@@ -1,7 +1,7 @@
 <script lang="ts" setup>
-import InlineActions from "@/components/cells/InlineActionsCell.vue";
-import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import FunctionTypeCell from "@/components/cells/FunctionTypeCell.vue";
+import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import DeclarationCell from "@/components/statements/DeclarationCell.vue";
+import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useStatementContext } from "@/state/statement";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";

@@ -1,25 +1,24 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import InlineActions from "@/components/cells/InlineActionsCell.vue";
-import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import { useElementRefs, useNavigationGrid } from "@/composables/useGrid";
-import TypeInterface from "@/components/interfaces/TypeInterface.vue";
+import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
+import { getInterface } from "@/components/inputs";
 import TypeTupleInterface from "@/components/interfaces/TypeTupleInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import EditableSpan from "@/components/basic/EditableSpan.vue";
-import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
-import { useMagicActions } from "@/state/file";
-import { getInterface } from "@/components/inputs";
-import { makeField, useStatementContext, type Field } from "@/state/statement";
+import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import { StatementType, TypeTag } from "@/gql/graphql";
+import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
+import { useMagicActions } from "@/state/file";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newDatasetRecordId, newFieldId, newFieldKey } from "@/state/operations/statement";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import {
   ArrowDownIcon,
@@ -38,7 +37,6 @@ const context = useStatementContext();
 const PAGE_SIZE = context.standalone.value ? 50 : 25;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
-const isTable = computed(() => context.statement.value.type == StatementType.Dataset);
 
 const appearance = useAppearance();
 const module = useCurrentModule();
@@ -52,9 +50,6 @@ context.syncDescription(
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
-const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
-const baseTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
-const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const {
   loading,
@@ -89,8 +84,8 @@ const {
   `),
   {
     statementId: computed(() => context.statement.value.id),
-    after: null,
-    first: !isTable.value ? 1 : PAGE_SIZE + 1, // overfetch by one to get order key for next page
+    after: null as string | null,
+    first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
 );
 const pageInfo = computed(() => fetchedRecords.value?.searchRecords.pageInfo);
@@ -106,7 +101,6 @@ const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.valu
 const overfetchedRecord = computed(() =>
   pageInfo.value?.hasNextPage ? fetchedRecords.value?.searchRecords.edges.slice(-1)[0]?.node : null
 );
-const mainRecord = computed(() => recordsInView.value?.[0]);
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
@@ -118,55 +112,19 @@ function loadMore() {
   });
 }
 
-// typing
-const selfFields = computed(
-  () =>
-    context.fields.value
-      ?.filter((n) => !(n.flags & TypeFlag.IsUnionWith))
-      .map((n) => module.runtimeTypeOf(n as Field)) ?? []
-);
-const baseTypes = computed(
-  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
-);
-const inheritedFields = computed(() => {
-  return (
-    context.resolvedFields.value
-      ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
-      .map((n) => module.runtimeTypeOf(n as Field) as Field) ?? []
-  );
-});
-const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
-
 // grid & grid sizing
 
-const columnsInOrder: Ref<string[]> = computed(() => {
-  if (isTable.value) {
-    return allFields.value?.map((n) => n.key ?? "") ?? [];
-  } else {
-    return ["type", "value"];
-  }
-});
-const rowIdsInOrder: Ref<string[]> = computed(() => {
-  if (isTable.value) {
-    return recordsInView.value?.map((r) => r.id) ?? [];
-  } else {
-    return allFields.value?.map((n) => n.id ?? "") ?? [];
-  }
-});
+const columnsInOrder: Ref<string[]> = computed(() => context.allFields.value?.map((n) => n.key ?? "") ?? []);
+const rowIdsInOrder: Ref<string[]> = computed(() => recordsInView.value?.map((r) => r.id) ?? []);
 const grid = useNavigationGrid<string, InstanceType<typeof TypeTupleInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
   computed(() => {
-    if (isTable.value) {
-      // one row for fields, then values
-      return [{ id: "" }, ...recordsInView.value];
-    } else {
-      // one row for every field
-      return allFields.value;
-    }
+    // one row for fields, then values
+    return [{ id: "" }, ...recordsInView.value];
   }),
   {
     gridNavigateUp: focusDescriptionFromBottom,
-    gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value ?? addFieldRef.value)?.focus(),
+    gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
   }
 );
 
@@ -196,7 +154,7 @@ watch(
     editorView.editor.value.contentMarginX,
     context.xOffset,
     editorView.size.value,
-    allFields.value,
+    context.allFields.value,
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
@@ -208,12 +166,12 @@ watch(
       ) -
       context.xOffset.value -
       8; // not sure why -8, probably some mx-1? borders?
-    const ifaces = allFields.value.map((f) => getInterface(f));
+    const ifaces = context.allFields.value.map((f) => getInterface(f));
     // init width to minimum widths as min(header, iface_min)
     const widths: number[] = [];
-    for (let i = 0; i < allFields.value.length; i++) {
+    for (let i = 0; i < context.allFields.value.length; i++) {
       const iface = ifaces[i];
-      const headerWidth = (grid.getRef("", allFields.value[i].key ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
+      const headerWidth = (grid.getRef("", context.allFields.value[i].key ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
       widths.push(minWidth);
     }
@@ -265,14 +223,9 @@ useActiveScroll(gridRef);
 onStartTyping((e) => {
   if (context.readonly.value) return;
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
-  if (cell != null && cell.rowId != "" && cell.rowId != "type") {
-    if (isTable.value) {
-      const field = allFields.value.find((f) => f.key == cell.column);
-      deleteRecordField(cell.rowId, field?.key as string);
-    } else {
-      const field = allFields.value.find((f) => f.id == cell.rowId);
-      deleteRecordField(mainRecord.value.id, field?.key as string);
-    }
+  if (cell != null && cell.rowId != "") {
+    const field = context.allFields.value.find((f) => f.key == cell.column);
+    deleteRecordField(cell.rowId, field?.key as string);
     nextTick(() => cell.ref.edit?.());
   }
 });
@@ -305,7 +258,7 @@ function focusFirstRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(0, columnsInOrder.value[0]);
   } else {
-    (addRecordRef.value ?? addFieldRef.value)?.focus();
+    addRecordRef.value?.focus();
   }
 }
 
@@ -328,18 +281,14 @@ function insertField(isUnionWith?: boolean) {
   );
   if (!isUnionWith) {
     const field = makeField({
-      name: "field " + selfFields.value?.length,
+      name: "field " + context.selfFields.value?.length,
       tag: TypeTag.String,
       orderKey: nextOrderKey,
       flags: TypeFlag.IsNullable, // :DefaultTypeOptional
     });
     grid.beginBatchChange();
     context.createField(field);
-    if (isTable.value) {
-      nextTick(() => (grid.flush(), grid.focus("", field.key)));
-    } else {
-      nextTick(() => (grid.flush(), grid.focus(field.id, "type")));
-    }
+    nextTick(() => (grid.flush(), grid.focus("", field.key)));
   } else {
     context.createField(
       makeField({
@@ -349,16 +298,19 @@ function insertField(isUnionWith?: boolean) {
         flags: TypeFlag.IsUnionWith,
       })
     );
-    nextTick(() => baseTypesRefs.focus(baseTypes.value.slice(-1)[0].id));
+    nextTick(() => declarationRef.value?.focusLastBase());
   }
 }
 
 function duplicateField(fieldId: string) {
   // :DuplicateField
-  const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
+  const fieldIdx = context.selfFields.value?.findIndex((m) => m.id === fieldId);
   if (fieldIdx < 0) return;
-  const field = selfFields.value?.[fieldIdx];
-  const orderKey = generateKeyBetween(field?.orderKey ?? null, selfFields.value?.[fieldIdx + 1]?.orderKey ?? null);
+  const field = context.selfFields.value?.[fieldIdx];
+  const orderKey = generateKeyBetween(
+    field?.orderKey ?? null,
+    context.selfFields.value?.[fieldIdx + 1]?.orderKey ?? null
+  );
   // "name" => "name 2", "name 2" => "name 3", etc.
   const newName =
     field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
@@ -371,11 +323,7 @@ function duplicateField(fieldId: string) {
     referenceId: field.reference?.id,
   };
   context.createField(newFieldNode);
-  if (isTable.value) {
-    nextTick(() => grid.focus("", newFieldNode.key ?? ""));
-  } else {
-    nextTick(() => grid.focus(newFieldNode.id, "type"));
-  }
+  nextTick(() => grid.focus("", newFieldNode.key ?? ""));
 }
 
 function updateFieldType(key: string, changed: Field) {
@@ -386,7 +334,7 @@ function updateFieldType(key: string, changed: Field) {
 }
 
 function deleteField(node: Field) {
-  const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
+  const fieldIdx = context.selfFields.value?.findIndex((n) => n.id === node.id);
   grid.beginBatchChange();
   context.deleteField(node);
   grid.focus(fieldIdx - 1, "name");
@@ -394,26 +342,22 @@ function deleteField(node: Field) {
 }
 
 function moveField(node: Field, position: "before" | "after", other: Field) {
-  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
+  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
-    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
     context.moveField(node, orderKey);
   } else {
-    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
     context.moveField(node, orderKey);
   }
 }
 
 function dropField(droppedId: string, position: "above" | "below" | "right" | "left", fieldId: string) {
-  const dropped = selfFields.value.find((n) => n.id == droppedId);
-  const field = selfFields.value.find((n) => n.id == fieldId);
+  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
+  const field = context.selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
-  if (isTable.value) {
-    nextTick(() => grid.focus("", dropped.key ?? ""));
-  } else {
-    nextTick(() => grid.focus(dropped.id, "type"));
-  }
+  nextTick(() => grid.focus("", dropped.key ?? ""));
 }
 
 function getNewOrderKey(belowRecordId?: string) {
@@ -451,7 +395,6 @@ function deleteRecordField(recordId: string, key: string) {
 }
 
 function deleteRecord(recordId: string) {
-  if (!isTable.value) return; // can't delete the main record
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, context.statement.value.id, recordId);
@@ -481,31 +424,28 @@ const position = useMouseInElement(gridRef);
 
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
-  if (isTable.value) {
-    if ((fetchedRecords?.value?.searchRecords.totalCount ?? -1) == -1) {
-      actions.push({
-        label: "Reload view",
-        icon: ArrowPathIcon,
-        active: loading.value,
-        action: () => refetch(),
-      });
-    }
+  if ((fetchedRecords?.value?.searchRecords.totalCount ?? -1) == -1) {
     actions.push({
-      label: "Add record",
-      icon: PlusIcon,
-      action: () => insertRecordAtEnd(),
+      label: "Reload view",
+      icon: ArrowPathIcon,
+      active: loading.value,
+      action: () => refetch(),
     });
   }
   actions.push({
-    label: "Extend type",
-    icon: CubeTransparentIcon,
-    action: () => insertField(true),
-    hideInline: true,
+    label: "Add record",
+    icon: PlusIcon,
+    action: () => insertRecordAtEnd(),
   });
   actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
     action: () => insertField(),
+  });
+  actions.push({
+    label: "Include type",
+    icon: CubeTransparentIcon,
+    action: () => insertField(true),
   });
   return actions;
 });
@@ -528,14 +468,13 @@ defineExpose({
     if (position == "first") {
       declarationRef.value?.focus();
     } else {
-      (loadMoreRef.value ?? addRecordRef.value ?? addFieldRef.value)?.focus();
+      (loadMoreRef.value ?? addRecordRef.value)?.focus();
     }
   },
   blur: () => {
     declarationRef.value?.blur();
     descriptionRef.value?.blur();
     addRecordRef.value?.blur();
-    addFieldRef.value?.blur();
     grid.blur();
   },
   // prevent outer drag and drop while inside grid
@@ -546,76 +485,19 @@ defineExpose({
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
     <div class="flex flex-row items-baseline">
-      <DeclarationCell
+      <TypedDeclarationCell
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
-        @navigate-right="baseTypes.length > 0 ? baseTypesRefs.focus(baseTypes[0].id) : extendButtonRef?.focus()"
+        @navigate-up="context.navigateUp"
+        @add-base="insertField(true)"
       />
-      <!-- Base types -->
-      <div class="ml-1 whitespace-nowrap" v-if="(baseTypes?.length ?? 0) > 0">
-        <span class="mr-1 text-orange-600">has</span>
-        <div class="inline-flex flex-row gap-x-1">
-          <TypeInterface
-            v-for="field of baseTypes"
-            :ref="(el: any) => baseTypesRefs.registerRef(field.id, el)"
-            :model-value="field"
-            @update:model-value="(val) => context.updateField(field, val)"
-            @delete-self="context.deleteField(field)"
-            @navigate-left="
-              field.id == baseTypes[0].id
-                ? declarationRef?.focus()
-                : baseTypesRefs.focus(baseTypes[baseTypes.findIndex((n) => n.id == field.id) - 1].id)
-            "
-            @navigate-right="
-              field.id == baseTypes[baseTypes.length - 1].id
-                ? extendButtonRef?.focus()
-                : baseTypesRefs.focus(baseTypes[baseTypes.findIndex((n) => n.id == field.id) + 1].id)
-            "
-            @navigate-down="focusDescriptionFromTop"
-            @navigate-up="context.navigateUp"
-            :active="context.focused.value || context.editing.value"
-            :key="field.id"
-            :readonly="context.readonly.value"
-            structref-only
-            hide-flags
-            hide-icon
-            class="w-full rounded-sm border border-transparent border-opacity-[15%] focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"
-          />
-        </div>
-      </div>
-      <!-- Inline buttons -->
-      <button
-        v-if="!context.readonly.value && (baseTypes?.length ?? 0) <= 1"
-        ref="extendButtonRef"
-        @keydown.down.exact.prevent="focusDescriptionFromTop"
-        @keydown.up.exact.prevent="context.navigateUp"
-        @keydown.left.exact.prevent="
-          baseTypes.length > 0 ? baseTypesRefs.focus(baseTypes[0].id) : declarationRef?.focus()
-        "
-        tabindex="-1"
-        @click="() => insertField(true)"
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
-      >
-        +type
-      </button>
-      <button
-        tabindex="-1"
-        v-if="description.length == 0 && !context.readonly.value && !addingDescription"
-        @click="
-          addingDescription = true;
-          descriptionRef?.focus();
-        "
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
-      >
-        +description
-      </button>
     </div>
     <div
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
       <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
-      <span v-if="(fetchedRecords?.searchRecords.totalCount ?? -1) > 0 && isTable" class="text-gray-400">
+      <span v-if="(fetchedRecords?.searchRecords.totalCount ?? -1) > 0" class="text-gray-400">
         {{ humanizeNumber(fetchedRecords?.searchRecords.totalCount ?? 0) }}
       </span>
       <InlineActions :extraActions="extraStatementActions" />
@@ -643,7 +525,6 @@ defineExpose({
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div
-    v-if="isTable"
     ref="gridRef"
     class="overflow-x-auto"
     :style="{
@@ -664,6 +545,7 @@ defineExpose({
       ></div>
       <!-- Header (with types) -->
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
+      <!-- TODO @Broken: header pokes out of containing editor view (because it's fixed) -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
         :style="{
@@ -675,14 +557,16 @@ defineExpose({
           top: headerOffsetY == 0 ? undefined : editorView.pos.value.top + appearance.editorHeaderHeight + 'px',
         }"
       >
-        <div v-for="(field, x) in allFields" :key="field?.id" class="">
+        <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
           <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
             <TypeTupleInterface
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
-              :readonly="context.readonly.value || inheritedFields.find((n) => n.key == field.key) != null"
-              :inlined="inheritedFields.find((n) => n.key == field.key) != null"
+              :readonly="
+                context.readonly.value || context.inheritedFields.value.find((n) => n.key == field.key) != null
+              "
+              :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
@@ -742,7 +626,7 @@ defineExpose({
         </div>
         <!-- Record values -->
         <div
-          v-for="(field, x) in allFields"
+          v-for="(field, x) in context.allFields.value"
           :key="record.id + '.' + field?.id"
           class="h-full overflow-hidden"
           :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
@@ -775,7 +659,7 @@ defineExpose({
       <!-- Bottom actions -->
       <!-- Load more/loading -->
       <button
-        v-if="pageInfo?.hasNextPage && isTable"
+        v-if="pageInfo?.hasNextPage"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="loadMore()"
@@ -795,7 +679,7 @@ defineExpose({
       </button>
       <!-- Insert button -->
       <button
-        v-if="!context.readonly.value && isTable"
+        v-if="!context.readonly.value"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="loadMore()"
@@ -808,59 +692,4 @@ defineExpose({
       </button>
     </div>
   </div>
-  <!-- Single value (vertical) -->
-  <table ref="gridRef" v-else class="-mx-1 w-full table-fixed">
-    <!-- TODO @Cleanup: restructure table/value views to reduce duplication, move into value cell -->
-    <tr
-      v-for="(field, y) in allFields"
-      :key="field.id"
-      :class="[y < allFields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
-    >
-      <td class="w-1/4">
-        <TypeTupleInterface
-          :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
-          :type="field"
-          :readonly="context.readonly.value || inheritedFields.find((n) => n.key == field.key) != null"
-          :inlined="inheritedFields.find((n) => n.key == field.key) != null"
-          orientation="vertical"
-          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-          :model-value="field"
-          @update:model-value="(node: any) => updateFieldType(field.key, node)"
-          @navigate-up="grid.navigateUp(field?.id, 'type')"
-          @navigate-down="grid.navigateDown(field?.id, 'type')"
-          @navigate-right="grid.navigateRight(field?.id, 'type')"
-          @navigate-left="grid.navigateLeft(field?.id, 'type')"
-          @delete-self="deleteField(field)"
-          @duplicate-self="duplicateField(field.id)"
-          @drop="(p, v) => dropField(v.id, p, field.id)"
-          :style="{
-            minHeight: minRowHeight + 'px',
-            height: rowHeights[y] + rowPadding * 2 + 'px',
-          }"
-        />
-      </td>
-      <!-- main record should always exist but just in case? -->
-      <td v-if="mainRecord">
-        <ValueInterface
-          :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
-          :model-value="mainRecord.data?.[field.key as string]"
-          @update:model-value="(val) => writeRecordField(mainRecord.id, field.key as string, val)"
-          :type="field"
-          :readonly="context.readonly.value"
-          :active="context.editing.value || context.focused.value"
-          debounced
-          :supports-drop="!context.readonly.value"
-          @drop-files="(p, v) => onDropFiles(mainRecord.id, field.key as string, p, v)"
-          @delete-self="deleteRecordField(mainRecord.id, field.key as string)"
-          @navigate-up="grid.navigateUp(field.id, 'value')"
-          @navigate-down="grid.navigateDown(field.id, 'value')"
-          @navigate-right="grid.navigateRight(field.id, 'value')"
-          @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="h-full w-full self-start overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-          :class="[verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
-          :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
-        />
-      </td>
-    </tr>
-  </table>
 </template>

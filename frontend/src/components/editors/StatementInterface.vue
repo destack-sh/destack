@@ -1,21 +1,21 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
-import CodeDefinitionCell from "@/components/cells/CodeDefinitionCell.vue";
-import CommentCell from "@/components/cells/CommentCell.vue";
-import DataDefinitionCell from "@/components/cells/DataDefinitionCell.vue";
-import DeclarationCell from "@/components/cells/DeclarationCell.vue";
-import ProtoCell from "@/components/cells/ProtoCell.vue";
-import TaskDefinitionCell from "@/components/cells/TaskDefinitionCell.vue";
-import TypeDefinitionCell from "@/components/cells/TypeDefinitionCell.vue";
+import BlankStatement from "@/components/statements/BlankStatement.vue";
+import CodeStatement from "@/components/statements/CodeStatement.vue";
+import DatasetStatement from "@/components/statements/DatasetStatement.vue";
+import DeclarationCell from "@/components/statements/DeclarationCell.vue";
+import TaskStatement from "@/components/statements/TaskStatement.vue";
+import TextStatement from "@/components/statements/TextStatement.vue";
+import TypeStatement from "@/components/statements/TypeStatement.vue";
+import ValueStatement from "@/components/statements/ValueStatement.vue";
 import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { getClientColor, useCurrentClients } from "@/state/client";
 import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { useCurrentModule } from "@/state/module";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
@@ -28,7 +28,6 @@ import {
 } from "@heroicons/vue/24/outline";
 import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
-import { useCurrentModule } from "@/state/module";
 
 const props = defineProps<{
   file: FragmentType<typeof FileHeaderType>;
@@ -54,7 +53,7 @@ const isActive = computed(() => props.standalone || nav?.value.editor.activeStat
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value.editor.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value.editor.editing));
 const isSelected = computed(() => nav?.value.editor.isSelected(statement.value));
-const isComment = computed(() => statement.value?.type == StatementType.Comment);
+const isComment = computed(() => statement.value?.type == StatementType.Text);
 const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
@@ -99,37 +98,41 @@ type Cell = {
 };
 
 const rootCell: Ref<Cell> = computed(() => {
-  if (statement.value.type == StatementType.Comment) {
+  if (statement.value.type == StatementType.Text) {
     return {
-      component: CommentCell,
+      component: TextStatement,
     };
   } else if (statement.value.type == StatementType.Type) {
     return {
-      component: TypeDefinitionCell,
+      component: TypeStatement,
     };
   } else if (statement.value.type == StatementType.Task) {
     return {
-      component: TaskDefinitionCell,
+      component: TaskStatement,
       props: { isTyped: true },
     };
   } else if (statement.value.type == StatementType.Expectation) {
     return {
-      component: TaskDefinitionCell,
+      component: TaskStatement,
       props: { isTyped: false },
     };
   } else if (statement.value.type == StatementType.Code) {
     return {
-      component: CodeDefinitionCell,
+      component: CodeStatement,
     };
-  } else if (statement.value.type == StatementType.Dataset || statement.value.type == StatementType.Value) {
+  } else if (statement.value.type == StatementType.Dataset) {
     return {
-      component: DataDefinitionCell,
+      component: DatasetStatement,
+    };
+  } else if (statement.value.type == StatementType.Value) {
+    return {
+      component: ValueStatement,
     };
   }
 
-  // default to empty cell
+  // default to blank cell
   return {
-    component: ProtoCell,
+    component: BlankStatement,
     props: { showDots: true },
   };
 });

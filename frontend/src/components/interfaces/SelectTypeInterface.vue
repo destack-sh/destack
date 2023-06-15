@@ -264,7 +264,7 @@ defineExpose({
     />
     <ComboboxOptions
       ref="optionsRef"
-      class="mt-1 max-h-48 w-60 overflow-auto"
+      class="mt-1 max-h-48 overflow-auto"
       static
       :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
     >
@@ -277,7 +277,7 @@ defineExpose({
       >
         <li
           :class="[
-            'relative cursor-default select-none px-1 py-1 text-gray-900',
+            'relative cursor-default select-none px-1 py-[3px] text-gray-900',
             active ? 'bg-orange-100' : '',
             selected ? 'text-orange-600' : '',
           ]"
@@ -286,7 +286,7 @@ defineExpose({
             <TypePreview :type="node" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ node.primitive ? "(builtin)" : module.fileOf(node.reference)?.path }}
+              {{ node.reference == null ? "(builtin)" : module.fileOf(node.reference)?.path }}
             </span>
           </div>
         </li>

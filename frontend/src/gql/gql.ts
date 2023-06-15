@@ -19,8 +19,6 @@ const documents = {
     types.ExistingProjectVersionTagDocument,
   "\n    query notifications($status: NotificationStatus, $notArchived: Boolean, $first: Int) {\n      me {\n        id\n        notifications(filters: { status: $status, notArchived: $notArchived }, first: $first) {\n          totalCount\n          edges {\n            node {\n              id\n              type\n              createdAt\n              readAt\n              archivedAt\n              expiresAt\n              status\n              invite {\n                id\n                organization {\n                  id\n                  slug\n                  name\n                }\n                level\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
     types.NotificationsDocument,
-  "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  ":
-    types.SearchRecordsDocument,
   "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  ":
     types.EmptyEditorSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        id\n        projectVersion {\n          id\n        }\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n      }\n    }\n  ":
@@ -41,6 +39,8 @@ const documents = {
     types.UpdateOrganizationDocument,
   "\n    mutation updateUser($id: GlobalID!, $name: String!, $description: String!) {\n      updateUser(input: { id: $id, name: $name, description: $description }) {\n        ... on User {\n          id\n          name\n          description\n        }\n        ...OperationInfoContent\n      }\n    }\n  ":
     types.UpdateUserDocument,
+  "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  ":
+    types.SearchRecordsDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        head {\n          ...ProjectVersionHeader\n        }\n        versions {\n          totalCount\n          edges {\n            node {\n              ...ProjectVersionHeader\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n      query checkOwnerBySlug($slug: String!) {\n        ownerBySlug(slug: $slug) {\n          ... on Organization {\n            id\n          }\n          ... on User {\n            id\n          }\n        }\n      }\n    ":
@@ -273,12 +273,6 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
   source: "\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }, last: $last) {\n          totalCount\n          edges {\n            node {\n              id\n              name\n              path\n              deletedAt\n              directory\n            }\n          }\n        }\n      }\n    }\n  "];
 /**
@@ -335,6 +329,12 @@ export function graphql(
 export function graphql(
   source: "\n    mutation updateUser($id: GlobalID!, $name: String!, $description: String!) {\n      updateUser(input: { id: $id, name: $name, description: $description }) {\n        ... on User {\n          id\n          name\n          description\n        }\n        ...OperationInfoContent\n      }\n    }\n  "
 ): typeof documents["\n    mutation updateUser($id: GlobalID!, $name: String!, $description: String!) {\n      updateUser(input: { id: $id, name: $name, description: $description }) {\n        ... on User {\n          id\n          name\n          description\n        }\n        ...OperationInfoContent\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
