@@ -31,7 +31,7 @@ from bench.bench.const import (
     parse_statement_path,
 )
 from bench.bench.dataset import Query, Sort
-from bench.bench.issue import IssueHandler, raise_if_error
+from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind
 from bench.bench.parse import parse_code
 from bench.settings import logging
 from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
@@ -102,6 +102,33 @@ class HasSession(abc.ABC):
         return self.session.logger
 
 
+@node
+class HasIssues(abc.ABC):
+    issues: list[Issue] | None = field(default_factory=list)
+
+    @property
+    def errors(self) -> list[Issue]:
+        if self.issues is None:
+            return []
+        return [i for i in self.issues if i.kind == IssueKind.ERROR]
+
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Symbol", "Statement", "File", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        if issue is None:
+            issue = Issue(type=type, subject=subject, **kwargs)
+        if self.issues is None:
+            self.issues = []
+        self.issues.append(issue)
+        if self.parent is not None:
+            self.parent._on_issue(issue)
+
+
 SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
 
 
@@ -162,10 +189,10 @@ class Scope:
             return None
         return scope.lookup_symbol(path, symbol_t=symbol_t)
 
-    def add_statement(self, statement: Statement, by_name: bool, on_issue: IssueHandler) -> None:
+    def _add_statement(self, statement: Statement, by_name: bool) -> None:
         if statement.name is not None and by_name:
             if statement.name in self.scopes_by_name:
-                on_issue(
+                self._on_issue(
                     type=IssueType.AMBIGUOUS_DEFINITION, subject=statement, path=statement.path
                 )
             else:
@@ -186,7 +213,7 @@ class Scope:
 
 
 @node
-class Module(ModuleNode, HasSession, Scope):
+class Module(ModuleNode, HasSession, HasIssues, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
@@ -221,22 +248,22 @@ class Module(ModuleNode, HasSession, Scope):
     def __repr__(self):
         return f"<Module {str(self)}>"
 
-    def index(self, on_issue: IssueHandler = raise_if_error):
+    def index(self):
         for file in self.files:
-            file.index(on_issue=on_issue)
+            file._index()
             if file.name in self.scopes_by_name:
-                on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.name)
+                self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.name)
             else:
                 self.scopes_by_name[file.name] = file
             self.symbols_by_id.update(file.symbols_by_id)
 
-    def interp(self, on_issue: IssueHandler = raise_if_error):
+    def interp(self):
         for file in self.files:
-            file.interp(on_issue=on_issue)
+            file._interp()
 
 
 @node
-class File(ModuleNode, HasSession, Scope):
+class File(ModuleNode, HasSession, HasIssues, Scope):
     module: Module = required_field()
     name: str = required_field()
     parent: File | Module = None
@@ -292,22 +319,22 @@ class File(ModuleNode, HasSession, Scope):
 
         self.statements = sorted_statements
 
-    def index(self, on_issue: IssueHandler = raise_if_error):
+    def _index(self):
         """Indexes all statements in this file into the scope."""
         self._clear()
         self._sort()
         for statement in self.statements:
-            statement._index(on_issue=on_issue)
+            statement._index()
             is_root = statement.parent == self
-            self.add_statement(statement, by_name=is_root, on_issue=on_issue)
+            self._add_statement(statement, by_name=is_root)
 
-    def interp(self, on_issue: IssueHandler = raise_if_error):
+    def _interp(self):
         for statement in self.statements:
-            statement._interp(statement, on_issue=on_issue)
+            statement._interp(statement)
 
 
 @node
-class Statement(ModuleNode, HasSession, Scope):
+class Statement(ModuleNode, HasSession, HasIssues, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
     file: File | None = None
@@ -368,15 +395,15 @@ class Statement(ModuleNode, HasSession, Scope):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent else None
 
-    def _index(self, on_issue: IssueHandler = raise_if_error):
+    def _index(self):
         self._clear()
         self.children = self.file.statements_by_parent_id.get(self.id, [])
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
-            self.add_statement(child, by_name=True, on_issue=on_issue)
+            self._add_statement(child, by_name=True)
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _interp(self, scope: Scope) -> None:
         pass
 
 
@@ -409,31 +436,38 @@ class SymbolBase(abc.ABC):
     parent: Statement | File
     session: Session
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _clear(self) -> None:
         raise NotImplementedError
 
-    def _clear_interp(self) -> None:
+    def _interp(self, scope: Scope) -> None:
         raise NotImplementedError
 
-    def _reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
+    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
         raise NotImplementedError
+
+    _on_issue: IssueHandler
 
 
 @node
 class Symbol(Statement, SymbolBase):
     """An interpretable and semantic statement (symbol) in Bench source."""
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        """Updates, resolves and checks any derived/interpreted values on this symbol."""
-        raise NotImplementedError
+    issues: list[Issue] | None = None
 
-    def _clear_interp(self) -> None:
+    def _clear(self) -> None:
         """Clears any derived/interpreted values on this symbol."""
-        raise NotImplementedError
+        Statement._clear(self)
+        self.issues = None
 
-    def _reinterp(self, scope: Scope = None, on_issue: IssueHandler = raise_if_error) -> None:
-        self._clear_interp()
-        self._interp(scope or self, on_issue=on_issue)
+    def _interp(self, scope: Scope) -> None:
+        """Updates, resolves and checks any derived/interpreted values on this symbol."""
+        pass
+
+    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
+        self._clear()
+        self._interp(scope or self)
+        if raise_errors and self.errors:
+            raise BenchError(self.errors[0])
 
 
 class TypeBase(abc.ABC):
@@ -588,7 +622,10 @@ class HasExpectations(SymbolBase, IsExpectable):
         # same
         raise NotImplementedError
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _clear(self) -> None:
+        self.resolved_expectations = None
+
+    def _interp(self, scope: Scope) -> None:
         if self.resolved_expectations is not None:
             return
         resolved_expectations = [*self.expectations]
@@ -598,9 +635,6 @@ class HasExpectations(SymbolBase, IsExpectable):
                 if isinstance(base.reference, HasExpectations):
                     resolved_expectations.extend(base.reference.expectations)
         self.resolved_expectations = resolved_expectations
-
-    def _clear_interp(self) -> None:
-        self.resolved_expectations = None
 
 
 @node
@@ -615,24 +649,25 @@ class HasType(TypeBase, SymbolBase):
     key: str = None
     reference = None
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _clear(self) -> None:
+        self.resolved_fields = None
+
+    def _interp(self, scope: Scope) -> None:
         # resolve references
         for node in self.walk():
             if node.reference is None or isinstance(node.reference, Symbol):
                 continue  # nothing to resolve
             # normalize path to statement
             symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
-            if symbol is None:
-                continue  # error already reported
             if not isinstance(symbol, TypeBase):
-                on_issue(type=IssueType.MISSING_REFERENCE, symbol=node, reference=node.reference)
+                self._on_issue(
+                    type=IssueType.MISSING_REFERENCE, subject=self, reference=node.reference
+                )
+                continue
             node.reference = symbol
 
         # expand unions (recursively)
-        Type._resolve_unions(self, [], on_issue)
-
-    def _clear_interp(self) -> None:
-        self.resolved_fields = None
+        Type._resolve_unions(self, [])
 
     def extend_type(self, *bases: Type) -> "Self":
         """Adds the fields of another type to this one"""
@@ -664,10 +699,14 @@ class HasType(TypeBase, SymbolBase):
         return self
 
     @staticmethod
-    def _resolve_unions(type: Type, path: list[TypeBase], on_issue: IssueHandler) -> None:
+    def _resolve_unions(type: Type, path: list[TypeBase]) -> None:
         if any(n.id == type.id for n in path):
-            path = "->".join(str(n) for n in path + [type])
-            on_issue(type=IssueType.CIRCULAR_UNION, subject=type, path=path)
+            type._on_issue(
+                type=IssueType.CIRCULAR_UNION,
+                subject=type,
+                path="->".join(str(n) for n in path + [type]),
+            )
+            return  # circular
         if type.resolved_fields is not None:
             return  # already resolved
         if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
@@ -683,7 +722,9 @@ class HasType(TypeBase, SymbolBase):
             if not isinstance(maybe_union.reference, Type):
                 continue  # ignore unresolved
             # inline child's type nodes
-            Type._resolve_unions(maybe_union.reference, path, on_issue)
+            Type._resolve_unions(maybe_union.reference, path)
+            if not maybe_union.reference.resolved_fields:
+                continue  # couldn't resolve
             for child in maybe_union.reference.resolved_fields:
                 existing = first((n for n in resolved_fields if n.name == child.name), None)
                 # check if type is compatible if overlapping
@@ -693,11 +734,17 @@ class HasType(TypeBase, SymbolBase):
                     or existing.hint != child.hint
                 ):
                     # TODO @Robustness: check union type compatibility properly/deeply
-                    path = "->".join(str(n) for n in path)
-                    on_issue(type=IssueType.MISMATCHED_UNION, symbol=type, path=path)
+                    type._on_issue(
+                        type=IssueType.MISMATCHED_UNION,
+                        subject=type,
+                        path="->".join(str(n) for n in path),
+                    )
                     continue
                 resolved = ResolvedField(
-                    id=uuid.uuid5(child.id, type.id.hex), parent=type, field=child, **child.__dict__
+                    id=uuid.uuid5(child.id, type.id.hex),
+                    parent=type,
+                    field=child,
+                    **dict_minus(child.__dict__, ("id", "field", "parent")),
                 )
                 resolved_fields.append(resolved)
         type.resolved_fields = resolved_fields
@@ -717,13 +764,14 @@ class Type(Symbol, HasType, HasExpectations):
     def py_type(self) -> type | enum.Enum:
         return self.session.instance.get_py_type(self)
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasType._interp(self, scope, on_issue)
-        HasExpectations._interp(self, scope, on_issue)
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasType._clear(self)
+        HasExpectations._clear(self)
 
-    def _clear_interp(self) -> None:
-        HasType._clear_interp(self)
-        HasExpectations._clear_interp(self)
+    def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
+        HasExpectations._interp(self, scope)
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
@@ -752,13 +800,14 @@ class Task(Symbol, HasType, HasExpectations):
     # should probably store last good implementation ... in redis?
     last_good_impl_idx: int = 0
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasType._interp(self, scope, on_issue)
-        HasExpectations._interp(self, scope, on_issue)
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasType._clear(self)
+        HasExpectations._clear(self)
 
-    def _clear_interp(self) -> None:
-        HasType._clear_interp(self)
-        HasExpectations._clear_interp(self)
+    def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
+        HasExpectations._interp(self, scope)
 
     async def __call__(
         self,
@@ -827,21 +876,24 @@ class Expectation(Symbol, HasExpectations):
     reference: StatementReference | Statement | None = None
     description: Optional[str] = None
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _interp(self, scope: Scope) -> None:
         # resolve reference
         if self.reference is not None:
             resolved = scope.lookup_symbol(self.reference)
             if resolved is None:
-                on_issue(type=IssueType.MISSING_REFERENCE, reference=self.reference, subject=self)
+                self._on_issue(
+                    type=IssueType.MISSING_REFERENCE, reference=self.reference, subject=self
+                )
             else:
                 self.reference = resolved
         # interp
-        HasExpectations._interp(self, scope, on_issue)
+        HasExpectations._interp(self, scope)
         if isinstance(self.reference, HasExpectations):
             self.resolved_expectations.extend(self.reference.expectations)
 
-    def _clear_interp(self) -> None:
-        HasExpectations._clear_interp(self)
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasExpectations._clear(self)
 
 
 @node
@@ -868,32 +920,34 @@ class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
     code: Optional[str] = None
-    parse: Optional[CodeParse] = None
-    references: dict[str, Symbol] | None = field(default_factory=dict)
-    transform: Optional[CodeTransformation] = None
+    _parse: Optional[CodeParse] = None
+    _references: dict[str, Symbol] | None = None
+    _transform: Optional[CodeTransformation] = None
     _code_callable: AsyncCodeCallable | SyncCodeCallable | None = None
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasType._interp(self, scope, on_issue)
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasType._clear(self)
+        self._parse = None
+        self._references = None
+        self._transform = None
+        self._code_callable = None
+
+    def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
 
         # parse and resolve code references
         input_keys = (input.ident for input in self.inputs)
-        self.parse = parse_code(self.code)
-        for key, reference in self.parse.references.items():
+        self._parse = parse_code(self.code)
+        self._references = {}
+        for key, reference in self._parse.references.items():
             if key in input_keys:
                 continue  # input arguments are not context
             resolved = scope.lookup_symbol(reference, by=LookupBy.PyIdent)
             if resolved is not None:
-                self.references[key] = resolved
+                self._references[key] = resolved
             else:
-                on_issue(type=IssueType.MISSING_REFERENCE, reference=reference, subject=self)
-
-    def _clear_interp(self) -> None:
-        self.parse = None
-        self.references = None
-        self.transform = None
-        self._code_callable = None
-        HasType._clear_interp(self)
+                self._on_issue(type=IssueType.MISSING_REFERENCE, reference=reference, subject=self)
 
     async def __call__(self, *args, **kwargs):
         if self._code_callable is None:
@@ -988,18 +1042,18 @@ class Dataset(Symbol, HasType, IsExpectable):
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasType._clear(self)
+
+    def _interp(self, scope: Scope) -> None:
         # resolve references
         for view in self.views or []:
             if view.reference is not None:
                 view.reference = scope.lookup_symbol(view.reference, by=LookupBy.PyIdent)
                 if view.reference is None:
-                    on_issue(type=IssueType.MISSING_REFERENCE, subject=self)
-
-        HasType._interp(self, scope, on_issue)
-
-    def _clear_interp(self) -> None:
-        HasType._clear_interp(self)
+                    self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self)
+        HasType._interp(self, scope)
 
     @property
     def default_view(self) -> DatasetView:
@@ -1097,11 +1151,11 @@ class Value(Symbol, HasType, IsExpectable):
     def keys(self):
         return self.value.keys()
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
-        HasType._interp(self, scope, on_issue)
+    def _clear(self) -> None:
+        HasType._clear(self)
 
-    def _clear_interp(self) -> None:
-        HasType._clear_interp(self)
+    def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
 
     def __getitem__(self, item):
         return self.value[item]
@@ -1136,10 +1190,10 @@ class Model(Symbol):
     def inference(self) -> "ModelInference":
         return self.session.instance.get_inference(self)
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _clear(self) -> None:
         pass
 
-    def _clear_interp(self) -> None:
+    def _interp(self, scope: Scope) -> None:
         pass
 
     def __str__(self):
@@ -1162,7 +1216,7 @@ class Requirement(Symbol):
     def __str__(self):
         return f"{self.module_name or '<unspecified>'}@{self.version or '<any>'}"
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _interp(self, scope: Scope) -> None:
         pass
 
 
@@ -1180,7 +1234,7 @@ class Block(Symbol):
         else:
             raise AttributeError(item)
 
-    def _interp(self, scope: Scope, on_issue: IssueHandler = raise_if_error) -> None:
+    def _interp(self, scope: Scope) -> None:
         pass
 
 

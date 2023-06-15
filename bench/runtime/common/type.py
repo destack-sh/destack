@@ -104,7 +104,7 @@ class PyFrameData:
             if isinstance(symbol, Code) and symbol.transform is not None
         }
 
-        transform = from_code.transform
+        transform = from_code._transform
         found_start = False
         cleaned_stack = []
         for frame in stack:
@@ -124,7 +124,7 @@ class PyFrameData:
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset
                     frame.locals = frame.locals or {}
-                    for ident, var in code.references.items():
+                    for ident, var in code._references.items():
                         if ident not in frame.locals and var.id in session.instances:
                             frame.locals[ident] = repr(session.instances[var.id])
             if found_start:

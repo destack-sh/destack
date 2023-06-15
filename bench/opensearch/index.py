@@ -5,9 +5,12 @@ import structlog
 
 import bench.opensearch.type as os
 from bench import models
-from bench.bench.mutate import MMK, MOT, ModuleMutation
+from bench.bench import type as lang
+from bench.bench import wire
+from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
+from bench.opensearch.mapping import map_to_os_field
 from bench.opensearch.type import IndexType
 
 logger = structlog.get_logger(__name__)
@@ -72,6 +75,13 @@ def _create_index(
     fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
     mappings = {field_name: field.to_dict() for field_name, field in fields.items()}
     analyzers = {analyzer.value: definition for analyzer, definition in os.ANALYZERS.items()}
+    logger.info(
+        "os.create_index",
+        index_name=index_name,
+        shards=shards,
+        replicas=replicas,
+        fields=list(fields.keys()),
+    )
     os_client.indices.create(
         index=index_name,
         body={
@@ -103,6 +113,17 @@ def create_bench_index(project_id: UUID, name: str = None) -> None:
     )
 
 
+OS_SEMANTIC_FIELD_MUTATIONS = {
+    MMT.TRUNCATE_FIELDS,
+    MMT.CREATE_FIELD,
+    MMT.UPDATE_FIELD,
+    MMT.UPDATE_FIELD_TYPE,
+    MMT.DELETE_FIELD,
+    MMT.TRUNCATE_RESOLVED_FIELDS,
+    MMT.CREATE_RESOLVED_FIELD,
+}
+
+
 def write_mutations_to_os(
     project_v: models.ProjectVersion, mutations: list[ModuleMutation]
 ) -> None:
@@ -113,23 +134,77 @@ def write_mutations_to_os(
     os_operations: list[dict] = []
     global_index_name = IndexType.GLOBAL.get_index_name()
     bench_index_name = IndexType.BENCH.get_index_name(project_v.project_id)
+    mappings_dirty = False
     for m in mutations:
-        if m.mot != MOT.RECORD and not mirror.has_mirror(m.thing):
-            continue
-        index_name = bench_index_name if m.mot == MOT.RECORD else global_index_name
-        if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
-            mirrored = mirror.mirror_node(project_v, m.thing)
-            op = (
-                {"index": {"_index": index_name, "_id": str(m.thing.id)}},
-                mirrored.to_dict(),
-            )
-            os_operations.extend(op)
-        elif m.type.kind == MMK.DELETE:
-            op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
-            os_operations.append(op)
+        # index directly as primary or secondary store
+        if m.mot == MOT.RECORD or mirror.has_mirror(m.thing):
+            index_name = bench_index_name if m.mot == MOT.RECORD else global_index_name
+            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
+                mirrored = mirror.mirror_node(project_v, m.thing)
+                op = (
+                    {"index": {"_index": index_name, "_id": str(m.thing.id)}},
+                    mirrored.to_dict(),
+                )
+                os_operations.extend(op)
+            elif m.type.kind == MMK.DELETE:
+                op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
+                os_operations.append(op)
+        # mark field mappings as dirty if relevant
+        if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
+            mappings_dirty = True
+
+    if mappings_dirty:
+        mappings = get_dynamic_field_mappings(project_v)
+        # put all mappings into a single bulk request
+        op = {"put_mapping": {"properties": mappings}}
+        os_operations.append(op)
 
     if os_operations:
         os_client.bulk(os_operations)
+
+
+def get_dynamic_field_mappings(project_v: models.ProjectVersion) -> dict:
+    """
+    Updates *all* dynamic OpenSearch field mappings for a module
+    TODO @Performance: update OS field mappings more efficiently on field mutations
+    """
+    from bench.models import packer
+
+    logger.info("os.update_mappings", project_version=project_v)
+    source = packer.pack_module(project_v)
+    module = wire.unpack_module(source)
+    module.index()
+    module.interp()
+
+    data_mappings = {}
+    inputs_mappings = {}
+    outputs_mappings = {}
+    for symbol in module.symbols_by_id.values():
+        if symbol.errors:
+            continue  # ignore symbols with issues
+        elif isinstance(symbol, lang.Dataset):
+            # all fields go into Record.data ('data' is a "dynamic" object)
+            for field in symbol.resolved_fields:
+                data_mappings[field.key] = map_to_os_field(field).to_dict()
+        elif isinstance(symbol, (lang.Task, lang.Code)):
+            # inputs into Execution.inputs, outputs into Execution.outputs
+            for field in symbol.inputs:
+                inputs_mappings[field.key] = map_to_os_field(field).to_dict()
+            for field in symbol.outputs:
+                outputs_mappings[field.key] = map_to_os_field(field).to_dict()
+
+    logger.info(
+        "os.update_mappings.done",
+        project_version=project_v,
+        data_mappings=len(data_mappings),
+        inputs_mappings=len(inputs_mappings),
+        outputs_mappings=len(outputs_mappings),
+    )
+    return {
+        "data": {"type": "object", "dynamic": "strict", "properties": data_mappings},
+        "inputs": {"type": "object", "dynamic": "strict", "properties": inputs_mappings},
+        "outputs": {"type": "object", "dynamic": "strict", "properties": outputs_mappings},
+    }
 
 
 def create_record(project_v: models.ProjectVersion, record: mirror.Record):
