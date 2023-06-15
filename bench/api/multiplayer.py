@@ -122,7 +122,7 @@ async def unpack_module_mutations(
                 parent = await project_v.files.aget(id=m.file_id)
             else:
                 parent = project_v
-            data = packer.unpack_node_flat(m.data, parent)
+            data = packer.unpack_node_flat(m.data, parent)[0]
         else:  # ignore other data types
             data = None
 
