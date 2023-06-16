@@ -266,7 +266,10 @@ export function useStatementContext() {
   });
 
   function createField(field: Field) {
-    ops.symbol.createField(null, statement.value.id, { ...field, statementId: statement.value.id });
+    ops.symbol.createField(null, statement.value.id, {
+      ...field,
+      statement: { __typename: "Statement", id: statement.value.id } as any,
+    });
   }
 
   function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
@@ -274,7 +277,6 @@ export function useStatementContext() {
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
     );
-
     const name: string = TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? "field";
     const field = makeField({
       name: name.toLowerCase(),
@@ -282,7 +284,7 @@ export function useStatementContext() {
       hint: template.hint ?? null,
       orderKey: nextOrderKey,
       flags: template.flags ?? 0,
-      reference: template.reference,
+      reference: template.reference as any,
     });
     createField(field);
     return field;
@@ -298,7 +300,7 @@ export function useStatementContext() {
       tag: TypeTag.TypeReference,
       orderKey: nextOrderKey,
       flags: TypeFlag.IsUnionWith,
-      reference: { id: referenceId ?? "" },
+      reference: referenceId == null ? null : ({ id: referenceId } as any),
     });
     createField(field);
     return field;
@@ -325,8 +327,8 @@ export function useStatementContext() {
     return newFieldNode;
   }
 
-  function updateField(oldField: { id?: string }, newField: Field) {
-    oldField = fields.value?.find((n) => n.id == oldField.id) as Field;
+  function updateField(old: { id?: string }, newField: Field) {
+    const oldField = fields.value?.find((n) => n.id == old.id) as Field;
     if (!oldField) {
       throw new Error("cannot update field that doesn't exist");
     }
@@ -479,7 +481,7 @@ export function makeField(data: {
   key?: string;
   orderKey?: string;
   value?: any;
-  reference?: { id: string; name?: string };
+  reference?: { id: string; name?: string } | null;
   flags?: number;
 }): Field {
   const fieldData: Field = {
@@ -498,13 +500,12 @@ export function makeField(data: {
 
 export type Field = Omit<Field, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
 
-export const STRING_FIELD = makeField({ tag: TypeTag.String });
 export const NAME_FIELD = makeField({ tag: TypeTag.String, hint: TypeHint.Name });
 export const ANY_FIELD = makeField({ tag: TypeTag.Any });
 
 export function getEnumColor(type: { key: string }) {
   /* Generate a strong color for the type */
-  // Convert the client ID to a numerical seed
+  // Convert the key to a numerical seed
   const seed = type.key.split("").reduce((acc, char) => {
     return acc * 31 + char.charCodeAt(0);
   }, 0);

@@ -7,6 +7,7 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import F
 from strawberry import UNSET, lazy
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
@@ -77,6 +78,7 @@ class Statement(CrudModel, Revisioned, gql.Node):
     lang: auto
     code: auto
     description: auto
+    value: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     # interp
     issues: Optional[list[Issue]]
@@ -113,6 +115,7 @@ class StatementCreateInput:
     lang: Optional[str] = None
     text: Optional[str] = None
     code: Optional[str] = None
+    value: Optional[JSON] = None
 
 
 @gql.input
@@ -277,6 +280,7 @@ class StatementMutation:
             lang=input.lang,
             code=input.code,
             text=input.text,
+            value=input.value,
         )
         return statement
 
@@ -297,6 +301,7 @@ class StatementMutation:
         statement.lang = input.lang
         statement.code = input.code
         statement.text = input.text
+        statement.value = input.value
         return statement
 
     @tracked_db_mutation(MMT.DELETE_STATEMENT)
@@ -502,6 +507,11 @@ class StatementUpdateLanguageInput(gql.NodeInput):
 
 
 @gql.input
+class SymbolUpdateValueInput(gql.NodeInput):
+    value: Optional[JSON] = None
+
+
+@gql.input
 class FieldCreateInput:
     id: GlobalID
     key: str
@@ -580,6 +590,12 @@ class SymbolMutation:
     def update_symbol_code(self, input: SymbolUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
+        return statement
+
+    @tracked_db_mutation(MMT.UPDATE_SYMBOL_VALUE)
+    def update_symbol_value(self, input: SymbolUpdateValueInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.value = input.value
         return statement
 
     @tracked_db_mutation(MMT.CREATE_FIELD)

@@ -7,8 +7,11 @@ import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref, ref, nextTick } from "vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
+import { useOperations } from "@/state/operations";
+import type { Field } from "@/gql/graphql";
 
 const context = useStatementContext();
+const ops = useOperations();
 
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
@@ -19,7 +22,20 @@ function createUnionField() {
   nextTick(() => declarationRef.value?.focusLastBase());
 }
 
-function createNewField(template) {}
+function createNewField(template: Field) {
+  const field = context.createNewField(template);
+  nextTick(() => gridRef.value?.focus(field.id));
+}
+
+function duplicateField(field: Pick<Field, "id">) {
+  const newField = context.duplicateField(field.id);
+  if (newField == null) return;
+  nextTick(() => gridRef.value?.focus(newField.id));
+}
+
+function writeValue(value: any) {
+  ops.symbol.updateValue(null, context.statement.value.id, context.statement.value.value, value);
+}
 
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
@@ -27,7 +43,6 @@ const extraStatementActions = computed(() => {
     label: "Extend type",
     icon: CubeTransparentIcon,
     action: () => createUnionField(),
-    hideInline: true,
   });
   actions.push({
     label: "Add field",
@@ -64,7 +79,11 @@ defineExpose({
       ref="gridRef"
       class="-mx-1 w-full table-fixed"
       :fields="context.allFields.value"
-      :model-value="context.statement.value"
+      :model-value="context.statement.value.value"
+      @update:model-value="writeValue($event)"
+      @update:field="context.updateField($event, $event)"
+      @delete:field="context.deleteField($event)"
+      @duplicate:field="duplicateField($event)"
       :readonly="context.readonly.value"
       :active="context.focused.value"
       debounced

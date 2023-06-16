@@ -8,6 +8,8 @@ from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.bench.session import TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
+MAXIMUM_NESTING_DEPTH = 3
+
 
 class FieldMapper:
     """
@@ -15,7 +17,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: lang.TypeBase) -> os.Field:
+    def to_os_type(self, type: lang.TypeBase, depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -66,13 +68,17 @@ def get_mapper(type: lang.TypeBase) -> FieldMapper:
 class StaticFieldMapper(FieldMapper):
     field: os.Field | os.FT
 
-    def to_os_type(self, type: lang.Field) -> os.Field:
+    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
         return self.field
 
 
 class StructFieldMapper(FieldMapper):
-    def to_os_type(self, type: lang.Field) -> os.Field:
-        subfields = {f.key: get_mapper(f).to_os_type(f) for f in type.resolved_fields}
+    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
+        subfields = {
+            f.key: get_mapper(f).to_os_type(f, depth + 1)
+            for f in type.resolved_fields
+            if f.effective_type.tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH
+        }
         subfields[TYPENAME_SENTINEL] = os.Field(os.FT.KEYWORD)
         return os.Field(
             os.FT.OBJECT,
@@ -97,6 +103,7 @@ register_mapper(
             os.FT.SEARCH_AS_YOU_TYPE: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
             os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD),
         },
+        copy_to="name",  # :RecordNameField
     ),
     hints=[TypeHint.NAME],
 )
@@ -140,4 +147,4 @@ register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 
 def map_to_os_field(field: lang.Field) -> os.Field:
-    return get_mapper(field).to_os_type(field)
+    return get_mapper(field).to_os_type(field, depth=0)

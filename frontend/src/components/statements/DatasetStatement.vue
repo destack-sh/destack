@@ -275,6 +275,7 @@ const ops = useOperations();
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
   grid.beginBatchChange();
+  console.log("create new field", template);
   const field = context.createNewField(template);
   nextTick(() => {
     grid.flush();
@@ -417,7 +418,7 @@ const extraStatementActions = computed(() => {
   actions.push({
     label: "Include type",
     icon: CubeTransparentIcon,
-    action: () => createUnionField,
+    action: () => createUnionField(),
   });
   return actions;
 });

@@ -488,6 +488,13 @@ class TypeBase(abc.ABC):
         return to_pyidentifier(self.name)
 
     @property
+    def effective_type(self) -> TypeBase | "HasType":
+        if isinstance(self.reference, HasType):
+            return self.reference
+        else:
+            return self
+
+    @property
     def bases(self):
         return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
 
@@ -655,10 +662,12 @@ class HasType(TypeBase, SymbolBase):
     def _interp(self, scope: Scope) -> None:
         # resolve references
         for node in self.walk():
-            if node.reference is None or isinstance(node.reference, Symbol):
+            if node.tag != TypeTag.TYPE_REFERENCE or isinstance(node.reference, Symbol):
                 continue  # nothing to resolve
-            # normalize path to statement
-            symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
+            if node.reference is None:
+                symbol = None
+            else:
+                symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
             if not isinstance(symbol, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=node.name or "<root>"

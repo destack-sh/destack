@@ -65,6 +65,7 @@ export function useStatementOps() {
         $lang: String
         $code: String
         $description: String
+        $value: JSON
         $rootTypeTag: TypeTag
         $rootTypeFlags: Int
         $commented: Boolean
@@ -81,6 +82,7 @@ export function useStatementOps() {
             lang: $lang
             code: $code
             description: $description
+            value: $value
             rootTypeTag: $rootTypeTag
             rootTypeFlags: $rootTypeFlags
             commented: $commented
@@ -108,6 +110,7 @@ export function useStatementOps() {
             lang
             code
             description
+            value
             referenceProjectVersion {
               id
             }
@@ -140,6 +143,7 @@ export function useStatementOps() {
         lang: string | null;
         code: string | null;
         description: string | null;
+        value: any | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
         commented: boolean;
@@ -164,6 +168,7 @@ export function useStatementOps() {
             modifier: vars.modifier,
             name: vars.name,
             description: vars.description,
+            value: vars.value,
             code: vars.code,
             referenceProjectVersion: null,
             rootTypeTag: vars.rootTypeTag,
