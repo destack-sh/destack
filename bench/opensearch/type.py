@@ -174,21 +174,13 @@ class Field:
             d["method"] = self.method.to_dict()
         return d
 
-    @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> "Field":
-        """
-        Convert a dict wireable from OpenSearch to a Field.
-        """
-        type = FT(d.pop("type"))
-        fields = d.pop("fields", None)
-        properties = d.pop("properties", None)
-        method = KnnMethod.from_dict(d.pop("method", None)) if type == FT.KNN_VECTOR else None
-        return cls(
-            type=type,
-            fields={k: cls.from_dict(v) for k, v in fields.items()} if fields else None,
-            properties={k: cls.from_dict(v) for k, v in properties.items()} if properties else None,
-            **d,
-        )
+
+# see https://opensearch.org/docs/latest/search-plugins/knn/knn-index/ for KNN stuff
+
+
+class KnnMethodName(enum.StrEnum):
+    HNSW = "hnsw"
+    IVF = "ivf"
 
 
 class KnnEngine(enum.StrEnum):
@@ -198,24 +190,35 @@ class KnnEngine(enum.StrEnum):
 
 class KnnSpaceType(enum.StrEnum):
     L2 = "l2"
-    INNER_PRODUCT = "innerproduct"
-    COSINE = "cosinesimil"
     L1 = "l1"
+    DOT_PRODUCT = "innerproduct"
+    COSINE = "cosinesimil"
     LINF = "linf"
 
 
 @dataclass
 class KnnMethod:
-    name: str
+    name: KnnMethodName
     space_type: KnnSpaceType
     engine: KnnEngine
     parameters: "HnswParameters"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "name": self.name.value,
+            "space_type": self.space_type.value,
+            "engine": self.engine.value,
+            "parameters": self.parameters.to_dict(),
+        }
 
 
 @dataclass
 class HnswParameters:
     ef_construction: int
     m: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {"ef_construction": self.ef_construction, "m": self.m}
 
 
 field = Field
