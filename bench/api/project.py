@@ -16,6 +16,7 @@ from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.sync import MMT, tracked_db_mutation
 from bench.api.utils import CrudModel, Revisioned, get_client_origin_from_info, safe_mutation
+from bench.bench.mutate import MOT
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
 from bench.msg.messages import ProjectChangedPayload
@@ -84,10 +85,10 @@ class ProjectMigrationInfo:
 
 
 REF_TYPE_TO_TYPE_NAME = {
-    models.RefType.FILE: "File",
-    models.RefType.STATEMENT: "Statement",
-    models.RefType.RECORD: "Record",
-    models.RefType.FIELD: "Field",
+    MOT.FILE: "File",
+    MOT.STATEMENT: "Statement",
+    MOT.RECORD: "Record",
+    MOT.FIELD: "Field",
 }
 
 
@@ -156,14 +157,12 @@ class Project(gql.Node):
         )
 
 
-RefType = gql.enum(models.RefType)
 RefMappingKind = gql.enum(models.RefMappingKind)
 
 
 @gql.django.type(models.RefMapping)
 class RefMapping(gql.Node):
     kind: RefMappingKind
-    type: RefType
     source_version: "ProjectVersion"
     target_version: "ProjectVersion"
     source_id: GlobalID
@@ -182,12 +181,9 @@ class RefMapping(gql.Node):
 
 @gql.django.filter(models.RefMapping)
 class RefMappingFilter:
-    type: Optional[RefType] = None
     kind: Optional[RefMappingKind] = None
 
     def filter(self, queryset):
-        if self.type is not None:
-            queryset = queryset.filter(type=self.type)
         if self.kind is not None:
             queryset = queryset.filter(kind=self.kind)
         return queryset
@@ -213,7 +209,7 @@ class File(CrudModel, Revisioned, gql.Node):
     project_version: ProjectVersion
     name: auto
     directory: auto
-    parent: Optional["File"]  # containing folder
+    parent: Optional["File"] = gql.django.field(field_name="parent_file")
     files: list["File"]  # if folder
     # TODO @Cleanup: File.statements should be a connection (but strawberry errors)
     #  There is an error with double-prefetching type_nodes when using a connection.
@@ -459,7 +455,7 @@ class FileMutation:
             id=id,
             project_version_id=input.project_version_id.node_id,
             name=input.name,
-            parent_id=input.parent_id.node_id if input.parent_id else None,
+            parent_file_id=input.parent_id.node_id if input.parent_id else None,
             directory=input.directory,
         )
 
@@ -467,7 +463,7 @@ class FileMutation:
     def update_file(self, input: FileCreateInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
-        file.parent_id = input.parent_id.node_id if input.parent_id else None
+        file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         file.directory = input.directory
         return file
 
@@ -493,7 +489,7 @@ class FileMutation:
     @tracked_db_mutation(MMT.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
-        file.parent_id = input.parent_id.node_id if input.parent_id else None
+        file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
     @tracked_db_mutation(MMT.RENAME_FILE)

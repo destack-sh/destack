@@ -280,6 +280,7 @@ input FieldCreateInput {
   description: String = null
   flags: Int! = 0
   referenceId: GlobalID = null
+  metadata: JSON = null
 }
 
 input FieldDeleteInput {
@@ -319,6 +320,7 @@ input FieldUpdateInput {
   description: String = null
   flags: Int! = 0
   referenceId: GlobalID = null
+  metadata: JSON = null
 }
 
 input FieldUpdateTypeInput {
@@ -1318,7 +1320,6 @@ input RecordUpdateInput {
 type RefMapping implements Node {
   id: GlobalID!
   kind: RefMappingKind!
-  type: RefType!
   sourceVersion: ProjectVersion!
   targetVersion: ProjectVersion!
   sourceId: GlobalID!
@@ -1351,20 +1352,12 @@ type RefMappingEdge {
 }
 
 input RefMappingFilter {
-  type: RefType = null
   kind: RefMappingKind = null
 }
 
 enum RefMappingKind {
   COMMIT
   PASTE
-}
-
-enum RefType {
-  FILE
-  STATEMENT
-  RECORD
-  FIELD
 }
 
 type RemoteObject implements Node {

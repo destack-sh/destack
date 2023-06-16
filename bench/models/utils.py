@@ -1,10 +1,10 @@
-from enum import Enum
-from functools import cache
 import json
 import uuid
 from collections import defaultdict, deque
+from enum import Enum
+from functools import cache
 from itertools import chain
-from typing import Any, Collection, Deque, Iterator, Type, TypeVar
+from typing import Any, Collection, Deque, Iterator, Optional, Type, TypeVar
 
 from django.core.validators import RegexValidator
 from django.db import models
@@ -34,6 +34,14 @@ class Revisioned(models.Model):
 
     class Meta:
         abstract = True
+
+
+class ModuleNode:
+    """A node in the module graph"""
+
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        raise NotImplementedError
 
 
 class CrudModel(models.Model):

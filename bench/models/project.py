@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import os
+import uuid
 from datetime import datetime
+from itertools import groupby
 from typing import TYPE_CHECKING, Optional, TypedDict
 from uuid import UUID, uuid4
 
@@ -10,11 +12,14 @@ import structlog
 from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
+from django.db.models.expressions import RawSQL
 from strawberry_django_plus import gql
 
+from bench.bench import wire
+from bench.bench.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
-from bench.models.utils import CrudModel, UUIDModel, walk_children_bfs_batched, Revisioned
+from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -359,7 +364,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         # init with first mappings
         refs: dict[UUID, UUID] = {}
-        refs_types: dict[UUID, RefType] = {}
+        refs_types: dict[UUID, str] = {}
         for ref in ref_mappings:
             refs[ref.source_id] = ref.target_id
             refs_types[ref.source_id] = ref.type
@@ -399,75 +404,73 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         self,
         source: ProjectVersion,
         target: ProjectVersion,
+        files: Optional[models.QuerySet[File]] = None,
+        target_ids: dict[UUID, UUID] = None,
         invert_mappings: bool = False,
         copy_revisions: bool = True,
+        kind: RefMappingKind = None,
     ) -> list["RefMapping"]:
-        ref_mappings = ProjectVersion.objects.copy_files(
-            source, target, copy_revisions=copy_revisions
-        )
-        for mapping in ref_mappings:
-            mapping.kind = RefMappingKind.COMMIT
+        """Copies the given files from a source version to a target version (by default everything)"""
+        from bench.models import packer
+
+        target_ids = {**(target_ids or {}), source.id: target.id}
+        kind = kind or RefMappingKind.COMMIT
+        filter = packer.DEFAULT_PACK_FILTER.extend()
+        if files is not None:
+            filter.filter(File, lambda qs: qs.filter(id__in=files))
+
+        packed = packer.pack_module(source, filter=filter)
+        # map all ids to new ids
+        ref_mappings: dict[UUID, RefMapping] = {}
+        for node in packed.nodes:
+            source_id = node.id
+            if node.id not in target_ids:
+                target_ids[node.id] = uuid4()
+            node.id = target_ids[node.id]
+            if not isinstance(node, wire.Revisioned):
+                continue
+            source_revision = node.revision
+            if not copy_revisions:
+                node.revision = 0
+            ref_mappings[node.id] = RefMapping(
+                source_version=source,
+                target_version=target,
+                source_id=source_id,
+                source_revision=source_revision,
+                target_id=node.id,
+                target_revision=node.revision,
+                type=MOT_BY_DATA_CLASS[type(node)],
+                kind=kind,
+            )
+        # replace parent ids
+        for node in packed.nodes:
+            node.parent_id = target_ids.get(node.parent_id, node.parent_id)
+
+        # unpack and save
+        unpacked = packer.unpack_nodes_tree(packed.nodes, pre_unpacked={target.id: target})
+        for node_batch in unpacked.walk_bfs_batched():
+            if node_batch == [target]:
+                continue  # skip root
+            # group by model class and bulk create
+            for model_class, nodes_of_cls in groupby(node_batch, type):
+                model_class.objects.bulk_create(nodes_of_cls)
+
+        # nocheckin: copy dataset in opensearch (if versioned)
+
         if invert_mappings:
-            for mapping in ref_mappings:
+            for mapping in ref_mappings.values():
                 mapping.source_id, mapping.target_id = mapping.target_id, mapping.source_id
                 mapping.source_version, mapping.target_version = (
                     mapping.target_version,
                     mapping.source_version,
                 )
-        RefMapping.objects.bulk_create(ref_mappings)
-        return ref_mappings
 
-    def copy_files(
-        self,
-        source: ProjectVersion,
-        target: ProjectVersion,
-        files: Optional[models.QuerySet[File]] = None,
-        target_files_ids: dict[UUID, UUID] = None,
-        copy_revisions: bool = True,
-    ) -> list["RefMapping"]:
-        """Copies the given files from a source version to a target version (by default everything)"""
+        RefMapping.objects.bulk_create(ref_mappings.values())
 
-        # 0. select files & statements to copy
-        if files is None:  # default to all files
-            files = source.files.filter(deleted_at=None)
-            statements = source.statements.filter(deleted_at=None)
-        else:
-            statements = Statement.objects.filter(file__in=files).filter(deleted_at=None)
-
-        # TODO @Performance: copy project version server-side (in SQL)
-        # copy files
-        new_files: dict[UUID, File] = {}
-        file_mappings: list[RefMapping] = []
-        target_files_ids = target_files_ids or {file.id: uuid4() for file in files}
-        for files in walk_children_bfs_batched(files, "parent_id"):
-            for file in files:
-                old_id = file.id
-                old_revision = file.revision
-                file.id = target_files_ids[old_id]
-                file.project_version = target
-                file.parent = new_files.get(file.parent_id)
-                file.revision = 0 if copy_revisions else old_revision
-                file._state.adding = True
-                new_files[old_id] = file
-                file_mapping = RefMapping(
-                    source_version=source,
-                    target_version=target,
-                    type=RefType.FILE,
-                    source_id=old_id,
-                    target_id=file.id,
-                    source_revision=old_revision,
-                    target_revision=file.revision,
-                )
-                file_mappings.append(file_mapping)
-            File.objects.bulk_create(files)
-        # copy statements
-        statement_mappings = Statement.objects.copy_statements(
-            statements, new_files, source, target, copy_revisions=copy_revisions
-        )
-        return [*file_mappings, *statement_mappings]
+        return list(ref_mappings.values())
 
 
-class ProjectVersion(UUIDModel, CrudModel):
+class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
     """
     A project version records the state of a project at a specific point in time.
     """
@@ -490,9 +493,9 @@ class ProjectVersion(UUIDModel, CrudModel):
     def __str__(self) -> str:
         return f"{self.project.path}@{self.tag or self.id.hex}"
 
-    def reset(self):
-        """Hard deletes all files (cascades to statements and their contents)."""
-        self.files.all().delete()
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return None
 
     @transaction.atomic
     def commit(
@@ -576,13 +579,6 @@ class ProjectVersion(UUIDModel, CrudModel):
         ]
 
 
-class RefType(models.TextChoices):
-    FILE = "file", "File"
-    STATEMENT = "statement", "Statement"
-    RECORD = "record", "Record"
-    FIELD = "field", "Field"
-
-
 class RefMappingKind(models.TextChoices):
     COMMIT = "commit", "Commit"
     PASTE = "paste", "Paste"
@@ -621,7 +617,7 @@ class RefMapping(UUIDModel):
     target_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="parent_refs"
     )
-    type = models.CharField(max_length=32, choices=RefType.choices)
+    type = models.CharField(max_length=32)
     source_id = models.UUIDField()
     source_revision = models.IntegerField()
     target_id = models.UUIDField()
@@ -641,8 +637,27 @@ class FileManager(models.Manager):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
+    def get_descendants(
+        self, file_ids: list[UUID], deleted_at: Optional[datetime] = None
+    ) -> models.QuerySet[File]:
+        """Gets descendants of files with given ids (including the files themselves)."""
+        query = """
+           WITH RECURSIVE descendants(id, parent_file_id) AS (
+               SELECT id, parent_file_id
+               FROM bench_file
+               WHERE id = ANY(%s)
+               UNION ALL
+               SELECT bench_file.id, bench_file.parent_file_id
+               FROM bench_file
+               INNER JOIN descendants ON descendants.id = bench_file.parent_file_id
+           )
+           SELECT DISTINCT id
+           FROM descendants
+        """
+        return File._base_manager.filter(id__in=RawSQL(query, (file_ids,)), deleted_at=deleted_at)
 
-class File(UUIDModel, CrudModel, Revisioned):
+
+class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.
@@ -656,7 +671,7 @@ class File(UUIDModel, CrudModel, Revisioned):
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     directory = models.BooleanField(default=False)
     generated = models.BooleanField(default=False)
-    parent = models.ForeignKey(
+    parent_file = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
     )
 
@@ -665,17 +680,21 @@ class File(UUIDModel, CrudModel, Revisioned):
     symbols: models.QuerySet["Symbol"]  # noqa via Symbol.file
 
     def __str__(self):
-        if self.parent:
-            return f"{self.parent}/{self.name}"
+        if self.parent_file:
+            return f"{self.parent_file}/{self.name}"
         else:
             return f"{self.project_version}/{self.name}"
 
     @gql.model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
-        return f"{self.parent.path}/{self.name}" if self.parent else f"{self.name}"
+        return f"{self.parent_file.path}/{self.name}" if self.parent_file else f"{self.name}"
+
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.parent_file_id or self.project_version_id
 
     def is_root(self) -> bool:
-        return self.parent is None
+        return self.parent_file is None
 
     @property
     def root_statements(self) -> models.QuerySet["Statement"]:

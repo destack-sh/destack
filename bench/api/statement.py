@@ -66,7 +66,7 @@ class Statement(CrudModel, Revisioned, gql.Node):
     type: StatementType
     name: auto
     commented: auto
-    parent: Optional["Statement"]
+    parent: Optional["Statement"] = gql.django.field(field_name="parent_statement")
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
@@ -271,7 +271,7 @@ class StatementMutation:
             file=file,
             type=input.type,
             name=input.name,
-            parent_id=input.parent_id.node_id if input.parent_id else None,
+            parent_statement_id=input.parent_id.node_id if input.parent_id else None,
             order_key=input.order_key,
             commented=input.commented,
             modifier=input.modifier,
@@ -291,7 +291,7 @@ class StatementMutation:
         statement.type = input.type
         statement.name = input.name
         statement.file_id = input.file_id.node_id
-        statement.parent_id = input.parent_id.node_id if input.parent_id else None
+        statement.parent_statement_id = input.parent_id.node_id if input.parent_id else None
         statement.order_key = input.order_key
         statement.revision = input.revision
         statement.commented = input.commented
@@ -350,7 +350,7 @@ class StatementMutation:
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
-        statement.parent_id = UUID(input.parent_id.node_id) if input.parent_id else None
+        statement.parent_statement_id = UUID(input.parent_id.node_id) if input.parent_id else None
         # :CircularAncestry
         # TODO @Robustness:: check for circular ancestry via parent_id on move
         if statement.parent_id == statement.id:
@@ -410,7 +410,9 @@ class StatementMutation:
         file_id = UUID(input.file_id.node_id)
         for i, statement in enumerate(statements):
             statement.file_id = file_id
-            statement.parent_id = UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
+            statement.parent_statement_id = (
+                UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
+            )
             statement.order_key = input.order_keys[i]
             statement.revision = F("revision") + 1
         models.Statement.objects.bulk_update(
@@ -524,6 +526,7 @@ class FieldCreateInput:
     description: Optional[str] = None
     flags: int = 0
     reference_id: Optional[GlobalID] = None
+    metadata: Optional[JSON] = None
 
 
 @gql.input
@@ -534,6 +537,7 @@ class FieldUpdateInput(gql.NodeInput):
     description: Optional[str] = None
     flags: int = 0
     reference_id: Optional[GlobalID] = None
+    metadata: Optional[JSON] = None
 
 
 @gql.input
@@ -612,6 +616,7 @@ class SymbolMutation:
             hint=input.hint,
             flags=input.flags,
             reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
+            metadata=input.metadata,
         )
         return field
 
@@ -624,6 +629,7 @@ class SymbolMutation:
         field.hint = input.hint
         field.flags = input.flags
         field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        field.metadata = input.metadata
         return field
 
     @tracked_db_mutation(MMT.RENAME_FIELD)
