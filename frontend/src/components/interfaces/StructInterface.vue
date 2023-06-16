@@ -32,6 +32,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "update:modelValue", value: Record<string, any>): void;
   (e: "update:field", value: Field): void;
+  (e: "duplicate:field", value: Field): void;
+  (e: "delete:field", value: Field): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "deleteSelf"): void;
@@ -79,6 +81,21 @@ const rowHeights = computed(() =>
     )
   )
 );
+
+defineExpose({
+  focus: (position: "first" | "last" | string = "first") => {
+    if (position == "first") {
+      grid.focus(0, "type");
+    } else if (position == "last") {
+      grid.focus(-1, "type");
+    } else {
+      grid.focus(position, "type");
+    }
+  },
+  blur: () => {
+    grid.refs.value.forEach((r) => r.blur?.());
+  },
+});
 </script>
 <template>
   <table ref="gridRef" class="w-full table-fixed">
@@ -95,6 +112,9 @@ const rowHeights = computed(() =>
           orientation="vertical"
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
+          @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key })"
+          @delete-self="emit('delete:field', field)"
+          @duplicate-self="emit('duplicate:field', field)"
           @navigate-up="grid.navigateUp(field?.id, 'type')"
           @navigate-down="grid.navigateDown(field?.id, 'type')"
           @navigate-right="grid.navigateRight(field?.id, 'type')"

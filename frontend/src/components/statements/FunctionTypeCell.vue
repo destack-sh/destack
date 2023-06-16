@@ -2,6 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { makeField, NAME_FIELD, useStatementContext } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
@@ -44,7 +45,9 @@ const outputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>
 });
 
 const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
+const createInputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const addOutputRef: Ref<HTMLButtonElement | null> = ref(null);
+const createOutputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
 function readColumn(member: Field, column: ColumnType) {
   if (column == "type") {
@@ -66,23 +69,19 @@ function writeColumn(kind: "input" | "output", memberId: string, column: ColumnT
   }
 }
 
-function insertBelow(kind: "input" | "output", memberId?: string) {
-  let orderKey;
-  if (memberId == null) {
-    const lastMember = nodes.value[nodes.value.length - 1];
-    orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
-  } else {
-    const member = nodes.value.find((m) => m.id === memberId);
-    orderKey = generateKeyBetween(member?.orderKey ?? null, null);
-  }
-  const membersOfKind = kind == "input" ? inputNodes.value : outputNodes.value;
+function insertBelow(
+  kind: "input" | "output",
+  template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">
+) {
+  const lastMember = nodes.value[nodes.value.length - 1];
+  const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
   const newMemberNode = makeField({
-    name: membersOfKind.length == 0 ? kind : kind + " " + (membersOfKind.length + 1),
-    tag: TypeTag.String,
+    ...template,
+    reference: template.reference as any,
     orderKey,
-    flags: kind == "output" ? TypeFlag.IsOutput : 0,
+    flags: (kind == "output" ? TypeFlag.IsOutput : 0) | (template.flags ?? 0),
   });
-  context.createField(newMemberNode);
+  context.createNewField(newMemberNode);
   nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "type"));
 }
 
@@ -173,13 +172,18 @@ defineExpose({
         tabindex="-1"
         ref="addInputRef"
         class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        @click="insertBelow('input')"
-        @enter="insertBelow('input')"
+        @click="createInputRef?.show()"
+        @enter="createInputRef?.show()"
         @keydown.up.exact.prevent="inputNodes.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Input
+        <CreateFieldInterface
+          ref="createInputRef"
+          :title="'New input to ' + context.statement.value.name"
+          @select="insertBelow('input', $event)"
+        />
       </button>
     </div>
     <!-- Lil' arrow -->
@@ -213,13 +217,18 @@ defineExpose({
         tabindex="-1"
         ref="addOutputRef"
         class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        @click="insertBelow('output')"
-        @enter="insertBelow('output')"
+        @click="createOutputRef?.show()"
+        @enter="createOutputRef?.show()"
         @keydown.up.exact.prevent="outputNodes.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.left.exact.prevent="addInputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Output
+        <CreateFieldInterface
+          ref="createOutputRef"
+          :title="'New output of ' + context.statement.value.name"
+          @select="insertBelow('output', $event)"
+        />
       </button>
     </div>
   </div>

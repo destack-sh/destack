@@ -141,6 +141,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     lang
     code
     description
+    value
     referenceProjectVersion {
       id
     }

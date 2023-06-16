@@ -356,8 +356,8 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
 });
 
 // runtime
-const localErrors = module.localErrorsOf(statement);
-const hasLocalErrors = computed(() => (localErrors.value?.length ?? 0) > 0);
+const localIssues = module.localErrorsOf(statement);
+const hasLocalIssues = computed(() => (localIssues.value?.length ?? 0) > 0);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -483,19 +483,18 @@ defineExpose({
         <div class="group/issues">
           <!-- Errors -->
           <button
-            v-if="hasLocalErrors"
+            v-if="hasLocalIssues"
             class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
             @click="actions.apply('bench.view.openIssues')"
           >
             <XCircleIcon class="h-5 w-5" />
           </button>
-          <!-- Warnings (don't exist yet) -->
           <!-- Preview on hover -->
           <div
-            v-if="hasLocalErrors"
-            class="invisible absolute right-0 z-10 flex w-fit max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+            v-if="hasLocalIssues"
+            class="invisible absolute right-0 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
           >
-            <span v-for="error in localErrors" :key="error.id" class="text-red-700">
+            <span v-for="error in localIssues" :key="error.id" class="text-red-700">
               {{ error.message }}
             </span>
           </div>

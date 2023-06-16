@@ -556,6 +556,7 @@ type Mutation {
   updateSymbolModifier(input: StatementSetExpectationModifierInput!): StatementOperationInfo!
   updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
   updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
+  updateSymbolValue(input: SymbolUpdateValueInput!): StatementOperationInfo!
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
@@ -1487,6 +1488,7 @@ type Statement implements Node {
   lang: String
   code: String
   description: String
+  value: JSON
   referenceProjectVersion: ProjectVersion
   issues: [Issue!]
   resolvedFields(filters: FieldFilter): [Field!]
@@ -1547,6 +1549,7 @@ input StatementCreateInput {
   lang: String = null
   text: String = null
   code: String = null
+  value: JSON = null
 }
 
 input StatementDeleteInput {
@@ -1628,6 +1631,11 @@ input SymbolUpdateCodeInput {
 input SymbolUpdateDescriptionInput {
   id: GlobalID!
   description: String!
+}
+
+input SymbolUpdateValueInput {
+  id: GlobalID!
+  value: JSON = null
 }
 
 type SystemInfo {

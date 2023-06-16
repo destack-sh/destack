@@ -200,7 +200,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  function localErrorsOf(statement: Ref<{ id: string }>) {
+  function localIssuesOf(statement: Ref<{ id: string }>) {
     return computed(() => issues.value?.filter((e) => e.statement?.id == statement.value.id));
   }
 
@@ -245,7 +245,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     contextOf,
     statementOf,
     relativePath,
-    localErrorsOf,
+    localErrorsOf: localIssuesOf,
     statementsLike,
   };
 }

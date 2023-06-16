@@ -60,12 +60,8 @@ function createUnionField() {
 }
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
-  grid.beginBatchChange();
   const field = context.createNewField(template);
-  nextTick(() => {
-    grid.flush();
-    nextTick(() => grid.focus(field.id, "type"));
-  });
+  nextTick(() => grid.focus(field.id, "type"));
 }
 
 function duplicateField(fieldId: string) {
@@ -216,7 +212,7 @@ defineExpose({
     +description
   </button>
   <!-- Fields (enum options or struct fields) -->
-  <div v-if="fieldsLength > 0" class="my-0.5 flex w-full flex-col gap-0.5">
+  <div v-if="fieldsLength > 0" class="my-0.5 flex w-full flex-col">
     <FieldInterface
       v-for="field of context.selfFields.value"
       :key="field.id"
@@ -236,8 +232,7 @@ defineExpose({
       @keydown.delete.exact="isEditing || deleteField(field.id)"
       @drop="(p, v) => dropField(v.id, p, field.id)"
       @enter="grid.navigateDown(field.id, 'type')"
-      class="-mx-1 self-start px-1 py-0.5 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
-      :class="isEnum ? 'w-fit' : 'w-full '"
+      class="-mx-1 self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
     />
   </div>
   <div class="mb-1">

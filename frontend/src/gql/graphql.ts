@@ -598,6 +598,7 @@ export type Mutation = {
   updateSymbolCode: StatementOperationInfo;
   updateSymbolDescription: StatementOperationInfo;
   updateSymbolModifier: StatementOperationInfo;
+  updateSymbolValue: StatementOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -876,6 +877,10 @@ export type MutationUpdateSymbolDescriptionArgs = {
 
 export type MutationUpdateSymbolModifierArgs = {
   input: StatementSetExpectationModifierInput;
+};
+
+export type MutationUpdateSymbolValueArgs = {
+  input: SymbolUpdateValueInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1772,6 +1777,7 @@ export type Statement = Node & {
   text?: Maybe<Scalars["String"]>;
   type: StatementType;
   updatedAt: Scalars["DateTime"];
+  value?: Maybe<Scalars["JSON"]>;
 };
 
 export type StatementFieldsArgs = {
@@ -1838,6 +1844,7 @@ export type StatementCreateInput = {
   rootTypeTag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]>;
   type: StatementType;
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type StatementDeleteInput = {
@@ -1942,6 +1949,11 @@ export type SymbolUpdateCodeInput = {
 export type SymbolUpdateDescriptionInput = {
   description: Scalars["String"];
   id: Scalars["GlobalID"];
+};
+
+export type SymbolUpdateValueInput = {
+  id: Scalars["GlobalID"];
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type SystemInfo = {
@@ -3040,6 +3052,7 @@ export type StatementContentFragment = {
   lang?: string | null;
   code?: string | null;
   description?: string | null;
+  value?: any | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
   parent?: { __typename?: "Statement"; id: any } | null;
@@ -3652,6 +3665,7 @@ export type CreateStatementMutationVariables = Exact<{
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   commented?: InputMaybe<Scalars["Boolean"]>;
@@ -3678,6 +3692,7 @@ export type CreateStatementMutation = {
         lang?: string | null;
         code?: string | null;
         description?: string | null;
+        value?: any | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
         file: { __typename?: "File"; id: any };
@@ -3953,6 +3968,20 @@ export type UpdateStatementTextMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Statement"; id: any; text?: string | null; revision: number };
+};
+
+export type UpdateSymbolValueMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  value?: InputMaybe<Scalars["JSON"]>;
+}>;
+
+export type UpdateSymbolValueMutation = {
+  __typename?: "Mutation";
+  updateSymbolValue:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Statement"; id: any; value?: any | null; revision: number };
 };
 
 export type CreateRecordMutationVariables = Exact<{
@@ -4887,6 +4916,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "lang" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "referenceProjectVersion" },
@@ -9946,6 +9976,11 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
         },
@@ -10025,6 +10060,11 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "rootTypeTag" },
                       value: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
                     },
@@ -10080,6 +10120,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "lang" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "referenceProjectVersion" },
@@ -11415,6 +11456,77 @@ export const UpdateStatementTextDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateStatementTextMutation, UpdateStatementTextMutationVariables>;
+export const UpdateSymbolValueDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateSymbolValue" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateSymbolValue" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateSymbolValueMutation, UpdateSymbolValueMutationVariables>;
 export const CreateRecordDocument = {
   kind: "Document",
   definitions: [

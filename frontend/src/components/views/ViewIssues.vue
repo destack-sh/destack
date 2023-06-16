@@ -37,7 +37,7 @@ function focusIssue(issue: IssueContentFragment) {
       >
         <div v-if="issue.statement != null" class="px-3">
           <span class="pl-1 text-gray-900"
-            >{{ module.fileOf(issue.statement)?.path }}.{{ module.statementOf(issue.statement.id)?.name }}</span
+            >{{ module.fileOf(issue.statement)?.name }}.{{ module.statementOf(issue.statement.id)?.name }}</span
           >
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">

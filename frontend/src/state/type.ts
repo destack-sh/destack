@@ -73,7 +73,7 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Audio]: "audio",
   [TypeHint.Video]: "video",
   // vector
-  [TypeHint.Embedding]: "vector",
+  [TypeHint.Embedding]: "embedding",
 };
 export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   // string

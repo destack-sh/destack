@@ -20,6 +20,8 @@ import {
   type UpdateSymbolDescriptionMutation,
   type UpdateStatementTextMutation,
   type UpdateFieldMutation,
+  type Field,
+  type UpdateSymbolValueMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -118,8 +120,6 @@ export function useSymbolContentOps() {
     });
   }
 
-  // text mutation (exactly like code due to reuse but different op) :StatementCodeTextReuse
-
   const { mutate: updateStatementTextMut } = registry.useMutation(
     ModuleMutationType.UpdateStatementText,
     graphql(/* GraphQL */ `
@@ -156,6 +156,46 @@ export function useSymbolContentOps() {
       },
       undo: async () => {
         return await updateStatementTextMut({ id, text: oldCode });
+      },
+    });
+  }
+
+  const { mutate: updateValueMut } = registry.useMutation(
+    ModuleMutationType.UpdateSymbolValue,
+    graphql(/* GraphQL */ `
+      mutation updateSymbolValue($id: GlobalID!, $value: JSON) {
+        updateSymbolValue(input: { id: $id, value: $value }) {
+          ... on Statement {
+            id
+            value
+            revision
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; value: any }) =>
+        ({
+          updateSymbolValue: {
+            __typename: "Statement",
+            id: vars.id,
+            value: vars.value,
+            revision: PENDING_REVISION,
+          },
+        } as UpdateSymbolValueMutation),
+    }
+  );
+
+  async function updateValue(tx: Transaction | null, id: string, oldValue: any, newValue: any) {
+    await ops.perform({
+      tx,
+      type: "statement.updateValue",
+      do: async () => {
+        return await updateValueMut({ id, value: newValue });
+      },
+      undo: async () => {
+        return await updateValueMut({ id, value: oldValue });
       },
     });
   }
@@ -740,23 +780,57 @@ export function useSymbolContentOps() {
     }
   );
 
-  function _toFieldInput(input: FieldCreateInput) {
+  function _toFieldInput(
+    statementId: string,
+    input: Pick<
+      Field,
+      | "id"
+      | "key"
+      | "name"
+      | "description"
+      | "tag"
+      | "hint"
+      | "orderKey"
+      | "flags"
+      | "metadata"
+      | "reference"
+      | "statement"
+    >
+  ) {
     return {
       ...input,
+      statementId,
       // set optional values to null if not provided
       hint: input.hint ?? null,
       description: input.description ?? null,
-      referenceId: input.referenceId ?? null,
+      referenceId: input.reference?.id ?? null,
       flags: input.flags ?? 0,
     } as FieldCreateInput;
   }
 
-  async function createField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
+  async function createField(
+    tx: Transaction | null,
+    statementId: string,
+    field: Pick<
+      Field,
+      | "id"
+      | "name"
+      | "tag"
+      | "hint"
+      | "description"
+      | "key"
+      | "orderKey"
+      | "flags"
+      | "metadata"
+      | "reference"
+      | "statement"
+    >
+  ) {
     await ops.perform({
       tx,
       type: "symbol.createField",
       do: async () => {
-        return await createFieldMut(_toFieldInput(field));
+        return await createFieldMut(_toFieldInput(statementId, field));
       },
       undo: async () => {
         return await softDeleteFieldMut({ id: field.id });
@@ -767,7 +841,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function deleteField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
+  async function deleteField(tx: Transaction | null, statementId: string, field: Pick<Field, "id">) {
     await ops.perform({
       tx,
       type: "symbol.deleteField",
@@ -777,7 +851,7 @@ export function useSymbolContentOps() {
     });
   }
 
-  async function softDeleteField(tx: Transaction | null, statementId: string, field: FieldCreateInput) {
+  async function softDeleteField(tx: Transaction | null, statementId: string, field: Pick<Field, "id">) {
     await ops.perform({
       tx,
       type: "symbol.softDeleteField",
@@ -914,6 +988,7 @@ export function useSymbolContentOps() {
     updateSymbolDescription,
     updateSymbolCode,
     updateStatementText,
+    updateValue,
     createRecord,
     updateRecord,
     deleteRecord,

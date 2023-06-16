@@ -94,7 +94,7 @@ MALFORMABLE_TYPES = {
 }
 
 
-@dataclass(repr=False, slots=True)
+@dataclass
 class Field:
     """
     An OpenSearch field.
@@ -110,11 +110,13 @@ class Field:
     store: bool = None  # default: true
     coerce: bool = None
     dynamic: bool | typing.Literal["strict"] = None
-    copy_to: list[str] = None
+    copy_to: str | list[str] = None
     ignore_malformed: bool = None
     ignore_above: int = None
     analyzer: "Analyzer" = None
     can_set_directly: bool = True
+    dimension: int = None  # for knn_vector
+    method: "KnnMethod" = None  # for knn_vector
     _annotation: Any = None  # type annotation on the LHS of a field in a document
 
     def __post_init__(self):
@@ -166,6 +168,10 @@ class Field:
             d["ignore_above"] = self.ignore_above
         if self.analyzer is not None:
             d["analyzer"] = self.analyzer.value
+        if self.dimension is not None:
+            d["dimension"] = self.dimension
+        if self.method is not None:
+            d["method"] = self.method.to_dict()
         return d
 
     @classmethod
@@ -176,12 +182,40 @@ class Field:
         type = FT(d.pop("type"))
         fields = d.pop("fields", None)
         properties = d.pop("properties", None)
+        method = KnnMethod.from_dict(d.pop("method", None)) if type == FT.KNN_VECTOR else None
         return cls(
             type=type,
             fields={k: cls.from_dict(v) for k, v in fields.items()} if fields else None,
             properties={k: cls.from_dict(v) for k, v in properties.items()} if properties else None,
             **d,
         )
+
+
+class KnnEngine(enum.StrEnum):
+    NMSLIB = "nmslib"
+    FAISS = "faiss"
+
+
+class KnnSpaceType(enum.StrEnum):
+    L2 = "l2"
+    INNER_PRODUCT = "innerproduct"
+    COSINE = "cosinesimil"
+    L1 = "l1"
+    LINF = "linf"
+
+
+@dataclass
+class KnnMethod:
+    name: str
+    space_type: KnnSpaceType
+    engine: KnnEngine
+    parameters: "HnswParameters"
+
+
+@dataclass
+class HnswParameters:
+    ef_construction: int
+    m: int
 
 
 field = Field

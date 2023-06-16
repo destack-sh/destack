@@ -30,7 +30,7 @@ const module = useCurrentModule();
 
 function getDefaultFlags(t: TypeHint | TypeTag): number {
   if (t == TypeHint.Secret) {
-    return TypeFlag.IsSecret & TypeFlag.IsNullable;
+    return TypeFlag.IsSecret | TypeFlag.IsNullable;
   } else {
     return TypeFlag.IsNullable;
   }
@@ -53,14 +53,12 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
   }
 });
 
-const availableSymbols = module.statementsLike({
-  types: [StatementType.Type],
-});
+const availableSymbols = module.statementsLike({ types: [StatementType.Type] });
 const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
   // builtin types
   if (!props.structrefOnly) {
-    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, flags: getDefaultFlags(t.tag) })));
+    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, flags: getDefaultFlags(t.hint ?? t.tag) })));
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -71,13 +69,14 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
       makeField({
         tag: TypeTag.TypeReference,
         reference: symbol as { id: string; name: string },
+        flags: getDefaultFlags(TypeTag.TypeReference),
       })
     );
   }
   return types;
 });
 // TODO @UX @Architecture: support changing field type to any other type (without compatibility constraints)
-// We're forced to limit this right now for simplicity with our OpenSearch integration.
+// We limit this right now for simplicity with our OpenSearch integration.
 const filteredTypes = computed(() =>
   availableTypes.value
     .filter((t) => props.allowIncompatible || props.modelValue == null || t.tag == props.modelValue.tag)
@@ -85,12 +84,16 @@ const filteredTypes = computed(() =>
 );
 
 function writeValue(type: Field) {
-  // keep supported flags
   let newFlags = TypeFlag.Zero;
-  for (let flag of Object.values(TypeFlag)) {
-    flag = flag as TypeFlag;
-    if (isFlagSet(flag) && isFlagSupported(type, flag)) {
-      newFlags |= flag;
+  if (props.modelValue == null) {
+    newFlags = getDefaultFlags(type.hint ?? type.tag);
+  } else {
+    // keep supported flags
+    for (let flag of Object.values(TypeFlag)) {
+      flag = flag as TypeFlag;
+      if (isFlagSet(flag) && isFlagSupported(type, flag)) {
+        newFlags |= flag;
+      }
     }
   }
   type = {
