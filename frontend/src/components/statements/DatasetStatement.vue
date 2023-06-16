@@ -351,11 +351,10 @@ function insertRecord(options?: { belowRecordId?: string; data?: any }) {
   ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.data ?? ({} as any));
   // add record to search results (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: recordId });
-  console.log("insert record", recordId, recordRef);
-  const record = {
+  const optimisticRecord = {
     __typename: "Record",
     id: recordId,
-    revision: 0,
+    revision: -1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     deletedAt: null,
@@ -389,13 +388,14 @@ function insertRecord(options?: { belowRecordId?: string; data?: any }) {
           ...(data?.searchRecords.edges ?? []),
           {
             cursor: orderKey,
-            node: { __ref: recordRef, ...record } as any,
+            node: { __ref: recordRef, ...optimisticRecord } as any,
           },
         ],
       },
     })
   );
-  nextTick(() => grid.focus(recordId, columnsInOrder.value[0]));
+  // focus new record (for some reason the good ol' nextTick alone doesn't work here)
+  grid.onColumnAvailable(recordId, columnsInOrder.value[0], (ref) => nextTick(ref.focus));
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {
@@ -411,7 +411,8 @@ function deleteRecordField(recordId: string, key: string) {
   if (record == null) throw new Error("record not found: " + recordId);
   const oldData = record?.data;
   const newData = { ...oldData };
-  delete newData[key];
+  // TODO @Robustness: figure out better way to clear field in opensearch backend (maybe update by query?)
+  newData[key] = [];
   ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldData, newData);
 }
 
