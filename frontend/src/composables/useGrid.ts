@@ -52,6 +52,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   const gridId = Math.random().toString(36).substring(2, 15); // just for debugging
   const columnRefs: Ref<Record<string, RefType>> = ref({});
   const rowsLength = computed(() => rows.value?.length ?? 0);
+  const onRowAvailable: Record<string, ((ref: RefType) => void)[]> = {};
 
   let columnRefsBatchChange: Record<string, RefType | "delete"> | null = null;
 
@@ -59,6 +60,10 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     const columnId = rowId + "." + column;
     if (ref != undefined) {
       if (columnRefs.value[columnId] !== ref) {
+        if (onRowAvailable[columnId] != null) {
+          onRowAvailable[columnId]?.forEach((cb) => cb(ref));
+          delete onRowAvailable[columnId];
+        }
         if (columnRefsBatchChange != null) {
           columnRefsBatchChange[columnId] = ref;
         } else {
@@ -71,6 +76,18 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
       } else {
         delete columnRefs.value[columnId];
       }
+    }
+  }
+
+  function onColumnAvailable(rowId: string, column: ColumnType, cb: (ref: RefType) => void) {
+    const columnId = rowId + "." + column;
+    if (columnRefs.value[columnId] != null) {
+      cb(columnRefs.value[columnId]);
+    } else {
+      if (onRowAvailable[columnId] == null) {
+        onRowAvailable[columnId] = [];
+      }
+      onRowAvailable[columnId]?.push(cb);
     }
   }
 
@@ -195,6 +212,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
 
   return {
     registerColumnRef,
+    onColumnAvailable,
     beginBatchChange,
     flush,
     refsByColumn: columnRefs,

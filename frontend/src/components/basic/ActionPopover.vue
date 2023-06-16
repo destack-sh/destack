@@ -86,7 +86,7 @@ const appearance = useAppearance();
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Input & actions -->
-        <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click on option) -->
+        <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click) -->
         <Combobox
           as="div"
           :model-value="null"
