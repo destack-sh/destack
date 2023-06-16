@@ -215,12 +215,12 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.HTML: TypeTag.STRING,
     TypeHint.CODE: TypeTag.STRING,
     TypeHint.KEY: TypeTag.STRING,
+    TypeHint.PHONE: TypeTag.STRING,
     TypeHint.SECRET: TypeTag.STRING,
     # number
     TypeHint.INTEGER: TypeTag.NUMBER,
     TypeHint.FLOAT: TypeTag.NUMBER,
     TypeHint.SLIDER: TypeTag.NUMBER,
-    TypeHint.PHONE: TypeTag.NUMBER,
     TypeHint.RATING: TypeTag.NUMBER,
     # boolean
     TypeHint.TOGGLE: TypeTag.BOOLEAN,

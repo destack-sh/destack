@@ -39,7 +39,7 @@ const documents = {
     types.UpdateOrganizationDocument,
   "\n    mutation updateUser($id: GlobalID!, $name: String!, $description: String!) {\n      updateUser(input: { id: $id, name: $name, description: $description }) {\n        ... on User {\n          id\n          name\n          description\n        }\n        ...OperationInfoContent\n      }\n    }\n  ":
     types.UpdateUserDocument,
-  "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  ":
+  "\n  query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n    searchRecords(statementId: $statementId, after: $after, first: $first) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          data\n        }\n      }\n    }\n  }\n":
     types.SearchRecordsDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        head {\n          ...ProjectVersionHeader\n        }\n        versions {\n          totalCount\n          edges {\n            node {\n              ...ProjectVersionHeader\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
@@ -191,8 +191,6 @@ const documents = {
     types.UpdateSymbolValueDocument,
   "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statementId\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.CreateRecordDocument,
-  "\n              fragment _orderKey on Record {\n                orderKey\n              }\n            ":
-    types._OrderKeyFragmentDoc,
   "\n      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $data: JSON!) {\n        updateRecord(input: { id: $id, statementId: $statementId, data: $data }) {\n          ... on Record {\n            id\n            updatedAt\n            revision\n            data\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateRecordDocument,
   "\n      mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        deleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -335,8 +333,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "
-): typeof documents["\n    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n      searchRecords(statementId: $statementId, after: $after, first: $first) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          cursor\n          node {\n            id\n            revision\n            createdAt\n            updatedAt\n            deletedAt\n            orderKey\n            data\n          }\n        }\n      }\n    }\n  "];
+  source: "\n  query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n    searchRecords(statementId: $statementId, after: $after, first: $first) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"
+): typeof documents["\n  query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {\n    searchRecords(statementId: $statementId, after: $after, first: $first) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          data\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -787,12 +785,6 @@ export function graphql(
 export function graphql(
   source: "\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statementId\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {\n        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {\n          ... on Record {\n            id\n            createdAt\n            updatedAt\n            deletedAt\n            revision\n            orderKey\n            data\n            statementId\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(
-  source: "\n              fragment _orderKey on Record {\n                orderKey\n              }\n            "
-): typeof documents["\n              fragment _orderKey on Record {\n                orderKey\n              }\n            "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

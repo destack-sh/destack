@@ -5,7 +5,7 @@ import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from
 import { orderStatements, TypeFlag, type OrderedStatement } from "@/state/module";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newDatasetRecordId, newFieldId, newFieldKey, newStatementId } from "@/state/operations/statement";
+import { newRecordId, newFieldId, newFieldKey, newStatementId } from "@/state/operations/statement";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref } from "vue";
 
@@ -758,7 +758,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (!as && statement.value?.type != StatementType.Dataset) {
       throw new Error("can only insert records into datasets");
     }
-    const newRecordIds = files.map(() => newDatasetRecordId());
+    const newRecordIds = files.map(() => newRecordId());
     const tx = openTransaction({
       name: "insertFilesAsRecords",
       blockPartialUndo: true,

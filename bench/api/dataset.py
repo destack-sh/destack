@@ -41,7 +41,7 @@ class Record(CrudModel, Revisioned):
             created_at=record.created_at,
             created_by=None,
             updated_at=record.updated_at,
-            deleted_at=record.deleted_at,
+            deleted_at=record.deleted_at if record.deleted_at != "-" else None,
             last_edited_at=record.last_edited_at,
             last_edited_by=None,
         )

@@ -57,12 +57,12 @@ export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
   [TypeHint.Html]: "HTML",
   [TypeHint.Code]: "code",
   [TypeHint.Key]: "key",
+  [TypeHint.Phone]: "phone",
   [TypeHint.Secret]: "secret",
   // number
   [TypeHint.Integer]: "integer",
   [TypeHint.Float]: "float",
   [TypeHint.Slider]: "slider",
-  [TypeHint.Phone]: "phone",
   [TypeHint.Rating]: "rating",
   // boolean
   [TypeHint.Toggle]: "toggle",
@@ -85,9 +85,9 @@ export const SUPPORTED_TYPEHINTS: Partial<Record<TypeHint, TypeTag>> = {
   [TypeHint.Html]: TypeTag.String,
   [TypeHint.Code]: TypeTag.String,
   [TypeHint.Key]: TypeTag.String,
+  [TypeHint.Phone]: TypeTag.String,
   [TypeHint.Secret]: TypeTag.String,
   // number
-  [TypeHint.Phone]: TypeTag.Number,
   [TypeHint.Rating]: TypeTag.Number,
   [TypeHint.Integer]: TypeTag.Number,
   // boolean

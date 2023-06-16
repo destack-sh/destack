@@ -277,7 +277,10 @@ class Document:
             if value is None:
                 pass  # just leave it as None
             elif field.type == FT.DATE:
-                value = datetime.fromisoformat(value)
+                if value == "-":
+                    value = None  # used to reset a date field
+                else:
+                    value = datetime.fromisoformat(value)
             elif field._annotation == UUID:
                 value = UUID(value)
             elif field.type == FT.TEXT:
