@@ -4,7 +4,7 @@ from typing import NamedTuple, Optional
 import bench.bench as lang
 import bench.opensearch.type as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.const import EMBEDDING_DIMENSION, TYPE_TAG_BY_TYPE_HINT, TypeFlag
+from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.bench.session import TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
@@ -75,7 +75,7 @@ class StaticFieldMapper(FieldMapper):
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
         subfields = {
-            f.key: get_mapper(f).to_os_type(f, depth + 1)
+            f.typed_key: get_mapper(f).to_os_type(f, depth + 1)
             for f in type.resolved_fields
             if f.effective_type.tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH
         }
@@ -85,6 +85,20 @@ class StructFieldMapper(FieldMapper):
             dynamic="strict",
             properties=subfields,
         )
+
+
+class VectorFieldMapper(FieldMapper):
+    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
+        # see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
+        # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
+        method = os.KnnMethod(
+            # assumes normalized vectors with a :FixedEmbeddingDimension
+            name=os.KnnMethodName.HNSW,
+            engine=os.KnnEngine.NMSLIB,
+            space_type=os.KnnSpaceType.DOT_PRODUCT,
+            parameters=os.HnswParameters(ef_construction=512, m=64),
+        )
+        return os.Field(os.FT.KNN_VECTOR, dimension=type.dimensions, method=method)
 
 
 # string
@@ -105,7 +119,7 @@ register_mapper(
         },
         copy_to="name",  # :RecordNameField
     ),
-    hints=[TypeHint.NAME],
+    hints=[TypeHint.NAME, TypeHint.EMAIL],
 )
 register_mapper(os.Field(os.FT.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
 # number
@@ -114,19 +128,8 @@ register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 # boolean
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
-# see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
-# see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
-DEFAULT_VECTOR_METHOD = os.KnnMethod(
-    name=os.KnnMethodName.HNSW,
-    engine=os.KnnEngine.NMSLIB,
-    space_type=os.KnnSpaceType.DOT_PRODUCT,
-    # assumes normalized vectors with a :FixedEmbeddingDimension
-    parameters=os.HnswParameters(ef_construction=512, m=64),
-)
-register_mapper(
-    os.Field(os.FT.KNN_VECTOR, dimension=EMBEDDING_DIMENSION, method=DEFAULT_VECTOR_METHOD),
-    tags=[TypeTag.VECTOR],
-)
+
+register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # file
 register_mapper(
     os.Field(

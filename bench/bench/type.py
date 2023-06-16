@@ -17,6 +17,7 @@ from more_itertools import first
 
 from bench.bench import IssueType
 from bench.bench.const import (
+    DEFAULT_EMBEDDING_DIMENSION,
     FIELD_KEY_LENGTH,
     REFERENCE_REGEX,
     ExpectationModifier,
@@ -27,7 +28,9 @@ from bench.bench.const import (
     StatementType,
     TypeFlag,
     TypeHint,
+    TypeStorageFormat,
     TypeTag,
+    get_storage_format,
     parse_statement_path,
 )
 from bench.bench.dataset import Query, Sort
@@ -483,6 +486,12 @@ class TypeBase(abc.ABC):
     reference: Union[None, StatementReference, "HasType"]
     source: Optional[Statement]
 
+    @cached_property
+    def storage_format(self) -> TypeStorageFormat:
+        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Type):
+            return self.reference.storage_format
+        return get_storage_format(self.tag, self.hint, self.flags)
+
     @property
     def ident(self):
         return to_pyidentifier(self.name)
@@ -573,6 +582,19 @@ class Field(ModuleNode, HasSession, TypeBase):
     metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
 
+    @property
+    def dimensions(self) -> int:
+        if self.tag != TypeTag.VECTOR:
+            raise ValueError(f"{self} does not have dimensions")
+        return (self.metadata or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
+
+    @cached_property
+    def typed_key(self) -> str:
+        if self.storage_format == TypeStorageFormat.VECTOR:
+            return f"{self.key}-{self.storage_format.value}{self.dimensions}"
+        else:
+            return f"{self.key}-{self.storage_format.value}"
+
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
         return f"{name_str}{self.tag}"
@@ -581,7 +603,7 @@ class Field(ModuleNode, HasSession, TypeBase):
         return f"<Field {self}>"
 
     @property
-    def resolved_fields(self) -> list[TypeBase]:
+    def resolved_fields(self) -> list[Field]:
         if isinstance(self.reference, Type):
             return self.reference.fields
         return []

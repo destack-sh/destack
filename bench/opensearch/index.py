@@ -182,13 +182,13 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         elif isinstance(symbol, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in symbol.resolved_fields:
-                data_mappings[field.key] = map_to_os_field(field).to_dict()
+                data_mappings[field.typed_key] = map_to_os_field(field).to_dict()
         elif isinstance(symbol, (lang.Task, lang.Code)):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in symbol.inputs:
-                inputs_mappings[field.key] = map_to_os_field(field).to_dict()
+                inputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
             for field in symbol.outputs:
-                outputs_mappings[field.key] = map_to_os_field(field).to_dict()
+                outputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
 
     logger.info(
         "os.update_mappings.done",

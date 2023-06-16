@@ -122,11 +122,9 @@ defineExpose({
       >
         x
       </button>
-      <!-- Show full struct on hover -->
-      <!-- TODO @Feature: show structs properly (also needs struct interface) -->
     </div>
     <!-- Struct preview on hover -->
-    <!-- TODO @Broken: fix editability -->
+    <!-- TODO @Broken: fix struct editability -->
     <!-- The use of pin & fixed here is not incidental, value interfaces are usually clipped so we can't use absolute. -->
     <div
       v-if="activeIndex != null"

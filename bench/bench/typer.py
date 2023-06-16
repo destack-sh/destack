@@ -4,7 +4,7 @@ from typing import Any, Callable, Collection, Mapping, Union
 
 from bench.bench import TypeTag
 from bench.bench.const import PRIMITIVE_TYPES, TypeFlag
-from bench.bench.type import RemoteObject, TypeBase
+from bench.bench.type import Field, RemoteObject, TypeBase
 from bench.utils.utils import to_pyidentifier
 
 PyValueType = Union[int, float, bool, str, dict, list]
@@ -125,7 +125,7 @@ def map_value(
     value: Any,
     type: TypeBase,
     map_v: Callable[[Any, TypeBase, bool], Any] = None,
-    map_k: Callable[[TypeBase], tuple[str, str]] = None,
+    map_k: Callable[[Field], tuple[str, str]] = None,
     is_output: bool = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
@@ -184,13 +184,13 @@ def unkey_value(
     """Replaces keys with actual values."""
     if to_ident:
 
-        def map_k(t: TypeBase):
-            return t.key, t.ident
+        def map_k(t: Field):
+            return t.typed_key, t.ident
 
     else:
 
-        def map_k(t: TypeBase):
-            return t.key, t.name
+        def map_k(t: Field):
+            return t.typed_key, t.name
 
     return map_value(
         value,
@@ -212,13 +212,13 @@ def rekey_value(
     """Replaces names with keys."""
     if from_ident:
 
-        def map_k(t: TypeBase):
-            return t.ident, t.key
+        def map_k(t: Field):
+            return t.ident, t.typed_key
 
     else:
 
-        def map_k(t: TypeBase):
-            return t.name, t.key
+        def map_k(t: Field):
+            return t.name, t.typed_key
 
     return map_value(
         value,

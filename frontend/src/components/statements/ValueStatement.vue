@@ -1,14 +1,14 @@
 <script lang="ts" setup>
+import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
-import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import InlineActionsCell from "@/components/statements/InlineActionsCell.vue";
+import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
+import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
-import { computed, type Ref, ref, nextTick } from "vue";
-import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
-import { useOperations } from "@/state/operations";
-import type { Field } from "@/gql/graphql";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
 const ops = useOperations();

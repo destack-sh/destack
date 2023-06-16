@@ -1643,7 +1643,7 @@ type SystemInfo {
   gitCommit: String!
 }
 
-"""The representation of a type node"""
+"""Extra representation/semantics of a field/type."""
 enum TypeHint {
   NAME
   UUID
@@ -1673,14 +1673,13 @@ enum TypeHint {
   AUDIO
 }
 
-"""The actual value type of a type node."""
+"""The Bench primitive type of a field/type."""
 enum TypeTag {
   STRING
   NUMBER
   BOOLEAN
   VECTOR
   FILE
-  SHAPE
   STRUCT
   JSON
   FUNCTION

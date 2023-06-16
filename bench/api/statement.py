@@ -40,6 +40,7 @@ class FieldFilter:
         return queryset
 
 
+TypeStorageFormat = gql.enum(language.TypeStorageFormat)
 TypeTag = gql.enum(language.TypeTag)
 TypeHint = gql.enum(language.TypeHint)
 

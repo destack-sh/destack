@@ -54,15 +54,36 @@ class StatementType(enum.StrEnum):
     BLOCK = "block"
 
 
+class TypeStorageFormat(enum.StrEnum):
+    """
+    The fundamental form of a field/type.
+    Since we're using OpenSearch for our user data backend, this
+    needs to be compatible with OpenSearch's field types.
+    However, be mindful of other future storage backends.
+    :TypeStorageFormat
+    TODO @Architecture: consider consolidating type storage/tage/hint somehow
+    """
+
+    STRING = "str"
+    DOUBLE = "f64"
+    LONG = "s64"
+    VECTOR = "vec"
+    BINARY = "bin"
+    BOOLEAN = "bool"
+    DATE = "date"
+    KEYWORD = "key"
+    OBJECT = "obj"
+    RELATION = "rel"
+
+
 class TypeTag(enum.StrEnum):
-    """The actual value type of a type node."""
+    """The Bench primitive type of a field/type."""
 
     STRING = "string"
     NUMBER = "number"
     BOOLEAN = "boolean"
     VECTOR = "vector"
     FILE = "file"
-    SHAPE = "shape"
     STRUCT = "struct"
     JSON = "json"
     FUNCTION = "function"
@@ -75,7 +96,7 @@ class TypeTag(enum.StrEnum):
 
 
 class TypeHint(enum.StrEnum):
-    """The representation of a type node"""
+    """Extra representation/semantics of a field/type."""
 
     # string
     NAME = "name"
@@ -111,6 +132,8 @@ class TypeHint(enum.StrEnum):
 
 
 class TypeFlag(enum.IntFlag):
+    """Extra information for fields"""
+
     # :TypeFlags
     Zero = 0
     IsOutput = 2**0
@@ -120,7 +143,7 @@ class TypeFlag(enum.IntFlag):
     IsSecret = 2**4
 
 
-EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
+DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
 Vector = list[float]
 
 
@@ -151,6 +174,71 @@ class XYShape:
 
     type: XYShapeType
     coordinates: typing.Union[list[float], list[list[float]]]
+
+
+TYPE_TAG_BY_TYPE_HINT = {
+    # string
+    TypeHint.NAME: TypeTag.STRING,
+    TypeHint.UUID: TypeTag.STRING,
+    TypeHint.DATE: TypeTag.STRING,
+    TypeHint.DATETIME: TypeTag.STRING,
+    TypeHint.TIME: TypeTag.STRING,
+    TypeHint.DURATION: TypeTag.STRING,
+    TypeHint.EMAIL: TypeTag.STRING,
+    TypeHint.URL: TypeTag.STRING,
+    TypeHint.MARKDOWN: TypeTag.STRING,
+    TypeHint.RICH_TEXT: TypeTag.STRING,
+    TypeHint.HTML: TypeTag.STRING,
+    TypeHint.CODE: TypeTag.STRING,
+    TypeHint.KEY: TypeTag.STRING,
+    TypeHint.PHONE: TypeTag.STRING,
+    TypeHint.SECRET: TypeTag.STRING,
+    # number
+    TypeHint.INTEGER: TypeTag.NUMBER,
+    TypeHint.FLOAT: TypeTag.NUMBER,
+    TypeHint.SLIDER: TypeTag.NUMBER,
+    TypeHint.RATING: TypeTag.NUMBER,
+    # boolean
+    TypeHint.TOGGLE: TypeTag.BOOLEAN,
+    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
+    TypeHint.THUMBS: TypeTag.BOOLEAN,
+    # file
+    TypeHint.IMAGE: TypeTag.FILE,
+    TypeHint.VIDEO: TypeTag.FILE,
+    TypeHint.AUDIO: TypeTag.FILE,
+}
+
+# sync with :TypeStorageFormat
+STORAGE_FORMAT_BY_TYPE_TAG = {
+    TypeTag.STRING: TypeStorageFormat.STRING,
+    TypeTag.JSON: TypeStorageFormat.OBJECT,
+    TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
+    TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
+    TypeTag.VECTOR: TypeStorageFormat.VECTOR,
+    TypeTag.FILE: TypeStorageFormat.BINARY,
+    TypeTag.STRUCT: TypeStorageFormat.OBJECT,
+    TypeTag.ENUM: TypeStorageFormat.KEYWORD,
+}
+STORAGE_FORMAT_BY_TYPE_HINT = {
+    # for special types that are not the same as their type tag
+    TypeHint.UUID: TypeStorageFormat.KEYWORD,
+    TypeHint.DATE: TypeStorageFormat.DATE,
+    TypeHint.DATETIME: TypeStorageFormat.DATE,
+    TypeHint.TIME: TypeStorageFormat.LONG,
+    TypeHint.DURATION: TypeStorageFormat.DOUBLE,
+    TypeHint.KEY: TypeStorageFormat.KEYWORD,
+    TypeHint.INTEGER: TypeStorageFormat.LONG,
+    TypeHint.FLOAT: TypeStorageFormat.DOUBLE,
+}
+
+
+def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeStorageFormat:
+    # :TypeStorageFormat
+    if flags & TypeFlag.IsSecret:
+        return TypeStorageFormat.OBJECT  # stored as secret object
+    if hint in STORAGE_FORMAT_BY_TYPE_HINT:
+        return STORAGE_FORMAT_BY_TYPE_HINT[hint]
+    return STORAGE_FORMAT_BY_TYPE_TAG[tag]
 
 
 class ExpectationModifier(enum.StrEnum):
@@ -199,38 +287,6 @@ RELATIVE_REFERENCE_REGEX = re.compile(r"^\.(?P<path>[\w.\- ]+)$")
 ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
     r"^(?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+)\.(?P<path>[\w.\- ]+)$"
 )
-
-TYPE_TAG_BY_TYPE_HINT = {
-    # string
-    TypeHint.NAME: TypeTag.STRING,
-    TypeHint.UUID: TypeTag.STRING,
-    TypeHint.DATE: TypeTag.STRING,
-    TypeHint.DATETIME: TypeTag.STRING,
-    TypeHint.TIME: TypeTag.STRING,
-    TypeHint.DURATION: TypeTag.STRING,
-    TypeHint.EMAIL: TypeTag.STRING,
-    TypeHint.URL: TypeTag.STRING,
-    TypeHint.MARKDOWN: TypeTag.STRING,
-    TypeHint.RICH_TEXT: TypeTag.STRING,
-    TypeHint.HTML: TypeTag.STRING,
-    TypeHint.CODE: TypeTag.STRING,
-    TypeHint.KEY: TypeTag.STRING,
-    TypeHint.PHONE: TypeTag.STRING,
-    TypeHint.SECRET: TypeTag.STRING,
-    # number
-    TypeHint.INTEGER: TypeTag.NUMBER,
-    TypeHint.FLOAT: TypeTag.NUMBER,
-    TypeHint.SLIDER: TypeTag.NUMBER,
-    TypeHint.RATING: TypeTag.NUMBER,
-    # boolean
-    TypeHint.TOGGLE: TypeTag.BOOLEAN,
-    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
-    TypeHint.THUMBS: TypeTag.BOOLEAN,
-    # file
-    TypeHint.IMAGE: TypeTag.FILE,
-    TypeHint.VIDEO: TypeTag.FILE,
-    TypeHint.AUDIO: TypeTag.FILE,
-}
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
