@@ -148,7 +148,7 @@ registerInterface("boolean.thumbs", {
   minWidth: 40,
   inline: true,
 });
-// other
+// type reference
 registerInterface("enum", {
   tags: [TypeTag.Enum],
   read: (t, v) => toArrayAsFlagged(t, v),
@@ -165,6 +165,7 @@ registerInterface("struct", {
   minWidth: 200,
   grow: 1.0,
 });
+// file
 registerInterface("file", {
   tags: [TypeTag.File],
   read: (t, v) => toArrayAsFlagged(t, v).filter(isValidObjectRecord),
@@ -172,6 +173,16 @@ registerInterface("file", {
   supportsList: true,
   minWidth: 200,
   grow: 1.0,
+});
+// vector
+registerInterface("vector", {
+  tags: [TypeTag.Vector],
+  read: (t, v) => toArrayAsFlagged(t, v),
+  write: (t, v) => toArrayIfFlagged(t, v),
+  supportsList: true,
+  minWidth: 60,
+  grow: 0.5,
+  inline: true,
 });
 
 export function getInterface(type: Field): ValueInterface | undefined {

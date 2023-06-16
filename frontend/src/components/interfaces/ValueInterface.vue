@@ -20,6 +20,7 @@ import { IS_DEBUG } from "@/utils/globals";
 import { syncProperty } from "@/utils/sync";
 import { ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import VectorInput from "@/components/inputs/VectorInput.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
@@ -33,6 +34,7 @@ const INTERFACES: Record<string, any> = {
   struct: StructInput,
   file: FileInput,
   secret: SecretInput,
+  vector: VectorInput,
 };
 
 const props = defineProps<{

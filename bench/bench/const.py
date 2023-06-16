@@ -120,7 +120,7 @@ class TypeFlag(enum.IntFlag):
     IsSecret = 2**4
 
 
-EMBEDDING_DIMENSION = 1536
+EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
 Vector = list[float]
 
 

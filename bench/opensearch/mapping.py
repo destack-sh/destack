@@ -4,7 +4,7 @@ from typing import NamedTuple, Optional
 import bench.bench as lang
 import bench.opensearch.type as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
+from bench.bench.const import EMBEDDING_DIMENSION, TYPE_TAG_BY_TYPE_HINT, TypeFlag
 from bench.bench.session import TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
@@ -114,7 +114,19 @@ register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 # boolean
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
-register_mapper(os.Field(os.FT.KNN_VECTOR), tags=[TypeTag.VECTOR])
+# see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
+# see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
+DEFAULT_VECTOR_METHOD = os.KnnMethod(
+    name=os.KnnMethodName.HNSW,
+    engine=os.KnnEngine.NMSLIB,
+    space_type=os.KnnSpaceType.DOT_PRODUCT,
+    # assumes normalized vectors with a :FixedEmbeddingDimension
+    parameters=os.HnswParameters(ef_construction=512, m=64),
+)
+register_mapper(
+    os.Field(os.FT.KNN_VECTOR, dimension=EMBEDDING_DIMENSION, method=DEFAULT_VECTOR_METHOD),
+    tags=[TypeTag.VECTOR],
+)
 # file
 register_mapper(
     os.Field(
