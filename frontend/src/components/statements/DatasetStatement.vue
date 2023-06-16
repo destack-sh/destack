@@ -12,11 +12,12 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
+import type { Record } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
 import { useOperations } from "@/state/operations";
-import { newDatasetRecordId } from "@/state/operations/statement";
+import { newRecordId } from "@/state/operations/statement";
 import { useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import {
@@ -28,7 +29,7 @@ import {
   SquaresPlusIcon,
   TrashIcon,
 } from "@heroicons/vue/24/outline";
-import { useQuery } from "@vue/apollo-composable";
+import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
@@ -38,6 +39,7 @@ const editorView = useEditorContext();
 const addingDescription = ref(false);
 
 const appearance = useAppearance();
+const client = useApolloClient();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -50,62 +52,62 @@ const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
-const {
-  loading,
-  result: fetchedRecords,
-  refetch,
-  fetchMore,
-} = useQuery(
-  graphql(/* GraphQL */ `
-    query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {
-      searchRecords(statementId: $statementId, after: $after, first: $first) {
-        totalCount
-        pageInfo {
-          hasNextPage
-          hasPreviousPage
-          startCursor
-          endCursor
-        }
-        edges {
-          cursor
-          node {
-            id
-            revision
-            createdAt
-            updatedAt
-            deletedAt
-            orderKey
-            data
-          }
+const SEARCH_QUERY = graphql(/* GraphQL */ `
+  query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {
+    searchRecords(statementId: $statementId, after: $after, first: $first) {
+      totalCount
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      edges {
+        cursor
+        node {
+          id
+          revision
+          createdAt
+          updatedAt
+          deletedAt
+          orderKey
+          data
         }
       }
     }
-  `),
-  {
-    statementId: computed(() => context.statement.value.id),
-    after: null as string | null,
-    first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
   }
-);
-const pageInfo = computed(() => fetchedRecords.value?.searchRecords.pageInfo);
-const recordsInView = computed(
+`);
+const {
+  loading,
+  result: recordsFetchedResult,
+  refetch,
+  fetchMore,
+} = useQuery(SEARCH_QUERY, {
+  statementId: computed(() => context.statement.value.id),
+  after: null as string | null,
+  first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+});
+const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
+const recordsFetched = computed(
   () =>
-    fetchedRecords.value?.searchRecords.edges
+    recordsFetchedResult.value?.searchRecords.edges
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
-      .map((e) => e.node)
-      .filter((n) => n.deletedAt == null)
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+      .map((e) => e.node) ?? []
+);
+
+const recordsInView = computed(
+  () => recordsFetched.value.filter((n) => n.deletedAt == null).sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
 );
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
-  pageInfo.value?.hasNextPage ? fetchedRecords.value?.searchRecords.edges.slice(-1)[0]?.node : null
+  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.node : null
 );
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
-      after: fetchedRecords.value?.searchRecords.edges.slice(-1)[0]?.cursor,
+      after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
       first: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
@@ -343,10 +345,56 @@ function insertRecordAtEnd() {
   insertRecord({ belowRecordId: lastRecordInView.value?.id });
 }
 
-function insertRecord(options?: { belowRecordId?: string; data?: Record<string, any> }) {
+function insertRecord(options?: { belowRecordId?: string; data?: any }) {
   const orderKey = getNewOrderKey(options?.belowRecordId);
-  const recordId = newDatasetRecordId();
+  const recordId = newRecordId();
   ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.data ?? ({} as any));
+  // add record to search results (regardless of filter)
+  const recordRef = client.client.cache.identify({ __typename: "Record", id: recordId });
+  console.log("insert record", recordId, recordRef);
+  const record = {
+    __typename: "Record",
+    id: recordId,
+    revision: 0,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    deletedAt: null,
+    orderKey,
+    data: options?.data ?? ({} as any),
+  };
+  client.client.cache.updateQuery(
+    {
+      query: SEARCH_QUERY,
+      variables: {
+        statementId: context.statement.value.id,
+        after: null,
+        first: PAGE_SIZE + 1,
+      },
+    },
+    (
+      data = {
+        searchRecords: {
+          __typename: "RecordConnection",
+          totalCount: 0,
+          edges: [],
+          pageInfo: { hasNextPage: false, hasPreviousPage: false },
+        },
+      }
+    ) => ({
+      searchRecords: {
+        ...data?.searchRecords,
+        pageInfo: data?.searchRecords.pageInfo ?? { hasNextPage: false, hasPreviousPage: false },
+        totalCount: (data?.searchRecords.totalCount ?? 0) + 1,
+        edges: [
+          ...(data?.searchRecords.edges ?? []),
+          {
+            cursor: orderKey,
+            node: { __ref: recordRef, ...record } as any,
+          },
+        ],
+      },
+    })
+  );
   nextTick(() => grid.focus(recordId, columnsInOrder.value[0]));
 }
 
@@ -397,14 +445,13 @@ const position = useMouseInElement(gridRef);
 
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
-  if ((fetchedRecords?.value?.searchRecords.totalCount ?? -1) == -1) {
-    actions.push({
-      label: "Reload view",
-      icon: ArrowPathIcon,
-      active: loading.value,
-      action: () => refetch(),
-    });
-  }
+  // TODO @UX: ideally reload view should only be useful in debug/dev mode
+  actions.push({
+    label: "Reload view",
+    icon: ArrowPathIcon,
+    active: loading.value,
+    action: () => refetch(),
+  });
   actions.push({
     label: "Add record",
     icon: PlusIcon,
@@ -464,15 +511,15 @@ defineExpose({
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
+      <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
+      <span class="ml-1 text-gray-400">
+        {{ humanizeNumber(recordsFetchedResult?.searchRecords.totalCount ?? 0) }}
+      </span>
     </div>
     <div
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
-      <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
-      <span v-if="(fetchedRecords?.searchRecords.totalCount ?? -1) > 0" class="text-gray-400">
-        {{ humanizeNumber(fetchedRecords?.searchRecords.totalCount ?? 0) }}
-      </span>
       <InlineActions :extraActions="extraStatementActions" />
       <CreateFieldInterface
         ref="createFieldRef"

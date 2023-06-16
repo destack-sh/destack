@@ -4010,10 +4010,6 @@ export type CreateRecordMutation = {
       };
 };
 
-export type _OrderKeyFragment = { __typename?: "Record"; orderKey: string } & {
-  " $fragmentName"?: "_OrderKeyFragment";
-};
-
 export type UpdateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
@@ -5183,20 +5179,6 @@ export const InterpStatementDataFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpStatementDataFragment, unknown>;
-export const _OrderKeyFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "_orderKey" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Record" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [{ kind: "Field", name: { kind: "Name", value: "orderKey" } }],
-      },
-    },
-  ],
-} as unknown as DocumentNode<_OrderKeyFragment, unknown>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [

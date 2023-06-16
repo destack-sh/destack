@@ -42,6 +42,7 @@ const query = ref("");
 const filteredActions = computed(() =>
   props.actions.filter((action: { label: string }) => action.label.toLowerCase().includes(query.value.toLowerCase()))
 );
+const closed = ref(true);
 
 const anchor = computed(
   () =>
@@ -58,7 +59,9 @@ const appearance = useAppearance();
     <button
       class="z-20 rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
       :class="[open ? 'bg-orange-100' : '']"
-      @click="emit('click', $event), popoverButtonRef?.$el.click(), $nextTick(() => inputRef?.$el.focus())"
+      @click="
+        emit('click', $event), popoverButtonRef?.$el.click(), (closed = false), $nextTick(() => inputRef?.$el.focus())
+      "
       @mousedown="emit('mousedown', $event)"
       @mouseup="emit('mouseup', $event)"
     >
@@ -83,7 +86,12 @@ const appearance = useAppearance();
       >
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Input & actions -->
-        <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (action.action(thing), close())">
+        <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click on option) -->
+        <Combobox
+          as="div"
+          :model-value="null"
+          @update:model-value="(action: any) => (closed || (action.action(thing), closed=true, close()))"
+        >
           <ComboboxInput
             as="input"
             ref="inputRef"
@@ -113,7 +121,7 @@ const appearance = useAppearance();
               :value="action"
               :disabled="action.disabled"
               v-slot="{ active }"
-              @click.prevent.stop="action.action(thing), close()"
+              @click.prevent.stop="closed || (action.action(thing), (closed = true), close())"
             >
               <button
                 class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"

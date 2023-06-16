@@ -41,10 +41,10 @@ export function newFieldKey(): string {
   return Array.from({ length: 8 }, () => ALPHA_CHARS.charAt(Math.floor(Math.random() * ALPHA_CHARS.length))).join("");
 }
 
-export function newDatasetRecordId(): string {
+export function newRecordId(): string {
   /* Generates a new dataset record global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
-  return btoa(`DatasetRecord:${nodeId}`);
+  return btoa(`Record:${nodeId}`);
 }
 
 export function useStatementOps() {
@@ -225,6 +225,7 @@ export function useStatementOps() {
           name: null,
           lang: null,
           code: null,
+          value: null,
           description: null,
           rootTypeTag: null,
           rootTypeFlags: null,
@@ -268,6 +269,7 @@ export function useStatementOps() {
           name: input.name ?? null,
           lang: null,
           code: null,
+          value: null,
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
