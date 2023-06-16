@@ -24,7 +24,6 @@ from bench.bench.const import InterpScope, ModuleObjectType, TypeFlag, TypeHint,
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
 from bench.bench.wire import ModuleTree
-from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
@@ -69,6 +68,14 @@ class PackMultiFilter:
         self.filters: dict[typing.Type[ModelT], list[PackFilter]] = defaultdict(list)
         for type, filter in filters:
             self.filters[type].append(filter)
+
+    def extend(self, *filters: tuple[typing.Type[ModelT], PackFilter]) -> "PackMultiFilter":
+        """Return a new filter with the given filters added."""
+        new_filters = [*filters]
+        for type, fs in self.filters.items():
+            for f in fs:
+                new_filters.append((type, f))
+        return PackMultiFilter(new_filters)
 
     def filter(self, type: ModelT, callable: PackFilter):
         self.filters[type].append(callable)
@@ -130,17 +137,27 @@ def get_node_packer(node: NodeT) -> NodePacker:
         return _node_packers_by_node[(type(node), None)]
 
 
-def pack_module(module: models.ProjectVersion) -> wire.ModuleData:
+def pack_module(
+    module: models.ProjectVersion, filter: PackFilter = DEFAULT_PACK_FILTER
+) -> wire.ModuleData:
     """Pack a module (convenience wrapper)"""
-    roots, nodes = pack_node(module)
-    roots[0].nodes = nodes
-    return roots[0]
+    packed = pack_node(module, filter=filter)
+    packed.roots[0].nodes = packed.nodes_list()
+    return packed.roots[0]
 
 
-def pack_node(
-    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER
-) -> tuple[list[NodeDataT], list[NodeDataT]]:
+class Packed(typing.NamedTuple):
+    roots: list[NodeDataT]
+    nodes: dict[UUID, NodeDataT]
+    visited: dict[UUID, NodeT]
+
+    def nodes_list(self):
+        return list(self.nodes.values())
+
+
+def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> Packed:
     """Pack a node and its descendants"""
+    visited: dict[UUID, NodeT] = {}
     packed: dict[UUID, NodeDataT] = OrderedDict()
     packed_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
     ctx = PackContext()
@@ -168,6 +185,7 @@ def pack_node(
                 elif existing_qs.query != qs.query:
                     querysets[qs.model] = querysets[qs.model].union(qs)
             for node in nodes:
+                visited[node.id] = node
                 packed[node.id] = packer.pack(node)
                 packed_by_node_t[type(node)].append(node.id)
 
@@ -177,19 +195,29 @@ def pack_node(
             to_pack.extend(qs)
 
     roots = [packed[node.id] for node in models]
-    return roots, list(packed.values())
+    return Packed(roots, packed, visited)
 
 
-def unpack_nodes_tree(nodes: list[NodeDataT], parent: Optional[NodeT] = None) -> ModuleTree:
+def unpack_nodes_tree(
+    nodes: list[NodeDataT], parent: Optional[NodeT] = None, pre_unpacked: dict[UUID, NodeT] = None
+) -> ModuleTree:
     """Unpack a node and its descendants"""
     data_tree = ModuleTree(nodes)
     unpacked_tree = ModuleTree()
+    pre_unpacked = pre_unpacked or {}
 
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
         node_parent = unpacked_tree.nodes.get(node.parent_id) if node.parent_id else parent
-        for unpacked in packer.unpack(node, node_parent):
+        if node.id in pre_unpacked:
+            unpacked = pre_unpacked[node.id]
+        else:
+            unpacked = packer.unpack(node, node_parent)
+        if isinstance(unpacked, list):
+            for unpacked_node in unpacked:
+                unpacked_tree.add(unpacked_node)
+        else:
             unpacked_tree.add(unpacked)
 
     return unpacked_tree
@@ -269,7 +297,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
         return models.File(
             id=data.id,
             project_version_id=project_version_id,
-            parent=parent if isinstance(parent, models.File) else None,
+            parent_file_id=parent.id if isinstance(parent, models.File) else None,
             name=data.name,
             revision=data.revision,
         )
@@ -293,7 +321,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
         return models.Statement(
             id=data.id,
             project_version_id=parent.project_version_id,
-            parent_id=parent.id if isinstance(parent, models.File) else parent.id,
+            parent_statement_id=parent.id if isinstance(parent, models.Statement) else None,
             file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
             revision=data.revision,
             order_key=data.order_key,
@@ -727,6 +755,7 @@ def write_mutations(
     Writes a series of module mutations to the database.
     Currently only interp and record mutations are supported.
     """
+    from bench.opensearch.index import write_mutations_to_os
 
     mut = MutationBundle(mutations)
 
@@ -749,11 +778,11 @@ def write_mutations(
             # (first assemble ancestor models - no queries, just unpacking)
             nodes = unpack_nodes(project_v, module, [m.data for m in batch])
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            # note: this probably doesn't work yet fully, just a placeholder until we need it proper
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:
-                # note: this probably doesn't work yet, just a placeholder until we need it
-                model_cls.objects.bulk_update(nodes)
+                model_cls.objects.bulk_update(nodes)  # particularly updates are wonky
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:

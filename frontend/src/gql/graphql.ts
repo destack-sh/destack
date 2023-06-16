@@ -287,6 +287,7 @@ export type FieldCreateInput = {
   hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
   key: Scalars["String"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
@@ -328,6 +329,7 @@ export type FieldUpdateInput = {
   flags?: Scalars["Int"];
   hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
@@ -1607,7 +1609,6 @@ export type RefMapping = Node & {
   targetRevision: Scalars["Int"];
   targetVersion: ProjectVersion;
   targetVersionId: Scalars["GlobalID"];
-  type: RefType;
 };
 
 /** A connection to a list of items. */
@@ -1632,19 +1633,11 @@ export type RefMappingEdge = {
 
 export type RefMappingFilter = {
   kind?: InputMaybe<RefMappingKind>;
-  type?: InputMaybe<RefType>;
 };
 
 export enum RefMappingKind {
   Commit = "COMMIT",
   Paste = "PASTE",
-}
-
-export enum RefType {
-  Field = "FIELD",
-  File = "FILE",
-  Record = "RECORD",
-  Statement = "STATEMENT",
 }
 
 export type RemoteObject = Node & {
@@ -2790,7 +2783,6 @@ export type ProjectMigrationRefsQuery = {
       };
       refMappings: Array<{
         __typename?: "RefMapping";
-        type: RefType;
         sourceId: any;
         sourceVersionId: any;
         targetId: any;
@@ -4106,6 +4098,7 @@ export type CreateFieldMutationVariables = Exact<{
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type CreateFieldMutation = {
@@ -4125,6 +4118,7 @@ export type CreateFieldMutation = {
         hint?: TypeHint | null;
         description?: string | null;
         flags: number;
+        metadata?: any | null;
         statement: { __typename?: "Statement"; id: any };
         reference?: { __typename?: "Statement"; id: any } | null;
       }
@@ -4180,6 +4174,7 @@ export type UpdateFieldMutationVariables = Exact<{
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type UpdateFieldMutation = {
@@ -4195,6 +4190,7 @@ export type UpdateFieldMutation = {
         name?: string | null;
         description?: string | null;
         flags: number;
+        metadata?: any | null;
         reference?: { __typename?: "Statement"; id: any } | null;
       }
     | ({ __typename?: "OperationInfo" } & {
@@ -7390,7 +7386,6 @@ export const ProjectMigrationRefsDocument = {
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
                             { kind: "Field", name: { kind: "Name", value: "sourceId" } },
                             { kind: "Field", name: { kind: "Name", value: "sourceVersionId" } },
                             { kind: "Field", name: { kind: "Name", value: "targetId" } },
@@ -12126,6 +12121,11 @@ export const CreateFieldDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -12190,6 +12190,11 @@ export const CreateFieldDocument = {
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "metadata" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                    },
                   ],
                 },
               },
@@ -12231,6 +12236,7 @@ export const CreateFieldDocument = {
                         },
                       },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
+                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
                     ],
                   },
                 },
@@ -12467,6 +12473,11 @@ export const UpdateFieldDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -12516,6 +12527,11 @@ export const UpdateFieldDocument = {
                       name: { kind: "Name", value: "referenceId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "metadata" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                    },
                   ],
                 },
               },
@@ -12545,6 +12561,7 @@ export const UpdateFieldDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
+                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
                     ],
                   },
                 },

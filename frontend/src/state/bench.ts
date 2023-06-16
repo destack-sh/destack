@@ -644,7 +644,6 @@ export function useBenchMigrations() {
                 name
               }
               refMappings {
-                type
                 sourceId
                 sourceVersionId
                 targetId

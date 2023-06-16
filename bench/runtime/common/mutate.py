@@ -66,9 +66,11 @@ def map_mutation_from_api(
     if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT) or (
         type == MMT.COMMENT_STATEMENT and not thing.commented
     ):
-        _, nodes_data = packer.pack_node(thing)
+        packed = packer.pack_node(thing)
         file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
-        internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(*nodes_data)
+        internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(
+            *packed.nodes_list()
+        )
         api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
@@ -107,9 +109,9 @@ def _get_internal_mutation_from_api(
         if thing.commented:
             internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
         else:
-            _, nodes_data = packer.pack_node(thing)
+            packed = packer.pack_node(thing)
             mut = ModuleMutator(module=mutation.project_version_id)
-            return mut.create_many(*nodes_data).mutations
+            return mut.create_many(*packed.nodes_list()).mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
         internal_type = MMT(mutation.type.kind + "_" + mutation.mot)

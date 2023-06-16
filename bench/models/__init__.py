@@ -18,7 +18,6 @@ from .project import (
     ProjectVisibility,
     RefMapping,
     RefMappingKind,
-    RefType,
 )
 from .secret import Secret
 from .statement import Field, Statement
@@ -57,7 +56,6 @@ __all__ = [
     "ProjectVisibility",
     "RefMapping",
     "RefMappingKind",
-    "RefType",
     "RemoteObject",
     "RemoteObjectStatus",
     "ResolvedField",

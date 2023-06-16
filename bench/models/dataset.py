@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from typing import Optional
+from uuid import UUID
+
 from django.db import models
 
-from bench.models.utils import UUIDModel
+from bench.models.utils import ModuleNode, UUIDModel
 
 
 class DatasetBackend(models.TextChoices):
@@ -11,7 +14,7 @@ class DatasetBackend(models.TextChoices):
     OPENSEARCH = "OPENSEARCH"
 
 
-class Dataset(UUIDModel):
+class Dataset(UUIDModel, ModuleNode):
     """A user created dataset backing the data symbol of a statement."""
 
     statement: Statement  # noqa via Statement.dataset
@@ -21,6 +24,10 @@ class Dataset(UUIDModel):
     versioned = models.BooleanField(default=True)
     # opensearch
     os_mappings: models.QuerySet[OpensearchMapping]  # noqa via OpensearchMapping.dataset
+
+    @property
+    def parent_id(self) -> Optional[UUID]:
+        return self.statement.id
 
 
 class OpensearchMapping(models.Model):

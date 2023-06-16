@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import pytz
 import structlog
@@ -13,11 +14,18 @@ from django.db.models.expressions import RawSQL
 from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag
 from bench.bench.const import FIELD_KEY_LENGTH, TypeFlag
 from bench.bench.type import new_field_key
-from bench.models.utils import NAME_VALIDATOR, CrudModel, UUIDModel, get_choices, Revisioned
+from bench.models.utils import (
+    NAME_VALIDATOR,
+    CrudModel,
+    ModuleNode,
+    Revisioned,
+    UUIDModel,
+    get_choices,
+)
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import File, ProjectVersion, RefMapping
+    from bench.models import ProjectVersion, RefMapping
 
 logger = structlog.get_logger(__name__)
 
@@ -28,7 +36,7 @@ class FieldManager(models.Manager["Field"]):
         return super().get_queryset().select_related("statement")
 
 
-class Field(UUIDModel, CrudModel, Revisioned):
+class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     """
     A (usually) named type of something.
     Do not write to this model directly as any change affects the opensearch indices.
@@ -62,6 +70,10 @@ class Field(UUIDModel, CrudModel, Revisioned):
     def __repr__(self):
         return f"<Field {str(self)}>"
 
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.statement_id
+
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
 
@@ -88,64 +100,24 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    def create_statement(
-        self,
-        project_version: ProjectVersion,
-        file: File,
-        parent: Optional[Statement],
-        order_key: Optional[str],
-        type: StatementType,
-        name: Optional[str],
-        **kwargs,
-    ) -> Statement:
-        if order_key is None:
-            # set order key to the end of siblings (parent/file children)
-            raise NotImplementedError("auto order key not implemented yet")
-        return self.create(
-            project_version=project_version,
-            file=file,
-            parent=parent,
-            order_key=order_key,
-            type=type,
-            name=name,
-            **kwargs,
-        )
-
     def copy_statements(
         self,
         statements: models.QuerySet[Statement],
-        target_files: dict[UUID, File],
         source_version: ProjectVersion,
         target_version: ProjectVersion,
-        target_statement_ids: dict[UUID, UUID] | None = None,
+        target_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
         copy_revisions: bool = True,
     ) -> list["RefMapping"]:
         """Copies the given source statements into the target version in given new files"""
 
-        from bench.models import RefMapping, RefType  # avoid circular import
+        from bench.models import RefMapping
 
         ref_mappings: list[RefMapping] = []
         ref_mappings_ids: dict[UUID, UUID] = {}
 
-        def _refmap(type: RefType, old_id: UUID, old_revision: int, new: models.Model):
-            ref_mapping = RefMapping(
-                type=type,
-                source_version=source_version,
-                target_version=target_version,
-                source_id=old_id,
-                target_id=new.id,
-                source_revision=old_revision,
-                target_revision=new.revision,
-            )
-            ref_mappings_ids[old_id] = ref_mapping.id
-            ref_mappings.append(ref_mapping)
-
         # (pre-determine new statement ids to re-create source mappings in one go)
-        target_statement_ids = target_statement_ids or {
-            statement.id: uuid4() for statement in statements
-        }
         target_parent_ids = target_parent_ids or {}
         target_order_keys = target_order_keys or {}
 
@@ -160,14 +132,14 @@ class StatementManager(models.Manager["Statement"]):
     ) -> models.QuerySet[Statement]:
         """Gets descendants of statements with given ids (including the statements themselves)."""
         query = """
-           WITH RECURSIVE descendants(id, parent_id) AS (
-               SELECT id, parent_id
+           WITH RECURSIVE descendants(id, parent_statement_id) AS (
+               SELECT id, parent_statement_id
                FROM bench_statement
                WHERE id = ANY(%s)
                UNION ALL
-               SELECT bench_statement.id, bench_statement.parent_id
+               SELECT bench_statement.id, bench_statement.parent_statement_id
                FROM bench_statement
-               INNER JOIN descendants ON descendants.id = bench_statement.parent_id
+               INNER JOIN descendants ON descendants.id = bench_statement.parent_statement_id
            )
            SELECT DISTINCT id
            FROM descendants
@@ -177,7 +149,7 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-class Statement(UUIDModel, CrudModel, Revisioned):
+class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     """
     A nested statement in a file for working with Bench symbols and other stuff.
     """
@@ -192,7 +164,7 @@ class Statement(UUIDModel, CrudModel, Revisioned):
     )
     commented = models.BooleanField(default=False)
 
-    parent = models.ForeignKey(
+    parent_statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     children: models.QuerySet[Statement]  # noqa via Statement.parent
@@ -233,6 +205,10 @@ class Statement(UUIDModel, CrudModel, Revisioned):
         return Statement.objects.get_descendants([self.id])
 
     @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.parent_statement_id or self.file_id
+
+    @property
     def path(self) -> str:
         return self.file.path + ":" + str(self.order_key)
 
@@ -261,11 +237,11 @@ class Statement(UUIDModel, CrudModel, Revisioned):
             models.UniqueConstraint(
                 fields=["file", "order_key"],
                 name="bench_statement_file_order_key_ak",
-                condition=models.Q(parent__isnull=True, deleted_at__isnull=True),
+                condition=models.Q(parent_statement__isnull=True, deleted_at__isnull=True),
             ),
             models.UniqueConstraint(
-                fields=["parent", "order_key"],
+                fields=["parent_statement", "order_key"],
                 name="bench_statement_parent_order_key_ak",
-                condition=models.Q(parent__isnull=False, deleted_at__isnull=True),
+                condition=models.Q(parent_statement__isnull=False, deleted_at__isnull=True),
             ),
         ]

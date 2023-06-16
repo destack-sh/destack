@@ -23,7 +23,6 @@ if typing.TYPE_CHECKING:
     from bench.bench.build import XBlock
     from bench.bench.session import Session
 
-
 #
 # Stable, concise and flat language data nodes for transit and storage.
 # TODO @Performance @Robustness: use an optimized and evolvable :WireFormat
@@ -112,14 +111,40 @@ class ModuleTree:
         """Walks the tree in breadth-first order"""
         root = root or self.root
         if root is None:
-            raise ValueError("cannot walk tree with no root node")
+            raise ValueError("cannot walk tree without root node")
 
+        num_traversed = 0
         queue = deque([root])
         while queue:
             current_node = queue.popleft()
+            num_traversed += 1
             yield current_node
             for child_id in self.children[current_node.id]:
                 queue.append(self.nodes[child_id])
+        if root == self.root and num_traversed != len(self.nodes):
+            raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
+
+    def walk_bfs_batched(
+        self, root: typing.Union[NodeT, None] = None
+    ) -> typing.Generator[list[NodeT | NodeDataT], None, None]:
+        """Walks the tree in breadth-first order, yielding all nodes at each level"""
+        root = root or self.root
+        if root is None:
+            raise ValueError("cannot walk tree without root node")
+
+        num_traversed = 0
+        queue = deque([root])
+        while queue:
+            level = []
+            for _ in range(len(queue)):
+                current_node = queue.popleft()
+                level.append(current_node)
+                for child_id in self.children[current_node.id]:
+                    queue.append(self.nodes[child_id])
+            num_traversed += len(level)
+            yield level
+        if root == self.root and num_traversed != len(self.nodes):
+            raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
 
     def get_child(
         self, parent_id: UUID, t: NodeT | NodeDataT | None = None
