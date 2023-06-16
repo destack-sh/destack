@@ -1962,7 +1962,7 @@ export type SystemInfo = {
   version: Scalars["String"];
 };
 
-/** The representation of a type node */
+/** Extra representation/semantics of a field/type. */
 export enum TypeHint {
   Audio = "AUDIO",
   Checkbox = "CHECKBOX",
@@ -1992,7 +1992,7 @@ export enum TypeHint {
   Video = "VIDEO",
 }
 
-/** The actual value type of a type node. */
+/** The Bench primitive type of a field/type. */
 export enum TypeTag {
   Any = "ANY",
   Boolean = "BOOLEAN",
@@ -2003,7 +2003,6 @@ export enum TypeTag {
   Literal = "LITERAL",
   Null = "NULL",
   Number = "NUMBER",
-  Shape = "SHAPE",
   String = "STRING",
   Struct = "STRUCT",
   TypeReference = "TYPE_REFERENCE",
@@ -3031,9 +3030,10 @@ export type FieldContentFragment = {
   key: string;
   tag: TypeTag;
   hint?: TypeHint | null;
+  flags: number;
   description?: string | null;
   orderKey: string;
-  flags: number;
+  metadata?: any | null;
   reference?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "FieldContentFragment" };
 
@@ -4829,6 +4829,7 @@ export const FieldContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "hint" } },
+          { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
@@ -4839,7 +4840,7 @@ export const FieldContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "flags" } },
+          { kind: "Field", name: { kind: "Name", value: "metadata" } },
         ],
       },
     },

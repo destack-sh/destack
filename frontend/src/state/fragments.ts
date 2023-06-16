@@ -113,12 +113,13 @@ export const FieldType = graphql(/* GraphQL */ `
     key
     tag
     hint
+    flags
     description
     orderKey
     reference {
       id
     }
-    flags
+    metadata
   }
 `);
 

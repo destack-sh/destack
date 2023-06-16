@@ -14,7 +14,6 @@ const props = defineProps<{
   inlined?: boolean;
   structrefOnly?: boolean;
   hideFlags?: boolean;
-  allowIncompatible?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -75,12 +74,8 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   }
   return types;
 });
-// TODO @UX @Architecture: support changing field type to any other type (without compatibility constraints)
-// We limit this right now for simplicity with our OpenSearch integration.
 const filteredTypes = computed(() =>
-  availableTypes.value
-    .filter((t) => props.allowIncompatible || props.modelValue == null || t.tag == props.modelValue.tag)
-    .filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
+  availableTypes.value.filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
 );
 
 function writeValue(type: Field) {

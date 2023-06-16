@@ -1,4 +1,5 @@
 import { ExpectationModifier, StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { TypeFlag } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
 
 export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
@@ -30,6 +31,7 @@ export const MODIFIER_KEYWORD: Record<ExpectationModifier, string> = {
 };
 export const SUPPORTED_MODIFIERS = [ExpectationModifier.Like, ExpectationModifier.Unlike, ExpectationModifier.Check];
 export const MODIFIER_BY_KEYWORD: Record<string, ExpectationModifier> = reverseRecord(MODIFIER_KEYWORD);
+
 export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",
   [TypeTag.String]: "text",
@@ -111,12 +113,63 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
   return builtin.slice(0, 1).toUpperCase() + builtin.slice(1); // always uppercase first letter
 }
 
+export const DEFAULT_EMBEDDING_DIMENSION = 1536; // currently only support :FixedEmbeddingDimension
+// sync with :TypeStorageFormat
+enum TypeStorageFormat {
+  STRING = "str",
+  DOUBLE = "f64",
+  LONG = "s64",
+  VECTOR = "vec",
+  BINARY = "bin",
+  BOOLEAN = "bool",
+  DATE = "date",
+  KEYWORD = "key",
+  OBJECT = "obj",
+  RELATION = "rel",
+}
+
+const STORAGE_FORMAT_BY_TYPE_TAG: Partial<{ [key in TypeTag]: TypeStorageFormat }> = {
+  STRING: TypeStorageFormat.STRING,
+  JSON: TypeStorageFormat.OBJECT,
+  NUMBER: TypeStorageFormat.DOUBLE,
+  BOOLEAN: TypeStorageFormat.BOOLEAN,
+  VECTOR: TypeStorageFormat.VECTOR,
+  FILE: TypeStorageFormat.BINARY,
+  STRUCT: TypeStorageFormat.OBJECT,
+  ENUM: TypeStorageFormat.KEYWORD,
+};
+
+const STORAGE_FORMAT_BY_TYPE_HINT: Partial<{ [key in TypeHint]: TypeStorageFormat }> = {
+  UUID: TypeStorageFormat.KEYWORD,
+  DATE: TypeStorageFormat.DATE,
+  DATETIME: TypeStorageFormat.DATE,
+  TIME: TypeStorageFormat.LONG,
+  DURATION: TypeStorageFormat.DOUBLE,
+  KEY: TypeStorageFormat.KEYWORD,
+  INTEGER: TypeStorageFormat.LONG,
+  FLOAT: TypeStorageFormat.DOUBLE,
+};
+
+export function getStorageFormat(
+  tag: TypeTag,
+  hint: TypeHint | undefined,
+  flags: TypeFlag
+): TypeStorageFormat | undefined {
+  if (flags & TypeFlag.IsSecret) {
+    return TypeStorageFormat.OBJECT;
+  }
+  if (hint != null && hint in STORAGE_FORMAT_BY_TYPE_HINT) {
+    return STORAGE_FORMAT_BY_TYPE_HINT[hint];
+  }
+  return STORAGE_FORMAT_BY_TYPE_TAG[tag];
+}
+
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const REMOTE_OBJECT_TYPENAME = "RemoteObject";
 export const SECRET_TYPENAME = "Secret";
 
 export function unkey(fields: Field[], value: Record<string, any>): Record<string, any> {
-  // TODO @Broken: unkey doesn't work with nested types
+  // TODO @Broken: unkey doesn't work with nested types, should probably be in module
   const mapped: Record<string, any> = {};
   for (const field of fields) {
     if (field.key in value && field.name != null) {

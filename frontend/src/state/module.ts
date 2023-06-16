@@ -5,6 +5,7 @@ import { FileEditor, useBenchState } from "@/state/bench";
 import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import type { Field } from "@/state/statement";
+import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
@@ -229,6 +230,23 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return statements;
   }
 
+  function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "reference" | "metadata">) {
+    // TODO @Performance: cache getTypedKey (esp. when without references & metadata)
+    let tag = field.tag;
+    if (field.tag == TypeTag.TypeReference) {
+      const reference = statementOf(field.reference?.id);
+      if (reference == null) return null;
+      tag = reference.rootTypeTag as TypeTag;
+    }
+    const storageFormat = getStorageFormat(tag, field.hint ?? undefined, field.flags);
+    if (tag == TypeTag.Vector) {
+      const dimension = field.metadata?.dimension ?? DEFAULT_EMBEDDING_DIMENSION;
+      return `${field.key}-${storageFormat}${dimension}`;
+    } else {
+      return `${field.key}-${storageFormat}`;
+    }
+  }
+
   return {
     module,
     id: computed(() => module.value?.projectVersion?.id),
@@ -245,6 +263,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     contextOf,
     statementOf,
     relativePath,
+    getTypedKey,
     localErrorsOf: localIssuesOf,
     statementsLike,
   };

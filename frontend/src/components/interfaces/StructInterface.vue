@@ -5,6 +5,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { onStartTyping } from "@vueuse/core";
 import { computed, nextTick, ref, toRef } from "vue";
+import { useCurrentModule } from "@/state/module";
 
 type StructAppearance = {
   verticalBorders?: boolean;
@@ -39,11 +40,15 @@ const emit = defineEmits<{
   (e: "deleteSelf"): void;
 }>();
 
-function readField(key: string) {
-  return props.modelValue[key];
+const module = useCurrentModule();
+
+function readField(field: Field) {
+  return props.modelValue[module.getTypedKey(field) as string];
 }
 
-function writeField(key: string, value: any) {
+function writeField(field: Field, value: any) {
+  const key = module.getTypedKey(field);
+  if (key == null) return;
   emit("update:modelValue", { ...props.modelValue, [key]: value });
 }
 
@@ -62,12 +67,14 @@ const grid = useNavigationGrid<"type" | "value", InstanceType<typeof ValueInterf
   }
 );
 
+// auto clear and start editing when typing while not editing
 onStartTyping((e) => {
   if (props.readonly) return;
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
   if (cell != null && cell.rowId != "type") {
     const field = props.fields.find((f) => f.key == cell.column);
-    deleteField(field?.key as string);
+    if (field == null) return;
+    deleteField(module.getTypedKey(field) as string);
     nextTick(() => cell.ref.edit?.());
   }
 });
@@ -129,8 +136,8 @@ defineExpose({
         <!-- main record should always exist but just in case? -->
         <ValueInterface
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
-          :model-value="readField(field.key as string)"
-          @update:model-value="(val) => writeField(field.key as string, val)"
+          :model-value="readField(field)"
+          @update:model-value="(val) => writeField(field, val)"
           :type="field"
           :readonly="readonly ?? false"
           :active="active ?? false"

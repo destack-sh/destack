@@ -16,6 +16,7 @@ import type { Record } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
+import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newRecordId } from "@/state/operations/statement";
 import { useStatementContext, type Field } from "@/state/statement";
@@ -34,6 +35,7 @@ import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from 
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const context = useStatementContext();
+const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 20;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
@@ -226,7 +228,8 @@ onStartTyping((e) => {
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
   if (cell != null && cell.rowId != "") {
     const field = context.allFields.value.find((f) => f.key == cell.column);
-    deleteRecordField(cell.rowId, field?.key as string);
+    if (field == null) return;
+    deleteRecordField(cell.rowId, module.getTypedKey(field) as string);
     nextTick(() => cell.ref.edit?.());
   }
 });
@@ -277,7 +280,6 @@ const ops = useOperations();
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
   grid.beginBatchChange();
-  console.log("create new field", template);
   const field = context.createNewField(template);
   nextTick(() => {
     grid.flush();
@@ -665,8 +667,8 @@ defineExpose({
         >
           <ValueInterface
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
-            :model-value="record.data?.[field.key as string]"
-            @update:model-value="(val) => writeRecordField(record.id, field.key as string, val)"
+            :model-value="record.data?.[module.getTypedKey(field) as string]"
+            @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
             :type="field"
             :readonly="context.readonly.value"
             :active="context.editing.value || context.focused.value"
@@ -677,7 +679,7 @@ defineExpose({
             @navigate-right="grid.navigateRight(record.id, field.key as string)"
             @navigate-up="grid.navigateUp(record.id, field.key as string)"
             @navigate-down="grid.navigateDown(record.id, field.key as string)"
-            @delete-self="deleteRecordField(record.id, field.key)"
+            @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
             class="h-full w-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
           />

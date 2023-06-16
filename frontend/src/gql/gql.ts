@@ -89,7 +89,7 @@ const documents = {
     types.FileHeaderFragmentDoc,
   "\n  fragment StatementHeader on Statement {\n    id\n    type\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    modifier\n    name\n    commented\n    orderKey\n    parent {\n      id\n    }\n  }\n":
     types.StatementHeaderFragmentDoc,
-  "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    description\n    orderKey\n    reference {\n      id\n    }\n    flags\n  }\n":
+  "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    description\n    orderKey\n    reference {\n      id\n    }\n    metadata\n  }\n":
     types.FieldContentFragmentDoc,
   "\n  fragment StatementContent on Statement {\n    id\n    type\n    revision\n    createdAt\n    updatedAt\n    deletedAt\n    name\n    commented\n    modifier\n    orderKey\n    parent {\n      id\n    }\n    # symbol contents\n    lang\n    code\n    description\n    value\n    referenceProjectVersion {\n      id\n    }\n    rootTypeTag\n    rootTypeFlags\n    fields(filters: { isVisible: true }) {\n      ...FieldContent\n    }\n    # interp\n    resolvedFields {\n      ...FieldContent\n    }\n    issues {\n      ...IssueContent\n    }\n  }\n":
     types.StatementContentFragmentDoc,
@@ -483,8 +483,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    description\n    orderKey\n    reference {\n      id\n    }\n    flags\n  }\n"
-): typeof documents["\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    description\n    orderKey\n    reference {\n      id\n    }\n    flags\n  }\n"];
+  source: "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    description\n    orderKey\n    reference {\n      id\n    }\n    metadata\n  }\n"
+): typeof documents["\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    description\n    orderKey\n    reference {\n      id\n    }\n    metadata\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

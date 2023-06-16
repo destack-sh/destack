@@ -144,7 +144,7 @@ defineExpose({
 <template>
   <div class="flex w-full flex-row flex-wrap items-start gap-4">
     <!-- Inputs -->
-    <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
+    <div class="-mx-1 my-1 flex h-fit w-fit flex-1 flex-col gap-0.5">
       <template v-for="member of inputNodes" :key="member.id">
         <FieldInterface
           :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
@@ -189,7 +189,7 @@ defineExpose({
     <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
-    <div class="-mx-1 my-1 flex h-fit w-fit flex-col gap-0.5">
+    <div class="-mx-1 my-1 flex h-fit w-fit flex-1 flex-col gap-0.5">
       <template v-for="member of outputNodes" :key="member.id">
         <FieldInterface
           :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"

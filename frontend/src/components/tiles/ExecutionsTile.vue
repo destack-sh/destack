@@ -224,7 +224,7 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
               :type="field"
               readonly
               active
-              :model-value="execution.inputs?.[field.key] ?? execution.outputs?.[field.key]"
+              :model-value="execution.inputs?.[module.getTypedKey(field) as string] ?? execution.outputs?.[module.getTypedKey(field) as string]"
               class=""
               :style="{
                 // 12 = gap-x-3
