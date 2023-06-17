@@ -8,6 +8,9 @@ from typing import Optional
 # (on the backend this is run against OpenSearch)
 #
 
+MAX_VERSIONED_RECORDS_TOTAL = 64_000
+MAX_VERSIONED_RECORDS_PER_DATASET = 8_000
+
 
 @dataclass(repr=False)
 class Query:

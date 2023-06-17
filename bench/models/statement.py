@@ -26,7 +26,7 @@ from bench.models.utils import (
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import ProjectVersion, RefMapping, RefMappingKind, packer
+    from bench.models import Dataset, ProjectVersion, RefMappingKind, packer
 
 logger = structlog.get_logger(__name__)
 
@@ -101,6 +101,19 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
+    def duplicate_datasets(
+        self, source: ProjectVersion, target: ProjectVersion, datasets: list["Dataset"]
+    ) -> None:
+        """Duplicates the given datasets in-place to the target version"""
+        from bench.models import Dataset
+        from bench.opensearch.index import batch_duplicate_records
+
+        new_dataset_ids = {d.backend_id: new_dataset_backend_id() for d in datasets}
+        batch_duplicate_records(source, target, new_dataset_ids)
+        for dataset in datasets:
+            dataset.backend_id = new_dataset_ids[dataset.backend_id]
+        Dataset.objects.bulk_update(datasets, ["backend_id"])
+
     def copy(
         self,
         statements: models.QuerySet[Statement],
@@ -113,8 +126,7 @@ class StatementManager(models.Manager["Statement"]):
     ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
-        from bench.models import RefMapping
-        from bench.opensearch.index import batch_duplicate_records
+        from bench.models import Dataset, RefMapping
 
         # pack relevant nodes
         kind = kind or RefMappingKind.PASTE
@@ -134,14 +146,15 @@ class StatementManager(models.Manager["Statement"]):
 
         # unpack and save
         unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
-        target_datasets = [
-            n for n in packed.nodes if isinstance(n, wire.DatasetData) and n.versioned
-        ]
-        source_datasets = [packed.visited[n.id] for n in target_datasets]
-        batch_duplicate_records(source, source_datasets, target, target_datasets)
         for node_batch in unpacked.walk_bfs_batched():
             for model_class, nodes_of_cls in groupby(node_batch, type):
                 model_class.objects.bulk_create(nodes_of_cls)
+
+        # duplicate versioned datasets
+        versioned_datasets = [
+            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+        ]
+        self.duplicate_datasets(source, target, versioned_datasets)
 
         # save mappings
         RefMapping.objects.bulk_create(mappings)

@@ -134,7 +134,7 @@ const commands = computed(() => {
     },
     {
       label: "dataset",
-      description: "Connect or define state or examples.",
+      description: "Give examples, your data and knowledge.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Dataset, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),

@@ -1,5 +1,5 @@
 import typing
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import structlog
 
@@ -7,6 +7,7 @@ import bench.opensearch.type as os
 from bench import models
 from bench.bench import type as lang
 from bench.bench import wire
+from bench.bench.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -174,6 +175,13 @@ def write_mutations_to_os(
         update_dynamic_field_mappings(project_v)
 
     if os_operations:
+        logger.debug(
+            "os.write_mutations",
+            project_version=project_v,
+            index=bench_index_name,
+            mutations=len(mutations),
+            operations=len(os_operations),
+        )
         os_client.bulk(os_operations)
 
 
@@ -262,21 +270,79 @@ def batch_update_records(
     return records
 
 
-def duplicate_records(
-    source_project_v: models.ProjectVersion,
-    source: models.Dataset,
-    target_project_v: models.ProjectVersion,
-    target: models.Dataset,
-):
-    index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
-    raise NotImplementedError
-
-
 def batch_duplicate_records(
     source_project_v: models.ProjectVersion,
-    sources: list[models.Dataset],
     target_project_v: models.ProjectVersion,
-    targets: list[models.Dataset],
+    new_dataset_ids: dict[str, str],
+    batch_size: int = 512,
 ):
+    """
+    Duplicates all documents in the given datasets with new target dataset ids.
+    Assigns new records ids on the way.
+    TODO @Performance @Robustness: move batch duplicate to a background job
+    """
     index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
-    raise NotImplementedError
+
+    query = {
+        # dataset_id must be in new_dataset_ids.keys(), deleted_at must not exist
+        "query": {
+            "bool": {
+                "must": [
+                    {"terms": {"dataset_id": list(new_dataset_ids.keys())}},
+                    {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
+                ]
+            }
+        },
+    }
+    num_total_documents = os_client.count(index=index_name, body=query)["count"]
+    if num_total_documents > MAX_VERSIONED_RECORDS_TOTAL:
+        raise ValueError(
+            f"{source_project_v} has {num_total_documents} documents (limit={MAX_VERSIONED_RECORDS_TOTAL})"
+        )
+    if num_total_documents == 0:
+        logger.info(
+            "os.batch_duplicate_records.skip",
+            source=source_project_v,
+            num_total_documents=num_total_documents,
+        )
+        return
+
+    log = logger.bind(
+        source=source_project_v,
+        target=target_project_v,
+        new_dataset_ids=new_dataset_ids,
+        batch_size=batch_size,
+        total_documents=num_total_documents,
+    )
+    log.info("os.batch_duplicate_records.start")
+
+    # create a PIT to read from
+    pit = os_client.create_point_in_time(index=index_name, keep_alive="2m")
+    query["pit"] = {"id": pit["pit_id"], "keep_alive": "2m"}
+
+    num_duplicated = 0
+    while True:
+        response = os_client.search(body=query, sort=["_doc"], size=batch_size)
+        hits = response["hits"]["hits"]
+        if not hits:
+            break
+
+        log.debug("os.batch_duplicate_records.batch", cumulative=num_duplicated, current=len(hits))
+        os_operations = []
+        for hit in hits:
+            document = hit["_source"]
+            dataset_id = document["dataset_id"]
+            target_dataset_id = new_dataset_ids[dataset_id]
+            document["dataset_id"] = target_dataset_id
+            os_operations.append({"index": {"_index": index_name, "_id": str(uuid4())}})
+            os_operations.append(document)
+        num_duplicated += len(hits)
+
+        os_client.bulk(os_operations)
+
+        last_hit = hits[-1]
+        last_sort_values = last_hit["sort"]
+        query["search_after"] = last_sort_values
+
+    # TODO @Cleanup: delete PIT after use (delete_point_in_time doesn't work?)
+    log.info("os.batch_duplicate_records.done")
