@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from datetime import datetime
 import enum
 import random
 import string
@@ -74,6 +75,14 @@ class ModuleNode(abc.ABC):
     @property
     def attached(self) -> bool:
         return self.parent is not None
+
+
+@node
+class HasCrud(abc.ABC):
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
+    last_edited_at: datetime = field(default_factory=datetime.utcnow)
+    last_changed_at: datetime = field(default_factory=datetime.utcnow)
 
 
 @node
@@ -219,7 +228,7 @@ class Scope:
 
 
 @node
-class Module(ModuleNode, HasSession, HasIssues, Scope):
+class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
     files: list[File] = field(default_factory=list)
     dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
@@ -269,7 +278,7 @@ class Module(ModuleNode, HasSession, HasIssues, Scope):
 
 
 @node
-class File(ModuleNode, HasSession, HasIssues, Scope):
+class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     module: Module = required_field()
     name: str = required_field()
     parent: File | Module = None
@@ -340,7 +349,7 @@ class File(ModuleNode, HasSession, HasIssues, Scope):
 
 
 @node
-class Statement(ModuleNode, HasSession, HasIssues, Scope):
+class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A parsed but not interpreted statement in Bench source."""
 
     file: File | None = None
@@ -573,7 +582,7 @@ def new_field_key() -> str:
 
 
 @node
-class Field(ModuleNode, HasSession, TypeBase):
+class Field(ModuleNode, HasCrud, HasSession, TypeBase):
     parent: Statement | None = None
     name: Optional[str] = None
     tag: TypeTag = required_field()
@@ -1051,7 +1060,7 @@ RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 
 
 @node
-class DatasetView(ModuleNode):
+class DatasetView(ModuleNode, HasCrud):
     name: str = None
     layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
     query: Optional[Query] = None
@@ -1075,7 +1084,7 @@ class Dataset(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     length: Optional[int] = None
-    inmemory: bool = False  # TODO @Performance: keep small datasets in memory
+    inmemory: bool = False  # TODO @Performance: keep small datasets in memory for basic ops?
     versioned: bool = True
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
@@ -1165,13 +1174,13 @@ class Dataset(Symbol, HasType, IsExpectable):
         # nocheckin: remote datasets
         if self.inmemory:
             return iter(self.records)
-        raise NotImplementedError("nocheckin: remote datasets")
+        raise NotImplementedError
 
     def __aiter__(self):
         # nocheckin: remote datasets
         if self.inmemory:
             yield from self.records
-        raise NotImplementedError("nocheckin: remote datasets")
+        raise NotImplementedError
 
 
 @node

@@ -27,6 +27,36 @@ _SCOPE_TO_TYPE_NAME = {
     MOT.RECORD: "Record",
 }
 
+MAX_RECORD_MUTATIONS_PER_BATCH = 50
+
+
+def trim_record_mutations(
+    mutations: list[ModuleMutation],
+) -> list[ModuleMutation]:
+    """Trims record mutations into bumps if necessary."""
+    num_record_updates = 0
+    bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
+    trimmed_mutations = []
+    for mutation in mutations:
+        if mutation.scope == MOT.RECORD:
+            num_record_updates += 1
+            bumped_statement_ids[mutation.statement_id] = mutation.file_id
+            if num_record_updates < MAX_RECORD_MUTATIONS_PER_BATCH:
+                trimmed_mutations.append(mutation)
+        else:
+            trimmed_mutations.append(mutation)
+    if num_record_updates >= MAX_RECORD_MUTATIONS_PER_BATCH:
+        for statement_id, file_id in bumped_statement_ids.items():
+            trimmed_mutations.append(
+                ModuleMutation(
+                    type=MMT.BUMP_STATEMENT,
+                    project_version_id=mutations[0].project_version_id,
+                    file_id=file_id,
+                    statement_id=statement_id,
+                )
+            )
+    return trimmed_mutations
+
 
 def map_mutation_from_api(
     type: MMT,

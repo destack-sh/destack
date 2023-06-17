@@ -57,6 +57,7 @@ class CrudModel(models.Model):
     last_edited_by = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="+", null=True, blank=True
     )
+    last_changed_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         abstract = True
