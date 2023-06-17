@@ -49,10 +49,10 @@ const module = useCurrentModule();
 const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const isActive = computed(() => props.standalone || nav?.value.editor.activeStatementId == statement.value?.id);
-const isFocused = computed(() => isActive.value && (props.standalone || nav?.value.editor.focused));
-const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value.editor.editing));
-const isSelected = computed(() => nav?.value.editor.isSelected(statement.value));
+const isActive = computed(() => props.standalone || nav?.value?.editor.activeStatementId == statement.value?.id);
+const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.editor.focused));
+const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.editor.editing));
+const isSelected = computed(() => nav?.value?.editor.isSelected(statement.value));
 const isComment = computed(() => statement.value?.type == StatementType.Text);
 const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
 const isCommentish = computed(
@@ -63,10 +63,10 @@ const lineNumber = computed(() => (nav?.value?.statementPositions[statement.valu
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
   ancestors.value.findIndex(
-    (s) => nav?.value.editor.activeStatementId == s.id || nav?.value.editor.selectedElementIds.includes(s.id)
+    (s) => nav?.value?.editor.activeStatementId == s.id || nav?.value?.editor.selectedElementIds.includes(s.id)
   )
 );
-const isAncestorHighlight = computed(() => !nav?.value.editor.editing && ancestorHighlightDepth.value > -1);
+const isAncestorHighlight = computed(() => !nav?.value?.editor.editing && ancestorHighlightDepth.value > -1);
 const contentOffsetX = computed(() => props.depth * 20);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
@@ -139,7 +139,7 @@ const rootCell: Ref<Cell> = computed(() => {
 
 const containerRef = ref<HTMLElement | null>(null);
 const innerWrapperRef = ref<HTMLElement | null>(null);
-const rootCellRef = ref<InstanceType<typeof ProtoCell>>();
+const rootCellRef = ref<InstanceType<typeof BlankStatement>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
 
@@ -204,7 +204,7 @@ onClickOutside(containerRef, (e) => {
     editor.container.value?.parentNode?.contains(e.target as Node)
   ) {
     // we don't blur the root cell here because the focus is already elsewhere
-    nav?.value.editor.blurElement(statement.value as StatementHeader);
+    nav?.value?.editor.blurElement(statement.value as StatementHeader);
   }
 });
 
@@ -218,7 +218,7 @@ whenever(inRootCellFocused, () => {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
-    nav?.value.editor.editElement(statement.value as StatementHeader);
+    nav?.value?.editor.editElement(statement.value as StatementHeader);
   }
 });
 
@@ -227,7 +227,7 @@ function focusInEditor() {
     bench.focusStatement(statement.value as any);
   } else {
     bench.focusFile(file.value as any);
-    nav?.value.editor.focusElement(statement.value as StatementHeader);
+    nav?.value?.editor.focusElement(statement.value as StatementHeader);
   }
 }
 
@@ -238,16 +238,16 @@ function onClickContainer(e: MouseEvent) {
   }
   // create selection to here if shift was pressed
   if (e.shiftKey && nav != null) {
-    const index = nav.value.statementPositions[statement.value.id];
-    const lastIndex = nav.value.statementPositions[nav.value.editor.activeStatementId ?? ""];
+    const index = nav?.value?.statementPositions[statement.value.id];
+    const lastIndex = nav?.value?.statementPositions[nav?.value?.editor.activeStatementId ?? ""];
     console.log("select all statements between", index, lastIndex);
     focusInEditor();
     if (lastIndex != null) {
       // select all statements between
       for (let i = Math.min(index, lastIndex); i <= Math.max(index, lastIndex); i++) {
-        const statement = nav.value.statements[i];
+        const statement = nav?.value?.statements[i];
         if (statement != null) {
-          nav.value.editor.addToSelection(statement);
+          nav?.value?.editor.addToSelection(statement);
         }
       }
     }
@@ -257,7 +257,7 @@ function onClickContainer(e: MouseEvent) {
     focusInEditor();
   }
   if (!bench.readonly) {
-    nav?.value.editor.editElement(statement.value as StatementHeader);
+    nav?.value?.editor.editElement(statement.value as StatementHeader);
   }
   if (!inContainerFocused.value) {
     rootCellRef.value?.focus();
@@ -298,20 +298,20 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
     console.log("drop insert files into new statement", thing);
     await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
   } else if (thing?.type == "Statement") {
-    const targetStatement = nav.value.statementsById[thing.id];
+    const targetStatement = nav?.value?.statementsById[thing.id];
     if (
       thing.id == statement.value.id ||
       targetStatement == null ||
-      nav.value.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
-      nav.value.isDescendantOf(statement.value as StatementHeader, targetStatement)
+      nav?.value?.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
+      nav?.value?.isDescendantOf(statement.value as StatementHeader, targetStatement)
     ) {
       return;
     }
     const dropLocation = dragInTopHalf.value
-      ? nav.value.getLocationRightAbove(statement.value as StatementHeader)
-      : nav.value.getLocationRightBelow(statement.value as StatementHeader);
+      ? nav?.value?.getLocationRightAbove(statement.value as StatementHeader)
+      : nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
     console.log("drop move statement", thing, dropLocation);
-    await nav.value.moveTo(targetStatement as StatementHeader, dropLocation);
+    await nav?.value?.moveTo(targetStatement as StatementHeader, dropLocation);
   } else {
     throw new Error("unexpected drop");
   }
@@ -327,7 +327,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        nav?.value.editor.bench.openStatement(statement.value as StatementHeader, { focus: true });
+        nav?.value?.editor.bench.openStatement(statement.value as StatementHeader, { focus: true });
       },
     });
   }
@@ -335,7 +335,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     label: "Rename",
     icon: PencilIcon,
     action: () => {
-      nav?.value.editor.editElement(statement.value as StatementHeader);
+      nav?.value?.editor.editElement(statement.value as StatementHeader);
       nextTick(() => rootCellRef.value?.focus());
     },
   });
