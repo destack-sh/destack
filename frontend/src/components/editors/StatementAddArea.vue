@@ -13,7 +13,7 @@ const bench = useBenchState();
 
 function onDrop(files: File[] | any) {
   if (Array.isArray(files)) {
-    const location = props.position == "start" ? nav.value.getLocationStart() : nav.value.getLocationEnd();
+    const location = props.position == "start" ? nav?.value?.getLocationStart() : nav?.value?.getLocationEnd();
     magic.insertFilesAsDataset(location, files);
   }
 }

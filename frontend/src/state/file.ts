@@ -707,29 +707,29 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
   async function insertBelow(focus?: boolean) {
     if (statement.value == null || nav == null) return;
-    const below = nav.value.getLocationRightBelow(statement.value as StatementHeader);
+    const below = nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
     if (focus) {
-      nav.value.editor.editElement(newStatement as StatementHeader);
+      nav?.value?.editor.editElement(newStatement as StatementHeader);
     }
   }
 
   async function insertAbove(focus?: boolean) {
     if (statement.value == null || nav == null) return;
-    const above = nav.value.getLocationRightAbove(statement.value as StatementHeader);
+    const above = nav?.value?.getLocationRightAbove(statement.value as StatementHeader);
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
     if (focus) {
-      nav.value.editor.editElement(newStatement as StatementHeader);
+      nav?.value?.editor.editElement(newStatement as StatementHeader);
     }
   }
 
   async function duplicate() {
     if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
-    nav.value.copy([statement.value as StatementHeader]);
-    nav.value.paste(undefined, statement.value as StatementHeader);
+    nav?.value?.copy([statement.value as StatementHeader]);
+    nav?.value?.paste(undefined, statement.value as StatementHeader);
   }
 
   async function delete_() {
@@ -740,17 +740,17 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   async function moveFocusUp() {
     if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
-    const above = nav.value.getAbove(statement.value);
+    const above = nav?.value?.getAbove(statement.value);
     if (above == null) return;
-    nav.value.editor.focusElement(above);
+    nav?.value?.editor.focusElement(above);
   }
 
   async function moveFocusDown() {
     if (nav == null) throw new Error("nav context not provided");
     if (statement.value == null) return;
-    const below = nav.value.getBelow(statement.value);
+    const below = nav?.value?.getBelow(statement.value);
     if (below == null) return;
-    nav.value.editor.focusElement(below);
+    nav?.value?.editor.focusElement(below);
   }
 
   async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
@@ -798,15 +798,15 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       }
       location =
         location == "above"
-          ? nav.value.getLocationRightAbove(statement.value)
-          : nav.value.getLocationRightBelow(statement.value);
+          ? nav?.value?.getLocationRightAbove(statement.value)
+          : nav?.value?.getLocationRightBelow(statement.value);
     }
     const dataset = {
       id: newStatementId(),
       type: StatementType.Dataset,
       parentId: location.parentId,
       orderKey: location.orderKey,
-      fileId: nav.value.file.id,
+      fileId: nav?.value?.file.id,
       rootTypeTag: TypeTag.Struct,
       rootTypeFlags: TypeFlag.IsArray,
       name: getRandomAdjective() + " documents",
