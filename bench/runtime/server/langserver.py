@@ -12,6 +12,7 @@ from asgiref.sync import sync_to_async
 
 from bench import models
 from bench.bench import HasType, ResolvedField, build, wire
+from bench.bench.const import MOT
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
@@ -20,7 +21,6 @@ from bench.bench.inference import (
 )
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
-from bench.bench.const import MOT
 from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.packer import write_mutations
@@ -478,7 +478,7 @@ class LanguageWorker:
             interp_mut.truncate(new_source.strip(), MOT.ISSUE)
         else:
             for issue in old_interp.issues:
-                if issue.id not in new_issues:
+                if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
                     interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():
             if issue.id not in old_issues:
