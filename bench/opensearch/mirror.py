@@ -344,6 +344,7 @@ class Tile(CrudThing, Revisioned, os.Document):
 class Record(CrudThing, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
+    dataset_id: str = os.field(os.FT.KEYWORD)
     order_key: str = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)

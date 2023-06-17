@@ -25,6 +25,7 @@ from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization
+    from bench.models.packer import Packed, PackFilter
     from bench.models.user import User
 
 logger = structlog.get_logger(__name__)
@@ -51,8 +52,8 @@ class ProjectManager(models.Manager["Project"]):
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
-        create_blank_file: bool = False,
         create_s3_bucket: bool = True,
+        create_os_index: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -83,11 +84,10 @@ class ProjectManager(models.Manager["Project"]):
                 )
             except (ValueError, Project.DoesNotExist):
                 logger.warning("project.create.failed_onboarding", exc_info=True)
-        if create_blank_file:
-            # create empty file
-            project.head.create_path("Untitled")
         if create_s3_bucket:
             create_project_s3_bucket(project)
+        if create_os_index:
+            create_project_os_index(project)
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -253,7 +253,7 @@ def create_project_s3_bucket(project: Project):
             raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
 
 
-def create_project_indices(project: Project):
+def create_project_os_index(project: Project):
     """Creates OpenSearch indices for the project."""
     from bench.opensearch.index import create_bench_index
 
@@ -400,29 +400,26 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         return final_ref_mappings, is_reverse
 
-    def copy(
+    def pack_copy(
         self,
         source: ProjectVersion,
         target: ProjectVersion,
-        files: Optional[models.QuerySet[File]] = None,
+        nodes: list[models.Model],
         target_ids: dict[UUID, UUID] = None,
-        invert_mappings: bool = False,
         copy_revisions: bool = True,
         kind: RefMappingKind = None,
-    ) -> list["RefMapping"]:
-        """Copies the given files from a source version to a target version (by default everything)"""
+        filter: PackFilter = None,
+    ) -> tuple[Packed, list["RefMapping"]]:
+        """Packs a copy of the module tree at the given nodes."""
         from bench.models import packer
 
         target_ids = {**(target_ids or {}), source.id: target.id}
         kind = kind or RefMappingKind.COMMIT
-        filter = packer.DEFAULT_PACK_FILTER.extend()
-        if files is not None:
-            filter.filter(File, lambda qs: qs.filter(id__in=files))
+        packed = packer.pack_node(*nodes, filter=filter)
 
-        packed = packer.pack_module(source, filter=filter)
         # map all ids to new ids
         ref_mappings: dict[UUID, RefMapping] = {}
-        for node in packed.nodes:
+        for node in packed.nodes.values():
             source_id = node.id
             if node.id not in target_ids:
                 target_ids[node.id] = uuid4()
@@ -442,32 +439,58 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 type=MOT_BY_DATA_CLASS[type(node)],
                 kind=kind,
             )
-        # replace parent ids
-        for node in packed.nodes:
+        for node in packed.nodes.values():  # patch parent ids
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
 
+        return packed, list(ref_mappings.values())
+
+    def copy(
+        self,
+        source: ProjectVersion,
+        target: ProjectVersion,
+        files: Optional[models.QuerySet[File]] = None,
+        target_ids: dict[UUID, UUID] = None,
+        invert_mappings: bool = False,
+        copy_revisions: bool = True,
+        kind: RefMappingKind = None,
+    ) -> list[RefMapping]:
+        """Copies the given files from a source version to a target version (by default everything)"""
+
+        from bench.models import packer
+
+        # pack  relevant nodes
+        filter = packer.DEFAULT_PACK_FILTER.extend()
+        if files is not None:
+            filter.filter(File, lambda qs: qs.filter(id__in=files))
+        packed, ref_mappings = self.pack_copy(
+            source=source,
+            target=target,
+            nodes=[source],
+            target_ids=target_ids,
+            copy_revisions=copy_revisions,
+            kind=kind or RefMappingKind.COMMIT,
+            filter=filter,
+        )
+
         # unpack and save
-        unpacked = packer.unpack_nodes_tree(packed.nodes, pre_unpacked={target.id: target})
+        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
         for node_batch in unpacked.walk_bfs_batched():
             if node_batch == [target]:
                 continue  # skip root
-            # group by model class and bulk create
             for model_class, nodes_of_cls in groupby(node_batch, type):
                 model_class.objects.bulk_create(nodes_of_cls)
 
-        # nocheckin: copy dataset in opensearch (if versioned)
-
+        # save ref mappings
         if invert_mappings:
-            for mapping in ref_mappings.values():
+            for mapping in ref_mappings:
                 mapping.source_id, mapping.target_id = mapping.target_id, mapping.source_id
                 mapping.source_version, mapping.target_version = (
                     mapping.target_version,
                     mapping.source_version,
                 )
+        RefMapping.objects.bulk_create(ref_mappings)
 
-        RefMapping.objects.bulk_create(ref_mappings.values())
-
-        return list(ref_mappings.values())
+        return ref_mappings
 
 
 class ProjectVersion(UUIDModel, CrudModel, ModuleNode):

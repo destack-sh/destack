@@ -71,6 +71,7 @@ def _create_index(
     shards: int,
     replicas: int,
     documents: list[typing.Type[os.Document]],
+    upsert: bool = False,
 ) -> None:
     fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
     mappings = {field_name: field.to_dict() for field_name, field in fields.items()}
@@ -82,7 +83,7 @@ def _create_index(
         replicas=replicas,
         fields=list(fields.keys()),
     )
-    os_client.indices.create(
+    result = os_client.indices.create(
         index=index_name,
         body={
             "settings": {
@@ -92,24 +93,40 @@ def _create_index(
             },
             "mappings": {"dynamic": "strict", "properties": mappings},
         },
+        ignore=400 if upsert else 0,
     )
+    # upsert if index already exists
+    if result.get("acknowledged") is not True:
+        if not upsert:
+            raise IndexError(f"failed to create index {index_name}: {result}")
+        logger.info("os.create_index.upsert", index_name=index_name)
+        # update mutable settings
+        os_client.indices.put_settings(
+            index=index_name,
+            body={"mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}}},
+        )
+        os_client.indices.put_mapping(
+            index=index_name, body={"dynamic": "strict", "properties": mappings}
+        )
 
 
-def create_global_index(name: str = None) -> None:
+def create_global_index(name: str = None, upsert: bool = False) -> None:
     _create_index(
         name or IndexType.GLOBAL.get_index_name(),
         shards=GLOBAL_INDEX_SHARDS,
         replicas=GLOBAL_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.GLOBAL],
+        upsert=upsert,
     )
 
 
-def create_bench_index(project_id: UUID, name: str = None) -> None:
+def create_bench_index(project_id: UUID, name: str = None, upsert: bool = False) -> None:
     _create_index(
         name or IndexType.BENCH.get_index_name(project_id),
         shards=BENCH_INDEX_SHARDS,
         replicas=BENCH_INDEX_REPLICAS,
         documents=DOCUMENTS_BY_INDEX[IndexType.BENCH],
+        upsert=upsert,
     )
 
 
@@ -243,3 +260,23 @@ def batch_update_records(
     for i, os_record in enumerate(os_records["items"]):
         records[i].revision = os_record["update"]["_version"]
     return records
+
+
+def duplicate_records(
+    source_project_v: models.ProjectVersion,
+    source: models.Dataset,
+    target_project_v: models.ProjectVersion,
+    target: models.Dataset,
+):
+    index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
+    raise NotImplementedError
+
+
+def batch_duplicate_records(
+    source_project_v: models.ProjectVersion,
+    sources: list[models.Dataset],
+    target_project_v: models.ProjectVersion,
+    targets: list[models.Dataset],
+):
+    index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
+    raise NotImplementedError

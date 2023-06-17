@@ -183,6 +183,14 @@ export type CommitPayload = {
 
 export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
 
+export type Dataset = Node & {
+  __typename?: "Dataset";
+  backend: Scalars["String"];
+  backendId: Scalars["String"];
+  id: Scalars["GlobalID"];
+  versioned: Scalars["Boolean"];
+};
+
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
@@ -1519,13 +1527,13 @@ export type Record = {
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
   data: Scalars["JSON"];
+  datasetId: Scalars["String"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   id: Scalars["GlobalID"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;
   orderKey: Scalars["String"];
   revision: Scalars["Int"];
-  statementId: Scalars["GlobalID"];
   updatedAt: Scalars["DateTime"];
 };
 
@@ -1747,6 +1755,7 @@ export type Statement = Node & {
   commented: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
+  dataset?: Maybe<Dataset>;
   deletedAt?: Maybe<Scalars["DateTime"]>;
   descendants: Array<Statement>;
   description?: Maybe<Scalars["String"]>;
@@ -3998,7 +4007,6 @@ export type CreateRecordMutation = {
         revision: number;
         orderKey: string;
         data: any;
-        statementId: any;
       };
 };
 
@@ -11587,7 +11595,6 @@ export const CreateRecordDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       { kind: "Field", name: { kind: "Name", value: "data" } },
-                      { kind: "Field", name: { kind: "Name", value: "statementId" } },
                     ],
                   },
                 },

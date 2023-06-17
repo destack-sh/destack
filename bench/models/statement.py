@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from itertools import groupby
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
@@ -11,8 +12,8 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag
-from bench.bench.const import FIELD_KEY_LENGTH, TypeFlag
+from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag, wire
+from bench.bench.const import FIELD_KEY_LENGTH, DatasetBackend, TypeFlag, new_dataset_backend_id
 from bench.bench.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
@@ -25,7 +26,7 @@ from bench.models.utils import (
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import ProjectVersion, RefMapping
+    from bench.models import ProjectVersion, RefMapping, RefMappingKind, packer
 
 logger = structlog.get_logger(__name__)
 
@@ -100,32 +101,50 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    def copy_statements(
+    def copy(
         self,
         statements: models.QuerySet[Statement],
-        source_version: ProjectVersion,
-        target_version: ProjectVersion,
+        source: ProjectVersion,
+        target: ProjectVersion,
         target_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
-        copy_revisions: bool = True,
-    ) -> list["RefMapping"]:
+        kind: RefMappingKind = None,
+    ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
         from bench.models import RefMapping
+        from bench.opensearch.index import batch_duplicate_records
 
-        ref_mappings: list[RefMapping] = []
-        ref_mappings_ids: dict[UUID, UUID] = {}
+        # pack relevant nodes
+        kind = kind or RefMappingKind.PASTE
+        target_ids = {**(target_ids or {}), source.id: target.id}
+        packed, mappings = ProjectVersion.objects.pack_copy(
+            source=source,
+            target=target,
+            nodes=list(statements),
+            target_ids=target_ids,
+            copy_revisions=True,
+            kind=kind or RefMappingKind.PASTE,
+        )
+        for node in packed.nodes:  # patch parent and order keys
+            node.parent_id = target_parent_ids.get(node.parent_id, node.parent_id)
+            if isinstance(node, wire.Ordered):
+                node.order_key = target_order_keys.get(node.id, node.order_key)
 
-        # (pre-determine new statement ids to re-create source mappings in one go)
-        target_parent_ids = target_parent_ids or {}
-        target_order_keys = target_order_keys or {}
+        # unpack and save
+        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
+        target_datasets = [
+            n for n in packed.nodes if isinstance(n, wire.DatasetData) and n.versioned
+        ]
+        source_datasets = [packed.visited[n.id] for n in target_datasets]
+        batch_duplicate_records(source, source_datasets, target, target_datasets)
+        for node_batch in unpacked.walk_bfs_batched():
+            for model_class, nodes_of_cls in groupby(node_batch, type):
+                model_class.objects.bulk_create(nodes_of_cls)
 
-        # nocheckin: replace copy files/statements with packer-based copy
-        # nocheckin: also copy datasets if versioned
-        raise NotImplementedError  # nocheckin
-
-        return ref_mappings
+        # save mappings
+        RefMapping.objects.bulk_create(mappings)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
@@ -199,6 +218,19 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     def __str__(self):
         modifier_str = f" {self.modifier}" if self.modifier else ""
         return f"{self.path}{modifier_str} {self.type} {self.name}"
+
+    def create_symbol_if_needed(self):
+        # TODO @Cleanup @Architecture: create symbol if needed shouldn't be needed
+        # (currently only used in API, ideally relations should be passed in explicitly?)
+        if self.type == StatementType.DATASET and self.dataset is None:
+            from bench.models import Dataset
+
+            self.dataset = Dataset.objects.create(
+                id=Dataset.get_id(self),
+                statement=self,
+                backend=DatasetBackend.OPENSEARCH,
+                backend_id=new_dataset_backend_id(),
+            )
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:

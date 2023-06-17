@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import enum
 import itertools
+import random
 import re
+import string
 import typing
 from dataclasses import dataclass
 from typing import Any, NamedTuple, Union
@@ -22,6 +24,7 @@ class ModuleObjectType(enum.StrEnum):
     FIELD = "FIELD"
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
+    DATASET_VIEW_FIELD = "DATASET_VIEW_FIELD"
     # interp
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
@@ -239,6 +242,24 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
     if hint in STORAGE_FORMAT_BY_TYPE_HINT:
         return STORAGE_FORMAT_BY_TYPE_HINT[hint]
     return STORAGE_FORMAT_BY_TYPE_TAG[tag]
+
+
+DATASET_BACKEND_KEY_LENGTH = 16
+
+
+class DatasetBackend(enum.StrEnum):
+    OPENSEARCH = "os"
+
+
+def new_dataset_backend_id():
+    """Gets a random alphabetic key as a persistent key."""
+    return "".join(random.choices(string.ascii_letters, k=DATASET_BACKEND_KEY_LENGTH))
+
+
+class DatasetViewLayout(enum.StrEnum):
+    """The layout of a dataset view."""
+
+    TABLE = "table"
 
 
 class ExpectationModifier(enum.StrEnum):
