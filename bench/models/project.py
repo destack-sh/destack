@@ -456,7 +456,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
     ) -> list[RefMapping]:
         """Copies the given files from a source version to a target version (by default everything)"""
 
-        from bench.models import packer
+        from bench.models import Dataset, packer
 
         # pack  relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
@@ -479,6 +479,12 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 continue  # skip root
             for model_class, nodes_of_cls in groupby(node_batch, type):
                 model_class.objects.bulk_create(nodes_of_cls)
+
+        # duplicate versioned datasets
+        versioned_datasets = [
+            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+        ]
+        Statement.objects.duplicate_datasets(source, target, versioned_datasets)
 
         # save ref mappings
         if invert_mappings:

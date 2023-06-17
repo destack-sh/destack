@@ -494,7 +494,7 @@ onBeforeUnmount(() => {
                 Back
               </router-link>
               <button
-                v-if="project.canWrite"
+                v-if="project?.canWrite"
                 class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
                 @click="actions.apply('version.restore')"
               >
