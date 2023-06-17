@@ -26,7 +26,7 @@ from bench.models.utils import (
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import Dataset, ProjectVersion, RefMappingKind, packer
+    from bench.models import Dataset, ProjectVersion, RefMappingKind
 
 logger = structlog.get_logger(__name__)
 
@@ -119,17 +119,16 @@ class StatementManager(models.Manager["Statement"]):
         statements: models.QuerySet[Statement],
         source: ProjectVersion,
         target: ProjectVersion,
+        kind: RefMappingKind,
         target_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
-        kind: RefMappingKind = None,
     ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
-        from bench.models import Dataset, RefMapping
+        from bench.models import Dataset, File, ProjectVersion, RefMapping, packer
 
         # pack relevant nodes
-        kind = kind or RefMappingKind.PASTE
         target_ids = {**(target_ids or {}), source.id: target.id}
         packed, mappings = ProjectVersion.objects.pack_copy(
             source=source,
@@ -139,13 +138,26 @@ class StatementManager(models.Manager["Statement"]):
             copy_revisions=True,
             kind=kind or RefMappingKind.PASTE,
         )
-        for node in packed.nodes:  # patch parent and order keys
-            node.parent_id = target_parent_ids.get(node.parent_id, node.parent_id)
+        for node in packed.nodes.values():  # patch parent and order keys
+            if node.id in target_parent_ids:
+                node.parent_id = target_parent_ids[node.id]
+            elif node.parent_id in target_ids:
+                node.parent_id = target_ids[node.parent_id]
             if isinstance(node, wire.Ordered):
                 node.order_key = target_order_keys.get(node.id, node.order_key)
 
+        # collect parents at target (not part of the packed tree since they're the destination)
+        # assumes parents can only be File or Statement (will error below if parent is missing)
+        target_parents = [
+            *self.filter(id__in=target_parent_ids.values()),
+            *File.objects.filter(id__in=target_parent_ids.values()),
+        ]
+
         # unpack and save
-        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
+        unpacked = packer.unpack_nodes_tree(
+            packed.nodes_list(),
+            pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
+        )
         for node_batch in unpacked.walk_bfs_batched():
             for model_class, nodes_of_cls in groupby(node_batch, type):
                 model_class.objects.bulk_create(nodes_of_cls)

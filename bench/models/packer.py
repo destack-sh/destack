@@ -216,10 +216,19 @@ def unpack_nodes_tree(
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
-        node_parent = unpacked_tree.nodes.get(node.parent_id) if node.parent_id else parent
+        node_parent = None
+        if node.parent_id in pre_unpacked:
+            node_parent = pre_unpacked[node.parent_id]
+        elif node.parent_id in unpacked_tree.nodes:
+            node_parent = unpacked_tree.nodes[node.parent_id]
+        elif parent is not None:
+            node_parent = parent
+
         if node.id in pre_unpacked:
             unpacked = pre_unpacked[node.id]
         else:
+            if node_parent is None and node.parent_id is not None:
+                raise ValueError(f"parent node for {node.parent_id} not found for {node}")
             unpacked = packer.unpack(node, node_parent)
         if isinstance(unpacked, list):
             for unpacked_node in unpacked:

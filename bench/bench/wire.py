@@ -67,7 +67,8 @@ class ModuleTree:
     def add(self, node: NodeT | NodeDataT):
         """Add a node to the tree (error if node already exists)"""
         if node.id in self.nodes:
-            raise ValueError(f"node with id {node.id} already exists in {self}")
+            existing = self.nodes[node.id]
+            raise ValueError(f"node {node} (id={node.id}) already exists in {self}: {existing}")
         self.nodes[node.id] = node
         if node.parent_id is not None:
             self.children[node.parent_id].append(node.id)
@@ -106,8 +107,16 @@ class ModuleTree:
                 self.remove(node, recursive=True)
 
     @property
+    def roots(self) -> list[NodeT | NodeDataT]:
+        return [
+            node
+            for node in self.nodes.values()
+            if node.parent_id is None or node.parent_id not in self.nodes
+        ]
+
+    @property
     def root(self) -> Optional[NodeT | NodeDataT]:
-        roots = [node for node in self.nodes.values() if node.parent_id is None]
+        roots = self.roots
         if len(roots) > 1:
             raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
         return roots[0] if roots else None
