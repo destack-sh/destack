@@ -59,7 +59,7 @@ from bench.runtime.common.interp import (
     interp_module,
 )
 from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
-from bench.runtime.common.mutate import get_api_mutation_from_internal
+from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
@@ -419,16 +419,19 @@ class LanguageWorker:
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
         await sync_to_async(write_mutations)(self.project_version, self.interp.tree, mutations)
+
+        # trim mutations to remove overhead from large dataset updates
+        trimmed_mutations = trim_record_mutations(mutations)
+
         await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
-        # nocheckin: trim public record mutations if too large
         api_mutations = list(
-            chain.from_iterable(get_api_mutation_from_internal(m) for m in mutations)
+            chain.from_iterable(get_api_mutation_from_internal(m) for m in trimmed_mutations)
         )
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=self.module_id, origins=origins, mutations=mutations
+                module_id=self.module_id, origins=origins, mutations=trimmed_mutations
             ),
         )
         await publish(

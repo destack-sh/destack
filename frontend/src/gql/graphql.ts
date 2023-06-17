@@ -484,6 +484,10 @@ export type ModuleMutation = {
 
 /** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
+  BumpField = "BUMP_FIELD",
+  BumpFile = "BUMP_FILE",
+  BumpRecord = "BUMP_RECORD",
+  BumpStatement = "BUMP_STATEMENT",
   CommentStatement = "COMMENT_STATEMENT",
   CreateField = "CREATE_FIELD",
   CreateFile = "CREATE_FILE",
