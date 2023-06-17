@@ -12,7 +12,14 @@ from uuid import UUID
 
 from bench import bench as lang
 from bench.bench import Code, IssueType, StatementType, TypeHint, TypeTag
-from bench.bench.const import MOT, ExecutionTriggerType, ExpectationModifier, InterpScope, TypeFlag
+from bench.bench.const import (
+    MOT,
+    DatasetBackend,
+    ExecutionTriggerType,
+    ExpectationModifier,
+    InterpScope,
+    TypeFlag,
+)
 from bench.bench.dataset import Query, Sort
 from bench.bench.issue import IssueKind
 from bench.bench.type import ModuleNode, ModuleReference
@@ -260,7 +267,7 @@ def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
         MOT_BY_DATA_CLASS[data_t] = t
         if t not in BASE_DATA_CLASS_BY_MOT:
             BASE_DATA_CLASS_BY_MOT[t] = data_t
-        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MOT[t]):
+        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MOT[t]):  # noqa
             raise ValueError(
                 f"cannot register {data_t} as {t}, it is not a subclass of {BASE_DATA_CLASS_BY_MOT[t]}"
             )
@@ -780,7 +787,9 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 class DatasetData(SymbolData):
     description: Optional[str]
     modifier: Optional[ExpectationModifier]
-    versioned: Optional[bool]
+    versioned: bool
+    backend: DatasetBackend
+    backend_id: str
 
 
 @node_packer(MOT.STATEMENT, DatasetData, lang.Dataset)
@@ -799,6 +808,8 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             modifier=symbol.modifier,
             description=symbol.description,
             versioned=symbol.versioned,
+            backend=symbol.backend,
+            backend_id=symbol.backend_id,
         )
 
     def unpack(self, symbol: DatasetData, parent: lang.Statement) -> lang.Dataset:
@@ -809,6 +820,8 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             description=symbol.description,
             versioned=symbol.versioned,
             fields=[],
+            backend=symbol.backend,
+            backend_id=symbol.backend_id,
         )
 
     def unwalk(self, symbol: lang.Dataset, tree: ModuleTree):

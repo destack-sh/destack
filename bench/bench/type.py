@@ -20,6 +20,8 @@ from bench.bench.const import (
     DEFAULT_EMBEDDING_DIMENSION,
     FIELD_KEY_LENGTH,
     REFERENCE_REGEX,
+    DatasetBackend,
+    DatasetViewLayout,
     ExpectationModifier,
     LookupBy,
     ModuleReference,
@@ -31,6 +33,7 @@ from bench.bench.const import (
     TypeStorageFormat,
     TypeTag,
     get_storage_format,
+    new_dataset_backend_id,
     parse_statement_path,
 )
 from bench.bench.dataset import Query, Sort
@@ -1050,11 +1053,17 @@ RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
 @node
 class DatasetView(ModuleNode):
     name: str = None
+    layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
-    reference: Optional[Dataset | UUID] = None
     order_key: str = field(default_factory=uuid.uuid4)
-    id: UUID = field(default_factory=uuid.uuid4)
+    fields: Optional[list[DatasetViewField]] = None
+
+
+@node
+class DatasetViewField(ModuleNode):
+    field: UUID | Field = required_field()
+    order_key: Optional[str] = None
 
 
 DEFAULT_VIEW = DatasetView(name="default")
@@ -1070,22 +1079,14 @@ class Dataset(Symbol, HasType, IsExpectable):
     versioned: bool = True
     records: Optional[list[Record]] = None
     views: Optional[list[DatasetView]] = None
+    backend: DatasetBackend = DatasetBackend.OPENSEARCH
+    backend_id: str = field(default_factory=new_dataset_backend_id)
 
     def _clear(self) -> None:
         Symbol._clear(self)
         HasType._clear(self)
 
     def _interp(self, scope: Scope) -> None:
-        # resolve references
-        for view in self.views or []:
-            if view.reference is not None:
-                view.reference = scope.lookup_symbol(view.reference, by=LookupBy.PyIdent)
-                if view.reference is None:
-                    self._on_issue(
-                        type=IssueType.MISSING_REFERENCE,
-                        subject=self,
-                        path=f"views.{view.name}.reference",
-                    )
         HasType._interp(self, scope)
 
     @property

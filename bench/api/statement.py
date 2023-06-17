@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
 import pytz
@@ -19,9 +19,10 @@ from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
-from bench.api.utils import CrudModel, Revisioned
+from bench.api.utils import CrudModel, Revisioned, ThingBatch
 
 if TYPE_CHECKING:
+    from bench.api.dataset import Dataset
     from bench.api.project import File, ProjectVersion
 
 log = structlog.get_logger(__name__)
@@ -72,6 +73,7 @@ class Statement(CrudModel, Revisioned, gql.Node):
     order_key: auto
     text: auto
     # symbol contents
+    dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
     modifier: auto
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
@@ -232,25 +234,6 @@ class StatementUpdateTextInput(gql.NodeInput):
     text: Optional[str] = None
 
 
-class ThingBatch(Iterable):
-    @property
-    def things(self):
-        raise NotImplementedError
-
-    # pretend to be an iterable for simpler perms checking
-    # (doesn't need to know about the Batch type, which is
-    #  required because we can't union list[Statement] | OperationInfo)
-
-    def __getitem__(self, item):
-        return self.things[item]
-
-    def __len__(self):
-        return len(self.things)
-
-    def __iter__(self):
-        return iter(self.things)
-
-
 @gql.type
 class StatementBatch(ThingBatch):
     statements: list[Statement]
@@ -262,7 +245,7 @@ class StatementBatch(ThingBatch):
 
 @gql.type
 class StatementMutation:
-    @tracked_db_mutation(MMT.CREATE_STATEMENT)
+    @tracked_db_mutation(MMT.CREATE_STATEMENT, atomic=True)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         statement = models.Statement(
@@ -283,9 +266,10 @@ class StatementMutation:
             text=input.text,
             value=input.value,
         )
+        statement.create_symbol_if_needed()
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT)
+    @tracked_db_mutation(MMT.UPDATE_STATEMENT, atomic=True)
     def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
@@ -303,12 +287,7 @@ class StatementMutation:
         statement.code = input.code
         statement.text = input.text
         statement.value = input.value
-        return statement
-
-    @tracked_db_mutation(MMT.DELETE_STATEMENT)
-    def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.delete()
+        statement.create_symbol_if_needed()
         return statement
 
     @tracked_db_mutation(MMT.MORPH_STATEMENT, atomic=True)
@@ -319,6 +298,7 @@ class StatementMutation:
         statement.root_type_tag = input.root_type_tag
         statement.root_type_flags = input.root_type_flags
         statement.lang = input.lang
+        statement.create_symbol_if_needed()
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)
@@ -338,6 +318,12 @@ class StatementMutation:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
+        return statement
+
+    @tracked_db_mutation(MMT.DELETE_STATEMENT)
+    def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.delete()
         return statement
 
     @tracked_db_mutation(MMT.COMMENT_STATEMENT, atomic=True)
@@ -456,7 +442,7 @@ class StatementMutation:
             s: UUID(t.node_id) if t is not None else None
             for s, t in zip(target_ids, input.target_parent_ids)
         }
-        ref_mappings = models.Statement.objects.copy_statements(
+        models.Statement.objects.copy(
             statements=source_statements,
             target_files={s: target_file for s in source_file_ids},
             source_version=source_project_v,
@@ -466,9 +452,6 @@ class StatementMutation:
             target_order_keys={s: t for s, t in zip(target_ids, input.target_order_keys)},
             copy_revisions=False,
         )
-        for mapping in ref_mappings:
-            mapping.kind = models.RefMappingKind.PASTE
-        models.RefMapping.objects.bulk_create(ref_mappings)
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)
         if target_statements.count() != len(input.target_ids):

@@ -1,4 +1,5 @@
 from bench.bench.const import (
+    DatasetViewLayout,
     ExpectationModifier,
     StatementType,
     TypeHint,
@@ -39,6 +40,7 @@ __all__ = [
     "Text",
     "Dataset",
     "DatasetView",
+    "DatasetViewLayout",
     "Expectation",
     "ExpectationModifier",
     "Field",

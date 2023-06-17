@@ -1,7 +1,7 @@
 import functools
 import typing
 from datetime import datetime
-from typing import Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union
 from uuid import UUID
 
 import structlog
@@ -170,3 +170,22 @@ def get_client_origin_from_info(info: Info):
     client_nonce = info.context.request.headers.get("x-client-nonce")
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
+
+
+class ThingBatch(Iterable):
+    @property
+    def things(self):
+        raise NotImplementedError
+
+    # pretend to be an iterable for simpler perms checking
+    # (doesn't need to know about the Batch type, which is
+    #  required because we can't union list[Statement] | OperationInfo)
+
+    def __getitem__(self, item):
+        return self.things[item]
+
+    def __len__(self):
+        return len(self.things)
+
+    def __iter__(self):
+        return iter(self.things)

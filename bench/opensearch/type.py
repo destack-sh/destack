@@ -238,7 +238,7 @@ class Document:
     __type__: ClassVar[typing.Optional[str]] = None
     __store_type__: ClassVar[bool] = True
 
-    id: UUID  # not technically a field on the document, so no Field annotation
+    id: UUID  # not technically a field on the document, so no Field annotation (goes into _id)
 
     def to_dict(self) -> dict[str, Any]:
         """

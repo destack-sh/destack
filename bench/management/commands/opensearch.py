@@ -18,4 +18,4 @@ class Command(BaseCommand):
     def handle(self, slug: str, *args, **options):
         owner, project_name = slug.split("/")
         project = Project.objects.get_by_slug(owner, project_name)
-        create_bench_index(project.id)
+        create_bench_index(project.id, upsert=True)

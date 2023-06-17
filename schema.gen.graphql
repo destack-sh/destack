@@ -169,6 +169,13 @@ type CommitPayload {
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
+type Dataset implements Node {
+  id: GlobalID!
+  backend: String!
+  backendId: String!
+  versioned: Boolean!
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -542,11 +549,11 @@ type Mutation {
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   updateStatement(input: StatementCreateInput!): StatementOperationInfo!
-  deleteStatement(input: StatementDeleteInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
+  deleteStatement(input: StatementDeleteInput!): StatementOperationInfo!
   commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
@@ -1244,7 +1251,7 @@ type Record {
   lastEditedBy: User
   revision: Int!
   id: GlobalID!
-  statementId: GlobalID!
+  datasetId: String!
   orderKey: String!
   data: JSON!
 }
@@ -1474,6 +1481,7 @@ type Statement implements Node {
   descendants: [Statement!]!
   orderKey: String!
   text: String
+  dataset: Dataset
   modifier: String
   rootTypeTag: TypeTag
   rootTypeFlags: Int

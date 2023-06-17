@@ -215,7 +215,6 @@ export function useSymbolContentOps() {
             revision
             orderKey
             data
-            statementId
           }
           ...OperationInfoContent
         }
@@ -228,7 +227,6 @@ export function useSymbolContentOps() {
           createRecord: {
             __typename: "Record",
             id: vars.id,
-            statementId: vars.statementId,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,

@@ -1,4 +1,4 @@
-from .dataset import Dataset, OpensearchMapping
+from .dataset import Dataset
 from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .interp import InterpScope, Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
@@ -48,7 +48,6 @@ __all__ = [
     "OrganizationInvite",
     "OrganizationMembership",
     "OrganizationMembershipLevel",
-    "OpensearchMapping",
     "OwnerSlug",
     "Project",
     "ProjectType",
