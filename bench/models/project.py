@@ -415,7 +415,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         target_ids = {**(target_ids or {}), source.id: target.id}
         kind = kind or RefMappingKind.COMMIT
-        packed = packer.pack_node(*nodes, filter=filter)
+        packed = packer.pack_node(*nodes, filter=filter or packer.DEFAULT_PACK_FILTER)
 
         # map all ids to new ids
         ref_mappings: dict[UUID, RefMapping] = {}

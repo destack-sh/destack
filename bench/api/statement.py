@@ -20,6 +20,7 @@ from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, Revisioned, ThingBatch
+from bench.models import RefMappingKind
 
 if TYPE_CHECKING:
     from bench.api.dataset import Dataset
@@ -418,9 +419,7 @@ class StatementMutation:
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
         source_ids = [UUID(i.node_id) for i in input.source_ids]
-        source_statements = models.Statement._base_manager.prefetch_related(
-            "records", "fields"
-        ).filter(id__in=source_ids)
+        source_statements = models.Statement._base_manager.filter(id__in=source_ids)
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
 
@@ -439,24 +438,28 @@ class StatementMutation:
         # actually paste and store paste refmappings
         target_ids = [UUID(i.node_id) for i in input.target_ids]
         target_parent_ids = {
-            s: UUID(t.node_id) if t is not None else None
-            for s, t in zip(target_ids, input.target_parent_ids)
+            **{
+                s: UUID(t.node_id)
+                for s, t in zip(target_ids, input.target_parent_ids)
+                if t is not None
+            },
+            **{s: target_file.id for s in source_file_ids},
         }
+        target_order_keys = {s: t for s, t in zip(target_ids, input.target_order_keys)}
         models.Statement.objects.copy(
             statements=source_statements,
-            target_files={s: target_file for s in source_file_ids},
-            source_version=source_project_v,
-            target_version=target_file.project_version,
-            target_statement_ids={s: t for s, t in zip(source_ids, target_ids)},
+            source=source_project_v,
+            target=target_file.project_version,
+            target_ids={s: t for s, t in zip(source_ids, target_ids)},
             target_parent_ids=target_parent_ids,
-            target_order_keys={s: t for s, t in zip(target_ids, input.target_order_keys)},
-            copy_revisions=False,
+            target_order_keys=target_order_keys,
+            kind=RefMappingKind.PASTE,
         )
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)
         if target_statements.count() != len(input.target_ids):
             raise RuntimeError(
-                f"failed to paste statements {target_statements} is incomplete (wanted {input.target_ids})"
+                f"paste {target_statements} is incomplete (wanted {input.target_ids})"
             )
         return StatementBatch(statements=target_statements)
 
