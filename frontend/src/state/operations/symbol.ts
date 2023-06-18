@@ -588,7 +588,7 @@ export function useSymbolContentOps() {
             orderKey: vars.orderKey,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             flags: vars.flags,
-            metadata: vars.metadata,
+            metadata: vars.metadata ?? null,
           },
         } as any),
       update(cache, { data }) {

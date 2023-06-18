@@ -12,7 +12,6 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import type { Record } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
@@ -21,10 +20,14 @@ import { useOperations } from "@/state/operations";
 import { newRecordId } from "@/state/operations/statement";
 import { useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
+import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
   CubeTransparentIcon,
+  EllipsisHorizontalCircleIcon,
+  EllipsisHorizontalIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
   Square2StackIcon,
   SquaresPlusIcon,
@@ -135,7 +138,11 @@ const verticalBorders = true;
 const minRowHeight = 32; // incl. padding * 2
 const rowPadding = 4;
 const maxRowHeight = 220;
+const defaultGrowFactor = 0.1;
+const defaultMinWidth = 50;
 const growColumns = true;
+const showPropertiesColumn = true; // used to be only in write mode, but useful if no columns and for settings shortcut
+const propertiesColumnWidth = 64;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
@@ -169,20 +176,30 @@ watch(
       ) -
       context.xOffset.value -
       8; // not sure why -8, probably some mx-1? borders?
-    const ifaces = context.allFields.value.map((f) => getInterface(f));
+    const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = context.allFields.value.map((f) =>
+      getInterface(f)
+    );
+    if (showPropertiesColumn) {
+      ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.05 }); // 'fake' properties column
+    }
+
     // init width to minimum widths as min(header, iface_min)
     const widths: number[] = [];
-    for (let i = 0; i < context.allFields.value.length; i++) {
+    for (let i = 0; i < ifaces.length; i++) {
       const iface = ifaces[i];
-      const headerWidth = (grid.getRef("", context.allFields.value[i].key ?? "")?.previewSize.width.value ?? 50) + 16; // little padding
-      const minWidth = Math.max(headerWidth, iface?.minWidth ?? 50);
+      const headerWidth =
+        i < columnsInOrder.value.length
+          ? (grid.getRef("", columnsInOrder.value[i])?.previewSize.width.value ?? defaultMinWidth) + 16 // little padding
+          : 0;
+      const minWidth = Math.max(headerWidth, iface?.minWidth ?? defaultMinWidth);
       widths.push(minWidth);
     }
+
     // if the total width is too small, scale up to fill by the grow factors
     const minTotalWidth = widths.reduce((a, b) => a + b, 0);
     if (minTotalWidth < targetMinTotalWidth && growColumns) {
       const toFill = Math.max(targetMinTotalWidth - minTotalWidth, 0);
-      const growFactors = ifaces.map((i) => i?.grow ?? 0.1);
+      const growFactors = ifaces.map((i) => i?.grow ?? defaultGrowFactor);
       const growTotal = growFactors.reduce((a, b) => a + b, 0);
       const growWidths = growFactors.map((g) => (g / growTotal) * toFill);
       for (let i = 0; i < widths.length; i++) {
@@ -203,7 +220,8 @@ watch(
       columnWidths.value = widths;
       rowHeights.value = heights;
     }
-  }
+  },
+  { immediate: context.allFields.value.length == 0 } // force update on first render if no columns to trigger initial sizing
 );
 
 const gridBounding = useElementBounding(gridRef);
@@ -351,7 +369,7 @@ function insertRecord(options?: { belowRecordId?: string; data?: any }) {
   const orderKey = getNewOrderKey(options?.belowRecordId);
   const recordId = newRecordId();
   ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.data ?? ({} as any));
-  // add record to search results (regardless of filter)
+  // add record to search results optimistically (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: recordId });
   const optimisticRecord = {
     __typename: "Record",
@@ -448,13 +466,22 @@ const position = useMouseInElement(gridRef);
 
 const extraStatementActions = computed(() => {
   const actions: StatementAction[] = [];
-  // TODO @UX: ideally reload view should only be useful in debug/dev mode
   actions.push({
-    label: "Reload view",
-    icon: ArrowPathIcon,
-    active: loading.value,
-    action: () => refetch(),
+    label: "Search",
+    icon: MagnifyingGlassIcon,
+    action: () => {
+      /* open search inline? */
+    },
+    hideInline: true,
   });
+  if (IS_LOCALHOST || IS_DEBUG) {
+    actions.push({
+      label: "Reload view",
+      icon: ArrowPathIcon,
+      active: loading.value,
+      action: () => refetch(),
+    });
+  }
   actions.push({
     label: "Add record",
     icon: PlusIcon,
@@ -464,6 +491,7 @@ const extraStatementActions = computed(() => {
     label: "Add field",
     icon: SquaresPlusIcon,
     action: () => createFieldRef.value?.show(),
+    hideInline: true,
   });
   actions.push({
     label: "Include type",
@@ -587,7 +615,7 @@ defineExpose({
         }"
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
-          <div class="flex flex-row gap-0.5 whitespace-nowrap focus-within:bg-orange-100">
+          <div class="whitespace-nowrap focus-within:bg-orange-100">
             <FieldInterface
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
@@ -612,6 +640,32 @@ defineExpose({
                 width: columnWidths[x] + 'px',
               }"
             />
+          </div>
+        </div>
+        <div
+          v-if="showPropertiesColumn"
+          :style="{
+            width: columnWidths[columnWidths.length - 1] + 'px',
+          }"
+        >
+          <div class="flex w-full flex-row items-center justify-center gap-2 whitespace-nowrap p-1">
+            <!-- Add column -->
+            <button
+              v-if="!context.readonly.value"
+              tabindex="-1"
+              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+              @click="createFieldRef?.show()"
+            >
+              <PlusIcon class="h-4 w-4" />
+            </button>
+            <!-- Properties -->
+            <button
+              tabindex="-1"
+              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+              @click="true /* TODO @UX: do something on database properties column button */"
+            >
+              <EllipsisHorizontalIcon class="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -683,6 +737,22 @@ defineExpose({
             class="h-full w-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
           />
+        </div>
+        <!-- Extra properties column (empty) -->
+        <div v-if="showPropertiesColumn">
+          <div
+            class="h-full overflow-hidden"
+            :class="[
+              verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900 border-opacity-[12%]' : '',
+            ]"
+            :style="{
+              minHeight: minRowHeight + 'px',
+              width: columnWidths[columnWidths.length - 1] + 'px',
+              height: rowHeights[y] + rowPadding * 2 + 'px',
+            }"
+          >
+            <div class="h-full w-full overflow-hidden border border-transparent p-1"></div>
+          </div>
         </div>
       </div>
       <!-- Bottom actions -->

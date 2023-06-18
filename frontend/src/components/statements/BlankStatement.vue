@@ -3,6 +3,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import ModifierCell from "@/components/statements/ModifierCell.vue";
 import ProtoStatementTypeCell from "@/components/statements/ProtoStatementTypeCell.vue";
 import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
+import { StatementType } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { ref, type Ref } from "vue";
@@ -72,15 +73,15 @@ defineExpose({
     <div
       v-if="
         showDots &&
-        context.statement.value.type == null &&
+        context.statement.value.type == StatementType.Blank &&
         context.statement.value.modifier == null &&
         gapRef?.content?.length == 0 &&
         context.focused.value
       "
-      class="h-full w-full select-none group-hover:opacity-100"
+      class="-mx-1 h-full w-full select-none group-hover:opacity-100"
     >
       <span class="text-gray-400" v-if="!context.editing.value">...</span>
-      <span class="text-gray-400" v-else>'/' for commands or just type...</span>
+      <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
     </div>
   </span>
 </template>

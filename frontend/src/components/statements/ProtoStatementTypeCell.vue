@@ -116,7 +116,7 @@ const commands = computed(() => {
       action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
     },
     {
-      label: "struct",
+      label: "type",
       description: "Define a data structure.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
