@@ -123,40 +123,6 @@ def map_mutation_from_api(
         return [internal_mutation], [api_mutation]
 
 
-def _get_internal_mutation_from_api(
-    mutation: ModuleMutation, thing: MutableThing
-) -> list[ModuleMutation]:
-    """
-    Maps the full multiplayer mutation set into simple internal mutations.
-
-    Simple here means only CRUD on full objects (no partial/"atomic" mutations).
-    The multiplayer module state and the internal module state are not equally representative,
-    so we map some mutations to different mutations.
-    (e.g., comment mutations map to create/delete mutations on the statement)
-    """
-
-    if mutation.type == MMT.COMMENT_STATEMENT:
-        if thing.commented:
-            internal_type = MMT.DELETE_STATEMENT  # deletes auto-cascade
-        else:
-            packed = packer.pack_node(thing)
-            mut = ModuleMutator(module=mutation.project_version_id)
-            return mut.create_many(*packed.nodes_list()).mutations
-    else:
-        # map everything else to a simple internal mutation (CUD_X)
-        internal_type = MMT(mutation.type.kind + "_" + mutation.mot)
-
-    internal_mutation = ModuleMutation(
-        type=internal_type,
-        project_version_id=mutation.project_version_id,
-        file_id=mutation.file_id,
-        statement_id=mutation.statement_id,
-        revision=thing.revision,
-    )
-    internal_mutation.data = packer.pack_node_flat(thing)
-    return [internal_mutation]
-
-
 def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutation]:
     """
     Maps a simple internal mutation to an API multiplayer mutation.
