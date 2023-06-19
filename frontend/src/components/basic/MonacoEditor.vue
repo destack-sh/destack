@@ -57,11 +57,11 @@ const BENCH_THEME_COLORS = {
   // transparent background
   "editor.background": "#00000000",
   // line numbers (when not focused, focused colors are set in style bellow)
-  "editorLineNumber.foreground": "#fed7aa",
-  "editorLineNumber.activeForeground": "#fdba74",
+  "editorLineNumber.foreground": "#71717a",
+  "editorLineNumber.activeForeground": "#71717a",
   // set selection color (sync with ::selection in App.vue)
   "editor.selectionBackground": "#fef08a",
-  // set cursor color
+  // set cursorcolor
   "editorCursor.foreground": "#f97316",
   // hide line
   "editor.lineHighlightBackground": "#ffffff",
@@ -125,14 +125,12 @@ function initMonaco(monaco: Monaco) {
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
-    lineNumbersMinChars: 3,
+    lineNumbersMinChars: 2,
     // set font to same mono from tailwind config
     fontSize: 14,
     fontFamily: "Druid Sans Mono, monospace",
     lineNumbers: props.hideLineNumbers ? "off" : lineNumbers,
     renderLineHighlight: "none",
-    // disable folding
-    folding: false,
     scrollbar: {
       vertical: "hidden",
       horizontal: "hidden",

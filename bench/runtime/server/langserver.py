@@ -78,9 +78,9 @@ WORKER_HEARTBEAT_TIMEOUT = 30
 class ModuleDB:
     def __init__(self, cache_committed: bool = True):
         self.cache_committed = cache_committed
-        self._cached_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
+        self._cached_modules: dict[UUID, tuple[wire.ModuleTreeData, UUID]] = {}
 
-    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
+    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleTreeData, UUID]:
         if module_id in self._cached_modules:
             return self._cached_modules[module_id]
         project_version = await ProjectVersion.objects.aget(id=module_id)
@@ -449,7 +449,7 @@ class LanguageWorker:
         self.interp = interp_module(new_source)
         return old, self.interp
 
-    async def do_interp(self, new_source: wire.ModuleData) -> None:
+    async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         requirements = get_requirements(new_source)
         dependencies = await self.interpreter.interp_requirements(requirements)
@@ -463,7 +463,7 @@ class LanguageWorker:
         interp_mut.tree.prune(wire.ResolvedFieldData)
         # resolved fields
         if old_interp is None:
-            interp_mut.truncate(new_source.strip(), MOT.RESOLVED_FIELD)
+            interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
         for symbol in new_interp.module.symbols_by_id.values():
             if not isinstance(symbol, HasType):
                 continue
@@ -478,7 +478,7 @@ class LanguageWorker:
         new_issues: dict[UUID, Issue] = {issue.id: issue for issue in new_interp.issues}
         old_issues: set[UUID] = {issue.id for issue in old_interp.issues} if old_interp else {}
         if old_interp is None:
-            interp_mut.truncate(new_source.strip(), MOT.ISSUE)
+            interp_mut.truncate(new_source.module, MOT.ISSUE)
         else:
             for issue in old_interp.issues:
                 if issue.id not in new_issues and issue.parent_id in interp_mut.tree:

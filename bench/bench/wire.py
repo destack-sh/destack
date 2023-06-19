@@ -279,13 +279,13 @@ def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
     return decorator
 
 
-def pack_module(module: lang.Module) -> "ModuleData":
+def pack_module(module: lang.Module) -> "ModuleTreeData":
     module_data, nodes = pack_node(module)
-    module_data.nodes = nodes
-    return module_data
+    module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
+    return module_tree
 
 
-def unpack_module(module: ModuleData) -> lang.Module:
+def unpack_module(module: ModuleTreeData) -> lang.Module:
     module = unpack_node(module.nodes, parent=None)
     return module
 
@@ -359,7 +359,6 @@ class ModuleData(NodeData):
     name: str
     committed: bool
     parent_id: Optional[UUID]
-    nodes: Optional[list[NodeData]] = None
 
     def strip(self) -> ModuleData:
         return replace(self, nodes=None)
@@ -369,6 +368,12 @@ class ModuleData(NodeData):
 
     def __repr__(self):
         return f"<Module {str(self)}>"
+
+
+@dataclass
+class ModuleTreeData(ModuleData):
+    nodes: list[NodeDataT]
+    module: ModuleData
 
 
 @node_packer(MOT.MODULE, ModuleData, lang.Module)

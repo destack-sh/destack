@@ -274,7 +274,7 @@ class SandboxedWorker:
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
         self.tasks = []
-        self.cached_committed_modules: dict[UUID, tuple[wire.ModuleData, UUID]] = {}
+        self.cached_committed_modules: dict[UUID, tuple[wire.ModuleTreeData, UUID]] = {}
 
     @property
     def default_tracing_level(self) -> SessionTracingLevel:
@@ -381,7 +381,7 @@ class SandboxedWorker:
         success = await worker.cancel_run(msg.p.execution_id)
         await msg.reply(RepCancelRunPayload(success=success))
 
-    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleData, UUID]:
+    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleTreeData, UUID]:
         """Gets a modules wire data"""
         log = logger.bind(module_id=module_id)
         cached = self.cached_committed_modules.get(module_id)
@@ -396,7 +396,7 @@ class SandboxedWorker:
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, module_rep.p.project_id
 
-    async def fetch(self, module_id: UUID) -> wire.ModuleData:
+    async def fetch(self, module_id: UUID) -> wire.ModuleTreeData:
         return (await self.get_module(module_id))[0]
 
     async def stop(self):

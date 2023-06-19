@@ -93,7 +93,7 @@ const extraActions = computed(() => {
     });
   } else {
     inlineActions.push({
-      label: "Clear",
+      label: "Clear output",
       icon: NoSymbolIcon,
       action: async () => {
         // TODO @Feature: clear execution for real?
@@ -173,16 +173,6 @@ defineExpose({
         @navigate-down="monacoRef?.focus"
         @navigate-right="typeRef?.focus"
       />
-      <!-- Inline type -->
-      <button
-        v-if="!context.readonly.value && context.fields.value.length == 0 && !addingTypes"
-        ref="typeRef"
-        class="z-10 ml-2 w-fit rounded-sm px-0.5 text-sm hover:bg-orange-100 hover:text-gray-700"
-        :class="context.focused.value ? 'text-gray-400' : 'text-gray-300'"
-        @click="addingTypes = !addingTypes"
-      >
-        {{ addingTypes ? "-arguments" : "+arguments" }}
-      </button>
     </div>
     <!-- Meta info & controls -->
     <div
@@ -221,7 +211,7 @@ defineExpose({
   <!-- TODO @UX: figure out nicer styling for code -->
   <MonacoEditor
     ref="monacoRef"
-    hide-line-numbers
+    :hide-line-numbers="false"
     :lineNumberOffset="0"
     :line-number-shift-px="context.xOffset.value - 20"
     v-model="code"
