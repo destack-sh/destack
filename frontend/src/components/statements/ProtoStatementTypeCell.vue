@@ -128,7 +128,7 @@ const commands = computed(() => {
       action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
     },
     {
-      label: "record",
+      label: "value",
       description: "Configure context and secrets.",
       action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
     },

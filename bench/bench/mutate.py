@@ -259,14 +259,14 @@ class ModuleMutation:
         return {"thing": None}  # always omit thing
 
     @property
-    def data(self) -> NodeData:
+    def data(self) -> Optional[NodeData]:
         if self._data_statement__type is not None:
             # map to _symbol_<type>
             return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
         elif self._data__mot is not None:
             return getattr(self, f"_data_{self._data__mot.value.lower()}")
         else:
-            raise ValueError(f"mot is not set on {self}")
+            return None
 
     @data.setter
     def data(self, value: NodeData):

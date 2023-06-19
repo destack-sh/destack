@@ -96,10 +96,10 @@ def tracked_db_mutation(
 
             # dual write, publish and track mutation
             origin = get_client_origin_from_info(info)
-            public_mutations, internal_mutations = publish_tracked_mutation(
+            api_mutations, internal_mutations = publish_tracked_mutation(
                 project_v, origin, type, kwargs.get("input"), things, batch
             )
-            write_mutations_to_os(project_v, public_mutations)
+            write_mutations_to_os(project_v, api_mutations)
             track_mutation_for_analytics(type, project_v, things, batch, info)
 
             return ret
@@ -229,29 +229,26 @@ def publish_tracked_mutation(
         inputs = original_input.unbatch()
     else:
         inputs = [original_input]
-    public_mutations = []
+    api_mutations = []
     internal_mutations = []
     for input, thing in zip(inputs, things):
         input = input_to_gql_jsonable(input)
         internal, public = map_mutation_from_api(type, input, thing, project_v, statement)
-        public_mutations.extend(public)
+        api_mutations.extend(public)
         internal_mutations.extend(internal)
 
-    project_version_id = public_mutations[0].project_version_id
     publish_soon(
         NMessageType.MODULE_CHANGED,
-        ModuleChangedPayload(
-            module_id=project_version_id, origins=[origin], mutations=public_mutations
-        ),
+        ModuleChangedPayload(module_id=project_v.id, origins=[origin], mutations=api_mutations),
     )
     if internal_mutations:
         publish_soon(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=project_version_id, origins=[origin], mutations=internal_mutations
+                module_id=project_v.id, origins=[origin], mutations=internal_mutations
             ),
         )
-    return public_mutations, internal_mutations
+    return api_mutations, internal_mutations
 
 
 def track_mutation_for_analytics(
