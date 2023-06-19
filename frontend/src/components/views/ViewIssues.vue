@@ -4,6 +4,7 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const appearance = useAppearance();
 const module = useCurrentModule();
@@ -11,7 +12,6 @@ const nav = useNavigation();
 const issues = computed(() => module.issues.value);
 
 function focusIssue(issue: IssueContentFragment) {
-  console.debug("focus issue", issue);
   if (issue.statement != null) {
     nav.focus(issue.statement);
   }
@@ -27,8 +27,11 @@ function focusIssue(issue: IssueContentFragment) {
       }"
     >
       <span class="text-sm font-extrabold text-gray-500">Issues</span>
+      <div v-if="module.loading.value">
+        <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
+      </div>
     </div>
-    <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10">
+    <ul class="flex w-full flex-col gap-2 overflow-y-auto py-2 pb-10" v-if="!module.loading.value">
       <li
         v-for="(issue, i) in issues ?? []"
         :key="i"

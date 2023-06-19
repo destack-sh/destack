@@ -36,11 +36,6 @@ const popoverPin = pinAbsoluteElement(
   { pos: true, width: true, keepInView: true }
 );
 
-// focus input when popover opens
-watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
-// clear input when popover opens/closes
-watch(popoverOpenRef, () => nextTick(() => (query.value = "")));
-
 const query = ref("");
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredActions = computed(() => {
@@ -51,7 +46,20 @@ const filteredActions = computed(() => {
   );
   return idxs?.map((idx) => props.actions[idx]) ?? [];
 });
-const closed = ref(true);
+const closed = ref(false);
+
+// focus input when popover opens
+watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
+// clear input and closed when popover opens/closes
+watch(popoverOpenRef, () => nextTick(() => ((query.value = ""), (closed.value = false))));
+
+function doActionIfOpen(action: Action<any>) {
+  console.log("doActionIfOpen", action, closed.value); // nocheckin
+  if (!closed.value) {
+    action.action(props.thing);
+  }
+  closed.value = true;
+}
 
 const anchor = computed(
   () =>
@@ -99,11 +107,7 @@ defineExpose({
       <span ref="popoverOpenRef" class="hidden" />
       <!-- Input & actions -->
       <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click) -->
-      <Combobox
-        as="div"
-        :model-value="null"
-        @update:model-value="(action: any) => (closed || (action.action(thing), closed=true, close()))"
-      >
+      <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (doActionIfOpen(action), close())">
         <ComboboxInput
           as="input"
           ref="inputRef"
@@ -133,8 +137,7 @@ defineExpose({
             :value="action"
             :disabled="action.disabled"
             v-slot="{ active }"
-            @keydown.enter.prevent.stop="closed || (action.action(thing), (closed = true), close())"
-            @click.prevent.stop="closed || (action.action(thing), (closed = true), close())"
+            @click.prevent.stop="doActionIfOpen(action), close()"
           >
             <button
               class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"

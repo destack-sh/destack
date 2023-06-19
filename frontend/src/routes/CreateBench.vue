@@ -12,11 +12,12 @@ import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
-import { ArrowPathIcon, ArrowRightIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
+import { ArrowRightIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const title = useTitle();
 title.value = "Create your Bench";
@@ -255,7 +256,7 @@ async function createProject() {
         >
           Craft
           <component
-            :is="creating ? ArrowPathIcon : ArrowRightIcon"
+            :is="creating ? BusySpinnerIcon : ArrowRightIcon"
             class="h-4 w-4 text-gray-700"
             :class="[creating ? 'animate-spin' : '']"
           />

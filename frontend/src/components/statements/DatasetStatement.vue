@@ -36,6 +36,7 @@ import {
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -780,7 +781,7 @@ defineExpose({
         :disabled="loading"
       >
         <template v-if="loading">
-          <ArrowPathIcon class="h-4 w-4" :class="loading ? 'animate-spin' : ''" />
+          <BusySpinnerIcon class="h-4 w-4" :class="loading ? 'animate-spin' : ''" />
           Loading
         </template>
         <template v-else>

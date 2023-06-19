@@ -3,15 +3,18 @@ import FileExplorer from "@/components/views/FileExplorer.vue";
 import SymbolExplorer from "@/components/views/SymbolExplorer.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
+import { useCurrentModule } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const actions = useActions();
 const appearance = useAppearance();
+const module = useCurrentModule();
 
 type Panel = {
   title: string;
@@ -93,7 +96,10 @@ watch(
             {{ panel.title }}
           </span>
           <!-- Panel actions -->
-          <span class="inline-flex flex-row gap-1">
+          <div v-if="module.loading.value">
+            <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
+          </div>
+          <span class="inline-flex flex-row gap-1" v-else>
             <button
               v-for="action in panel.actions.filter((action) => action.enabled)"
               :key="action.label"

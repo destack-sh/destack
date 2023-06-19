@@ -1,6 +1,8 @@
 <script lang="ts" setup>
-import CommitPopover from "@/components/bench/CommitPopover.vue";
 import BookmarkDashedIcon from "@/components/basic/BookmarkDashedIcon.vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
+import CommitPopover from "@/components/bench/CommitPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
@@ -12,12 +14,11 @@ import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { parseSemVer } from "@/utils/semver";
 import { PopoverButton } from "@headlessui/vue";
-import { ArrowPathIcon, BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
+import { BookmarkIcon, PencilIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 import { useRouter } from "vue-router";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   project: ProjectHeader;
@@ -76,7 +77,6 @@ const versions = computed(() => {
   }
   return ordered;
 });
-const versionsCount = computed(() => versionsQuery.value?.project?.versions.totalCount);
 const isAtHead = computed(() => bench.projectVersionId == head.value?.id);
 
 function isCurrent(version: { id: string }): boolean {
@@ -230,11 +230,14 @@ defineExpose({
       }"
     >
       <span class="text-sm font-extrabold text-gray-500">History</span>
+      <div v-if="loading">
+        <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
+      </div>
       <!-- Version controls -->
       <!-- Note that this commit popover duplicates the one from the main version list -->
       <!-- This is because it's easier to open the right popover in the right place that way -->
       <CommitPopover
-        v-if="head != null && isCurrent(head)"
+        v-else-if="head != null && isCurrent(head)"
         :version="head"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
@@ -254,7 +257,7 @@ defineExpose({
           }"
         >
           <FadeTransition mode="out-in">
-            <component :is="committing || loading ? ArrowPathIcon : BookmarkIcon" class="h-4 w-4" />
+            <component :is="committing || loading ? BusySpinnerIcon : BookmarkIcon" class="h-4 w-4" />
           </FadeTransition>
         </PopoverButton>
       </CommitPopover>

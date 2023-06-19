@@ -40,7 +40,7 @@ export type ModuleIndex = {
 function _useModule(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
 
-  const { result: module } = useQuery(
+  const { result: module, loading } = useQuery(
     graphql(/* GraphQL */ `
       query module($projectVersionId: GlobalID!) {
         projectVersion(id: $projectVersionId) {
@@ -162,7 +162,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   function contextOf(symbol: { id: string }) {
     for (const i of [idx.value, ...dependenciesIndex.value]) {
-      if (i && symbol.id in i.filesById) {
+      if (i && symbol.id in i.statementsById) {
         const statement = i.statementsById[symbol.id];
         return {
           id: i.id,
@@ -248,6 +248,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
   }
 
   return {
+    loading,
     module,
     id: computed(() => module.value?.projectVersion?.id),
     name: computed(() => module.value?.projectVersion?.project.name),
@@ -333,7 +334,6 @@ export function useNavigation() {
     if (!context?.file) return;
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
-
     const editor = bench.focusFile(context.file as any) as FileEditor;
     editor.editElement(symbol as any);
   }

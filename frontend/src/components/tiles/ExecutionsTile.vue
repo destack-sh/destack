@@ -8,7 +8,6 @@ import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
 import { useExecutions } from "@/state/executions";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
-  ArrowPathIcon,
   BoltIcon,
   CheckCircleIcon,
   ChevronDoubleDownIcon,
@@ -18,6 +17,7 @@ import {
 } from "@heroicons/vue/24/solid";
 import { useElementSize } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{
   runnableId: string;
@@ -95,7 +95,7 @@ function isMostlyCached(execution: { duration?: number; cachedDuration?: number 
 
 function getStatusIcon(status: ExecutionStatus) {
   if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running || status == ExecutionStatus.Scheduled) {
-    return ArrowPathIcon;
+    return BusySpinnerIcon;
   } else if (status == ExecutionStatus.Aborting || status == ExecutionStatus.Aborted) {
     return XCircleIcon;
   } else if (status == ExecutionStatus.Failed) {

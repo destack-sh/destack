@@ -395,7 +395,7 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         statement = super().unpack(data, parent)
         statement.description = data.description
         statement.root_type_tag = data.tag.value
-        statement.root_type_flags = data.flags.value
+        statement.root_type_flags = data.flags
         return statement
 
 

@@ -18,9 +18,9 @@ import { useAppearance } from "@/state/appearance";
 import { TypeFlag } from "@/state/module";
 import { IS_DEBUG } from "@/utils/globals";
 import { syncProperty } from "@/utils/sync";
-import { ArrowPathIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import VectorInput from "@/components/inputs/VectorInput.vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
@@ -253,7 +253,7 @@ defineExpose({
       />
       <!-- pending indicator -->
       <span v-if="editableRef?.pending" class="absolute -right-6 top-1.5 mr-1 mt-1">
-        <ArrowPathIcon class="h-4 w-4 animate-spin text-gray-400" />
+        <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-400" />
       </span>
     </div>
     <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
