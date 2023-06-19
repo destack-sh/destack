@@ -122,7 +122,7 @@ watch(
           />
           <SymbolExplorer
             :ref="(ref) => (symbolExplorer = ref as any)"
-            v-else-if="panel.title == 'Outline'"
+            v-else-if="panel.title == 'Outline' && !module.loading.value"
             :focused="props.focused"
             @navigate-up="fileExplorer?.focus('last')"
             @navigate-down="fileExplorer?.focus('first')"

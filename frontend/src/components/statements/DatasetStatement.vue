@@ -442,8 +442,7 @@ function deleteRecord(recordId: string) {
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
   ops.symbol.softDeleteRecord(null, context.statement.value.id, recordId);
-  // move focus up
-  grid.focus(recordIdx - 1, columnsInOrder.value[0]);
+  grid.focus(recordIdx, columnsInOrder.value[0]);
 }
 
 // drag & drop

@@ -58,6 +58,22 @@ const isOtherVersion = computed(
     fileHeader.value != null &&
     fileHeader.value?.projectVersion?.id != bench.projectVersionId
 );
+const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
+const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
+
+syncProperty({
+  value: name,
+  editing: computed(() => titleRef.value?.editing),
+  read: () => (name.value = fileHeader.value?.name ?? null),
+  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
+});
+
+// sync name/path into editor
+watch([name, fileHeader], () => {
+  if (fileHeader.value == null || module.idx.value == null) return;
+  editor.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
+});
+
 const statements = computed(() => {
   return (
     file.value?.file?.statements
@@ -96,22 +112,6 @@ function registerStatementRef(id: string, component: InstanceType<typeof Stateme
     statementsComponents.value[id] = component;
   }
 }
-
-const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
-const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
-
-syncProperty({
-  value: name,
-  editing: computed(() => titleRef.value?.editing),
-  read: () => (name.value = fileHeader.value?.name ?? null),
-  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
-});
-
-// sync name/path into editor
-watch([name, fileHeader], () => {
-  if (fileHeader.value == null || module.idx.value == null) return;
-  editor.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
-});
 
 // auto-focus name once loaded and if contents are empty
 watch(

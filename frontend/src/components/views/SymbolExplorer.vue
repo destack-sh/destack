@@ -73,7 +73,7 @@ defineExpose({
       :key="ordered.id"
       :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref)"
       tabindex="-1"
-      class="flex flex-row gap-1 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
+      class="flex flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
         'text-orange-600': ordered.id == bench?.focusedStatementId,
         'text-gray-700 hover:bg-orange-100': ordered.id != bench?.focusedStatementId,
@@ -87,7 +87,16 @@ defineExpose({
       @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
       @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
     >
-      <span class="">{{ getSymbolSubtype(ordered.statement) ?? STATEMENT_TYPE_KEYWORD[ordered.statement.type] }}</span>
+      <!-- Statement type (probably should be a proper icon later) -->
+      <span
+        class="text rounded-sm px-1 font-mono"
+        :class="[ordered.id == bench?.focusedStatementId ? 'bg-orange-100' : 'bg-gray-100']"
+        >{{
+          (getSymbolSubtype(ordered.statement) ?? STATEMENT_TYPE_KEYWORD[ordered.statement.type])
+            ?.slice(0, 1)
+            .toUpperCase()
+        }}</span
+      >
       <span class="">{{ ordered.statement.name }}</span>
     </li>
   </ul>

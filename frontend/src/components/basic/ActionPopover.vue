@@ -54,7 +54,6 @@ watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
 watch(popoverOpenRef, () => nextTick(() => ((query.value = ""), (closed.value = false))));
 
 function doActionIfOpen(action: Action<any>) {
-  console.log("doActionIfOpen", action, closed.value); // nocheckin
   if (!closed.value) {
     action.action(props.thing);
   }
@@ -122,7 +121,7 @@ defineExpose({
           @keydown.enter.prevent.stop="close"
         />
         <ComboboxOptions
-          class="mt-1 max-h-48 w-60 overflow-auto"
+          class="scroll-hidden mt-1 max-h-52 w-60 overflow-auto"
           static
           :class="{
             'font-mono': appearance.fontMono,

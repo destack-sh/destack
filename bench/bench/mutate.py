@@ -271,8 +271,6 @@ class ModuleMutation:
     @data.setter
     def data(self, value: NodeData):
         self._data__mot = MOT_BY_DATA_CLASS[type(value)]
-        if isinstance(value, ModuleData) and value.nodes is not None:
-            raise ValueError(f"ModuleData.nodes must be None: {value}")
         if type(value) in STATEMENT_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
             statement_type = STATEMENT_TYPE_BY_DATA_CLASS[type(value)]

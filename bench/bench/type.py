@@ -408,7 +408,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     @property
     def parent_id(self) -> Optional[UUID]:
-        return self.parent.id if self.parent else None
+        return self.parent.id if self.parent is not None else None
 
     def _index(self):
         self._clear()

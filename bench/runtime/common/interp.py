@@ -31,7 +31,7 @@ def create_wrapped_task(coro, task_id: str = None):
     asyncio.create_task(wrap_task(coro, task_id))
 
 
-ModuleFetcher = Callable[[UUID, int], Awaitable[wire.ModuleData]]
+ModuleFetcher = Callable[[UUID, int], Awaitable[wire.ModuleTreeData]]
 
 
 class LanguageInterpreter:
@@ -67,12 +67,12 @@ class LanguageInterpreter:
         )
         return cast(list[InterpModule], dependencies)
 
-    async def interp(self, source: wire.ModuleData) -> InterpModule:
+    async def interp(self, source: wire.ModuleTreeData) -> InterpModule:
         dependencies = await self.interp_requirements(get_requirements(source))
         return interp_module(source)
 
 
-def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
+def get_requirements(source: wire.ModuleTreeData) -> set[ModuleReference]:
     """Returns the set of module ids required by the given module source (not transitive)"""
     requirements_ids: set[ModuleReference] = set()
     for node in source.nodes:
@@ -83,7 +83,7 @@ def get_requirements(source: wire.ModuleData) -> set[ModuleReference]:
     return requirements_ids
 
 
-def interp_module(source: wire.ModuleData) -> InterpModule:
+def interp_module(source: wire.ModuleTreeData) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
     module = wire.unpack_module(source)

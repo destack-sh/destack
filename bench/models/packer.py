@@ -146,11 +146,13 @@ def get_node_packer(node: NodeT) -> NodePacker:
 
 def pack_module(
     module: models.ProjectVersion, filter: PackFilter = DEFAULT_PACK_FILTER
-) -> wire.ModuleData:
+) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
     packed = pack_node(module, filter=filter)
-    packed.roots[0].nodes = packed.nodes_list()
-    return packed.roots[0]
+    tree = wire.ModuleTreeData(
+        **packed.roots[0].__dict__, module=packed.roots[0], nodes=packed.nodes_list()
+    )
+    return tree
 
 
 class Packed(typing.NamedTuple):
