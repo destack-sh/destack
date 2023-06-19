@@ -73,14 +73,21 @@ const fileState: Ref<FileState | null> = computed(() => {
   return {
     editor: props.editor.editor.value,
     focused: props.focused,
+    editing: editor.value.editing || titleRef.value?.editing,
     file: fileHeader.value as any,
     statementsUnordered: statements.value,
     statementsComponents: statementsComponents.value,
-    navigateUp: () => (props.editor.editor.value.blurElement(), titleRef.value?.focus()),
+    navigateUp: focusTitle,
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
 const context = provideFileState(fileState);
+
+function focusTitle() {
+  document.activeElement?.blur?.();
+  titleRef.value?.focus();
+  editor.value.activeStatementId = undefined;
+}
 
 function registerStatementRef(id: string, component: InstanceType<typeof Statement> | undefined) {
   if (component == null) {
@@ -101,9 +108,9 @@ syncProperty({
 });
 
 // sync name/path into editor
-watch(name, () => {
+watch([name, fileHeader], () => {
   if (fileHeader.value == null || module.idx.value == null) return;
-  editor.value.updatePath(fileHeader.value, module.idx.value);
+  editor.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
 });
 
 // auto-focus name once loaded and if contents are empty

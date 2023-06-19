@@ -925,10 +925,10 @@ export class FileEditor extends NavigableEditor {
     this.id = this.fileId + "-" + randomHexString();
   }
 
-  updatePath(fileHeader: { id: string }, module: ModuleIndex) {
+  updatePath(fileHeader: { id: string; name?: string | null }, module: ModuleIndex) {
     const file = module.filesById[fileHeader.id];
     if (file == null) return;
-    this.name = file.name;
+    this.name = fileHeader.name ?? file.name;
     this.path = file.name;
   }
 
@@ -952,11 +952,11 @@ export class StatementEditor extends NavigableEditor {
     this.id = this.statementId + "-" + randomHexString();
   }
 
-  updatePath(statementHeader: { id: string }, module: ModuleIndex) {
+  updatePath(statementHeader: { id: string; name?: string | null }, module: ModuleIndex) {
     const statement = module.statementsById[statementHeader.id];
     const file = module.filesById[statement?.file.id ?? ""];
     if (statement == null || file == null) return;
-    this.name = statement.name ?? "";
+    this.name = statementHeader.name ?? statement.name ?? "";
     this.path = `${file.name}:${statement.name ?? ""}`;
   }
 
@@ -995,11 +995,11 @@ export class LaunchEditor extends Editor {
     this.id = this.statementId + "-" + randomHexString();
   }
 
-  updatePath(statementHeader: { id: string }, module: ModuleIndex) {
+  updatePath(statementHeader: { id: string; name?: string | null }, module: ModuleIndex) {
     const statement = module.statementsById[statementHeader.id];
     const file = module.filesById[statement?.file?.id ?? ""];
     if (statement == null || file == null) return;
-    this.name = statement.name ?? "";
+    this.name = statementHeader.name ?? statement.name ?? "";
     this.path = `${file.name}:${statement.name ?? ""}@${this.type}`;
   }
 
@@ -1024,9 +1024,9 @@ export class LaunchEditor extends Editor {
 }
 
 export const EDITOR_INSTANCE_TYPES: Record<EditorType, typeof Editor> = {
-  file: FileEditor,
-  statement: StatementEditor,
-  launch: LaunchEditor,
+  file: FileEditor as any,
+  statement: StatementEditor as any,
+  launch: LaunchEditor as any, // don't care about constructor type
 };
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {

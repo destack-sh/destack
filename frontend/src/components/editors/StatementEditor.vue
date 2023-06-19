@@ -55,7 +55,7 @@ const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 watch(
   () => [statement.value?.name, statement.value == null || module.fileOf(statement.value)],
   () => {
-    if (statement.value != null && module.fileOf(statement.value) != null) {
+    if (statement.value != null && module.idx.value != null && module.fileOf(statement.value) != null) {
       editor.value.updatePath(statement.value, module.idx.value);
     }
   }
