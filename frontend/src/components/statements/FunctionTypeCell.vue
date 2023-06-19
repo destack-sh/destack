@@ -163,15 +163,15 @@ defineExpose({
           @navigate-down="inputGrid.navigateDown(member.id, 'type')"
           @delete-left="deleteMember('input', member.id)"
           @delete-self="deleteMember('input', member.id)"
-          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
-      <!-- Add a member -->
+      <!-- Add a field -->
       <button
         v-show="!context.readonly.value"
         tabindex="-1"
         ref="addInputRef"
-        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createInputRef?.show()"
         @enter="createInputRef?.show()"
         @keydown.up.exact.prevent="inputNodes.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
@@ -208,15 +208,15 @@ defineExpose({
           @navigate-down="outputGrid.navigateDown(member.id, 'type')"
           @delete-left="deleteMember('output', member.id)"
           @delete-self="deleteMember('output', member.id)"
-          class="w-full self-start border border-transparent px-1 py-0.5 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          class="w-full self-start px-1 py-0.5 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
-      <!-- Add a member -->
+      <!-- Add a field -->
       <button
         v-if="!context.readonly.value"
         tabindex="-1"
         ref="addOutputRef"
-        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createOutputRef?.show()"
         @enter="createOutputRef?.show()"
         @keydown.up.exact.prevent="outputNodes.length > 0 ? focus('last', 'output') : $emit('navigateUp')"

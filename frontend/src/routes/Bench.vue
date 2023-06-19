@@ -260,8 +260,8 @@ const module = useCurrentModule();
 const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
 const auth = useAuth();
 // syncs need to instantiated for the Bench lifetime
-const moduleSync = useModuleSync(versionToViewId);
-const projectSync = useProjectSync(toRef(bench, "projectId"));
+useModuleSync(versionToViewId);
+useProjectSync(toRef(bench, "projectId"));
 
 // routing
 const consideredUrl = ref(false);

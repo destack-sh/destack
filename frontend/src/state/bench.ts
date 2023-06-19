@@ -7,6 +7,7 @@ import {
   type Scalars,
   type Field,
   type Statement,
+  type Record as BRecord,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -38,7 +39,7 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "__typename" | "id" | "name" | "path" | "createdAt" | "updatedAt" | "deletedAt" | "directory"
+  "__typename" | "id" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "directory"
 >;
 export type StatementHeader = Pick<
   Statement,
@@ -57,7 +58,7 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
 
-export type EditorType = "file" | "statement" | "terminal";
+export type EditorType = "file" | "statement" | "launch";
 
 const BENCH_STATE_VERSION = 2;
 
@@ -431,10 +432,10 @@ export const useBenchState = defineStore("bench", {
       statement: { id: string; name?: string | null },
       options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
     ): Editor {
-      let editor = this.editors.find((e) => e.type == "terminal" && (e as TerminalEditor).statementId == statement.id);
+      let editor = this.editors.find((e) => e.type == "launch" && (e as LaunchEditor).statementId == statement.id);
       if (!editor || options?.create) {
-        console.log(`create new terminal editor for ${statement.name}`);
-        editor = new TerminalEditor(statement);
+        console.log(`create new launch editor for ${statement.name}`);
+        editor = new LaunchEditor(statement);
         editor.onDeserialized(this);
       }
       this.openEditor(editor, options?.group);
@@ -537,7 +538,7 @@ export const useBenchState = defineStore("bench", {
 function stripEditor(editor: Editor) {
   const stripped = { ...editor };
   for (const prop of UNSERIALIZABLE_EDITOR_PROPS) {
-    delete stripped[prop];
+    delete (stripped as any)[prop];
   }
   return stripped;
 }
@@ -690,6 +691,7 @@ export type EditorContext<T extends Editor> = {
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
   actions: Ref<EditorAction[]>;
+  actionGroups?: Ref<ActionGroup[]>;
 };
 
 export const EDITOR_CONTEXT = "__editor__";
@@ -713,17 +715,20 @@ export function provideEditorContext<T extends Editor>(
     actions: computed(() => {
       const actions: EditorAction[] = [
         {
+          groupId: "close",
           label: "Close",
           icon: XCircleIcon,
           action: () => editorState.closeEditor(editor.value),
         },
         {
+          groupId: "close",
           label: "Close Others",
           icon: XCircleIcon,
           action: () =>
             editor.value.group?.editors.filter((e) => e != editor.value).forEach((e) => editorState.closeEditor(e)),
         },
         {
+          groupId: "close",
           label: "Close All",
           icon: XCircleIcon,
           action: () => editorState.closeEditorGroup(editor.value.group as EditorGroup),
@@ -731,12 +736,14 @@ export function provideEditorContext<T extends Editor>(
       ];
       if (editor.value.effectiveWide) {
         actions.push({
+          groupId: "view",
           label: "Narrow",
           icon: ArrowsPointingInIcon,
           action: () => (editor.value.appearance.wide = false),
         });
       } else {
         actions.push({
+          groupId: "view",
           label: "Expand",
           icon: ArrowsPointingOutIcon,
           action: () => (editor.value.appearance.wide = true),
@@ -744,22 +751,26 @@ export function provideEditorContext<T extends Editor>(
       }
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
+          groupId: "move",
           label: "Move Right",
           icon: ArrowRightIcon,
           action: () => editorState.moveEditor(editor.value, editorState.right),
         });
         actions.push({
+          groupId: "move",
           label: "Split Right",
           icon: ArrowRightIcon,
           action: () => editorState.moveEditor(editor.value, editorState.right, { copy: true }),
         });
       } else {
         actions.push({
+          groupId: "move",
           label: "Move Left",
           icon: ArrowLeftIcon,
           action: () => editorState.moveEditor(editor.value, editorState.left),
         });
         actions.push({
+          groupId: "move",
           label: "Split Left",
           icon: ArrowLeftIcon,
           action: () => editorState.moveEditor(editor.value, editorState.left, { copy: true }),
@@ -767,6 +778,11 @@ export function provideEditorContext<T extends Editor>(
       }
       return actions;
     }),
+    actionGroups: computed(() => [
+      { id: "close", label: "Close" },
+      { id: "view", label: "View" },
+      { id: "move", label: "Move" },
+    ]),
   };
   provide(EDITOR_CONTEXT, context);
   return context;
@@ -790,20 +806,27 @@ export type Action<T> = {
   disabled?: boolean;
   keepOpen?: boolean;
   hideInline?: boolean;
+  groupId?: string;
+};
+
+export type ActionGroup = {
+  id: string;
+  label?: string;
+  icon?: any;
 };
 
 export type FileAction = Action<FileHeader>;
 export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<Field>;
-export type RecordAction = Action<Record>;
+export type RecordAction = Action<BRecord>;
 export type EditorAction = Action<Editor>;
 
 // specific editors
 
-export type NavElementType = "Statement" | "Field" | "DatasetRecord";
+export type NavElementType = "Statement" | "Field" | "Record";
 export type NavElement = { id: Scalars["GlobalID"]; __typename?: NavElementType };
 
-export class NavigableEditor extends Editor {
+export abstract class NavigableEditor extends Editor {
   activeStatementId?: string;
   selectedElementType?: NavElementType;
   selectedElementIds: string[] = [];
@@ -949,8 +972,8 @@ export class StatementEditor extends NavigableEditor {
   }
 }
 
-export class TerminalEditor extends Editor {
-  type = "terminal" as const;
+export class LaunchEditor extends Editor {
+  type = "launch" as const;
   statementId: string;
   statementType?: StatementType.Task | StatementType.Code;
   arguments: Record<string, any> = {};
@@ -959,7 +982,7 @@ export class TerminalEditor extends Editor {
   lastExecutionId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
-    super("terminal", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
+    super("launch", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
     this.statementId = statement.id;
     if (statement.__typename == "Task") {
       this.statementType = StatementType.Task;
@@ -988,7 +1011,7 @@ export class TerminalEditor extends Editor {
       (s) => prettifySlug(s.name ?? "") == statementName
     );
     if (matchingStatement == null) return null;
-    return new TerminalEditor(matchingStatement);
+    return new LaunchEditor(matchingStatement);
   }
 
   get hasWhiteBackground() {
@@ -1003,7 +1026,7 @@ export class TerminalEditor extends Editor {
 export const EDITOR_INSTANCE_TYPES: Record<EditorType, typeof Editor> = {
   file: FileEditor,
   statement: StatementEditor,
-  terminal: TerminalEditor,
+  launch: LaunchEditor,
 };
 
 function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {

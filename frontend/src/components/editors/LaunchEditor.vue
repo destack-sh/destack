@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import ActionPopover from "@/components/basic/ActionPopover.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
@@ -9,17 +8,16 @@ import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type EditorContext, type StatementAction, type TerminalEditor } from "@/state/bench";
+import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { newExecutionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { unkey } from "@/state/type";
-import { CommandLineIcon } from "@heroicons/vue/24/outline";
 import { ArrowPathIcon, PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 
-const props = defineProps<{ editor: EditorContext<TerminalEditor>; focused: boolean }>();
+const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
@@ -61,7 +59,7 @@ const terminalActions = computed(() => {
 watchEffect(() => {
   if (statement.value?.type != null && statement.value.type != editor.value.statementType) {
     if (![StatementType.Code, StatementType.Task].includes(statement.value.type)) {
-      throw new Error(`unexpected symbol type ${statement.value.type}`);
+      throw new Error(`unexpected statement type ${statement.value.type}`);
     }
     editor.value.statementType = statement.value.type;
   }
@@ -71,7 +69,7 @@ watchEffect(() => {
 const path = computed(() => {
   if (statement.value == null) return null;
   if (module.fileOf(statement.value) == null) return null;
-  return module.fileOf(statement.value)?.path + ":" + statement.value?.name;
+  return module.fileOf(statement.value)?.name + ":" + statement.value?.name;
 });
 watch(path, () => {
   if (statement.value == null || module.idx.value == null) return;

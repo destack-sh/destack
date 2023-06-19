@@ -9,14 +9,15 @@ import {
   type FieldUpdateInput,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
-import { FieldType, FileHeaderType, StatementContentType, StatementHeaderType } from "@/state/fragments";
-import { getSymbolSubtype, TypeFlag, useCurrentModule, type InterpStatement } from "@/state/module";
+import type { StatementAction } from "@/state/bench";
+import { FieldType, FileHeaderType, StatementContentType } from "@/state/fragments";
+import { getSymbolSubtype, TypeFlag, useCurrentModule } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
-import { computed, inject, type Ref } from "vue";
+import { computed, inject, watch, type Ref } from "vue";
 
 // not using Symbol here to improve hotreload experience (Symbol is not a constant)
 export const STATEMENT_CONTEXT = "__statementContext__" as const;
@@ -33,6 +34,7 @@ export type StatementContext = {
   file: Ref<FragmentType<typeof FileHeaderType>>;
   destroyed: Ref<boolean>;
   standalone: Ref<boolean>;
+  customActions: Ref<StatementAction[] | undefined>;
 };
 
 export function useStatementContext() {
@@ -78,6 +80,17 @@ export function useStatementContext() {
 
   function insertAbove() {
     actions.apply("statement.insertAboveCurrent");
+  }
+
+  function setCustomActions(actions: Ref<StatementAction[] | undefined>) {
+    if (context == null) return;
+    watch(
+      actions,
+      (actions) => {
+        context.customActions.value = actions;
+      },
+      { immediate: true }
+    );
   }
 
   // self mutations
@@ -376,6 +389,7 @@ export function useStatementContext() {
     symbolSubtype,
     // actions
     actions,
+    setCustomActions,
     navigateUp,
     navigateDown,
     escape,

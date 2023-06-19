@@ -12,11 +12,18 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
+import {
+  useBenchState,
+  useEditorContext,
+  type ActionGroup,
+  type StatementAction,
+  type StatementHeader,
+} from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
+import { STATEMENT_TYPE_BY_KEYWORD, STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
@@ -77,7 +84,7 @@ const destroyed = ref(false); // (useful for delete tracking if component had no
 onBeforeUnmount(() => {
   destroyed.value = true;
 });
-provide(STATEMENT_CONTEXT, {
+const context = {
   readonly: computed(() => bench.readonly || props.readonly),
   active: isActive,
   focused: isFocused,
@@ -90,7 +97,9 @@ provide(STATEMENT_CONTEXT, {
   reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
   file,
   destroyed,
-} as StatementContext);
+  customActions: ref([]),
+} as StatementContext;
+provide(STATEMENT_CONTEXT, context);
 // manage cells
 type Cell = {
   component: Component;
@@ -140,6 +149,7 @@ const rootCell: Ref<Cell> = computed(() => {
 const containerRef = ref<HTMLElement | null>(null);
 const innerWrapperRef = ref<HTMLElement | null>(null);
 const rootCellRef = ref<InstanceType<typeof BlankStatement>>();
+const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
 
@@ -323,7 +333,8 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
   if (canOpenInStandaloneEditor.value) {
     actions.push({
-      label: "Open in Editor",
+      groupId: "general",
+      label: "Open",
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
@@ -332,6 +343,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     });
   }
   actions.push({
+    groupId: "general",
     label: "Rename",
     icon: PencilIcon,
     action: () => {
@@ -342,18 +354,32 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   if (!props.standalone) {
     // doesn't work in standalone editor because it needs file context right now
     actions.push({
+      groupId: "general",
       label: "Duplicate",
       icon: Square2StackIcon,
       action: () => magic.duplicate(),
     });
   }
   actions.push({
+    groupId: "general",
     label: "Delete",
     icon: TrashIcon,
     action: () => magic.delete(),
   });
   return actions;
 });
+const allActions: Ref<StatementAction[]> = computed(() => [
+  ...defaultActions.value,
+  ...(context.customActions.value?.map((a) => ({ ...a, groupId: "custom" })) ?? []),
+]);
+const actionGroups = computed(() => [
+  { id: "general" },
+  { id: "custom", label: STATEMENT_TYPE_KEYWORD[statement.value.type] ?? "Statement" },
+]);
+
+function showActionsPopover() {
+  actionPopoverRef.value?.show();
+}
 
 // runtime
 const localIssues = module.localErrorsOf(statement);
@@ -365,6 +391,7 @@ defineExpose({
   },
   blur: () => rootCellRef.value?.blur(),
   root: rootCellRef,
+  showActionsPopover,
 });
 </script>
 <template>
@@ -400,10 +427,12 @@ defineExpose({
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
             <ActionPopover
+              ref="actionPopoverRef"
               v-if="lineNumber >= 0"
               anchor="right"
               :thing="statement"
-              :actions="defaultActions"
+              :actions="allActions"
+              :groups="actionGroups"
               v-slot="{ open }"
               @mousedown="containerRef?.setAttribute('draggable', 'true')"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"

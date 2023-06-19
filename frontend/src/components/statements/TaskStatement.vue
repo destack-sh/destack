@@ -1,12 +1,12 @@
 <script lang="ts" setup>
-import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import EditableSpan from "@/components/basic/EditableSpan.vue";
 import DeclarationCell from "@/components/statements/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
-import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { useStatementContext } from "@/state/statement";
+import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { CommandLineIcon, PlayIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, type Ref } from "vue";
+import { useStatementContext } from "@/state/statement";
+import { PencilSquareIcon, RocketLaunchIcon } from "@heroicons/vue/24/outline";
+import { computed, nextTick, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
 // which are implicitly typed only for now
@@ -38,13 +38,23 @@ function run() {
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
+      label: "Add description",
+      icon: PencilSquareIcon,
+      disabled: showDescription.value,
+      action: () => {
+        addingDescription.value = true;
+        nextTick(() => descriptionRef.value?.focus());
+      },
+    },
+    {
       label: "Launch",
-      icon: CommandLineIcon,
+      icon: RocketLaunchIcon,
       action: run,
     },
   ];
   return inlineActions;
 });
+context.setCustomActions(extraActions);
 
 function focus(position: "first" | "last" = "first") {
   if (position == "first") {
@@ -76,17 +86,6 @@ defineExpose({
         @navigate-down="addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')"
         @navigate-right="typeRef?.focus"
       />
-      <button
-        v-if="description.length == 0 && !context.readonly.value && !addingDescription"
-        tabindex="-1"
-        @click="
-          addingDescription = true;
-          descriptionRef?.focus();
-        "
-        class="ml-2 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:outline-none group-focus-within/statement:text-gray-400"
-      >
-        +description
-      </button>
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
@@ -110,9 +109,9 @@ defineExpose({
       v-if="description.length == 0 && !context.readonly.value && addingDescription"
       tabindex="-1"
       @click="descriptionRef?.focus()"
-      class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      class="w-fit rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
-      +description
+      Add description
     </button>
     <!-- Inline type -->
     <FunctionTypeCell

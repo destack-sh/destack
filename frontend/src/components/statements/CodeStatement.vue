@@ -1,28 +1,26 @@
 <script lang="ts" setup>
+import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
+import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import DeclarationCell from "@/components/statements/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
-import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import { useStatementContext } from "@/state/statement";
-import { useTimeFromNow } from "@/composables/useNow";
-import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { useExecutions } from "@/state/executions";
-import { computed, toRef, ref, type Ref } from "vue";
-import { newExecutionId, useSymbolOps } from "@/state/module";
-import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
+import { ExecutionStatus, type Execution } from "@/gql/graphql";
+import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
+import { EXECUTION_TERMINAL_STATES, useExecutions } from "@/state/executions";
+import { newExecutionId } from "@/state/module";
+import { useNotifications } from "@/state/notifications";
+import { useOperations } from "@/state/operations";
+import { useStatementContext } from "@/state/statement";
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
-  CommandLineIcon,
   NoSymbolIcon,
   PlayIcon,
+  RocketLaunchIcon,
   StopIcon,
 } from "@heroicons/vue/24/outline";
-import { EXECUTION_TERMINAL_STATES } from "@/state/executions";
-import { formatDurationSeconds } from "@/composables/useNow";
-import { useOperations } from "@/state/operations";
-import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
-import { useNotifications } from "@/state/notifications";
+import { computed, ref, toRef, type Ref } from "vue";
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -80,7 +78,7 @@ const extraActions = computed(() => {
     },
     {
       label: "Launch",
-      icon: CommandLineIcon,
+      icon: RocketLaunchIcon,
       action: () => {
         const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
         bench.openRun(context.statement.value, { group: nextGroup, focus: true });
@@ -106,6 +104,7 @@ const extraActions = computed(() => {
 
   return inlineActions;
 });
+context.setCustomActions(extraActions);
 
 async function run() {
   if (executionActive.value) {

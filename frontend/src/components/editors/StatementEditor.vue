@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
-import StatementInterface from "@/components/editors/StatementInterface.vue";
+import Statement from "@/components/editors/Statement.vue";
 import TitleBanner from "@/components/editors/TitleBanner.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import { useTimeFromNow } from "@/composables/useNow";
@@ -49,7 +49,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
 
 const statement = computed(() => useFragment(StatementContentType, statementResult.value?.statement) ?? undefined);
 const file = computed(() => useFragment(FileHeaderType, statementResult.value?.statement?.file) ?? undefined);
-const statementComponentRef = ref<InstanceType<typeof StatementInterface> | null>(null);
+const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 
 // sync name/path into editor
 watch(
@@ -92,7 +92,7 @@ watch(
         :actions="[]"
       />
       <!-- Statement -->
-      <StatementInterface
+      <Statement
         ref="statementComponentRef"
         class="relative mx-auto w-full justify-between pb-10 pt-4"
         :class="appearance.baseClass"

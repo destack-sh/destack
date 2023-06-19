@@ -10,7 +10,7 @@ import type { StatementAction } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
-import { PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { PencilSquareIcon, PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, ssrContextKey, type Ref } from "vue";
 
@@ -28,6 +28,7 @@ const fieldsLength = computed(() => context.selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const addingDescription = ref(false);
+const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
 // dynamic field refs for names, values & descriptions for each field
 type ColumnType = "type";
@@ -142,22 +143,34 @@ function gridNavigateDown() {
   addFieldRef.value?.focus();
 }
 
-const extraInlineActions = computed(() => {
-  const inlineActions: StatementAction[] = [];
-  inlineActions.push({
+const extraActions = computed(() => {
+  const actions: StatementAction[] = [
+    {
+      label: "Add description",
+      icon: PencilSquareIcon,
+      disabled: showDescription.value,
+      action: () => {
+        addingDescription.value = true;
+        nextTick(() => descriptionRef.value?.focus());
+      },
+    },
+  ];
+  actions.push({
     label: "Add " + (isEnum.value ? "option" : "field"),
     icon: SquaresPlusIcon,
     action: () => (isEnum.value ? createOption() : createFieldRef.value?.show()),
   });
   if (!isEnum.value) {
-    inlineActions.push({
+    actions.push({
       label: "Extend type",
       icon: CubeTransparentIcon,
       action: () => createUnionField(),
+      hideInline: true,
     });
   }
-  return inlineActions;
+  return actions;
 });
+context.setCustomActions(extraActions);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") =>
@@ -184,7 +197,7 @@ defineExpose({
       <InlineActions
         class="transition duration-150 group-hover/statement:opacity-100"
         :class="context.focused.value ? '' : 'opacity-0'"
-        :extraActions="extraInlineActions"
+        :extraActions="extraActions"
       />
       <CreateFieldInterface
         ref="createFieldRef"
@@ -207,9 +220,9 @@ defineExpose({
     tabindex="-1"
     v-if="description.length == 0 && !context.readonly.value && addingDescription"
     @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+    class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
-    +description
+    Add description
   </button>
   <!-- Fields (enum options or struct fields) -->
   <div v-if="fieldsLength > 0" class="my-0.5 flex w-full flex-col">
@@ -241,7 +254,7 @@ defineExpose({
       v-show="!context.readonly.value"
       tabindex="-1"
       ref="addFieldRef"
-      class="mt-1 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="isEnum ? createOption() : createFieldRef?.show()"
       @enter="isEnum ? createOption() : createFieldRef?.show()"
       @keydown.up.exact.prevent="focusLast"
