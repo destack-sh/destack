@@ -34,7 +34,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
   <span class="flex flex-row items-center gap-1 p-0.5">
     <slot name="before" />
     <button
-      v-for="action in inlineActions.filter((action) => !action.hideInline)"
+      v-for="action in inlineActions.filter((action) => !action.hideInline && !action.disabled)"
       :key="action.label"
       class="group relative p-0.5 text-gray-500 hover:text-gray-800"
       :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"

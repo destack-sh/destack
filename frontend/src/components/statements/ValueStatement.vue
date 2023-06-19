@@ -7,7 +7,7 @@ import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
-import { CubeTransparentIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -15,6 +15,7 @@ const ops = useOperations();
 
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
+const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
 function createUnionField() {
@@ -43,6 +44,7 @@ const actions = computed(() => {
     label: "Extend type",
     icon: CubeTransparentIcon,
     action: () => createUnionField(),
+    hideInline: true,
   });
   actions.push({
     label: "Add field",
@@ -53,10 +55,36 @@ const actions = computed(() => {
 });
 context.setCustomActions(actions);
 
-defineExpose({
-  focus: (position: "first" | "last" = "first") => {
+function focus(position: "first" | "last" = "first") {
+  if (position == "first") {
     declarationRef.value?.focus();
-  },
+  } else {
+    if (addFieldRef.value != null) {
+      addFieldRef.value.focus();
+    } else {
+      gridRef.value?.focus("last");
+    }
+  }
+}
+
+function focusLastField() {
+  if (context.allFields.value.length > 0) {
+    gridRef.value?.focus("last");
+  } else {
+    focus("first");
+  }
+}
+
+function focusEnd() {
+  if (addFieldRef.value != null) {
+    addFieldRef.value.focus();
+  } else {
+    context.navigateDown();
+  }
+}
+
+defineExpose({
+  focus,
   blur: () => {
     declarationRef.value?.blur();
     gridRef.value?.blur?.();
@@ -83,14 +111,31 @@ defineExpose({
       ref="gridRef"
       class="-mx-1 w-full table-fixed"
       :fields="context.allFields.value"
-      :model-value="context.statement.value.value"
+      :model-value="context.statement.value.value ?? {}"
       @update:model-value="writeValue($event)"
       @update:field="context.updateField($event, $event)"
       @delete:field="context.deleteField($event)"
       @duplicate:field="duplicateField($event)"
+      @navigate-up="declarationRef?.focus"
+      @navigate-down="focusEnd"
       :readonly="context.readonly.value"
       :active="context.focused.value"
       debounced
     />
+    <div class="mb-1">
+      <!-- Add a field -->
+      <button
+        v-if="!context.readonly.value"
+        ref="addFieldRef"
+        tabindex="-1"
+        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        @click="createFieldRef?.show()"
+        @enter="createFieldRef?.show()"
+        @keydown.up.exact.prevent="focusLastField"
+        @keydown.down.exact.prevent="context.navigateDown"
+      >
+        <PlusIcon class="h-4 w-4" /> Field
+      </button>
+    </div>
   </div>
 </template>

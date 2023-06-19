@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-from datetime import datetime
 import enum
 import random
 import string
@@ -9,6 +8,7 @@ import typing
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field, fields
+from datetime import datetime
 from functools import cached_property
 from typing import Any, Optional, Self, Union
 from uuid import UUID
@@ -1155,7 +1155,6 @@ class Dataset(Symbol, HasType, IsExpectable):
 
     async def asearch(self, query: Query, sort: list[Sort] = None) -> Dataset:
         """Searches this dataset remotely."""
-        # nocheckin: remote datasets
         self.session.tracer.dataset_search(self, query, sort)
         return await self.session.instance.search(self, query, sort)
 

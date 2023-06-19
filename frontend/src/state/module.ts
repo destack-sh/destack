@@ -358,11 +358,6 @@ export function getSymbolSubtype(statement: {
     } else {
       return "type";
     }
-  } else if (statement.type == StatementType.Dataset) {
-    return "dataset";
-  } else if (statement.type == StatementType.Value) {
-    return "record";
   }
-
   return null;
 }

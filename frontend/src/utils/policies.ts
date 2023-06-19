@@ -1,10 +1,7 @@
-import { relayStylePagination } from "@apollo/client/utilities";
-
 const useIncoming = {
   merge: (existing: any, incoming: any) => incoming,
 };
 
-const filteredRelayPagination = relayStylePagination(["filters"]);
 export const TYPE_POLICIES = {
   User: {
     fields: {
@@ -21,21 +18,9 @@ export const TYPE_POLICIES = {
   Statement: {
     fields: {
       fields: useIncoming,
-      records: {
-        // proxy read/merge for filtered relay pagination to also store args for cache.modify  :StatementRecordsView
-        // we need the arguments (filters & pagination args) to modify the cache properly
-        // see https://github.com/apollographql/apollo-client/issues/6394#issuecomment-656193666 for the approach
-        // and https://www.apollographql.com/docs/react/caching/cache-interaction/#using-cachemodify
-        read(existing: any, options: any) {
-          return filteredRelayPagination.read?.(existing?.value, options);
-        },
-        merge(existing: any, incoming: any, options: any) {
-          return {
-            value: filteredRelayPagination.merge?.(existing?.value, incoming, options),
-            args: options.args,
-          };
-        },
-      },
+      descendants: useIncoming,
+      children: useIncoming,
+      referencedBy: useIncoming,
     },
   },
   InterpSymbol: {
