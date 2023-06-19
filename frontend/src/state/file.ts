@@ -1,4 +1,4 @@
-import type StatementInterface from "@/components/editors/StatementInterface.vue";
+import type Statement from "@/components/editors/Statement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
@@ -16,7 +16,7 @@ export type FileState = {
   focused: boolean;
   file: FileHeader;
   statementsUnordered: StatementHeader[]; // unordered
-  statementsComponents: Record<string, InstanceType<typeof StatementInterface>>;
+  statementsComponents: Record<string, InstanceType<typeof Statement>>;
   navigateUp: () => void;
   navigateDown: () => void;
 };
@@ -24,7 +24,7 @@ export type FileState = {
 export type FileContext = FileState & {
   statements: StatementHeader[]; // ordered
   statementsById: Record<string, StatementHeader>;
-  statementsComponents: Record<string, InstanceType<typeof StatementInterface>>;
+  statementsComponents: Record<string, InstanceType<typeof Statement>>;
   statementsByParentId: Record<string, StatementHeader[]>;
   statementPositions: Record<string, number>;
   positionedStatements: OrderedStatement<StatementContentFragment>[];
@@ -191,7 +191,7 @@ export type NavigationContext = FileContext & {
 
 export type CurrentNavigationContext = {
   statement: StatementHeader | null;
-  component: InstanceType<typeof StatementInterface> | null;
+  component: InstanceType<typeof Statement> | null;
   orderKey: string | null;
   previousSibling: StatementHeader | null;
   children: StatementHeader[];

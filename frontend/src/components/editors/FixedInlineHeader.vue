@@ -13,11 +13,11 @@ import {
   type EditorType,
 } from "@/state/bench";
 import {
-  ChevronRightIcon,
-  CodeBracketIcon,
-  CommandLineIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
+  ChevronRightIcon,
+  CodeBracketIcon,
+  RocketLaunchIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -38,7 +38,7 @@ const auth = useAuth();
 const editorIcons: Record<EditorType, any> = {
   file: CodeBracketIcon,
   statement: CodeBracketIcon,
-  terminal: CommandLineIcon,
+  launch: RocketLaunchIcon,
 };
 const icon = computed(() => editorIcons[editor.editor.value.type]);
 </script>
@@ -51,7 +51,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
     <!-- Main info -->
     <div class="flex flex-row items-center">
       <!-- editor actions -->
-      <ActionPopover anchor="left" :thing="thing" :actions="editor.actions.value" class="">
+      <ActionPopover anchor="left" :thing="thing" :actions="editor.actions.value" :groups="editor.actionGroups?.value">
         <component :is="icon" class="-mb-[3px] h-4 w-4 text-gray-700" />
       </ActionPopover>
       <!-- editor path -->

@@ -461,6 +461,16 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
+  const showActions = provideGlobalAction({
+    id: "statement.showActions",
+    label: "Show statement actions",
+    shortcuts: ["alt+enter", "meta+shift+enter"],
+    enabled: computed(() => cur.value?.statement != null),
+    apply: async () => {
+      cur.value?.component?.showActionsPopover();
+    },
+  });
+
   return {
     indent,
     unindent,

@@ -8,6 +8,7 @@ import { renderBuiltinType, SUPPORTED_TYPEHINTS } from "@/state/type";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { ExclamationCircleIcon, ListBulletIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import { computed, onMounted, ref, watch, type Ref } from "vue";
+import uFuzzy from "@leeoniya/ufuzzy";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -74,9 +75,16 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   }
   return types;
 });
-const filteredTypes = computed(() =>
-  availableTypes.value.filter((t) => renderField(t).toLowerCase().includes(query.value.toLowerCase()))
-);
+
+const uf = new uFuzzy({ intraMode: 0 });
+const filteredTypes = computed(() => {
+  if (query.value.trim() == "") return availableTypes.value;
+  const [idxs] = uf.search(
+    availableTypes.value.map((t) => renderField(t)),
+    query.value
+  );
+  return idxs?.map((idx) => availableTypes.value[idx]) ?? [];
+});
 
 function writeValue(type: Field) {
   let newFlags = TypeFlag.Zero;

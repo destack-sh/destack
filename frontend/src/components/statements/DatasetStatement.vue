@@ -25,9 +25,9 @@ import {
   ArrowDownIcon,
   ArrowPathIcon,
   CubeTransparentIcon,
-  EllipsisHorizontalCircleIcon,
   EllipsisHorizontalIcon,
   MagnifyingGlassIcon,
+  PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   SquaresPlusIcon,
@@ -42,6 +42,7 @@ const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 20;
 const editorView = useEditorContext();
 const addingDescription = ref(false);
+const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
 const appearance = useAppearance();
 const client = useApolloClient();
@@ -464,7 +465,7 @@ const position = useMouseInElement(gridRef);
 
 // actions
 
-const extraStatementActions = computed(() => {
+const extraActions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Search",
@@ -483,6 +484,15 @@ const extraStatementActions = computed(() => {
     });
   }
   actions.push({
+    label: "Add description",
+    icon: PencilSquareIcon,
+    disabled: showDescription.value,
+    action: () => {
+      addingDescription.value = true;
+      nextTick(() => descriptionRef.value?.focus());
+    },
+  });
+  actions.push({
     label: "Add record",
     icon: PlusIcon,
     action: () => insertRecordAtEnd(),
@@ -497,9 +507,11 @@ const extraStatementActions = computed(() => {
     label: "Include type",
     icon: CubeTransparentIcon,
     action: () => createUnionField(),
+    hideInline: true,
   });
   return actions;
 });
+context.setCustomActions(extraActions);
 
 const recordActions: RecordAction[] = [
   {
@@ -551,7 +563,7 @@ defineExpose({
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
-      <InlineActions :extraActions="extraStatementActions" />
+      <InlineActions :extraActions="extraActions" />
       <CreateFieldInterface
         ref="createFieldRef"
         :title="'New field on ' + context.statement.value.name"
@@ -574,9 +586,9 @@ defineExpose({
     tabindex="-1"
     v-if="description.length == 0 && !context.readonly.value && addingDescription"
     @click="descriptionRef?.focus()"
-    class="w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+    class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
-    +description
+    Add description
   </button>
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->

@@ -37,7 +37,7 @@ function writeValue(value: any) {
   ops.symbol.updateValue(null, context.statement.value.id, context.statement.value.value, value);
 }
 
-const extraStatementActions = computed(() => {
+const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Extend type",
@@ -51,6 +51,7 @@ const extraStatementActions = computed(() => {
   });
   return actions;
 });
+context.setCustomActions(actions);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -70,7 +71,7 @@ defineExpose({
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
         :class="context.focused.value ? '' : 'opacity-0'"
       >
-        <InlineActionsCell :extra-actions="extraStatementActions" />
+        <InlineActionsCell :extra-actions="actions" />
         <CreateFieldInterface
           ref="createFieldRef"
           :title="'New field on ' + context.statement.value.name"

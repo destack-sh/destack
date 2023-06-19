@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
+import Statement from "@/components/editors/Statement.vue";
 import StatementAddArea from "@/components/editors/StatementAddArea.vue";
-import StatementInterface from "@/components/editors/StatementInterface.vue";
 import TitleBanner from "@/components/editors/TitleBanner.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
@@ -15,10 +15,9 @@ import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { ArrowUturnRightIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { whenever } from "@vueuse/core";
-import { title } from "process";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
@@ -67,7 +66,7 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const statementsComponents = ref<Record<string, InstanceType<typeof StatementInterface>>>({});
+const statementsComponents = ref<Record<string, InstanceType<typeof Statement>>>({});
 const fileState: Ref<FileState | null> = computed(() => {
   if (fileHeader.value == null) {
     return null;
@@ -84,7 +83,7 @@ const fileState: Ref<FileState | null> = computed(() => {
 });
 const context = provideFileState(fileState);
 
-function registerStatementRef(id: string, component: InstanceType<typeof StatementInterface> | undefined) {
+function registerStatementRef(id: string, component: InstanceType<typeof Statement> | undefined) {
   if (component == null) {
     delete statementsComponents.value[id];
   } else if (statementsComponents.value[id] !== component) {
@@ -188,7 +187,7 @@ function goToContent() {
 const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() => [
   {
     label: "Rename",
-    icon: DocumentDuplicateIcon,
+    icon: PencilIcon,
     action: () => {
       titleRef.value?.focus();
       titleRef.value?.selectAll();
@@ -295,7 +294,7 @@ const statementAddAreaPositionX = computed(() => {
         class="mx-auto w-full"
         :style="{ 'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px' }"
       >
-        <StatementInterface
+        <Statement
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
