@@ -1,10 +1,9 @@
-import { activeFileState, navigationContexts, type NavigationContext } from "@/state/file";
 import { StatementType } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type StatementHeader } from "@/state/bench";
+import { activeFileState, navigationContexts, type NavigationContext } from "@/state/file";
 import { useOperations } from "@/state/operations";
 import { newStatementId } from "@/state/operations/statement";
-import { useNavigation } from "@/state/module";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";
@@ -31,7 +30,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
   );
   const cur = computed(() => file.value?.current);
   const editor = computed(() => file.value?.editor);
-  const navigatingFile = computed(() => !editor.value?.editing && bench.focusedViewId == null);
+  const navigatingFile = computed(() => !file.value?.editing && !editor.value?.editing && bench.focusedViewId == null);
 
   // move focus
   const moveFocusUp = provideGlobalAction({

@@ -62,7 +62,7 @@ watchEffect(() => {
     if (![StatementType.Code, StatementType.Task].includes(statement.value.type)) {
       throw new Error(`unexpected statement type ${statement.value.type}`);
     }
-    editor.value.statementType = statement.value.type;
+    editor.value.statementType = statement.value.type as StatementType.Code | StatementType.Task;
   }
 });
 

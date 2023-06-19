@@ -13,6 +13,7 @@ export const FILE_CONTEXT = "__fileContext__" as const;
 
 export type FileState = {
   editor: FileEditor;
+  editing: boolean;
   focused: boolean;
   file: FileHeader;
   statementsUnordered: StatementHeader[]; // unordered
