@@ -88,8 +88,10 @@ class ModuleTree:
             for descendant in descendants:
                 self.nodes.pop(descendant.id)
                 self.children.pop(descendant.id)
-        self.nodes.pop(node.id)
-        self.children.pop(node.id)
+        if node.id in self.nodes:
+            self.nodes.pop(node.id)
+        if node.id in self.children:
+            self.children.pop(node.id)
 
     def truncate(
         self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
@@ -122,34 +124,26 @@ class ModuleTree:
         return roots[0] if roots else None
 
     def walk_bfs(
-        self, root: typing.Union[NodeT, None] = None
+        self, roots: list[NodeT | NodeDataT] = None
     ) -> typing.Generator[NodeT | NodeDataT, None, None]:
         """Walks the tree in breadth-first order"""
-        root = root or self.root
-        if root is None:
-            raise ValueError("cannot walk tree without root node")
-
         num_traversed = 0
-        queue = deque([root])
+        queue = deque(roots or self.roots)
         while queue:
             current_node = queue.popleft()
             num_traversed += 1
             yield current_node
             for child_id in self.children[current_node.id]:
                 queue.append(self.nodes[child_id])
-        if root == self.root and num_traversed != len(self.nodes):
+        if roots == self.roots and num_traversed != len(self.nodes):
             raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
 
     def walk_bfs_batched(
-        self, root: typing.Union[NodeT, None] = None
+        self, roots: list[NodeT | NodeDataT] = None
     ) -> typing.Generator[list[NodeT | NodeDataT], None, None]:
         """Walks the tree in breadth-first order, yielding all nodes at each level"""
-        root = root or self.root
-        if root is None:
-            raise ValueError("cannot walk tree without root node")
-
         num_traversed = 0
-        queue = deque([root])
+        queue = deque(roots or self.roots)
         while queue:
             level = []
             for _ in range(len(queue)):
@@ -159,7 +153,7 @@ class ModuleTree:
                     queue.append(self.nodes[child_id])
             num_traversed += len(level)
             yield level
-        if root == self.root and num_traversed != len(self.nodes):
+        if roots == self.roots and num_traversed != len(self.nodes):
             raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
 
     def get_child(

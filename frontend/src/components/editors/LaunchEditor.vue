@@ -14,8 +14,9 @@ import { newExecutionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { unkey } from "@/state/type";
-import { ArrowPathIcon, PlayIcon } from "@heroicons/vue/24/solid";
+import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -226,7 +227,7 @@ defineExpose({
             Run
             <FadeTransition mode="out-in">
               <component
-                :is="running ? ArrowPathIcon : PlayIcon"
+                :is="running ? BusySpinnerIcon : PlayIcon"
                 class="h-4 w-4"
                 :class="[running ? 'animate-spin' : '']"
               />

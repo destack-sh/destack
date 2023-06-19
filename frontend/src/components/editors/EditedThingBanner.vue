@@ -14,7 +14,6 @@ const emit = defineEmits<{
 }>();
 
 const now = useTimeFromNow();
-const appearance = useAppearance();
 const bench = useBenchState();
 const editorView = useEditorContext();
 

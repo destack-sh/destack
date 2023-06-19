@@ -11,7 +11,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.bench import HasType, ResolvedField, build, wire
+from bench.bench import HasType, Issue, ResolvedField, build, wire
 from bench.bench.const import MOT
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
@@ -475,8 +475,8 @@ class LanguageWorker:
                     if isinstance(resolved, ResolvedField):
                         interp_mut.create(resolved)
         # issues
-        new_issues = {issue.id: issue for issue in new_interp.issues}
-        old_issues = (issue.id for issue in old_interp.issues) if old_interp else ()
+        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in new_interp.issues}
+        old_issues: set[UUID] = {issue.id for issue in old_interp.issues} if old_interp else {}
         if old_interp is None:
             interp_mut.truncate(new_source.strip(), MOT.ISSUE)
         else:
@@ -485,6 +485,8 @@ class LanguageWorker:
                     interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():
             if issue.id not in old_issues:
+                if old_interp and issue.subject_id not in old_interp.tree:
+                    interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
                 interp_mut.create(issue)
 
         # save and notify

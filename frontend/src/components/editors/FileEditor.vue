@@ -4,7 +4,6 @@ import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import Statement from "@/components/editors/Statement.vue";
 import StatementAddArea from "@/components/editors/StatementAddArea.vue";
 import TitleBanner from "@/components/editors/TitleBanner.vue";
-import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
@@ -19,6 +18,7 @@ import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilIcon, TrashIcon } fro
 import { useQuery } from "@vue/apollo-composable";
 import { whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -27,7 +27,6 @@ const module = useCurrentModule();
 const appearance = useAppearance();
 const actions = useActions();
 const editor = computed(() => props.editor.editor.value);
-const now = useTimeFromNow();
 const ops = useOperations();
 
 // file state
@@ -250,8 +249,18 @@ const statementAddAreaPositionX = computed(() => {
   <div class="relative overflow-x-hidden bg-white">
     <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
+    <div
+      v-if="fileLoading"
+      class="flex h-full w-full flex-col items-center justify-center"
+      :style="{
+        width: props.editor.size.value?.width + 'px',
+        height: props.editor.size.value?.height + 'px',
+      }"
+    >
+      <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
+    </div>
     <!-- (bottom padding is in last StatementAddArea) -->
-    <div class="relative flex flex-col bg-white" v-if="fileHeader">
+    <div class="relative flex flex-col bg-white" v-else-if="fileHeader">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
       <!-- Editor inline header -->

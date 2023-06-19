@@ -110,6 +110,10 @@ class Issue:
         return self.subject.id if self.subject is not None else None
 
     @property
+    def subject_id(self) -> UUID | None:
+        return self.subject.id if self.subject is not None else None
+
+    @property
     def statement_id(self) -> UUID | None:
         if self.scope == InterpScope.STATEMENT:
             return self.subject.id

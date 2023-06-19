@@ -4,8 +4,9 @@ import { useMagicActions } from "@/state/file";
 import type { StatementAction } from "@/state/bench";
 import { useStatementContext } from "@/state/statement";
 import type { StatementHeader } from "@/state/bench";
-import { ArrowPathIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
+import { Square2StackIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{
   extraActions?: StatementAction[];
@@ -41,7 +42,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
       :disabled="action.disabled || action.active"
     >
       <FadeTransition name="fade" mode="out-in">
-        <component :is="action.active ? ArrowPathIcon : action.icon" class="h-4 w-4" />
+        <component :is="action.active ? BusySpinnerIcon : action.icon" class="h-4 w-4" />
       </FadeTransition>
       <!-- Label -->
       <span

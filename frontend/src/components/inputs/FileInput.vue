@@ -5,8 +5,9 @@ import { useBenchState } from "@/state/bench";
 import { humanizeBytes, useObjects, type ObjectRecord } from "@/state/object";
 import { TypeFlag } from "@/state/module";
 import { useRelativeDropZone } from "@/utils/drop";
-import { ArrowPathIcon, ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
+import { ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{
   type: Field;
@@ -147,7 +148,7 @@ defineExpose({
     >
       <!-- File status & info -->
       <component
-        :is="file.status == RemoteObjectStatus.Uploading ? ArrowPathIcon : DocumentArrowUpIcon"
+        :is="file.status == RemoteObjectStatus.Uploading ? BusySpinnerIcon : DocumentArrowUpIcon"
         class="h-4 w-4 flex-shrink-0 text-gray-700"
         :class="file.status == RemoteObjectStatus.Uploading ? 'animate-spin' : ''"
       />
@@ -177,7 +178,7 @@ defineExpose({
       @keydown.enter.stop.prevent="fileChooserRef?.click()"
       @keydown.left.stop.prevent="fileRefs.focus(modelValue.slice(-1)[0]?.id)"
     >
-      <component :is="ongoingUploads ? ArrowPathIcon : ArrowUpTrayIcon" class="h-4 w-4 text-gray-400" />
+      <component :is="ongoingUploads ? BusySpinnerIcon : ArrowUpTrayIcon" class="h-4 w-4 text-gray-400" />
     </button>
     <!-- Actual file chooser (unstylable, hidden) -->
     <input
