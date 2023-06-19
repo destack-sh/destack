@@ -82,8 +82,13 @@ def from_dict(
             raise TypeError(f"expected dict, got {type(data)} in {data}")
         fields = _prepare_dataclass_fields(cls)
         # first pass: create object while skipping not required fields
-        deserialized = {}
+        if hasattr(cls, "decode_some_attrs"):
+            deserialized = cls.decode_some_attrs(data)  # hack until :WireFormat
+        else:
+            deserialized = {}
         for key, field in fields.items():
+            if key in deserialized:
+                continue
             is_primitive = field.type in (int, float, str, bool, datetime, UUID)
             has_default = (
                 field.default is not dataclasses.MISSING

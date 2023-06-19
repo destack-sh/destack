@@ -94,6 +94,7 @@ const extraActions = computed(() => {
   } else {
     inlineActions.push({
       label: "Clear output",
+      disabled: lastExecution.value == null,
       icon: NoSymbolIcon,
       action: async () => {
         // TODO @Feature: clear execution for real?
@@ -224,7 +225,7 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1.5 mt-1 min-h-[32px] rounded-sm border border-orange-900 border-opacity-[15%] px-1.5 pb-1.5 pt-1 transition-colors duration-75"
+    class="-mx-1 mt-0.5 min-h-[32px] rounded-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
   />
   <!-- Last output/error (if any) -->
   <ExecutionTraceback

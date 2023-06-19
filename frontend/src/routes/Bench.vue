@@ -3,6 +3,7 @@ import ClientsPopover from "@/components/basic/ClientsPopover.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import GenericNotFound from "@/components/basic/GenericNotFound.vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
@@ -581,8 +582,11 @@ onBeforeUnmount(() => {
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
-    <!-- It's important that conditional components are all v-show (not v-if)
-          both to make them instant and to provide their actions -->
+    <!-- It's important in the current architecture that conditional components are all v-show (not v-if)
+          both to make them 'instant' to swithch between and to provide their actions -->
+    <div v-if="projectLoading" class="flex w-full flex-1 flex-col items-center justify-center">
+      <BusySpinnerIcon class="h-8 w-8 animate-spin" />
+    </div>
     <div v-show="projectLoaded" class="relative flex flex-1 flex-row">
       <!-- Sidebar of view buttons & views -->
       <aside

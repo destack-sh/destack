@@ -9,10 +9,11 @@ from uuid import UUID
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
+from django.db.models import Q
 
 from bench import models
 from bench.bench import HasType, Issue, ResolvedField, build, wire
-from bench.bench.const import MOT
+from bench.bench.const import MOT, ModuleReference
 from bench.bench.inference import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
@@ -21,7 +22,7 @@ from bench.bench.inference import (
 )
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
-from bench.models import Execution, ExecutionStatus, ProjectVersion, packer
+from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.packer import write_mutations
 from bench.msg import NMessage
@@ -78,19 +79,36 @@ WORKER_HEARTBEAT_TIMEOUT = 30
 class ModuleDB:
     def __init__(self, cache_committed: bool = True):
         self.cache_committed = cache_committed
-        self._cached_modules: dict[UUID, tuple[wire.ModuleTreeData, UUID]] = {}
+        self._cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, UUID]] = {}
 
-    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleTreeData, UUID]:
-        if module_id in self._cached_modules:
-            return self._cached_modules[module_id]
-        project_version = await ProjectVersion.objects.aget(id=module_id)
+    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
+        # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interptreter fetch
+        if ref in self._cached_modules:
+            return self._cached_modules[ref]
+        if isinstance(ref, UUID):
+            project_version = await ProjectVersion.objects.aget(id=ref)
+        elif ref.id is not None:
+            project_version = await ProjectVersion.objects.aget(id=ref.id)
+        else:
+            owner, project = ref.name.split(".")
+            if ref.version != "x":
+                raise NotImplementedError("TODO: versioned module fetch")
+            project_version = (
+                await Project.objects.filter(
+                    slug=project,
+                )
+                .filter(Q(organization__owner_slug_id=owner) | Q(user__owner_slug_id=owner))
+                .select_related("head")
+                .aget()
+            )
+            project_version = project_version.head
         module = await sync_to_async(packer.pack_module)(project_version)
         if self.cache_committed and project_version.committed:
-            self._cached_modules[module_id] = module, project_version.id
+            self._cached_modules[ref] = module, project_version.id
         return module, project_version.project_id
 
-    async def fetch(self, module_id: UUID) -> wire.ModuleData:
-        return (await self.get_module(module_id))[0]
+    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
+        return (await self.get_module(ref))[0]
 
 
 class LanguageServer:
@@ -135,7 +153,9 @@ class LanguageServer:
         if worker is None:
             # start language worker if not already started
             # TODO @Broken: assign workers to deployments
-            project_version = await ProjectVersion.objects.aget(id=module_id)
+            project_version = await ProjectVersion.objects.select_related(
+                "project", "project__user", "project__organization"
+            ).aget(id=module_id)
             worker = LanguageWorker(self.id, project_version, self.module_db.fetch)
             self.lang_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
@@ -394,6 +414,12 @@ class LanguageWorker:
         return self.project_version.id
 
     @property
+    def module_ref(self) -> ModuleReference:
+        return ModuleReference(
+            name=self.project_version.project.path, version="x", id=self.module_id
+        )
+
+    @property
     def project_id(self) -> UUID:
         return self.project_version.project_id
 
@@ -442,11 +468,11 @@ class LanguageWorker:
         )
 
     def _do_interp_sync(
-        self, new_source: wire.ModuleData, dependencies: list[InterpModule]
+        self, new_source: wire.ModuleTreeData, dependencies: list[InterpModule]
     ) -> tuple[InterpModule, InterpModule]:
         self.source = new_source
         old = self.interp
-        self.interp = interp_module(new_source)
+        self.interp = interp_module(new_source, [d.module for d in dependencies])
         return old, self.interp
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
@@ -502,7 +528,7 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source = await self.fetcher(self.module_id)
+        source = await self.fetcher(self.module_ref)
         await self.do_interp(source)
         self.ready.set()
 

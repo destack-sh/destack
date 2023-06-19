@@ -282,7 +282,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
         return wire.ModuleData(
             id=module.id,
-            name=module.project.name,
+            name=module.project.path,
             committed=module.committed,
             parent_id=None,
         )

@@ -240,13 +240,22 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def attached(self) -> bool:
         return True  # root is always "attached"
 
+    def add_dependency(self, module: Module | ModuleReference) -> None:
+        if module.name in self.dependencies:
+            raise ValueError(
+                f"{self} has dependency {module.name}: {self.dependencies[module.name]}"
+            )
+        self.dependencies[module.name] = module
+
     def lookup_symbol(
         self,
         path: StatementPath | UUID | str,
         symbol_t: typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT:
-        if path.startswith("."):
+        if isinstance(path, UUID):
+            return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
+        elif path.startswith("."):
             return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
         else:
             match = REFERENCE_REGEX.match(path)

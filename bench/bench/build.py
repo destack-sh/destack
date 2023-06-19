@@ -186,8 +186,8 @@ def get_default_builds(interp: InterpModule) -> list[Build]:
         Build(
             name="balanced",
             models=[
-                interp.symbol("openai.std.text.gpt3"),
-                interp.symbol("anthropic.std.text.claude-instant"),
+                interp.module.lookup_symbol("openai.std.text.gpt3"),
+                interp.module.lookup_symbol("anthropic.std.text.claude-instant"),
             ],
         ),
     ]
@@ -398,6 +398,7 @@ class XTypeSchema(XEmit):
             if node.reference is not None:
                 continue  # skip the link
             if node.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
+                # nocheckin: render type schema properly depending on model backend
                 line = render_statement(node.source, include_content=node.tag != TypeTag.FUNCTION)
                 bench_lines.append(line)
         bench_str = "\n\n".join(bench_lines)
