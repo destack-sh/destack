@@ -251,9 +251,14 @@ _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
 MOT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MOT] = {}
 BASE_DATA_CLASS_BY_MOT: dict[MOT, typing.Type[NodeDataT]] = {}
 
+_DATA_CLASS_BY_NAME: dict[str, typing.Type[NodeDataT]] = {}
+
 
 def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT] | None):
     """Decorator to register a node packer for a given type"""
+
+    # unrelated, add data class to data class by name for :WireFormat serialization hack
+    _DATA_CLASS_BY_NAME[data_t.__name__] = data_t
 
     def decorator(cls: "NodePacker"):
         if node_t in _node_packers_by_node:
@@ -372,8 +377,30 @@ class ModuleData(NodeData):
 
 @dataclass
 class ModuleTreeData(ModuleData):
-    nodes: list[NodeDataT]
+    nodes: list[NodeData]
     module: ModuleData
+
+    def __str__(self):
+        return f"{self.name}@{self.id}"
+
+    def __repr__(self):
+        return f"<Module {str(self)}>"
+
+    def encode_some_attrs(self) -> dict[str, Any]:
+        # hack to wire nodes with the type of their base class until :WireFormat
+        serialized_nodes = [{**node.__dict__, "cls": type(node).__name__} for node in self.nodes]
+        return {
+            "nodes": serialized_nodes,
+        }
+
+    @classmethod
+    def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
+        # hack to serialize nodes with the type of their base class until :WireFormat
+        # restore cls from namespace?
+        nodes = [_DATA_CLASS_BY_NAME[node.pop("cls")](**node) for node in data["nodes"]]
+        return {
+            "nodes": nodes,
+        }
 
 
 @node_packer(MOT.MODULE, ModuleData, lang.Module)

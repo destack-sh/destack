@@ -26,6 +26,7 @@ from bench.bench.wire import (
     ModelData,
     ModuleData,
     ModuleTree,
+    ModuleTreeData,
     NodeData,
     RecordData,
     RequirementData,
@@ -308,7 +309,7 @@ class ModuleMutator:
 
     def __init__(
         self,
-        module: Module | ModuleData | UUID,
+        module: Module | ModuleTreeData | UUID,
         mutations: list[ModuleMutation] = None,
         # default file and statement id
         file_id: UUID = None,
@@ -426,7 +427,7 @@ class ModuleMutator:
     def bundle(self) -> "MutationBundle":
         return MutationBundle(self.mutations)
 
-    def to_module(self) -> ModuleData:
+    def to_module(self) -> ModuleTreeData:
         # already applied in memory
         if self.module is None:
             raise ValueError(f"cannot apply {self} without a module")

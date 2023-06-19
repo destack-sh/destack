@@ -322,7 +322,7 @@ defineExpose({
                       class="hover:underline"
                       :class="isCurrent(version) ? 'text-orange-600' : 'text-gray-900'"
                     >
-                      {{ version.name || (versionIdx == 0 ? "(Working)" : "Autosave") }}
+                      {{ version.name || (versionIdx == 0 ? "(Latest)" : "Autosave") }}
                     </router-link>
                     <!-- Edit button -->
                     <PopoverButton

@@ -144,7 +144,7 @@ const defaultGrowFactor = 0.1;
 const defaultMinWidth = 50;
 const growColumns = true;
 const showPropertiesColumn = true; // used to be only in write mode, but useful if no columns and for settings shortcut
-const propertiesColumnWidth = 64;
+const propertiesColumnWidth = 40;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
