@@ -22,6 +22,7 @@ export function useFileOps() {
   const ops = useOperationsStore();
   const registry = new OpRegistry();
 
+  // TODO @Broken @UX: optimistic create file & paste file does not work correctly (causes reload)
   const { mutate: createFileMut } = registry.useMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
@@ -42,26 +43,21 @@ export function useFileOps() {
           }
         ) {
           ... on File {
+            # :fileContentById
             id
-            revision
-            name
-            parent {
-              ... on File {
-                id
-              }
-              ... on ProjectVersion {
-                id
-              }
-            }
-            createdAt
-            updatedAt
-            deletedAt
-            directory
             projectVersion {
               id
             }
+            ...FileHeader
+            # :InterpFile :InterpStatement
             statements(filters: { isVisible: true }) {
-              id
+              ...StatementContent
+              issues {
+                ...IssueContent
+              }
+            }
+            issues {
+              ...IssueContent
             }
           }
           ...OperationInfoContent
@@ -94,22 +90,22 @@ export function useFileOps() {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,
-            generated: false,
             directory: vars.directory,
             statements: [],
+            issues: [],
           },
         } as CreateFileMutation),
-      update(cache, { data: createFile }) {
-        if (createFile?.createFile.__typename != "File") {
+      update(cache, { data: data }) {
+        if (data?.createFile.__typename != "File") {
           return; // error;
         }
         // extend ProjectVersion.files array with (ref to) new file
         // must ensure that all relevant fields are present or weird things happen
         cache.modify({
-          id: cache.identify(createFile.createFile?.projectVersion),
+          id: cache.identify(data.createFile?.projectVersion),
           fields: {
             files(currentFiles = { edges: [] }) {
-              const newRef = cache.identify(createFile?.createFile);
+              const newRef = cache.identify(data?.createFile);
               return {
                 edges: [...currentFiles.edges.filter((e: any) => e.node.__ref != newRef), { node: { __ref: newRef } }],
               };
@@ -308,6 +304,10 @@ export function useFileOps() {
               id
             }
             ...FileHeader
+            # :InterpFile :InterpStatement
+            issues {
+              ...IssueContent
+            }
             statements(filters: { isVisible: true }) {
               ...StatementContent
             }

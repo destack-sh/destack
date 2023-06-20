@@ -13,7 +13,9 @@ const issues = computed(() => module.issues.value);
 
 function focusIssue(issue: IssueContentFragment) {
   if (issue.statement != null) {
-    nav.focus(issue.statement);
+    nav.focusSymbol(issue.statement);
+  } else if (issue.file != null) {
+    nav.focusFile(issue.file);
   }
 }
 </script>
@@ -42,6 +44,9 @@ function focusIssue(issue: IssueContentFragment) {
           <span class="pl-1 text-gray-900"
             >{{ module.fileOf(issue.statement)?.name }}.{{ module.statementOf(issue.statement.id)?.name }}</span
           >
+        </div>
+        <div v-else-if="issue.file != null" class="px-3">
+          <span class="pl-1 text-gray-900">{{ module.pathOf(issue.file) }}</span>
         </div>
         <span class="flex flex-row gap-1 px-3 text-red-600">
           <XCircleIcon class="mt-0.5 h-4 w-4" />

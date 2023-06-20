@@ -9,6 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
+from bench.api.utils import to_global_id
 from bench.bench.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.opensearch import mirror
@@ -175,17 +176,17 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     input_args = {}
     for field in fields(input_cls):
         if field.name == "project_version_id":
-            value = mutation.project_version_id
+            value = to_global_id("ProjectVersion", mutation.project_version_id)
         elif field.name == "file_id":
-            value = mutation.file_id
+            value = to_global_id("File", mutation.file_id)
         elif field.name == "statement_id":
-            value = mutation.statement_id
+            value = to_global_id("Statement", mutation.statement_id)
         elif field.name in extra_fields:
             value = extra_fields[field.name]
         else:
             value = getattr(mutation.data, field.name, field.default)
-        if isinstance(value, UUID):
-            value = _map_id_field(field.name, value, mutation)
+            if isinstance(value, UUID):
+                value = _map_id_field(field.name, value, mutation)
         input_args[field.name] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)
@@ -225,13 +226,9 @@ def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
     from strawberry_django_plus.relay import GlobalID
 
     # map id to global id with appropriate type name
-    if key == "file_id":
-        type_name = "File"
-    elif key == "statement_id":
-        type_name = "Statement"
-    elif key == "parent_id" and mutation.type.mot == MOT.STATEMENT:
-        # we can't actually know whether parent id is a file or statement id
-        # so we check against the mutation file id.. this should be fine?
+    # we can't actually know whether parent id is a file or statement id
+    # so we check against the mutation file id.. this should be fine?
+    if key == "parent_id" and mutation.type.mot == MOT.STATEMENT:
         if value == mutation.file_id:
             type_name = "File"
         else:
