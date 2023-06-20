@@ -9,6 +9,7 @@ import {
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry } from "@/state/sync";
+import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
 export function newFileId(): string {
@@ -83,7 +84,10 @@ export function useFileOps() {
               __typename: "ProjectVersion",
               id: vars.projectVersionId,
             },
-            parent: vars.parentId == null ? null : { __typename: "File", id: vars.parentId },
+            parent:
+              vars.parentId == null || atob(vars.parentId).startsWith("ProjectVersion")
+                ? { __typename: "ProjectVersion", id: vars.projectVersionId }
+                : { __typename: "File", id: vars.parentId },
             id: vars.id,
             name: vars.name,
             revision: -1,
@@ -99,7 +103,7 @@ export function useFileOps() {
         if (createFile?.createFile.__typename != "File") {
           return; // error;
         }
-        // extend ProjectVersion.statements array with (ref to) new file
+        // extend ProjectVersion.files array with (ref to) new file
         // must ensure that all relevant fields are present or weird things happen
         cache.modify({
           id: cache.identify(createFile.createFile?.projectVersion),
@@ -290,5 +294,76 @@ export function useFileOps() {
       },
     });
   }
-  return { registry, create, rename, delete: delete_, softDelete, restore };
+
+  const { mutate: pasteFileMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation pasteFile($sourceId: GlobalID!, $targetId: GlobalID, $targetVersionId: GlobalID!, $parentId: GlobalID) {
+        pasteFile(
+          input: { sourceId: $sourceId, targetId: $targetId, targetVersionId: $targetVersionId, parentId: $parentId }
+        ) {
+          ... on File {
+            # :fileContentById
+            id
+            projectVersion {
+              id
+            }
+            ...FileHeader
+            statements(filters: { isVisible: true }) {
+              ...StatementContent
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      update(cache, { data }) {
+        if (data?.pasteFile.__typename != "File") {
+          return; // error;
+        }
+        // extend ProjectVersion.files array with (ref to) new file
+        cache.modify({
+          id: cache.identify(data.pasteFile?.projectVersion),
+          fields: {
+            files(currentFiles = { edges: [] }) {
+              const newRef = cache.identify(data?.pasteFile);
+              return {
+                edges: [...currentFiles.edges.filter((e: any) => e.node.__ref != newRef), { node: { __ref: newRef } }],
+              };
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
+  );
+
+  async function paste(
+    tx: Transaction | null,
+    sourceId: string,
+    targetId: string,
+    targetVersionId: string,
+    parentId: string | null
+  ) {
+    return await ops.perform({
+      tx,
+      type: "file.paste",
+      do: async () => {
+        return await pasteFileMut({
+          sourceId: sourceId,
+          targetId: targetId,
+          targetVersionId: targetVersionId,
+          parentId: parentId,
+        });
+      },
+      undo: async () => {
+        return await softDeleteFileMut({ id: sourceId });
+      },
+      redo: async () => {
+        return await restoreFileMut({ id: sourceId });
+      },
+    });
+  }
+
+  return { registry, create, rename, delete: delete_, softDelete, restore, paste };
 }

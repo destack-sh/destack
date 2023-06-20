@@ -19,6 +19,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { newFileId } from "@/state/operations/file";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -34,6 +35,7 @@ const ops = useOperations();
 const { result: file, loading: fileLoading } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
+      # :fileContentById
       file(id: $fileId) {
         id
         projectVersion {
@@ -202,10 +204,14 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   {
     label: "Duplicate",
     icon: DocumentDuplicateIcon,
-    action: () => {
-      // not implemented yet
+    action: async () => {
+      if (fileHeader.value == null) return;
+      const targetId = newFileId();
+      const ret = await ops.file.paste(null, fileHeader.value?.id, targetId, module.id.value, null);
+      if (ret?.data?.pasteFile.__typename == "File") {
+        bench.focusFile({ id: targetId, name: fileHeader.value?.name ?? "" });
+      }
     },
-    disabled: true,
   },
   {
     label: "Move",
@@ -219,9 +225,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
     label: "Delete",
     icon: TrashIcon,
     action: () => {
-      if (fileHeader.value == null) {
-        return;
-      }
+      if (fileHeader.value == null) return;
       ops.file.softDelete(null, fileHeader.value?.id);
       emit("close");
     },

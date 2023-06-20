@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import uuid
 from datetime import datetime
-from itertools import groupby
 from typing import TYPE_CHECKING, Optional, TypedDict, Union
 from uuid import UUID, uuid4
 
@@ -19,7 +18,7 @@ from bench.bench import wire
 from bench.bench.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
-from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel
+from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
 from bench.settings import LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -409,7 +408,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         copy_revisions: bool = True,
         kind: RefMappingKind = None,
         filter: PackFilter = None,
-    ) -> tuple[Packed, list["RefMapping"]]:
+    ) -> tuple[Packed, list["RefMapping"], dict[UUID, UUID]]:
         """Packs a copy of the module tree at the given nodes."""
         from bench.models import packer
 
@@ -441,8 +440,8 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             )
         for node in packed.nodes.values():  # patch parent ids
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
-
-        return packed, list(ref_mappings.values())
+            wire.patch_node_flat(node, target_ids)
+        return packed, list(ref_mappings.values()), target_ids
 
     def copy(
         self,
@@ -462,7 +461,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         filter = packer.DEFAULT_PACK_FILTER.extend()
         if files is not None:
             filter.filter(File, lambda qs: qs.filter(id__in=files))
-        packed, ref_mappings = self.pack_copy(
+        packed, mappings, target_ids = self.pack_copy(
             source=source,
             target=target,
             nodes=[source],
@@ -474,29 +473,23 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         # unpack and save
         unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
-        for node_batch in unpacked.walk_bfs_batched():
-            if node_batch == [target]:
-                continue  # skip root
-            for model_class, nodes_of_cls in groupby(node_batch, type):
-                model_class.objects.bulk_create(nodes_of_cls)
-
+        create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
         # duplicate versioned datasets
         versioned_datasets = [
             n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
         ]
-        Statement.objects.duplicate_datasets(source, target, versioned_datasets)
-
+        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets)
         # save ref mappings
         if invert_mappings:
-            for mapping in ref_mappings:
+            for mapping in mappings:
                 mapping.source_id, mapping.target_id = mapping.target_id, mapping.source_id
                 mapping.source_version, mapping.target_version = (
                     mapping.target_version,
                     mapping.source_version,
                 )
-        RefMapping.objects.bulk_create(ref_mappings)
+        RefMapping.objects.bulk_create(mappings)
 
-        return ref_mappings
+        return mappings
 
 
 class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
@@ -665,6 +658,45 @@ class FileManager(models.Manager):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
+
+    def copy(
+        self,
+        file: "File",
+        source: ProjectVersion,
+        target: ProjectVersion,
+        kind: "RefMappingKind",
+        target_id: Optional[UUID] = None,
+        target_parent: Optional["File"] = None,
+        copy_revisions: bool = False,
+    ) -> "File":
+        """Copies a file from one module to another (may be the same)."""
+        from bench.models import Dataset, Statement, packer
+
+        target_id = target_id or uuid.uuid4()
+        # pack relevant nodes
+        packed, mappings, target_ids = ProjectVersion.objects.pack_copy(
+            source=source,
+            target=target,
+            nodes=[file],
+            copy_revisions=copy_revisions,
+            target_ids={file.id: target_id},
+            kind=kind,
+        )
+        packed.roots[0].parent_id = target_parent.id if target_parent else target.id
+
+        # unpack and save
+        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
+        create_models_bfs(unpacked.walk_bfs_batched())
+        # duplicate versioned datasets
+        versioned_datasets = [
+            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+        ]
+        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets)
+        # save mappings
+        RefMapping.objects.bulk_create(mappings)
+
+        target_file = unpacked.nodes[target_id]
+        return target_file
 
     def get_descendants(
         self, file_ids: list[UUID], deleted_at: Optional[datetime] = None

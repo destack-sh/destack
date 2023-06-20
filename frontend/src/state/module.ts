@@ -152,12 +152,12 @@ function _useModule(projectVersionId: Ref<string | null>) {
   function pathOf(file: { id: string }) {
     // traverse parents
     let f = idx.value?.filesById[file.id];
-    let path = "";
+    const path: string[] = [];
     while (f != null) {
-      path = `${f.name}/${path}`;
+      path.push(f.name);
       f = idx.value?.filesById[f.parent?.id ?? ""];
     }
-    return path;
+    return path.reverse().join("/");
   }
 
   function contextOf(symbol: { id: string }) {

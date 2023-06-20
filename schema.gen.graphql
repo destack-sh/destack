@@ -395,6 +395,13 @@ input FileMoveInput {
 
 union FileOperationInfo = File | OperationInfo
 
+input FilePasteInput {
+  sourceId: GlobalID!
+  targetVersionId: GlobalID!
+  targetId: GlobalID = null
+  parentId: GlobalID = null
+}
+
 union FileProjectVersion = File | ProjectVersion
 
 input FileRenameInput {
@@ -477,8 +484,8 @@ type ModuleMutation {
 enum ModuleMutationType {
   TRUNCATE_FILES
   BUMP_FILE
-  CREATE_FILE
   PASTE_FILE
+  CREATE_FILE
   SOFT_DELETE_FILE
   RESTORE_FILE
   RENAME_FILE
@@ -487,8 +494,8 @@ enum ModuleMutationType {
   DELETE_FILE
   TRUNCATE_STATEMENTS
   BUMP_STATEMENT
-  CREATE_STATEMENT
   PASTE_STATEMENT
+  CREATE_STATEMENT
   SOFT_DELETE_STATEMENT
   RESTORE_STATEMENT
   MORPH_STATEMENT
@@ -504,7 +511,6 @@ enum ModuleMutationType {
   UPDATE_SYMBOL_LANGUAGE
   UPDATE_SYMBOL_VALUE
   TRUNCATE_FIELDS
-  BUMP_FIELD
   CREATE_FIELD
   UPDATE_FIELD
   RENAME_FIELD
@@ -515,7 +521,6 @@ enum ModuleMutationType {
   DELETE_FIELD
   RESTORE_FIELD
   TRUNCATE_RECORDS
-  BUMP_RECORD
   CREATE_RECORD
   UPDATE_RECORD
   MOVE_RECORD
@@ -596,6 +601,7 @@ type Mutation {
   restoreFile(input: NodeInput!): FileOperationInfo!
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
+  pasteFile(input: FilePasteInput!): FileOperationInfo!
   langserverWake(input: LangserverWakeInput!): LangserverWakePayloadOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
   cancelRun(input: CancelRunInput!): CancelRunPayloadOperationInfo!

@@ -44,8 +44,8 @@ class ModuleMutationType(enum.StrEnum):
     # Files
     TRUNCATE_FILES = "TRUNCATE_FILES"
     BUMP_FILE = "BUMP_FILE"
-    CREATE_FILE = "CREATE_FILE"
     PASTE_FILE = "PASTE_FILE"
+    CREATE_FILE = "CREATE_FILE"
     SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
     RESTORE_FILE = "RESTORE_FILE"
     RENAME_FILE = "RENAME_FILE"
@@ -55,8 +55,8 @@ class ModuleMutationType(enum.StrEnum):
     # Statements
     TRUNCATE_STATEMENTS = "TRUNCATE_STATEMENTS"
     BUMP_STATEMENT = "BUMP_STATEMENT"
-    CREATE_STATEMENT = "CREATE_STATEMENT"
     PASTE_STATEMENT = "PASTE_STATEMENT"
+    CREATE_STATEMENT = "CREATE_STATEMENT"
     SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
     MORPH_STATEMENT = "MORPH_STATEMENT"
@@ -74,7 +74,6 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_SYMBOL_VALUE = "UPDATE_SYMBOL_VALUE"
     # Types
     TRUNCATE_FIELDS = "TRUNCATE_FIELDS"
-    BUMP_FIELD = "BUMP_FIELD"
     CREATE_FIELD = "CREATE_FIELD"
     UPDATE_FIELD = "UPDATE_FIELD"
     RENAME_FIELD = "RENAME_FIELD"
@@ -86,7 +85,6 @@ class ModuleMutationType(enum.StrEnum):
     RESTORE_FIELD = "RESTORE_FIELD"
     # Records
     TRUNCATE_RECORDS = "TRUNCATE_RECORDS"
-    BUMP_RECORD = "BUMP_RECORD"
     CREATE_RECORD = "CREATE_RECORD"
     UPDATE_RECORD = "UPDATE_RECORD"
     MOVE_RECORD = "MOVE_RECORD"
@@ -141,13 +139,11 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.DELETE_STATEMENT,
     # Fields
     ModuleMutationType.TRUNCATE_FIELDS,
-    ModuleMutationType.BUMP_FIELD,
     ModuleMutationType.CREATE_FIELD,
     ModuleMutationType.UPDATE_FIELD,
     ModuleMutationType.DELETE_FIELD,
     # Record
     ModuleMutationType.TRUNCATE_RECORDS,
-    ModuleMutationType.BUMP_RECORD,
     ModuleMutationType.CREATE_RECORD,
     ModuleMutationType.UPDATE_RECORD,
     ModuleMutationType.DELETE_RECORD,
@@ -166,6 +162,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     # Files
     MMT.TRUNCATE_FILES: (MMK.TRUNCATE, MOT.FILE),
     MMT.BUMP_FILE: (MMK.BUMP, MOT.FILE),
+    MMT.PASTE_FILE: (MMK.CREATE, MOT.FILE),
     MMT.CREATE_FILE: (MMK.CREATE, MOT.FILE),
     MMT.SOFT_DELETE_FILE: (MMK.DELETE, MOT.FILE),
     MMT.RESTORE_FILE: (MMK.CREATE, MOT.FILE),
@@ -176,6 +173,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     # Statements
     MMT.TRUNCATE_STATEMENTS: (MMK.TRUNCATE, MOT.STATEMENT),
     MMT.BUMP_STATEMENT: (MMK.BUMP, MOT.STATEMENT),
+    MMT.PASTE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
     MMT.CREATE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
     MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
     MMT.RESTORE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
@@ -194,7 +192,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.STATEMENT),
     # Types
     MMT.TRUNCATE_FIELDS: (MMK.TRUNCATE, MOT.FIELD),
-    MMT.BUMP_FIELD: (MMK.BUMP, MOT.FIELD),
     MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
     MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
     MMT.RENAME_FIELD: (MMK.UPDATE, MOT.FIELD),
@@ -206,7 +203,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
     MMT.RESTORE_FIELD: (MMK.CREATE, MOT.FIELD),
     # Records
     MMT.TRUNCATE_RECORDS: (MMK.TRUNCATE, MOT.RECORD),
-    MMT.BUMP_RECORD: (MMK.BUMP, MOT.RECORD),
     MMT.CREATE_RECORD: (MMK.CREATE, MOT.RECORD),
     MMT.UPDATE_RECORD: (MMK.UPDATE, MOT.RECORD),
     MMT.MOVE_RECORD: (MMK.UPDATE, MOT.RECORD),
@@ -317,7 +313,7 @@ class ModuleMutator:
     ):
         if isinstance(module, Module):
             module = wire.pack_module(module)
-        if isinstance(module, ModuleData):
+        if isinstance(module, ModuleTreeData):
             self.module = module
             self.module_id = module.id
             self.tree = ModuleTree(module.nodes)
@@ -352,10 +348,16 @@ class ModuleMutator:
             statement_id = None
             file_id = None
         else:
-            statement_id = (
-                self.statement_id or self.tree.get_ancestor(obj.parent_id, wire.StatementData).id
-            )
-            file_id = self.file_id or self.tree.get_ancestor(statement_id, wire.FileData).id
+            if self.statement_id:
+                statement_id = self.statement_id
+            else:
+                statement = self.tree.get_ancestor(obj.parent_id, wire.StatementData)
+                statement_id = statement.id if statement else None
+            if self.file_id:
+                file_id = self.file_id
+            else:
+                file = self.tree.get_ancestor(obj.parent_id, wire.FileData)
+                file_id = self.file_id or file.id
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,

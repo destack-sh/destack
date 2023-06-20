@@ -412,6 +412,13 @@ export type FileMoveInput = {
 
 export type FileOperationInfo = File | OperationInfo;
 
+export type FilePasteInput = {
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+  sourceId: Scalars["GlobalID"];
+  targetId?: InputMaybe<Scalars["GlobalID"]>;
+  targetVersionId: Scalars["GlobalID"];
+};
+
 export type FileProjectVersion = File | ProjectVersion;
 
 export type FileRenameInput = {
@@ -486,9 +493,7 @@ export type ModuleMutation = {
 
 /** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
-  BumpField = "BUMP_FIELD",
   BumpFile = "BUMP_FILE",
-  BumpRecord = "BUMP_RECORD",
   BumpStatement = "BUMP_STATEMENT",
   CommentStatement = "COMMENT_STATEMENT",
   CreateField = "CREATE_FIELD",
@@ -580,6 +585,7 @@ export type Mutation = {
   moveRecord: RecordOperationInfo;
   moveStatement: StatementOperationInfo;
   notifyUploadedObject: RemoteObjectOperationInfo;
+  pasteFile: FileOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
@@ -761,6 +767,10 @@ export type MutationMoveStatementArgs = {
 
 export type MutationNotifyUploadedObjectArgs = {
   input: NotifyUploadedObjectInput;
+};
+
+export type MutationPasteFileArgs = {
+  input: FilePasteInput;
 };
 
 export type MutationRemoveOrganizationMembershipArgs = {
@@ -3376,6 +3386,29 @@ export type RenameFileMutation = {
   __typename?: "Mutation";
   renameFile:
     | { __typename?: "File"; id: any; name: string; revision: number }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type PasteFileMutationVariables = Exact<{
+  sourceId: Scalars["GlobalID"];
+  targetId?: InputMaybe<Scalars["GlobalID"]>;
+  targetVersionId: Scalars["GlobalID"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type PasteFileMutation = {
+  __typename?: "Mutation";
+  pasteFile:
+    | ({
+        __typename?: "File";
+        id: any;
+        projectVersion: { __typename?: "ProjectVersion"; id: any };
+        statements: Array<
+          { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
+        >;
+      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -8881,6 +8914,132 @@ export const RenameFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const PasteFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "pasteFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sourceId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "targetId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "pasteFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sourceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sourceId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "targetId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "targetId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "targetVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "parentId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "projectVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statements" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "StatementContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...FileHeaderFragmentDoc.definitions,
+    ...StatementContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
+    ...IssueContentFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<PasteFileMutation, PasteFileMutationVariables>;
 export const RequestUploadObjectDocument = {
   kind: "Document",
   definitions: [

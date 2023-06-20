@@ -17,9 +17,10 @@ const now = useTimeFromNow();
 const bench = useBenchState();
 const editorView = useEditorContext();
 
-const isLoading = computed(() => props.thing == null);
 const isDeleted = computed(() => props.thing?.deletedAt != null);
-const isOtherVersion = computed(() => props.thing?.projectVersion?.id != bench.projectVersionId);
+const isOtherVersion = computed(
+  () => bench.projectVersionId != null && props.thing?.projectVersion?.id != bench.projectVersionId
+);
 const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.slice(1));
 </script>
 <template>
