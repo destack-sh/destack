@@ -5,7 +5,7 @@ import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { useStatementContext } from "@/state/statement";
-import { PencilSquareIcon, RocketLaunchIcon } from "@heroicons/vue/24/outline";
+import { PencilSquareIcon, RocketLaunchIcon, ArrowDownRightIcon, ArrowUpRightIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 // all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
@@ -45,6 +45,22 @@ const extraActions = computed(() => {
         addingDescription.value = true;
         nextTick(() => descriptionRef.value?.focus());
       },
+    },
+    {
+      label: "Add input",
+      icon: ArrowDownRightIcon,
+      action: () => {
+        nextTick(() => typeRef.value?.createInput());
+      },
+      hideInline: true,
+    },
+    {
+      label: "Add output",
+      icon: ArrowUpRightIcon,
+      action: () => {
+        nextTick(() => typeRef.value?.createOutput());
+      },
+      hideInline: true,
     },
     {
       label: "Launch",

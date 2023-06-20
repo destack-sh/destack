@@ -214,6 +214,6 @@ class ExecutionSubscription:
                 if other_runnable or other_root:
                     # TODO @Performance: filter execution frames more precisely via NATS?
                     continue
-                frame = packer.unpack_execution_frame(frame_data)
+                frame = packer.unpack_data(frame_data)
                 log.debug("executions.update", frame=frame)
                 yield frame

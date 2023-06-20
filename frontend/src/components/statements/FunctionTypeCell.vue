@@ -3,8 +3,8 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
-import { makeField, NAME_FIELD, useStatementContext } from "@/state/statement";
-import { TypeTag, type Field } from "@/gql/graphql";
+import { makeField, useStatementContext } from "@/state/statement";
+import type { Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
@@ -139,6 +139,12 @@ defineExpose({
     addInputRef.value?.blur();
     addOutputRef.value?.blur();
   },
+  createInput: () => {
+    createInputRef.value?.show();
+  },
+  createOutput: () => {
+    createOutputRef.value?.show();
+  },
 });
 </script>
 <template>
@@ -151,12 +157,7 @@ defineExpose({
           :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('input', member.id, 'type', val)"
           :readonly="context.readonly.value"
-          :active="context.focused.value || context.editing.value"
-          immediate
-          debounced
-          :placeholder-value="context.editing.value ? '+' + 'type' : null"
-          :type="NAME_FIELD"
-          slim
+          tuple-name="input"
           @navigate-left="inputGrid.navigateLeft(member.id, 'type')"
           @navigate-right="inputGrid.navigateRight(member.id, 'type')"
           @navigate-up="inputGrid.navigateUp(member.id, 'type')"
@@ -189,6 +190,7 @@ defineExpose({
     <!-- Lil' arrow -->
     <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
     <!-- Outputs -->
+    <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication -->
     <div class="-mx-1 my-1 flex h-fit w-fit flex-1 flex-col gap-0.5">
       <template v-for="member of outputNodes" :key="member.id">
         <FieldInterface
@@ -197,18 +199,14 @@ defineExpose({
           :model-value="readColumn(member as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', member.id, 'type', val)"
           :readonly="context.readonly.value"
-          :active="context.focused.value || context.editing.value"
-          immediate
-          debounced
-          :placeholder-value="context.editing.value ? '+' + 'type' : null"
-          :type="NAME_FIELD"
+          tuple-name="output"
           @navigate-left="outputGrid.navigateLeft(member.id, 'type')"
           @navigate-right="outputGrid.navigateRight(member.id, 'type')"
           @navigate-up="outputGrid.navigateUp(member.id, 'type')"
           @navigate-down="outputGrid.navigateDown(member.id, 'type')"
           @delete-left="deleteMember('output', member.id)"
           @delete-self="deleteMember('output', member.id)"
-          class="w-full self-start px-1 py-0.5 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
+          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
       <!-- Add a field -->

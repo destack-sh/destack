@@ -370,7 +370,7 @@ class XTypeSchema(XEmit):
     def __call__(self) -> XBlock:
         bench_lines = []
         seen_types: set[UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
-        for node in self.type.walk(include_references=True):
+        for node in self.type.walk_type(include_references=True):
             if node.id in seen_types:
                 continue
             seen_types.add(node.id)

@@ -194,7 +194,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     logger.info("os.update_mappings", project_version=project_v)
     source = packer.pack_module(project_v)
-    module = wire.unpack_module(source)
+    module = wire.unpack_module(source, session=None)
     module.index()
     module.interp()
 

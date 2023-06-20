@@ -686,7 +686,7 @@ def data_packer(data_t: typing.Type[DataT]):
     def decorator(cls: "DataPacker"):
         if data_t in _data_packers:
             raise ValueError(f"packer for {data_t} already registered: {_data_packers[data_t]}")
-        _data_packers[data_t] = cls
+        _data_packers[data_t] = cls()
         return cls
 
     return decorator
