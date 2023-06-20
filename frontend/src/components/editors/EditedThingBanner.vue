@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
-import { useAppearance } from "@/state/appearance";
 import { useBenchState, useEditorContext } from "@/state/bench";
 import { computed } from "vue";
 
@@ -19,7 +18,8 @@ const editorView = useEditorContext();
 
 const isDeleted = computed(() => props.thing?.deletedAt != null);
 const isOtherVersion = computed(
-  () => bench.projectVersionId != null && props.thing?.projectVersion?.id != bench.projectVersionId
+  () =>
+    bench.projectVersionId != null && props.thing != null && props.thing?.projectVersion?.id != bench.projectVersionId
 );
 const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.slice(1));
 </script>

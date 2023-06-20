@@ -35,15 +35,15 @@ const ops = useOperations();
 const { result: file, loading: fileLoading } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
-      # :fileContentById
       file(id: $fileId) {
+        # :fileContentById
         id
-        projectVersion {
-          id
-        }
         ...FileHeader
         statements(filters: { isVisible: true }) {
           ...StatementContent
+        }
+        issues {
+          ...IssueContent
         }
       }
     }
@@ -271,8 +271,6 @@ const statementAddAreaPositionX = computed(() => {
     </div>
     <!-- (bottom padding is in last StatementAddArea) -->
     <div class="relative flex flex-col bg-white" v-else-if="fileHeader">
-      <!-- Non-clickable invisible overlay if deleted -->
-      <div v-if="isDeleted" class="absolute inset-0 z-20 flex justify-center opacity-100" />
       <!-- Editor inline header -->
       <FixedInlineHeader
         :thing="file"

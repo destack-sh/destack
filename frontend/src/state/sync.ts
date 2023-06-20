@@ -1,6 +1,5 @@
 import { graphql } from "@/gql";
 import { ModuleMutationType, type ModuleMutation } from "@/gql/graphql";
-import { InterpStatementDataType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { dedent, startStopIf, toValueRef } from "@/utils/functools";
 import type {
@@ -264,6 +263,15 @@ function useSyncedOps() {
     } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.statementId != null) {
       client.cache.modify({
         id: `Statement:${mutation.statementId}`,
+        fields: {
+          issues(existingIssues = []) {
+            return [...existingIssues, mutation.data];
+          },
+        },
+      });
+    } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.fileId != null) {
+      client.cache.modify({
+        id: `File:${mutation.statementId}`,
         fields: {
           issues(existingIssues = []) {
             return [...existingIssues, mutation.data];

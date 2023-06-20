@@ -353,6 +353,7 @@ type File implements Node {
   files: [File!]!
   parent: FileProjectVersion!
   statements(filters: StatementFilter): [Statement!]!
+  issues: [Issue!]!
 }
 
 """A connection to a list of items."""

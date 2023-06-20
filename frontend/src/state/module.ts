@@ -120,12 +120,18 @@ function _useModule(projectVersionId: Ref<string | null>) {
   });
 
   const issues = computed(() => {
-    const issues = [];
-    for (const statement of Object.values(idx.value?.statementsById ?? {})) {
-      if (statement.issues == null) continue;
-      issues.push(...statement.issues.map((i: any) => useFragment(IssueContentType, i)));
+    const issues: any[] = [];
+    for (const fileEdge of module.value?.projectVersion?.files?.edges ?? []) {
+      const file = useFragment(InterpFileType, fileEdge.node);
+      if (file.deletedAt != null) continue;
+      file.issues.forEach((i) => issues.push(i));
+      for (const statementEdge of fileEdge.node.statements) {
+        const statement = useFragment(InterpStatementType, statementEdge);
+        if (statement.deletedAt != null) continue;
+        statementEdge.issues?.forEach((i) => issues.push(i));
+      }
     }
-    return issues;
+    return issues.map((i) => useFragment(IssueContentType, i));
   });
 
   // TODO @Broken: get dependencies
@@ -340,7 +346,13 @@ export function useNavigation() {
     editor.editElement(symbol as any);
   }
 
-  return { focus: focusSymbol };
+  function focusFile(file: { id: string }) {
+    const file_ = module.fileOf({ id: file.id });
+    if (file_ == null) return;
+    bench.focusFile(file_);
+  }
+
+  return { focusSymbol, focusFile };
 }
 
 export function newExecutionId(): string {
