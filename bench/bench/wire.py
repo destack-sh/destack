@@ -540,7 +540,7 @@ class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
 
 @dataclass
 class TextData(StatementData):
-    html: str
+    text: str
 
 
 @node_packer(MOT.STATEMENT, TextData, lang.Text)
@@ -549,11 +549,11 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
 
     def pack(self, symbol: lang.Text) -> "TextData":
         statement_data = super().pack(symbol)
-        return TextData(**statement_data.__dict__, html=symbol.html)
+        return TextData(**statement_data.__dict__, text=symbol.text)
 
     def unpack(self, symbol: TextData, parent: lang.Statement | lang.File) -> lang.Text:
         statement = super().unpack(symbol, parent)
-        return lang.Text(**statement.__dict__, html=symbol.html)
+        return lang.Text(**statement.__dict__, text=symbol.text)
 
 
 # symbols

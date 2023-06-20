@@ -366,14 +366,14 @@ class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
         statement_data = super().pack(statement)
         return wire.TextData(
             **statement_data.__dict__,
-            html=statement.text,
+            text=statement.text,
         )
 
     def unpack(
         self, data: wire.TextData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
-        statement.text = data.html
+        statement.text = data.text
         return statement
 
 

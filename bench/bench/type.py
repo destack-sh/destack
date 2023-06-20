@@ -450,12 +450,7 @@ class Text(Statement):
     """A comment that's not semantic/interpreted by default."""
 
     type: StatementType = StatementType.TEXT
-    html: str | None = None
-
-    @property
-    def text(self) -> str:
-        """The rendered text of this comment."""
-        return self.html or ""
+    text: str | None = None
 
 
 StatementReference = typing.Union[Statement, StatementPath, UUID]

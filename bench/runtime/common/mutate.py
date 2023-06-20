@@ -185,7 +185,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
         else:
             value = getattr(mutation.data, field.name, field.default)
         if isinstance(value, UUID):
-            value = _map_id_field(field.name, value, mutation.type.mot)
+            value = _map_id_field(field.name, value, mutation)
         input_args[field.name] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)
@@ -221,7 +221,7 @@ def input_to_gql_jsonable(value: Any) -> Any:
         raise TypeError(f"unexpected value: {value}")
 
 
-def _map_id_field(key: str, value: UUID, scope: MOT):
+def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
     from strawberry_django_plus.relay import GlobalID
 
     # map id to global id with appropriate type name
@@ -229,11 +229,20 @@ def _map_id_field(key: str, value: UUID, scope: MOT):
         type_name = "File"
     elif key == "statement_id":
         type_name = "Statement"
-    elif key == "parent_id" and scope == MOT.STATEMENT:
-        type_name = "Statement"
-    elif key == "parent_id" and scope == MOT.FILE:
-        type_name = "File"
+    elif key == "parent_id" and mutation.type.mot == MOT.STATEMENT:
+        # we can't actually know whether parent id is a file or statement id
+        # so we check against the mutation file id.. this should be fine?
+        if value == mutation.file_id:
+            type_name = "File"
+        else:
+            type_name = "Statement"
+    elif key == "parent_id" and mutation.type.mot == MOT.FILE:
+        # same as above
+        if value == mutation.project_version_id:
+            type_name = "ProjectVersion"
+        else:
+            type_name = "File"
     else:
-        type_name = _SCOPE_TO_TYPE_NAME[scope]
+        type_name = _SCOPE_TO_TYPE_NAME[mutation.type.mot]
     value = GlobalID(type_name, str(value))
     return value

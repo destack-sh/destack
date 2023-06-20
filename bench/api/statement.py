@@ -249,7 +249,11 @@ class StatementMutation:
     @tracked_db_mutation(MMT.CREATE_STATEMENT, atomic=True)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
-        parent_statement = models.Statement.objects.filter(id=input.parent_id.node_id).first()
+        parent_statement = (
+            models.Statement.objects.filter(id=input.parent_id.node_id).first()
+            if input.parent_id
+            else None
+        )
         statement = models.Statement(
             id=(input.id.node_id if input.id else None),
             project_version=file.project_version,
@@ -319,7 +323,11 @@ class StatementMutation:
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
-        parent_statement = models.Statement.objects.filter(id=input.parent_id.node_id).first()
+        parent_statement = (
+            models.Statement.objects.filter(id=input.parent_id.node_id).first()
+            if input.parent_id
+            else None
+        )
         statement.parent_statement = parent_statement
         # :CircularAncestry
         # TODO @Robustness:: check for circular ancestry via parent_id on move
@@ -377,12 +385,17 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         statements = models.Statement.objects.filter(id__in=statement_ids)
+        statements_parents_by_id = {
+            s.id: s
+            for s in models.Statement.objects.filter(
+                id__in=[UUID(i.node_id) for i in input.parent_ids if i is not None]
+            )
+        }
         file_id = UUID(input.file_id.node_id)
         for i, statement in enumerate(statements):
             statement.file_id = file_id
-            statement.parent_statement_id = (
-                UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
-            )
+            parent_id = UUID(input.parent_ids[i].node_id) if input.parent_ids[i] else None
+            statement.parent_statement = statements_parents_by_id.get(parent_id)
             statement.order_key = input.order_keys[i]
             statement.revision = F("revision") + 1
         models.Statement.objects.bulk_update(
