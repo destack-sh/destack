@@ -350,8 +350,8 @@ type File implements Node {
   projectVersion: ProjectVersion!
   name: String!
   directory: Boolean!
-  parent: File
   files: [File!]!
+  parent: FileProjectVersion!
   statements(filters: StatementFilter): [Statement!]!
 }
 
@@ -394,6 +394,8 @@ input FileMoveInput {
 }
 
 union FileOperationInfo = File | OperationInfo
+
+union FileProjectVersion = File | ProjectVersion
 
 input FileRenameInput {
   id: GlobalID!
@@ -1477,10 +1479,10 @@ type Statement implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
+  parent: StatementFile!
   type: StatementType!
   name: String
   commented: Boolean!
-  parent: Statement
   children: [Statement!]!
   descendants: [Statement!]!
   orderKey: String!
@@ -1560,6 +1562,8 @@ input StatementCreateInput {
 input StatementDeleteInput {
   id: GlobalID!
 }
+
+union StatementFile = Statement | File
 
 input StatementFilter {
   isVisible: Boolean = true

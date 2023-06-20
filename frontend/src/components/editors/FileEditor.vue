@@ -100,7 +100,6 @@ const fileState: Ref<FileState | null> = computed(() => {
 const context = provideFileState(fileState);
 
 function focusTitle() {
-  document.activeElement?.blur?.();
   titleRef.value?.focus();
   editor.value.activeStatementId = undefined;
 }

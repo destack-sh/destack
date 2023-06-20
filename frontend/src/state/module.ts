@@ -54,7 +54,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
             edges {
               node {
                 ...InterpFile
-                statements {
+                statements(filters: { isVisible: true }) {
                   ...InterpStatement
                   issues {
                     ...IssueContent
@@ -289,19 +289,20 @@ export type OrderedStatement<T extends OrderableStatement> = {
 };
 
 export function orderStatements<T extends OrderableStatement>(statements: T[]): OrderedStatement<T>[] {
+  if (statements.length == 0) return [];
   const ordered: OrderedStatement<T>[] = [];
   const statementsByParentId: Record<string, T[]> = {};
   // group by parent
   statements.forEach((statement) => {
-    if (statementsByParentId[statement.parent?.id ?? ""] != null) {
-      statementsByParentId[statement.parent?.id ?? ""].push(statement);
+    if (statementsByParentId[statement.parent.id] != null) {
+      statementsByParentId[statement.parent.id].push(statement);
     } else {
-      statementsByParentId[statement.parent?.id ?? ""] = [statement];
+      statementsByParentId[statement.parent.id] = [statement];
     }
   });
   // walk from root
-  function walkDfs(parentId: string | undefined, depth: number, ancestors: string[]) {
-    const children = statementsByParentId[parentId ?? ""];
+  function walkDfs(parentId: string, depth: number, ancestors: string[]) {
+    const children = statementsByParentId[parentId];
     if (children) {
       children.sort((a, b) => (a.orderKey > b.orderKey ? 1 : -1));
       for (const child of children) {
@@ -315,7 +316,8 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
       }
     }
   }
-  walkDfs(undefined, 0, []);
+  const fileId = statements.find((s) => s.parent.__typename == "File")?.parent.id; // assumes all statements are from the same file
+  walkDfs(fileId, 0, []);
   return ordered;
 }
 

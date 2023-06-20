@@ -64,6 +64,7 @@ export function useStatementOps() {
         $name: String
         $lang: String
         $code: String
+        $text: String
         $description: String
         $value: JSON
         $rootTypeTag: TypeTag
@@ -81,6 +82,7 @@ export function useStatementOps() {
             name: $name
             lang: $lang
             code: $code
+            text: $text
             description: $description
             value: $value
             rootTypeTag: $rootTypeTag
@@ -104,11 +106,17 @@ export function useStatementOps() {
               id
             }
             parent {
-              id
+              ... on Statement {
+                id
+              }
+              ... on File {
+                id
+              }
             }
             # symbol contents
             lang
             code
+            text
             description
             value
             referenceProjectVersion {
@@ -142,6 +150,7 @@ export function useStatementOps() {
         name: string | null;
         lang: string | null;
         code: string | null;
+        text: string | null;
         description: string | null;
         value: any | null;
         rootTypeTag: TypeTag | null;
@@ -157,7 +166,10 @@ export function useStatementOps() {
               __typename: "File",
               id: vars.fileId,
             },
-            parent: vars.parentId == null ? null : { __typename: "Statement", id: vars.parentId },
+            parent:
+              vars.parentId == null
+                ? { __typename: "File", id: vars.parentId }
+                : { __typename: "Statement", id: vars.parentId },
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
             // default new fields (all! fields in StatementContent fragment)
@@ -170,6 +182,7 @@ export function useStatementOps() {
             description: vars.description,
             value: vars.value,
             code: vars.code,
+            text: vars.text,
             referenceProjectVersion: null,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
@@ -225,6 +238,7 @@ export function useStatementOps() {
           name: null,
           lang: null,
           code: null,
+          text: null,
           value: null,
           description: null,
           rootTypeTag: null,
@@ -269,6 +283,7 @@ export function useStatementOps() {
           name: input.name ?? null,
           lang: null,
           code: null,
+          text: null,
           value: null,
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
@@ -431,7 +446,12 @@ export function useStatementOps() {
               id
             }
             parent {
-              id
+              ... on Statement {
+                id
+              }
+              ... on File {
+                id
+              }
             }
           }
           ...OperationInfoContent
@@ -449,7 +469,9 @@ export function useStatementOps() {
               id: vars.fileId,
             },
             revision: PENDING_REVISION,
-            parent: vars.parentId ? { id: vars.parentId } : null,
+            parent: vars.parentId
+              ? { __typename: "Statement", id: vars.parentId }
+              : { __typename: "File", id: vars.fileId },
           },
         } as MoveStatementMutation),
     }
@@ -473,7 +495,12 @@ export function useStatementOps() {
                 id
               }
               parent {
-                id
+                ... on Statement {
+                  id
+                }
+                ... on File {
+                  id
+                }
               }
             }
           }
@@ -499,7 +526,9 @@ export function useStatementOps() {
                 id: vars.fileId,
               },
               revision: PENDING_REVISION,
-              parent: vars.parentIds[i] ? { id: vars.parentIds[i] } : null,
+              parent: vars.parentIds[i]
+                ? { __typename: "Statement", id: vars.parentIds[i] }
+                : { __typename: "File", id: vars.fileId },
             })),
           },
         } as BatchMoveStatementMutation),

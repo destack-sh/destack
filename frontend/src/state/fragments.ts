@@ -71,7 +71,12 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     revision
     name
     parent {
-      id
+      ... on File {
+        id
+      }
+      ... on ProjectVersion {
+        id
+      }
     }
     createdAt
     updatedAt
@@ -96,7 +101,12 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     commented
     orderKey
     parent {
-      id
+      ... on File {
+        id
+      }
+      ... on Statement {
+        id
+      }
     }
   }
 `);
@@ -136,9 +146,15 @@ export const StatementContentType = graphql(/* GraphQL */ `
     modifier
     orderKey
     parent {
-      id
+      ... on Statement {
+        id
+      }
+      ... on File {
+        id
+      }
     }
     # symbol contents
+    text
     lang
     code
     description
@@ -197,7 +213,12 @@ export const InterpFileType = graphql(/* GraphQL */ `
     name
     directory
     parent {
-      id
+      ... on File {
+        id
+      }
+      ... on ProjectVersion {
+        id
+      }
     }
     createdAt
     updatedAt
@@ -219,7 +240,12 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       id
     }
     parent {
-      id
+      ... on Statement {
+        id
+      }
+      ... on File {
+        id
+      }
     }
     orderKey
     referenceProjectVersion {

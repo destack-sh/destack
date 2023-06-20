@@ -4,7 +4,6 @@ import ModifierCell from "@/components/statements/ModifierCell.vue";
 import ProtoStatementTypeCell from "@/components/statements/ProtoStatementTypeCell.vue";
 import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { StatementType } from "@/gql/graphql";
-import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { ref, type Ref } from "vue";
 
@@ -14,9 +13,6 @@ const context = useStatementContext();
 
 const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof ProtoStatementTypeCell> | null> = ref(null);
-
-// symbols available for reference
-const module = useCurrentModule();
 
 function deleteModifierOrAbove() {
   if (context.statement.value.modifier != null) {

@@ -4,7 +4,7 @@ import os
 import uuid
 from datetime import datetime
 from itertools import groupby
-from typing import TYPE_CHECKING, Optional, TypedDict
+from typing import TYPE_CHECKING, Optional, TypedDict, Union
 from uuid import UUID, uuid4
 
 import pytz
@@ -721,6 +721,13 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.parent_file_id or self.project_version_id
+
+    @property
+    def parent(self) -> Union["File", "ProjectVersion"]:
+        if self.parent_file_id:
+            return self.parent_file
+        else:
+            return self.project_version
 
     def is_root(self) -> bool:
         return self.parent_file is None

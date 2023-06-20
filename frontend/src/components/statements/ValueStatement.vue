@@ -94,7 +94,9 @@ defineExpose({
 <template>
   <div>
     <div class="flex flex-row justify-between">
-      <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+      <div>
+        <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+      </div>
       <div
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
         :class="context.focused.value ? '' : 'opacity-0'"

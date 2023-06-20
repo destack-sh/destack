@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 import pytz
@@ -65,10 +65,10 @@ class Field(CrudModel, Revisioned, gql.Node):
 class Statement(CrudModel, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
+    parent: Union["Statement", Annotated["File", lazy(".project")]]
     type: StatementType
     name: auto
     commented: auto
-    parent: Optional["Statement"] = gql.django.field(field_name="parent_statement")
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
@@ -249,13 +249,14 @@ class StatementMutation:
     @tracked_db_mutation(MMT.CREATE_STATEMENT, atomic=True)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
+        parent_statement = models.Statement.objects.filter(id=input.parent_id.node_id).first()
         statement = models.Statement(
             id=(input.id.node_id if input.id else None),
             project_version=file.project_version,
             file=file,
             type=input.type,
             name=input.name,
-            parent_statement_id=input.parent_id.node_id if input.parent_id else None,
+            parent_statement=parent_statement,
             order_key=input.order_key,
             commented=input.commented,
             modifier=input.modifier,
@@ -272,24 +273,7 @@ class StatementMutation:
 
     @tracked_db_mutation(MMT.UPDATE_STATEMENT, atomic=True)
     def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.type = input.type
-        statement.name = input.name
-        statement.file_id = input.file_id.node_id
-        statement.parent_statement_id = input.parent_id.node_id if input.parent_id else None
-        statement.order_key = input.order_key
-        statement.revision = input.revision
-        statement.commented = input.commented
-        statement.modifier = input.modifier
-        statement.root_type_tag = input.root_type_tag
-        statement.root_type_flags = input.root_type_flags
-        statement.description = input.description
-        statement.lang = input.lang
-        statement.code = input.code
-        statement.text = input.text
-        statement.value = input.value
-        statement.create_symbol_if_needed()
-        return statement
+        raise NotImplementedError("only for sync")
 
     @tracked_db_mutation(MMT.MORPH_STATEMENT, atomic=True)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
@@ -323,9 +307,7 @@ class StatementMutation:
 
     @tracked_db_mutation(MMT.DELETE_STATEMENT)
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.delete()
-        return statement
+        raise NotImplementedError("only for sync")
 
     @tracked_db_mutation(MMT.COMMENT_STATEMENT, atomic=True)
     def comment_statement(self, input: StatementCommentedInput) -> Statement | OperationInfo:
@@ -337,12 +319,13 @@ class StatementMutation:
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
-        statement.parent_statement_id = UUID(input.parent_id.node_id) if input.parent_id else None
+        parent_statement = models.Statement.objects.filter(id=input.parent_id.node_id).first()
+        statement.parent_statement = parent_statement
         # :CircularAncestry
         # TODO @Robustness:: check for circular ancestry via parent_id on move
         if statement.parent_id == statement.id:
             raise ValidationError("circular ancestry")
-        # TODO @Robustness: return a different order key if conflict on move/insert
+        # TODO @Robustness: return a different order key if conflict on move/insert?
         statement.order_key = input.order_key
         return statement
 
@@ -403,7 +386,7 @@ class StatementMutation:
             statement.order_key = input.order_keys[i]
             statement.revision = F("revision") + 1
         models.Statement.objects.bulk_update(
-            statements, ["file_id", "parent_id", "order_key", "revision"]
+            statements, ["file_id", "parent_statement_id", "order_key", "revision"]
         )
         # refresh revisions from DB
         new_revisions = models.Statement.objects.filter(id__in=statement_ids).values_list(

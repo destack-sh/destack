@@ -209,8 +209,8 @@ class File(CrudModel, Revisioned, gql.Node):
     project_version: ProjectVersion
     name: auto
     directory: auto
-    parent: Optional["File"] = gql.django.field(field_name="parent_file")
     files: list["File"]  # if folder
+    parent: Union["File", "ProjectVersion"]
     # TODO @Cleanup: File.statements should be a connection (but strawberry errors)
     #  There is an error with double-prefetching type_nodes when using a connection.
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(

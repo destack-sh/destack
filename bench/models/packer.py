@@ -361,7 +361,7 @@ class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement])
 
 
 @node_packer(MOT.STATEMENT, wire.TextData, models.Statement, StatementType.TEXT)
-class CommentPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
+class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.TextData:
         statement_data = super().pack(statement)
         return wire.TextData(
