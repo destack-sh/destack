@@ -82,7 +82,7 @@ class ModuleDB:
         self._cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, UUID]] = {}
 
     async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
-        # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interptreter fetch
+        # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
         if ref in self._cached_modules:
             return self._cached_modules[ref]
         if isinstance(ref, UUID):
@@ -191,7 +191,7 @@ class LanguageServer:
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
-        module, project_id = await self.module_db.get_module(msg.p.module_id)
+        module, project_id = await self.module_db.get_module(msg.p.ref)
         await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
 
     @message_handler

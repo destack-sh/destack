@@ -88,7 +88,7 @@ defineExpose({
     <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
-      class="mx-0.5 font-extrabold"
+      class="text-md mx-0.5"
       :class="altKeyState ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : ''"
       @click="altKeyState && openInEditor()"
       v-model="name"

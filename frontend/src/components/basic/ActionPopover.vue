@@ -134,7 +134,7 @@ defineExpose({
             v-for="(action, i) in filteredActions"
             :key="action.label"
             :value="action"
-            :disabled="action.disabled"
+            :disabled="action.disabled || action.active"
             v-slot="{ active }"
             @click.prevent.stop="doActionIfOpen(action), close()"
           >
@@ -142,7 +142,7 @@ defineExpose({
               class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"
               :class="[
                 active ? 'bg-orange-100' : '',
-                action.disabled ? 'opacity-50' : '',
+                action.disabled || action.active ? 'opacity-50' : '',
                 i > 0 && filteredActions[i - 1].groupId != action.groupId
                   ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-2'
                   : '',

@@ -26,7 +26,7 @@ from bench.utils.utils import DotDict
 logger = structlog.get_logger(__name__)
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.common.interp import InterpModule
+    pass
 
 
 class XKind(enum.StrEnum):
@@ -176,23 +176,6 @@ class DynamicXBlock:
     handler: XInputHandler | XOutputHandler
 
 
-@dataclass(repr=False)
-class Build(Symbol):
-    models: list[Model] = field(default_factory=list)
-
-
-def get_default_builds(interp: InterpModule) -> list[Build]:
-    return [
-        Build(
-            name="balanced",
-            models=[
-                interp.module.lookup_symbol("openai.std.text.gpt3"),
-                interp.module.lookup_symbol("anthropic.std.text.claude-instant"),
-            ],
-        ),
-    ]
-
-
 def build_task_implementation(task: Task, model: Model, session: Session) -> XPrompt:
     """Build the implementation for a task using some model."""
     # TODO @Broken: consider context length in X prompt planning/building
@@ -205,11 +188,7 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
     x = XPrompt(task=task, model=model, modality=Modality.GenerateText, session=session)
     x.emit(
         XSystem(),
-        XTypeSchema(
-            type=task.type,
-            type_label="Output",
-            recursive=True,
-        ),
+        XTypeSchema(type=task.type, type_label="Output", recursive=True),
     )
     if expectations:
         x.emit(XExpectations(task_label=task.name, expectations=expectations))

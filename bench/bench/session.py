@@ -58,7 +58,7 @@ from bench.msg.messages import (
 from bench.utils.utils import to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.bench.build import Build, XPrompt
+    from bench.bench.build import XPrompt
     from bench.bench.inference import ModelInference
 
 logger = structlog.get_logger(__name__)
@@ -90,7 +90,7 @@ class Session:
         module: Module,
         ctx: SessionContext | None = None,
         instances: list["ModuleNode"] = None,
-        builds: dict[str, "Build"] = None,
+        default_models: list["Model"] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
         inference_retries: int = 5,
@@ -104,7 +104,10 @@ class Session:
         self.ctx = ctx
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {i.id: i for i in instances} if instances else {}
-        self.builds: dict[str, Build] = builds or {}
+        self.default_models = default_models or [
+            module.lookup_symbol("openai.std.text.gpt3"),
+            module.lookup_symbol("anthropic.std.text.claude-instant"),
+        ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
@@ -142,7 +145,7 @@ class Session:
                 elif isinstance(obj, Statement):
                     self.tracer.statement_create(obj)
                     if isinstance(obj, Symbol):
-                        # it feels like this should be done in some tracer?
+                        # it feels like this should be done in some tracer? also (re?)-index?
                         self.module.symbols_by_id[obj.id] = obj
         for obj in objs:
             self.instances[obj.id] = obj
@@ -153,11 +156,11 @@ class Session:
                 del self.instances[obj.id]
                 # not doing anything yet?
 
-    def check_can(self, op: ModuleOp, thing: File | Statement | Symbol):
+    def check_can(self, op: ModuleOp, thing: File | Statement):
         if not self.can(op, thing):
             raise RuntimeError(f"cannot {op} {thing} in {self}")
 
-    def can(self, op: ModuleOp, thing: File | Statement | Symbol) -> bool:
+    def can(self, op: ModuleOp, thing: File | Statement) -> bool:
         if self.mode == SessionMode.READ_ONLY:
             return op in (ModuleOp.READ, ModuleOp.SEARCH)
         elif self.mode == SessionMode.WRITE_GLOBAL:
@@ -233,20 +236,16 @@ class SessionAccess:
         self.session = session
         self._cached_implementations: dict[tuple[UUID, UUID], "XPrompt"] = {}
 
-    def get_implementations(
-        self, task: "Task", build: str = None, model: Model | str = None
-    ) -> list["XPrompt"]:
+    def get_implementations(self, task: "Task", model: Model | str = None) -> list["XPrompt"]:
         """Gets or builds an implementation for a task."""
         from bench.bench.build import build_task_implementation
 
-        build = build or "balanced"
         if model is not None:
             if isinstance(model, str):
                 model = self.session.module.find_symbol(model, symbol_t=Model)
             models = [model]
         else:
-            build = self.session.builds[build]
-            models = build.models
+            models = self.session.default_models
 
         implementations = []
         for model in models:

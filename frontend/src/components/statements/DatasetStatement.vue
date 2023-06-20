@@ -660,12 +660,12 @@ defineExpose({
             width: columnWidths[columnWidths.length - 1] + 'px',
           }"
         >
-          <div class="flex w-full flex-row items-center justify-center gap-2 whitespace-nowrap p-1">
+          <div class="flex h-full w-full flex-row items-center whitespace-nowrap">
             <!-- Add column -->
             <button
               v-if="!context.readonly.value"
               tabindex="-1"
-              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+              class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click="createFieldRef?.show()"
             >
               <PlusIcon class="h-4 w-4" />
@@ -673,7 +673,7 @@ defineExpose({
             <!-- Properties -->
             <button
               tabindex="-1"
-              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+              class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click="true /* TODO @UX: do something on database properties column button */"
             >
               <EllipsisHorizontalIcon class="h-4 w-4" />
