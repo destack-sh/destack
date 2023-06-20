@@ -3,7 +3,7 @@ import uuid
 from collections import defaultdict, deque
 from enum import Enum
 from functools import cache
-from itertools import chain
+from itertools import chain, groupby
 from typing import Any, Collection, Deque, Iterator, Optional, Type, TypeVar
 
 from django.core.validators import RegexValidator
@@ -151,6 +151,14 @@ def walk_children_bfs(objects: list[T], parent_attr: str) -> Iterator[T]:
     for batch in walk_children_bfs_batched(objects, parent_attr):
         for obj in batch:
             yield obj
+
+
+def create_models_bfs(layers: Iterator[Collection[ModuleNode]], exclude: set[uuid.UUID] = None):
+    for node_batch in layers:
+        if exclude and any(node.id in exclude for node in node_batch):
+            node_batch = [node for node in node_batch if node.id not in exclude]
+        for model_class, nodes_of_cls in groupby(node_batch, type):
+            model_class.objects.bulk_create(nodes_of_cls)
 
 
 @cache

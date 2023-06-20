@@ -235,6 +235,10 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Re-assigns the node's children"""
         pass
 
+    def patch(self, node: NodeT, references: dict[UUID, UUID]) -> None:
+        """Patches the node's non-parent references (in-tree, in-place)"""
+        pass
+
 
 class PackContext(abc.ABC):
     """Tree visitor for packing"""
@@ -342,6 +346,23 @@ def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT]) -> NodeT:
     """Unpack a flat module node into a language node"""
     packer = _node_packers_by_data[type(node)]
     return packer.unpack(node, parent)
+
+
+def patch_nodes(nodes: list[NodeDataT], references: dict[UUID, UUID]) -> list[NodeDataT]:
+    """Patch a list of nodes with out-of-tree-ancestry references"""
+    patched = []
+    for node in nodes:
+        packer = _node_packers_by_data[type(node)]
+        packer.patch(node, references)
+        patched.append(node)
+    return patched
+
+
+def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
+    """Patch a flat node with out-of-tree-ancestry references"""
+    packer = _node_packers_by_data[type(node)]
+    packer.patch(node, references)
+    return node
 
 
 @dataclass
@@ -674,6 +695,10 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
             reference=symbol.reference_id,
         )
 
+    def patch(self, symbol: ExpectationData, references: dict[UUID, UUID]):
+        super().patch(symbol, references)
+        symbol.reference_id = references.get(symbol.reference_id, symbol.reference_id)
+
 
 @dataclass
 class CodeData(SymbolData):
@@ -929,6 +954,9 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             metadata=field.metadata,
         )
 
+    def patch(self, field: FieldData, references: dict[UUID, UUID]) -> None:
+        field.reference_id = references.get(field.reference_id, field.reference_id)
+
 
 @dataclass
 class DatasetViewData(NodeData, Ordered, Revisioned):
@@ -965,6 +993,9 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
             sort=view.sort,
             reference=view.reference_id,
         )
+
+    def patch(self, view: DatasetViewData, references: dict[UUID, UUID]) -> None:
+        view.reference_id = references.get(view.reference_id, view.reference_id)
 
 
 @dataclass

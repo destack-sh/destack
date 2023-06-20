@@ -472,7 +472,7 @@ export const useBenchState = defineStore("bench", {
       this.group(editor.groupId).activeEditorId = editor.id;
     },
 
-    focusFile(file: FileHeader, group?: EditorGroup): Editor {
+    focusFile(file: { id: string; name: string }, group?: EditorGroup): Editor {
       const editor = this.openFile(file, { group });
       this.focusEditor(editor);
       return editor;

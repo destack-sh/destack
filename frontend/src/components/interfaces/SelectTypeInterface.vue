@@ -287,7 +287,7 @@ defineExpose({
             <TypePreview :type="node" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ node.reference == null ? "(builtin)" : module.fileOf(node.reference)?.path }}
+              {{ node.reference == null ? "(builtin)" : module.pathOf(node.reference.file) }}
             </span>
           </div>
         </li>

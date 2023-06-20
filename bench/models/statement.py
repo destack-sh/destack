@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from itertools import groupby
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
@@ -21,6 +20,7 @@ from bench.models.utils import (
     ModuleNode,
     Revisioned,
     UUIDModel,
+    create_models_bfs,
     get_choices,
 )
 from bench.utils.uuidt import MAX_NAME_LENGTH
@@ -101,7 +101,7 @@ class StatementManager(models.Manager["Statement"]):
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
 
-    def duplicate_datasets(
+    def duplicate_datasets_inplace(
         self, source: ProjectVersion, target: ProjectVersion, datasets: list["Dataset"]
     ) -> None:
         """Duplicates the given datasets in-place to the target version"""
@@ -123,6 +123,7 @@ class StatementManager(models.Manager["Statement"]):
         target_ids: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
+        copy_revisions: bool = True,
     ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
@@ -130,13 +131,13 @@ class StatementManager(models.Manager["Statement"]):
 
         # pack relevant nodes
         target_ids = {**(target_ids or {}), source.id: target.id}
-        packed, mappings = ProjectVersion.objects.pack_copy(
+        packed, mappings, target_ids = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=list(statements),
             target_ids=target_ids,
-            copy_revisions=True,
-            kind=kind or RefMappingKind.PASTE,
+            copy_revisions=copy_revisions,
+            kind=kind,
         )
         for node in packed.nodes.values():  # patch parent and order keys
             if node.id in target_parent_ids:
@@ -152,22 +153,17 @@ class StatementManager(models.Manager["Statement"]):
             *self.filter(id__in=target_parent_ids.values()),
             *File.objects.filter(id__in=target_parent_ids.values()),
         ]
-
         # unpack and save
         unpacked = packer.unpack_nodes_tree(
             packed.nodes_list(),
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
-        for node_batch in unpacked.walk_bfs_batched():
-            for model_class, nodes_of_cls in groupby(node_batch, type):
-                model_class.objects.bulk_create(nodes_of_cls)
-
+        create_models_bfs(unpacked.walk_bfs_batched())
         # duplicate versioned datasets
         versioned_datasets = [
             n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
         ]
-        self.duplicate_datasets(source, target, versioned_datasets)
-
+        self.duplicate_datasets_inplace(source, target, versioned_datasets)
         # save mappings
         RefMapping.objects.bulk_create(mappings)
 
