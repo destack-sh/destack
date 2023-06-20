@@ -167,7 +167,7 @@ export function useStatementOps() {
               id: vars.fileId,
             },
             parent:
-              vars.parentId == null
+              vars.parentId == null || atob(vars.parentId).startsWith("File:")
                 ? { __typename: "File", id: vars.parentId }
                 : { __typename: "Statement", id: vars.parentId },
             revision: PENDING_REVISION,
