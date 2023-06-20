@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from itertools import groupby
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import pytz
@@ -26,7 +26,7 @@ from bench.models.utils import (
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import Dataset, ProjectVersion, RefMappingKind
+    from bench.models import Dataset, File, ProjectVersion, RefMappingKind
 
 logger = structlog.get_logger(__name__)
 
@@ -264,6 +264,12 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.parent_statement_id or self.file_id
+
+    def parent(self) -> Union["Statement", "File"]:
+        if self.parent_statement_id is not None:
+            return self.parent_statement
+        else:
+            return self.file
 
     @property
     def path(self) -> str:

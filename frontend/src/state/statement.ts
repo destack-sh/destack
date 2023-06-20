@@ -102,14 +102,16 @@ export function useStatementContext() {
   }
 
   async function morphToComment(text?: string) {
-    const updateCode = ops.symbol.updateSymbolCode(null, statement.value.id, statement.value.code ?? "", text ?? "");
+    const tx = openTransaction();
+    const updateText = ops.symbol.updateStatementText(tx, statement.value.id, statement.value.text ?? "", text ?? "");
     const morphType = ops.statement.morph(
-      null,
+      tx,
       statement.value.id,
       { type: statement.value.type },
       { type: StatementType.Text }
     );
-    await Promise.all([morphType, updateCode]);
+    closeTransaction(tx);
+    await Promise.all([morphType, updateText]);
   }
 
   async function morpthToSymbol(config: {
@@ -213,8 +215,19 @@ export function useStatementContext() {
     });
   }
 
-  // :StatementCodeTextReuse
-  const syncText = syncCode;
+  function syncText(content: Ref<string>, editing: Ref<boolean | undefined>) {
+    return syncProperty({
+      value: content,
+      editing,
+      read: () => (content.value = statement.value?.text ?? ""),
+      write: () => {
+        ops.symbol.updateStatementText(null, statement.value.id, statement.value.text ?? "", content.value);
+      },
+      debounceMs: 1000,
+      debounceMaxWait: 3000,
+      enabled: computed(() => !isDeleted.value),
+    });
+  }
 
   function syncDescription(content: Ref<string>, editing: Ref<boolean | undefined>) {
     return syncProperty({

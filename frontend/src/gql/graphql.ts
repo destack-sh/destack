@@ -362,7 +362,7 @@ export type File = Node & {
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;
   name: Scalars["String"];
-  parent?: Maybe<File>;
+  parent: FileProjectVersion;
   projectVersion: ProjectVersion;
   revision: Scalars["Int"];
   statements: Array<Statement>;
@@ -411,6 +411,8 @@ export type FileMoveInput = {
 };
 
 export type FileOperationInfo = File | OperationInfo;
+
+export type FileProjectVersion = File | ProjectVersion;
 
 export type FileRenameInput = {
   id: Scalars["GlobalID"];
@@ -1773,7 +1775,7 @@ export type Statement = Node & {
   modifier?: Maybe<Scalars["String"]>;
   name?: Maybe<Scalars["String"]>;
   orderKey: Scalars["String"];
-  parent?: Maybe<Statement>;
+  parent: StatementFile;
   projectVersion: ProjectVersion;
   referenceProjectVersion?: Maybe<ProjectVersion>;
   resolvedFields?: Maybe<Array<Field>>;
@@ -1856,6 +1858,8 @@ export type StatementCreateInput = {
 export type StatementDeleteInput = {
   id: Scalars["GlobalID"];
 };
+
+export type StatementFile = File | Statement;
 
 export type StatementFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
@@ -3005,7 +3009,7 @@ export type FileHeaderFragment = {
   updatedAt: any;
   deletedAt?: any | null;
   directory: boolean;
-  parent?: { __typename?: "File"; id: any } | null;
+  parent: { __typename?: "File"; id: any } | { __typename?: "ProjectVersion"; id: any };
   projectVersion: { __typename?: "ProjectVersion"; id: any };
 } & { " $fragmentName"?: "FileHeaderFragment" };
 
@@ -3021,7 +3025,7 @@ export type StatementHeaderFragment = {
   name?: string | null;
   commented: boolean;
   orderKey: string;
-  parent?: { __typename?: "Statement"; id: any } | null;
+  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
 export type FieldContentFragment = {
@@ -3054,13 +3058,14 @@ export type StatementContentFragment = {
   commented: boolean;
   modifier?: string | null;
   orderKey: string;
+  text?: string | null;
   lang?: string | null;
   code?: string | null;
   description?: string | null;
   value?: any | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
-  parent?: { __typename?: "Statement"; id: any } | null;
+  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
@@ -3098,7 +3103,7 @@ export type InterpFileFragment = {
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
-  parent?: { __typename?: "File"; id: any } | null;
+  parent: { __typename?: "File"; id: any } | { __typename?: "ProjectVersion"; id: any };
 } & { " $fragmentName"?: "InterpFileFragment" };
 
 export type InterpStatementFragment = {
@@ -3115,7 +3120,7 @@ export type InterpStatementFragment = {
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
   file: { __typename?: "File"; id: any };
-  parent?: { __typename?: "Statement"; id: any } | null;
+  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
@@ -3314,7 +3319,7 @@ export type CreateFileMutation = {
         updatedAt: any;
         deletedAt?: any | null;
         directory: boolean;
-        parent?: { __typename?: "File"; id: any } | null;
+        parent: { __typename?: "File"; id: any } | { __typename?: "ProjectVersion"; id: any };
         projectVersion: { __typename?: "ProjectVersion"; id: any };
         statements: Array<{ __typename?: "Statement"; id: any }>;
       }
@@ -3669,6 +3674,7 @@ export type CreateStatementMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
+  text?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   value?: InputMaybe<Scalars["JSON"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
@@ -3696,12 +3702,13 @@ export type CreateStatementMutation = {
         orderKey: string;
         lang?: string | null;
         code?: string | null;
+        text?: string | null;
         description?: string | null;
         value?: any | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
         file: { __typename?: "File"; id: any };
-        parent?: { __typename?: "Statement"; id: any } | null;
+        parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
         referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
@@ -3769,7 +3776,7 @@ export type MoveStatementMutation = {
         orderKey: string;
         revision: number;
         file: { __typename?: "File"; id: any };
-        parent?: { __typename?: "Statement"; id: any } | null;
+        parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
       };
 };
 
@@ -3794,7 +3801,7 @@ export type BatchMoveStatementMutation = {
           orderKey: string;
           revision: number;
           file: { __typename?: "File"; id: any };
-          parent?: { __typename?: "Statement"; id: any } | null;
+          parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
         }>;
       };
 };
@@ -4765,7 +4772,24 @@ export const FileHeaderFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -4810,7 +4834,24 @@ export const StatementHeaderFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
         ],
@@ -4915,9 +4956,27 @@ export const StatementContentFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "lang" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
@@ -5028,7 +5087,24 @@ export const InterpFileFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -5070,7 +5146,24 @@ export const InterpStatementFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
@@ -7863,6 +7956,22 @@ export const ModuleDocument = {
                                   {
                                     kind: "Field",
                                     name: { kind: "Name", value: "statements" },
+                                    arguments: [
+                                      {
+                                        kind: "Argument",
+                                        name: { kind: "Name", value: "filters" },
+                                        value: {
+                                          kind: "ObjectValue",
+                                          fields: [
+                                            {
+                                              kind: "ObjectField",
+                                              name: { kind: "Name", value: "isVisible" },
+                                              value: { kind: "BooleanValue", value: true },
+                                            },
+                                          ],
+                                        },
+                                      },
+                                    ],
                                     selectionSet: {
                                       kind: "SelectionSet",
                                       selections: [
@@ -8452,7 +8561,24 @@ export const CreateFileDocument = {
                         name: { kind: "Name", value: "parent" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
                         },
                       },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -9961,6 +10087,11 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "text" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10045,6 +10176,11 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "text" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "text" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "description" },
                       value: { kind: "Variable", name: { kind: "Name", value: "description" } },
                     },
@@ -10104,11 +10240,29 @@ export const CreateStatementDocument = {
                         name: { kind: "Name", value: "parent" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
                         },
                       },
                       { kind: "Field", name: { kind: "Name", value: "lang" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
+                      { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       {
@@ -10451,7 +10605,24 @@ export const MoveStatementDocument = {
                         name: { kind: "Name", value: "parent" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
                         },
                       },
                     ],
@@ -10579,7 +10750,24 @@ export const BatchMoveStatementDocument = {
                               name: { kind: "Name", value: "parent" },
                               selectionSet: {
                                 kind: "SelectionSet",
-                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                selections: [
+                                  {
+                                    kind: "InlineFragment",
+                                    typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                    },
+                                  },
+                                  {
+                                    kind: "InlineFragment",
+                                    typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                                    },
+                                  },
+                                ],
                               },
                             },
                           ],

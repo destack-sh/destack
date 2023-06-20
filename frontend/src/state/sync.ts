@@ -146,6 +146,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       projectVersionId,
     }
   );
+  // TODO @Performance: module change object should not be cached
   // enable/disable subscription when projectVersionId changes
   startStopIf(
     computed(() => projectVersionId.value != null),

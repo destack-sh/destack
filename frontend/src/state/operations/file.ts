@@ -45,7 +45,12 @@ export function useFileOps() {
             revision
             name
             parent {
-              id
+              ... on File {
+                id
+              }
+              ... on ProjectVersion {
+                id
+              }
             }
             createdAt
             updatedAt

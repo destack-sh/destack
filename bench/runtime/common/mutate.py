@@ -91,8 +91,6 @@ def map_mutation_from_api(
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
 
-    # TODO @Broken: remap restore API mutations for previously offline clients
-    #  (restore is insufficient if you don't have the original file?/statement/etc.)
     if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT) or (
         type == MMT.COMMENT_STATEMENT and not thing.commented
     ):
@@ -131,9 +129,8 @@ def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutat
     since all internal mutations are also valid API mutations (it's a subset).
 
     The main challenge is reconstructing an "input" that is exactly the input that
-    would have caused the same internal mutation. Note that for some mutations, this
-    is a theoretical equivalence, since e.g., hard deletes aren't used in the client.
-    (but still exposed for the purpose of internal synchronisation with this right here)
+    would have caused that mutation. For some mutations, this is theoretical,
+    since e.g., hard deletes aren't used in the UX (only for internal synchronisation).
     """
     if not mutation.type.simple:
         raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
