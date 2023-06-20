@@ -8,6 +8,7 @@ import structlog
 
 from bench import bench as language
 from bench.bench import Module, wire
+from bench.bench.session import Session
 from bench.bench.wire import ModuleReference
 from bench.utils.func import wrap_task
 
@@ -49,7 +50,7 @@ class LanguageInterpreter:
             *[self.interp_requirement_rec(req) for req in requirements]
         )
         interp = await asyncio.get_event_loop().run_in_executor(
-            None, partial(interp_module, source, [m.module for m in dependencies])
+            None, partial(interp_module, source, [m.module for m in dependencies], None)
         )
         if interp.module.errors:
             # not good, but we can still try to use the module?
@@ -67,9 +68,9 @@ class LanguageInterpreter:
         )
         return cast(list[InterpModule], dependencies)
 
-    async def interp(self, source: wire.ModuleTreeData) -> InterpModule:
+    async def interp(self, source: wire.ModuleTreeData, session: Optional[Session]) -> InterpModule:
         dependencies = await self.interp_requirements(get_requirements(source))
-        return interp_module(source, [m.module for m in dependencies])
+        return interp_module(source, [m.module for m in dependencies], session)
 
 
 DEFAULT_REQUIREMENTS = ("symbolx.std", "openai.std", "anthropic.std")
@@ -92,12 +93,15 @@ def get_requirements(source: wire.ModuleTreeData) -> set[ModuleReference]:
     return requirements_ids
 
 
-def interp_module(source: wire.ModuleTreeData, dependencies: list[Module]) -> InterpModule:
+def interp_module(
+    source: wire.ModuleTreeData, dependencies: list[Module], session: Optional[Session]
+) -> InterpModule:
     """Interprets the given module source with the given dependencies"""
     logger.debug("module.interp", module=source)
-    module = wire.unpack_module(source)
+    module = wire.unpack_module(source, session=session)
     for dependency in dependencies:
         module.add_dependency(dependency)
+    logger.debug("module.interp.index", module=module)
     module.index()
     module.interp()
     logger.debug("module.interp.done", module=module)

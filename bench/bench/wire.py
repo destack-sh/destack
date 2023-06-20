@@ -227,8 +227,8 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Packs the node itself into the wire format"""
         raise NotImplementedError
 
-    def unpack(self, node: NodeDataT, parent: Optional[NodeT]) -> NodeT:
-        """Unpacks the node itself from the wire format"""
+    def unpack(self, node: NodeDataT, parent: Optional[NodeT], session: Optional[Session]) -> NodeT:
+        """Unpacks the node itself from the wire format (plain or instrumented into session)"""
         raise NotImplementedError
 
     def unwalk(self, node: NodeT, tree: ModuleTree) -> None:
@@ -295,8 +295,8 @@ def pack_module(module: lang.Module) -> "ModuleTreeData":
     return module_tree
 
 
-def unpack_module(module: ModuleTreeData) -> lang.Module:
-    module = unpack_node(module.nodes, parent=None)
+def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> lang.Module:
+    module = unpack_node(module.nodes, parent=None, session=session)
     return module
 
 
@@ -317,7 +317,9 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
     return packed[root.id], list(packed.values())
 
 
-def unpack_node(nodes: list[NodeDataT], parent: Optional[NodeT]) -> NodeT:
+def unpack_node(
+    nodes: list[NodeDataT], parent: Optional[NodeT], session: Optional[Session]
+) -> NodeT:
     """Unpack a node and all its descendants"""
     data_tree = ModuleTree(nodes)
     unpacked_tree = ModuleTree()
@@ -326,7 +328,7 @@ def unpack_node(nodes: list[NodeDataT], parent: Optional[NodeT]) -> NodeT:
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
         node_parent = unpacked_tree.nodes[node.parent_id] if node.parent_id else parent
-        unpacked_tree.add(packer.unpack(node, node_parent))
+        unpacked_tree.add(packer.unpack(node, node_parent, session))
 
     # 'unwalk' all nodes to re-assign descendants
     for node in unpacked_tree.nodes.values():
@@ -340,22 +342,6 @@ def pack_node_flat(node: NodeT) -> NodeDataT:
     """Pack a language node into a flat module node"""
     packer = _node_packers_by_node[type(node)]
     return packer.pack(node)
-
-
-def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT]) -> NodeT:
-    """Unpack a flat module node into a language node"""
-    packer = _node_packers_by_data[type(node)]
-    return packer.unpack(node, parent)
-
-
-def patch_nodes(nodes: list[NodeDataT], references: dict[UUID, UUID]) -> list[NodeDataT]:
-    """Patch a list of nodes with out-of-tree-ancestry references"""
-    patched = []
-    for node in nodes:
-        packer = _node_packers_by_data[type(node)]
-        packer.patch(node, references)
-        patched.append(node)
-    return patched
 
 
 def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
@@ -437,7 +423,9 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
             parent_id=None,
         )
 
-    def unpack(self, module: ModuleData, parent: Optional[lang.Module]) -> lang.Module:
+    def unpack(
+        self, module: ModuleData, parent: Optional[lang.Module], session: Optional[Session]
+    ) -> lang.Module:
         return lang.Module(
             id=module.id,
             name=module.name,
@@ -478,7 +466,7 @@ class FilePacker(NodePacker[FileData, lang.File]):
             revision=file.revision,
         )
 
-    def unpack(self, file: FileData, parent: lang.Module) -> lang.File:
+    def unpack(self, file: FileData, parent: lang.Module, session: Optional[Session]) -> lang.File:
         return lang.File(
             id=file.id,
             module=parent,
@@ -486,6 +474,7 @@ class FilePacker(NodePacker[FileData, lang.File]):
             revision=file.revision,
             statements=[],
             children=[],
+            _session=session,
         )
 
     def unwalk(self, file: lang.File, tree: ModuleTree):
@@ -524,7 +513,10 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         )
 
     def unpack(
-        self, statement: StatementData, parent: lang.File | lang.Statement
+        self,
+        statement: StatementData,
+        parent: lang.File | lang.Statement,
+        session: Optional[Session],
     ) -> lang.Statement:
         cls = lang.Blank if statement.type == StatementType.BLANK else lang.Statement
         return cls(
@@ -536,6 +528,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             revision=statement.revision,
             type=statement.type,
             name=statement.name,
+            _session=session,
         )
 
     def unwalk(self, statement: lang.Statement, tree: ModuleTree):
@@ -554,8 +547,10 @@ class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
         statement_data = super().pack(symbol)
         return BlankData(**statement_data.__dict__)
 
-    def unpack(self, statement: BlankData, parent: lang.Statement | lang.File) -> lang.Blank:
-        statement = super().unpack(statement, parent)
+    def unpack(
+        self, statement: BlankData, parent: lang.Statement | lang.File, session: Optional[Session]
+    ) -> lang.Blank:
+        statement = super().unpack(statement, parent, session)
         return lang.Blank(**statement.__dict__)
 
 
@@ -572,8 +567,10 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
         statement_data = super().pack(symbol)
         return TextData(**statement_data.__dict__, text=symbol.text)
 
-    def unpack(self, symbol: TextData, parent: lang.Statement | lang.File) -> lang.Text:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: TextData, parent: lang.Statement | lang.File, session: Optional[Session]
+    ) -> lang.Text:
+        statement = super().unpack(symbol, parent, session)
         return lang.Text(**statement.__dict__, text=symbol.text)
 
 
@@ -610,8 +607,10 @@ class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
             flags=symbol.flags,
         )
 
-    def unpack(self, symbol: TypeData, parent: lang.File | lang.Statement) -> lang.Type:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: TypeData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Type:
+        statement = super().unpack(symbol, parent, session)
         return lang.Type(
             **statement.__dict__,
             description=symbol.description,
@@ -648,8 +647,10 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
             modifier=symbol.modifier,
         )
 
-    def unpack(self, symbol: TaskData, parent: lang.File | lang.Statement) -> lang.Task:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: TaskData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Task:
+        statement = super().unpack(symbol, parent, session)
         return lang.Task(
             **statement.__dict__,
             description=symbol.description,
@@ -685,9 +686,12 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
         )
 
     def unpack(
-        self, symbol: ExpectationData, parent: lang.File | lang.Statement
+        self,
+        symbol: ExpectationData,
+        parent: lang.File | lang.Statement,
+        session: Optional[Session],
     ) -> lang.Expectation:
-        statement = super().unpack(symbol, parent)
+        statement = super().unpack(symbol, parent, session)
         return lang.Expectation(
             **statement.__dict__,
             modifier=symbol.modifier,
@@ -725,8 +729,10 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
             code=symbol.code,
         )
 
-    def unpack(self, symbol: CodeData, parent: lang.File | lang.Statement) -> lang.Code:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: CodeData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Code:
+        statement = super().unpack(symbol, parent, session)
         return lang.Code(
             **statement.__dict__,
             modifier=symbol.modifier,
@@ -753,8 +759,10 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
         statement_data = super().pack(symbol)
         return ModelData(**statement_data.__dict__, external_name=symbol.external_name)
 
-    def unpack(self, symbol: ModelData, parent: lang.File | lang.Statement) -> lang.Model:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: ModelData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Model:
+        statement = super().unpack(symbol, parent, session)
         return lang.Model(**statement.__dict__, external_name=symbol.external_name)
 
 
@@ -784,9 +792,12 @@ class RequirementPacker(StatementPacker, NodePacker[RequirementData, lang.Requir
         )
 
     def unpack(
-        self, symbol: RequirementData, parent: lang.File | lang.Statement
+        self,
+        symbol: RequirementData,
+        parent: lang.File | lang.Statement,
+        session: Optional[Session],
     ) -> lang.Requirement:
-        statement = super().unpack(symbol, parent)
+        statement = super().unpack(symbol, parent, session)
         return lang.Requirement(
             **statement.__dict__,
             module_id=symbol.reference_module.id if symbol.reference_module else None,
@@ -824,8 +835,10 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
             value=symbol.value,
         )
 
-    def unpack(self, symbol: ValueData, parent: lang.File | lang.Statement) -> lang.Value:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: ValueData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Value:
+        statement = super().unpack(symbol, parent, session)
         return lang.Value(
             **statement.__dict__,
             tag=symbol.tag,
@@ -869,8 +882,10 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             backend_id=symbol.backend_id,
         )
 
-    def unpack(self, symbol: DatasetData, parent: lang.Statement) -> lang.Dataset:
-        statement = super().unpack(symbol, parent)
+    def unpack(
+        self, symbol: DatasetData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.Dataset:
+        statement = super().unpack(symbol, parent, session)
         return lang.Dataset(
             **statement.__dict__,
             modifier=symbol.modifier,
@@ -939,7 +954,9 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             metadata=field.metadata,
         )
 
-    def unpack(self, field: FieldData, parent: lang.Statement) -> lang.Field:
+    def unpack(
+        self, field: FieldData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.Field:
         return lang.Field(
             parent=parent,
             id=field.id,
@@ -952,6 +969,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             description=field.description,
             reference=field.reference_id,
             metadata=field.metadata,
+            _session=session,
         )
 
     def patch(self, field: FieldData, references: dict[UUID, UUID]) -> None:
@@ -984,7 +1002,9 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
             reference_id=view.reference.id if view.reference else None,
         )
 
-    def unpack(self, view: DatasetViewData, parent: lang.Statement) -> lang.DatasetView:
+    def unpack(
+        self, view: DatasetViewData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.DatasetView:
         return lang.DatasetView(
             id=view.id,
             name=view.name,
@@ -992,6 +1012,7 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
             query=view.query,
             sort=view.sort,
             reference=view.reference_id,
+            _session=session,
         )
 
     def patch(self, view: DatasetViewData, references: dict[UUID, UUID]) -> None:
@@ -1022,7 +1043,9 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             data=record._data,
         )
 
-    def unpack(self, record: "RecordData", parent: lang.Statement) -> lang.Record:
+    def unpack(
+        self, record: "RecordData", parent: lang.Statement, session: Optional[Session]
+    ) -> lang.Record:
         return lang.Record(
             id=record.id,
             _data=record.data,
@@ -1070,7 +1093,9 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
             message=issue.message,
         )
 
-    def unpack(self, issue: IssueData, parent: lang.Statement) -> lang.Issue:
+    def unpack(
+        self, issue: IssueData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.Issue:
         raise NotImplementedError
 
 

@@ -93,9 +93,20 @@ class HasSession(abc.ABC):
     @property
     def session(self) -> "Session":
         """Access the session, error-ing if there is none."""
-        if self._session is None:
-            raise RuntimeError(f"no active session for {self}")
-        return self._session
+
+        if self._session is not None:
+            return self._session
+        from bench.bench.session import active_session
+
+        session = active_session.get()
+        if session is not None:
+            return session
+        raise RuntimeError(f"no active session for {self}")
+
+    @session.setter
+    def session(self, session: Optional["Session"]):
+        """Set the session."""
+        self._session = session
 
     def __post_init__(self):
         if self._session is None:
@@ -103,7 +114,6 @@ class HasSession(abc.ABC):
 
             self._session = active_session.get()
             if self._session is not None:
-                # we pass in session on instantiate, so this must be new
                 self._session.add(self, new=True)
         else:
             self._session.add(self, new=False)
@@ -366,7 +376,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
 @node
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
-    """A parsed but not interpreted statement in Bench source."""
+    """A Bench statement."""
 
     file: File | None = None
     parent: Statement | File = None
@@ -558,19 +568,19 @@ class TypeBase(abc.ABC):
             if child.name == item or child.ident == item or child.key == item
         )
 
-    def walk(self, path: list[TypeBase] | None = None, include_references: bool = False):
+    def walk_type(self, path: list[TypeBase] | None = None, include_references: bool = False):
         if path is None:
             path = [self]
         else:
             path = path + [self]
         yield self
         if include_references and self.reference:
-            yield from self.reference.walk(path, include_references=include_references)
+            yield from self.reference.walk_type(path, include_references=include_references)
         if self.fields:
             for child in self.fields:
                 if child in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
-                yield from child.walk(path, include_references=include_references)
+                yield from child.walk_type(path, include_references=include_references)
 
     def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
         """'Unkeys' data by replacing keys with the names of the type nodes."""
@@ -706,7 +716,7 @@ class HasType(TypeBase, SymbolBase):
 
     def _interp(self, scope: Scope) -> None:
         # resolve references
-        for node in self.walk():
+        for node in self.walk_type():
             if node.tag != TypeTag.TYPE_REFERENCE or isinstance(node.reference, Symbol):
                 continue  # nothing to resolve
             if node.reference is None:
@@ -975,7 +985,7 @@ class Code(Symbol, HasType, IsExpectable):
     _parse: Optional[CodeParse] = None
     _references: dict[str, Symbol] | None = None
     _transform: Optional[CodeTransformation] = None
-    _code_callable: AsyncCodeCallable | SyncCodeCallable | None = None
+    _callable: AsyncCodeCallable | SyncCodeCallable | None = None
 
     def _clear(self) -> None:
         Symbol._clear(self)
@@ -983,17 +993,17 @@ class Code(Symbol, HasType, IsExpectable):
         self._parse = None
         self._references = None
         self._transform = None
-        self._code_callable = None
+        self._callable = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
 
         # parse and resolve code references
-        input_keys = (input.ident for input in self.inputs)
+        input_idents = {input.ident for input in self.inputs}
         self._parse = parse_code(self.code)
         self._references = {}
         for key, reference in self._parse.references.items():
-            if key in input_keys:
+            if key in input_idents:
                 continue  # input arguments are not context
             resolved = scope.lookup_symbol(reference, by=LookupBy.PyIdent)
             if resolved is not None:
@@ -1002,13 +1012,13 @@ class Code(Symbol, HasType, IsExpectable):
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=key)
 
     async def __call__(self, *args, **kwargs):
-        if self._code_callable is None:
-            self._code_callable = self.session.instance.get_code_callable(self)
+        if self._callable is None:
+            self._transform, self._callable = self.session.instance.get_code_callable(self)
         log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.session.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
-            result = await self._code_callable(*args, **kwargs)
+            result = await self._callable(*args, **kwargs)
             self.session.tracer.code_exit(self, args, kwargs, result)
             log.debug("code.exit", result=describe_type(result))
             return result
@@ -1214,8 +1224,8 @@ class Value(Symbol, HasType, IsExpectable):
         return self.value[item]
 
     def __setitem__(self, key, value):
+        self.session.tracer.value_update(self, key)
         self.value[key] = value
-        self.session.tracer.value_setitem(self, key, value)
 
     # proxy to record data if not in this class
 
@@ -1229,7 +1239,8 @@ class Value(Symbol, HasType, IsExpectable):
         if key in VALUE_INSTANCE_FIELDS:
             super().__setattr__(key, value)
         else:
-            setattr(self.records[0], key, value)
+            self.session.tracer.value_update(self, key)
+            self.value[key] = value
 
 
 VALUE_INSTANCE_FIELDS = {field.name for field in fields(Value)}

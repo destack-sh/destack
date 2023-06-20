@@ -4,6 +4,7 @@ import { useCurrentModule, TypeFlag } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { getEnumColor, type Field } from "@/state/statement";
+import uFuzzy from "@leeoniya/ufuzzy";
 
 const props = defineProps<{
   type: Field;
@@ -27,8 +28,19 @@ const selectedMembers = computed(
   () => (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as Field[]) ?? []
 );
 const missingMembers = computed(() => members.value.filter((m) => !props.modelValue?.find((v) => v == m.key)));
+const query = ref("");
+const uf = new uFuzzy({ intraMode: 0 });
+const filteredMembers = computed(() => {
+  const baseMembers = isArray.value ? missingMembers.value : members.value;
+  if (query.value.trim() == "") return baseMembers;
+  const [idxs] = uf.search(
+    baseMembers.map((m) => m.name),
+    query.value
+  );
+  return idxs?.map((idx) => baseMembers[idx]) ?? [];
+});
 
-const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
+const queryRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
 function removeValue(key: string) {
   emit("update:modelValue", props.modelValue?.filter((v) => v != key) ?? []);
@@ -37,8 +49,8 @@ function removeValue(key: string) {
 const appearance = useAppearance();
 
 defineExpose({
-  focus: () => inputRef.value?.$el.focus(),
-  blur: () => inputRef.value?.$el.blur(),
+  focus: () => queryRef.value?.$el.focus(),
+  blur: () => queryRef.value?.$el.blur(),
 });
 </script>
 <template>
@@ -74,6 +86,7 @@ defineExpose({
       class="flex w-full min-w-[300px] flex-col"
       :model-value="isArray ? null : selectedMembers[0]"
       @update:model-value="(val: Field) => {
+        query = '';
         if (isArray) {
           emit('update:modelValue', [...(modelValue ?? []), val.key as string]);
         } else {
@@ -86,20 +99,22 @@ defineExpose({
       <ComboboxButton class="hidden" ref="comboboxButtonRef" />
       <ComboboxInput
         as="input"
-        ref="inputRef"
+        ref="queryRef"
+        :default-value="query"
+        @change="query = $event.target.value"
         spellcheck="false"
         class="w-full min-w-0 rounded-none border-none bg-transparent p-0 outline-none ring-0 placeholder:text-gray-400 focus:ring-0"
         :class="[appearance.textSmall ? 'text-sm' : '', isArray ? 'mt-1' : '']"
         :display-value="(val: any) => ''"
         :placeholder="(isArray ? 'Add ' : 'Select ') + runtimeType?.name"
-        @keydown.backspace.exact.prevent="
-          inputRef?.$el.value.length > 0 || removeValue(modelValue?.[modelValue.length - 1] ?? '')
+        @keydown.backspace.exact="
+          queryRef?.$el.value.length > 0 || removeValue(modelValue?.[modelValue.length - 1] ?? '')
         "
       >
       </ComboboxInput>
       <ComboboxOptions class="max-h-80 w-full overflow-auto py-1 focus:outline-none" static>
         <ComboboxOption
-          v-for="member in isArray ? missingMembers : members"
+          v-for="member in filteredMembers"
           :key="member.name ?? ''"
           :value="member"
           v-slot="{ active, selected }"

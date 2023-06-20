@@ -19,8 +19,10 @@ import {
   PlayIcon,
   RocketLaunchIcon,
   StopIcon,
+  ArrowDownRightIcon,
+  ArrowUpRightIcon,
 } from "@heroicons/vue/24/outline";
-import { computed, ref, toRef, type Ref } from "vue";
+import { nextTick, computed, ref, toRef, type Ref } from "vue";
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -69,6 +71,24 @@ const executionActive = computed(
 );
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
+    {
+      label: "Add input",
+      icon: ArrowDownRightIcon,
+      action: () => {
+        addingTypes.value = true;
+        nextTick(() => typeRef.value?.createInput());
+      },
+      hideInline: true,
+    },
+    {
+      label: "Add output",
+      icon: ArrowUpRightIcon,
+      action: () => {
+        addingTypes.value = true;
+        nextTick(() => typeRef.value?.createOutput());
+      },
+      hideInline: true,
+    },
     {
       label: "Run",
       icon: PlayIcon,
@@ -202,7 +222,7 @@ defineExpose({
   <FunctionTypeCell
     v-if="hasTypes || addingTypes"
     ref="typeRef"
-    class=""
+    class="-mt-1"
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

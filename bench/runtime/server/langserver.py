@@ -304,9 +304,7 @@ class LanguageServer:
         await execution.asave()
         await publish(
             NMessageType.EXECUTION_SAVED,
-            ExecutionSavedPayload(
-                module_id=msg.p.module_id, frames=[packer.pack_execution_frame(execution)]
-            ),
+            ExecutionSavedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(execution)]),
         )
 
     @message_handler
@@ -472,7 +470,9 @@ class LanguageWorker:
     ) -> tuple[InterpModule, InterpModule]:
         self.source = new_source
         old = self.interp
-        self.interp = interp_module(new_source, [d.module for d in dependencies])
+        self.interp = interp_module(
+            source=new_source, dependencies=[d.module for d in dependencies], session=None
+        )
         return old, self.interp
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:

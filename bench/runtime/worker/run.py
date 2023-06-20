@@ -85,7 +85,7 @@ class ModuleWorker:
         self.ready = asyncio.Event()
 
         self.interpreter = LanguageInterpreter(master.fetch)
-        self.source: wire.ModuleData | None = None
+        self.source: wire.ModuleTreeData | None = None
         self.interp: InterpModule | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
@@ -100,10 +100,10 @@ class ModuleWorker:
     def module(self) -> Module:
         return self.interp.module
 
-    async def start(self, source: wire.ModuleData):
+    async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
         self.source = source
-        self.interp = await self.interpreter.interp(source)
+        self.interp = await self.interpreter.interp(source, session=None)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
@@ -164,7 +164,7 @@ class ModuleWorker:
             session = Session(
                 module=self.module,
                 ctx=session_ctx,
-                mode=SessionMode.WRITE_GLOBAL,
+                mode=SessionMode.WRITE,
                 write=self.do_write,
                 executor=self.executor,
             )
@@ -185,7 +185,7 @@ class ModuleWorker:
                 arguments=describe_type(job.arguments),
                 timeout=timeout,
             )
-            task = asyncio.create_task(run(job.runnable, job.arguments))
+            task = asyncio.create_task(run(job.runnable, job.arguments, job.session))
             self.pending_runs[job.id] = task
             await asyncio.wait_for(task, timeout=timeout)
             return None

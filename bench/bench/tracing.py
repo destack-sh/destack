@@ -7,7 +7,7 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.bench.const import ModuleOp, MOT
+from bench.bench.const import MOT, ModuleOp
 from bench.bench.dataset import Query, Sort
 from bench.bench.mutate import ModuleMutator
 from bench.bench.typer import check_type
@@ -55,6 +55,9 @@ class Tracer:
         pass
 
     def field_append(self, symbol: HasType, field: Field):
+        pass
+
+    def value_update(self, value: Value, key: typing.Optional[str] = None):
         pass
 
     def dataset_clear(self, table: Dataset):
@@ -128,6 +131,10 @@ class SessionTracer(Tracer):
             self.tracers.append(MutationTracer(mutator))
         if validate:  # validation tracer must be last
             self.tracers.append(TypeCheckingTracer())
+
+    def value_update(self, value: Value, key: typing.Optional[str] = None):
+        for tracer in self.tracers:
+            tracer.value_update(value, key)
 
     def dataset_clear(self, table: Dataset):
         for tracer in self.tracers:
@@ -279,7 +286,7 @@ class ExecutionTracer(Tracer):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
             runnable=code,
-            inputs=code.type.rekey(inputs, is_output=False),
+            inputs=code.rekey(inputs, is_output=False),
             trace=False,
             queue_position=queue_position,
         )
@@ -292,7 +299,7 @@ class ExecutionTracer(Tracer):
         for input_t, input in zip(code.inputs, args):
             combined_kwargs[input_t.name] = input
         frame = self._create_frame(
-            runnable=code, inputs=code.type.rekey(combined_kwargs, is_output=False)
+            runnable=code, inputs=code.rekey(combined_kwargs, is_output=False)
         )
         self.stacktrace.append(frame)
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
@@ -301,7 +308,7 @@ class ExecutionTracer(Tracer):
     def code_exit(self, code: Runnable, args, kwargs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = code.type.rekey(result, is_output=True)
+        frame.outputs = code.rekey(result, is_output=True)
         self.track(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
@@ -356,6 +363,11 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
+    def value_update(self, value: Value, key: typing.Optional[str] = None):
+        from bench.bench import wire
+
+        self.mutator.update(wire.pack_node_flat(value))
+
     def dataset_clear(self, table: Dataset):
         self.mutator.truncate(table.id, MOT.RECORD)
 
@@ -386,13 +398,16 @@ class TypeCheckingTracer(Tracer):
     def code_exit(self, code: Runnable, args, kwargs, result):
         check_type(result, code, is_output=True)
 
+    def value_update(self, value: Value, key: typing.Optional[str] = None):
+        check_type(value.value, value)
+
     def dataset_append(self, table: Dataset, record: Record):
         check_type(record._data, table, ignore_array=True)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
-            if key not in dataset.type:
+            if key not in dataset:
                 raise ValueError(f"{key} does not exist on {dataset.type}")
             check_type(record._data.get(key), dataset.type[key])
         else:
@@ -413,6 +428,9 @@ class PermissionCheckingTracer(Tracer):
 
     def symbol_create(self, symbol: Symbol):
         self.session.check_can(ModuleOp.CREATE, symbol)
+
+    def value_update(self, value: Value, key: typing.Optional[str] = None):
+        self.session.check_can(ModuleOp.UPDATE, value)
 
     def dataset_clear(self, table: Dataset):
         self.session.check_can(ModuleOp.UPDATE, table)

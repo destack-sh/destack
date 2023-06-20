@@ -361,8 +361,7 @@ class ModuleOp(enum.StrEnum):
 
 class SessionMode(enum.StrEnum):
     READ_ONLY = "ro"
-    WRITE_GLOBAL = "w"
-    WRITE_ONLY = "wo"
+    WRITE = "w"
 
 
 class SessionTracingLevel(enum.IntFlag):

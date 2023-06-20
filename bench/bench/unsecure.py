@@ -6,12 +6,12 @@ import typing
 from typing import Any, Optional
 
 from bench.bench.const import LiteralValue
-from bench.bench.type import Symbol
+from bench.bench.type import Code, Symbol
 from bench.runtime.common.type import PyFrameData
 from bench.utils.utils import get_from_env, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.runtime.worker.instance import AsyncCodeInstance, CodeInstance, SyncCodeInstance
+    from bench.bench.session import Session
 
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
@@ -57,7 +57,7 @@ class RunError(Exception):
         self.cause = cause
         super().__init__(self.type.description)
 
-    def get_traceback(self, from_code: CodeInstance) -> Optional[list[PyFrameData]]:
+    def get_traceback(self, from_code: Code) -> Optional[list[PyFrameData]]:
         if self.cause is None:
             return None
         stack_summary = traceback.StackSummary.extract(
@@ -67,23 +67,10 @@ class RunError(Exception):
         return PyFrameData.clean(stack, from_code)
 
 
-def run_sync(
-    code: SyncCodeInstance, arguments: dict[str, LiteralValue] | None = None
-) -> LiteralValue:
-    """Runs the code instance synchronously. Not to be used in production."""
-    # transform keys to valid python identifiers
-    arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
-    try:
-        if code.is_async:
-            raise RuntimeError(f"cannot run async code synchronously: {code}")
-        return code(**arguments)
-    except Exception as e:
-        raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
-
-
 async def run(
-    code: AsyncCodeInstance | SyncCodeInstance,
-    arguments: dict[str, LiteralValue] | None = None,
+    code: Code,
+    arguments: dict[str, LiteralValue] | None,
+    session: "Session",
     is_trusted: bool = False,
 ) -> LiteralValue:
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
@@ -91,12 +78,10 @@ async def run(
     # transform keys to valid python identifiers
     arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
     try:
-        await code.session.aprepare()
-        code.session.open()
-        if not code.is_async:
-            code = code.to_async()
+        # set current session
+        session.open()
         ret = await code(**arguments)
-        await code.session.aclose()
+        await session.aclose()
         return ret
     except Exception as e:
         raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
