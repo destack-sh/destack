@@ -229,7 +229,7 @@ defineExpose({
         height: appearance.editorHeaderHeight + 'px',
       }"
     >
-      <span class="text-sm font-extrabold text-gray-500">History</span>
+      <span class="text-xs font-extrabold tracking-wide text-gray-500">History</span>
       <div v-if="loading">
         <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
       </div>

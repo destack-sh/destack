@@ -160,24 +160,31 @@ class Scope:
             return self
         return self.parent.root_scope
 
-    def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
-        """Find the statement recursively in this scope and its parents."""
-        scope = None
+    def get_in_scope(self, name: str, by: LookupBy) -> Scope | None:
         if by == LookupBy.Name:
-            scope = self.scopes_by_name.get(name)
+            return self.scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
             if name in self.names_by_identifier:
                 name = self.names_by_identifier[name]
-                scope = self.scopes_by_name.get(name)
+                return self.scopes_by_name.get(name)
         else:
             raise ValueError(f"unexpected lookup type: {by}")
+        return None
+
+    def find_scope(self, name: str, by: LookupBy) -> Scope | None:
+        scope = self.get_in_scope(name, by)
         if scope is not None:
-            if not isinstance(scope, Symbol):
-                raise TypeError(f"expected symbol, got {type(scope)}")
             return scope
         if self.parent is not None:
-            return self.parent.find_symbol(name, by=by)
+            return self.parent.find_scope(name, by=by)
         return None
+
+    def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
+        """Find the statement recursively in this scope and its parents."""
+        scope = self.find_scope(name, by)
+        if scope is not None and not isinstance(scope, Symbol):
+            raise TypeError(f"expected symbol, got {type(scope)}")
+        return scope
 
     def lookup_symbol(
         self,
@@ -199,7 +206,7 @@ class Scope:
         # strip leading . in path
         path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
-        scope = self.find_symbol(first_part, by=by)
+        scope = self.find_scope(first_part, by=by)
         if scope is None:
             return None
         return scope.lookup_symbol(path, symbol_t=symbol_t)
@@ -254,7 +261,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT:
         if isinstance(path, UUID):
-            return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
+            return self.symbols_by_id.get(path)
         elif path.startswith("."):
             return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
         else:
@@ -1263,6 +1270,12 @@ class Requirement(Symbol):
     module_name: Optional[str] = None
     module_id: Optional[UUID] = None
     version: Optional[str] = None
+
+    async def arequire(self) -> None:
+        raise NotImplementedError
+
+    def require(self) -> None:
+        async_to_sync(self.arequire)()
 
     def __str__(self):
         return f"{self.module_name or '<unspecified>'}@{self.version or '<any>'}"

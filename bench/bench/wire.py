@@ -25,6 +25,7 @@ from bench.bench.issue import IssueKind
 from bench.bench.type import ModuleNode, ModuleReference
 from bench.runtime.common.type import ExecutionFrame, PyFrameData, RunErrorData
 from bench.utils.func import describe_type
+from bench.utils.serialize import from_dict
 
 if typing.TYPE_CHECKING:
     from bench.bench.build import XBlock
@@ -389,18 +390,14 @@ class ModuleTreeData(ModuleData):
     def encode_some_attrs(self) -> dict[str, Any]:
         # hack to wire nodes with the type of their base class until :WireFormat
         serialized_nodes = [{**node.__dict__, "cls": type(node).__name__} for node in self.nodes]
-        return {
-            "nodes": serialized_nodes,
-        }
+        return {"nodes": serialized_nodes}
 
     @classmethod
     def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
         # hack to serialize nodes with the type of their base class until :WireFormat
         # restore cls from namespace?
-        nodes = [_DATA_CLASS_BY_NAME[node.pop("cls")](**node) for node in data["nodes"]]
-        return {
-            "nodes": nodes,
-        }
+        nodes = [from_dict(_DATA_CLASS_BY_NAME[node.pop("cls")], node) for node in data["nodes"]]
+        return {"nodes": nodes}
 
 
 @node_packer(MOT.MODULE, ModuleData, lang.Module)

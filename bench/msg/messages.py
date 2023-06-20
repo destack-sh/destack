@@ -10,7 +10,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.bench import mutate, wire
-from bench.bench.const import ExecutionTriggerType
+from bench.bench.const import ExecutionTriggerType, ModuleReference
 from bench.bench.dataset import Query, Sort
 from bench.bench.wire import ExecutionFrameData, RemoteObjectData, SecretData, XBlockData
 
@@ -253,7 +253,7 @@ class ExecutionSavedPayload(BatchablePayload):
 
 @payload(NMessageType.REQUEST_READ_MODULE)
 class ReqReadModulePayload:
-    module_id: UUID
+    ref: typing.Union[ModuleReference, UUID]
 
 
 @payload(NMessageType.REPLY_READ_MODULE)

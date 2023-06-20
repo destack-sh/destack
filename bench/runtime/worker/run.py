@@ -10,6 +10,7 @@ from bench.bench import StatementType, wire
 from bench.bench.const import (
     ExecutionTriggerType,
     LiteralValue,
+    ModuleReference,
     SessionContext,
     SessionMode,
     SessionTracingLevel,
@@ -141,23 +142,16 @@ class ModuleWorker:
         if not self.interpreted:
             return RunErrorType.NOT_READY
 
-        # get the runconfig
-        try:
-            if runnable_type:
-                runnable_type = STATEMENT_CLASS_BY_TYPE[StatementType(runnable_type)]
-            else:
-                runnable_type = None
-            runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)
-        except (TypeError, KeyError) as e:
-            self.log.exception("module.run.failed", exc_info=e)
+        # get the runnable
+        if runnable_type:
+            runnable_type = STATEMENT_CLASS_BY_TYPE[StatementType(runnable_type)]
+        runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)
+        if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 
         root_id = execution_id or UUIDT()
         # instantiate
         try:
-            from bench.bench.build import get_default_builds
-
-            builds = {b.name: b for b in get_default_builds(self.interp)}
             session_ctx = SessionContext(
                 module_id=self.module_id,
                 project_id=self.project_id,
@@ -172,19 +166,13 @@ class ModuleWorker:
                 ctx=session_ctx,
                 mode=SessionMode.WRITE_GLOBAL,
                 write=self.do_write,
-                builds=builds,
                 executor=self.executor,
             )
         except Exception as e:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG
 
-        job = RunJob(
-            id=root_id,
-            session=session,
-            runnable=runnable,
-            arguments=arguments,
-        )
+        job = RunJob(id=root_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
         session.tracer.queue_enter(runnable, arguments, queue_position=self.queue.qsize())
         return job
@@ -274,7 +262,7 @@ class SandboxedWorker:
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
         self.tasks = []
-        self.cached_committed_modules: dict[UUID, tuple[wire.ModuleTreeData, UUID]] = {}
+        self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
 
     @property
     def default_tracing_level(self) -> SessionTracingLevel:
@@ -381,23 +369,23 @@ class SandboxedWorker:
         success = await worker.cancel_run(msg.p.execution_id)
         await msg.reply(RepCancelRunPayload(success=success))
 
-    async def get_module(self, module_id: UUID) -> tuple[wire.ModuleTreeData, UUID]:
+    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
         """Gets a modules wire data"""
-        log = logger.bind(module_id=module_id)
-        cached = self.cached_committed_modules.get(module_id)
+        log = logger.bind(ref=ref)
+        cached = self.cached_committed_modules.get(ref)
         if cached is not None:
             log.debug("module.fetch", cached=True)
             return cached
         module_rep = await request(
-            NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(module_id), RepReadModulePayload
+            NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
         )
         if module_rep.p.module.committed:
-            self.cached_committed_modules[module_id] = module_rep.p.module, module_rep.p.project_id
+            self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
         log.debug("module.fetch", cached=False)
         return module_rep.p.module, module_rep.p.project_id
 
-    async def fetch(self, module_id: UUID) -> wire.ModuleTreeData:
-        return (await self.get_module(module_id))[0]
+    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
+        return (await self.get_module(ref))[0]
 
     async def stop(self):
         logger.info("stop", worker_id=self.worker_id)
