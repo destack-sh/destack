@@ -6,36 +6,32 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench import Module, StatementType, wire
-from bench.bench.const import ModuleObjectType
-from bench.bench.type import ModuleNode
-from bench.bench.wire import (
-    BASE_DATA_CLASS_BY_MOT,
-    MOT_BY_DATA_CLASS,
-    STATEMENT_TYPE_BY_DATA_CLASS,
-    CodeData,
-    DatasetData,
-    DatasetViewData,
-    ExpectationData,
-    FieldData,
-    FileData,
-    IssueData,
-    ModelData,
-    ModuleData,
-    ModuleTree,
-    ModuleTreeData,
-    NodeData,
-    RecordData,
-    RequirementData,
-    ResolvedFieldData,
-    StatementData,
-    TaskData,
-    TypeData,
-    ValueData,
-)
+from bench.bench.core import Module, ModuleNode, ModuleObjectType, StatementType
+
+if TYPE_CHECKING:
+    from bench.bench.wire import (
+        CodeData,
+        DatasetData,
+        DatasetViewData,
+        ExpectationData,
+        FieldData,
+        FileData,
+        IssueData,
+        ModelData,
+        ModuleData,
+        ModuleTreeData,
+        NodeData,
+        RecordData,
+        RequirementData,
+        ResolvedFieldData,
+        StatementData,
+        TaskData,
+        TypeData,
+        ValueData,
+    )
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -238,30 +234,30 @@ class ModuleMutation:
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
     # really annoyingly manual until we get a proper :WireFormat
 
-    _data__mot: Optional[ModuleObjectType] = None  # discriminator for 'union'
-    _data_module: Optional[ModuleData] = None
-    _data_file: Optional[FileData] = None
-    _data_statement: Optional[StatementData] = None
-    _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
-    _data_statement_type: Optional[TypeData] = None
-    _data_statement_task: Optional[TaskData] = None
-    _data_statement_expectation: Optional[ExpectationData] = None
-    _data_statement_code: Optional[CodeData] = None
-    _data_statement_model: Optional[ModelData] = None
-    _data_statement_requirement: Optional[RequirementData] = None
-    _data_statement_value: Optional[ValueData] = None
-    _data_statement_dataset: Optional[DatasetData] = None
-    _data_field: Optional[FieldData] = None
-    _data_record: Optional[RecordData] = None
-    _data_dataset_view: Optional[DatasetViewData] = None
-    _data_issue: Optional[IssueData] = None
-    _data_resolved_field: Optional[ResolvedFieldData] = None
+    _data__mot: Optional["ModuleObjectType"] = None  # discriminator for 'union'
+    _data_module: Optional["ModuleData"] = None
+    _data_file: Optional["FileData"] = None
+    _data_statement: Optional["StatementData"] = None
+    _data_statement__type: Optional["StatementType"] = None  # discriminator for 'union'
+    _data_statement_type: Optional["TypeData"] = None
+    _data_statement_task: Optional["TaskData"] = None
+    _data_statement_expectation: Optional["ExpectationData"] = None
+    _data_statement_code: Optional["CodeData"] = None
+    _data_statement_model: Optional["ModelData"] = None
+    _data_statement_requirement: Optional["RequirementData"] = None
+    _data_statement_value: Optional["ValueData"] = None
+    _data_statement_dataset: Optional["DatasetData"] = None
+    _data_field: Optional["FieldData"] = None
+    _data_record: Optional["RecordData"] = None
+    _data_dataset_view: Optional["DatasetViewData"] = None
+    _data_issue: Optional["IssueData"] = None
+    _data_resolved_field: Optional["ResolvedFieldData"] = None
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
         return {"thing": None}  # always omit thing
 
     @property
-    def data(self) -> Optional[NodeData]:
+    def data(self) -> Optional["NodeData"]:
         if self._data_statement__type is not None:
             # map to _symbol_<type>
             return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
@@ -271,11 +267,13 @@ class ModuleMutation:
             return None
 
     @data.setter
-    def data(self, value: NodeData):
-        self._data__mot = MOT_BY_DATA_CLASS[type(value)]
-        if type(value) in STATEMENT_TYPE_BY_DATA_CLASS:
+    def data(self, value: "NodeData"):
+        from bench.bench import wire
+
+        self._data__mot = wire.MOT_BY_DATA_CLASS[type(value)]
+        if type(value) in wire.STATEMENT_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
-            statement_type = STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
+            statement_type = wire.STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
             self._data_statement__type = statement_type
             setattr(self, f"_data_statement_{statement_type.value.lower()}", value)
         else:
@@ -299,8 +297,10 @@ class ModuleMutation:
         return f"<Mutation {self}>"
 
 
-def pack_node_flat_if_needed(node: ModuleNode | NodeData) -> NodeData:
-    if isinstance(node, NodeData):
+def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
+    from bench.bench import wire
+
+    if isinstance(node, wire.NodeData):
         return node
     else:
         return wire.pack_node_flat(node)
@@ -311,22 +311,24 @@ class ModuleMutator:
 
     def __init__(
         self,
-        module: Module | ModuleTreeData | UUID,
+        module: Union[Module, "ModuleTreeData", UUID],
         mutations: list[ModuleMutation] = None,
         # default file and statement id
         file_id: UUID = None,
         statement_id: UUID = None,
     ):
+        from bench.bench import wire
+
         if isinstance(module, Module):
             module = wire.pack_module(module)
-        if isinstance(module, ModuleTreeData):
+        if isinstance(module, wire.ModuleTreeData):
             self.module = module
             self.module_id = module.id
-            self.tree = ModuleTree(module.nodes)
+            self.tree = wire.ModuleTree(module.nodes)
         else:
             self.module = None
             self.module_id = module
-            self.tree = ModuleTree()
+            self.tree = wire.ModuleTree()
         # default file and statement id
         self.file_id = file_id
         self.statement_id = statement_id
@@ -344,15 +346,17 @@ class ModuleMutator:
         return f"<Mutator {self}>"
 
     def do(
-        self, type: MMT, obj: NodeData, apply: bool = True, properties: list[str] = None
+        self, type: MMT, obj: "NodeData", apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
-        if isinstance(obj, StatementData):
+        from bench.bench import wire
+
+        if isinstance(obj, wire.StatementData):
             statement_id = obj.id
             file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData).id
-        elif isinstance(obj, FileData):
+        elif isinstance(obj, wire.FileData):
             statement_id = None
             file_id = obj.id
-        elif isinstance(obj, ModuleData):
+        elif isinstance(obj, wire.ModuleData):
             statement_id = None
             file_id = None
         else:
@@ -371,7 +375,7 @@ class ModuleMutator:
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
-            revision=obj.revision if isinstance(obj, wire.Revisioned) else None,
+            revision=obj.revision if isinstance(obj, wire.HasCrud) else None,
             file_id=file_id,
             statement_id=statement_id,
             properties=properties,
@@ -383,6 +387,8 @@ class ModuleMutator:
         return self
 
     def apply(self, mut: ModuleMutation):
+        from bench.bench.wire import BASE_DATA_CLASS_BY_MOT
+
         if mut.type.kind == MMK.CREATE:
             self.tree.add(mut.data)
         elif mut.type.kind == MMK.UPDATE:
@@ -394,45 +400,59 @@ class ModuleMutator:
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 
-    def truncate(self, obj: NodeData | ModuleNode, mot: MOT, apply: bool = True) -> "ModuleMutator":
+    def truncate(
+        self, obj: Union["NodeData", ModuleNode], mot: MOT, apply: bool = True
+    ) -> "ModuleMutator":
         """Truncates all records of the given statement."""
         obj = pack_node_flat_if_needed(obj)
         mmt = MMT(f"TRUNCATE_{mot.name}S")
         self.do(mmt, obj, apply=apply)
         return self
 
-    def create_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def create_many(
+        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+    ) -> "ModuleMutator":
         for obj in objs:
             self.create(obj, apply=apply)
         return self
 
-    def create(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def create(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+        from bench.bench.wire import MOT_BY_DATA_CLASS
+
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"CREATE_{mot.name}")
         self.do(mmt, obj, apply=apply)
         return self
 
-    def update_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def update_many(
+        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+    ) -> "ModuleMutator":
         for obj in objs:
             self.update(obj, apply=apply)
         return self
 
     def update(
-        self, obj: NodeData | ModuleNode, apply: bool = True, properties: list[str] = None
+        self, obj: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
+        from bench.bench.wire import MOT_BY_DATA_CLASS
+
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"UPDATE_{mot.name}")
         self.do(mmt, obj, apply=apply, properties=properties)
         return self
 
-    def delete_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def delete_many(
+        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+    ) -> "ModuleMutator":
         for obj in objs:
             self.delete(obj, apply=apply)
         return self
 
-    def delete(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def delete(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+        from bench.bench.wire import MOT_BY_DATA_CLASS
+
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"DELETE_{mot.name}")
@@ -442,7 +462,7 @@ class ModuleMutator:
     def bundle(self) -> "MutationBundle":
         return MutationBundle(self.mutations)
 
-    def to_module(self) -> ModuleTreeData:
+    def to_module(self) -> "ModuleTreeData":
         # already applied in memory
         if self.module is None:
             raise ValueError(f"cannot apply {self} without a module")

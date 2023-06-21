@@ -5,10 +5,15 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.bench.const import InterpScope, StatementPath, statement_path_as_str
-
 if TYPE_CHECKING:
-    from bench.bench.type import File, Statement, Symbol
+    from bench.bench.core import (
+        File,
+        InterpScope,
+        Statement,
+        StatementPath,
+        Symbol,
+        statement_path_as_str,
+    )
 
 
 class IssueKind(enum.StrEnum):
@@ -73,13 +78,13 @@ class Issue:
     kind: IssueKind
     type: IssueType
     message: str
-    scope: Optional[InterpScope] = None
+    scope: Optional["InterpScope"] = None
     subject: Union["Symbol", "Statement", "File", None] = None
 
     def __init__(
         self, type: IssueType, subject: Union["Symbol", "Statement", "File", None], **kwargs
     ):
-        from bench.bench.type import File, Statement, Symbol
+        from bench.bench.core import File, InterpScope, Statement, StatementPath, Symbol
 
         # auto convert kwargs
         for key, value in kwargs.items():
@@ -115,12 +120,16 @@ class Issue:
 
     @property
     def statement_id(self) -> UUID | None:
+        from bench.bench.core import InterpScope
+
         if self.scope == InterpScope.STATEMENT:
             return self.subject.id
         return None
 
     @property
     def file_id(self) -> UUID | None:
+        from bench.bench.core import InterpScope
+
         if self.scope == InterpScope.FILE:
             return self.subject.id
         if self.scope == InterpScope.STATEMENT:

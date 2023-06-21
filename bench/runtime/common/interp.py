@@ -8,8 +8,7 @@ import structlog
 
 from bench import bench as language
 from bench.bench import Module, wire
-from bench.bench.session import Session
-from bench.bench.wire import ModuleReference
+from bench.bench.core import ModuleReference, Session
 from bench.utils.func import wrap_task
 
 logger = structlog.get_logger(__name__)

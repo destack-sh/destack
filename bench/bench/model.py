@@ -1,36 +1,65 @@
+from __future__ import annotations
+
 import asyncio
+import copy
 import enum
 import hashlib
 import json
 import typing
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from functools import cached_property
 from json import JSONDecodeError
 from logging import Logger
 from typing import Any, Optional
+from uuid import UUID
 
 import pytz
 import structlog
 
-from bench.bench import Model
+import bench.bench
+from bench.bench.core import Scope, Session, Symbol, node
 from bench.msg.core import NMessage, request
 from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
 from bench.utils.cache import redis
+from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env
+from bench.utils.utils import get_from_env, required_field
 
 if typing.TYPE_CHECKING:
-    from bench.bench.build import XBlock
+    from bench.bench import wire
     from bench.bench.tracing import Tracer
 
 logger = structlog.get_logger(__name__)
 
 
-#
-# Model inference
-#
+@node
+class Model(Symbol):
+    external_name: str = required_field()
 
-# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib.
+    @cached_property
+    def inference(self) -> "ModelInference":
+        return bench.bench.model.instantiate_inference(self)
+
+    def _clear(self) -> None:
+        pass
+
+    def _interp(self, scope: Scope) -> None:
+        pass
+
+    def __str__(self):
+        return f"{self.external_name}"
+
+    # forward inference methods
+    def __getattr__(self, item: str):
+        if item in self.inference.__dict__:
+            return getattr(self.inference, item)
+        else:
+            raise AttributeError(item)
+
+
+# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib or something
 # For now, we just use internal dataclasses. :TypeSafeSettings
 
 
@@ -282,8 +311,6 @@ class RemoteInferenceEndpoint:
         self.timeout = timeout
 
     async def __call__(self, blocks: list["XBlock"], settings: Any, timeout: int = None) -> Any:
-        from bench.bench import build
-
         timeout = timeout if timeout is not None else self.timeout
         rep: NMessage[RepRunInferencePayload] = await request(
             NMessageType.REQUEST_RUN_INFERENCE,
@@ -291,7 +318,7 @@ class RemoteInferenceEndpoint:
                 model_fqn=self.model.fqn,
                 model_external_name=self.model.external_name,
                 modality=self.modality,
-                blocks=[build.pack_xblock(b) for b in blocks],
+                blocks=[pack_xblock(b) for b in blocks],
                 settings=asdict(settings),
                 timeout=timeout,
             ),
@@ -301,3 +328,113 @@ class RemoteInferenceEndpoint:
         if rep.p.output is None:
             raise RuntimeError("remote inference failed")
         return rep.p.output
+
+
+def instantiate_inference(model: Model, session: Session) -> "ModelInference":
+    """
+    Instantiates the model inference endpoints for the session.
+    If we don't have the key, we proxy to the langserver.
+    """
+    from bench.bench.model import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
+    from bench.runtime.common.models import get_inference_endpoints_cls
+
+    key = None  # TODO @Broken: get model key from module? same file? some constant?
+    inference = ModelInference(external_name=model.external_name, key=key)
+    endpoints = list(get_inference_endpoints_cls(model))
+
+    if not endpoints:
+        raise RuntimeError(f"no endpoints found for model: {model}")
+    for modality, endpoint_cls in endpoints:
+        if key is not None:
+            endpoint = getattr(endpoint_cls(**inference.__dict__), modality)
+        else:
+            endpoint = RemoteInferenceEndpoint(
+                model=model, modality=modality, timeout=session.inference_timeout
+            )
+        endpoint_proxy = CachedInferenceEndpoint(
+            model=model,
+            modality=modality,
+            endpoint=endpoint,
+            tracer=session.tracer,
+            cache_inferences=session.cache_inferences,
+            timeout=session.inference_timeout,
+        )
+        setattr(inference, modality, endpoint_proxy)
+    return inference
+
+
+class XKind(enum.StrEnum):
+    Settings = "settings"
+    Static = "static"
+    Input = "input"
+    Output = "output"
+
+
+class XSource(enum.StrEnum):
+    System = "system"
+    User = "user"
+    Developer = "developer"
+    Model = "model"
+
+
+ValueT = typing.TypeVar("ValueT", bound=typing.Any)
+
+
+# TODO @Architecture: XBlock should just be a wrapper around a regular value, not special in any way
+
+
+@dataclass(repr=False)
+class XBlock(typing.Generic[ValueT]):
+    kind: XKind
+    source: XSource
+    value: Optional[ValueT]
+    path: Optional[str] = None  # jsonpath of value if partial block
+
+    def __len__(self):
+        if self.value is None:
+            return 0
+        elif isinstance(self.value, str):
+            return len(self.value)
+        else:
+            raise TypeError(f"cannot get length of {self}")
+
+    def copy(self):
+        return XBlock(
+            kind=self.kind,
+            source=self.source,
+            value=copy.deepcopy(self.value),
+            path=self.path,
+        )
+
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
+
+    def __repr__(self):
+        return f"<XBlock {str(self)}>"
+
+
+@dataclass(repr=False)
+class XBlockContent(XBlock, typing.Generic[ValueT]):
+    description: Optional[str] = None
+    order_key: str = field(default=INTEGER_ZERO)
+    id: UUID = field(default_factory=uuid.uuid4)
+
+    def __str__(self):
+        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+
+    def __repr__(self):
+        return f"<XBlockContent {str(self)}>"
+
+
+def unpack_xblock(xblock: wire.XBlockData) -> XBlockContent:
+    """Maps an xblock data object to an xblock."""
+    return XBlockContent(
+        kind=xblock.kind, source=xblock.source, value=xblock.value, path=xblock.path
+    )
+
+
+def pack_xblock(xblock: XBlockContent) -> wire.XBlockData:
+    """Maps an xblock to an xblock data object."""
+    return wire.XBlockData(
+        kind=xblock.kind, source=xblock.source, value=xblock.value, path=xblock.path
+    )

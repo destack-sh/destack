@@ -18,20 +18,16 @@ import pytz
 from django.db import transaction
 from django.db.models import Model, QuerySet
 
+import bench.bench.core
 from bench import models
-from bench.bench import StatementType, wire
-from bench.bench.const import (
-    DatasetBackend,
-    InterpScope,
-    ModuleObjectType,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-)
+from bench.bench import StatementType, TypeHint, TypeTag, wire
+from bench.bench.core import InterpScope, ModuleObjectType
+from bench.bench.dataset import DatasetBackend
+from bench.bench.execution import RunErrorData
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
+from bench.bench.type import TypeFlag
 from bench.bench.wire import ModuleTree
-from bench.runtime.common.type import RunErrorData
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -285,6 +281,11 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
             name=module.project.path,
             committed=module.committed,
             parent_id=None,
+            created_at=module.created_at,
+            updated_at=module.updated_at,
+            last_edited_at=module.last_edited_at,
+            last_changed_at=module.last_changed_at,
+            revision=-1,  # no revision for module
         )
 
     def unpack(
@@ -304,6 +305,10 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
             parent_id=file.project_version_id if file.parent_id is None else file.parent_id,
             name=file.name,
             revision=file.revision,
+            created_at=file.created_at,
+            updated_at=file.updated_at,
+            last_edited_at=file.last_edited_at,
+            last_changed_at=file.last_changed_at,
         )
 
     def unpack(
@@ -326,11 +331,15 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.StatementData:
         return wire.StatementData(
             id=statement.id,
-            revision=statement.revision,
             parent_id=statement.parent_id if statement.parent_id else statement.file_id,
             order_key=statement.order_key,
             type=StatementType(statement.type),
             name=statement.name,
+            revision=statement.revision,
+            created_at=statement.created_at,
+            updated_at=statement.updated_at,
+            last_edited_at=statement.last_edited_at,
+            last_changed_at=statement.last_changed_at,
         )
 
     def unpack(
@@ -492,7 +501,7 @@ class RequirementPacker(StatementPacker, NodePacker[wire.RequirementData, models
     def pack(self, statement: models.Statement) -> wire.RequirementData:
         statement_data = super().pack(statement)
         reference_module = (
-            wire.ModuleReference(id=statement.reference_project_id)
+            bench.bench.core.ModuleReference(id=statement.reference_project_id)
             if statement.reference_project_id
             else None
         )
@@ -568,7 +577,6 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
         return wire.FieldData(
             id=node.id,
             parent_id=node.statement_id,
-            revision=node.revision,
             name=node.name,
             tag=TypeTag(node.tag),
             hint=TypeHint(node.hint) if node.hint else None,
@@ -578,6 +586,11 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
             flags=node.flags,
             reference_id=node.reference_id,
             metadata=node.metadata,
+            revision=node.revision,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
+            last_edited_at=node.last_edited_at,
+            last_changed_at=node.last_changed_at,
         )
 
     def unpack(self, data: wire.FieldData, parent: models.Statement) -> models.Field:

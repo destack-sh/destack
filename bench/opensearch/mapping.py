@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
 import bench.bench as lang
-import bench.opensearch.type as os
+import bench.bench.type
+import bench.opensearch.core as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.const import TYPE_TAG_BY_TYPE_HINT, TypeFlag
-from bench.bench.session import TYPENAME_SENTINEL
+from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL, TypeFlag
 from bench.opensearch import mirror
 
 MAXIMUM_NESTING_DEPTH = 3
@@ -17,7 +17,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: lang.TypeBase, depth: int) -> os.Field:
+    def to_os_type(self, type: bench.bench.type.TypeBase, depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -48,8 +48,8 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint, flags)] = mapper
 
 
-def get_mapper(type: lang.TypeBase) -> FieldMapper:
-    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Type):
+def get_mapper(type: bench.bench.type.TypeBase) -> FieldMapper:
+    if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, bench.bench.type.Type):
         return get_mapper(type.reference)  # skip the reference
     stripped_flags = type.flags & TypeFlag.IsSecret
     exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
@@ -68,12 +68,12 @@ def get_mapper(type: lang.TypeBase) -> FieldMapper:
 class StaticFieldMapper(FieldMapper):
     field: os.Field | os.FT
 
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
+    def to_os_type(self, type: bench.bench.type.Field, depth: int) -> os.Field:
         return self.field
 
 
 class StructFieldMapper(FieldMapper):
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
+    def to_os_type(self, type: bench.bench.type.Field, depth: int) -> os.Field:
         subfields = {
             f.typed_key: get_mapper(f).to_os_type(f, depth + 1)
             for f in type.resolved_fields
@@ -88,7 +88,7 @@ class StructFieldMapper(FieldMapper):
 
 
 class VectorFieldMapper(FieldMapper):
-    def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
+    def to_os_type(self, type: bench.bench.type.Field, depth: int) -> os.Field:
         # see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
         # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
         method = os.KnnMethod(
@@ -161,5 +161,5 @@ register_mapper(StructFieldMapper(), tags=[TypeTag.STRUCT])
 register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 
-def map_to_os_field(field: lang.Field) -> os.Field:
+def map_to_os_field(field: bench.bench.type.Field) -> os.Field:
     return get_mapper(field).to_os_type(field, depth=0)

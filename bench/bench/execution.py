@@ -8,12 +8,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.const import LiteralValue
-from bench.bench.type import Code, Model, Statement, Task
+from bench.bench.core import Session, Statement
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.bench.session import Session
+    from bench.bench.code import Code
+    from bench.bench.model import Model
+    from bench.bench.task import Task
 
 
 @dataclass(slots=True)
@@ -27,8 +28,8 @@ class ExecutionFrame:
     exited_at: Optional[datetime]
     cached_generated_at: Optional[datetime]
     cached_duration: Optional[float]
-    inputs: Optional[dict[str, LiteralValue]]
-    outputs: Optional[LiteralValue]
+    inputs: Optional[dict[str, Any]]
+    outputs: Optional[dict[str, Any]]
     error: Optional[Exception]
     queue_position: Optional[int]
     children: list[ExecutionFrame] = field(default_factory=list)
@@ -98,6 +99,8 @@ class PyFrameData:
 
     @staticmethod
     def clean(stack: list[PyFrameData], from_code: "Code", session: "Session") -> list[PyFrameData]:
+        from bench.bench.code import Code
+
         code_by_method: dict[str, Code] = {
             symbol.transform.method_name: symbol
             for symbol in session.instances.values()
@@ -160,3 +163,10 @@ class RunErrorData:
 class WorkerTenancy(enum.StrEnum):
     COMMUNITY = "COMMUNITY"
     DEDICATED = "DEDICATED"
+
+
+class ExecutionTriggerType(enum.StrEnum):
+    API = "rest"
+    UI = "ui"
+    REACTIVE = "reactive"
+    SCHEDULED = "scheduled"

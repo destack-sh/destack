@@ -6,532 +6,248 @@ import random
 import string
 import typing
 import uuid
-from collections import defaultdict
-from dataclasses import dataclass, field, fields
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import date, datetime, time
 from functools import cached_property
-from typing import Any, Optional, Self, Union
-from uuid import UUID
+from typing import Any, Callable, Collection, Mapping, Optional, Self, Union
+from uuid import UUID, uuid4
 
-from asgiref.sync import async_to_sync, sync_to_async
+import structlog
 from more_itertools import first
 
-from bench.bench import IssueType
-from bench.bench.const import (
-    DEFAULT_EMBEDDING_DIMENSION,
-    FIELD_KEY_LENGTH,
-    REFERENCE_REGEX,
-    DatasetBackend,
-    DatasetViewLayout,
-    ExpectationModifier,
-    LookupBy,
-    ModuleReference,
-    RemoteObjectStatus,
+from bench.bench.core import (
+    HasCrud,
+    HasSession,
+    ModuleNode,
+    Scope,
+    Statement,
     StatementPath,
+    StatementReference,
     StatementType,
-    TypeFlag,
-    TypeHint,
-    TypeStorageFormat,
-    TypeTag,
-    get_storage_format,
-    new_dataset_backend_id,
-    parse_statement_path,
+    Symbol,
+    SymbolBase,
+    node,
 )
-from bench.bench.dataset import Query, Sort
-from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind
-from bench.bench.parse import parse_code
-from bench.settings import logging
-from bench.utils.fractional import INTEGER_ZERO, generate_key_between, generate_n_keys_between
-from bench.utils.func import describe_type, dict_minus
-from bench.utils.proxy import unproxy_value
+from bench.bench.expect import HasExpectations
+from bench.bench.issue import IssueType
+from bench.bench.remote import RemoteObject, RemoteObjectStatus, Secret
+from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.func import dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
-if typing.TYPE_CHECKING:
-    from bench.bench.inference import ModelInference
-    from bench.bench.session import Session
+logger = structlog.get_logger(__name__)
 
-if typing.TYPE_CHECKING:
-    node = dataclass
-else:
-
-    def node(cls):
-        """Decorator alias for dataclass."""
-        return dataclass(cls, repr=False, eq=False)
+PyValueType = Union[int, float, bool, str, dict, list]
 
 
-@node
-class ModuleNode(abc.ABC):
-    id: UUID = field(default_factory=uuid.uuid4)
-    parent: Optional[ModuleNode] = None
-    revision: int = 0
-
-    def __eq__(self, other):
-        return self.id == other.id
-
-    @property
-    def parent_id(self) -> Optional[UUID]:
-        return self.parent.id if self.parent is not None else None
-
-    def walk(self) -> typing.Iterator[ModuleNode]:
-        from bench.bench.wire import walk_node
-
-        return walk_node(self)
-
-    @property
-    def attached(self) -> bool:
-        return self.parent is not None
-
-
-@node
-class HasCrud(abc.ABC):
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    last_edited_at: datetime = field(default_factory=datetime.utcnow)
-    last_changed_at: datetime = field(default_factory=datetime.utcnow)
-
-
-@node
-class HasSession(abc.ABC):
-    id: UUID = field(default_factory=uuid.uuid4)
-    _session: "Session" = None
-
-    def __post_init__(self):
-        if self._session is None:
-            from bench.bench.session import active_session
-
-            self._session = active_session.get()
-            if self._session is not None:
-                self._session.add(self, new=True)
-        else:
-            self._session.add(self, new=False)
-
-    def __del__(self):
-        if self._session is not None:
-            self._session.remove(self)
-
-    def instantiate_in(self, session: "Session"):
-        if self._session is not None:
-            self._session.remove(self)
-        self._session = session
-        session.add(self, new=False)
-
-    @property
-    def session(self) -> "Session":
-        """Access the session, error-ing if there is none."""
-        if self._session is None:
-            raise RuntimeError(f"no active session for {self}")
-        return self._session
-
-    @session.setter
-    def session(self, session: Optional["Session"]):
-        """Set the session."""
-        self._session = session
-
-    @property
-    def logger(self) -> logging.Logger:
-        return self.session.logger
-
-
-@node
-class HasIssues(abc.ABC):
-    issues: list[Issue] | None = field(default_factory=list)
-
-    @property
-    def errors(self) -> list[Issue]:
-        if self.issues is None:
-            return []
-        return [i for i in self.issues if i.kind == IssueKind.ERROR]
-
-    def _on_issue(
-        self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Symbol", "Statement", "File", None] = None,
-        type: IssueType = None,
-        **kwargs,
+class TypeError(TypeError):
+    def __init__(
+        self, value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
     ):
-        if issue is None:
-            issue = Issue(type=type, subject=subject, **kwargs)
-        if self.issues is None:
-            self.issues = []
-        self.issues.append(issue)
-        if self.parent is not None:
-            self.parent._on_issue(issue)
-
-
-SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
-
-
-@node
-class Scope:
-    parent: Optional[Scope] = None
-    scopes_by_name: dict[str, Scope] = field(default_factory=dict)
-    symbols_by_id: dict[UUID, Symbol] = field(default_factory=dict)
-    names_by_identifier: dict[str, str] = field(default_factory=dict)
-
-    @cached_property
-    def root_scope(self) -> Scope:
-        if self.parent is None:
-            return self
-        return self.parent.root_scope
-
-    def get_in_scope(self, name: str, by: LookupBy) -> Scope | None:
-        if by == LookupBy.Name:
-            return self.scopes_by_name.get(name)
-        elif by == LookupBy.PyIdent:
-            if name in self.names_by_identifier:
-                name = self.names_by_identifier[name]
-                return self.scopes_by_name.get(name)
-        else:
-            raise ValueError(f"unexpected lookup type: {by}")
-        return None
-
-    def find_scope(self, name: str, by: LookupBy) -> Scope | None:
-        scope = self.get_in_scope(name, by)
-        if scope is not None:
-            return scope
-        if self.parent is not None:
-            return self.parent.find_scope(name, by=by)
-        return None
-
-    def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
-        """Find the statement recursively in this scope and its parents."""
-        scope = self.find_scope(name, by)
-        if scope is not None and not isinstance(scope, Symbol):
-            raise TypeError(f"expected symbol, got {type(scope)}")
-        return scope
-
-    def lookup_symbol(
-        self,
-        path: StatementPath | UUID | str,
-        symbol_t: StatementType | typing.Type[SymbolT] | None = None,
-        by: LookupBy = LookupBy.Name,
-    ) -> SymbolT | None:
-        """Lookup the symbol either by path or id. If path is a string, it can be
-        it can be a name (lookup upwards) or a full relative/absolute path).
-        """
-        if isinstance(path, UUID):
-            return self.root_scope.symbols_by_id.get(path)
-        elif isinstance(path, str):
-            if ":" not in path and "." not in path:
-                return self.find_symbol(path, by=by)
-            path = parse_statement_path(path)
-        if path.path == ".":
-            return self.find_symbol(path.name, by=by)
-        # strip leading . in path
-        path = StatementPath(path.path[1:], path.name)
-        first_part = path.path.split(".")[0]
-        scope = self.find_scope(first_part, by=by)
-        if scope is None:
-            return None
-        return scope.lookup_symbol(path, symbol_t=symbol_t)
-
-    def _add_statement(self, statement: Statement, by_name: bool) -> None:
-        if statement.name is not None and by_name:
-            if statement.name in self.scopes_by_name:
-                self._on_issue(
-                    type=IssueType.AMBIGUOUS_DEFINITION, subject=statement, path=statement.path
-                )
-            else:
-                self.scopes_by_name[statement.name] = statement
-                self.names_by_identifier[statement.ident] = statement.name
-
-        self.symbols_by_id.update(statement.symbols_by_id)
-        if isinstance(statement, Symbol):
-            self.symbols_by_id[statement.id] = statement
-
-    def _clear(self):
-        """Resets this scope and all child scopes."""
-        self.scopes_by_name.clear()
-        self.symbols_by_id.clear()
-        self.names_by_identifier.clear()
-        for scope in self.scopes_by_name.values():
-            scope._clear()
-
-
-@node
-class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
-    name: str = required_field()
-    files: list[File] = field(default_factory=list)
-    dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
-    parent: None = None
-    parent_scope: Scope = None
-    committed: bool = False
-
-    @property
-    def attached(self) -> bool:
-        return True  # root is always "attached"
-
-    def add_dependency(self, module: Module | ModuleReference) -> None:
-        if module.name in self.dependencies:
-            raise ValueError(
-                f"{self} has dependency {module.name}: {self.dependencies[module.name]}"
-            )
-        self.dependencies[module.name] = module
-
-    def lookup_symbol(
-        self,
-        path: StatementPath | UUID | str,
-        symbol_t: typing.Type[SymbolT] | None = None,
-        by: LookupBy = LookupBy.Name,
-    ) -> SymbolT:
-        if isinstance(path, UUID):
-            return self.symbols_by_id.get(path)
-        elif path.startswith("."):
-            return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
-        else:
-            match = REFERENCE_REGEX.match(path)
-            module_name = match.group("module_owner") + "." + match.group("module_name")
-            dependency = self.dependencies.get(module_name)
-            if dependency is None:
-                raise LookupError(f"could not find dependency {module_name}")
-            localized_path = "." + match.group("path") + ":" + match.group("name")
-            return dependency.lookup_symbol(localized_path, symbol_t=symbol_t, by=by)
-
-    def __str__(self):
-        return f"{self.name} ({len(self.files)} files)"
-
-    def __repr__(self):
-        return f"<Module {str(self)}>"
-
-    def instantiate_in(self, session: Session):
-        if self._session is not None:
-            self._session.remove(self)
-        self._session = session
-        self.clear()
-        self.index()
-        self.interp()
-        for n in self.walk():
-            if n != self and isinstance(n, HasSession):
-                n.instantiate_in(session)
-
-    def clear(self):
-        super()._clear()
-        for file in self.files:
-            file._clear()
-
-    def index(self):
-        for file in self.files:
-            file._index()
-            if file.name in self.scopes_by_name:
-                self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.name)
-            else:
-                self.scopes_by_name[file.name] = file
-            self.symbols_by_id.update(file.symbols_by_id)
-
-    def interp(self):
-        for file in self.files:
-            file._interp()
-
-
-@node
-class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
-    module: Module = required_field()
-    name: str = required_field()
-    parent: File | Module = None
-    children: list[File] | None = None
-    statements: list[Statement] = field(default_factory=list)
-    # index
-    statements_by_parent_id: dict[UUID | None, list[Statement]] | None = None
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.parent is None:
-            self.parent = self.module
-        self._sort()
-
-    def __str__(self):
-        return f"{self.module.name}/{self.name}"
-
-    def __repr__(self):
-        return f"<File {str(self)}>"
-
-    @property
-    def path(self) -> str:
-        if isinstance(self.parent, File):
-            return f"{self.parent.path}.{self.name}"
-        else:
-            return self.name
-
-    def append(self, *statements: Statement):
-        """Appends the statements to this file."""
-        for statement in statements:
-            statement.file = self
-            statement.parent_scope = self
-            self.statements.append(statement)
-
-    def _sort(self):
-        """Sorts the files statements in-place according to parent & order keys."""
-        # per parent (incl. root = None) sort by order key
-        sorted_statements = []
-        self.statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
-        for statement in self.statements:
-            self.statements_by_parent_id[statement.parent_id].append(statement)
-
-        def walk_dfs(statement: Statement):
-            sorted_statements.append(statement)
-            children = self.statements_by_parent_id.get(statement.id)
-            if children is not None:
-                for child in sorted(children, key=lambda s: s.order_key):
-                    walk_dfs(child)
-
-        roots = self.statements_by_parent_id.get(self.id, [])
-        for statement in sorted(roots, key=lambda s: s.order_key):
-            walk_dfs(statement)
-
-        self.statements = sorted_statements
-
-    def _clear(self):
-        """Resets this scope and all child scopes."""
-        super()._clear()
-        for statement in self.statements:
-            statement._clear()
-
-    def _index(self):
-        """Indexes all statements in this file into the scope."""
-        self._sort()
-        for statement in self.statements:
-            statement._index()
-            is_root = statement.parent == self
-            self._add_statement(statement, by_name=is_root)
-
-    def _interp(self):
-        for statement in self.statements:
-            statement._interp(statement)
-
-
-@node
-class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
-    """A Bench statement."""
-
-    file: File | None = None
-    parent: Statement | File = None
-    children: list[Statement] | None = None
-    order_key: str | None = None
-    type: StatementType = StatementType.BLANK
-    name: Optional[str] = None
-    id: UUID = field(default_factory=uuid.uuid4)
-
-    def __post_init__(self):
-        super().__post_init__()
-        if self.file is None and self.parent is not None:
-            self.file = self.parent.file
-        if self.parent is None:
-            self.parent = self.file
-
-    def __str__(self):
-        return f"{self.path} {self.name or '<anon>'}"
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
-
-    @property
-    def path(self) -> str:
-        if self.file is None:
-            return f"<detached>:{self.infile_path}"
-        else:
-            return self.file.path + ":" + str(self.infile_path)
-
-    @property
-    def infile_path(self) -> str:
-        parent = self.parent
-        ancestor_parts = [self.name or "<anon>"]
-        seen_ids = {self.id}
-        while isinstance(parent, Statement):
-            if parent.id in seen_ids:
-                # :CircularAncestry
-                # circuit breaker: ignore here because this is an error in indexing
-                ancestor_parts.append("<!loop>")
-                break
-            ancestor_parts.append(parent.name or "<anon>")
-            seen_ids.add(parent.id)
-            parent = parent.parent
-        return ".".join(reversed(ancestor_parts))
-
-    @property
-    def fqn(self) -> str:
-        if self.file is None:
-            raise ValueError(f"cannot get fqn of detached statement {self}")
-        return f"{self.file.module.name}.{self.file.name.replace('/', '.')}.{self.name}"
-
-    @property
-    def ident(self) -> str:
-        return to_pyidentifier(self.name)
-
-    @property
-    def parent_id(self) -> Optional[UUID]:
-        return self.parent.id if self.parent is not None else None
-
-    def _index(self):
-        self._clear()
-        self.children = self.file.statements_by_parent_id.get(self.id, [])
-        for child in self.children:
-            # only index self, not children
-            # (unlike in file/module, statement nesting is only semantic, not structural)
-            self._add_statement(child, by_name=True)
-
-    def _interp(self, scope: Scope) -> None:
-        pass
-
-
-@node
-class Blank(Statement):
-    """A blank statement."""
-
-    type: StatementType = StatementType.BLANK
-
-
-@node
-class Text(Statement):
-    """A comment that's not semantic/interpreted by default."""
-
-    type: StatementType = StatementType.TEXT
-    text: str | None = None
-
-
-StatementReference = typing.Union[Statement, StatementPath, UUID]
-
-
-class SymbolBase(abc.ABC):
-    """Base for interpretable symbols for type-checking."""
-
-    parent: Statement | File
-    session: Session
-
-    def _clear(self) -> None:
-        raise NotImplementedError
-
-    def _interp(self, scope: Scope) -> None:
-        raise NotImplementedError
-
-    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
-        raise NotImplementedError
-
-    _on_issue: IssueHandler
-
-
-@node
-class Symbol(Statement, SymbolBase):
-    """An interpretable and semantic statement (symbol) in Bench source."""
-
-    issues: list[Issue] | None = None
-
-    def _clear(self) -> None:
-        """Clears any derived/interpreted values on this symbol."""
-        Statement._clear(self)
-        self.issues = None
-
-    def _interp(self, scope: Scope) -> None:
-        """Updates, resolves and checks any derived/interpreted values on this symbol."""
-        pass
-
-    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
-        """Clears and re-interprets this symbol in scope."""
-        self._clear()
-        self._index()
-        self._interp(scope or self)
-        if raise_errors and self.errors:
-            raise BenchError(self.errors[0])
+        super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value}")
+        self.value = value
+        self.expected = expected
+        self.message = message
+        self.suberrors = suberrors or []
+
+
+class TypeTag(enum.StrEnum):
+    """The Bench primitive type of a field/type."""
+
+    STRING = "string"
+    NUMBER = "number"
+    BOOLEAN = "boolean"
+    VECTOR = "vector"
+    FILE = "file"
+    STRUCT = "struct"
+    JSON = "json"
+    FUNCTION = "function"
+    UNION = "union"
+    ENUM = "enum"
+    LITERAL = "literal"
+    NULL = "null"
+    ANY = "any"
+    TYPE_REFERENCE = "ref"
+
+
+PRIMITIVE_TYPES = [
+    TypeTag.ANY,
+    TypeTag.NULL,
+    TypeTag.BOOLEAN,
+    TypeTag.NUMBER,
+    TypeTag.STRING,
+    TypeTag.FILE,
+    TypeTag.VECTOR,
+]
+FIELD_KEY_LENGTH = 8
+
+
+class TypeHint(enum.StrEnum):
+    """Extra representation/semantics of a field/type."""
+
+    # string
+    NAME = "name"
+    UUID = "uuid"
+    DATE = "date"
+    DATETIME = "datetime"
+    TIME = "time"
+    DURATION = "duration"
+    EMAIL = "email"
+    URL = "url"
+    MARKDOWN = "markdown"
+    RICH_TEXT = "rich_text"
+    HTML = "html"
+    CODE = "code"
+    KEY = "key"
+    SECRET = "secret"
+    # number
+    INTEGER = "integer"
+    FLOAT = "float"
+    SLIDER = "slider"
+    PHONE = "phone"
+    RATING = "rating"
+    # boolean
+    TOGGLE = "toggle"
+    CHECKBOX = "checkbox"
+    THUMBS = "thumbs"
+    # vector
+    EMBEDDING = "embedding"
+    # file
+    IMAGE = "image"
+    VIDEO = "video"
+    AUDIO = "audio"
+
+
+class TypeFlag(enum.IntFlag):
+    """Extra information for fields"""
+
+    # :TypeFlags
+    Zero = 0
+    IsOutput = 2**0
+    IsArray = 2**1
+    IsNullable = 2**2
+    IsUnionWith = 2**3
+    IsSecret = 2**4
+
+
+DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
+Vector = list[float]
+
+
+@dataclass
+class XYPoint:
+    """The value of an OpenSearch/GeoJSON-compatible geo_point field."""
+
+    x: float
+    y: float
+
+
+class XYShapeType(enum.StrEnum):
+    """The type in an OpenSearch-compatible geo_shape field."""
+
+    POINT = "point"
+    LINE_STRING = "line_string"
+    POLYGON = "polygon"
+    MULTI_POINT = "multi_point"
+    MULTI_LINE_STRING = "multi_line_string"
+    MULTI_POLYGON = "multi_polygon"
+    GEOMETRY_COLLECTION = "geometry_collection"
+    ENVELOPE = "envelope"
+
+
+@dataclass
+class XYShape:
+    """The value of an OpenSearch-compatible geo_shape field."""
+
+    type: XYShapeType
+    coordinates: typing.Union[list[float], list[list[float]]]
+
+
+TYPE_TAG_BY_TYPE_HINT = {
+    # string
+    TypeHint.NAME: TypeTag.STRING,
+    TypeHint.UUID: TypeTag.STRING,
+    TypeHint.DATE: TypeTag.STRING,
+    TypeHint.DATETIME: TypeTag.STRING,
+    TypeHint.TIME: TypeTag.STRING,
+    TypeHint.DURATION: TypeTag.STRING,
+    TypeHint.EMAIL: TypeTag.STRING,
+    TypeHint.URL: TypeTag.STRING,
+    TypeHint.MARKDOWN: TypeTag.STRING,
+    TypeHint.RICH_TEXT: TypeTag.STRING,
+    TypeHint.HTML: TypeTag.STRING,
+    TypeHint.CODE: TypeTag.STRING,
+    TypeHint.KEY: TypeTag.STRING,
+    TypeHint.PHONE: TypeTag.STRING,
+    TypeHint.SECRET: TypeTag.STRING,
+    # number
+    TypeHint.INTEGER: TypeTag.NUMBER,
+    TypeHint.FLOAT: TypeTag.NUMBER,
+    TypeHint.SLIDER: TypeTag.NUMBER,
+    TypeHint.RATING: TypeTag.NUMBER,
+    # boolean
+    TypeHint.TOGGLE: TypeTag.BOOLEAN,
+    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
+    TypeHint.THUMBS: TypeTag.BOOLEAN,
+    # file
+    TypeHint.IMAGE: TypeTag.FILE,
+    TypeHint.VIDEO: TypeTag.FILE,
+    TypeHint.AUDIO: TypeTag.FILE,
+}
+
+
+class TypeStorageFormat(enum.StrEnum):
+    """
+    The fundamental form of a field/type.
+    Since we're using OpenSearch for our user data backend, this
+    needs to be compatible with OpenSearch's field types.
+    However, be mindful of other future storage backends.
+    :TypeStorageFormat
+    TODO @Architecture: consider consolidating type storage/tage/hint somehow
+    """
+
+    STRING = "str"
+    DOUBLE = "f64"
+    LONG = "s64"
+    VECTOR = "vec"
+    BINARY = "bin"
+    BOOLEAN = "bool"
+    DATE = "date"
+    KEYWORD = "key"
+    OBJECT = "obj"
+    RELATION = "rel"
+
+
+STORAGE_FORMAT_BY_TYPE_TAG = {
+    TypeTag.STRING: TypeStorageFormat.STRING,
+    TypeTag.JSON: TypeStorageFormat.OBJECT,
+    TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
+    TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
+    TypeTag.VECTOR: TypeStorageFormat.VECTOR,
+    TypeTag.FILE: TypeStorageFormat.BINARY,
+    TypeTag.STRUCT: TypeStorageFormat.OBJECT,
+    TypeTag.ENUM: TypeStorageFormat.KEYWORD,
+}
+STORAGE_FORMAT_BY_TYPE_HINT = {
+    # for special types that are not the same as their type tag
+    TypeHint.UUID: TypeStorageFormat.KEYWORD,
+    TypeHint.DATE: TypeStorageFormat.DATE,
+    TypeHint.DATETIME: TypeStorageFormat.DATE,
+    TypeHint.TIME: TypeStorageFormat.LONG,
+    TypeHint.DURATION: TypeStorageFormat.DOUBLE,
+    TypeHint.KEY: TypeStorageFormat.KEYWORD,
+    TypeHint.INTEGER: TypeStorageFormat.LONG,
+    TypeHint.FLOAT: TypeStorageFormat.DOUBLE,
+}
+
+
+def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeStorageFormat:
+    # :TypeStorageFormat
+    if flags & TypeFlag.IsSecret:
+        return TypeStorageFormat.OBJECT  # stored as secret object
+    if hint in STORAGE_FORMAT_BY_TYPE_HINT:
+        return STORAGE_FORMAT_BY_TYPE_HINT[hint]
+    return STORAGE_FORMAT_BY_TYPE_TAG[tag]
 
 
 class TypeBase(abc.ABC):
@@ -612,13 +328,13 @@ class TypeBase(abc.ABC):
 
     def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
         """'Unkeys' data by replacing keys with the names of the type nodes."""
-        from bench.bench.typer import unkey_value
+        from bench.bench.type import unkey_value
 
         return unkey_value(data, self, is_output=is_output, to_ident=to_ident)
 
     def rekey(self, data: Any, is_output: bool = None, via_ident: bool = False) -> Any:
         """'Keys' data by replacing names with the keys of the type nodes."""
-        from bench.bench.typer import rekey_value
+        from bench.bench.type import rekey_value
 
         return rekey_value(data, self, is_output=is_output, from_ident=via_ident)
 
@@ -676,55 +392,6 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase):
 class ResolvedField(Field):
     parent: Statement = required_field()
     field: Field = required_field()
-
-
-Expectable = Union["Expectation", "Task", "Dataset", "Code"]
-
-
-@node
-class IsExpectable:
-    """Symbols that can define expectations"""
-
-    modifier: Optional[ExpectationModifier] = None
-
-
-@node
-class HasExpectations(SymbolBase, IsExpectable):
-    """Symbols we can attach expectations to"""
-
-    description: Optional[str] = None
-    expectations: list[Expectable] = field(default_factory=list)
-    resolved_expectations: list[Expectable] | None = None
-
-    def expect(self, expectation: Expectable) -> "Self":
-        self.expectations.append(expectation)
-        return self
-
-    def check(self, code: Code) -> "Self":
-        # turn into ref and add modifier
-        raise NotImplementedError
-
-    def like(self, expectation: Expectable) -> "Self":
-        # same
-        raise NotImplementedError
-
-    def unlike(self, expectation: Expectable) -> "Self":
-        # same
-        raise NotImplementedError
-
-    def _clear(self) -> None:
-        self.resolved_expectations = None
-
-    def _interp(self, scope: Scope) -> None:
-        if self.resolved_expectations is not None:
-            return
-        resolved_expectations = [*self.expectations]
-        if isinstance(self, HasType):
-            # inline union expectations
-            for base in self.bases:
-                if isinstance(base.reference, HasExpectations):
-                    resolved_expectations.extend(base.reference.expectations)
-        self.resolved_expectations = resolved_expectations
 
 
 @node
@@ -854,7 +521,7 @@ class Type(Symbol, HasType, HasExpectations):
 
     @cached_property
     def py_type(self) -> type | enum.Enum:
-        return self.session.instance.instantiate_py_type(self)
+        return instantiate_py_type(self, self.session)
 
     def _clear(self) -> None:
         Symbol._clear(self)
@@ -881,578 +548,438 @@ class Type(Symbol, HasType, HasExpectations):
         return super(HasType).__getattr__(item)
 
 
-TYPE_FIELD_KEYS = {field.name for field in fields(Type)}
+def on_invalid_raise(
+    value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
+):
+    raise TypeError(value, expected, message, suberrors)
 
 
-@node
-class Task(Symbol, HasType, HasExpectations):
-    description: Optional[str] = None
-    tag: TypeTag = TypeTag.FUNCTION
-    _is_async: bool = True
-    # should probably store last good implementation ... in redis?
-    last_good_impl_idx: int = 0
+def check_type(
+    value: Any,
+    expected: TypeBase,
+    eager_error: bool = True,
+    on_invalid=on_invalid_raise,
+    ignore_array: bool = False,
+    is_output: bool = None,
+):
+    """
+    Checks whether the given value has the expected type (recursively).
+    Raises TypeError if not at the first issue.
+    """
 
-    def _clear(self) -> None:
-        Symbol._clear(self)
-        HasType._clear(self)
-        HasExpectations._clear(self)
+    _suberrors = []
 
-    def _interp(self, scope: Scope) -> None:
-        HasType._interp(self, scope)
-        HasExpectations._interp(self, scope)
-
-    async def __call__(
-        self,
-        *args,
-        build: str = None,
-        model: Model | str = None,
-        retries: int = None,
-        cache: bool = None,
-        timeout: float = None,
-        **kwargs,
+    def _on_invalid_collect(
+        value: Any,
+        expected: TypeBase,
+        message: str = None,
+        suberrors: list[TypeError] = None,
     ):
-        from bench.bench.build import XConsiderError, XGenerationError
+        _suberrors.append(TypeError(value, expected, message, suberrors))
 
-        implementations = self.session.instance.get_implementations(self, build=build, model=model)
-        # TODO @Broken: sort/filter implementations with some smartness
-        impl_idx = self.last_good_impl_idx
-        retries = retries if retries is not None else self.session.inference_retries
-        remaining_retries = retries
+    def _check(valid: bool, message: str):
+        if not valid:
+            if eager_error:
+                on_invalid(value, expected, message)
+            else:
+                _on_invalid_collect(value, expected, message)
+        return valid
 
-        self.session.tracer.code_enter(self, args, kwargs)
-        semantic_errors = []
-        while remaining_retries >= 0:
-            remaining_retries -= 1
-            impl = implementations[impl_idx]
-            log = self.session.logger.bind(
-                task=self, retries=remaining_retries, implementation=impl
-            )
-            try:
-                ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
-                self.last_good_impl_idx = impl_idx
-                self.session.tracer.code_exit(self, args, kwargs, ret)
-                return ret
-            except XGenerationError as e:
-                semantic_errors.append(e)
-                log.warning("task.failed", exc_info=e)
-                if len(semantic_errors) <= self.session.inference_retries / len(implementations):
-                    # retry with error info a few times
-                    implementations[impl_idx] = impl.copy().emit(XConsiderError(e))
+    if expected.flags & TypeFlag.IsArray and not ignore_array:
+        if _check(isinstance(value, Collection), "expected array"):
+            for item in value:
+                check_type(
+                    item,
+                    expected,
+                    eager_error=eager_error,
+                    on_invalid=on_invalid,
+                    ignore_array=True,
+                )
+    elif expected.tag == TypeTag.STRING:
+        _check(isinstance(value, str), "expected string")
+    elif expected.tag == TypeTag.NUMBER:
+        _check(isinstance(value, (int, float)), "expected number")
+    elif expected.tag == TypeTag.BOOLEAN:
+        _check(isinstance(value, bool), "expected boolean")
+    elif expected.tag == TypeTag.ENUM:
+        # assumes literal/value enums
+        _check(any(member.name == value for member in expected.fields), "expected enum member")
+    elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
+        if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
+            value = value or {}  # None is allowed for empty outputs
+        if _check(isinstance(value, Mapping), "expected struct"):
+            for field in expected.fields:
+                if is_output is not None and bool(field.flags & TypeFlag.IsOutput) != is_output:
+                    continue
+                alt_name = to_pyidentifier(field.name)
+                subvalue = value.get(field.name, value.get(alt_name))
+                if subvalue is None:
+                    _check(bool(field.flags & TypeFlag.IsNullable), "expected non-nullable value")
                 else:
-                    # fail over
-                    impl_idx = (impl_idx + 1) % len(implementations)
-                    semantic_errors = []
-            except TimeoutError as e:
-                # fail over
-                self.session.logger.warning("task.failed", exc_info=e)
-                impl_idx = (impl_idx + 1) % len(implementations)
+                    check_type(subvalue, field, eager_error=eager_error, on_invalid=on_invalid)
+    elif expected.tag in (TypeTag.FILE,):
+        _check(isinstance(value, RemoteObject), "expected remote object")
+    elif expected.tag == TypeTag.UNION:
+        for option in expected.fields:
+            try:
+                check_type(value, option)
+                return
+            except TypeError:
+                pass
+        _check(False, "expected one of the union types")
+    elif expected.tag == TypeTag.NULL:
+        _check(value is None, "expected null")
+    elif expected.tag == TypeTag.ANY:
+        pass
+    elif expected.tag == TypeTag.LITERAL:
+        _check(value == expected.value, "expected literal")
+    else:
+        raise RuntimeError(f"unexpected type {expected.tag}")
 
-        # give up
-        errors_repr = "\n".join(str(e) for e in semantic_errors) if semantic_errors else "<timeout>"
-        e = RuntimeError(f"{self} failed after {retries} retries: {errors_repr}")
-        self.session.tracer.code_exception(self, args, kwargs, e)
-        if semantic_errors:
-            raise e from semantic_errors[-1]
-        else:
-            raise e
-
-    def to_sync(self) -> "Self":
-        if self.is_async:
-            raise NotImplementedError  # nocheckin
-        return self
-
-
-@node
-class Expectation(Symbol, HasExpectations):
-    reference: StatementReference | Statement | None = None
-    description: Optional[str] = None
-
-    def _interp(self, scope: Scope) -> None:
-        # resolve reference
-        if self.reference is not None:
-            resolved = scope.lookup_symbol(self.reference)
-            if resolved is None:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-            else:
-                self.reference = resolved
-        # interp
-        HasExpectations._interp(self, scope)
-        if isinstance(self.reference, HasExpectations):
-            self.resolved_expectations.extend(self.reference.expectations)
-
-    def _clear(self) -> None:
-        Symbol._clear(self)
-        HasExpectations._clear(self)
+    if not eager_error and _suberrors:
+        on_invalid(value, expected, suberrors=_suberrors)
 
 
-@node
-class CodeTransformation:
-    original_code: str
-    transformed_code: str
-    method_name: str
-    start_offset: int
+def _map_v_noop(v, t):
+    return v
 
 
-@node
-class CodeParse:
-    references: dict[str, "StatementPath"] = field(default_factory=dict)
-    is_async: bool = False
-    fake_line_numbers: list[int] = field(default_factory=list)
+def _map_k_noop(t):
+    return t.name, t.name
 
 
-AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
-SyncCodeCallable = typing.Callable[..., Any]
+def map_value(
+    value: Any,
+    type: TypeBase,
+    map_v: Callable[[Any, TypeBase, bool], Any] = None,
+    map_k: Callable[[Field], tuple[str, str]] = None,
+    is_output: bool = None,
+    ignore_array: bool = False,
+    ignore_outer_map: bool = False,
+):
+    """Walks the value and reassembles with new keys and values."""
+    map_v = map_v or _map_v_noop
+    map_k = map_k or _map_k_noop
+    # communicate via yield/send
+    if type.flags & TypeFlag.IsArray and not ignore_array:
+        if not isinstance(value, Collection):
+            return value  # type error, ignore here
+        return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+    elif type.tag in PRIMITIVE_TYPES:
+        return map_v(value=value, type=type, ignore_array=ignore_array)
+    elif type.tag == TypeTag.ENUM:
+        return map_v(value=value, type=type, ignore_array=ignore_array)
+    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+        raise TypeError(value, type, "expected struct-like")
+    if not isinstance(value, Mapping):
+        return value  # type error, ignore here
+    mapped = {}
+    for subtype in type.fields:
+        if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
+            raise RuntimeError(f"unexpected union with {type}->{subtype}")
+        if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:
+            continue
+        source_k, target_k = map_k(subtype)
+        if source_k not in value:
+            continue  # ignore missing keys
+        target_value = map_value(value[source_k], subtype, map_v, map_k)
+        mapped[target_k] = target_value
+    if not ignore_outer_map:
+        mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
+    return mapped
 
 
-@node
-class Code(Symbol, HasType, IsExpectable):
-    tag: TypeTag = TypeTag.FUNCTION
-    language: str = "python"
-    code: Optional[str] = None
-    _is_async: Optional[bool] = None
-    _parse: Optional[CodeParse] = None
-    _references: dict[str, Symbol] | None = None
-    _transform: Optional[CodeTransformation] = None
-    _callable: AsyncCodeCallable | SyncCodeCallable | None = None
-
-    def _clear(self) -> None:
-        Symbol._clear(self)
-        HasType._clear(self)
-        self._parse = None
-        self._references = None
-        self._transform = None
-        self._callable = None
-
-    def _interp(self, scope: Scope) -> None:
-        HasType._interp(self, scope)
-
-        # parse and resolve code references
-        input_idents = {input.ident for input in self.inputs}
-        self._parse = parse_code(self.code)
-        self._is_async = self._parse.is_async
-        self._references = {}
-        for key, reference in self._parse.references.items():
-            if key in input_idents:
-                continue  # input arguments are not context
-            resolved = scope.lookup_symbol(reference, by=LookupBy.PyIdent)
-            if resolved is not None:
-                self._references[key] = resolved
-            else:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=key)
-
-    def _prep_callable(self) -> None:
-        if self._callable is None:
-            self._transform, self._callable = self.session.instance.instantiate_callable(self)
-
-    def __call__(self, *args, **kwargs):
-        if self._is_async:
-            return self.__call_async__(*args, **kwargs)
-        else:
-            return self.__call_sync__(*args, **kwargs)
-
-    async def __call_async__(self, *args, **kwargs):
-        self._prep_callable()
-        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
-        try:
-            self.session.tracer.code_enter(self, args, kwargs)
-            log.debug("code.enter")
-            result = await self._callable(*args, **kwargs)
-            self.session.tracer.code_exit(self, args, kwargs, result)
-            log.debug("code.exit")
-            return result
-        except Exception as exception:
-            self.session.tracer.code_exception(self, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
-            raise
-
-    def __call_sync__(self, *args, **kwargs):
-        self._prep_callable()
-        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
-        try:
-            self.session.tracer.code_enter(self, args, kwargs)
-            log.debug("code.enter")
-            result = self._callable(*args, **kwargs)
-            self.session.tracer.code_exit(self, args, kwargs, result)
-            log.debug("code.exit")
-            return result
-        except Exception as exception:
-            self.session.tracer.code_exception(self, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
-            raise
-
-    def to_sync(self) -> "Code":
-        sync_code = Code(**self.__dict__)
-        if self._is_async:
-            sync_code.__call_sync__ = async_to_sync(self.__call_async__)
-        sync_code._is_async = False
-        return sync_code
-
-    def to_async(self) -> "Code":
-        async_code = Code(**self.__dict__)
-        if not self._is_async:
-            async_code.__call_async__ = sync_to_async(self.__call_sync__)
-        async_code._is_async = True
-        return async_code
+def map_unkey_enum(value: Any, type: TypeBase, *args, **kwargs):
+    if type.tag == TypeTag.ENUM:
+        return type[value].name
+    return value
 
 
-@node
-class Record:
-    _dataset: Dataset
-    _order_key: str
-    _data: typing.Any = field(default_factory=dict)
-    id: UUID = field(default_factory=uuid.uuid4)
-
-    def __str__(self):
-        return f"{self._order_key} {describe_type(self._data)}"
-
-    def __repr__(self):
-        return f"<Record {self}>"
-
-    @property
-    def parent_id(self):
-        return self._dataset.id
-
-    @property
-    def keys(self):
-        return self._data.keys
-
-    def __getitem__(self, item: str):
-        try:
-            return self._data[item]
-        except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self._data.keys())})")
-
-    def __setitem__(self, key, value):
-        self._data[key] = value
-
-    def __getattr__(self, item):
-        try:
-            return self._data[item]
-        except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self._data.keys())})")
-
-    def __setattr__(self, key, value):
-        if key in RECORD_FIELD_KEYS:
-            super().__setattr__(key, value)
-        else:
-            self[key] = value
+def map_rekey_enum(value: Any, type: TypeBase, *args, **kwargs):
+    if type.tag == TypeTag.ENUM:
+        return type[value].key
+    return value
 
 
-RECORD_FIELD_KEYS = {field.name for field in fields(Record)}
+def unkey_value(
+    value: Any,
+    type: TypeBase,
+    is_output: bool = None,
+    ignore_array: bool = False,
+    to_ident: bool = False,
+) -> Any:
+    """Replaces keys with actual values."""
+    if to_ident:
+
+        def map_k(t: Field):
+            return t.typed_key, t.ident
+
+    else:
+
+        def map_k(t: Field):
+            return t.typed_key, t.name
+
+    return map_value(
+        value,
+        type,
+        map_v=map_unkey_enum,
+        map_k=map_k,
+        is_output=is_output,
+        ignore_array=ignore_array,
+    )
 
 
-@node
-class DatasetView(ModuleNode, HasCrud):
-    name: str = None
-    layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
-    query: Optional[Query] = None
-    sort: Optional[list[Sort]] = None
-    order_key: str = field(default_factory=uuid.uuid4)
-    fields: Optional[list[DatasetViewField]] = None
+def rekey_value(
+    value: Any,
+    type: TypeBase,
+    is_output: bool = None,
+    ignore_array: bool = False,
+    from_ident: bool = False,
+) -> Any:
+    """Replaces names with keys."""
+    if from_ident:
+
+        def map_k(t: Field):
+            return t.ident, t.typed_key
+
+    else:
+
+        def map_k(t: Field):
+            return t.name, t.typed_key
+
+    return map_value(
+        value,
+        type,
+        map_v=map_rekey_enum,
+        map_k=map_k,
+        is_output=is_output,
+        ignore_array=ignore_array,
+    )
 
 
-@node
-class DatasetViewField(ModuleNode):
-    field: UUID | Field = required_field()
-    order_key: Optional[str] = None
+TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
+REMOTE_OBJECT_TYPENAME = "RemoteObject"
+SECRET_TYPENAME = "Secret"
+TypeSignature = typing.NamedTuple(
+    "TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint]), ("flags", TypeFlag)]
+)
 
 
-DEFAULT_VIEW = DatasetView(name="default")
+class TypeMapper:
+    """
+    Maps specific types (and values) into and from Python.
+    Don't bother with lists and optional types here.
+    """
+
+    def to_py_type(self, type: TypeBase) -> type:
+        raise NotImplementedError
+
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return value
+
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return value
 
 
-@node
-class Dataset(Symbol, HasType, IsExpectable):
-    description: Optional[str] = None
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.IsArray
-    length: Optional[int] = None
-    inmemory: bool = False  # TODO @Performance: keep small datasets in memory for basic ops?
-    versioned: bool = True
-    records: Optional[list[Record]] = None
-    views: Optional[list[DatasetView]] = None
-    backend: DatasetBackend = DatasetBackend.OPENSEARCH
-    backend_id: str = field(default_factory=new_dataset_backend_id)
+type_mappers: dict[TypeSignature, TypeMapper] = {}
 
-    def _clear(self) -> None:
-        Symbol._clear(self)
-        HasType._clear(self)
 
-    def _interp(self, scope: Scope) -> None:
-        HasType._interp(self, scope)
+def register_mapper(
+    mapping: TypeMapper,
+    *,
+    tags: list[TypeTag] = None,
+    hints: list[TypeHint] = None,
+    flags: TypeFlag = None,
+):
+    if not tags and not hints:
+        raise ValueError("at least one tag or hint must be specified")
+    tags = tags or []
+    hints = hints or []
+    flags = flags or TypeFlag.Zero
+    for tag in tags:
+        type_mappers[TypeSignature(tag, None, flags)] = mapping
+    for hint in hints:
+        tag = TYPE_TAG_BY_TYPE_HINT[hint]
+        type_mappers[TypeSignature(tag, hint, flags)] = mapping
 
-    @property
-    def default_view(self) -> DatasetView:
-        return self.views[0] if self.views else DEFAULT_VIEW
 
-    def clear(self):
-        self.session.tracer.dataset_clear(self)
-        if self.inmemory:
-            self.records = []
+def get_flat_mapper(type: TypeBase) -> TypeMapper:
+    """
+    Gets the most appropriate mapping for the given type.
+    (flat because we ignore list and optional types).
+    """
+    # strip to only relevant flags for mapping
+    stripped_flags = type.flags & TypeFlag.IsSecret
+    exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
+    mapping = type_mappers.get(exact_signature)
+    if mapping is not None:
+        return mapping
+    # no exact match, try generic without hint
+    stripped_signature = TypeSignature(type.tag, None, stripped_flags)
+    mapping = type_mappers.get(stripped_signature)
+    if mapping is not None:
+        return mapping
+    raise LookupError(f"no mapping found for {type}")
 
-    def append(self, record: Record = None, **data):
-        """Appends a record to the dataset."""
-        if record is not None:
-            if data:
-                raise ValueError("cannot pass both record and data")
-            data = record._data
-        # nocheckin: remote datasets
-        data = unproxy_value(data)  # remove source proxy if any
-        # insert at end
-        last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
-        record = Record(
-            _id=uuid.uuid4(),
-            _dataset=self,
-            _order_key=generate_key_between(last_ok, None),
-            _data=data,
+
+@dataclass(repr=False, slots=True)
+class StaticTypeMapper(TypeMapper):
+    py_type: type
+
+    def to_py_type(self, type: TypeBase) -> type:
+        return self.py_type
+
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return self.py_type(value)
+
+
+class StringifyTypeMapping(StaticTypeMapper):
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return self.py_type(value)
+
+    def from_py_value(self, type: TypeBase, value: Any) -> str:
+        return str(value)
+
+
+class IsoDtTypeMapping(StaticTypeMapper):
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return self.py_type.fromisoformat(value)
+
+    def from_py_value(self, type: TypeBase, value: Any) -> str:
+        return value.isoformat()
+
+
+class EnumMapper(TypeMapper):
+    def to_py_type(self, type: TypeBase) -> Any:
+        members = {to_pyidentifier(child.name): child.name for child in type.fields}
+        enum_name = type.name or "_anon_" + uuid4().hex
+        return enum.StrEnum(enum_name, members)
+
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return map_unkey_enum(value, type)
+
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return map_rekey_enum(value, type)
+
+
+class FileMapper(TypeMapper):
+    def to_py_type(self, type: TypeBase) -> type:
+        return RemoteObject
+
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return RemoteObject(
+            id=UUID(value["id"]),
+            name=value["name"],
+            content_type=value["content_type"],
+            content_length=value["content_length"],
+            sha512=value["sha512"],
+            status=RemoteObjectStatus[value["status"]],
         )
-        self.session.tracer.dataset_append(self, record)
-        if self.inmemory:
-            if self.records is None:
-                self.records = []
-            self.records.append(record)
 
-    def extend(self, records: typing.Iterable[Record | dict]):
-        """Extends the dataset with the given records."""
-        datas = [  # remove source proxy if any
-            unproxy_value(record._data) if isinstance(record, Record) else unproxy_value(record)
-            for record in records
-        ]
-        last_ok = self.records[-1]._order_key if self.records else INTEGER_ZERO
-        # nocheckin: remote datasets
-        oks = generate_n_keys_between(last_ok, None, len(datas))
-        records = [
-            Record(
-                _id=uuid.uuid4(),
-                _dataset=self,
-                _order_key=ok,
-                _data=data,
-            )
-            for ok, data in zip(oks, datas)
-        ]
-        self.session.tracer.dataset_extend(self, records)
-        if self.inmemory:
-            if self.records is None:
-                self.records = []
-            self.records.extend(records)
-
-    async def asearch(self, query: Query, sort: list[Sort] = None) -> Dataset:
-        """Searches this dataset remotely."""
-        self.session.tracer.dataset_search(self, query, sort)
-        return await self.session.instance.search(self, query, sort)
-
-    def search(self, query: Query, sort: list[Sort] = None) -> Dataset:
-        """Searches this dataset remotely."""
-        return async_to_sync(self.asearch)(query, sort)
-
-    def __getitem__(self, item: int | slice) -> Record | list[Record]:
-        # nocheckin: proxy dataset access
-        return self.records[item]
-
-    def __len__(self):
-        return self.length
-
-    def __iter__(self):
-        # nocheckin: remote datasets
-        if self.inmemory:
-            return iter(self.records)
-        raise NotImplementedError
-
-    def __aiter__(self):
-        # nocheckin: remote datasets
-        if self.inmemory:
-            yield from self.records
-        raise NotImplementedError
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return {
+            TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
+            "id": str(value.id),
+            "name": value.name,
+            "content_type": value.content_type,
+            "content_length": value.content_length,
+            "sha512": value.sha512,
+            "status": value.status.name,
+        }
 
 
-@node
-class Value(Symbol, HasType, IsExpectable):
-    description: Optional[str] = None
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.Zero
-    value: Any = None
+class SecretTypeMapper(TypeMapper):
+    def to_py_type(self, type: TypeBase) -> Any:
+        return Secret
 
-    @property
-    def keys(self):
-        return self.value.keys()
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return Secret(
+            id=UUID(value["id"]),
+            sha512=value["sha512"],
+        )
 
-    def _clear(self) -> None:
-        HasType._clear(self)
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return {
+            TYPENAME_SENTINEL: SECRET_TYPENAME,
+            "id": str(value.id),
+            "sha512": value.sha512,
+        }
 
-    def _interp(self, scope: Scope) -> None:
-        HasType._interp(self, scope)
 
-    def __getitem__(self, item):
-        return self.value[item]
+class StructTypeMapper(TypeMapper):
+    def to_py_type(self, type: TypeBase) -> typing.TypedDict:
+        return typing.TypedDict(
+            type.name,
+            {member.ident: instantiate_py_type(member) for member in type.fields},
+        )
 
-    def __setitem__(self, key, value):
-        self.session.tracer.value_update(self, key)
-        self.value[key] = value
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        if not isinstance(type, Type):
+            # may be a simple type node
+            if isinstance(type.reference, Type):
+                type = type.reference
+            else:
+                raise ValueError(f"struct type is not an instance: {type}")
+        return type(**value)
 
-    # proxy to record data if not in this class
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return {TYPENAME_SENTINEL: type.key, **value}
 
-    def __getattr__(self, item):
-        if item in self.__dict__:
-            return self.__dict__[item]
+
+def instantiate_py_type(node: TypeBase) -> type | Any | None:
+    """Create the Python-native type for the given type node."""
+    if node.tag == TypeTag.FUNCTION:
+        return None  # functions don't have a pytype
+    map = get_flat_mapper(node)
+    py_type = map.to_py_type(node)
+    if node.flags & TypeFlag.IsArray:
+        return list[py_type]
+    else:
+        return py_type
+
+
+def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
+    """Maps to the Python representation of the given value."""
+    if value is None:  # skip null values
+        return None  # type checking is done elsewhere
+    # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
+    mapping = get_flat_mapper(type)
+    try:
+        if type.flags & TypeFlag.IsArray and not ignore_array:
+            if not isinstance(value, list):
+                value = [value]
+            return [mapping.to_py_value(type, v) for v in value]
         else:
-            raise AttributeError(item)
-
-    def __setattr__(self, key, value):
-        if key in VALUE_INSTANCE_FIELDS:
-            super().__setattr__(key, value)
-        else:
-            self.session.tracer.value_update(self, key)
-            self.value[key] = value
+            if isinstance(value, list):
+                value = value[0]
+            return mapping.to_py_value(type, value)
+    except (KeyError, ValueError, TypeError):
+        logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
+        return value  # type checking is done elsewhere
 
 
-VALUE_INSTANCE_FIELDS = {field.name for field in fields(Value)}
+def strip_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+    """Maps back to the raw value from the Python representation."""
+    # we don't auto-coerce here since that's only needed for external data
+    if value is None:
+        return None
+    mapping = get_flat_mapper(type)
+    return mapping.from_py_value(type, value)
 
 
-@node
-class Model(Symbol):
-    external_name: str = required_field()
-
-    @cached_property
-    def inference(self) -> "ModelInference":
-        return self.session.instance.instantiate_inference(self)
-
-    def _clear(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
-        pass
-
-    def __str__(self):
-        return f"{self.external_name}"
-
-    # forward inference methods
-    def __getattr__(self, item: str):
-        if item in self.inference.__dict__:
-            return getattr(self.inference, item)
-        else:
-            raise AttributeError(item)
-
-
-@node
-class Requirement(Symbol):
-    module_name: Optional[str] = None
-    module_id: Optional[UUID] = None
-    version: Optional[str] = None
-
-    async def arequire(self) -> None:
-        raise NotImplementedError
-
-    def require(self) -> None:
-        async_to_sync(self.arequire)()
-
-    def __str__(self):
-        return f"{self.module_name or '<unspecified>'}@{self.version or '<any>'}"
-
-    def _interp(self, scope: Scope) -> None:
-        pass
-
-
-@node
-class Block(Symbol):
-    contents: list[Symbol] = field(default_factory=list)
-
-    def __iter__(self):
-        return iter(self.contents)
-
-    def __getattr__(self, item: str):
-        content = first(self.contents, lambda c: c.name == item, None)
-        if content is not None:
-            return content
-        else:
-            raise AttributeError(item)
-
-    def _interp(self, scope: Scope) -> None:
-        pass
-
-
-STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Symbol]] = {
-    StatementType.TYPE: Type,
-    StatementType.TASK: Task,
-    StatementType.EXPECTATION: Expectation,
-    StatementType.DATASET: Dataset,
-    StatementType.VALUE: Value,
-    StatementType.MODEL: Model,
-    StatementType.CODE: Code,
-    StatementType.REQUIREMENT: Requirement,
-    StatementType.BLOCK: Block,
-}
-STATEMENT_TYPE_BY_CLASS: dict[typing.Type[Symbol], StatementType] = {
-    v: k for k, v in STATEMENT_CLASS_BY_TYPE.items()
-}
-
-
-@node
-class RemoteObject(HasSession):
-    """
-    A proxy to a remotely stored object behaving like a Python file on demand.
-    :RemoteObjectType
-    """
-
-    id: UUID = field(default_factory=uuid.uuid4)
-    sha512: str = required_field()
-    content_length: int = required_field()
-    content_type: str = required_field()
-    name: str = required_field()
-    status: RemoteObjectStatus = required_field()
-
-    def __str__(self):
-        return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
-
-    def __repr__(self):
-        return f"<RemoteObject {self}>"
-
-    def __getitem__(self, item):
-        return self.__dict__[item]
-
-    async def aread(self, timeout: float = 1) -> bytes:
-        """Read the object from the remote storage."""
-        if self.status != RemoteObjectStatus.AVAILABLE:
-            raise ValueError(f"unable to read {self}")
-        return await self.session.instance.remote_object_aread(self, timeout=timeout)
-
-    async def areadtext(self) -> str:
-        return (await self.aread()).decode()
-
-    async def areadlines(self) -> list[str]:
-        return (await self.aread()).decode().splitlines()
-
-    def read(self, timeout: float = 1) -> bytes:
-        """Read the object from the remote storage."""
-        return async_to_sync(self.aread)(timeout=timeout)
-
-    def readtext(self) -> str:
-        return self.read().decode()
-
-    def readlines(self) -> list[str]:
-        return self.read().decode().splitlines()
-
-
-SecretValueT = typing.TypeVar("SecretValueT")
-
-
-@node
-class Secret(HasSession, typing.Generic[SecretValueT]):
-    """A proxy to a remotely stored secret."""
-
-    id: UUID = field(default_factory=uuid.uuid4)
-    sha512: str = required_field()
-    value: Optional[SecretValueT] = None
-
-    def __str__(self):
-        return f"{self.id} ({self.sha512})"
-
-    def __repr__(self):
-        return f"<Secret {self}>"
-
-    async def areveal(self) -> SecretValueT:
-        if self.value is not None:
-            return self.value
-        self.value = await self.session.instance.secret_areveal(self)
-        return self.value
-
-    def reveal(self) -> SecretValueT:
-        return async_to_sync(self.areveal)()
+# type tags
+register_mapper(StaticTypeMapper(str), tags=[TypeTag.STRING])
+register_mapper(StaticTypeMapper(float), tags=[TypeTag.NUMBER])
+register_mapper(StaticTypeMapper(type(None)), tags=[TypeTag.NULL])
+register_mapper(StaticTypeMapper(bool), tags=[TypeTag.BOOLEAN])
+register_mapper(FileMapper(), tags=[TypeTag.FILE])
+register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
+register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
+# type hints
+register_mapper(StringifyTypeMapping(UUID), hints=[TypeHint.UUID])
+register_mapper(IsoDtTypeMapping(date), hints=[TypeHint.DATE])
+register_mapper(IsoDtTypeMapping(datetime), hints=[TypeHint.DATETIME])
+register_mapper(IsoDtTypeMapping(time), hints=[TypeHint.TIME])
+register_mapper(StaticTypeMapper(int), hints=[TypeHint.INTEGER])
+# other
+register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)

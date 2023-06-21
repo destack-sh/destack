@@ -17,8 +17,8 @@ from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
+from bench.opensearch.core import IndexType
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
-from bench.opensearch.type import IndexType
 
 
 @gql.django.type(models.Dataset)

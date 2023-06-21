@@ -10,11 +10,13 @@ from typing import Optional
 from uuid import UUID
 
 from bench.bench import mutate, wire
-from bench.bench.const import ExecutionTriggerType, ModuleReference
-from bench.bench.dataset import Query, Sort
-from bench.bench.wire import ExecutionFrameData, RemoteObjectData, SecretData, XBlockData
+from bench.bench.core import ModuleReference
+from bench.bench.query import Query, Sort
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
+
+if typing.TYPE_CHECKING:
+    from bench.bench.execution import ExecutionTriggerType
 
 
 def payload(message_type: "NMessageType"):
@@ -192,7 +194,7 @@ class ReqRunPayload:
     arguments: dict[str, typing.Any]
     block: bool
     tracing_level: int
-    trigger_type: ExecutionTriggerType
+    trigger_type: "ExecutionTriggerType"
     trigger_id: Optional[UUID]
     execution_id: Optional[UUID]
 
@@ -209,7 +211,7 @@ class RunErrorType(enum.StrEnum):
 class RepRunPayload:
     error: Optional[RunErrorType] = None
     execution_id: Optional[UUID] = None
-    execution: Optional[ExecutionFrameData] = None
+    execution: Optional["wire.ExecutionFrameData"] = None
 
 
 @payload(NMessageType.REQUEST_CANCEL_RUN)
@@ -232,7 +234,7 @@ class ExecutionMarkedDeadPayload:
 @payload(NMessageType.EXECUTION_CHANGED)
 class ExecutionChangedPayload(BatchablePayload):
     module_id: UUID
-    frames: list[ExecutionFrameData]
+    frames: list["wire.ExecutionFrameData"]
 
     @staticmethod
     def batch(messages: list["ExecutionChangedPayload"]) -> "ExecutionChangedPayload":
@@ -243,7 +245,7 @@ class ExecutionChangedPayload(BatchablePayload):
 @payload(NMessageType.EXECUTION_SAVED)
 class ExecutionSavedPayload(BatchablePayload):
     module_id: UUID
-    frames: list[ExecutionFrameData]
+    frames: list["wire.ExecutionFrameData"]
 
     @staticmethod
     def batch(messages: list["ExecutionSavedPayload"]) -> "ExecutionSavedPayload":
@@ -258,7 +260,7 @@ class ReqReadModulePayload:
 
 @payload(NMessageType.REPLY_READ_MODULE)
 class RepReadModulePayload:
-    module: wire.ModuleTreeData
+    module: "wire.ModuleTreeData"
     project_id: UUID
 
 
@@ -286,14 +288,14 @@ class ReqSearchDatasetPayload:
 @payload(NMessageType.REPLY_SEARCH_DATASET)
 class RepSearchDatasetPayload:
     dataset_id: UUID
-    records: list[wire.RecordData]
+    records: list["wire.RecordData"]
     total: int
     limit: int
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)
 class ReqReadObjectPayload:
-    objects: list[RemoteObjectData]
+    objects: list["wire.RemoteObjectData"]
 
 
 @payload(NMessageType.REPLY_READ_OBJECT)
@@ -303,7 +305,7 @@ class RepReadObjectPayload:
 
 @payload(NMessageType.REQUEST_WRITE_OBJECT)
 class ReqWriteObjectPayload:
-    objects: list[RemoteObjectData]
+    objects: list["wire.RemoteObjectData"]
 
 
 @payload(NMessageType.REPLY_WRITE_OBJECT)
@@ -313,12 +315,12 @@ class RepWriteObjectPayload:
 
 @payload(NMessageType.REQUEST_READ_SECRET)
 class ReqReadSecretPayload:
-    secrets: list[SecretData]
+    secrets: list["wire.SecretData"]
 
 
 @payload(NMessageType.REPLY_READ_SECRET)
 class RepReadSecretPayload:
-    secrets: list[SecretData]
+    secrets: list["wire.SecretData"]
 
 
 @payload(NMessageType.REQUEST_RUN_INFERENCE)
@@ -326,7 +328,7 @@ class ReqRunInferencePayload:
     model_fqn: str
     model_external_name: str
     modality: str
-    blocks: list[XBlockData]
+    blocks: list["wire.XBlockData"]
     settings: dict[str, typing.Any]
     timeout: int
 

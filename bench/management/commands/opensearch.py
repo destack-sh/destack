@@ -4,8 +4,8 @@ from django.db import transaction
 
 from bench.models import Project
 from bench.opensearch.client import os_client
+from bench.opensearch.core import IndexType
 from bench.opensearch.index import create_bench_index
-from bench.opensearch.type import IndexType
 
 logger = structlog.get_logger(__name__)
 

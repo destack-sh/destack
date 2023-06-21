@@ -6,7 +6,7 @@ from uuid import UUID
 
 from django.db.models import Model
 
-import bench.opensearch.type as os
+import bench.opensearch.core as os
 from bench import models
 from bench.bench import StatementType, wire
 
@@ -364,6 +364,10 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             order_key=node.order_key,
             data=node.data,
             revision=node.revision,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
+            last_edited_at=node.last_edited_at,
+            last_changed_at=node.last_edited_at,  # same thing for leaf nodes
         )
 
 
@@ -404,7 +408,7 @@ class Execution(os.Document):
     status: str = os.field(os.FT.KEYWORD)
     inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
-    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly)
+    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
 
 @document(DocumentType.LOG_ENTRY)
