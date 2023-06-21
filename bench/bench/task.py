@@ -1,113 +1,138 @@
 from __future__ import annotations
 
-import copy
 import enum
 import json
 import re
 import typing
 import uuid
 from copy import deepcopy
-from dataclasses import asdict, dataclass, field, is_dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from json import JSONDecodeError
-from typing import Any, Optional
-from uuid import UUID
+from typing import Optional, Self
 
-import structlog
-
-from bench.bench import ExpectationModifier, TypeHint, TypeTag, wire
-from bench.bench.const import TypeFlag
-from bench.bench.inference import SETTINGS_CLS_BY_MODALITY, Modality, TextGenerationSettings
-from bench.bench.session import Session, instantiate_py_value_flat
-from bench.bench.type import Dataset, Expectation, Model, Symbol, Task, Type, TypeBase
-from bench.bench.typer import check_type, map_value
-from bench.utils.fractional import INTEGER_ZERO
+from bench.bench import (
+    Dataset,
+    Expectation,
+    HasExpectations,
+    HasType,
+    Model,
+    Scope,
+    Symbol,
+    Type,
+    TypeTag,
+)
+from bench.bench.core import Session, node
+from bench.bench.model import (
+    SETTINGS_CLS_BY_MODALITY,
+    Modality,
+    TextGenerationSettings,
+    ValueT,
+    XBlock,
+    XBlockContent,
+    XKind,
+    XSource,
+)
+from bench.bench.type import (
+    TypeBase,
+    TypeFlag,
+    TypeHint,
+    check_type,
+    instantiate_py_value_flat,
+    map_value,
+)
 from bench.utils.utils import DotDict
 
-logger = structlog.get_logger(__name__)
 
-if typing.TYPE_CHECKING:
-    pass
-
-
-class XKind(enum.StrEnum):
-    Settings = "settings"
-    Static = "static"
-    Input = "input"
-    Output = "output"
-
-
-class XSource(enum.StrEnum):
-    System = "system"
-    User = "user"
-    Developer = "developer"
-    Model = "model"
-
-
-ValueT = typing.TypeVar("ValueT", bound=typing.Any)
-
-
-# TODO @Architecture: XBlock should just be a wrapper around a regular value
-@dataclass(repr=False)
-class XBlock(typing.Generic[ValueT]):
-    kind: XKind
-    source: XSource
-    value: Optional[ValueT]
-    path: Optional[str] = None  # jsonpath of value if partial block
-
-    def __len__(self):
-        if self.value is None:
-            return 0
-        elif isinstance(self.value, str):
-            return len(self.value)
-        else:
-            raise TypeError(f"cannot get length of {self}")
-
-    def copy(self):
-        return XBlock(
-            kind=self.kind,
-            source=self.source,
-            value=copy.deepcopy(self.value),
-            path=self.path,
-        )
-
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
-
-    def __repr__(self):
-        return f"<XBlock {str(self)}>"
-
-
-@dataclass(repr=False)
-class XBlockContent(XBlock, typing.Generic[ValueT]):
+@node
+class Task(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
-    order_key: str = field(default=INTEGER_ZERO)
-    id: UUID = field(default_factory=uuid.uuid4)
+    tag: TypeTag = TypeTag.FUNCTION
+    _is_async: bool = True
+    _implementations: dict[str, "XPrompt"] | None = None
+    # should probably store last good implementation ... in redis?
+    last_good_impl_idx: int = 0
 
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
+    def _clear(self) -> None:
+        Symbol._clear(self)
+        HasType._clear(self)
+        HasExpectations._clear(self)
+        self._implementations = None
 
-    def __repr__(self):
-        return f"<XBlockContent {str(self)}>"
+    def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
+        HasExpectations._interp(self, scope)
 
+    async def __call__(
+        self,
+        *args,
+        build: str = None,
+        model: Model | str = None,
+        retries: int = None,
+        cache: bool = None,
+        timeout: float = None,
+        **kwargs,
+    ):
+        # get candidate task implementations
+        if model is not None:
+            if isinstance(model, str):
+                model = self.module.find_symbol(model, symbol_t=Model)
+            models = [model]
+        else:
+            models = self.session.default_models
+        candidates = []
+        for model in models:
+            cache_key = (self.id, model.id)
+            if cache_key not in self._cached_implementations:
+                implementation = build_task_implementation(self, model, self.session)
+                self._cached_implementations[cache_key] = implementation
+            candidates.append(self._cached_implementations[cache_key])
+        # TODO @Broken: sort/filter implementations with some smartness
+        impl_idx = self.last_good_impl_idx
+        retries = retries if retries is not None else self.session.inference_retries
+        remaining_retries = retries
 
-def unpack_xblock(xblock: wire.XBlockData) -> XBlockContent:
-    """Maps an xblock data object to an xblock."""
-    return XBlockContent(
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-    )
+        # actually run the task
+        self.session.tracer.code_enter(self, args, kwargs)
+        semantic_errors = []
+        while remaining_retries >= 0:
+            remaining_retries -= 1
+            impl = candidates[impl_idx]
+            log = self.session.logger.bind(
+                task=self, retries=remaining_retries, implementation=impl
+            )
+            try:
+                ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
+                self.last_good_impl_idx = impl_idx
+                self.session.tracer.code_exit(self, args, kwargs, ret)
+                return ret
+            except XGenerationError as e:
+                semantic_errors.append(e)
+                log.warning("task.failed", exc_info=e)
+                if len(semantic_errors) <= self.session.inference_retries / len(candidates):
+                    # retry with error info a few times
+                    candidates[impl_idx] = impl.copy().emit(XConsiderError(e))
+                else:
+                    # fail over
+                    impl_idx = (impl_idx + 1) % len(candidates)
+                    semantic_errors = []
+            except TimeoutError as e:
+                # fail over
+                self.session.logger.warning("task.failed", exc_info=e)
+                impl_idx = (impl_idx + 1) % len(candidates)
 
+        # give up
+        errors_repr = "\n".join(str(e) for e in semantic_errors) if semantic_errors else "<timeout>"
+        e = RuntimeError(f"{self} failed after {retries} retries: {errors_repr}")
+        self.session.tracer.code_exception(self, args, kwargs, e)
+        if semantic_errors:
+            raise e from semantic_errors[-1]
+        else:
+            raise e
 
-def pack_xblock(xblock: XBlockContent) -> wire.XBlockData:
-    """Maps an xblock to an xblock data object."""
-    return wire.XBlockData(
-        kind=xblock.kind,
-        source=xblock.source,
-        value=xblock.value,
-        path=xblock.path,
-    )
+    def to_sync(self) -> "Self":
+        if self.is_async:
+            raise NotImplementedError  # nocheckin
+        return self
 
 
 class XGenerationErrorType(enum.StrEnum):
@@ -140,34 +165,14 @@ def xemit(func):
 ValueT = typing.TypeVar("ValueT", bound=typing.Any)
 
 
-def xsettings(
-    value: ValueT, source: XSource = XSource.System, path: str = None
-) -> XBlockContent[ValueT]:
-    if is_dataclass(value):
-        value = asdict(value)
-    return XBlockContent(kind=XKind.Settings, source=source, value=value, path=path)
-
-
 def xstatic(
     value: ValueT, source: XSource = XSource.Developer, path: str = None
 ) -> XBlockContent[ValueT]:
     return XBlockContent(kind=XKind.Static, source=source, value=value, path=path)
 
 
-def xinput(
-    value: ValueT, source: XSource = XSource.User, path: str = None
-) -> XBlockContent[ValueT]:
-    return XBlockContent(kind=XKind.Input, source=source, value=value, path=path)
-
-
-def xoutput(
-    value: ValueT, source: XSource = XSource.Model, path: str = None
-) -> XBlockContent[ValueT]:
-    return XBlockContent(kind=XKind.Output, source=source, value=value, path=path)
-
-
 XInputHandler = typing.Callable[[XBlock, typing.Any], None]
-XOutputHandler = typing.Callable[[Any], typing.Any]
+XOutputHandler = typing.Callable[[typing.Any], typing.Any]
 
 
 @dataclass
@@ -194,13 +199,10 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
         x.emit(XExpectations(task_label=task.name, expectations=expectations))
     for dataset in data_samples:
         if len(dataset) > 0:
-            x.emit(
-                XSamples(
-                    dataset=dataset,
-                    task_label=task.name,
-                    positive=dataset.modifier == ExpectationModifier.LIKE,
-                )
-            )
+            from bench.bench import ExpectationModifier
+
+            positive = dataset.modifier == ExpectationModifier.LIKE
+            x.emit(XSamples(dataset=dataset, task_label=task.name, positive=positive))
     x.emit(
         XTask(task=task),
         XTypeFabricatedSample(type=task.type, type_label="Output", is_output=True),
@@ -228,7 +230,7 @@ class XPrompt:
         self.blocks: list[XBlock] = []
         self.input_handlers: dict[int, XInputHandler] = {}
         self.output_handler: XOutputHandler | None = None
-        self.settings: Any | None = None
+        self.settings: typing.Any | None = None
 
     def __str__(self):
         return f"{self.model.fqn} {self.modality} ({len(self.blocks)})"
@@ -273,7 +275,9 @@ class XPrompt:
                 self.blocks.append(x)
         return self
 
-    async def __call__(self, *args, cache: bool = None, timeout: float = None, **kwargs) -> Any:
+    async def __call__(
+        self, *args, cache: bool = None, timeout: float = None, **kwargs
+    ) -> typing.Any:
         inputs = {**kwargs}  # combine inputs from args/kwargs
         for input_t, input in zip(self.task.type.inputs, args):
             inputs[input_t.name] = input
@@ -355,7 +359,7 @@ class XSamples(XEmit):
             preamble = f"Good examples of {self.task_label}"
         else:
             preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record._data, sort_keys=True) for record in self.dataset)
+        data_str = "\n".join(json.dumps(record.data, sort_keys=True) for record in self.dataset)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
 
@@ -369,7 +373,7 @@ class XTypeSchema(XEmit):
 
     def __call__(self) -> XBlock:
         bench_lines = []
-        seen_types: set[UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
+        seen_types: set[uuid.UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
         for node in self.type.walk_type(include_references=True):
             if node.id in seen_types:
                 continue
@@ -416,7 +420,7 @@ class XInput(XEmit):
 
     def __call__(self) -> list[XBlock | DynamicXBlock]:
         input_declaration = xstatic(f"{self.type_label}:", XSource.System)
-        input = xinput(None, path=self.path)
+        input = XBlockContent(kind=XKind.Input, source=XSource.User, value=None, path=self.path)
         return [input_declaration, DynamicXBlock(input, self.impute_input)]
 
 
@@ -480,7 +484,7 @@ class XOutputText(XEmit):
             f"Generate {self.type_label} given the inputs and instructions - a JSON object with keys [{output_keys}], starting with {{",
             XSource.System,
         )
-        output = xoutput(None, path=self.path)
+        output = XBlockContent(kind=XKind.Output, source=XSource.Model, value=None, path=self.path)
         return [output_request, DynamicXBlock(output, self.parse_output)]
 
 
@@ -499,10 +503,14 @@ class XConsiderError(XEmit):
 
 @xemit
 class XEmitSettings(XEmit):
-    settings: Any
+    settings: typing.Any
 
     def __call__(self) -> XBlock:
-        return xsettings(self.settings)
+        if is_dataclass(self.settings):
+            value = asdict(self.settings)
+        return XBlockContent(
+            kind=XKind.Settings, source=XSource.System, value=self.settings, path=None
+        )
 
     @property
     def sources(self) -> list[Symbol]:
@@ -523,7 +531,7 @@ SAMPLE_BY_TYPE_HINT = {
 }
 
 
-def fabricate_value(type: TypeBase, skip_array: bool = False, is_output: bool = None) -> Any:
+def fabricate_value(type: TypeBase, skip_array: bool = False, is_output: bool = None) -> typing.Any:
     """Synthesizes a value of the given type with fake fields."""
     if type.flags & TypeFlag.IsArray and not skip_array:
         return [fabricate_value(type, skip_array=True)]

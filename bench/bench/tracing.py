@@ -7,14 +7,14 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.bench.const import MOT, ModuleOp
-from bench.bench.dataset import Query, Sort
+from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel
+from bench.bench.execution import ExecutionFrame
 from bench.bench.mutate import ModuleMutator
-from bench.bench.typer import check_type
+from bench.bench.query import Query, Sort
+from bench.bench.type import check_type
 from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import publish_soon
 from bench.msg.messages import ExecutionChangedPayload, NMessageType
-from bench.runtime.common.type import ExecutionFrame
 from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
@@ -27,14 +27,14 @@ if typing.TYPE_CHECKING:
         HasType,
         Model,
         Record,
+        RemoteObject,
+        Secret,
         Statement,
         Symbol,
         Task,
         Value,
     )
-    from bench.bench.build import XBlock
-    from bench.bench.inference import Inference
-    from bench.bench.session import Session
+    from bench.bench.model import Inference, XBlock
 
     Runnable = Code | Task
 
@@ -78,6 +78,15 @@ class Tracer:
     def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
         pass
 
+    def remote_object_read(self, object: RemoteObject):
+        pass
+
+    def remote_object_write(self, object: RemoteObject):
+        pass
+
+    def secret_reveal(self, secret: Secret):
+        pass
+
     # execution
 
     def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
@@ -119,8 +128,6 @@ class SessionTracer(Tracer):
         publish: bool = True,
         validate: bool = True,
     ):
-        from bench.bench.const import SessionTracingLevel
-
         self.session = session
         self.execution = ExecutionTracer(
             session=session,
@@ -402,16 +409,16 @@ class TypeCheckingTracer(Tracer):
         check_type(value.value, value)
 
     def dataset_append(self, table: Dataset, record: Record):
-        check_type(record._data, table, ignore_array=True)
+        check_type(record.data, table, ignore_array=True)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
             if key not in dataset:
                 raise ValueError(f"{key} does not exist on {dataset.type}")
-            check_type(record._data.get(key), dataset.type[key])
+            check_type(record.data.get(key), dataset.type[key])
         else:
-            check_type(record._data, dataset.type, ignore_array=True)
+            check_type(record.data, dataset.type, ignore_array=True)
 
 
 class PermissionCheckingTracer(Tracer):

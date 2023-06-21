@@ -11,7 +11,6 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-import bench.bench.const
 from bench import models
 from bench.api.auth import (
     can_write_project,
@@ -21,6 +20,7 @@ from bench.api.auth import (
 )
 from bench.api.sync import MMT, tracked_db_mutation
 from bench.api.utils import CrudModel, Revisioned, get_client_origin_from_info, safe_mutation
+from bench.bench import core
 from bench.bench.mutate import MOT
 from bench.msg import NMessageType
 from bench.msg.core import publish_soon
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from bench.api.statement import Statement
     from bench.api.user import User
 
-StatementType = gql.enum(bench.bench.const.StatementType)
+StatementType = gql.enum(core.StatementType)
 
 
 @gql.django.filter(models.ProjectVersion)

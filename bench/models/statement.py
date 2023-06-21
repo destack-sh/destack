@@ -12,8 +12,8 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag, wire
-from bench.bench.const import FIELD_KEY_LENGTH, DatasetBackend, TypeFlag, new_dataset_backend_id
-from bench.bench.type import new_field_key
+from bench.bench.dataset import DatasetBackend, new_dataset_backend_id
+from bench.bench.type import FIELD_KEY_LENGTH, TypeFlag, new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,
@@ -144,7 +144,7 @@ class StatementManager(models.Manager["Statement"]):
                 node.parent_id = target_parent_ids[node.id]
             elif node.parent_id in target_ids:
                 node.parent_id = target_ids[node.parent_id]
-            if isinstance(node, wire.Ordered):
+            if isinstance(node, wire.HasOrder):
                 node.order_key = target_order_keys.get(node.id, node.order_key)
 
         # collect parents at target (not part of the packed tree since they're the destination)

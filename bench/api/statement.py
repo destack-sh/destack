@@ -14,6 +14,9 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
+import bench.bench.core
+import bench.bench.expect
+import bench.bench.type
 from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
@@ -28,8 +31,8 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-StatementType = gql.enum(language.StatementType)
-ExpectationModifier = gql.enum(language.ExpectationModifier)
+StatementType = gql.enum(bench.bench.core.StatementType)
+ExpectationModifier = gql.enum(bench.bench.expect.ExpectationModifier)
 
 
 @gql.django.filter(models.Field)
@@ -42,9 +45,9 @@ class FieldFilter:
         return queryset
 
 
-TypeStorageFormat = gql.enum(language.TypeStorageFormat)
-TypeTag = gql.enum(language.TypeTag)
-TypeHint = gql.enum(language.TypeHint)
+TypeStorageFormat = gql.enum(bench.bench.type.TypeStorageFormat)
+TypeTag = gql.enum(bench.bench.type.TypeTag)
+TypeHint = gql.enum(bench.bench.type.TypeHint)
 
 
 @gql.django.type(models.Field)

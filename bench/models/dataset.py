@@ -5,8 +5,7 @@ from uuid import UUID, uuid5
 
 from django.db import models
 
-from bench import bench as lang
-from bench.bench.const import DatasetBackend
+from bench.bench.dataset import DatasetBackend, DatasetViewLayout
 from bench.models.utils import CrudModel, ModuleNode, UUIDModel, get_choices
 
 
@@ -33,7 +32,7 @@ class DatasetView(UUIDModel, CrudModel):
     """A view of a dataset."""
 
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
-    layout = models.CharField(max_length=64, choices=get_choices(lang.DatasetViewLayout))
+    layout = models.CharField(max_length=64, choices=get_choices(DatasetViewLayout))
     query = models.JSONField()
     sort = models.JSONField()
     fields: models.QuerySet[DatasetViewField]  # noqa via DatasetViewField.view

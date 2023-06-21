@@ -7,13 +7,14 @@ import PIL.Image
 import structlog
 
 from bench.bench import Model
-from bench.bench.build import XBlock, XSource
-from bench.bench.inference import (
+from bench.bench.model import (
     ImageGenerationSettings,
     InferenceEndpoint,
     Modality,
     ModelInference,
     TextGenerationSettings,
+    XBlock,
+    XSource,
 )
 
 logger = structlog.get_logger(__name__)

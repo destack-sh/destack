@@ -63,6 +63,9 @@ const hideOutput = ref(false);
 const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
+const showTraceback = computed(
+  () => lastExecution.value != null && lastExecution.value.status == ExecutionStatus.Failed && !hideOutput.value
+);
 
 const executionActive = computed(
   () =>
@@ -248,11 +251,12 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1 mt-0.5 min-h-[32px] rounded-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
+    class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
+    :class="[showTraceback ? '' : 'rounded-b-sm']"
   />
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
-    v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"
+    v-if="showTraceback"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-1 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
     :key="lastExecution?.id"

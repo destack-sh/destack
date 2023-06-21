@@ -1,71 +1,41 @@
-from bench.bench.const import (
-    DatasetViewLayout,
-    ExpectationModifier,
+from bench.bench.code import Code
+from bench.bench.core import (
+    Blank,
+    File,
+    Module,
+    Requirement,
+    Scope,
+    Statement,
     StatementType,
+    Symbol,
+    Text,
+)
+from bench.bench.dataset import Dataset, DatasetView, DatasetViewLayout, Record, Value
+from bench.bench.expect import Expectation, ExpectationModifier, HasExpectations
+from bench.bench.issue import Issue, IssueType
+from bench.bench.model import Model
+from bench.bench.remote import RemoteObject, Secret
+from bench.bench.task import Task
+from bench.bench.type import (
+    Field,
+    HasType,
+    ResolvedField,
+    Type,
+    TypeBase,
     TypeHint,
     TypeStorageFormat,
     TypeTag,
 )
-from bench.bench.issue import Issue, IssueType
-from bench.bench.type import (
-    Blank,
-    Code,
-    Dataset,
-    DatasetView,
-    Expectation,
-    Field,
-    File,
-    HasExpectations,
-    HasType,
-    Model,
-    Module,
-    Record,
-    RemoteObject,
-    Requirement,
-    ResolvedField,
-    Scope,
-    Secret,
-    Statement,
-    Symbol,
-    Task,
-    Text,
-    Type,
-    TypeBase,
-    Value,
-)
 
 __all__ = [
     "Blank",
-    "Code",
     "Text",
-    "Dataset",
-    "DatasetView",
-    "DatasetViewLayout",
-    "Expectation",
-    "ExpectationModifier",
-    "Field",
     "File",
-    "HasExpectations",
-    "HasType",
     "Issue",
     "IssueType",
-    "Model",
     "Module",
-    "Record",
-    "RemoteObject",
     "Requirement",
-    "ResolvedField",
     "Scope",
-    "Secret",
     "Statement",
-    "StatementType",
-    "StatementType",
     "Symbol",
-    "Task",
-    "Type",
-    "TypeBase",
-    "TypeHint",
-    "TypeTag",
-    "TypeStorageFormat",
-    "Value",
 ]

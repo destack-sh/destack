@@ -12,9 +12,9 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, build, wire
-from bench.bench.const import MOT, ModuleReference
-from bench.bench.inference import (
+from bench.bench import HasType, Issue, ResolvedField, model, task, wire
+from bench.bench.core import MOT, ModuleReference
+from bench.bench.model import (
     SETTINGS_CLS_BY_MODALITY,
     Modality,
     get_inference_cache_key,
@@ -260,7 +260,7 @@ class LanguageServer:
         endpoint = getattr(inference, modality.value)
         try:
             settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
-            xblocks = [build.unpack_xblock(xblock) for xblock in msg.p.blocks]
+            xblocks = [model.unpack_xblock(xblock) for xblock in msg.p.blocks]
             cache_key = get_inference_cache_key(msg.p.model_fqn, modality, xblocks, settings)
             output = await asyncio.wait_for(
                 asyncio.shield(run_inference(endpoint, xblocks, settings, cache_key, log)),

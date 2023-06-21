@@ -3,16 +3,19 @@ from uuid import UUID, uuid4
 
 import structlog
 
-import bench.opensearch.type as os
+import bench.bench.code
+import bench.bench.dataset
+import bench.bench.task
+import bench.opensearch.core as os
 from bench import models
-from bench.bench import type as lang
+from bench.bench import core as lang
 from bench.bench import wire
 from bench.bench.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
+from bench.opensearch.core import IndexType
 from bench.opensearch.mapping import map_to_os_field
-from bench.opensearch.type import IndexType
 
 logger = structlog.get_logger(__name__)
 
@@ -204,11 +207,11 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for symbol in module.symbols_by_id.values():
         if symbol.errors:
             continue  # ignore symbols with issues
-        elif isinstance(symbol, lang.Dataset):
+        elif isinstance(symbol, bench.bench.dataset.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in symbol.resolved_fields:
                 data_mappings[field.typed_key] = map_to_os_field(field).to_dict()
-        elif isinstance(symbol, (lang.Task, lang.Code)):
+        elif isinstance(symbol, (bench.bench.task.Task, bench.bench.code.Code)):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in symbol.inputs:
                 inputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()

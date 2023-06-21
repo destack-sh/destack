@@ -6,19 +6,18 @@ from uuid import UUID
 
 import structlog
 
-from bench.bench import StatementType, wire
-from bench.bench.const import (
-    ExecutionTriggerType,
-    LiteralValue,
+from bench.bench import Code, Task, wire
+from bench.bench.code import RunError, run
+from bench.bench.core import (
+    Module,
     ModuleReference,
+    Session,
     SessionContext,
     SessionMode,
     SessionTracingLevel,
 )
+from bench.bench.execution import ExecutionFrame, ExecutionTriggerType, WorkerTenancy
 from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.session import Session
-from bench.bench.type import STATEMENT_CLASS_BY_TYPE, Code, Module, Task
-from bench.bench.unsecure import RunError, run
 from bench.bench.wire import ExecutionFrameData
 from bench.msg import NMessage, NMessageType
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
@@ -40,7 +39,6 @@ from bench.msg.messages import (
     WorkerHeartbeatPayload,
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
-from bench.runtime.common.type import ExecutionFrame, WorkerTenancy
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -61,7 +59,7 @@ class RunJob:
     cancelled: bool = False
     runnable: Task | Code = None
     session: Session = None
-    arguments: dict[str, LiteralValue] = None
+    arguments: dict[str, Any] = None
     execution: Optional[ExecutionFrame] = None
     error: Optional[RunError] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
@@ -132,7 +130,6 @@ class ModuleWorker:
         self,
         *,
         runnable: str | UUID,
-        runnable_type: str | None,
         arguments: dict[str, Any],
         execution_id: Optional[UUID],
         tracing_level: SessionTracingLevel,
@@ -143,9 +140,7 @@ class ModuleWorker:
             return RunErrorType.NOT_READY
 
         # get the runnable
-        if runnable_type:
-            runnable_type = STATEMENT_CLASS_BY_TYPE[StatementType(runnable_type)]
-        runnable = self.interp.module.lookup_symbol(runnable, symbol_t=runnable_type)
+        runnable = self.interp.module.lookup_symbol(runnable)
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 
@@ -341,7 +336,6 @@ class SandboxedWorker:
         worker = await self._get_ready_worker(msg.p.module_id)
         run_job = worker.queue_run(
             runnable=msg.p.runnable,
-            runnable_type=msg.p.runnable_type,
             arguments=msg.p.arguments,
             execution_id=msg.p.execution_id,
             tracing_level=msg.p.tracing_level,
