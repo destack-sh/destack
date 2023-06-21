@@ -32,6 +32,7 @@ export function useSymbolContentOps() {
   const registry = new OpRegistry();
 
   // symbol content mutations
+  // (for the annoying redundancy see :BE-114)
 
   const { mutate: updateSymbolDescriptionMut } = registry.useMutation(
     ModuleMutationType.UpdateSymbolDescription,

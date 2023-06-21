@@ -58,16 +58,16 @@ class Tracer:
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         pass
 
-    def dataset_clear(self, table: Dataset):
+    def dataset_clear(self, dataset: Dataset):
         pass
 
-    def dataset_append(self, table: Dataset, record: Record):
+    def dataset_append(self, dataset: Dataset, record: Record):
         pass
 
-    def dataset_extend(self, table: Dataset, records: list[Record]):
+    def dataset_extend(self, dataset: Dataset, records: list[Record]):
         pass
 
-    def dataset_remove(self, table: Dataset, record: Record):
+    def dataset_remove(self, dataset: Dataset, record: Record):
         pass
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
@@ -141,21 +141,21 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.value_update(value, key)
 
-    def dataset_clear(self, table: Dataset):
+    def dataset_clear(self, dataset: Dataset):
         for tracer in self.tracers:
-            tracer.dataset_clear(table)
+            tracer.dataset_clear(dataset)
 
-    def dataset_append(self, table: Dataset, record: Record):
+    def dataset_append(self, dataset: Dataset, record: Record):
         for tracer in self.tracers:
-            tracer.dataset_append(table, record)
+            tracer.dataset_append(dataset, record)
 
-    def dataset_extend(self, table: Dataset, records: list[Record]):
+    def dataset_extend(self, dataset: Dataset, records: list[Record]):
         for tracer in self.tracers:
-            tracer.dataset_extend(table, records)
+            tracer.dataset_extend(dataset, records)
 
-    def dataset_remove(self, table: Dataset, record: Record):
+    def dataset_remove(self, dataset: Dataset, record: Record):
         for tracer in self.tracers:
-            tracer.dataset_remove(table, record)
+            tracer.dataset_remove(dataset, record)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         for tracer in self.tracers:
@@ -376,22 +376,30 @@ class MutationTracer(Tracer):
 
         self.mutator.update(wire.pack_node_flat(value), properties=["value"])
 
-    def dataset_clear(self, table: Dataset):
-        self.mutator.truncate(table.id, MOT.RECORD)
+    def dataset_clear(self, dataset: Dataset):
+        self.mutator.truncate(dataset, MOT.RECORD)
 
-    def dataset_append(self, table: Dataset, record: Record):
-        self.mutator.create(record._to_wire(include_data=True))
+    def dataset_append(self, dataset: Dataset, record: Record):
+        from bench.bench import wire
 
-    def dataset_extend(self, table: Dataset, records: list[Record]):
-        self.mutator.create_many(*[record._to_wire(include_data=True) for record in records])
+        self.mutator.create(wire.pack_node_flat(record))
 
-    def dataset_remove(self, table: Dataset, record: Record):
-        self.mutator.delete(record._id)
+    def dataset_extend(self, dataset: Dataset, records: list[Record]):
+        from bench.bench import wire
+
+        self.mutator.create_many(*[wire.pack_node_flat(record) for record in records])
+
+    def dataset_remove(self, dataset: Dataset, record: Record):
+        from bench.bench import wire
+
+        self.mutator.delete(wire.pack_node_flat(record))
 
     def dataset_update(
         self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
     ):
-        self.mutator.update(record.id, record._to_wire(include_data=True))
+        from bench.bench import wire
+
+        self.mutator.update(wire.pack_node_flat(record))
 
 
 class TypeCheckingTracer(Tracer):
@@ -409,8 +417,8 @@ class TypeCheckingTracer(Tracer):
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         check_type(value.value, value)
 
-    def dataset_append(self, table: Dataset, record: Record):
-        check_type(record.data, table, ignore_array=True)
+    def dataset_append(self, dataset: Dataset, record: Record):
+        check_type(record.data, dataset, ignore_array=True)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
@@ -440,17 +448,17 @@ class PermissionCheckingTracer(Tracer):
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
-    def dataset_clear(self, table: Dataset):
-        self.session.check_can(ModuleOp.UPDATE, table)
+    def dataset_clear(self, dataset: Dataset):
+        self.session.check_can(ModuleOp.UPDATE, dataset)
 
-    def dataset_append(self, table: Dataset, record: Record):
-        self.session.check_can(ModuleOp.UPDATE, table)
+    def dataset_append(self, dataset: Dataset, record: Record):
+        self.session.check_can(ModuleOp.UPDATE, dataset)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, dataset)
 
-    def dataset_delete(self, table: Dataset, record: Record):
-        self.session.check_can(ModuleOp.UPDATE, table)
+    def dataset_delete(self, dataset: Dataset, record: Record):
+        self.session.check_can(ModuleOp.UPDATE, dataset)
 
     def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
         self.session.check_can(ModuleOp.SEARCH, dataset)

@@ -888,7 +888,7 @@ export type MutationUpdateSecretArgs = {
 };
 
 export type MutationUpdateStatementArgs = {
-  input: StatementCreateInput;
+  input: StatementUpdateInput;
 };
 
 export type MutationUpdateStatementTextArgs = {
@@ -1927,6 +1927,23 @@ export enum StatementType {
   Type = "TYPE",
   Value = "VALUE",
 }
+
+/** Updates a statement */
+export type StatementUpdateInput = {
+  code?: InputMaybe<Scalars["String"]>;
+  commented?: InputMaybe<Scalars["Boolean"]>;
+  description?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  lang?: InputMaybe<Scalars["String"]>;
+  modifier?: InputMaybe<ExpectationModifier>;
+  name?: InputMaybe<Scalars["String"]>;
+  orderKey?: InputMaybe<Scalars["String"]>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
+  rootTypeTag?: InputMaybe<TypeTag>;
+  text?: InputMaybe<Scalars["String"]>;
+  type?: InputMaybe<StatementType>;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
 
 export type StatementUpdateTextInput = {
   id: Scalars["GlobalID"];
@@ -3720,6 +3737,47 @@ export type CreateStatementMutation = {
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
+      };
+};
+
+export type UpdateStatementMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  orderKey: Scalars["String"];
+  type: StatementType;
+  modifier?: InputMaybe<ExpectationModifier>;
+  name?: InputMaybe<Scalars["String"]>;
+  lang?: InputMaybe<Scalars["String"]>;
+  code?: InputMaybe<Scalars["String"]>;
+  text?: InputMaybe<Scalars["String"]>;
+  description?: InputMaybe<Scalars["String"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
+  rootTypeTag?: InputMaybe<TypeTag>;
+  rootTypeFlags?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type UpdateStatementMutation = {
+  __typename?: "Mutation";
+  updateStatement:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Statement";
+        id: any;
+        type: StatementType;
+        revision: number;
+        updatedAt: any;
+        name?: string | null;
+        modifier?: string | null;
+        orderKey: string;
+        lang?: string | null;
+        code?: string | null;
+        text?: string | null;
+        description?: string | null;
+        value?: any | null;
+        rootTypeTag?: TypeTag | null;
+        rootTypeFlags?: number | null;
+        referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
       };
 };
 
@@ -10394,6 +10452,196 @@ export const CreateStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateStatementMutation, CreateStatementMutationVariables>;
+export const UpdateStatementDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateStatement" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "StatementType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "text" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "description" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "TypeTag" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateStatement" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "orderKey" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "modifier" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "lang" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "lang" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "code" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "text" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "text" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "description" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "description" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeTag" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeTag" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "rootTypeFlags" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
+                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                      { kind: "Field", name: { kind: "Name", value: "lang" } },
+                      { kind: "Field", name: { kind: "Name", value: "code" } },
+                      { kind: "Field", name: { kind: "Name", value: "text" } },
+                      { kind: "Field", name: { kind: "Name", value: "description" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "referenceProjectVersion" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
+                      { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateStatementMutation, UpdateStatementMutationVariables>;
 export const MorphStatementDocument = {
   kind: "Document",
   definitions: [

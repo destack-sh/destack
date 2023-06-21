@@ -78,6 +78,17 @@ export class OpRegistry {
     return registry;
   }
 
+  // TODO! @Cleanup @Architecture: module mutations have substantial, opaque redundancy :BE-114
+  //  For one, optimistic responses and even cache updates could be auto-generated with some relatively simple rules.
+  //  Also, because the underline mutations are currently 'opaque' to the operations system ('ops.perform(...)'), we can't simply
+  //  collect and batch multiple mutations without sending them off. This further prevents any reasonable offline support,
+  //  and coincidentally, makes it hard to walk all ancestors of a mutated object (e.g. to bump on change).
+  //
+  //  We probably want to keep GQL mutations (many reasons; they're nicely typed, debuggable and optimistic, auto-multiplayer, etc.),
+  //  but we can simplify multiplayer module mutations - some thoughts on a potential refactor:
+  //   1. useMutation passes in only the graphql mutation/fragment (no optimistic response or cache update)
+  //   2. update operation store Operation to also accept a set of native GQL mutation objects (somehow)
+  //   3. have a global way to collect mutations instead of sending them (for offline, also for client-side 'transactions')
   public useMutation<TResult = any, TVariables extends OperationVariables = OperationVariables>(
     type: ModuleMutationType,
     document: DocumentParameter<TResult, TVariables>,
@@ -145,7 +156,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       projectVersionId,
     }
   );
-  // TODO @Performance: module change object should not be cached
+  // TODO @Performance: module change objects should not be cached
   // enable/disable subscription when projectVersionId changes
   startStopIf(
     computed(() => projectVersionId.value != null),
@@ -217,7 +228,7 @@ function useSyncedOps() {
     // mutations that we just pass through to the regular op with the original input
     const registeredOp = opRegistry.ops[mutation.type];
     if (registeredOp == null) {
-      throw new Error(`cannot apply unknown input: ${mutation.type}`);
+      throw new Error(`cannot apply unknown input mutation: ${mutation.type}`);
     }
     console.debug("apply sync mutation", mutation);
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
@@ -225,7 +236,11 @@ function useSyncedOps() {
 
   function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
     // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
-    if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
+    // TODO @Cleanup: organize 'manual' mutations better
+    // map dataset mutations to bumps
+    if (mutation.type == ModuleMutationType.TruncateRecords) {
+      // nocheckin: bump dataset statement to reload view (for this and any other relevant record, field or dataset mutation)
+    } else if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
       if (mutation.statementId != null) {
         client.cache.modify({
           id: `Statement:${mutation.statementId}`,
@@ -288,7 +303,7 @@ function useSyncedOps() {
         },
       });
     } else {
-      throw new Error(`cannot apply unknown data: ${mutation.type} ${mutation.data}`);
+      throw new Error(`cannot apply unknown data mutation: ${mutation.type} ${mutation.data}`);
     }
   }
 

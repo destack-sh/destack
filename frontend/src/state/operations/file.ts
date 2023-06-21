@@ -22,6 +22,8 @@ export function useFileOps() {
   const ops = useOperationsStore();
   const registry = new OpRegistry();
 
+  // for the annoying redundancy see :BE-114
+
   // TODO @Broken @UX: optimistic create file & paste file does not work correctly (causes reload)
   const { mutate: createFileMut } = registry.useMutation(
     ModuleMutationType.CreateFile,
