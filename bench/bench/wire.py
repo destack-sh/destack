@@ -11,10 +11,17 @@ from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from bench import bench as lang
+from bench.bench.const import (
+    DatasetBackend,
+    ExecutionTriggerType,
+    ExpectationModifier,
+    RemoteObjectStatus,
+    TypeFlag,
+    TypeHint,
+    TypeTag,
+)
 from bench.bench.core import MOT, InterpScope, ModuleNode, ModuleReference, Session, StatementType
-from bench.bench.const import DatasetBackend, TypeFlag, RemoteObjectStatus, ExecutionTriggerType
 from bench.bench.execution import ExecutionFrame, PyFrameData, RunErrorData
-from bench.bench.const import ExpectationModifier, TypeTag, TypeHint
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
 from bench.utils.func import describe_type
@@ -861,7 +868,7 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
             **statement_data.__dict__,
             modifier=symbol.modifier,
             description=symbol.description,
-            value=symbol.value,
+            value=symbol._raw_value(),
         )
 
     def unpack(

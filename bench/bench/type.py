@@ -1,42 +1,40 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import field, dataclass
-from datetime import date, datetime, time
 import enum
-from functools import cached_property
 import random
 import string
 import typing
-
-from typing import Any, Callable, Collection, Mapping, Union, Optional, Self
 import uuid
+from dataclasses import dataclass, field
+from datetime import date, datetime, time
+from functools import cached_property
+from typing import Any, Callable, Collection, Mapping, Optional, Self, Union
 from uuid import UUID, uuid4
 
-from more_itertools import first
 import structlog
+from more_itertools import first
 
-from bench.bench.const import TypeTag, TypeHint
-from bench.bench.const import TypeFlag, RemoteObjectStatus
+from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
 from bench.bench.core import (
-    StatementReference,
-    node,
-    ModuleNode,
     HasCrud,
     HasSession,
-    SymbolBase,
-    StatementPath,
-    Statement,
+    ModuleNode,
     Scope,
-    Symbol,
+    Statement,
+    StatementPath,
+    StatementReference,
     StatementType,
+    Symbol,
+    SymbolBase,
+    node,
 )
-from bench.bench.remote import RemoteObject, Secret
 from bench.bench.expect import HasExpectations
+from bench.bench.issue import IssueType
+from bench.bench.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
-from bench.utils.utils import to_pyidentifier, required_field
-from bench.bench.issue import IssueType
+from bench.utils.utils import required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
@@ -346,19 +344,19 @@ class HasType(TypeBase, SymbolBase):
 
     def _interp(self, scope: Scope) -> None:
         # resolve references
-        for node in self.walk_type():
-            if node.tag != TypeTag.TYPE_REFERENCE or isinstance(node.reference, Symbol):
+        for n in self.walk_type():
+            if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Symbol):
                 continue  # nothing to resolve
-            if node.reference is None:
+            if n.reference is None:
                 symbol = None
             else:
-                symbol = scope.lookup_symbol(node.reference, StatementType.TYPE)
+                symbol = scope.lookup_symbol(n.reference, StatementType.TYPE)
             if not isinstance(symbol, TypeBase):
                 self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=node.name or "<root>"
+                    type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"
                 )
                 continue
-            node.reference = symbol
+            n.reference = symbol
 
         # expand unions (recursively)
         Type._resolve_unions(self, [])
@@ -530,6 +528,8 @@ def check_type(
                     on_invalid=on_invalid,
                     ignore_array=True,
                 )
+    elif expected.flags & TypeFlag.IsSecret:
+        _check(isinstance(value, Secret), "expected secret")
     elif expected.tag == TypeTag.STRING:
         _check(isinstance(value, str), "expected string")
     elif expected.tag == TypeTag.NUMBER:
@@ -543,15 +543,15 @@ def check_type(
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
         if _check(isinstance(value, Mapping), "expected struct"):
-            for field in expected.fields:
-                if is_output is not None and bool(field.flags & TypeFlag.IsOutput) != is_output:
+            for f in expected.fields:
+                if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                     continue
-                alt_name = to_pyidentifier(field.name)
-                subvalue = value.get(field.name, value.get(alt_name))
+                alt_name = to_pyidentifier(f.name)
+                subvalue = value.get(f.name, value.get(alt_name))
                 if subvalue is None:
-                    _check(bool(field.flags & TypeFlag.IsNullable), "expected non-nullable value")
+                    _check(bool(f.flags & TypeFlag.IsNullable), "expected non-nullable value")
                 else:
-                    check_type(subvalue, field, eager_error=eager_error, on_invalid=on_invalid)
+                    check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
     elif expected.tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.tag == TypeTag.UNION:

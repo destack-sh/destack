@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-from dataclasses import field
 import typing
-from typing import Optional
 import uuid
+from dataclasses import field
+from typing import Optional
 from uuid import UUID
 
 import aiohttp
 from asgiref.sync import async_to_sync
 
 from bench.bench.const import RemoteObjectStatus
-from bench.bench.core import node, HasSession
+from bench.bench.core import HasSession, node
 from bench.utils.utils import required_field
 
 
@@ -40,8 +40,8 @@ class RemoteObject(HasSession):
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
         from bench import msg
-        from bench.msg import messages
         from bench.bench import wire
+        from bench.msg import messages
 
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
@@ -98,6 +98,7 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
     async def areveal(self) -> SecretValueT:
         if self.value is not None:
             return self.value
+
         from bench.bench import wire
         from bench.msg import messages
         from bench.msg.core import NMessage, NMessageType, request

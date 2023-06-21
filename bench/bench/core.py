@@ -1,27 +1,27 @@
 from __future__ import annotations
 
 import abc
-from concurrent.futures import Executor, ThreadPoolExecutor
 import contextvars
 import enum
 import re
 import typing
 import uuid
 from collections import defaultdict
+from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
-from typing import Optional, Union, NamedTuple, Callable
+from typing import Callable, NamedTuple, Optional, Union
 from uuid import UUID, uuid4
 
-from asgiref.sync import async_to_sync
-from more_itertools import first
 import structlog
+from asgiref.sync import async_to_sync, sync_to_async
+from more_itertools import first
 
+from bench.bench.const import ExecutionTriggerType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.settings import logging
 from bench.utils.utils import required_field, to_pyidentifier
-from bench.bench.const import ExecutionTriggerType
 
 if typing.TYPE_CHECKING:
     from bench.bench.mutate import ModuleMutation
@@ -148,7 +148,6 @@ class HasSession(abc.ABC):
 
     def __post_init__(self):
         if self._session is None:
-
             self._session = active_session.get()
             if self._session is not None:
                 self._session.add(self, new=True)
@@ -687,7 +686,6 @@ class Session:
         self,
         module: Module,
         ctx: SessionContext | None = None,
-        default_models: list["Model"] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
         inference_retries: int = 5,
@@ -695,8 +693,8 @@ class Session:
         write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
         executor: Executor = None,
     ):
-        from bench.bench.tracing import SessionTracer
         from bench.bench.mutate import ModuleMutator
+        from bench.bench.tracing import SessionTracer
 
         if mode != SessionMode.READ_ONLY and write is None:
             raise ValueError("write must be provided for non-readonly sessions")
@@ -704,7 +702,7 @@ class Session:
         self.ctx = ctx
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
-        self.default_models = default_models or [
+        self.default_models = [
             module.lookup_symbol("openai.std.text.gpt3"),
             module.lookup_symbol("anthropic.std.text.claude-instant"),
         ]
@@ -730,6 +728,12 @@ class Session:
 
     def __repr__(self):
         return f"<Session {self}>"
+
+    def sync_to_async(self, fn: Callable) -> Callable[..., typing.Awaitable]:
+        return sync_to_async(fn, thread_sensitive=False, executor=self.executor)
+
+    def async_to_sync(self, fn: typing.Awaitable) -> Callable:
+        return async_to_sync(fn)
 
     @property
     def is_open(self) -> bool:
