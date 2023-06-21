@@ -14,16 +14,13 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import bench as language
+import bench.bench.const
+import bench.bench.type
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, Revisioned, ThingBatch
-import bench.bench.const
-import bench.bench.core
-import bench.bench.expect
-import bench.bench.type
 from bench.models import RefMappingKind
 
 if TYPE_CHECKING:
@@ -114,6 +111,25 @@ class StatementCreateInput:
     order_key: str
     type: StatementType
     parent_id: Optional[GlobalID] = None
+    commented: Optional[bool] = None
+    modifier: Optional[ExpectationModifier] = None
+    name: Optional[str] = None
+    root_type_tag: Optional[TypeTag] = None
+    root_type_flags: Optional[int] = None
+    description: Optional[str] = None
+    lang: Optional[str] = None
+    text: Optional[str] = None
+    code: Optional[str] = None
+    value: Optional[JSON] = None
+
+
+@gql.input
+class StatementUpdateInput(gql.NodeInput):
+    """Updates a statement"""
+
+    id: GlobalID
+    order_key: Optional[str] = None
+    type: Optional[StatementType] = None
     commented: Optional[bool] = None
     modifier: Optional[ExpectationModifier] = None
     name: Optional[str] = None
@@ -280,7 +296,7 @@ class StatementMutation:
         return statement
 
     @tracked_db_mutation(MMT.UPDATE_STATEMENT, atomic=True)
-    def update_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
+    def update_statement(self, input: StatementUpdateInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
     @tracked_db_mutation(MMT.MORPH_STATEMENT, atomic=True)

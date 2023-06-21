@@ -126,7 +126,7 @@ class Dataset(Symbol, HasType, IsExpectable):
             data = record.data
         # TODO @UX: order records when inserted in code
         data = unproxy_value(data)  # remove source proxy if any
-        record = Record(_id=uuid.uuid4(), parent=self, data=data)
+        record = Record(id=uuid.uuid4(), parent=self, data=data)
         self.session.tracer.dataset_append(self, record)
 
     def extend(self, records: typing.Iterable[Record | dict]):
@@ -135,7 +135,7 @@ class Dataset(Symbol, HasType, IsExpectable):
             unproxy_value(record.data) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
-        records = [Record(_id=uuid.uuid4(), parent=self, data=data) for data in datas]
+        records = [Record(id=uuid.uuid4(), parent=self, data=data) for data in datas]
         self.session.tracer.dataset_extend(self, records)
 
     async def asearch(self, query: Query, sort: list[Sort] = None, limit: int = None) -> Dataset:

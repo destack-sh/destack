@@ -171,8 +171,10 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     if mutation.data is None:
         raise ValueError(f"mutation has no data: {mutation}")
 
+    input_cls = INPUT_CLASS_BY_TYPE.get(mutation.type)
+    if input_cls is None:
+        return None
     extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.mot, {})
-    input_cls = INPUT_CLASS_BY_TYPE[mutation.type]
     input_args = {}
     for field in fields(input_cls):
         if field.name == "project_version_id":

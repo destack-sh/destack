@@ -8,7 +8,6 @@ import bench.bench.dataset
 import bench.bench.task
 import bench.opensearch.core as os
 from bench import models
-from bench.bench import core as lang
 from bench.bench import wire
 from bench.bench.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
@@ -150,7 +149,7 @@ def write_mutations_to_os(
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
-    All regular DB mutations come this way (records are not stored in the DB).
+    All regular DB mutations come this way (records are stored only in OS).
     """
     os_operations: list[dict] = []
     global_index_name = IndexType.GLOBAL.get_index_name()
@@ -170,11 +169,17 @@ def write_mutations_to_os(
             elif m.type.kind == MMK.DELETE:
                 op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
                 os_operations.append(op)
+            elif m.type.kind == MMK.TRUNCATE:
+                dataset = models.Statement.objects.get(id=m.statement_id).dataset
+                # unfortunately can't be batched with the other operations
+                os_client.delete_by_query(
+                    index=index_name, body={"query": {"term": {"dataset_id": dataset.backend_id}}}
+                )
         # mark field mappings as dirty if relevant
         if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
             mappings_dirty = True
 
-    if mappings_dirty:
+    if mappings_dirty:  # if needed, must happen before any other mutations
         update_dynamic_field_mappings(project_v)
 
     if os_operations:

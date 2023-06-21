@@ -561,7 +561,7 @@ type Mutation {
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
-  updateStatement(input: StatementCreateInput!): StatementOperationInfo!
+  updateStatement(input: StatementUpdateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
   renameStatement(input: StatementRenameInput!): StatementOperationInfo!
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
@@ -1626,6 +1626,23 @@ enum StatementType {
   DATASET
   REQUIREMENT
   BLOCK
+}
+
+"""Updates a statement"""
+input StatementUpdateInput {
+  id: GlobalID!
+  orderKey: String = null
+  type: StatementType = null
+  commented: Boolean = null
+  modifier: ExpectationModifier = null
+  name: String = null
+  rootTypeTag: TypeTag = null
+  rootTypeFlags: Int = null
+  description: String = null
+  lang: String = null
+  text: String = null
+  code: String = null
+  value: JSON = null
 }
 
 input StatementUpdateTextInput {

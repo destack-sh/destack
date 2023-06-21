@@ -16,6 +16,7 @@ import {
   type SoftDeleteStatementMutation,
   type ExpectationModifier,
   type UpdateExpectationModifierMutation,
+  type UpdateStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -50,6 +51,8 @@ export function newRecordId(): string {
 export function useStatementOps() {
   const ops = useOperationsStore();
   const registry = new OpRegistry();
+
+  // yeah there's some annoying redundance here, see :BE-114
 
   const { mutate: createStatementMut } = registry.useMutation(
     ModuleMutationType.CreateStatement,
@@ -299,6 +302,107 @@ export function useStatementOps() {
       },
     });
   }
+
+  const { mutate: updateStatementMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatement,
+    graphql(/* GraphQL */ `
+      mutation updateStatement(
+        $id: GlobalID!
+        $orderKey: String!
+        $type: StatementType!
+        $modifier: ExpectationModifier
+        $name: String
+        $lang: String
+        $code: String
+        $text: String
+        $description: String
+        $value: JSON
+        $rootTypeTag: TypeTag
+        $rootTypeFlags: Int
+      ) {
+        updateStatement(
+          input: {
+            id: $id
+            orderKey: $orderKey
+            type: $type
+            modifier: $modifier
+            name: $name
+            lang: $lang
+            code: $code
+            text: $text
+            description: $description
+            value: $value
+            rootTypeTag: $rootTypeTag
+            rootTypeFlags: $rootTypeFlags
+          }
+        ) {
+          ... on Statement {
+            # should match StatementContent fragment
+            id
+            type
+            revision
+            updatedAt
+            name
+            modifier
+            orderKey
+            # symbol contents
+            lang
+            code
+            text
+            description
+            value
+            referenceProjectVersion {
+              id
+            }
+            rootTypeTag
+            rootTypeFlags
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        fileId: string;
+        parentId: string | null;
+        orderKey: string;
+        type: StatementType;
+        modifier: ExpectationModifier | null;
+        name: string | null;
+        lang: string | null;
+        code: string | null;
+        text: string | null;
+        description: string | null;
+        value: any | null;
+        rootTypeTag: TypeTag | null;
+        rootTypeFlags: number | null;
+      }) =>
+        ({
+          __typename: "Mutation",
+          updateStatement: {
+            __typename: "Statement",
+            id: vars.id,
+            revision: PENDING_REVISION,
+            orderKey: vars.orderKey,
+            // default new fields (all! fields in StatementContent fragment)
+            updatedAt: new Date().toISOString(),
+            type: vars.type,
+            modifier: vars.modifier,
+            name: vars.name,
+            description: vars.description,
+            value: vars.value,
+            code: vars.code,
+            text: vars.text,
+            referenceProjectVersion: null,
+            rootTypeTag: vars.rootTypeTag,
+            rootTypeFlags: vars.rootTypeFlags,
+            fields: [],
+            lang: vars.lang,
+          },
+        } as UpdateStatementMutation),
+    }
+  );
 
   const { mutate: morphStatementMut } = registry.useMutation(
     ModuleMutationType.MorphStatement,
