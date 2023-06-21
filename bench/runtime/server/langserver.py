@@ -442,6 +442,7 @@ class LanguageWorker:
     ):
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
+        logger.debug("write_module", mutations=mutations[:5], total=len(mutations), origins=origins)
         await sync_to_async(write_mutations)(self.project_version, self.interp.tree, mutations)
 
         # trim mutations to remove overhead from large dataset updates

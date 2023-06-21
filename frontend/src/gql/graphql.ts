@@ -487,6 +487,7 @@ export type ModuleMutation = {
   fileId?: Maybe<Scalars["GlobalID"]>;
   input?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
+  properties?: Maybe<Array<Scalars["String"]>>;
   revision?: Maybe<Scalars["Int"]>;
   statementId?: Maybe<Scalars["GlobalID"]>;
   type: ModuleMutationType;

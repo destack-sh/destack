@@ -101,7 +101,7 @@ class PyFrameData:
         code_by_method: dict[str, Code] = {
             symbol.transform.method_name: symbol
             for symbol in session.instances.values()
-            if isinstance(symbol, Code) and symbol.transform is not None
+            if isinstance(symbol, Code) and symbol._transform is not None
         }
 
         transform = from_code._transform

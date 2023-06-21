@@ -89,7 +89,6 @@ class Session:
         self,
         module: Module,
         ctx: SessionContext | None = None,
-        instances: list["ModuleNode"] = None,
         default_models: list["Model"] = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
@@ -103,7 +102,7 @@ class Session:
         self.id = uuid4()
         self.ctx = ctx
         self.module = module
-        self.instances: dict[UUID, "HasSession"] = {i.id: i for i in instances} if instances else {}
+        self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = default_models or [
             module.lookup_symbol("openai.std.text.gpt3"),
             module.lookup_symbol("anthropic.std.text.claude-instant"),
@@ -257,15 +256,15 @@ class SessionAccess:
             implementations.append(self._cached_implementations[cache_key])
         return implementations
 
-    def get_inference(self, model: "Model"):
+    def instantiate_inference(self, model: "Model"):
         """Instantiates the inference component of a Model symbol"""
         return _instantiate_model(model, self.session)
 
-    def get_code_callable(self, code: Code):
+    def instantiate_callable(self, code: Code):
         """Instantiates the callable of a Code symbol"""
         return _instantiate_code(code, self.session)
 
-    def get_py_type(self, type: Type):
+    def instantiate_py_type(self, type: Type):
         """Instantiates the python type of a Type symbol"""
         return instantiate_py_type(type, self.session)
 

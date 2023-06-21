@@ -44,29 +44,31 @@ class ModuleMutationType(enum.StrEnum):
     # Files
     TRUNCATE_FILES = "TRUNCATE_FILES"
     BUMP_FILE = "BUMP_FILE"
-    PASTE_FILE = "PASTE_FILE"
     CREATE_FILE = "CREATE_FILE"
+    UPDATE_FILE = "UPDATE_FILE"
+    DELETE_FILE = "DELETE_FILE"
+    # Files (API)
+    PASTE_FILE = "PASTE_FILE"
     SOFT_DELETE_FILE = "SOFT_DELETE_FILE"
     RESTORE_FILE = "RESTORE_FILE"
     RENAME_FILE = "RENAME_FILE"
     MOVE_FILE = "MOVE_FILE"
-    UPDATE_FILE = "UPDATE_FILE"
-    DELETE_FILE = "DELETE_FILE"
     # Statements
     TRUNCATE_STATEMENTS = "TRUNCATE_STATEMENTS"
     BUMP_STATEMENT = "BUMP_STATEMENT"
-    PASTE_STATEMENT = "PASTE_STATEMENT"
     CREATE_STATEMENT = "CREATE_STATEMENT"
+    UPDATE_STATEMENT = "UPDATE_STATEMENT"
+    DELETE_STATEMENT = "DELETE_STATEMENT"
+    # Statements (API)
+    PASTE_STATEMENT = "PASTE_STATEMENT"
     SOFT_DELETE_STATEMENT = "SOFT_DELETE_STATEMENT"
     RESTORE_STATEMENT = "RESTORE_STATEMENT"
     MORPH_STATEMENT = "MORPH_STATEMENT"
     COMMENT_STATEMENT = "COMMENT_STATEMENT"
     MOVE_STATEMENT = "MOVE_STATEMENT"
     RENAME_STATEMENT = "RENAME_STATEMENT"
-    UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"  # for comments
-    UPDATE_STATEMENT = "UPDATE_STATEMENT"
-    DELETE_STATEMENT = "DELETE_STATEMENT"
-    # Symbols
+    UPDATE_STATEMENT_TEXT = "UPDATE_STATEMENT_TEXT"
+    # Symbols (API)
     UPDATE_SYMBOL_DESCRIPTION = "UPDATE_SYMBOL_DESCRIPTION"
     UPDATE_SYMBOL_CODE = "UPDATE_SYMBOL_CODE"
     UPDATE_SYMBOL_MODIFIER = "UPDATE_SYMBOL_MODIFIER"
@@ -76,20 +78,22 @@ class ModuleMutationType(enum.StrEnum):
     TRUNCATE_FIELDS = "TRUNCATE_FIELDS"
     CREATE_FIELD = "CREATE_FIELD"
     UPDATE_FIELD = "UPDATE_FIELD"
+    DELETE_FIELD = "DELETE_FIELD"
+    # Types (API)
     RENAME_FIELD = "RENAME_FIELD"
     UPDATE_FIELD_DESCRIPTION = "UPDATE_FIELD_DESCRIPTION"
     UPDATE_FIELD_TYPE = "UPDATE_FIELD_TYPE"
     MOVE_FIELD = "MOVE_FIELD"
     SOFT_DELETE_FIELD = "SOFT_DELETE_FIELD"
-    DELETE_FIELD = "DELETE_FIELD"
     RESTORE_FIELD = "RESTORE_FIELD"
     # Records
     TRUNCATE_RECORDS = "TRUNCATE_RECORDS"
     CREATE_RECORD = "CREATE_RECORD"
     UPDATE_RECORD = "UPDATE_RECORD"
+    DELETE_RECORD = "DELETE_RECORD"
+    # Records (API)
     MOVE_RECORD = "MOVE_RECORD"
     SOFT_DELETE_RECORD = "SOFT_DELETE_RECORD"
-    DELETE_RECORD = "DELETE_RECORD"
     RESTORE_RECORD = "RESTORE_RECORD"
     # Interp
     TRUNCATE_ISSUES = "TRUNCATE_ISSUES"
@@ -226,6 +230,7 @@ class ModuleMutation:
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL mutations
+    properties: Optional[list[str]] = None  # for partial updates
 
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
 
@@ -287,7 +292,8 @@ class ModuleMutation:
         return self.type.mot
 
     def __str__(self):
-        return f"{self.type} {self.revision}"
+        properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
+        return f"{self.type} {self.revision}{properties_str}"
 
     def __repr__(self):
         return f"<Mutation {self}>"
@@ -337,7 +343,9 @@ class ModuleMutator:
     def __repr__(self):
         return f"<Mutator {self}>"
 
-    def do(self, type: MMT, obj: NodeData, apply: bool = True) -> "ModuleMutator":
+    def do(
+        self, type: MMT, obj: NodeData, apply: bool = True, properties: list[str] = None
+    ) -> "ModuleMutator":
         if isinstance(obj, StatementData):
             statement_id = obj.id
             file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData).id
@@ -358,12 +366,15 @@ class ModuleMutator:
             else:
                 file = self.tree.get_ancestor(obj.parent_id, wire.FileData)
                 file_id = self.file_id or file.id
+        if properties and type.kind != MMK.UPDATE:
+            raise ValueError(f"properties only supported for update mutations: {properties}")
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
             revision=obj.revision if isinstance(obj, wire.Revisioned) else None,
             file_id=file_id,
             statement_id=statement_id,
+            properties=properties,
         )
         mutation.data = obj
         self.mutations.append(mutation)
@@ -407,11 +418,13 @@ class ModuleMutator:
             self.update(obj, apply=apply)
         return self
 
-    def update(self, obj: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":
+    def update(
+        self, obj: NodeData | ModuleNode, apply: bool = True, properties: list[str] = None
+    ) -> "ModuleMutator":
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
         mmt = MMT(f"UPDATE_{mot.name}")
-        self.do(mmt, obj, apply=apply)
+        self.do(mmt, obj, apply=apply, properties=properties)
         return self
 
     def delete_many(self, *objs: NodeData | ModuleNode, apply: bool = True) -> "ModuleMutator":

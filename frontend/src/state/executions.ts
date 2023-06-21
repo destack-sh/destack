@@ -72,7 +72,11 @@ export function useExecutions(
   // rewrap refs to prevent eager updates
   filter = wrapValueRefs(filter);
   const first = options?.first ?? 25;
-  const { result: executionsResult, subscribeToMore } = useQuery(
+  const {
+    result: executionsResult,
+    subscribeToMore,
+    loading,
+  } = useQuery(
     graphql(/* GraphQL */ `
       query executions(
         $projectId: GlobalID!
@@ -166,6 +170,7 @@ export function useExecutions(
         executionsResult.value?.executions?.edges?.map((edge: any) => useFragment(ExecutionContentType, edge.node)) ??
         []
     ),
+    loading,
   };
 }
 

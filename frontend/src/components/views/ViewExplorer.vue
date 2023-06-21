@@ -8,6 +8,7 @@ import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { useBenchState } from "@/state/bench";
 
 const props = defineProps<{ focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
@@ -15,6 +16,7 @@ const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 const actions = useActions();
 const appearance = useAppearance();
 const module = useCurrentModule();
+const bench = useBenchState();
 
 type Panel = {
   title: string;
@@ -29,25 +31,30 @@ type Action = {
   enabled: boolean;
 };
 
-const panels: Ref<Panel[]> = computed(() => [
-  {
-    title: "Files",
-    count: fileExplorer.value?.count,
-    actions: [
-      {
-        icon: PlusIcon,
-        label: "File",
-        action: () => actions.file.create.value.apply(),
-        enabled: actions.file.create.value.enabled,
-      },
-    ],
-  } as Panel,
-  {
-    title: "Outline",
-    count: symbolExplorer.value?.count,
-    actions: [],
-  } as Panel,
-]);
+const panels: Ref<Panel[]> = computed(() => {
+  const panels = [
+    {
+      title: "Files",
+      count: fileExplorer.value?.count,
+      actions: [
+        {
+          icon: PlusIcon,
+          label: "File",
+          action: () => actions.file.create.value.apply(),
+          enabled: actions.file.create.value.enabled,
+        },
+      ],
+    } as Panel,
+  ];
+  if (bench.focusedFileId != null) {
+    panels.push({
+      title: "Outline",
+      count: symbolExplorer.value?.count,
+      actions: [],
+    } as Panel);
+  }
+  return panels;
+});
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const fileExplorer: Ref<InstanceType<typeof FileExplorer> | undefined> = ref(undefined);
