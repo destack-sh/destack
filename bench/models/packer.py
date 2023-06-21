@@ -516,8 +516,6 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
         return wire.ValueData(
             **statement_data.__dict__,
             description=statement.description,
-            tag=statement.root_type_tag,
-            flags=statement.root_type_flags,
             modifier=statement.modifier,
             value=statement.value,
         )
@@ -527,8 +525,6 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.root_type_tag = data.tag
-        statement.root_type_flags = data.flags
         statement.modifier = data.modifier
         statement.value = data.value
         return statement
@@ -677,16 +673,26 @@ class DataPacker(typing.Generic[DataT, NodeT]):
         raise NotImplementedError
 
 
-_data_packers: dict[typing.Type[DataT], "DataPacker"] = {}
+_data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}
+_data_packers_by_model: dict[typing.Type[ModelT], "DataPacker"] = {}
 
 
-def data_packer(data_t: typing.Type[DataT]):
+def data_packer(data_t: typing.Type[DataT], model_t: typing.Type[ModelT]):
     """Decorator to register a data packer for a given type"""
 
     def decorator(cls: "DataPacker"):
-        if data_t in _data_packers:
-            raise ValueError(f"packer for {data_t} already registered: {_data_packers[data_t]}")
-        _data_packers[data_t] = cls()
+        if data_t in _data_packers_by_data:
+            raise ValueError(
+                f"packer for {data_t} already registered: {_data_packers_by_data[data_t]}"
+            )
+        if model_t and model_t in _data_packers_by_model:
+            raise ValueError(
+                f"packer for {model_t} already registered: {_data_packers_by_model[model_t]}"
+            )
+        packer = cls()
+        _data_packers_by_data[data_t] = packer
+        if model_t:
+            _data_packers_by_model[model_t] = packer
         return cls
 
     return decorator
@@ -694,17 +700,17 @@ def data_packer(data_t: typing.Type[DataT]):
 
 def pack_data(model: ModelT) -> DataT:
     """Pack any non-node data type"""
-    packer = _data_packers[type(model)]
+    packer = _data_packers_by_model[type(model)]
     return packer.pack(model)
 
 
 def unpack_data(data: DataT) -> ModelT:
     """Unpack any non-node data type"""
-    packer = _data_packers[type(data)]
+    packer = _data_packers_by_data[type(data)]
     return packer.unpack(data)
 
 
-@data_packer(wire.ExecutionFrameData)
+@data_packer(wire.ExecutionFrameData, models.Execution)
 class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]):
     def pack(self, data: models.Execution) -> wire.ExecutionFrameData:
         return wire.ExecutionFrameData(
@@ -804,7 +810,10 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:
-                model_cls.objects.bulk_update(nodes)  # particularly updates are wonky
+                # can probably optimize this (e.g. group by updated properties)
+                for m, node in zip(batch, nodes):
+                    node._state.adding = False  # ensure update
+                    node.save(force_update=True, update_fields=m.properties)
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:

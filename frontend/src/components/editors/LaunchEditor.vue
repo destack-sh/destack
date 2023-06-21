@@ -235,43 +235,50 @@ defineExpose({
           </button>
         </div>
       </div>
-      <!-- Input -->
-      <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
-        <StructTile v-if="inputFields.length > 0" v-model="editor.arguments" :fields="inputFields" class="" />
-        <div v-else class="flex h-full w-full flex-col items-center justify-center">
-          <span class="text-sm text-gray-400">No input</span>
-        </div>
-      </ContainerTile>
-      <!-- Output -->
-      <ContainerTile
-        label="Output"
-        :sub-label="
-          editor.lastExecutionTerminatedAt ? now.getTimeFromNowLongString(editor.lastExecutionTerminatedAt) : undefined
-        "
-        :style="{ ...baseTilePositionX }"
-      >
-        <StructTile
-          v-if="editor.lastOutput"
-          :model-value="editor.lastOutput"
-          :fields="outputFields"
-          readonly
-          class=""
-        />
-        <div v-else class="flex h-full w-full flex-col items-center justify-center">
-          <span class="text-sm text-gray-400">No output</span>
-        </div>
-      </ContainerTile>
-      <!-- Executions -->
-      <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
-        <ExecutionsTile
-          :project-id="bench.projectId"
-          :project-version-id="bench.projectVersionId"
-          include-ancestor-versions
-          :runnable-id="editor?.statementId"
-          :symbol-type="statement?.type"
-          live
-        />
-      </ContainerTile>
+      <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
+        <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-500" />
+      </div>
+      <template v-else>
+        <!-- Input -->
+        <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
+          <StructTile v-if="inputFields.length > 0" v-model="editor.arguments" :fields="inputFields" class="" />
+          <div v-else class="flex h-full w-full flex-col items-center justify-center">
+            <span class="text-sm text-gray-400">No input</span>
+          </div>
+        </ContainerTile>
+        <!-- Output -->
+        <ContainerTile
+          label="Output"
+          :sub-label="
+            editor.lastExecutionTerminatedAt != null
+              ? now.getTimeFromNowLongString(editor.lastExecutionTerminatedAt as string)
+              : undefined
+          "
+          :style="{ ...baseTilePositionX }"
+        >
+          <StructTile
+            v-if="editor.lastOutput && outputFields.length > 0"
+            :model-value="editor.lastOutput"
+            :fields="outputFields"
+            readonly
+            class=""
+          />
+          <div v-else class="flex h-full w-full flex-col items-center justify-center">
+            <span class="text-sm text-gray-400">No output</span>
+          </div>
+        </ContainerTile>
+        <!-- Executions -->
+        <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
+          <ExecutionsTile
+            :project-id="bench.projectId"
+            :project-version-id="bench.projectVersionId"
+            include-ancestor-versions
+            :runnable-id="editor?.statementId"
+            :symbol-type="statement?.type"
+            live
+          />
+        </ContainerTile>
+      </template>
     </div>
   </div>
 </template>

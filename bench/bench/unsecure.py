@@ -80,6 +80,8 @@ async def run(
     try:
         # set current session
         session.open()
+        if not code._is_async:
+            code = code.to_async()
         ret = await code(**arguments)
         await session.aclose()
         return ret

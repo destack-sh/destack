@@ -62,6 +62,7 @@ const addingTypes = ref(false);
 const hideOutput = ref(false);
 const truncateOutput = ref(true);
 const preparingRun = ref(false);
+const cancelled = ref(false);
 
 const executionActive = computed(
   () =>
@@ -92,8 +93,8 @@ const extraActions = computed(() => {
     {
       label: "Run",
       icon: PlayIcon,
-      active: executionActive.value,
-      disabled: hasTypes.value,
+      active: executionActive.value && !cancelled.value,
+      disabled: hasTypes.value, // needs parameters
       action: async () => await run(),
     },
     {
@@ -136,6 +137,7 @@ async function run() {
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
     lastExecutionLocalId.value = newExecutionId();
+    cancelled.value = false;
     hideOutput.value = false;
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
     try {
@@ -160,6 +162,7 @@ async function run() {
 }
 
 async function cancel() {
+  cancelled.value = true;
   if (lastExecutionId.value == null) {
     return;
   }
@@ -250,11 +253,8 @@ defineExpose({
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
     v-if="lastExecution && lastExecution.status == ExecutionStatus.Failed && !hideOutput"
-    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border-t border-gray-200 px-1 py-1.5 font-mono transition duration-150"
-    :class="[
-      context.focused.value && !context.editing.value ? 'bg-gray-50' : 'bg-gray-100',
-      truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '',
-    ]"
+    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-1 py-1.5 font-mono transition duration-150"
+    :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
     :key="lastExecution?.id"
     :name="context.statement.value?.name ?? 'run'"
     :execution="lastExecution"
@@ -269,11 +269,7 @@ defineExpose({
         <ChevronDoubleDownIcon class="h-4 w-4" />
       </span>
     </button>
-    <button
-      v-else
-      class="group/truncate flex w-full flex-row justify-center bg-gray-100 pt-0.5"
-      @click="truncateOutput = true"
-    >
+    <button v-else class="group/truncate flex w-full flex-row justify-center pt-0.5" @click="truncateOutput = true">
       <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
     </button>
   </ExecutionTraceback>

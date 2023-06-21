@@ -38,7 +38,7 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
-const { executions, totalCount } = useExecutions(
+const { executions, totalCount, loading } = useExecutions(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
@@ -94,7 +94,7 @@ function isMostlyCached(execution: { duration?: number; cachedDuration?: number 
 }
 
 function getStatusIcon(status: ExecutionStatus) {
-  if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running || status == ExecutionStatus.Scheduled) {
+  if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running) {
     return BusySpinnerIcon;
   } else if (status == ExecutionStatus.Aborting || status == ExecutionStatus.Aborted) {
     return XCircleIcon;
@@ -142,8 +142,11 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
     <!-- not yet -->
     <!-- Executions -->
     <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs</div>
+    <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
+      <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
+    </div>
     <!-- TODO @UX: animate executions in tile (without interfering with expand/close animation, looks glitchy) -->
-    <div class="relative flex flex-col">
+    <div v-else class="relative flex flex-col">
       <div
         :ref="(el: any) => executionRefs.registerRef(execution.id, el)"
         tabindex="-1"
@@ -174,7 +177,11 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
               <component
                 :is="getStatusIcon(execution.status)"
                 class="h-4 w-4"
-                :class="[execution.status == ExecutionStatus.Running ? 'animate-spin' : '']"
+                :class="[
+                  execution.status == ExecutionStatus.Running || execution.status == ExecutionStatus.Queued
+                    ? 'animate-spin'
+                    : '',
+                ]"
               />
               <span class="ml-1 max-w-full truncate font-bold">{{ symbol?.name }}</span>
               <!-- Duration -->
@@ -261,7 +268,7 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
           />
           <ExecutionTraceback
             v-if="execution.errorNice"
-            class="w-full rounded-sm bg-gray-100 p-1 font-mono"
+            class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 font-mono"
             name="run"
             :execution="execution"
           />

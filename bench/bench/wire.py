@@ -300,6 +300,20 @@ def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> lang.Mo
     return module
 
 
+def walk_node(node: NodeT) -> typing.Iterator[NodeT]:
+    """Walks the node and all its descendants"""
+    seen: set[UUID] = set()
+    to_visit: list[NodeT] = [node]
+    while to_visit:
+        visited = PackContext()
+        for node in to_visit:
+            seen.add(node.id)
+            yield node
+            packer = _node_packers_by_node[type(node)]
+            packer.walk(node, visited)
+        to_visit = [node for node in visited.visited.values() if node.id not in seen]
+
+
 def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its descendants"""
     packed: dict[UUID, NodeDataT] = OrderedDict()
@@ -809,8 +823,6 @@ class RequirementPacker(StatementPacker, NodePacker[RequirementData, lang.Requir
 @dataclass
 class ValueData(SymbolData):
     description: Optional[str]
-    tag: Optional[TypeTag]
-    flags: Optional[TypeFlag]
     value: Optional[typing.Any]
     modifier: Optional[ExpectationModifier]
 
@@ -828,8 +840,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
         statement_data = super().pack(symbol)
         return ValueData(
             **statement_data.__dict__,
-            tag=symbol.tag,
-            flags=symbol.flags,
             modifier=symbol.modifier,
             description=symbol.description,
             value=symbol.value,
@@ -841,8 +851,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
         statement = super().unpack(symbol, parent, session)
         return lang.Value(
             **statement.__dict__,
-            tag=symbol.tag,
-            flags=symbol.flags,
             modifier=symbol.modifier,
             description=symbol.description,
             value=symbol.value,

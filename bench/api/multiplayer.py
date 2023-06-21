@@ -54,6 +54,7 @@ class ModuleMutation:
     revision: Optional[int]
     input: Optional[JSON]
     data: Union[Issue, ResolvedField, None]
+    properties: Optional[list[str]]
 
 
 @gql.type
@@ -134,6 +135,7 @@ async def unpack_module_mutations(
             revision=m.revision,
             input=m.input,
             data=data,
+            properties=m.properties,
         )
         unpacked_mutations.append(unpacked_mutation)
     return unpacked_mutations

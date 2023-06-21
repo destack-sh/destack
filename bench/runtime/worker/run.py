@@ -109,7 +109,7 @@ class ModuleWorker:
         self.log.debug("module.interp", mutations=len(mutations))
         new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
-        self.interp = await self.interpreter.interp(new_source)
+        self.interp = await self.interpreter.interp(new_source, session=None)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
@@ -117,7 +117,7 @@ class ModuleWorker:
         # interp and write in parallel
         self.source = new_source
         self.interp, rep = await asyncio.gather(
-            self.interpreter.interp(new_source),
+            self.interpreter.interp(new_source, session=None),
             request(
                 NMessageType.REQUEST_WRITE_MODULE,
                 ReqWriteModulePayload(
@@ -185,6 +185,9 @@ class ModuleWorker:
                 arguments=describe_type(job.arguments),
                 timeout=timeout,
             )
+            # TODO @Architecture: handle module instantiation & session linking more intelligently
+            #  esp. with contexts, dependencies, parallelism, etc.
+            job.session.module.instantiate_in(job.session)
             task = asyncio.create_task(run(job.runnable, job.arguments, job.session))
             self.pending_runs[job.id] = task
             await asyncio.wait_for(task, timeout=timeout)
@@ -356,11 +359,7 @@ class SandboxedWorker:
                 )
             else:
                 execution = None
-            rep = RepRunPayload(
-                error=run_job.error,
-                execution=execution,
-                execution_id=run_job.id,
-            )
+            rep = RepRunPayload(error=run_job.error, execution=execution, execution_id=run_job.id)
             await msg.reply(rep)
 
     @message_handler

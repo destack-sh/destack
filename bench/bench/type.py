@@ -13,7 +13,7 @@ from functools import cached_property
 from typing import Any, Optional, Self, Union
 from uuid import UUID
 
-from asgiref.sync import async_to_sync
+from asgiref.sync import async_to_sync, sync_to_async
 from more_itertools import first
 
 from bench.bench import IssueType
@@ -72,6 +72,11 @@ class ModuleNode(abc.ABC):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
 
+    def walk(self) -> typing.Iterator[ModuleNode]:
+        from bench.bench.wire import walk_node
+
+        return walk_node(self)
+
     @property
     def attached(self) -> bool:
         return self.parent is not None
@@ -90,24 +95,6 @@ class HasSession(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
     _session: "Session" = None
 
-    @property
-    def session(self) -> "Session":
-        """Access the session, error-ing if there is none."""
-
-        if self._session is not None:
-            return self._session
-        from bench.bench.session import active_session
-
-        session = active_session.get()
-        if session is not None:
-            return session
-        raise RuntimeError(f"no active session for {self}")
-
-    @session.setter
-    def session(self, session: Optional["Session"]):
-        """Set the session."""
-        self._session = session
-
     def __post_init__(self):
         if self._session is None:
             from bench.bench.session import active_session
@@ -121,6 +108,24 @@ class HasSession(abc.ABC):
     def __del__(self):
         if self._session is not None:
             self._session.remove(self)
+
+    def instantiate_in(self, session: "Session"):
+        if self._session is not None:
+            self._session.remove(self)
+        self._session = session
+        session.add(self, new=False)
+
+    @property
+    def session(self) -> "Session":
+        """Access the session, error-ing if there is none."""
+        if self._session is None:
+            raise RuntimeError(f"no active session for {self}")
+        return self._session
+
+    @session.setter
+    def session(self, session: Optional["Session"]):
+        """Set the session."""
+        self._session = session
 
     @property
     def logger(self) -> logging.Logger:
@@ -289,6 +294,22 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def __repr__(self):
         return f"<Module {str(self)}>"
 
+    def instantiate_in(self, session: Session):
+        if self._session is not None:
+            self._session.remove(self)
+        self._session = session
+        self.clear()
+        self.index()
+        self.interp()
+        for n in self.walk():
+            if n != self and isinstance(n, HasSession):
+                n.instantiate_in(session)
+
+    def clear(self):
+        super()._clear()
+        for file in self.files:
+            file._clear()
+
     def index(self):
         for file in self.files:
             file._index()
@@ -360,9 +381,14 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
         self.statements = sorted_statements
 
+    def _clear(self):
+        """Resets this scope and all child scopes."""
+        super()._clear()
+        for statement in self.statements:
+            statement._clear()
+
     def _index(self):
         """Indexes all statements in this file into the scope."""
-        self._clear()
         self._sort()
         for statement in self.statements:
             statement._index()
@@ -500,7 +526,9 @@ class Symbol(Statement, SymbolBase):
         pass
 
     def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
+        """Clears and re-interprets this symbol in scope."""
         self._clear()
+        self._index()
         self._interp(scope or self)
         if raise_errors and self.errors:
             raise BenchError(self.errors[0])
@@ -826,7 +854,7 @@ class Type(Symbol, HasType, HasExpectations):
 
     @cached_property
     def py_type(self) -> type | enum.Enum:
-        return self.session.instance.get_py_type(self)
+        return self.session.instance.instantiate_py_type(self)
 
     def _clear(self) -> None:
         Symbol._clear(self)
@@ -860,7 +888,7 @@ TYPE_FIELD_KEYS = {field.name for field in fields(Type)}
 class Task(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
-    is_async: bool = True
+    _is_async: bool = True
     # should probably store last good implementation ... in redis?
     last_good_impl_idx: int = 0
 
@@ -929,10 +957,9 @@ class Task(Symbol, HasType, HasExpectations):
             raise e
 
     def to_sync(self) -> "Self":
-        sync_task = self.__class__(**dict_minus(self.__dict__, ["is_async"]))
-        sync_task.is_async = False
-        sync_task.__call__ = async_to_sync(self.__call__)
-        return sync_task
+        if self.is_async:
+            raise NotImplementedError  # nocheckin
+        return self
 
 
 @node
@@ -982,6 +1009,7 @@ class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
     code: Optional[str] = None
+    _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
     _references: dict[str, Symbol] | None = None
     _transform: Optional[CodeTransformation] = None
@@ -1001,6 +1029,7 @@ class Code(Symbol, HasType, IsExpectable):
         # parse and resolve code references
         input_idents = {input.ident for input in self.inputs}
         self._parse = parse_code(self.code)
+        self._is_async = self._parse.is_async
         self._references = {}
         for key, reference in self._parse.references.items():
             if key in input_idents:
@@ -1011,16 +1040,40 @@ class Code(Symbol, HasType, IsExpectable):
             else:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=key)
 
-    async def __call__(self, *args, **kwargs):
+    def _prep_callable(self) -> None:
         if self._callable is None:
-            self._transform, self._callable = self.session.instance.get_code_callable(self)
+            self._transform, self._callable = self.session.instance.instantiate_callable(self)
+
+    def __call__(self, *args, **kwargs):
+        if self._is_async:
+            return self.__call_async__(*args, **kwargs)
+        else:
+            return self.__call_sync__(*args, **kwargs)
+
+    async def __call_async__(self, *args, **kwargs):
+        self._prep_callable()
         log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
         try:
             self.session.tracer.code_enter(self, args, kwargs)
             log.debug("code.enter")
             result = await self._callable(*args, **kwargs)
             self.session.tracer.code_exit(self, args, kwargs, result)
-            log.debug("code.exit", result=describe_type(result))
+            log.debug("code.exit")
+            return result
+        except Exception as exception:
+            self.session.tracer.code_exception(self, args, kwargs, exception)
+            log.debug("code.exception", excinfo=True)
+            raise
+
+    def __call_sync__(self, *args, **kwargs):
+        self._prep_callable()
+        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
+        try:
+            self.session.tracer.code_enter(self, args, kwargs)
+            log.debug("code.enter")
+            result = self._callable(*args, **kwargs)
+            self.session.tracer.code_exit(self, args, kwargs, result)
+            log.debug("code.exit")
             return result
         except Exception as exception:
             self.session.tracer.code_exception(self, args, kwargs, exception)
@@ -1028,10 +1081,18 @@ class Code(Symbol, HasType, IsExpectable):
             raise
 
     def to_sync(self) -> "Code":
-        sync_code = self.__class__(**dict_minus(self.__dict__, ["is_async"]))
-        sync_code.is_async = False
-        sync_code.__call__ = async_to_sync(self.__call__)
+        sync_code = Code(**self.__dict__)
+        if self._is_async:
+            sync_code.__call_sync__ = async_to_sync(self.__call_async__)
+        sync_code._is_async = False
         return sync_code
+
+    def to_async(self) -> "Code":
+        async_code = Code(**self.__dict__)
+        if not self._is_async:
+            async_code.__call_async__ = sync_to_async(self.__call_sync__)
+        async_code._is_async = True
+        return async_code
 
 
 @node
@@ -1252,7 +1313,7 @@ class Model(Symbol):
 
     @cached_property
     def inference(self) -> "ModelInference":
-        return self.session.instance.get_inference(self)
+        return self.session.instance.instantiate_inference(self)
 
     def _clear(self) -> None:
         pass

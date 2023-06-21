@@ -366,7 +366,7 @@ class MutationTracer(Tracer):
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         from bench.bench import wire
 
-        self.mutator.update(wire.pack_node_flat(value))
+        self.mutator.update(wire.pack_node_flat(value), properties=["value"])
 
     def dataset_clear(self, table: Dataset):
         self.mutator.truncate(table.id, MOT.RECORD)
