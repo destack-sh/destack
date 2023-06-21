@@ -5,7 +5,8 @@ from uuid import UUID, uuid5
 
 from django.db import models
 
-from bench.bench.dataset import DatasetBackend, DatasetViewLayout
+from bench.bench.const import DatasetViewLayout
+from bench.bench.const import DatasetBackend
 from bench.models.utils import CrudModel, ModuleNode, UUIDModel, get_choices
 
 

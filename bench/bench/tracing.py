@@ -13,8 +13,6 @@ from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
 from bench.bench.type import check_type
 from bench.bench.wire import ExecutionFrameData
-from bench.msg.core import publish_soon
-from bench.msg.messages import ExecutionChangedPayload, NMessageType
 from bench.utils.serialize import to_dict
 from bench.utils.uuidt import UUIDT
 
@@ -233,6 +231,9 @@ class ExecutionTracer(Tracer):
 
     def track(self, frame):
         if self.publish:
+            from bench.msg.core import publish_soon
+            from bench.msg.messages import ExecutionChangedPayload, NMessageType
+
             frame_data = ExecutionFrameData.from_frame(frame, session=self.session)
             logger.debug("execution.track", frame=frame_data.id)
             publish_soon(

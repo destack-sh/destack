@@ -12,8 +12,9 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag, wire
-from bench.bench.dataset import DatasetBackend, new_dataset_backend_id
-from bench.bench.type import FIELD_KEY_LENGTH, TypeFlag, new_field_key
+from bench.bench.dataset import new_dataset_backend_id
+from bench.bench.const import DatasetBackend, TypeFlag
+from bench.bench.type import new_field_key, FIELD_KEY_LENGTH
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,

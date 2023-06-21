@@ -22,15 +22,14 @@ from bench.api.sync import MMT, tracked_db_mutation
 from bench.api.utils import CrudModel, Revisioned, get_client_origin_from_info, safe_mutation
 from bench.bench import core
 from bench.bench.mutate import MOT
-from bench.msg import NMessageType
 from bench.msg.core import publish_soon
-from bench.msg.messages import ProjectChangedPayload
+from bench.msg.messages import ProjectChangedPayload, NMessageType
 
 if TYPE_CHECKING:
-    from bench.api.interp import Issue
     from bench.api.organization import Organization
     from bench.api.statement import Statement
     from bench.api.user import User
+    from bench.api.interp import Issue
 
 StatementType = gql.enum(core.StatementType)
 

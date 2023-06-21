@@ -17,9 +17,10 @@ from bench.api.execution import Execution, ExecutionTriggerType
 from bench.api.utils import asafe_mutation, to_uuid
 from bench.bench.core import SessionTracingLevel
 from bench.models import packer
-from bench.msg import NMessageType, messages
+from bench.msg import messages
 from bench.msg.core import NMessage, request
 from bench.msg.messages import (
+    NMessageType,
     RepCancelRunPayload,
     RepLangserverPayload,
     RepRunPayload,

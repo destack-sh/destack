@@ -27,9 +27,8 @@ from bench.models.user import (
     pack_client,
     unpack_client,
 )
-from bench.msg import NMessageType
 from bench.msg.core import NMessage, publish_soon, subscribe
-from bench.msg.messages import ClientChangedPayload, ClientOrigin
+from bench.msg.messages import ClientChangedPayload, ClientOrigin, NMessageType
 from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:

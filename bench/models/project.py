@@ -423,7 +423,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             if node.id not in target_ids:
                 target_ids[node.id] = uuid4()
             node.id = target_ids[node.id]
-            if not isinstance(node, wire.HasRevision):
+            if not isinstance(node, wire.HasCrud):
                 continue
             source_revision = node.revision
             if not copy_revisions:

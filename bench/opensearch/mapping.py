@@ -5,7 +5,8 @@ import bench.bench as lang
 import bench.bench.type
 import bench.opensearch.core as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL, TypeFlag
+from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
+from bench.bench.const import TypeFlag
 from bench.opensearch import mirror
 
 MAXIMUM_NESTING_DEPTH = 3

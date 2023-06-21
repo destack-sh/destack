@@ -6,22 +6,29 @@ from uuid import UUID
 
 import structlog
 
-from bench.bench import Code, Task, wire
-from bench.bench.code import RunError, run
+from bench.bench import wire, Task, Code
+from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.core import (
     Module,
     ModuleReference,
-    Session,
-    SessionContext,
     SessionMode,
     SessionTracingLevel,
+    SessionContext,
+    Session,
 )
-from bench.bench.execution import ExecutionFrame, ExecutionTriggerType, WorkerTenancy
-from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.code import RunError, run
 from bench.bench.wire import ExecutionFrameData
-from bench.msg import NMessage, NMessageType
-from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
+from bench.msg.core import (
+    handle_reply,
+    message_handler,
+    nc_init,
+    publish,
+    request,
+    subscribe,
+    NMessage,
+)
 from bench.msg.messages import (
+    NMessageType,
     ClientOrigin,
     ExecutionMarkedDeadPayload,
     ModuleInternalChangedPayload,
@@ -39,6 +46,8 @@ from bench.msg.messages import (
     WorkerHeartbeatPayload,
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
+from bench.bench.execution import ExecutionFrame
+from bench.bench.const import WorkerTenancy, ExecutionTriggerType
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT

@@ -1,45 +1,38 @@
 from __future__ import annotations
 
+from copy import deepcopy
+from dataclasses import dataclass, is_dataclass, asdict
 import enum
 import json
+from json import JSONDecodeError
 import re
 import typing
-import uuid
-from copy import deepcopy
-from dataclasses import asdict, dataclass, is_dataclass
-from json import JSONDecodeError
 from typing import Optional, Self
+import uuid
 
-from bench.bench import (
-    Dataset,
-    Expectation,
-    HasExpectations,
-    HasType,
-    Model,
-    Scope,
-    Symbol,
-    Type,
-    TypeTag,
-)
-from bench.bench.core import Session, node
+from bench.bench.core import Symbol, Scope
 from bench.bench.model import (
-    SETTINGS_CLS_BY_MODALITY,
-    Modality,
-    TextGenerationSettings,
-    ValueT,
-    XBlock,
-    XBlockContent,
     XKind,
     XSource,
+    XBlock,
+    XBlockContent,
+    Modality,
+    TextGenerationSettings,
+    SETTINGS_CLS_BY_MODALITY,
+    Model,
 )
+from bench.bench.expect import HasExpectations, Expectation
+from bench.bench.core import node, Session
 from bench.bench.type import (
-    TypeBase,
-    TypeFlag,
-    TypeHint,
-    check_type,
-    instantiate_py_value_flat,
     map_value,
+    check_type,
+    TypeBase,
+    instantiate_py_value_flat,
+    HasType,
+    Type,
 )
+from bench.bench.dataset import Dataset
+from bench.bench.const import TypeFlag, TypeTag, TypeHint, ExpectationModifier
 from bench.utils.utils import DotDict
 
 
@@ -199,8 +192,6 @@ def build_task_implementation(task: Task, model: Model, session: Session) -> XPr
         x.emit(XExpectations(task_label=task.name, expectations=expectations))
     for dataset in data_samples:
         if len(dataset) > 0:
-            from bench.bench import ExpectationModifier
-
             positive = dataset.modifier == ExpectationModifier.LIKE
             x.emit(XSamples(dataset=dataset, task_label=task.name, positive=positive))
     x.emit(
@@ -415,7 +406,7 @@ class XInput(XEmit):
     type_label: str = "Input"
     path: str = ""
 
-    def impute_input(self, input: XBlock, value: Any) -> None:
+    def impute_input(self, input: XBlock, value: typing.Any) -> None:
         input.value = json.dumps(value, sort_keys=True)
 
     def __call__(self) -> list[XBlock | DynamicXBlock]:

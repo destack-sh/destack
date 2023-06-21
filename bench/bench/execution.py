@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import enum
-import sys
-import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+import sys
+import traceback
+from typing import Union, Optional, Any, TYPE_CHECKING
 from uuid import UUID
 
 from bench.bench.core import Session, Statement
@@ -158,15 +157,3 @@ class RunErrorData:
             if data.get("traceback")
             else [],
         )
-
-
-class WorkerTenancy(enum.StrEnum):
-    COMMUNITY = "COMMUNITY"
-    DEDICATED = "DEDICATED"
-
-
-class ExecutionTriggerType(enum.StrEnum):
-    API = "rest"
-    UI = "ui"
-    REACTIVE = "reactive"
-    SCHEDULED = "scheduled"
