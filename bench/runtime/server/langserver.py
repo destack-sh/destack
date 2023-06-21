@@ -12,7 +12,7 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, model, task, wire
+from bench.bench import HasType, Issue, ResolvedField, model, wire
 from bench.bench.core import MOT, ModuleReference
 from bench.bench.model import (
     SETTINGS_CLS_BY_MODALITY,
@@ -240,7 +240,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has read access to secret
         secrets = []
         async for secret in models.Secret.objects.filter(id__in=(s.id for s in msg.p.secrets)):
-            secret_data = wire.pack_data(secret)
+            secret_data = packer.pack_data(secret)
             secret_data.value = json.loads(secret_data.value)  # :SecretJson
             secrets.append(secret_data)
         await msg.reply(RepReadSecretPayload(secrets=secrets))

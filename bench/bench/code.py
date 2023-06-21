@@ -2,28 +2,27 @@ from __future__ import annotations
 
 import ast
 import asyncio
-from dataclasses import field
 import enum
 import itertools
-from random import Random
 import textwrap
 import traceback
 import typing
-from typing import Optional, Any, Callable
+from dataclasses import field
+from random import Random
+from typing import Any, Callable, Optional
 
-from asgiref.sync import async_to_sync, sync_to_async
-from more_itertools import first, last
 import numpy
 import pandas
+from asgiref.sync import async_to_sync
+from more_itertools import first, last
 
-from bench.bench.core import Symbol, Scope, IssueType
-from bench.bench.core import node, StatementPath, LookupBy, Session
-from bench.bench.execution import PyFrameData
-from bench.bench.type import HasType
 from bench.bench.const import TypeTag
+from bench.bench.core import IssueType, LookupBy, Scope, Session, StatementPath, Symbol, node
+from bench.bench.execution import PyFrameData
 from bench.bench.expect import IsExpectable
+from bench.bench.type import HasType
 from bench.utils.func import describe_type
-from bench.utils.utils import to_pyidentifier, get_from_env
+from bench.utils.utils import get_from_env, to_pyidentifier
 
 
 @node
@@ -127,7 +126,7 @@ class Code(Symbol, HasType, IsExpectable):
     def to_async(self) -> "Code":
         async_code = Code(**self.__dict__)
         if not self._is_async:
-            async_code.__call_async__ = sync_to_async(self.__call_sync__)
+            async_code.__call_async__ = self.session.sync_to_async(self.__call_sync__)
         async_code._is_async = True
         return async_code
 

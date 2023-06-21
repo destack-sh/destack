@@ -18,15 +18,15 @@ import pytz
 from django.db import transaction
 from django.db.models import Model, QuerySet
 
-from bench import models
-from bench.bench import StatementType, wire, TypeTag, TypeHint
-from bench.bench.const import DatasetBackend, TypeFlag
 import bench.bench.core
-from bench.bench.core import ModuleObjectType, InterpScope
+from bench import models
+from bench.bench import StatementType, TypeHint, TypeTag, wire
+from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
+from bench.bench.core import InterpScope, ModuleObjectType
+from bench.bench.execution import RunErrorData
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
 from bench.bench.wire import ModuleTree
-from bench.bench.execution import RunErrorData
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -720,6 +720,46 @@ def unpack_data(data: DataT) -> ModelT:
     """Unpack any non-node data type"""
     packer = _data_packers_by_data[type(data)]
     return packer.unpack(data)
+
+
+@data_packer(wire.RemoteObjectData, models.RemoteObject)
+class RemoteObjectPacker(DataPacker[wire.RemoteObjectData, models.RemoteObject]):
+    def pack(self, data: models.RemoteObject) -> wire.RemoteObjectData:
+        return wire.RemoteObjectData(
+            id=data.id,
+            sha512=data.sha512,
+            content_length=data.content_length,
+            content_type=data.content_type,
+            name=data.name,
+            status=RemoteObjectStatus(data.status),
+        )
+
+    def unpack(self, data: wire.RemoteObjectData) -> models.RemoteObject:
+        return models.RemoteObject(
+            id=data.id,
+            sha512=data.sha512,
+            content_length=data.content_length,
+            content_type=data.content_type,
+            name=data.name,
+            status=data.status.value,
+        )
+
+
+@data_packer(wire.SecretData, models.Secret)
+class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
+    def pack(self, data: models.Secret) -> wire.SecretData:
+        return wire.SecretData(
+            id=data.id,
+            sha512=data.sha512,
+            value=data.value,
+        )
+
+    def unpack(self, data: wire.SecretData) -> models.Secret:
+        return models.Secret(
+            id=data.id,
+            sha512=data.sha512,
+            value=data.value,
+        )
 
 
 @data_packer(wire.ExecutionFrameData, models.Execution)

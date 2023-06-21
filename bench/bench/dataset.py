@@ -10,15 +10,19 @@ from uuid import UUID
 
 from asgiref.sync import async_to_sync
 
-from bench.bench.const import DatasetViewLayout, TypeTag
-from bench.bench.const import DatasetBackend, TypeFlag
-
+from bench.bench.const import DatasetBackend, DatasetViewLayout, TypeFlag, TypeTag
 from bench.bench.core import HasCrud, ModuleNode, Scope, Session, Symbol, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
-from bench.bench.type import Field, HasType, instantiate_py_value_flat, map_value
+from bench.bench.type import (
+    Field,
+    HasType,
+    instantiate_py_value_flat,
+    map_value,
+    strip_py_value_flat,
+)
 from bench.utils.func import describe_type
-from bench.utils.proxy import unproxy_value
+from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import required_field
 
 
@@ -169,6 +173,8 @@ class Value(Symbol, HasType, IsExpectable):
 
     def _clear(self) -> None:
         HasType._clear(self)
+        if self._instantiated:
+            self.value = self._raw_value()
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -180,6 +186,7 @@ class Value(Symbol, HasType, IsExpectable):
         self.session.tracer.value_update(self, key)
 
     def instantiate_in(self, session: "Session") -> None:
+        super().instantiate_in(session)
         if self._instantiated:
             self.value = self._raw_value()
         # proxy
@@ -190,11 +197,20 @@ class Value(Symbol, HasType, IsExpectable):
             map_v=instantiate_py_value_flat,
             ignore_outer_map=True,
         )
+        self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
 
     def _raw_value(self) -> dict:
         if not self._instantiated:
             return self.value
+        else:
+            return map_value(
+                value=self.value,
+                type=self,
+                map_k=lambda f: (f.ident, f.typed_key),
+                map_v=strip_py_value_flat,
+                ignore_outer_map=True,
+            )
 
     def __getattr__(self, item):
         if item in self._PROPERTIES:
