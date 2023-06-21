@@ -2,26 +2,28 @@ from __future__ import annotations
 
 import ast
 import asyncio
+from dataclasses import field
 import enum
 import itertools
+from random import Random
 import textwrap
 import traceback
 import typing
-from dataclasses import field
-from random import Random
-from typing import Any, Callable, Optional
+from typing import Optional, Any, Callable
 
-import numpy
-import pandas
 from asgiref.sync import async_to_sync, sync_to_async
 from more_itertools import first, last
+import numpy
+import pandas
 
-from bench.bench.core import IssueType, LookupBy, Scope, Session, StatementPath, Symbol, node
+from bench.bench.core import Symbol, Scope, IssueType
+from bench.bench.core import node, StatementPath, LookupBy, Session
 from bench.bench.execution import PyFrameData
+from bench.bench.type import HasType
+from bench.bench.const import TypeTag
 from bench.bench.expect import IsExpectable
-from bench.bench.type import HasType, TypeTag
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env, to_pyidentifier
+from bench.utils.utils import to_pyidentifier, get_from_env
 
 
 @node
@@ -77,7 +79,7 @@ class Code(Symbol, HasType, IsExpectable):
 
     def _prep_callable(self) -> None:
         if self._callable is None:
-            self._transform, self._callable = instantiate_callable(self)
+            self._transform, self._callable = instantiate_callable(self, self.session)
 
     def __call__(self, *args, **kwargs):
         if self._is_async:

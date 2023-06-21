@@ -6,32 +6,30 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from bench.bench.core import Module, ModuleNode, ModuleObjectType, StatementType
-
-if TYPE_CHECKING:
-    from bench.bench.wire import (
-        CodeData,
-        DatasetData,
-        DatasetViewData,
-        ExpectationData,
-        FieldData,
-        FileData,
-        IssueData,
-        ModelData,
-        ModuleData,
-        ModuleTreeData,
-        NodeData,
-        RecordData,
-        RequirementData,
-        ResolvedFieldData,
-        StatementData,
-        TaskData,
-        TypeData,
-        ValueData,
-    )
+from bench.bench.wire import (
+    CodeData,
+    DatasetData,
+    DatasetViewData,
+    ExpectationData,
+    FieldData,
+    FileData,
+    IssueData,
+    ModelData,
+    ModuleData,
+    ModuleTreeData,
+    NodeData,
+    RecordData,
+    RequirementData,
+    ResolvedFieldData,
+    StatementData,
+    TaskData,
+    TypeData,
+    ValueData,
+)
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -234,24 +232,24 @@ class ModuleMutation:
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
     # really annoyingly manual until we get a proper :WireFormat
 
-    _data__mot: Optional["ModuleObjectType"] = None  # discriminator for 'union'
-    _data_module: Optional["ModuleData"] = None
-    _data_file: Optional["FileData"] = None
-    _data_statement: Optional["StatementData"] = None
-    _data_statement__type: Optional["StatementType"] = None  # discriminator for 'union'
-    _data_statement_type: Optional["TypeData"] = None
-    _data_statement_task: Optional["TaskData"] = None
-    _data_statement_expectation: Optional["ExpectationData"] = None
-    _data_statement_code: Optional["CodeData"] = None
-    _data_statement_model: Optional["ModelData"] = None
-    _data_statement_requirement: Optional["RequirementData"] = None
-    _data_statement_value: Optional["ValueData"] = None
-    _data_statement_dataset: Optional["DatasetData"] = None
-    _data_field: Optional["FieldData"] = None
-    _data_record: Optional["RecordData"] = None
-    _data_dataset_view: Optional["DatasetViewData"] = None
-    _data_issue: Optional["IssueData"] = None
-    _data_resolved_field: Optional["ResolvedFieldData"] = None
+    _data__mot: Optional[ModuleObjectType] = None  # discriminator for 'union'
+    _data_module: Optional[ModuleData] = None
+    _data_file: Optional[FileData] = None
+    _data_statement: Optional[StatementData] = None
+    _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
+    _data_statement_type: Optional[TypeData] = None
+    _data_statement_task: Optional[TaskData] = None
+    _data_statement_expectation: Optional[ExpectationData] = None
+    _data_statement_code: Optional[CodeData] = None
+    _data_statement_model: Optional[ModelData] = None
+    _data_statement_requirement: Optional[RequirementData] = None
+    _data_statement_value: Optional[ValueData] = None
+    _data_statement_dataset: Optional[DatasetData] = None
+    _data_field: Optional[FieldData] = None
+    _data_record: Optional[RecordData] = None
+    _data_dataset_view: Optional[DatasetViewData] = None
+    _data_issue: Optional[IssueData] = None
+    _data_resolved_field: Optional[ResolvedFieldData] = None
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
         return {"thing": None}  # always omit thing

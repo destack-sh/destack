@@ -1,29 +1,29 @@
 from __future__ import annotations
 
 import abc
+from concurrent.futures import Executor, ThreadPoolExecutor
 import contextvars
 import enum
 import re
 import typing
 import uuid
 from collections import defaultdict
-from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
-from typing import Callable, NamedTuple, Optional, Union
+from typing import Optional, Union, NamedTuple, Callable
 from uuid import UUID, uuid4
 
-import structlog
 from asgiref.sync import async_to_sync
 from more_itertools import first
+import structlog
 
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.settings import logging
 from bench.utils.utils import required_field, to_pyidentifier
+from bench.bench.const import ExecutionTriggerType
 
 if typing.TYPE_CHECKING:
-    from bench.bench.execution import ExecutionTriggerType
     from bench.bench.mutate import ModuleMutation
 
 logger = structlog.get_logger(__name__)
@@ -148,6 +148,7 @@ class HasSession(abc.ABC):
 
     def __post_init__(self):
         if self._session is None:
+
             self._session = active_session.get()
             if self._session is not None:
                 self._session.add(self, new=True)
@@ -660,7 +661,7 @@ class SessionContext:
     project_id: UUID
     worker_id: UUID
     tracing_level: SessionTracingLevel
-    trigger_type: "ExecutionTriggerType"
+    trigger_type: ExecutionTriggerType
     trigger_id: typing.Optional[UUID]
     root_id: typing.Optional[UUID] = None
 
@@ -694,8 +695,8 @@ class Session:
         write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
         executor: Executor = None,
     ):
-        from bench.bench.mutate import ModuleMutator
         from bench.bench.tracing import SessionTracer
+        from bench.bench.mutate import ModuleMutator
 
         if mode != SessionMode.READ_ONLY and write is None:
             raise ValueError("write must be provided for non-readonly sessions")

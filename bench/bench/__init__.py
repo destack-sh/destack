@@ -10,8 +10,9 @@ from bench.bench.core import (
     Symbol,
     Text,
 )
-from bench.bench.dataset import Dataset, DatasetView, DatasetViewLayout, Record, Value
-from bench.bench.expect import Expectation, ExpectationModifier, HasExpectations
+from bench.bench.dataset import Dataset, DatasetView, Record, Value
+from bench.bench.const import DatasetViewLayout, ExpectationModifier, TypeTag, TypeHint
+from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.issue import Issue, IssueType
 from bench.bench.model import Model
 from bench.bench.remote import RemoteObject, Secret
@@ -22,20 +23,40 @@ from bench.bench.type import (
     ResolvedField,
     Type,
     TypeBase,
-    TypeHint,
     TypeStorageFormat,
-    TypeTag,
 )
 
 __all__ = [
     "Blank",
-    "Text",
+    "Code",
+    "Dataset",
+    "DatasetView",
+    "DatasetViewLayout",
+    "Expectation",
+    "ExpectationModifier",
+    "Field",
     "File",
+    "HasExpectations",
+    "HasType",
     "Issue",
     "IssueType",
+    "Model",
     "Module",
+    "Record",
+    "RemoteObject",
     "Requirement",
+    "ResolvedField",
     "Scope",
+    "Secret",
     "Statement",
+    "StatementType",
     "Symbol",
+    "Task",
+    "Text",
+    "Type",
+    "TypeBase",
+    "TypeHint",
+    "TypeStorageFormat",
+    "TypeTag",
+    "Value",
 ]

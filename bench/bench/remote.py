@@ -1,23 +1,16 @@
 from __future__ import annotations
 
-import enum
-import typing
-import uuid
 from dataclasses import field
+import typing
 from typing import Optional
+import uuid
 from uuid import UUID
 
 import aiohttp
 from asgiref.sync import async_to_sync
 
-from bench.bench.core import HasSession, node
-from bench.msg.core import NMessage, NMessageType, request
-from bench.msg.messages import (
-    RepReadObjectPayload,
-    RepReadSecretPayload,
-    ReqReadObjectPayload,
-    ReqReadSecretPayload,
-)
+from bench.bench.const import RemoteObjectStatus
+from bench.bench.core import node, HasSession
 from bench.utils.utils import required_field
 
 
@@ -46,12 +39,16 @@ class RemoteObject(HasSession):
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
+        from bench import msg
+        from bench.msg import messages
+        from bench.bench import wire
+
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        rep: NMessage[RepReadObjectPayload] = await request(
-            NMessageType.REQUEST_READ_OBJECT,
-            ReqReadObjectPayload(objects=[wire.pack_data(self)]),
-            reply_t=RepReadObjectPayload,
+        rep: msg.NMessage[messages.RepReadObjectPayload] = await msg.request(
+            msg.NMessageType.REQUEST_READ_OBJECT,
+            messages.ReqReadObjectPayload(objects=[wire.pack_data(self)]),
+            reply_t=messages.RepReadObjectPayload,
             timeout=timeout,
         )
         get_url = rep.p.get_urls[0]
@@ -102,11 +99,13 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
         if self.value is not None:
             return self.value
         from bench.bench import wire
+        from bench.msg import messages
+        from bench.msg.core import NMessage, NMessageType, request
 
-        rep: NMessage[RepReadSecretPayload] = await request(
+        rep: NMessage[messages.RepReadSecretPayload] = await request(
             NMessageType.REQUEST_READ_SECRET,
-            ReqReadSecretPayload(secrets=[wire.pack_data(self)]),
-            reply_t=RepReadSecretPayload,
+            messages.ReqReadSecretPayload(secrets=[wire.pack_data(self)]),
+            reply_t=messages.RepReadSecretPayload,
             timeout=10,
         )
         self.value = rep.p.secrets[0].value
@@ -114,9 +113,3 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
 
     def reveal(self) -> SecretValueT:
         return async_to_sync(self.areveal)()
-
-
-class RemoteObjectStatus(enum.StrEnum):
-    PREPARED = "prepared"
-    UPLOADING = "uploading"
-    AVAILABLE = "available"

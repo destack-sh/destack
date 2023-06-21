@@ -1,39 +1,42 @@
 from __future__ import annotations
 
 import abc
+from dataclasses import field, dataclass
+from datetime import date, datetime, time
 import enum
+from functools import cached_property
 import random
 import string
 import typing
+
+from typing import Any, Callable, Collection, Mapping, Union, Optional, Self
 import uuid
-from dataclasses import dataclass, field
-from datetime import date, datetime, time
-from functools import cached_property
-from typing import Any, Callable, Collection, Mapping, Optional, Self, Union
 from uuid import UUID, uuid4
 
-import structlog
 from more_itertools import first
+import structlog
 
+from bench.bench.const import TypeTag, TypeHint
+from bench.bench.const import TypeFlag, RemoteObjectStatus
 from bench.bench.core import (
+    StatementReference,
+    node,
+    ModuleNode,
     HasCrud,
     HasSession,
-    ModuleNode,
-    Scope,
-    Statement,
-    StatementPath,
-    StatementReference,
-    StatementType,
-    Symbol,
     SymbolBase,
-    node,
+    StatementPath,
+    Statement,
+    Scope,
+    Symbol,
+    StatementType,
 )
+from bench.bench.remote import RemoteObject, Secret
 from bench.bench.expect import HasExpectations
-from bench.bench.issue import IssueType
-from bench.bench.remote import RemoteObject, RemoteObjectStatus, Secret
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import dict_minus
-from bench.utils.utils import required_field, to_pyidentifier
+from bench.utils.utils import to_pyidentifier, required_field
+from bench.bench.issue import IssueType
 
 logger = structlog.get_logger(__name__)
 
@@ -51,25 +54,6 @@ class TypeError(TypeError):
         self.suberrors = suberrors or []
 
 
-class TypeTag(enum.StrEnum):
-    """The Bench primitive type of a field/type."""
-
-    STRING = "string"
-    NUMBER = "number"
-    BOOLEAN = "boolean"
-    VECTOR = "vector"
-    FILE = "file"
-    STRUCT = "struct"
-    JSON = "json"
-    FUNCTION = "function"
-    UNION = "union"
-    ENUM = "enum"
-    LITERAL = "literal"
-    NULL = "null"
-    ANY = "any"
-    TYPE_REFERENCE = "ref"
-
-
 PRIMITIVE_TYPES = [
     TypeTag.ANY,
     TypeTag.NULL,
@@ -80,55 +64,6 @@ PRIMITIVE_TYPES = [
     TypeTag.VECTOR,
 ]
 FIELD_KEY_LENGTH = 8
-
-
-class TypeHint(enum.StrEnum):
-    """Extra representation/semantics of a field/type."""
-
-    # string
-    NAME = "name"
-    UUID = "uuid"
-    DATE = "date"
-    DATETIME = "datetime"
-    TIME = "time"
-    DURATION = "duration"
-    EMAIL = "email"
-    URL = "url"
-    MARKDOWN = "markdown"
-    RICH_TEXT = "rich_text"
-    HTML = "html"
-    CODE = "code"
-    KEY = "key"
-    SECRET = "secret"
-    # number
-    INTEGER = "integer"
-    FLOAT = "float"
-    SLIDER = "slider"
-    PHONE = "phone"
-    RATING = "rating"
-    # boolean
-    TOGGLE = "toggle"
-    CHECKBOX = "checkbox"
-    THUMBS = "thumbs"
-    # vector
-    EMBEDDING = "embedding"
-    # file
-    IMAGE = "image"
-    VIDEO = "video"
-    AUDIO = "audio"
-
-
-class TypeFlag(enum.IntFlag):
-    """Extra information for fields"""
-
-    # :TypeFlags
-    Zero = 0
-    IsOutput = 2**0
-    IsArray = 2**1
-    IsNullable = 2**2
-    IsUnionWith = 2**3
-    IsSecret = 2**4
-
 
 DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
 Vector = list[float]

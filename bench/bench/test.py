@@ -4,18 +4,18 @@ from uuid import UUID
 
 import pytest
 
-from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
+from bench.bench import TypeHint, TypeTag, Task, Code, Dataset, Field, Type
+from bench.bench.const import TypeFlag
+from bench.bench.issue import BenchError, IssueType
 from bench.bench.code import parse_code
 from bench.bench.core import (
     File,
     Module,
-    Session,
-    SessionContext,
-    SessionTracingLevel,
     StatementPath,
+    SessionTracingLevel,
+    SessionContext,
+    Session,
 )
-from bench.bench.issue import BenchError, IssueType
-from bench.bench.type import TypeFlag
 
 
 def test_extract_code_references():

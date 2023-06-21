@@ -15,9 +15,8 @@ from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
 from bench.api.utils import asafe_subscription, to_uuid, to_uuids
 from bench.models import packer
-from bench.msg import NMessageType
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import ExecutionSavedPayload
+from bench.msg.messages import ExecutionSavedPayload, NMessageType
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion

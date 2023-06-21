@@ -18,16 +18,15 @@ import pytz
 from django.db import transaction
 from django.db.models import Model, QuerySet
 
-import bench.bench.core
 from bench import models
-from bench.bench import StatementType, TypeHint, TypeTag, wire
-from bench.bench.core import InterpScope, ModuleObjectType
-from bench.bench.dataset import DatasetBackend
-from bench.bench.execution import RunErrorData
+from bench.bench import StatementType, wire, TypeTag, TypeHint
+from bench.bench.const import DatasetBackend, TypeFlag
+import bench.bench.core
+from bench.bench.core import ModuleObjectType, InterpScope
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
-from bench.bench.type import TypeFlag
 from bench.bench.wire import ModuleTree
+from bench.bench.execution import RunErrorData
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -526,7 +525,7 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
             **statement_data.__dict__,
             description=statement.description,
             modifier=statement.modifier,
-            value=statement.value,
+            value=statement.value or {},
         )
 
     def unpack(

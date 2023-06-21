@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import enum
 from dataclasses import field
-from typing import Optional, Self, Union
+from typing import Union, Optional, Self
 
-from bench.bench.core import Scope, Statement, StatementReference, Symbol, SymbolBase, node
+from bench.bench.const import ExpectationModifier
+from bench.bench.core import Scope, Symbol, Statement
+from bench.bench.core import node, SymbolBase, StatementReference
 from bench.bench.issue import IssueType
 
 Expectable = Union["Expectation", "Task", "Dataset", "Code"]
@@ -75,11 +76,3 @@ class Expectation(Symbol, HasExpectations):
     def _clear(self) -> None:
         Symbol._clear(self)
         HasExpectations._clear(self)
-
-
-class ExpectationModifier(enum.StrEnum):
-    """A modifier to a Bench statement."""
-
-    LIKE = "like"
-    UNLIKE = "unlike"
-    CHECK = "check"

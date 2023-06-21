@@ -18,10 +18,7 @@ from uuid import UUID
 import pytz
 import structlog
 
-import bench.bench
 from bench.bench.core import Scope, Session, Symbol, node
-from bench.msg.core import NMessage, request
-from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
 from bench.utils.cache import redis
 from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
@@ -40,7 +37,7 @@ class Model(Symbol):
 
     @cached_property
     def inference(self) -> "ModelInference":
-        return bench.bench.model.instantiate_inference(self)
+        return instantiate_inference(self, self.session)
 
     def _clear(self) -> None:
         pass
@@ -311,6 +308,9 @@ class RemoteInferenceEndpoint:
         self.timeout = timeout
 
     async def __call__(self, blocks: list["XBlock"], settings: Any, timeout: int = None) -> Any:
+        from bench.msg.core import NMessage, request
+        from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
+
         timeout = timeout if timeout is not None else self.timeout
         rep: NMessage[RepRunInferencePayload] = await request(
             NMessageType.REQUEST_RUN_INFERENCE,
@@ -335,7 +335,6 @@ def instantiate_inference(model: Model, session: Session) -> "ModelInference":
     Instantiates the model inference endpoints for the session.
     If we don't have the key, we proxy to the langserver.
     """
-    from bench.bench.model import CachedInferenceEndpoint, ModelInference, RemoteInferenceEndpoint
     from bench.runtime.common.models import get_inference_endpoints_cls
 
     key = None  # TODO @Broken: get model key from module? same file? some constant?

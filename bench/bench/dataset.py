@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import enum
 import random
 import string
 import typing
@@ -11,28 +10,21 @@ from uuid import UUID
 
 from asgiref.sync import async_to_sync
 
+from bench.bench.const import DatasetViewLayout, TypeTag
+from bench.bench.const import DatasetBackend, TypeFlag
+
 from bench.bench.core import HasCrud, ModuleNode, Scope, Session, Symbol, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
-from bench.bench.type import Field, HasType, TypeFlag, TypeTag, instantiate_py_value_flat, map_value
+from bench.bench.type import Field, HasType, instantiate_py_value_flat, map_value
 from bench.utils.func import describe_type
 from bench.utils.proxy import unproxy_value
 from bench.utils.utils import required_field
 
 
-class DatasetBackend(enum.StrEnum):
-    OPENSEARCH = "os"
-
-
 def new_dataset_backend_id():
     """Gets a random alphabetic key as a persistent key."""
     return "".join(random.choices(string.ascii_letters, k=DATASET_BACKEND_KEY_LENGTH))
-
-
-class DatasetViewLayout(enum.StrEnum):
-    """The layout of a dataset view."""
-
-    TABLE = "table"
 
 
 @node

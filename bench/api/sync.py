@@ -20,9 +20,13 @@ from bench.api.utils import get_client_origin_from_info, wrap_exceptions
 from bench.bench import Statement
 from bench.bench.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
-from bench.msg import NMessageType
 from bench.msg.core import publish_soon
-from bench.msg.messages import ClientOrigin, ModuleChangedPayload, ModuleInternalChangedPayload
+from bench.msg.messages import (
+    ClientOrigin,
+    ModuleChangedPayload,
+    ModuleInternalChangedPayload,
+    NMessageType,
+)
 from bench.opensearch.index import write_mutations_to_os
 from bench.runtime.common.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_api
 
