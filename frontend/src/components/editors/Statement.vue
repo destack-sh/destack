@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
+import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import BlankStatement from "@/components/statements/BlankStatement.vue";
 import CodeStatement from "@/components/statements/CodeStatement.vue";
 import DatasetStatement from "@/components/statements/DatasetStatement.vue";
@@ -12,21 +13,16 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import {
-  useBenchState,
-  useEditorContext,
-  type ActionGroup,
-  type StatementAction,
-  type StatementHeader,
-} from "@/state/bench";
+import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
 import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
-import { STATEMENT_TYPE_BY_KEYWORD, STATEMENT_TYPE_KEYWORD } from "@/state/type";
+import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
+  EllipsisHorizontalCircleIcon,
   PencilIcon,
   PlusIcon,
   Square2StackIcon,
@@ -359,13 +355,13 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: Square2StackIcon,
       action: () => magic.duplicate(),
     });
+    actions.push({
+      groupId: "general",
+      label: "Delete",
+      icon: TrashIcon,
+      action: () => magic.delete(),
+    });
   }
-  actions.push({
-    groupId: "general",
-    label: "Delete",
-    icon: TrashIcon,
-    action: () => magic.delete(),
-  });
   return actions;
 });
 const allActions: Ref<StatementAction[]> = computed(() => [
@@ -428,7 +424,6 @@ defineExpose({
             <!-- Monaco-like line number and drag handle -->
             <ActionPopover
               ref="actionPopoverRef"
-              v-if="lineNumber >= 0"
               anchor="right"
               :thing="statement"
               :actions="allActions"
@@ -452,7 +447,8 @@ defineExpose({
                   ...appearance.baseClass,
                 }"
               >
-                {{ lineNumber }}
+                <template v-if="lineNumber > 0">{{ lineNumber }}</template>
+                <EllipsisHorizontalCircleIcon v-else class="-mr-1.5 mt-0.5 h-4 w-4" />
               </span>
             </ActionPopover>
             <!-- Add statement below button -->

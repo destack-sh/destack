@@ -176,6 +176,18 @@ type Dataset implements Node {
   versioned: Boolean!
 }
 
+input DatasetQuery {
+  key: String!
+  op: QueryOp!
+  value: JSON = null
+}
+
+input DatasetSort {
+  key: String!
+  order: SortOrder! = ASC
+  mode: SortMode = null
+}
+
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -1177,9 +1189,16 @@ type Query {
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
     after: String = null
+
+    """Returns the first n items from the list."""
     first: Int = null
+
+    """Returns the items in the list that come after the specified cursor."""
     last: Int = null
     statementId: GlobalID!
+    query: DatasetQuery = null
+    sort: [DatasetSort!] = null
+    limit: Int = null
   ): RecordConnection!
   systemInfo: SystemInfo!
   me: User
@@ -1261,6 +1280,26 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ProjectConnection!
+}
+
+enum QueryOp {
+  NOT
+  AND
+  OR
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_THAN_OR_EQUALS
+  LESS_THAN
+  LESS_THAN_OR_EQUALS
+  MATCHES
+  STARTS_WITH
+  EXISTS
+  INTERSECTS
+  DISJOINT
+  WITHIN
+  CONTAINS
+  NEAR
 }
 
 type Record {
@@ -1481,6 +1520,19 @@ input SecretUpdateInput {
   id: GlobalID!
   name: String
   value: JSON!
+}
+
+enum SortMode {
+  MAX
+  MIN
+  AVG
+  SUM
+  MEDIAN
+}
+
+enum SortOrder {
+  ASC
+  DESC
 }
 
 type Statement implements Node {

@@ -51,7 +51,6 @@ class ProjectManager(models.Manager["Project"]):
         type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
-        create_s3_bucket: bool = True,
         create_os_index: bool = True,
     ):
         if owner.__class__.__name__ == "Organization":
@@ -83,8 +82,6 @@ class ProjectManager(models.Manager["Project"]):
                 )
             except (ValueError, Project.DoesNotExist):
                 logger.warning("project.create.failed_onboarding", exc_info=True)
-        if create_s3_bucket:
-            create_project_s3_bucket(project)
         if create_os_index:
             create_project_os_index(project)
         return project
@@ -205,11 +202,14 @@ class Project(UUIDModel, CrudModel):
 
 
 def get_project_bucket_name(project_id: UUID) -> str:
-    return f"bench-user-{project_id}"
+    return f"bench-user"
 
 
 def create_project_s3_bucket(project: Project):
-    """Creates a public S3 bucket for the project."""
+    """
+    Creates a public S3 bucket for the project.
+    TODO @Cleanup: projects are no longer 1:1 with S3 buckets, that was a bad idea. Clean this up.
+    """
     s3_client = get_s3_client()
     response = s3_client.create_bucket(
         Bucket=project.bucket_name,

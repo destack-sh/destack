@@ -17,10 +17,12 @@ from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id
+from bench.bench import query
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
+from bench.opensearch.query import compile_to_os
 
 
 @gql.django.type(models.Dataset)
@@ -260,6 +262,30 @@ class DatasetMutation:
         return project_v, statement, records  # noqa
 
 
+SortOrder = gql.enum(query.SortOrder)
+SortMode = gql.enum(query.SortMode)
+QueryOp = gql.enum(query.QueryOp)
+AggregationOp = gql.enum(query.AggregationOp)
+
+
+@gql.input
+class DatasetSort:
+    key: str
+    order: SortOrder = SortOrder.ASC
+    mode: Optional[SortMode] = None
+
+
+@gql.input
+class DatasetQuery:
+    key: str
+    op: QueryOp
+    value: Optional[JSON] = None
+    # queries: Optional[list["DatasetQuery"]] = None (doesn't work??)
+
+
+DEFAULT_QUERY_LIMIT = 100
+
+
 @gql.type
 class DatasetQuery:
     @gql.relay.connection
@@ -268,52 +294,57 @@ class DatasetQuery:
         self,
         info: Info,
         statement_id: GlobalID,
+        query: Optional[DatasetQuery] = None,
+        sort: Optional[list[DatasetSort]] = None,
         after: Optional[str] = None,
-        first: Optional[int] = None,
-        last: Optional[int] = None,
+        limit: Optional[int] = None,
     ) -> gql.Connection[Record]:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        # cursor is base64 encoded json of search after (sort key) :RecordCursor
-        if after is not None:
-            after = json.loads(base64.b64decode(after).decode())
-        default_limit = 25
-        base_filter = [
+        # nocheckin: compile query and sort
+        # prepare search
+        compiled_query = compile_to_os(query) if query else None
+        compiled_sort = compile_to_os(sort) if sort else None
+        filter = [
             {"term": {"dataset_id": statement.dataset.backend_id}},
             {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
         ]
         query = {
-            "bool": {"filter": base_filter},
+            "bool": {"filter": filter},
         }
         sort = [{"order_key": "asc"}, {"_id": "asc"}]
+        effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
         search = {
-            "size": first or last or default_limit,
+            "size": effective_limit + 1,  # +1 to determine if there is a next page
             "query": query,
             "sort": sort,
             "track_total_hits": True,
             "version": True,
         }
         if after is not None:
-            search["search_after"] = after
+            # cursor is base64 encoded json of search after (sort key) :RecordCursor
+            search["search_after"] = json.loads(base64.b64decode(after).decode())
+
+        # do the search
         results = os_client.search(
             index=IndexType.BENCH.get_index_name(statement.project_version.project_id),
             body=search,
         )
 
+        # transform results
         edges = []
-        for r in results["hits"]["hits"]:
+        for r in results["hits"]["hits"][0:effective_limit]:
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
             node = Record.from_os(doc)
             # :RecordCursor
             cursor = base64.b64encode(json.dumps(r["sort"]).encode()).decode("utf-8")
             edge = gql.relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
-
         page_info = gql.relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=False,
+            has_next_page=len(edges) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"]
