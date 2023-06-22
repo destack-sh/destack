@@ -121,7 +121,7 @@ defineExpose({
           @keydown.enter.prevent.stop="close"
         />
         <ComboboxOptions
-          class="scroll-hidden mt-1 max-h-52 w-60 overflow-auto"
+          class="scroll-hidden mt-1 max-h-[220px] w-60 overflow-auto"
           static
           :class="{
             'font-mono': appearance.fontMono,

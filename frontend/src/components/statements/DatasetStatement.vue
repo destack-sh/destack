@@ -294,7 +294,7 @@ function focusLastRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(-1, columnsInOrder.value[0]);
   } else {
-    descriptionRef.value?.focus();
+    focusDescriptionFromBottom();
   }
 }
 

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
 import sys
 import traceback
-from typing import Union, Optional, Any, TYPE_CHECKING
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Session, Statement
+from bench.bench.core import Session
 from bench.utils.utils import to_pyidentifier_multi
 
 if TYPE_CHECKING:
@@ -101,7 +101,7 @@ class PyFrameData:
         from bench.bench.code import Code
 
         code_by_method: dict[str, Code] = {
-            symbol.transform.method_name: symbol
+            symbol._transform.method_name: symbol
             for symbol in session.instances.values()
             if isinstance(symbol, Code) and symbol._transform is not None
         }
@@ -120,8 +120,7 @@ class PyFrameData:
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    if isinstance(from_code.source, Statement):
-                        frame.filename = to_pyidentifier_multi(from_code.file.name, from_code.name)
+                    frame.filename = to_pyidentifier_multi(from_code.file.name, from_code.name)
                     frame.name = from_code.name
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset

@@ -13,7 +13,6 @@ from typing import Any, Callable, Optional
 
 import numpy
 import pandas
-from asgiref.sync import async_to_sync
 from more_itertools import first, last
 
 from bench.bench.const import TypeTag
@@ -117,18 +116,45 @@ class Code(Symbol, HasType, IsExpectable):
             raise
 
     def to_sync(self) -> "Code":
-        sync_code = Code(**self.__dict__)
-        if self._is_async:
-            sync_code.__call_sync__ = async_to_sync(self.__call_async__)
-        sync_code._is_async = False
-        return sync_code
+        if not self._is_async:
+            return self
+        return CodeProxy.to_sync(self)
 
     def to_async(self) -> "Code":
-        async_code = Code(**self.__dict__)
-        if not self._is_async:
-            async_code.__call_async__ = self.session.sync_to_async(self.__call_sync__)
-        async_code._is_async = True
-        return async_code
+        if self._is_async:
+            return self
+        return CodeProxy.to_async(self)
+
+
+class CodeProxy:
+    """
+    A simple proxy for Code to enable to_sync/to_async while keeping the original Code object.
+    """
+
+    def __init__(self, code: Code, is_async: bool):
+        self._code = code
+        self._is_async = is_async
+
+    def __call__(self, *args, **kwargs):
+        if self._is_async:
+            return self.__call_async__(*args, **kwargs)
+        else:
+            return self.__call_sync__(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return getattr(self._code, item)
+
+    @classmethod
+    def to_sync(cls, code: Code) -> Code:
+        proxy = cls(code, is_async=False)
+        proxy.__call_sync__ = code.session.async_to_sync(code.__call_async__)
+        return typing.cast(Code, proxy)
+
+    @classmethod
+    def to_async(cls, code: Code) -> Code:
+        proxy = cls(code, is_async=True)
+        proxy.__call_async__ = code.session.sync_to_async(code.__call_sync__)
+        return typing.cast(Code, proxy)
 
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
