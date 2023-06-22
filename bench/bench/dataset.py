@@ -34,15 +34,16 @@ def new_dataset_backend_id():
     return "".join(random.choices(string.ascii_letters, k=DATASET_BACKEND_KEY_LENGTH))
 
 
-@node(tracked=["order_key", "data"])
+@node(tracked=["order_key", "value"])
 class Record(ModuleNode, HasSession, HasCrud):
     id: UUID = field(default_factory=uuid.uuid4)
-    data: typing.Any = field(default_factory=dict)
+    parent: Dataset = required_field()
+    value: typing.Any = field(default_factory=dict)
     order_key: str = None
     _instantiated: bool = True
 
     def __str__(self):
-        return f"{self.order_key} {describe_type(self.data)}"
+        return f"{self.parent}:{self.order_key or '<unordered>'} {describe_type(self.value)}"
 
     def __repr__(self):
         return f"<Record {self}>"
@@ -53,28 +54,62 @@ class Record(ModuleNode, HasSession, HasCrud):
 
     @property
     def keys(self):
-        return self.data.keys
+        return self.value.keys
+
+    def instantiate_in(self, session: "Session") -> None:
+        if self._instantiated:
+            self.value = self._raw_value()
+        # proxy
+        self.value = map_value(
+            value=self.value,
+            type=self.parent,
+            map_k=lambda f: (f.typed_key, f.ident),
+            map_v=instantiate_py_value_flat,
+            ignore_outer_map=True,
+            ignore_array=True,
+        )
+        self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
+        self._instantiated = True
+
+    def _raw_value(self) -> dict:
+        if not self._instantiated:
+            return self.value
+        else:
+            return map_value(
+                value=self.value,
+                type=self.parent,
+                map_k=lambda f: (f.ident, f.typed_key),
+                map_v=strip_py_value_flat,
+                ignore_outer_map=True,
+                ignore_array=True,
+            )
+
+    def _onread(self, key: Optional[str]):
+        pass
+
+    def _onwrite(self, key: Optional[str]):
+        self.session.tracer.dataset_update(self.parent, self, key)
 
     def __getitem__(self, item: str):
         try:
-            return self.data[item]
+            return self.value[item]
         except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
+            raise KeyError(f"{self} does not have '{item}' (available: {list(self.value.keys())})")
 
     def __setitem__(self, key, value):
-        self.data[key] = value
+        self.value[key] = value
 
     def __getattr__(self, item):
         try:
-            return self.data[item]
+            return self.value[item]
         except KeyError:
-            raise KeyError(f"missing key '{item}' (available: {list(self.data.keys())})")
+            raise KeyError(f"{self} does not have '{item}' (available: {list(self.value.keys())})")
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
             super().__setattr__(key, value)
         else:
-            self[key] = value
+            self.value[key] = value
 
 
 DEFAULT_QUERY = None
@@ -130,24 +165,24 @@ class Dataset(Symbol, HasType, IsExpectable):
     def clear(self):
         self.session.tracer.dataset_clear(self)
 
-    def append(self, record: Record = None, **data):
+    def append(self, record: Record = None, **value):
         """Appends a record to the dataset."""
         if record is not None:
-            if data:
+            if value:
                 raise ValueError("cannot pass both record and data")
-            data = record.data
+            value = record.value
         # TODO @UX: order records when inserted in code
-        data = unproxy_value(data)  # remove source proxy if any
-        record = Record(id=uuid.uuid4(), parent=self, data=data)
+        value = unproxy_value(value)  # remove source proxy if any
+        record = Record(id=uuid.uuid4(), parent=self, value=value)
         self.session.tracer.dataset_append(self, record)
 
     def extend(self, records: typing.Iterable[Record | dict]):
         """Extends the dataset with the given records."""
-        datas = [  # remove source proxy if any
-            unproxy_value(record.data) if isinstance(record, Record) else unproxy_value(record)
+        values = [  # remove source proxy if any
+            unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
-        records = [Record(id=uuid.uuid4(), parent=self, data=data) for data in datas]
+        records = [Record(id=uuid.uuid4(), parent=self, value=value) for value in values]
         self.session.tracer.dataset_extend(self, records)
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
@@ -200,7 +235,9 @@ class SearchResult:
     def __repr__(self):
         return f"<SearchResult {self}>"
 
-    async def _do_search(self, after: list[Any] = None, limit: Optional[int] = None):
+    async def _do_search(
+        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
+    ):
         from bench.msg import NMessage
         from bench.msg.core import request
         from bench.msg.messages import (
@@ -220,6 +257,7 @@ class SearchResult:
                 sort=self.sort,
                 after=after,
                 limit=batch_limit,
+                count=count,
             ),
             reply_t=RepSearchDatasetPayload,
         )
@@ -231,13 +269,14 @@ class SearchResult:
         after = None
         while True:
             rep = self.dataset.session.async_to_sync(self._do_search)(after=after)
-            self._total = rep.payload.total
             if len(rep.payload.records) == 0:
                 break
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
+                record._instantiated = False
+                record.instantiate_in(self.dataset.session)
                 yield record
-            after = rep.payload.after
+            after = rep.payload.last_sort_key
 
     async def __aiter__(self) -> typing.AsyncIterator[Record]:
         """Iterates over the records of the search result (batched)."""
@@ -248,16 +287,18 @@ class SearchResult:
             rep = await self._do_search(after=after)
             if len(rep.payload.records) == 0:
                 break
-            self._total = rep.payload.total
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
+                record._instantiated = False
+                record.instantiate_in(self.dataset.session)
                 yield record
             after = rep.payload.after
 
     def __len__(self) -> int:
         if self._total is not None:
             return self._total
-        self._total = self.dataset.session.async_to_sync(self._do_search)(limit=0).payload.total
+        rep = self.dataset.session.async_to_sync(self._do_search)(limit=0, count=True)
+        self._total = rep.payload.total
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given function."""

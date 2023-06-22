@@ -67,7 +67,7 @@ class Packer(Generic[ModelT, MirrorT, DataT]):
     def pack(self, mirror: MirrorT) -> DataT:
         raise NotImplementedError
 
-    def unpack(self, data: DataT) -> MirrorT:
+    def unpack(self, project_v: models.ProjectVersion, data: DataT, parent: ModelT) -> MirrorT:
         raise NotImplementedError
 
 
@@ -113,6 +113,17 @@ def mirror_node(project_v: models.ProjectVersion | None, node: ModelT) -> Mirror
 def pack_node_flat(node: MirrorT) -> DataT:
     packer = _packers_by_mirror[type(node)]
     return packer.pack(node)
+
+
+def unpack_node_flat(
+    project_v: models.ProjectVersion, data: DataT, parent: Optional[ModelT]
+) -> MirrorT:
+    packer = _packers_by_data[type(data)]
+    return packer.unpack(project_v, data, parent)
+
+
+def get_node_packer(mirror_t: type[MirrorT]) -> Packer[ModelT, MirrorT, DataT]:
+    return _packers_by_mirror[mirror_t]
 
 
 # basic
@@ -348,7 +359,7 @@ class Record(CrudThing, os.Document):
     order_key: str = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
-    data: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
+    value: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     revision: Optional[int] = None  # set from OS-internal version on access
 
 
@@ -362,12 +373,31 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             id=node.id,
             parent_id=node.statement_id,
             order_key=node.order_key,
-            data=node.data,
+            value=node.value,
             revision=node.revision,
             created_at=node.created_at,
             updated_at=node.updated_at,
             last_edited_at=node.last_edited_at,
-            last_changed_at=node.last_edited_at,  # same thing for leaf nodes
+            last_changed_at=None,
+        )
+
+    def unpack(
+        self, project_v: models.ProjectVersion, data: wire.RecordData, parent: models.Statement
+    ) -> Record:
+        return Record(
+            id=data.id,
+            project_version_id=project_v.id,
+            statement_id=data.parent_id,
+            dataset_id=parent.dataset.backend_id,
+            order_key=data.order_key,
+            value=data.value,
+            revision=data.revision,
+            created_at=data.created_at,
+            created_by_id=None,
+            updated_at=data.updated_at,
+            deleted_at=None,
+            last_edited_at=data.last_edited_at,
+            last_edited_by_id=None,
         )
 
 

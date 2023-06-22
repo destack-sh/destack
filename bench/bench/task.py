@@ -1,38 +1,37 @@
 from __future__ import annotations
 
-from copy import deepcopy
-from dataclasses import dataclass, is_dataclass, asdict
 import enum
 import json
-from json import JSONDecodeError
 import re
 import typing
-from typing import Optional, Self
 import uuid
+from copy import deepcopy
+from dataclasses import asdict, dataclass, is_dataclass
+from json import JSONDecodeError
+from typing import Optional, Self
 
-from bench.bench.core import Symbol, Scope
+from bench.bench.const import ExpectationModifier, TypeFlag, TypeHint, TypeTag
+from bench.bench.core import Scope, Session, Symbol, node
+from bench.bench.dataset import Dataset
+from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import (
-    XKind,
-    XSource,
+    SETTINGS_CLS_BY_MODALITY,
+    Modality,
+    Model,
+    TextGenerationSettings,
     XBlock,
     XBlockContent,
-    Modality,
-    TextGenerationSettings,
-    SETTINGS_CLS_BY_MODALITY,
-    Model,
+    XKind,
+    XSource,
 )
-from bench.bench.expect import HasExpectations, Expectation
-from bench.bench.core import node, Session
 from bench.bench.type import (
-    map_value,
-    check_type,
-    TypeBase,
-    instantiate_py_value_flat,
     HasType,
     Type,
+    TypeBase,
+    check_type,
+    instantiate_py_value_flat,
+    map_value,
 )
-from bench.bench.dataset import Dataset
-from bench.bench.const import TypeFlag, TypeTag, TypeHint, ExpectationModifier
 from bench.utils.utils import DotDict
 
 
@@ -350,7 +349,7 @@ class XSamples(XEmit):
             preamble = f"Good examples of {self.task_label}"
         else:
             preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record.data, sort_keys=True) for record in self.dataset)
+        data_str = "\n".join(json.dumps(record.value, sort_keys=True) for record in self.dataset)
         return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
 
 

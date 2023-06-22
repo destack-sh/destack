@@ -103,7 +103,7 @@ def tracked_db_mutation(
             api_mutations, internal_mutations = publish_tracked_mutation(
                 project_v, origin, type, kwargs.get("input"), things, batch
             )
-            write_mutations_to_os(project_v, api_mutations)
+            write_mutations_to_os(project_v, api_mutations, wait=False)
             track_mutation_for_analytics(type, project_v, things, batch, info)
 
             return ret

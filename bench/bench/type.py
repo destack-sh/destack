@@ -157,7 +157,7 @@ STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
     TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
     TypeTag.VECTOR: TypeStorageFormat.VECTOR,
-    TypeTag.FILE: TypeStorageFormat.BINARY,
+    TypeTag.FILE: TypeStorageFormat.OBJECT,
     TypeTag.STRUCT: TypeStorageFormat.OBJECT,
     TypeTag.ENUM: TypeStorageFormat.KEYWORD,
 }

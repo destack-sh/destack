@@ -1544,15 +1544,15 @@ export type Record = {
   __typename?: "Record";
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
-  data: Scalars["JSON"];
   datasetId: Scalars["String"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   id: Scalars["GlobalID"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;
-  orderKey: Scalars["String"];
+  orderKey?: Maybe<Scalars["String"]>;
   revision: Scalars["Int"];
   updatedAt: Scalars["DateTime"];
+  value: Scalars["JSON"];
 };
 
 export type RecordBatch = {
@@ -1584,10 +1584,10 @@ export type RecordConnection = {
 };
 
 export type RecordCreateInput = {
-  data: Scalars["JSON"];
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
   statementId: Scalars["GlobalID"];
+  value: Scalars["JSON"];
 };
 
 export type RecordDeleteInput = {
@@ -1618,9 +1618,9 @@ export type RecordRestoreInput = {
 };
 
 export type RecordUpdateInput = {
-  data: Scalars["JSON"];
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
+  value: Scalars["JSON"];
 };
 
 export type RefMapping = Node & {
@@ -2505,8 +2505,8 @@ export type SearchRecordsQuery = {
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
-        orderKey: string;
-        data: any;
+        orderKey?: string | null;
+        value: any;
       };
     }>;
   };
@@ -4065,7 +4065,7 @@ export type CreateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
   orderKey: Scalars["String"];
-  data: Scalars["JSON"];
+  value: Scalars["JSON"];
 }>;
 
 export type CreateRecordMutation = {
@@ -4081,15 +4081,15 @@ export type CreateRecordMutation = {
         updatedAt: any;
         deletedAt?: any | null;
         revision: number;
-        orderKey: string;
-        data: any;
+        orderKey?: string | null;
+        value: any;
       };
 };
 
 export type UpdateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
-  data: Scalars["JSON"];
+  value: Scalars["JSON"];
 }>;
 
 export type UpdateRecordMutation = {
@@ -4098,7 +4098,7 @@ export type UpdateRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Record"; id: any; updatedAt: any; revision: number; data: any };
+    | { __typename?: "Record"; id: any; updatedAt: any; revision: number; value: any };
 };
 
 export type DeleteRecordMutationVariables = Exact<{
@@ -6559,7 +6559,7 @@ export const SearchRecordsDocument = {
                             { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                            { kind: "Field", name: { kind: "Name", value: "data" } },
+                            { kind: "Field", name: { kind: "Name", value: "value" } },
                           ],
                         },
                       },
@@ -12044,7 +12044,7 @@ export const CreateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "data" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
         },
       ],
@@ -12078,8 +12078,8 @@ export const CreateRecordDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "data" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "data" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -12100,7 +12100,7 @@ export const CreateRecordDocument = {
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                      { kind: "Field", name: { kind: "Name", value: "data" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                     ],
                   },
                 },
@@ -12134,7 +12134,7 @@ export const UpdateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "data" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
         },
       ],
@@ -12163,8 +12163,8 @@ export const UpdateRecordDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "data" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "data" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -12182,7 +12182,7 @@ export const UpdateRecordDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "data" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                     ],
                   },
                 },

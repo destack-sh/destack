@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid5
 
 from django.db import models
 
-from bench.bench.const import DatasetViewLayout
-from bench.bench.const import DatasetBackend
+from bench.bench.const import DatasetBackend, DatasetViewLayout
 from bench.models.utils import CrudModel, ModuleNode, UUIDModel, get_choices
+
+if TYPE_CHECKING:
+    from bench.models.statement import Statement
 
 
 class Dataset(UUIDModel, ModuleNode):

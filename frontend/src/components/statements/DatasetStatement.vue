@@ -78,7 +78,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
           updatedAt
           deletedAt
           orderKey
-          data
+          value
         }
       }
     }
@@ -367,10 +367,10 @@ function insertRecordAtEnd() {
   insertRecord({ belowRecordId: lastRecordInView.value?.id });
 }
 
-function insertRecord(options?: { belowRecordId?: string; data?: any }) {
+function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   const orderKey = getNewOrderKey(options?.belowRecordId);
   const recordId = newRecordId();
-  ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.data ?? ({} as any));
+  ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.value ?? ({} as any));
   // add record to search results optimistically (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: recordId });
   const optimisticRecord = {
@@ -381,7 +381,7 @@ function insertRecord(options?: { belowRecordId?: string; data?: any }) {
     updatedAt: new Date().toISOString(),
     deletedAt: null,
     orderKey,
-    data: options?.data ?? ({} as any),
+    value: options?.value ?? ({} as any),
   };
   client.client.cache.updateQuery(
     {
@@ -423,19 +423,19 @@ function insertRecord(options?: { belowRecordId?: string; data?: any }) {
 function writeRecordField(recordId: string, key: string, value: any) {
   const record = recordsInView.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
-  const oldData = record?.data;
-  const newData = { ...oldData, [key]: value };
-  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldData, newData);
+  const oldValue = record?.value;
+  const newValue = { ...oldValue, [key]: value };
+  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldValue, newValue);
 }
 
 function deleteRecordField(recordId: string, key: string) {
   const record = recordsInView.value.find((r) => r.id === recordId);
   if (record == null) throw new Error("record not found: " + recordId);
-  const oldData = record?.data;
-  const newData = { ...oldData };
+  const oldValue = record?.value;
+  const newValue = { ...oldValue };
   // TODO @Robustness: figure out better way to clear field in opensearch backend (maybe update by query?)
-  newData[key] = [];
-  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldData, newData);
+  newValue[key] = [];
+  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldValue, newValue);
 }
 
 function deleteRecord(recordId: string) {
@@ -517,7 +517,8 @@ const recordActions: RecordAction[] = [
   {
     label: "Duplicate",
     icon: Square2StackIcon,
-    action: (record: any) => insertRecord({ belowRecordId: record.id, data: JSON.parse(JSON.stringify(record.data)) }),
+    action: (record: any) =>
+      insertRecord({ belowRecordId: record.id, value: JSON.parse(JSON.stringify(record.value)) }),
   },
   {
     label: "Delete",
@@ -733,7 +734,7 @@ defineExpose({
         >
           <ValueInterface
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
-            :model-value="record.data?.[module.getTypedKey(field) as string]"
+            :model-value="record.value?.[module.getTypedKey(field) as string]"
             @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
             :type="field"
             :readonly="context.readonly.value"
