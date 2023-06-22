@@ -1,3 +1,5 @@
+import base64
+import json
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -32,8 +34,8 @@ class Dataset(gql.Node):
 class Record(CrudModel, Revisioned):
     id: GlobalID
     dataset_id: str
-    order_key: str
-    data: JSON
+    order_key: Optional[str]
+    value: JSON
 
     @staticmethod
     def from_os(record: mirror.Record) -> "Record":
@@ -41,7 +43,7 @@ class Record(CrudModel, Revisioned):
             id=to_global_id("Record", record.id),
             dataset_id=record.dataset_id,
             order_key=record.order_key,
-            data=record.data,
+            value=record.value,
             revision=record.revision,
             created_at=record.created_at,
             created_by=None,
@@ -74,19 +76,19 @@ class RecordInput:
 
 @gql.input
 class RecordCreateInput(RecordInput, gql.NodeInput):
-    data: JSON
+    value: JSON
     order_key: str
 
 
 @gql.input
 class RecordUpdateInput(RecordInput, gql.NodeInput):
-    data: JSON
+    value: JSON
 
 
 @gql.input
 class RecordUpdatePathInput(RecordInput, gql.NodeInput):
     path: str
-    data: Optional[JSON] = None
+    value: Optional[JSON] = None
 
 
 @gql.input
@@ -109,7 +111,7 @@ class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
-        return [RecordDeleteInput(id=i) for i in self.ids]
+        return [RecordDeleteInput(statement_id=self.statement_id, id=i) for i in self.ids]
 
 
 @gql.input
@@ -117,7 +119,7 @@ class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
-        return [RecordRestoreInput(id=i) for i in self.ids]
+        return [RecordRestoreInput(statement_id=self.statement_id, id=i) for i in self.ids]
 
 
 def _prep_write_dataset(
@@ -148,7 +150,7 @@ class DatasetMutation:
             last_edited_at=now,
             last_edited_by_id=None,  # not handled yet
             order_key=input.order_key,
-            data=input.data,
+            value=input.value,
         )
         record = create_record(project_v, record)
         return project_v, statement, record  # noqa (will be unwrapped)
@@ -161,7 +163,7 @@ class DatasetMutation:
             project_version_id=project_v.id,
             statement_id=statement.id,
             dataset_id=statement.dataset.backend_id,
-            data=input.data,
+            value=input.value,
             updated_at=now,
             last_edited_at=now,
         )
@@ -266,7 +268,6 @@ class DatasetQuery:
         self,
         info: Info,
         statement_id: GlobalID,
-        before: Optional[str] = None,
         after: Optional[str] = None,
         first: Optional[int] = None,
         last: Optional[int] = None,
@@ -274,33 +275,39 @@ class DatasetQuery:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
+        # cursor is base64 encoded json of search after (sort key)
+        if after is not None:
+            after = json.loads(base64.b64decode(after).decode())
         default_limit = 25
         base_filter = [
             {"term": {"dataset_id": statement.dataset.backend_id}},
             {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
-            # pagination here is broken when using a sort
-            {"range": {"order_key": {"gt": after, "lt": before}}},
         ]
         query = {
             "bool": {"filter": base_filter},
         }
-        sort = [{"order_key": "asc"}]
+        sort = [{"order_key": "asc"}, {"_id": "asc"}]
+        search = {
+            "size": first or last or default_limit,
+            "query": query,
+            "sort": sort,
+            "track_total_hits": True,
+            "version": True,
+        }
+        if after is not None:
+            search["search_after"] = after
         results = os_client.search(
             index=IndexType.BENCH.get_index_name(statement.project_version.project_id),
-            body={
-                "size": first or last or default_limit,
-                "query": query,
-                "sort": sort,
-                "track_total_hits": True,
-                "version": True,
-            },
+            body=search,
         )
 
         edges = []
         for r in results["hits"]["hits"]:
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
             node = Record.from_os(doc)
-            edge = gql.relay.Edge(node=node, cursor=doc.order_key)
+            # cursor is base64 encoded json of the sort
+            cursor = base64.b64encode(json.dumps(r["sort"]).encode()).decode("utf-8")
+            edge = gql.relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
 
         page_info = gql.relay.PageInfo(

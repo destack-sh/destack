@@ -6,32 +6,34 @@ from uuid import UUID
 
 import structlog
 
-from bench.bench import wire, Task, Code
-from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench import Code, Task, wire
+from bench.bench.code import RunError, run
+from bench.bench.const import ExecutionTriggerType, WorkerTenancy
 from bench.bench.core import (
     Module,
     ModuleReference,
+    Session,
+    SessionContext,
     SessionMode,
     SessionTracingLevel,
-    SessionContext,
-    Session,
 )
-from bench.bench.code import RunError, run
+from bench.bench.execution import ExecutionFrame
+from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import (
+    NMessage,
     handle_reply,
     message_handler,
     nc_init,
     publish,
     request,
     subscribe,
-    NMessage,
 )
 from bench.msg.messages import (
-    NMessageType,
     ClientOrigin,
     ExecutionMarkedDeadPayload,
     ModuleInternalChangedPayload,
+    NMessageType,
     RepCancelRunPayload,
     RepReadModulePayload,
     RepRegisterWorkerPayload,
@@ -46,8 +48,6 @@ from bench.msg.messages import (
     WorkerHeartbeatPayload,
 )
 from bench.runtime.common.interp import InterpModule, LanguageInterpreter
-from bench.bench.execution import ExecutionFrame
-from bench.bench.const import WorkerTenancy, ExecutionTriggerType
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -123,15 +123,15 @@ class ModuleWorker:
         new_source = ModuleMutator(self.interp.module, mutations).to_module()
         # interp and write in parallel
         self.source = new_source
+        req = ReqWriteModulePayload(
+            module_id=self.module_id,
+            mutations=mutations,
+            client=self.master.client,
+            wait=False,
+        )
         self.interp, rep = await asyncio.gather(
             self.interpreter.interp(new_source, session=None),
-            request(
-                NMessageType.REQUEST_WRITE_MODULE,
-                ReqWriteModulePayload(
-                    module_id=self.module_id, mutations=mutations, client=self.master.client
-                ),
-                RepWriteModulePayload,
-            ),
+            request(NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload),
         )
         return rep.p.success
 

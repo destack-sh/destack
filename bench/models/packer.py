@@ -710,6 +710,11 @@ def data_packer(data_t: typing.Type[DataT], model_t: typing.Type[ModelT]):
     return decorator
 
 
+def get_data_packer(data_t: typing.Type[DataT]) -> "DataPacker":
+    """Get the data packer for a given data type"""
+    return _data_packers_by_data[data_t]
+
+
 def pack_data(model: ModelT) -> DataT:
     """Pack any non-node data type"""
     packer = _data_packers_by_model[type(model)]
@@ -829,7 +834,10 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
 
 @transaction.atomic(savepoint=False)
 def write_mutations(
-    project_v: models.ProjectVersion, module: ModuleTree, mutations: list[ModuleMutation]
+    project_v: models.ProjectVersion,
+    module: ModuleTree,
+    mutations: list[ModuleMutation],
+    wait_for_os: bool,
 ):
     """
     Writes a series of module mutations to the database.
@@ -872,4 +880,4 @@ def write_mutations(
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
-    write_mutations_to_os(project_v, mut.mutations)
+    write_mutations_to_os(project_v, mut.mutations, wait_for_os)

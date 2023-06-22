@@ -134,7 +134,7 @@ const STORAGE_FORMAT_BY_TYPE_TAG: Partial<{ [key in TypeTag]: TypeStorageFormat 
   NUMBER: TypeStorageFormat.DOUBLE,
   BOOLEAN: TypeStorageFormat.BOOLEAN,
   VECTOR: TypeStorageFormat.VECTOR,
-  FILE: TypeStorageFormat.BINARY,
+  FILE: TypeStorageFormat.OBJECT,
   STRUCT: TypeStorageFormat.OBJECT,
   ENUM: TypeStorageFormat.KEYWORD,
 };

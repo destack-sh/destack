@@ -206,8 +206,8 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = registry.useMutation(
     ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
-      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $data: JSON!) {
-        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, data: $data }) {
+      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $value: JSON!) {
+        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, value: $value }) {
           ... on Record {
             id
             createdAt
@@ -215,14 +215,14 @@ export function useSymbolContentOps() {
             deletedAt
             revision
             orderKey
-            data
+            value
           }
           ...OperationInfoContent
         }
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; statementId: string; orderKey: string; data: any }) =>
+      optimisticResponse: (vars: { id: string; statementId: string; orderKey: string; value: any }) =>
         ({
           __typename: "Mutation",
           createRecord: {
@@ -233,7 +233,7 @@ export function useSymbolContentOps() {
             deletedAt: null,
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
-            data: vars.data,
+            value: vars.value,
           },
         } as CreateRecordMutation),
     }
@@ -242,27 +242,27 @@ export function useSymbolContentOps() {
   const { mutate: updateRecordMut } = registry.useMutation(
     ModuleMutationType.UpdateRecord,
     graphql(/* GraphQL */ `
-      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $data: JSON!) {
-        updateRecord(input: { id: $id, statementId: $statementId, data: $data }) {
+      mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $value: JSON!) {
+        updateRecord(input: { id: $id, statementId: $statementId, value: $value }) {
           ... on Record {
             id
             updatedAt
             revision
-            data
+            value
           }
           ...OperationInfoContent
         }
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; data: any }) =>
+      optimisticResponse: (vars: { id: string; value: any }) =>
         ({
           updateRecord: {
             __typename: "Record",
             id: vars.id,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
-            data: vars.data,
+            value: vars.value,
           },
         } as UpdateRecordMutation),
     }
@@ -409,7 +409,7 @@ export function useSymbolContentOps() {
     id: string,
     statementId: string,
     orderKey: string,
-    data: Scalars["JSON"]
+    value: Scalars["JSON"]
   ) {
     await ops.perform({
       tx,
@@ -419,7 +419,7 @@ export function useSymbolContentOps() {
           id: id,
           statementId: statementId,
           orderKey: orderKey,
-          data: data,
+          value: value,
         });
       },
       undo: async () => {
@@ -435,17 +435,17 @@ export function useSymbolContentOps() {
     tx: Transaction | null,
     statementId: string,
     id: string,
-    oldData: Scalars["JSON"],
-    newData: Scalars["JSON"]
+    oldValue: Scalars["JSON"],
+    newValue: Scalars["JSON"]
   ) {
     await ops.perform({
       tx,
       type: "statement.updateRecord",
       do: async () => {
-        return await updateRecordMut({ statementId, id, data: newData });
+        return await updateRecordMut({ statementId, id, value: newValue });
       },
       undo: async () => {
-        return await updateRecordMut({ statementId, id, data: oldData });
+        return await updateRecordMut({ statementId, id, value: oldValue });
       },
     });
   }

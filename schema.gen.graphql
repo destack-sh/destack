@@ -1173,7 +1173,14 @@ type Query {
     active: Boolean = null
     present: Boolean = true
   ): ClientConnection!
-  searchRecords(before: String = null, after: String = null, first: Int = null, last: Int = null, statementId: GlobalID!): RecordConnection!
+  searchRecords(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
+    after: String = null
+    first: Int = null
+    last: Int = null
+    statementId: GlobalID!
+  ): RecordConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1266,8 +1273,8 @@ type Record {
   revision: Int!
   id: GlobalID!
   datasetId: String!
-  orderKey: String!
-  data: JSON!
+  orderKey: String
+  value: JSON!
 }
 
 type RecordBatch {
@@ -1301,7 +1308,7 @@ type RecordConnection {
 input RecordCreateInput {
   statementId: GlobalID!
   id: GlobalID!
-  data: JSON!
+  value: JSON!
   orderKey: String!
 }
 
@@ -1335,7 +1342,7 @@ input RecordRestoreInput {
 input RecordUpdateInput {
   statementId: GlobalID!
   id: GlobalID!
-  data: JSON!
+  value: JSON!
 }
 
 type RefMapping implements Node {

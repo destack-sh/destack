@@ -275,7 +275,7 @@ class StatementMutation:
             else None
         )
         statement = models.Statement(
-            id=(input.id.node_id if input.id else None),
+            id=(UUID(input.id.node_id) if input.id else None),
             project_version=file.project_version,
             file=file,
             type=input.type,

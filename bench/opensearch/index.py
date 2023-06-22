@@ -145,52 +145,77 @@ OS_SEMANTIC_FIELD_MUTATIONS = {
 
 
 def write_mutations_to_os(
-    project_v: models.ProjectVersion, mutations: list[ModuleMutation]
+    project_v: models.ProjectVersion, mutations: list[ModuleMutation], wait: bool
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
     All regular DB mutations come this way (records are stored only in OS).
     """
-    os_operations: list[dict] = []
-    global_index_name = IndexType.GLOBAL.get_index_name()
-    bench_index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    field_mappings_dirty = False
+    global_index = IndexType.GLOBAL.get_index_name()
+    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
+    dataset_statements_by_id: dict[UUID, models.Statement] = {
+        statement.id: statement
+        for statement in models.Statement.objects.select_related("dataset").filter(
+            id__in={m.statement_id for m in mutations if m.mot == MOT.RECORD}
+        )
+    }
+    # mut state
+    ops: list[dict] = []
+    field_mappings_dirty: list[bool] = [False]  # for closure
+
+    def _flush():
+        if ops:
+            logger.debug(
+                "os.write_mutations",
+                project_version=project_v,
+                index=bench_index,
+                mutations=len(mutations),
+                operations=len(ops),
+            )
+            os_client.bulk(ops, refresh="wait_for" if wait else False)
+
+        if field_mappings_dirty[0]:  # if needed, must happen before any other mutations
+            update_dynamic_field_mappings(project_v)
+
+        ops.clear()
+        field_mappings_dirty[0] = False
+
     for m in mutations:
-        # index directly as primary or secondary store
-        if m.mot == MOT.RECORD or mirror.has_mirror(m.thing):
-            index_name = bench_index_name if m.mot == MOT.RECORD else global_index_name
+        # mark field mappings as dirty if relevant mutation
+        if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
+            field_mappings_dirty[0] = True
+
+        # OS is the primary store for records
+        if m.mot == MOT.RECORD:
+            if field_mappings_dirty[0]:
+                _flush()  # records may require previous field mappings to be updated
+            statement = dataset_statements_by_id[m.statement_id]
+            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
+                mirrored = mirror.unpack_node_flat(project_v, m.data, statement)
+                ops.append({"index": {"_index": bench_index, "_id": str(m.data.id)}})
+                ops.append(mirrored.to_dict())
+            elif m.type.kind == MMK.DELETE:
+                ops.append({"delete": {"_index": bench_index, "_id": str(m.data.id)}})
+            elif m.type.kind == MMK.TRUNCATE:
+                _flush()  # unfortunately can't be batched with the other operations
+                backend_id = statement.dataset.backend_id
+                os_client.delete_by_query(
+                    index=bench_index, body={"query": {"term": {"dataset_id": backend_id}}}
+                )
+
+        # secondary mirror for search
+        elif mirror.has_mirror(m.thing):
             if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
                 mirrored = mirror.mirror_node(project_v, m.thing)
                 mirrored_data = mirrored.to_dict()
                 if m.properties is not None:  # limit to relevant properties if specified
                     mirrored_data = {k: v for k, v in mirrored_data.items() if k in m.properties}
-                op = ({"index": {"_index": index_name, "_id": str(m.thing.id)}}, mirrored_data)
-                os_operations.extend(op)
+                ops.append({"index": {"_index": global_index, "_id": str(m.thing.id)}})
+                ops.append(mirrored_data)
             elif m.type.kind == MMK.DELETE:
-                op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
-                os_operations.append(op)
-            elif m.type.kind == MMK.TRUNCATE:
-                dataset = models.Statement.objects.get(id=m.statement_id).dataset
-                # unfortunately can't be batched with the other operations
-                os_client.delete_by_query(
-                    index=index_name, body={"query": {"term": {"dataset_id": dataset.backend_id}}}
-                )
-        # mark field mappings as dirty if relevant
-        if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
-            field_mappings_dirty = True
+                ops.append({"delete": {"_index": global_index, "_id": str(m.thing.id)}})
 
-    if field_mappings_dirty:  # if needed, must happen before any other mutations
-        update_dynamic_field_mappings(project_v)
-
-    if os_operations:
-        logger.debug(
-            "os.write_mutations",
-            project_version=project_v,
-            index=bench_index_name,
-            mutations=len(mutations),
-            operations=len(os_operations),
-        )
-        os_client.bulk(os_operations)
+    _flush()  # flush any remaining mutations
 
 
 def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
@@ -206,7 +231,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     module.index()
     module.interp()
 
-    data_mappings = {}
+    value_mappings = {}
     inputs_mappings = {}
     outputs_mappings = {}
     for symbol in module.symbols_by_id.values():
@@ -215,7 +240,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         elif isinstance(symbol, bench.bench.dataset.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in symbol.resolved_fields:
-                data_mappings[field.typed_key] = map_to_os_field(field).to_dict()
+                value_mappings[field.typed_key] = map_to_os_field(field).to_dict()
         elif isinstance(symbol, (bench.bench.task.Task, bench.bench.code.Code)):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in symbol.inputs:
@@ -226,12 +251,12 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     logger.info(
         "os.update_mappings.done",
         project_version=project_v,
-        data_mappings=len(data_mappings),
+        data_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
     )
     mappings = {
-        "data": {"type": "object", "dynamic": "strict", "properties": data_mappings},
+        "value": {"type": "object", "dynamic": "strict", "properties": value_mappings},
         "inputs": {"type": "object", "dynamic": "strict", "properties": inputs_mappings},
         "outputs": {"type": "object", "dynamic": "strict", "properties": outputs_mappings},
     }

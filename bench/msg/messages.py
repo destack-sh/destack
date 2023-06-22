@@ -275,6 +275,7 @@ class ReqWriteModulePayload:
     module_id: UUID
     mutations: list[ModuleMutation]
     client: ClientOrigin
+    wait: bool
 
 
 @payload(NMessageType.REPLY_WRITE_MODULE)
@@ -288,17 +289,19 @@ class ReqSearchDatasetPayload:
     statement_id: UUID
     backend_id: str
     query: Optional[Query] = None
-    sort: list[Sort] | None = None
-    after: list[typing.Any] | None = None
+    sort: Optional[list[Sort]] = None
+    after: Optional[list[typing.Any]] = None
     limit: Optional[int] = None
+    count: bool = False
 
 
 @payload(NMessageType.REPLY_SEARCH_DATASET)
 class RepSearchDatasetPayload:
     records: list[RecordData]
-    after: list[typing.Any]
     total: int
     limit: int
+    first_sort_key: Optional[list[typing.Any]] = None
+    last_sort_key: Optional[list[typing.Any]] = None
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)

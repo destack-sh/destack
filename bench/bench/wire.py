@@ -378,7 +378,7 @@ class HasCrud:
     created_at: datetime
     updated_at: datetime
     last_edited_at: datetime
-    last_changed_at: datetime
+    last_changed_at: Optional[datetime]
     revision: int
 
 
@@ -1082,10 +1082,10 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
 class RecordData(NodeData, HasOrder, HasCrud):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
-    data: Optional[typing.Any] = None
+    value: Optional[typing.Any] = None
 
     def __str__(self):
-        return f"{self.parent_id}:{self.order_key} {describe_type(self.data)}"
+        return f"{self.parent_id}:{self.order_key} {describe_type(self.value)}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
@@ -1100,7 +1100,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             id=record.id,
             parent_id=record.parent_id,
             order_key=record.order_key,
-            data=record.data,
+            value=record._raw_value(),
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,
@@ -1114,7 +1114,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
         return lang.Record(
             id=record.id,
             parent=parent,
-            data=record.data,
+            value=record.value,
             order_key=record.order_key,
             revision=record.revision,
             created_at=record.created_at,

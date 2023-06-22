@@ -418,16 +418,16 @@ class TypeCheckingTracer(Tracer):
         check_type(value.value, value)
 
     def dataset_append(self, dataset: Dataset, record: Record):
-        check_type(record.data, dataset, ignore_array=True)
+        check_type(record.value, dataset, ignore_array=True)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
             if key not in dataset:
                 raise ValueError(f"{key} does not exist on {dataset.type}")
-            check_type(record.data.get(key), dataset.type[key])
+            check_type(record.value.get(key), dataset[key])
         else:
-            check_type(record.data, dataset.type, ignore_array=True)
+            check_type(record.value, dataset, ignore_array=True)
 
 
 class PermissionCheckingTracer(Tracer):

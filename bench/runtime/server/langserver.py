@@ -41,6 +41,7 @@ from bench.msg.messages import (
     RepReadSecretPayload,
     RepRegisterWorkerPayload,
     RepRunInferencePayload,
+    RepSearchDatasetPayload,
     RepWriteModulePayload,
     ReqLangserverPayload,
     ReqReadModulePayload,
@@ -52,6 +53,7 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
+from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.runtime.common.interp import (
@@ -203,7 +205,7 @@ class LanguageServer:
         # TODO @Security: check if msg origin has write access to module
         worker = await self._get_ready_worker(msg.p.module_id)
         try:
-            await worker.write_module(msg.p.mutations, origins=(msg.p.client,))
+            await worker.write_module(msg.p.mutations, origins=(msg.p.client,), wait=msg.p.wait)
             logger.debug("module.write.done", msg=msg)
             success = True
         except Exception as e:
@@ -217,6 +219,7 @@ class LanguageServer:
         logger.debug("dataset.search", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
         # TODO @Broken: don't ignore source query/sort/aggregations
+        project_version = await ProjectVersion.objects.aget(id=msg.p.module_id)
         base_filter = [
             {"term": {"dataset_id": msg.p.backend_id}},
             {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
@@ -225,19 +228,38 @@ class LanguageServer:
             "bool": {"filter": base_filter},
         }
         sort = msg.p.sort or [{"_id": "asc"}]
-        search_after = msg.p.after or []
+        effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
+        search = {
+            "size": effective_limit,
+            "query": query,
+            "sort": sort,
+            "track_total_hits": msg.p.count,
+            "version": True,
+        }
+        if msg.p.after:
+            search["search_after"] = msg.p.after
         results = os_client.search(
-            index=IndexType.BENCH.get_index_name(msg.p.module_id),
-            body={
-                "size": min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT),
-                "query": query,
-                "sort": sort,
-                "search_after": search_after,
-                "track_total_hits": True,
-                "version": True,
-            },
+            index=IndexType.BENCH.get_index_name(project_id=project_version.project_id), body=search
         )
-        raise NotImplementedError  # nocheckin: datasets
+
+        record_packer = mirror.get_node_packer(mirror.Record)
+        records: list[wire.RecordData] = []
+        for r in results["hits"]["hits"]:
+            doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
+            record = record_packer.pack(doc)
+            records.append(record)
+        first_sort_key = results["hits"]["hits"][0]["sort"] if records else None
+        last_sort_key = results["hits"]["hits"][-1]["sort"] if records else None
+        total = results["hits"]["total"]["value"] if msg.p.count else None
+
+        rep = RepSearchDatasetPayload(
+            records=records,
+            total=total,
+            limit=effective_limit,
+            first_sort_key=first_sort_key,
+            last_sort_key=last_sort_key,
+        )
+        await msg.reply(rep)
 
     @message_handler
     async def read_object(self, msg: NMessage[ReqReadObjectPayload]) -> None:
@@ -463,12 +485,17 @@ class LanguageWorker:
         await self.do_interp(new_source)
 
     async def write_module(
-        self, mutations: list[ModuleMutation] | ModuleMutator, origins: tuple[ClientOrigin] = None
+        self,
+        mutations: list[ModuleMutation] | ModuleMutator,
+        origins: tuple[ClientOrigin] = None,
+        wait: bool = False,
     ):
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
         logger.debug("write_module", mutations=mutations[:5], total=len(mutations), origins=origins)
-        await sync_to_async(write_mutations)(self.project_version, self.interp.tree, mutations)
+        await sync_to_async(write_mutations)(
+            self.project_version, self.interp.tree, mutations, wait_for_os=wait
+        )
 
         # trim mutations to remove overhead from large dataset updates
         trimmed_mutations = trim_record_mutations(mutations)
@@ -544,7 +571,7 @@ class LanguageWorker:
         # save and notify
         if interp_mut.mutations:
             await sync_to_async(write_mutations)(
-                self.project_version, self.interp.tree, interp_mut.mutations
+                self.project_version, self.interp.tree, interp_mut.mutations, wait_for_os=False
             )
             await publish(
                 NMessageType.MODULE_CHANGED,
