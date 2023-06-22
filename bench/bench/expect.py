@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import field
-from typing import Union, Optional, Self
+from typing import Optional, Self, Union
 
 from bench.bench.const import ExpectationModifier
-from bench.bench.core import Scope, Symbol, Statement
-from bench.bench.core import node, SymbolBase, StatementReference
+from bench.bench.core import Scope, Statement, StatementReference, Symbol, SymbolBase, node
 from bench.bench.issue import IssueType
 
 Expectable = Union["Expectation", "Task", "Dataset", "Code"]
@@ -55,7 +54,7 @@ class HasExpectations(SymbolBase, IsExpectable):
         self.resolved_expectations = resolved_expectations
 
 
-@node
+@node(tracked=["reference", "description"])
 class Expectation(Symbol, HasExpectations):
     reference: StatementReference | Statement | None = None
     description: Optional[str] = None

@@ -15,11 +15,11 @@ from bench.bench.mutate import ModuleMutation
 from bench.bench.query import Query, Sort
 from bench.bench.wire import (
     ExecutionFrameData,
+    ModuleTreeData,
     RecordData,
     RemoteObjectData,
     SecretData,
     XBlockData,
-    ModuleTreeData,
 )
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -285,16 +285,18 @@ class RepWriteModulePayload:
 @payload(NMessageType.REQUEST_SEARCH_DATASET)
 class ReqSearchDatasetPayload:
     module_id: UUID
-    dataset_id: UUID
-    query: Query
+    statement_id: UUID
+    backend_id: str
+    query: Optional[Query] = None
     sort: list[Sort] | None = None
-    limit: int | None = None
+    after: list[typing.Any] | None = None
+    limit: Optional[int] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_DATASET)
 class RepSearchDatasetPayload:
-    dataset_id: UUID
     records: list[RecordData]
+    after: list[typing.Any]
     total: int
     limit: int
 
