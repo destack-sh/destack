@@ -8,6 +8,7 @@ const props = defineProps<{
   preview?: boolean;
   previewWidth?: number;
   previewHeight?: number;
+  wrap?: boolean;
 }>();
 const inputRef: Ref<HTMLInputElement | null> = ref(null);
 
@@ -21,7 +22,9 @@ defineExpose({
 });
 </script>
 <template>
-  <div v-if="preview" class="h-full w-full whitespace-pre-wrap">{{ modelValue }}&nbsp;</div>
+  <div v-if="preview" class="h-full w-full" :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'">
+    {{ modelValue }}&nbsp;
+  </div>
   <textarea
     v-else
     ref="inputRef"

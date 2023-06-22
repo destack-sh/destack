@@ -31,6 +31,7 @@ import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, type Ref } from "vue";
+import { toValueRef, wrapValueRefs } from "@/utils/functools";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -96,6 +97,20 @@ export abstract class Editor {
     return copy;
   }
 
+  onDeserialized(bench: ReturnType<typeof useBenchState>) {
+    this._bench = bench;
+  }
+
+  onMounted(context: EditorContext<any>) {
+    if (this._context != null) {
+      throw new Error(`editor ${this.id} already has a context`);
+    }
+    this._context = context;
+  }
+
+  onUnmounted() {
+    this._context = undefined;
+  }
   abstract resetId(): void;
 
   static parsePath(path: string, module: ModuleIndex): Editor | null {
@@ -181,21 +196,6 @@ export abstract class Editor {
       throw new Error(`editor ${this.id} has no context`);
     }
     return this._context;
-  }
-
-  onDeserialized(bench: ReturnType<typeof useBenchState>) {
-    this._bench = bench;
-  }
-
-  onMounted(context: EditorContext<any>) {
-    if (this._context != null) {
-      throw new Error(`editor ${this.id} already has a context`);
-    }
-    this._context = context;
-  }
-
-  onUnmounted() {
-    this._context = undefined;
   }
 
   blur() {
@@ -830,7 +830,13 @@ export abstract class NavigableEditor extends Editor {
   activeStatementId?: string;
   selectedElementType?: NavElementType;
   selectedElementIds: string[] = [];
+  elementProperties: Record<string, any> = {};
   editing = false;
+
+  onDeserialized(bench: ReturnType<typeof useBenchState>) {
+    super.onDeserialized(bench);
+    this.elementProperties = this.elementProperties || {};
+  }
 
   focusElement(element: NavElement, retainEditing = false) {
     if (element.__typename != "Statement") {
@@ -1041,4 +1047,33 @@ function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): 
   const editor = editorData as Editor;
   editor.onDeserialized(bench);
   return editor;
+}
+
+export function useElementEditorSettings<T>(element: Ref<{ id: string }>, defaultValue: T) {
+  const editor = useEditorContext().editor;
+  if (editor.value == null) {
+    throw new Error("editor not set");
+  }
+
+  const proxy = new Proxy(
+    {},
+    {
+      get: function (_: any, p: PropertyKey): T[keyof T] {
+        const key = p as keyof T;
+        const e = editor.value as NavigableEditor;
+        const settings = e.elementProperties[element.value.id] || {};
+        return settings[key] ?? defaultValue;
+      },
+      set: function (_: any, p: PropertyKey, value: any): boolean {
+        const key = p as keyof T;
+        const e = editor.value as NavigableEditor;
+        const settings = e.elementProperties[element.value.id] || {};
+        settings[key] = value as T[keyof T];
+        e.elementProperties[element.value.id] = settings;
+        return true;
+      },
+    }
+  );
+
+  return proxy as T;
 }
