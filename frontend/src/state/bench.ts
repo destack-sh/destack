@@ -1062,7 +1062,7 @@ export function useElementEditorSettings<T>(element: Ref<{ id: string }>, defaul
         const key = p as keyof T;
         const e = editor.value as NavigableEditor;
         const settings = e.elementProperties[element.value.id] || {};
-        return settings[key] ?? defaultValue;
+        return settings[key] ?? defaultValue[key];
       },
       set: function (_: any, p: PropertyKey, value: any): boolean {
         const key = p as keyof T;

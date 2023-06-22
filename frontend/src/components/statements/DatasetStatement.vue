@@ -37,13 +37,14 @@ import {
   PlusIcon,
   Square2StackIcon,
   SquaresPlusIcon,
+  XCircleIcon,
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { INTEGER_ZERO } from "@/utils/fractional";
 
@@ -55,10 +56,22 @@ const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
 type DatasetStatementProperties = {
+  inlineQuery?: string;
   wrapColumns: boolean;
+  // local 'view' (because we don't have proper module dataset view yet, this is the only view)
+  sorts?: DatasetSort[];
+  query?: DatasetQuery;
 };
 const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
+  inlineQuery: undefined,
   wrapColumns: false,
+});
+
+// reset inline query to undefined if it's empty on load
+onMounted(() => {
+  if ((properties.inlineQuery ?? "").trim().length == 0) {
+    properties.inlineQuery = undefined;
+  }
 });
 
 const appearance = useAppearance();
@@ -74,10 +87,11 @@ const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
+const searchRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchRecords($statementId: GlobalID!, $after: String, $first: Int) {
-    searchRecords(statementId: $statementId, after: $after, first: $first) {
+  query searchRecords($statementId: GlobalID!, $after: String, $limit: Int) {
+    searchRecords(statementId: $statementId, after: $after, limit: $limit) {
       totalCount
       pageInfo {
         hasNextPage
@@ -108,7 +122,7 @@ const {
 } = useQuery(SEARCH_QUERY, {
   statementId: computed(() => context.statement.value.id),
   after: null as string | null,
-  first: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+  limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
 const recordsFetched = computed(
@@ -134,9 +148,19 @@ function loadMore() {
   fetchMore({
     variables: {
       after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
-      first: PAGE_SIZE, // no need to overfetch again, already have 1 extra
+      limit: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
+}
+
+function toggleInlineSearch() {
+  if (properties.inlineQuery == null) {
+    properties.inlineQuery = "";
+    nextTick(() => searchRef.value?.focus());
+  } else {
+    properties.inlineQuery = undefined;
+    nextTick(() => declarationRef.value?.focus());
+  }
 }
 
 // grid & grid sizing
@@ -535,7 +559,7 @@ const extraActions = computed(() => {
   });
   actions.push({
     label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
-    icon: properties.wrapColumns ? ChevronDoubleDownIcon : ChevronDoubleUpIcon,
+    icon: properties.wrapColumns ? ChevronDoubleUpIcon : ChevronDoubleDownIcon,
     action: () => (properties.wrapColumns = !properties.wrapColumns),
     hideInline: true,
   });
@@ -594,6 +618,42 @@ defineExpose({
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value ? '' : 'opacity-0'"
     >
+      <!-- Quick inline search -->
+      <button
+        tabindex="-1"
+        class="h-full rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-800"
+        @click="() => toggleInlineSearch()"
+      >
+        <MagnifyingGlassIcon class="h-4 w-4" />
+      </button>
+      <div
+        v-if="properties.inlineQuery != null"
+        class="relative -mb-0.5 h-full w-40 transition-transform duration-150"
+        @click="searchRef?.focus"
+      >
+        <EditableSpan
+          ref="searchRef"
+          :class="context.focused.value ? '' : 'h-0'"
+          :model-value="properties.inlineQuery ?? ''"
+          :readonly="false"
+          @update:model-value="(v) => (properties.inlineQuery = v)"
+          @keydown.escape.exact.prevent="toggleInlineSearch"
+          class="h-full overflow-hidden whitespace-nowrap"
+          placeholder
+        />
+        <!-- Placeholder -->
+        <span class="text-gray-400" v-if="(properties.inlineQuery ?? '').trim() == ''">Type to search...</span>
+        <!-- Cancel button -->
+        <button
+          tabindex="-1"
+          v-if="(properties.inlineQuery ?? '').trim() != ''"
+          class="absolute right-0 top-0 h-full rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-800"
+          @click="() => (properties.inlineQuery = undefined)"
+        >
+          <XCircleIcon class="h-4 w-4" />
+        </button>
+      </div>
+      <!-- Other actions -->
       <InlineActions :extraActions="extraActions" />
       <CreateFieldInterface
         ref="createFieldRef"

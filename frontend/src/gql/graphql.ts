@@ -191,6 +191,18 @@ export type Dataset = Node & {
   versioned: Scalars["Boolean"];
 };
 
+export type DatasetQuery = {
+  key: Scalars["String"];
+  op: QueryOp;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type DatasetSort = {
+  key: Scalars["String"];
+  mode?: InputMaybe<SortMode>;
+  order?: SortOrder;
+};
+
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
@@ -1513,6 +1525,9 @@ export type QuerySearchRecordsArgs = {
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  query?: InputMaybe<DatasetQuery>;
+  sort?: InputMaybe<Array<DatasetSort>>;
   statementId: Scalars["GlobalID"];
 };
 
@@ -1539,6 +1554,26 @@ export type QueryUsersArgs = {
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
+
+export enum QueryOp {
+  And = "AND",
+  Contains = "CONTAINS",
+  Disjoint = "DISJOINT",
+  Equals = "EQUALS",
+  Exists = "EXISTS",
+  GreaterThan = "GREATER_THAN",
+  GreaterThanOrEquals = "GREATER_THAN_OR_EQUALS",
+  Intersects = "INTERSECTS",
+  LessThan = "LESS_THAN",
+  LessThanOrEquals = "LESS_THAN_OR_EQUALS",
+  Matches = "MATCHES",
+  Near = "NEAR",
+  Not = "NOT",
+  NotEquals = "NOT_EQUALS",
+  Or = "OR",
+  StartsWith = "STARTS_WITH",
+  Within = "WITHIN",
+}
 
 export type Record = {
   __typename?: "Record";
@@ -1765,6 +1800,19 @@ export type SecretUpdateInput = {
   name?: InputMaybe<Scalars["String"]>;
   value: Scalars["JSON"];
 };
+
+export enum SortMode {
+  Avg = "AVG",
+  Max = "MAX",
+  Median = "MEDIAN",
+  Min = "MIN",
+  Sum = "SUM",
+}
+
+export enum SortOrder {
+  Asc = "ASC",
+  Desc = "DESC",
+}
 
 export type Statement = Node & {
   __typename?: "Statement";
@@ -2480,7 +2528,7 @@ export type UpdateUserMutation = {
 export type SearchRecordsQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
   after?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type SearchRecordsQuery = {
@@ -6496,7 +6544,7 @@ export const SearchRecordsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
       ],
@@ -6519,8 +6567,8 @@ export const SearchRecordsDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "first" },
-                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } },
               },
             ],
             selectionSet: {

@@ -55,7 +55,7 @@ class ComparisonQuery(Query):
 @dataclass
 class KnnQuery(Query):
     key: str
-    value: Any
+    value: list[float]
 
 
 class AggregationOp(enum.StrEnum):
@@ -89,6 +89,7 @@ class SortMode(enum.StrEnum):
     MIN = "min"
     AVG = "avg"
     SUM = "sum"
+    MEDIAN = "median"
 
 
 @dataclass
