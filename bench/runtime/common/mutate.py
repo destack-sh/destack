@@ -144,7 +144,7 @@ def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutat
         revision=mutation.revision,
         input=input,
     )
-    if input is None:
+    if input is None and mutation.data is not None:
         api_mutation.data = mutation.data
     return [api_mutation]
 
@@ -167,9 +167,6 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     The returned input is already jsonable (not the original input class).
     """
     from bench.api.sync import INPUT_CLASS_BY_TYPE
-
-    if mutation.data is None:
-        raise ValueError(f"mutation has no data: {mutation}")
 
     input_cls = INPUT_CLASS_BY_TYPE.get(mutation.type)
     if input_cls is None:

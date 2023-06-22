@@ -59,6 +59,7 @@ class Record(ModuleNode, HasSession, HasCrud):
     def instantiate_in(self, session: "Session") -> None:
         if self._instantiated:
             self.value = self._raw_value()
+            self._instantiated = False
         # proxy
         self.value = map_value(
             value=self.value,
@@ -94,7 +95,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         try:
             return self.value[item]
         except KeyError:
-            raise KeyError(f"{self} does not have '{item}' (available: {list(self.value.keys())})")
+            raise KeyError(f"{self} has no field '{item}' (available: {list(self.value.keys())})")
 
     def __setitem__(self, key, value):
         self.value[key] = value
@@ -103,7 +104,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         try:
             return self.value[item]
         except KeyError:
-            raise KeyError(f"{self} does not have '{item}' (available: {list(self.value.keys())})")
+            raise KeyError(f"{self} has no field '{item}' (available: {list(self.value.keys())})")
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
@@ -339,6 +340,7 @@ class Value(Symbol, HasType, IsExpectable):
         super().instantiate_in(session)
         if self._instantiated:
             self.value = self._raw_value()
+            self._instantiated = False
         # proxy
         self.value = map_value(
             value=self.value,
@@ -368,7 +370,7 @@ class Value(Symbol, HasType, IsExpectable):
         elif item in self.value:
             return self.value[item]
         else:
-            raise AttributeError(item)
+            raise AttributeError(f"{self} has no field {item} (available: {self.keys()})")
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:

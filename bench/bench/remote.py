@@ -39,16 +39,16 @@ class RemoteObject(HasSession):
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
-        from bench import msg
         from bench.bench import wire
-        from bench.msg import messages
+        from bench.msg.core import NMessage, request
+        from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadObjectPayload
 
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
-        rep: msg.NMessage[messages.RepReadObjectPayload] = await msg.request(
-            msg.NMessageType.REQUEST_READ_OBJECT,
-            messages.ReqReadObjectPayload(objects=[wire.pack_data(self)]),
-            reply_t=messages.RepReadObjectPayload,
+        rep: NMessage[RepReadObjectPayload] = await request(
+            NMessageType.REQUEST_READ_OBJECT,
+            ReqReadObjectPayload(objects=[wire.pack_data(self)]),
+            reply_t=RepReadObjectPayload,
             timeout=timeout,
         )
         get_url = rep.p.get_urls[0]
