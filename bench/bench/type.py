@@ -609,7 +609,7 @@ def map_value(
     if not isinstance(value, Mapping):
         return value  # type error, ignore here
     mapped = {}
-    for subtype in type.fields:
+    for subtype in type.resolved_fields or type.fields:
         if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
             raise RuntimeError(f"unexpected union with {type}->{subtype}")
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:

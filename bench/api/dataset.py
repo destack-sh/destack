@@ -275,7 +275,7 @@ class DatasetQuery:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        # cursor is base64 encoded json of search after (sort key)
+        # cursor is base64 encoded json of search after (sort key) :RecordCursor
         if after is not None:
             after = json.loads(base64.b64decode(after).decode())
         default_limit = 25
@@ -305,7 +305,7 @@ class DatasetQuery:
         for r in results["hits"]["hits"]:
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
             node = Record.from_os(doc)
-            # cursor is base64 encoded json of the sort
+            # :RecordCursor
             cursor = base64.b64encode(json.dumps(r["sort"]).encode()).decode("utf-8")
             edge = gql.relay.Edge(node=node, cursor=cursor)
             edges.append(edge)

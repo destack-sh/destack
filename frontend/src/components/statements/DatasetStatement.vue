@@ -37,6 +37,7 @@ import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { INTEGER_ZERO } from "@/utils/fractional";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -103,7 +104,10 @@ const recordsFetched = computed(
 );
 
 const recordsInView = computed(
-  () => recordsFetched.value.filter((n) => n.deletedAt == null).sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+  () =>
+    recordsFetched.value
+      .filter((n) => n.deletedAt == null)
+      .sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1)) ?? []
 );
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
@@ -338,14 +342,14 @@ function deleteField(node: Field) {
   nextTick(() => grid.flush());
 }
 
-function moveField(node: Field, position: "before" | "after", other: Field) {
+function moveField(field: Field, position: "before" | "after", other: Field) {
   const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveField(node, orderKey);
+    context.moveField(field, orderKey);
   } else {
     const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveField(node, orderKey);
+    context.moveField(field, orderKey);
   }
 }
 
@@ -395,7 +399,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     (
       data = {
         searchRecords: {
-          __typename: "RecordConnection",
+          __typename: "RecordConnection" as any,
           totalCount: 0,
           edges: [],
           pageInfo: { hasNextPage: false, hasPreviousPage: false },
@@ -409,7 +413,8 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
         edges: [
           ...(data?.searchRecords.edges ?? []),
           {
-            cursor: orderKey,
+            __typename: "RecordEdge" as any,
+            cursor: data?.searchRecords.pageInfo.endCursor ?? "0",
             node: { __ref: recordRef, ...optimisticRecord } as any,
           },
         ],
@@ -455,9 +460,9 @@ async function onDropFiles(recordId: string, column: string, position: "above" |
   const below = recordsInView.value[recordIdx + 1];
   let orderKeys;
   if (position == "above") {
-    orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey, files.length);
+    orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey ?? null, files.length);
   } else {
-    orderKeys = generateNKeysBetween(record.orderKey, below?.orderKey ?? null, files.length);
+    orderKeys = generateNKeysBetween(record.orderKey ?? null, below?.orderKey ?? null, files.length);
   }
   await magic.insertFilesAsRecords(column, orderKeys, files);
 }
@@ -633,9 +638,7 @@ defineExpose({
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
-              :readonly="
-                context.readonly.value || context.inheritedFields.value.find((n) => n.key == field.key) != null
-              "
+              :readonly="context.readonly.value"
               :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
