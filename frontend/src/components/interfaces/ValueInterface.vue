@@ -44,6 +44,7 @@ const props = defineProps<{
   active: boolean;
   debounced?: boolean;
   supportsDrop?: boolean;
+  wrap?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -212,6 +213,7 @@ defineExpose({
         @update:model-value="writeValue($event)"
         :readonly="readonly"
         :active="active"
+        :wrap="props.wrap"
         preview
         v-bind="appearanceAttrs"
       />

@@ -13,7 +13,13 @@ import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";
-import { useEditorContext, type RecordAction, type StatementAction, type StatementHeader } from "@/state/bench";
+import {
+  useEditorContext,
+  useElementEditorSettings,
+  type RecordAction,
+  type StatementAction,
+  type StatementHeader,
+} from "@/state/bench";
 import { useMagicActions } from "@/state/file";
 import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
@@ -32,6 +38,8 @@ import {
   Square2StackIcon,
   SquaresPlusIcon,
   TrashIcon,
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -42,9 +50,16 @@ import { INTEGER_ZERO } from "@/utils/fractional";
 const context = useStatementContext();
 const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 20;
-const editorView = useEditorContext();
+const editor = useEditorContext();
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
+
+type DatasetStatementProperties = {
+  wrapColumns: boolean;
+};
+const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
+  wrapColumns: false,
+});
 
 const appearance = useAppearance();
 const client = useApolloClient();
@@ -152,10 +167,10 @@ const propertiesColumnWidth = 40;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
-  if (editorView.size.value.width > editorView.editor.value.contentWidthWithMargin) {
-    return (editorView.size.value.width - editorView.editor.value.contentWidth) / 2;
+  if (editor.size.value.width > editor.editor.value.contentWidthWithMargin) {
+    return (editor.size.value.width - editor.editor.value.contentWidth) / 2;
   } else {
-    return editorView.editor.value.contentMarginX;
+    return editor.editor.value.contentMarginX;
   }
 });
 // auto size columns and rows
@@ -163,23 +178,21 @@ const gridOffsetX: Ref<number> = computed(() => {
 // TODO @Robustness @UX @Performance: grid resizing sometimes loops and becomes recursive
 //  many :ref are re-triggered, calling registerColumnRef, triggering grid.refsByColumn below..
 //  Sometimes this is annoying because it causes noticable lags when editing, especially when adding rows or modifying columns.
-//  Only triggering ref updates (on preview size and on widths/heights) on value changes & batching column updates seems to fix this.
+//  Only triggering ref updates (on preview size and on widths/heights) on value changes & batching column updates seems to fix this (mostly).
 watch(
   () => [
-    editorView.editor.value.contentWidth,
-    editorView.editor.value.contentMarginX,
+    properties.wrapColumns,
+    editor.editor.value.contentWidth,
+    editor.editor.value.contentMarginX,
     context.xOffset,
-    editorView.size.value,
+    editor.size.value,
     context.allFields.value,
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
     // update column widths
     const targetMinTotalWidth =
-      Math.min(
-        editorView.size.value.width - editorView.editor.value.contentMarginX * 2,
-        editorView.editor.value.contentWidth
-      ) -
+      Math.min(editor.size.value.width - editor.editor.value.contentMarginX * 2, editor.editor.value.contentWidth) -
       context.xOffset.value -
       8; // not sure why -8, probably some mx-1? borders?
     const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = context.allFields.value.map((f) =>
@@ -200,7 +213,6 @@ watch(
       const minWidth = Math.max(headerWidth, iface?.minWidth ?? defaultMinWidth);
       widths.push(minWidth);
     }
-
     // if the total width is too small, scale up to fill by the grow factors
     const minTotalWidth = widths.reduce((a, b) => a + b, 0);
     if (minTotalWidth < targetMinTotalWidth && growColumns) {
@@ -212,15 +224,22 @@ watch(
         widths[i] += growWidths[i];
       }
     }
-    // update row heights
-    const heights: number[] = rowIdsInOrder.value
-      .map((r) =>
-        grid
-          .getColumn(r)
-          .map((e) => e.previewSize.height.value ?? 0)
-          .reduce((a, b) => Math.max(a, b), minRowHeight - rowPadding * 2)
-      )
-      .map((h) => Math.min(h, maxRowHeight));
+
+    let heights: number[];
+    if (properties.wrapColumns) {
+      // compute wrapped row heights
+      heights = rowIdsInOrder.value
+        .map((r) =>
+          grid
+            .getColumn(r)
+            .map((e) => e.previewSize.height.value ?? 0)
+            .reduce((a, b) => Math.max(a, b), minRowHeight - rowPadding * 2)
+        )
+        .map((h) => Math.min(h, maxRowHeight));
+    } else {
+      heights = rowIdsInOrder.value.map((r) => minRowHeight - rowPadding * 2);
+    }
+
     // update if changed (only trigger DOM update if necessary)
     if (widths.some((w, i) => w != columnWidths.value[i]) || heights.some((h, i) => h != rowHeights.value[i])) {
       columnWidths.value = widths;
@@ -235,7 +254,7 @@ const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
 const headerOffsetY = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
-  const editorTop = editorView.pos.value.top + appearance.editorHeaderHeight;
+  const editorTop = editor.pos.value.top + appearance.editorHeaderHeight;
   if (gridBounding.top.value < editorTop && gridBounding.bottom.value > editorTop) {
     return editorTop - gridBounding.top.value;
   } else {
@@ -514,6 +533,12 @@ const extraActions = computed(() => {
     action: () => createUnionField(),
     hideInline: true,
   });
+  actions.push({
+    label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
+    icon: properties.wrapColumns ? ChevronDoubleDownIcon : ChevronDoubleUpIcon,
+    action: () => (properties.wrapColumns = !properties.wrapColumns),
+    hideInline: true,
+  });
   return actions;
 });
 context.setCustomActions(extraActions);
@@ -606,7 +631,7 @@ defineExpose({
       'margin-right': -gridOffsetX + 'px',
       'padding-left': gridOffsetX + 'px',
       'padding-right': gridOffsetX + 'px',
-      'max-width': editorView.size.value.width + 'px',
+      'max-width': editor.size.value.width + 'px',
     }"
   >
     <div class="-mx-1 flex min-w-fit flex-col">
@@ -628,8 +653,8 @@ defineExpose({
           left:
             headerOffsetY == 0
               ? -gridScrollOffsetX + 4 + 'px'
-              : -gridScrollOffsetX + editorView.pos.value.left + gridOffsetX + 'px',
-          top: headerOffsetY == 0 ? undefined : editorView.pos.value.top + appearance.editorHeaderHeight + 'px',
+              : -gridScrollOffsetX + editor.pos.value.left + gridOffsetX + 'px',
+          top: headerOffsetY == 0 ? undefined : editor.pos.value.top + appearance.editorHeaderHeight + 'px',
         }"
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
@@ -742,6 +767,11 @@ defineExpose({
             :type="field"
             :readonly="context.readonly.value"
             :active="context.editing.value || context.focused.value"
+            :wrap="
+              Boolean(
+                properties.wrapColumns
+              ) /* TODO @Cleanup: not sure why the Boolean is needed, but wrapColumns is an object otherwise? */
+            "
             debounced
             :supports-drop="!context.readonly.value"
             @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
