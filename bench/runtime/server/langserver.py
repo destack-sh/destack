@@ -52,6 +52,8 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     WorkerHeartbeatPayload,
 )
+from bench.opensearch.client import os_client
+from bench.opensearch.core import IndexType
 from bench.runtime.common.interp import (
     InterpModule,
     LanguageInterpreter,
@@ -74,6 +76,7 @@ def create_wrapped_task(coro, task_id: str = None):
 
 
 WORKER_HEARTBEAT_TIMEOUT = 30
+MAX_SEARCH_DATASET_LIMIT = 500
 
 
 class ModuleDB:
@@ -212,6 +215,28 @@ class LanguageServer:
     @message_handler
     async def search_dataset(self, msg: NMessage[ReqSearchDatasetPayload]) -> None:
         logger.debug("dataset.search", msg=msg)
+        # TODO @Security: check if msg origin has read access to dataset
+        # TODO @Broken: don't ignore source query/sort/aggregations
+        base_filter = [
+            {"term": {"dataset_id": msg.p.backend_id}},
+            {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
+        ]
+        query = {
+            "bool": {"filter": base_filter},
+        }
+        sort = msg.p.sort or [{"_id": "asc"}]
+        search_after = msg.p.after or []
+        results = os_client.search(
+            index=IndexType.BENCH.get_index_name(msg.p.module_id),
+            body={
+                "size": min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT),
+                "query": query,
+                "sort": sort,
+                "search_after": search_after,
+                "track_total_hits": True,
+                "version": True,
+            },
+        )
         raise NotImplementedError  # nocheckin: datasets
 
     @message_handler
@@ -399,7 +424,7 @@ class LanguageWorker:
         self.fetcher = fetcher
         self.interpreter = LanguageInterpreter(fetcher)
         # module data
-        self.source: wire.ModuleData | None = None
+        self.source: wire.ModuleTreeData | None = None
         self.interp: Optional[InterpModule] = None
         self.last_interp: Optional[InterpModule] = None
 

@@ -354,6 +354,12 @@ def pack_node_flat(node: NodeT) -> NodeDataT:
     return packer.pack(node)
 
 
+def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT], session: Optional[Session]) -> NodeT:
+    """Unpack a flat module node into a language node"""
+    packer = _node_packers_by_data[type(node)]
+    return packer.unpack(node, parent, session)
+
+
 def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
     """Patch a flat node with out-of-tree-ancestry references"""
     packer = _node_packers_by_data[type(node)]
@@ -1092,6 +1098,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
     def pack(self, record: lang.Record) -> "RecordData":
         return RecordData(
             id=record.id,
+            parent_id=record.parent_id,
             order_key=record.order_key,
             data=record.data,
             revision=record.revision,
@@ -1106,9 +1113,9 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
     ) -> lang.Record:
         return lang.Record(
             id=record.id,
+            parent=parent,
             data=record.data,
             order_key=record.order_key,
-            parent=parent,
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,

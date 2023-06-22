@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import abc
 import contextvars
 import enum
@@ -73,11 +71,11 @@ ModuleReference = typing.NamedTuple(
 )
 
 
-def statement_path_as_str(statement_path: StatementPath) -> str:
+def statement_path_as_str(statement_path: "StatementPath") -> str:
     return f"{statement_path.path}:{statement_path.name}"
 
 
-def parse_statement_path(statement_path: str) -> StatementPath:
+def parse_statement_path(statement_path: str) -> "StatementPath":
     if ":" not in statement_path:
         raise ValueError(f"invalid statement path: {statement_path}")
     path, name = statement_path.split(":")
@@ -102,17 +100,40 @@ if typing.TYPE_CHECKING:
     node = dataclass
 else:
 
-    def node(cls):
-        """Decorator alias for dataclass."""
-        cls = dataclass(cls, repr=False, eq=False)
-        cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]
-        return cls
+    def node(cls: Optional[type] = None, tracked: list[str] = None):
+        """
+        Decorator alias for module node.
+        Only tracked properties may be mutated during a session (by the user).
+        """
+
+        def decorate(cls):
+            cls = dataclass(cls, repr=False, eq=False)
+            cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]
+            # check that all tracked properties are actually properties
+            for prop in tracked or []:
+                if prop not in cls._PROPERTIES:
+                    raise ValueError(f"invalid tracked property: {prop}")
+            cls._TRACKED = tracked or []
+            # add tracked properties from base classes
+            for base in cls.__bases__:
+                if hasattr(base, "_TRACKED"):
+                    cls._TRACKED.extend(base._TRACKED)
+            # can only track properties inside a session
+            if cls._TRACKED and not issubclass(cls, HasSession):
+                raise ValueError("cannot have tracked properties without HasSession")
+
+            return cls
+
+        if cls is not None:
+            return decorate(cls)
+
+        return decorate
 
 
 @node
 class ModuleNode(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
-    parent: Optional[ModuleNode] = None
+    parent: Optional["ModuleNode"] = None
     revision: int = 0
 
     def __eq__(self, other):
@@ -122,7 +143,7 @@ class ModuleNode(abc.ABC):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
 
-    def walk(self) -> typing.Iterator[ModuleNode]:
+    def walk(self) -> typing.Iterator["ModuleNode"]:
         from bench.bench.wire import walk_node
 
         return walk_node(self)
@@ -214,18 +235,18 @@ SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
 
 @node
 class Scope:
-    parent: Optional[Scope] = None
-    scopes_by_name: dict[str, Scope] = field(default_factory=dict)
-    symbols_by_id: dict[UUID, Symbol] = field(default_factory=dict)
+    parent: Optional["Scope"] = None
+    scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
+    symbols_by_id: dict[UUID, "Symbol"] = field(default_factory=dict)
     names_by_identifier: dict[str, str] = field(default_factory=dict)
 
     @cached_property
-    def root_scope(self) -> Scope:
+    def root_scope(self) -> "Scope":
         if self.parent is None:
             return self
         return self.parent.root_scope
 
-    def get_in_scope(self, name: str, by: LookupBy) -> Scope | None:
+    def get_in_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         if by == LookupBy.Name:
             return self.scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
@@ -236,7 +257,7 @@ class Scope:
             raise ValueError(f"unexpected lookup type: {by}")
         return None
 
-    def find_scope(self, name: str, by: LookupBy) -> Scope | None:
+    def find_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         scope = self.get_in_scope(name, by)
         if scope is not None:
             return scope
@@ -253,7 +274,7 @@ class Scope:
 
     def lookup_symbol(
         self,
-        path: StatementPath | UUID | str,
+        path: Union["StatementPath", UUID, str],
         symbol_t: StatementType | typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT | None:
@@ -276,7 +297,7 @@ class Scope:
             return None
         return scope.lookup_symbol(path, symbol_t=symbol_t)
 
-    def _add_statement(self, statement: Statement, by_name: bool) -> None:
+    def _add_statement(self, statement: "Statement", by_name: bool) -> None:
         if statement.name is not None and by_name:
             if statement.name in self.scopes_by_name:
                 self._on_issue(
@@ -302,8 +323,8 @@ class Scope:
 @node
 class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
-    files: list[File] = field(default_factory=list)
-    dependencies: dict[str, Module | ModuleReference] = field(default_factory=dict)
+    files: list["File"] = field(default_factory=list)
+    dependencies: dict[str, Union["Module", ModuleReference]] = field(default_factory=dict)
     parent: None = None
     parent_scope: Scope = None
     committed: bool = False
@@ -312,7 +333,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def attached(self) -> bool:
         return True  # root is always "attached"
 
-    def add_dependency(self, module: Module | ModuleReference) -> None:
+    def add_dependency(self, module: Union["Module", ModuleReference]) -> None:
         if module.name in self.dependencies:
             raise ValueError(
                 f"{self} has dependency {module.name}: {self.dependencies[module.name]}"
@@ -321,7 +342,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def lookup_symbol(
         self,
-        path: StatementPath | UUID | str,
+        path: Union["StatementPath", UUID, str],
         symbol_t: typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT:
@@ -344,7 +365,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def __repr__(self):
         return f"<Module {str(self)}>"
 
-    def instantiate_in(self, session: Session):
+    def instantiate_in(self, session: "Session"):
         if self._session is not None:
             self._session.remove(self)
         self._session = session
@@ -368,21 +389,23 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             else:
                 self.scopes_by_name[file.name] = file
             self.symbols_by_id.update(file.symbols_by_id)
+        for dependency in self.dependencies.values():
+            self.symbols_by_id.update(dependency.symbols_by_id)
 
     def interp(self):
         for file in self.files:
             file._interp()
 
 
-@node
+@node(tracked=["name", "parent"])
 class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     module: Module = required_field()
     name: str = required_field()
-    parent: File | Module = None
-    children: list[File] | None = None
-    statements: list[Statement] = field(default_factory=list)
+    parent: Union["File", Module] = None
+    children: list["File"] | None = None
+    statements: list["Statement"] = field(default_factory=list)
     # index
-    statements_by_parent_id: dict[UUID | None, list[Statement]] | None = None
+    statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -403,7 +426,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         else:
             return self.name
 
-    def append(self, *statements: Statement):
+    def append(self, *statements: "Statement"):
         """Appends the statements to this file."""
         for statement in statements:
             statement.file = self
@@ -450,13 +473,13 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             statement._interp(statement)
 
 
-@node
+@node(tracked=["name", "parent", "order_key"])
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A Bench statement."""
 
     file: File | None = None
-    parent: Statement | File = None
-    children: list[Statement] | None = None
+    parent: Union["Statement", File] = None
+    children: list["Statement"] | None = None
     order_key: str | None = None
     type: StatementType = StatementType.BLANK
     name: Optional[str] = None
@@ -530,14 +553,14 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         pass
 
 
-@node
+@node(tracked=[])
 class Blank(Statement):
     """A blank statement."""
 
     type: StatementType = StatementType.BLANK
 
 
-@node
+@node(tracked=["text"])
 class Text(Statement):
     """A comment that's not semantic/interpreted by default."""
 
@@ -553,7 +576,7 @@ class SymbolBase(abc.ABC):
     """Base for interpretable symbols for type-checking."""
 
     parent: Statement | File
-    session: Session
+    session: "Session"
 
     def _clear(self) -> None:
         raise NotImplementedError
@@ -690,7 +713,7 @@ class Session:
         inference_timeout: int = 30,
         inference_retries: int = 5,
         mode: SessionMode = SessionMode.READ_ONLY,
-        write: Callable[[list[ModuleMutation]], typing.Awaitable[bool]] = None,
+        write: Callable[[list["ModuleMutation"]], typing.Awaitable[bool]] = None,
         executor: Executor = None,
     ):
         from bench.bench.mutate import ModuleMutator

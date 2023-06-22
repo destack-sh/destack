@@ -279,7 +279,7 @@ def new_field_key() -> str:
     return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
 
 
-@node
+@node(tracked=["name", "description", "tag", "hint", "order_key", "flags", "metadata"])
 class Field(ModuleNode, HasCrud, HasSession, TypeBase):
     parent: Statement | None = None
     name: Optional[str] = None

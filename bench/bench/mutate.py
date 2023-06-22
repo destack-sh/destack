@@ -97,8 +97,8 @@ class ModuleMutationType(enum.StrEnum):
     CREATE_RESOLVED_FIELD = "CREATE_RESOLVED_FIELD"
 
     @property
-    def is_soft(self) -> bool:
-        return self.value.startswith("SOFT_")
+    def is_soft_delete(self) -> bool:
+        return self.value.startswith("SOFT_DELETE_")
 
     @property
     def kind(self) -> "ModuleMutationKind":

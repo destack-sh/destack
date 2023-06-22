@@ -154,17 +154,17 @@ def write_mutations_to_os(
     os_operations: list[dict] = []
     global_index_name = IndexType.GLOBAL.get_index_name()
     bench_index_name = IndexType.BENCH.get_index_name(project_v.project_id)
-    mappings_dirty = False
+    field_mappings_dirty = False
     for m in mutations:
         # index directly as primary or secondary store
         if m.mot == MOT.RECORD or mirror.has_mirror(m.thing):
             index_name = bench_index_name if m.mot == MOT.RECORD else global_index_name
-            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft:
+            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
                 mirrored = mirror.mirror_node(project_v, m.thing)
-                op = (
-                    {"index": {"_index": index_name, "_id": str(m.thing.id)}},
-                    mirrored.to_dict(),
-                )
+                mirrored_data = mirrored.to_dict()
+                if m.properties is not None:  # limit to relevant properties if specified
+                    mirrored_data = {k: v for k, v in mirrored_data.items() if k in m.properties}
+                op = ({"index": {"_index": index_name, "_id": str(m.thing.id)}}, mirrored_data)
                 os_operations.extend(op)
             elif m.type.kind == MMK.DELETE:
                 op = {"delete": {"_index": index_name, "_id": str(m.thing.id)}}
@@ -177,9 +177,9 @@ def write_mutations_to_os(
                 )
         # mark field mappings as dirty if relevant
         if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
-            mappings_dirty = True
+            field_mappings_dirty = True
 
-    if mappings_dirty:  # if needed, must happen before any other mutations
+    if field_mappings_dirty:  # if needed, must happen before any other mutations
         update_dynamic_field_mappings(project_v)
 
     if os_operations:

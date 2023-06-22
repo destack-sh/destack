@@ -36,14 +36,14 @@ from bench.bench.const import TypeFlag, TypeTag, TypeHint, ExpectationModifier
 from bench.utils.utils import DotDict
 
 
-@node
+@node(tracked=["description"])
 class Task(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
     _implementations: dict[str, "XPrompt"] | None = None
     # should probably store last good implementation ... in redis?
-    last_good_impl_idx: int = 0
+    _last_good_impl_idx: int = 0
 
     def _clear(self) -> None:
         Symbol._clear(self)
@@ -80,7 +80,7 @@ class Task(Symbol, HasType, HasExpectations):
                 self._cached_implementations[cache_key] = implementation
             candidates.append(self._cached_implementations[cache_key])
         # TODO @Broken: sort/filter implementations with some smartness
-        impl_idx = self.last_good_impl_idx
+        impl_idx = self._last_good_impl_idx
         retries = retries if retries is not None else self.session.inference_retries
         remaining_retries = retries
 
@@ -95,7 +95,7 @@ class Task(Symbol, HasType, HasExpectations):
             )
             try:
                 ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
-                self.last_good_impl_idx = impl_idx
+                self._last_good_impl_idx = impl_idx
                 self.session.tracer.code_exit(self, args, kwargs, ret)
                 return ret
             except XGenerationError as e:
@@ -365,15 +365,15 @@ class XTypeSchema(XEmit):
     def __call__(self) -> XBlock:
         bench_lines = []
         seen_types: set[uuid.UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
-        for node in self.type.walk_type(include_references=True):
-            if node.id in seen_types:
+        for n in self.type.walk_type(include_references=True):
+            if n.id in seen_types:
                 continue
-            seen_types.add(node.id)
-            if node.reference is not None:
+            seen_types.add(n.id)
+            if n.reference is not None:
                 continue  # skip the link
-            if node.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
-                # nocheckin: render type schema properly depending on model backend
-                line = render_statement(node.source, include_content=node.tag != TypeTag.FUNCTION)
+            if n.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
+                # nocheckin: render type schema properly for model backend
+                line = render_statement(n.source, include_content=n.tag != TypeTag.FUNCTION)
                 bench_lines.append(line)
         bench_str = "\n\n".join(bench_lines)
         schema_str = f"Type schemas you must adhere to. Do not invent new fields or options. ? = optional:\n{bench_str}".strip()

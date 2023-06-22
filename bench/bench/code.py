@@ -40,7 +40,7 @@ class CodeParse:
     fake_line_numbers: list[int] = field(default_factory=list)
 
 
-@node
+@node(tracked=["language", "code"])
 class Code(Symbol, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
